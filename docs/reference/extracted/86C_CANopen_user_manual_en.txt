@@ -1,0 +1,1216 @@
+
+
+=== PDF PAGE 1 ===
+     CL86-C/OL86-C
+CANopen Bus-Type Step Drive
+
+
+        User Manual
+
+=== PDF PAGE 2 ===
+                   CONTENTS
+
+CHAPTER I PRODUCT INTRODUCTION ........................................................................................................... 1
+
+  1.1 PRODUCT INTRODUCTION .................................................................................................................................... 1
+  1.2 COMMUNICATION SPECIFICATIONS ....................................................................................................................... 1
+  1.3 PRODUCT SPECIFICATIONS .................................................................................................................................... 1
+  1.4 DRIVE MOUNTING DIMENSIONS ............................................................................................................................ 2
+  1.5 DESCRIPTION OF EACH DRIVE PART ...................................................................................................................... 2
+
+CHAPTER II DRIVE PORT AND WIRING ........................................................................................................... 3
+
+  2.1 DEFINITION OF DRIVE PORT .................................................................................................................................. 3
+     2.1.1 CANopen communication port .................................................................................................................... 3
+     2.1.2 RS232 communication port ......................................................................................................................... 3
+     2.1.3 Encoder port................................................................................................................................................. 3
+     2.1.4 Motor power line port .................................................................................................................................. 4
+     2.1.5 Power supply port ........................................................................................................................................ 4
+     2.1.6 DI/DO port ................................................................................................................................................... 4
+  2.2 WIRING ................................................................................................................................................................ 5
+     2.2.1 Drive wiring diagram ................................................................................................................................... 5
+     2.2.2 Description of DI/DO interface ................................................................................................................... 6
+     2.2.3 Description of CANopen installation and wiring......................................................................................... 7
+     2.2.4 Setting of dial switch ................................................................................................................................... 7
+
+CHAPTER III DESCRIPTION OF COMMUNICATION CONTROL ................................................................ 9
+
+  3.1 CONTROL MODE ................................................................................................................................................... 9
+  3.2    PROFILE POSITION MODE ............................................................................................................................... 9
+     3.2.1 Related parameters ....................................................................................................................................... 9
+     3.2.2 Description of position mode ....................................................................................................................... 9
+     3.2.3 Description of control steps ....................................................................................................................... 10
+  3.3 PROFILE VELOCITY MODE .................................................................................................................................. 11
+     3.3.1 Related parameters ..................................................................................................................................... 11
+     3.3.2 Description of control steps ....................................................................................................................... 11
+  3.4 HOMING MODE ................................................................................................................................................... 11
+     3.4.1 Related parameters ..................................................................................................................................... 11
+     3.4.2 Description of homing mode ..................................................................................................................... 11
+     3.4.3 Description of control steps ....................................................................................................................... 13
+  3.5 OTHER COMMON FUNCTIONS ............................................................................................................................. 13
+     3.5.1 Clearing current position ........................................................................................................................... 13
+     3.5.2 Saving parameters ...................................................................................................................................... 13
+     3.5.2 Alarm reset ................................................................................................................................................. 13
+  3.6 OBJECT DICTIONARY .......................................................................................................................................... 13
+     3.6.1 1000h group objects ................................................................................................................................... 13
+     3.6.2 6000h group objects ................................................................................................................................... 14
+     3.6.3 Factory defined 2000h parameters ............................................................................................................. 15
+  3.7 ALARM PROCESSING .......................................................................................................................................... 18
+
+=== PDF PAGE 3 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+                 Chapter I Product Introduction
+
+1.1 Product Introduction
+
+    Each step drive of this series is manufactured based on a new generation 32-bit DSP technology, which is
+provided with the CANopen bus control function, supports the CIA301 protocol and CIA402.V2 sub-protocol
+and can carry up to 32 axes for multi-axis high-speed bus synchronization control. The drive supports the
+position mode, speed mode and homing mode. The standardized protocols make the entire control system more
+stable and reliable. The simple on-site wiring can help to effectively avoid the pulse loss problem of traditional
+drives under interference.
+
+1.2 Communication specifications
+
+                     Physical layer     Meeting the ISO 11898-2 physical layer standard
+                 Communication    RJ45 × 2
+                      connector
+                    Network         Serial connection
+                        architecture
+                  Transmission rate   2 x 1 Mbps (half-duplex)
+                   Application layer   CiA301 protocol and CiA402 sub-protocol
+Communication        protocol
+ specifications    Number of slave    Max.: 32 axes
+                          stations
+                             SDO:  aperiodic data object
+                 Communication
+                             PDO:  periodic data object
+                         object
+                           EMCY:  emergency object
+                                           Profile Position Mode
+                 Supported control
+                                           Profile Velocity Mode
+                    modes
+                               Homing Mode
+
+
+1.3 Product specifications
+
+         Drive model
+                               CL86-C                          OL86-C
+Parameter
+   Matched motor                                         60/86
+   Supply voltage                      18～80VAC  36～110VDC
+  Maximum output
+                                           8A
+        current
+ DI port input current                         10～50mA
+DI port input voltage                             24V DC
+      Encoder                  1000-line incremental                      N/A
+Serial port debugging                            RS232 interface
+ Insulation resistance                           100MΩ
+                     Temp.: 0 ℃～ 45℃.
+                      Humidity: ≤ 90% RH, without condensation.
+      Operating         Altitude: ≤1000m.
+    environment        Installation environment: without corrosive and flammable gases, without oil mist or
+                          dust, etc.
+                         Vibration: < 0.5G (4.9m/s2), 10~60 Hz (non-continuous operation).
+ Storage environment          -20～65℃ (without frost), < 90% RH (without condensation)
+     Drive size                                      150*97.5*52.6
+    Drive weight
+
+
+
+
+
+                                                   1
+
+=== PDF PAGE 4 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+1.4 Drive mounting dimensions
+
+
+
+
+
+1.5 Description of each drive part
+                                 RS232 serial port
+                                         debugging
+                                                      Dialing switch                                               terminal
+
+
+
+
+                                                  RS232
+                                                          debuggi                     Power supply/alarm     Indicator
+                                                      ng port
+
+                                                          CANopen
+                                           Station number                               communication port
+
+
+                                                                                                                                definedUser-
+
+                                                                                                                                                                                                                                                                     signal
+                                                                                                                                   24V         DI/DO control
+                                                                                 terminal
+
+                                                                      Encoder terminal
+                                                                                                                                                                                                                                                                                                                    Encoder           (not provided for                                                                    open loop drives)
+                                             Baud rate
+
+                                                             Baud rate
+                                                                                                                                                                                                                          Motor         Motor power cable
+                                                                                terminal
+
+
+                                   SW8: RS485 terminal resistor. For the
+                                           bus end drive, this dialing switch should                 Power terminal
+                                          be set to ON, and other drives, to OFF
+
+
+
+
+
+                                                   2
+
+=== PDF PAGE 5 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+                Chapter II Drive Port and Wiring
+
+2.1 Definition of drive port
+
+2.1.1 CANopen communication port
+
+       Pin       Network           Signal definition
+                                                                                                                Pin 1                        Pin 8
+                  cable color
+        1       White/orange         CAN+
+        2         Orange            CAN-
+        3        White/green         GND                                                             RJ45 plug
+        4           Blue            NC
+        5         White/blue          NC
+        6          Green            NC
+        7       White/brown          NC
+        8         Brown            NC
+                                                                          Registered jack pin order
+
+
+2.1.2 RS232 communication port
+
+       Pin         Signal              Description
+                    definition
+        1       GND               Signal ground
+        2       GND               Signal ground
+        3       TXD       Communication transmitting
+        4       RXD        Communication receiving                                                                                      RS232 debugging port
+        5       GND               Signal ground
+        6       GND               Signal ground
+
+
+
+2.1.3 Encoder port
+
+   Pin        Definition            Description
+    1        EA+        Positive / negative terminal of
+    2         EA-             encoder A-phase
+    3        EB+        Positive / negative terminal of
+    4          EB-             encoder B-phase
+    5         EZ+        Positive / negative terminal of
+    6          EZ-              encoder Z-phase
+    7       EVCC      Positive terminal of encoder
+                                                            Encoder wire terminal                         power supply (5V)
+    8       EGND      Negative terminal of encoder
+                         power supply (5V)
+    9        NC      Not connected
+    10       NC      Not connected
+
+
+
+
+
+                                                   3
+
+=== PDF PAGE 6 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+2.1.4 Motor power line port
+
+       Pin        Definition            Description
+        1        A+
+                                  Motor A phase coil
+        2          A-
+        3         B+
+                                  Motor B phase coil
+        4           B-
+
+2.1.5 Power supply port
+
+       Pin        Definition            Description
+        1       VDC        Positive terminal of DC power
+                                      supply (24V-50V)
+        2       GND      Negative terminal of DC power
+                                           supply
+
+2.1.6 DI/DO port
+
+       Pin        Definition            Description
+        1          DI0
+        2          DI1
+        3          DI2            Single-end input port;
+        4          DI3          Effective operating voltage
+        5          DI4               24V
+        6          DI5
+        7          DI6
+                         Common terminal of input
+                                                    port;
+        8      DICOM        Compatible for common
+                               anode/common cathode
+                                          connection
+        9       DO0
+       10       DO1           Single-end output port
+        11       DO2
+                        Common terminal of output
+                                                    port;
+       12     DOCOM    Only connecting to the negative
+                                   terminal of the power supply is
+                                          allowed
+
+
+
+
+
+                                                   4
+
+=== PDF PAGE 7 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+2.2 Wiring
+
+2.2.1 Drive wiring diagram
+
+
+
+
+
+                                              bus type drive
+
+
+                             Origin signal
+
+                                                                                     port
+                                Positive limit
+
+                                                                                     port
+                            Negative limit
+
+
+                           Enabling signal                                                         port
+
+
+                             User-defined
+
+
+                             User-defined
+                                                                                                       Switching
+                                                                                            power supply
+                                                                                        24V-50V
+                             User-defined
+
+
+
+
+
+                         Alarm
+
+
+                                Positioning
+                             completed
+
+                                    Internal
+                                 contracting                                         Encoder
+                             brake release
+
+
+
+
+
+Note: 1. The DI input voltage is 24V. If the voltage exceeds 24V, a current limiting resistor shall be
+        used;
+       2. The wiring of the DI input port supports common anode/common cathode connection.
+      When DICOM is 24V, the connection of the DI port to 0V is effective, and when DICOM
+           is 0V, the connection of the DI port to 24V is effective.
+       3. The common terminal DOCOM of the DO port is only allowed to be connected to 0V
+         rather than 24V.
+
+
+
+
+                                                   5
+
+=== PDF PAGE 8 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+2.2.2 Description of DI/DO interface
+
+    Each drive of this series has 7 programmable input interfaces and 3 programmable output
+interfaces. The corresponding functions of each DI/DO can be configured through the CANopen
+bus or the upper computer debugging software. The relevant configuration parameters are shown
+in the following table:
+
+      MODBUS address   Index                                          Default
+  No.                               Subindex         Description
+               (decimal)        No.                                            value
+ PA_020          32             2400        01        Effective level of DI terminal      0
+ PA_021          33             2400        02       DI0 terminal function selection       1
+ PA_022          34             2400        03       DI1 terminal function selection       2
+ PA_023          35             2400        04       DI2 terminal function selection       3
+ PA_024          36             2400        05       DI3 terminal function selection       0
+ PA_025          37             2400        06       DI4 terminal function selection       0
+ PA_026          38             2400        07       DI5 terminal function selection       0
+ PA_027          39             2400        08       DI6 terminal function selection       0
+PA_02A          42             2400       0A     DI terminal filtering coefficient     0
+ PA_02B          43             2400       0B       Effective level of DO terminal      0
+ PA_02C          44             2400       0C     DO0 terminal function selection      1
+PA_02D          45             2400       0D     DO1 terminal function selection      0
+ PA_02E          46             2400       0E     DO2 terminal function selection      0
+ PA_030          48             2401        00          DI0 filtering coefficient         2
+ PA_031          49             2402        00          DI1 filtering coefficient         2
+ PA_032          50             2403        00          DI2 filtering coefficient         2
+ PA_033          51             2404        00          DI3 filtering coefficient         2
+ PA_034          52             2405        00          DI4 filtering coefficient         2
+ PA_035          53             2406        00          DI5 filtering coefficient         2
+ PA_036          54             2407        00          DI6 filtering coefficient         2
+
+
+Function command table of DI port:
+   Command                            Command
+                       Function description                           Function description
+      value                                            value
+       0                   Undefined                 7              User Definition 0
+       1                    Origin signal                8              User Definition 1
+       2                  Positive limit signal              9              User Definition 2
+       3               Negative limit signal             10              User Definition 3
+       4             Motor enabling signal             11              User Definition 4
+       5                     Signal stop                 12              User Definition 5
+       6             Emergency stop signal            13              User Definition 6
+
+
+Function command table of DO port:
+   Command                            Command
+                       Function description                           Function description
+      value                                            value
+                                                                        Release signal of internal
+       0                   Undefined                 5
+                                                                                  contracting brake
+       1                 Alarm signal                9              User Definition 0
+       2              Motor running signal             10              User Definition 1
+       3           Homing completion signal           11              User Definition 2
+       4                    In-place signal
+
+
+
+
+
+                                                   6
+
+=== PDF PAGE 9 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+2.2.3 Description of CANopen installation and wiring
+
+Each CANopen bus drive of this series has 2 standard RJ45 network interfaces, in which Pins 1 and 2 correspond
+to CAN_H and CAN_L signal wires, respectively, and Pin 3, to GND. It is recommended to use a shielded
+twisted-pair or network cable as the transmission medium for communication. All nodes shall be directly
+connected to this pair of public transmission medium and arranged in parallel for receiving or sending data
+information. For the drive at the end of the bus, the dial switch SW8 shall be set to ON, indicating that a
+terminating resistance shall be connected for termination in order to prevent the signal sent by the node on the
+network from being reflected when reaching the end of the cable.
+
+                                                                                                        Dialing switch
+                                                                                                         Set SW8 to ON
+         CANopen Controller
+
+
+
+
+
+                                         Wiring diagram
+    For common wiring lengths, see the following table:
+
+                                            Recommended max.
+                            Baud rate
+                                                                length
+                           1Mbps               25m
+                             500Kbps              100m
+                             250Kbps              250m
+                             125Kbps              500m
+
+2.2.4 Setting of dial switch
+
+    Each CANopen bus drive of this series has 8 dial switch bits for setting the CANopen station number,
+communication baud rate, and terminal resistance. The distribution is shown in the following figure:
+
+           SW1   SW2   SW3   SW4   SW5   SW6   SW7   SW8
+
+
+
+                                 Station number                 Baud rate     Terminal
+                                       setting                              setting       resistance
+Baud rate setting:
+
+                    Baud rate        SW6         SW7
+                       125Kbps        ON          ON
+                       250Kbps         OFF          ON
+                       500Kbps        ON           OFF
+                      1Mbps          OFF           OFF
+
+
+
+                                                   7
+
+=== PDF PAGE 10 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+Drive station number setting:
+
+   Station                                              Station
+         SW1  SW2  SW3  SW4  SW5         SW1  SW2  SW3  SW4  SW5
+  number                                  number
+User-defined  OFF   OFF   OFF   OFF   OFF     16    OFF   OFF   OFF   OFF   ON
+     1     ON   OFF   OFF   OFF   OFF     17    ON   OFF   OFF   OFF   ON
+     2      OFF   ON   OFF   OFF   OFF     18    OFF   ON   OFF   OFF   ON
+     3     ON   ON   OFF   OFF   OFF     19    ON   ON   OFF   OFF   ON
+     4      OFF   OFF   ON   OFF   OFF     20    OFF   OFF   ON   OFF   ON
+     5     ON   OFF   ON   OFF   OFF     21    ON   OFF   ON   OFF   ON
+     6      OFF   ON   ON   OFF   OFF     22    OFF   ON   ON   OFF   ON
+     7     ON   ON   ON   OFF   OFF     23    ON   ON   ON   OFF   ON
+     8      OFF   OFF   OFF   ON   OFF     24    OFF   OFF   OFF   ON   ON
+     9     ON   OFF   OFF   ON   OFF     25    ON   OFF   OFF   ON   ON
+    10      OFF   ON   OFF   ON   OFF     26    OFF   ON   OFF   ON   ON
+    11     ON   ON   OFF   ON   OFF     27    ON   ON   OFF   ON   ON
+    12      OFF   OFF   ON   ON   OFF     28    OFF   OFF   ON   ON   ON
+    13     ON   OFF   ON   ON   OFF     29    ON   OFF   ON   ON   ON
+    14      OFF   ON   ON   ON   OFF     30    OFF   ON   ON   ON   ON
+    15     ON   ON   ON   ON   OFF     31    ON   ON   ON   ON   ON
+
+
+Terminal resistance setting
+   When SW8 is set to ON, a terminal resistance of 120Ω will be connected between the signal wires to
+prevent the signal sent by the node on the network from reflecting when reaching the end of the cable.
+
+
+
+
+
+                                                   8
+
+=== PDF PAGE 11 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+         Chapter III Description of Communication Control
+
+3.1 Control mode
+
+    Each drive of this series supports 3 control modes, which can be set through Object 6060h. The current
+control mode the drive can be monitored through Object 6061h.
+
+    Index       Subindex       Name          Parameter value      Data Type    Property
+                                                                 0: Undefined
+                                                               1: Position mode
+    6060h          00         Operating mode                      INTEGER8   RW
+                                                               3: Velocity mode
+                                                               6: Homing mode
+
+3.2 Profile position mode
+
+3.2.1 Related parameters
+
+    Index       Subindex        Name              Setting range      Data Type    Property
+                                  Control command
+    6040h          00                               0 ～ 65535     UNSIGNED16   RW
+                                  word
+    6060h          00       Operating mode setting          0,1,3,6        INTEGER8    RW
+                                                      -1000000 ～
+   607Ah          00           Target position                     INTEGER32   RW
+                                                    +1000000
+    6081h          00        Target velocity (rpm)       0 ～ 3000     UNSIGNED32   RW
+    6083h          00        Acceleration time (ms)       0 ～ 2000     UNSIGNED32   RW
+    6084h          00        Deceleration time (ms)       0 ～ 2000     UNSIGNED32   RW
+    2201h          00             Subdivision          0 ～ 65535     UNSIGNED16   RW
+    6041h          00              Status word                     UNSIGNED16   RO
+                                  Operating mode
+    6061h          00                                        INTEGER8    RO
+                                     monitoring
+    6064h          00          Current position                     INTEGER32    RO
+
+3.2.2 Description of position mode
+
+    The motion parameters can be given by the CANopen bus position mode through the master station, which
+are: target position (607Ah-00), target velocity (6081h-00), acceleration time (6083h-00), deceleration time
+(6084h-00), and then the motion path can be established by the drive according to these parameters to achieve
+accurate position control. The motion curve is shown in the following figure:
+
+
+
+                                                                          Target                              目标速度
+                                                       (rpm)                                            velocity                                                                           速度（rpm）                                                                                        Velocity                              Target position
+                        目标位置(number of
+                                                                        pulses)
+                        （脉冲数）
+
+
+
+                                                                               Time时间(ms)
+                加速时间Accelerati           减速时间Decelerati
+                                   on time                           on time    （ms）
+
+
+                                                   9
+
+=== PDF PAGE 12 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+3.2.3 Description of control steps
+
+     1. First, set the operating mode (6060h-00) to 1, and then set the monitoring operating mode (6061h-00) to
+     1, indicating that it is in the position mode;
+     2. Write 6, 7 and 15 into the control word in turn at an interval of about 10ms. After writing, the motor can
+    be enabled;
+     3. Write the motion parameters into the target position (607Ah-00), target velocity (6081h-00), acceleration
+     time (6083h-00) and deceleration time (6084h-00);
+     4. Enable motor running through Bit4-Bit6 of the control word (6040h-00). See the following for the
+     description of the control word:
+
+               Control bit of the
+                                              Function description
+            command word
+                       Bit4          1: Enabling a new target position (rising edge triggered)
+                                         0: Updating motion parameters after completing the
+                       Bit5                          current position curve;
+                                             1: Updating motion parameters immediately.
+                                                    0: Absolute positioning mode;
+                       Bit6
+                                                     1: Relative positioning mode.
+
+     Table of control word values:
+
+           Command word (6040h-00)
+                          setting value                         Description
+                         (decimal)
+                        6->7->15                             Yes
+                        15->31                    Enabling absolute positioning
+                        15->95                     Enabling relative positioning
+                                                   Performing absolute positioning
+                        15->63               immediately according to the new motion
+                                                                 parameters.
+                                                    Performing relative positioning
+                        15->127              immediately according to the new motion
+                                                                 parameters.
+                         15->11                        Emergency stop
+
+     5. The current status of the drive can be monitored through the status word (6041h-00), see the following
+     table:
+
+              Corresponding
+                 bits of the status                        Description
+                word
+                           When 6040=0, the corresponding bit of 6041 is 000
+                           When 6040=6, the corresponding bit of 6041 is 001
+                  Bit0~Bit2
+                           When 6040=7, the corresponding bit of 6041 is 011
+                           When 6040=15, the corresponding bit of 6041 is 111
+                                                             0: Drive ready
+                     Bit7
+                                                             1: Drive alarm
+                                                       0: Homing not completed
+                     Bit8
+                                                         1: Homing completed
+                                                          0: Motor in operating
+                    Bit10
+                                                          1: Motor velocity: 0
+                                                    0: Target position to be effective
+                    Bit12
+                                                       1: Target position, effective
+                                                      0: Position mode not in place
+                    Bit15
+                                                1: Position mode positioning completed
+
+
+                                                   10
+
+=== PDF PAGE 13 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+3.3 Profile velocity mode
+
+3.3.1 Related parameters
+
+     Index          Subindex          Name                  Setting range          Data Type     Property
+
+     6040h             00         Control command word          0 ～ 65535        UNSIGNED16    RW
+     6060h             00         Operating mode setting               0,1,3,6           INTEGER8    RW
+     60FFh             00           Target velocity (rpm)           0 ～ 3000         UNSIGNED32    RW
+     6083h             00          Acceleration time (ms)          0 ～ 2000         UNSIGNED32    RW
+     6084h             00          Deceleration time (ms)          0 ～ 2000         UNSIGNED32    RW
+     6041h             00               Status word                           UNSIGNED16    RO
+                                        Operating mode
+     6061h             00                                                INTEGER8     RO
+                                           monitoring
+
+3.3.2 Description of control steps
+
+     1. First, set the operating mode (6060h-00) to 3, and then set the monitoring operating mode (6061h-00) to
+     3, indicating that it is in the velocity mode;
+     2. Write 6, 7 and 15 into the control word in turn at an interval of about 10ms. After writing, the motor can
+    be enabled;
+     3. Write the motion parameters into the target velocity (60FFh-00), acceleration time (6083h-00) and
+     deceleration time (6084h-00);
+     4. Enable motor running through Bit4-Bit6 of the control word (6040h-00). See Section 3.1.2:
+
+
+3.4 Homing mode
+
+3.4.1 Related parameters
+
+     Index          Subindex          Name                  Setting range          Data Type     Property
+
+     6040h             00         Control command word          0 ～ 65535        UNSIGNED16    RW
+     6060h             00         Operating mode setting               0,1,3,6           INTEGER8    RW
+                                                                 17: Negative limit mode;
+                                                                  18: Positive limit mode;
+     6098h             00           Homing mode                          UNSIGNED8    RW
+                                                                 24: Positive origin mode;
+                                                                 29: Negative origin mode;
+     6099h             01       Homing velocity (rpm)          0 ～ 3000         UNSIGNED32    RW
+                                Homing creep time            0 ～ 3000
+     6099h             02                                             UNSIGNED32    RW
+                                            (rpm)
+                                           Acceleration /              0 ～ 2000
+     609Ah             00                                             UNSIGNED32    RW
+                                         deceleration time (ms)
+     607Ch             00           Homing offset         -1000000 ～ +1000000     INTEGER32    RW
+     6041h             00               Status word                           UNSIGNED16    RO
+                                        Operating mode
+     6061h             00                                                INTEGER8     RO
+                                           monitoring
+
+3.4.2 Description of homing mode
+
+     1. Negative limit mode (6098h=17): After homing is allowed, the motor will run in the negative direction
+      at the homing velocity (6099h-01). It will decelerate and stop when the negative limit switch is sensed, then
+       it will run in the positive direction at the homing velocity (6099h-01) for a certain distance and decelerate
+    and stop. Then it will run in the negative direction at a homing creep velocity (6099h-02). When the
+     negative limit switch is sensed, the motor will stop, indicating that the homing operation is completed.
+
+
+
+
+                                                   11
+
+=== PDF PAGE 14 ===
+                     User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+                                      Negative负限位开关limit switch
+
+
+
+
+
+2. Positive limit mode (6098h=18): After homing is allowed, the motor will run in the positive direction at
+the homing velocity (6099h-01). It will decelerate and stop when the positive limit switch is sensed, then it
+will run in the negative direction at the homing velocity (6099h-01) for a certain distance and decelerate and
+stop. Then it will run in the positive direction at a homing creep velocity (6099h-02). When the positive
+limit switch is sensed, the motor will stop, indicating that the homing operation is completed.
+
+                                                                            Positive正限位开关limit switch
+
+
+
+
+
+3. Positive origin mode (6098h=24): After homing is allowed, the motor will run in the positive direction
+at the homing velocity (6099h-01). It will decelerate and stop when the origin switch is sensed, then it will
+run in the negative direction at the homing velocity (6099h-01) for a certain distance and decelerate and
+stop. Then it will run in the positive direction at a homing creep velocity (6099h-02). When the origin
+switch is sensed, the motor will stop, indicating that the homing operation is completed.
+
+                                                     Home原点开关switch
+
+
+
+
+
+4. Negative origin mode (6098h=29): After homing is allowed, the motor will run in the negative direction
+at the homing velocity (6099h-01). It will decelerate and stop when the origin switch is sensed. Then it will
+run in the positive direction at a homing creep velocity (6099h-02). When leaving the origin switch is
+sensed, the motor will stop, indicating that the homing operation is completed.
+
+                                Home原点开关switch
+
+
+
+
+
+                                              12
+
+=== PDF PAGE 15 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+3.4.3 Description of control steps
+
+     1. First, set the operating mode (6060h-00) to 6, and then set the monitoring operating mode (6061h-00) to
+     6, indicating that it is in the homing mode;
+     2. Write 6, 7 and 15 into the control word in turn at an interval of about 10ms. After writing, the motor can
+    be enabled;
+     3. Write the homing parameters into the homing mode (6098h-00), homing velocity (6099h-01), homing
+     creep velocity (6099h-02), acceleration / deceleration time (609Ah-00);
+     4. Enable homing through Bit4 of the control word (6040h-00). See the following:
+
+                     Control bit of the
+                                                       Function description
+                 command word
+                                                            0->1: Starting homing;
+                             Bit4
+                                                           1->0: Stopping homing;
+
+     5. The current status of the drive can be monitored through the status word (6041h-00), see the following
+     table:
+
+                  Corresponding bits
+                                 Name                    Description
+                       of the status word
+                                                                            0: Homing not completed
+                            Bit8         Homing status
+                                                                              1: Homing completed
+                                                                              0: Motor in operating
+                           Bit10          Motion status
+                                                                              1: Motor velocity: 0
+
+
+3.5 Other common functions
+
+3.5.1 Clearing current position
+
+   When the value in Index 2302h-00 changes from 0 to 1, the current position value will be cleared to zero,
+which should be manually set to 0. This operation can be performed through the SDO-command.
+
+3.5.2 Saving parameters
+
+   When 2 is written into Index 2300h-00 through SDO, the current parameters of the drive will be saved. This
+operation is often used to save parameters such as homing velocity, acceleration/deceleration and homing mode.
+
+3.5.2 Alarm reset
+
+     Set Bit7 of Control Word 6040h-00 to 1 to reset the drive alarm. It should be set to 0 manually.
+
+3.6 Object dictionary
+
+3.6.1 1000h group objects
+
+                      Register                                                          Data
+ Index  Subindex               Item                 Description              Property
+                     address                                                          Type
+                                                This device supports CIA301 and
+  1000      00      0x0200   Device type                     （RO）    U32
+                                              CIA402 protocols
+                              Hardware
+  1009      00      0x0202                        Hardware version       （RO）    U16
+                                     version
+                                  Software
+  100A      00      0x0203                          Software version       （RO）    U16
+                                     version
+            00      0x0204                           （RW）     U8
+            01      0x0205     Receive                     （RW）    U32
+  1600      02      0x0207    PDO 1     Receive PDO 1 Mapping       （RW）    U32
+            03      0x0209    Mapping                     （RW）    U32
+            04      0x020B                           （RW）    U32
+
+
+
+                                                   13
+
+=== PDF PAGE 16 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+
+            00     0x020D                           （RW）     U8
+            01      0x020E     Receive                     （RW）    U32
+  1601      02      0x0210    PDO 2     Receive PDO 2 Mapping       （RW）    U32
+            03      0x0212    Mapping                     （RW）    U32
+            04      0x0214                           （RW）    U32
+            00      0x0216                           （RW）     U8
+            01      0x0217     Receive                     （RW）    U32
+  1602      02      0x0219    PDO 3     Receive PDO 3 Mapping       （RW）    U32
+            03      0x021B    Mapping                     （RW）    U32
+            04     0x021D                           （RW）    U32
+            00      0x021F                           （RW）     U8
+            01      0x0220     Receive                     （RW）    U32
+  1603      02      0x0222    PDO 4     Receive PDO 4 Mapping       （RW）    U32
+            03      0x0224    Mapping                     （RW）    U32
+            04      0x0226                           （RW）    U32
+            00      0x0228                           （RW）     U8
+            01      0x0229     Transmit                     （RW）    U32
+  1A00      02      0x022B    PDO 1     Transmit PDO 1 Mapping       （RW）    U32
+            03     0x022D    Mapping                     （RW）    U32
+            04      0x022F                           （RW）    U32
+            00      0x0231                           （RW）     U8
+            01      0x0232     Transmit                     （RW）    U32
+  1A01      02      0x0234    PDO 2     Transmit PDO 2 Mapping       （RW）    U32
+            03      0x0236    Mapping                     （RW）    U32
+            04      0x0238                           （RW）    U32
+            00     0x023A                           （RW）     U8
+            01      0x023B     Transmit                     （RW）    U32
+  1A02      02     0x023D    PDO 3     Transmit PDO 3 Mapping       （RW）    U32
+            03      0x023F    Mapping                     （RW）    U32
+            04      0x0241                           （RW）    U32
+            00      0x0243                           （RW）     U8
+            01      0x0244     Transmit                     （RW）    U32
+  1A03      02      0x0246    PDO 4     Transmit PDO 4 Mapping       （RW）    U32
+            03      0x0248    Mapping                     （RW）    U32
+            04     0x024A                           （RW）    U32
+
+3.6.2 6000h group objects
+
+         Subin   Register                                                             Data
+  Index                        Item                   Description             Property
+          dex    address                                                             Type
+                                                  Error Code
+                                         Alarm Code FF00~FFFF
+  603F    00    0x024C       Error Code     FF01 refers to overcurrent alarm   （RW）    U16
+                                        FF05 refers to too high position
+                                                   deviation
+  6040    00    0x024D     Control word     Control word            （RW）    U16
+  6041    00    0x024E       Status word      Status word              （RO）    U16
+  605D    00     0x24F     Halt option code   Halt option code           （RW）      I16
+  6060    00     0x250   Mode of operation  Mode of operation          （RW）       I8
+                      Mode of operation
+  6061    00     0x251                 Mode of operation display      （RW）       I8
+                                    display
+  6064    00     0x252      actual position     actual position            （RO）      I32
+                                Velocity actual
+  606C    00     0x254                        Velocity actual value         （RO）      I32
+                                    value
+  607A    00     0x256     Target Position    Target Position           （RW）     I3C
+  607C    00     0x258     Home offset    Home offset             （RW）      I32
+                         Min Position
+  607D    01    0x25A                  Min Position Limit          （RW）      I32
+                                  Limit
+
+
+
+
+                                                   14
+
+=== PDF PAGE 17 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+
+                      Max Position
+  607D    02    0x25C               Max Position Limit          （RW）      I32
+                                  Limit
+  6081    00    0x25E     Profile velocity    Profile velocity            （RW）    U32
+                                      Profile
+  6083    00     0x260                        Profile acceleration          （RW）    U32
+                                  acceleration
+                                      Profile
+  6084    00     0x262                        Profile deceleration          （RW）    U32
+                                 deceleration
+                                      Homing method
+                                                17: Negative limit mode;
+  6098    00     0x264   Homing method   18: Positive limit mode;        （RW）       I8
+                                                24: Positive origin mode;
+                                                29: Negative origin mode;
+                          Homing
+  6099    01     0x265                 Homing Research speeds for switch   （RW）    U32
+                            Research speeds
+                          Homing
+  6099    02     0x267                 Homing Research speeds for zero    （RW）    U32
+                            Research speeds
+                          Homing
+  609A    00     0x269                 Homing acceleration         （RW）    U32
+                                  acceleration
+ 60FD    00    0x26B      Digital inputs    Digital inputs             （RO）    U32
+  60FE    01    0x26D     Digital outputs    Physical Outputs           （RW）    U32
+  60FE    02     0x26F     Digital outputs    Bit mask               （RW）    U32
+  60FF    00     0x271     Target Velocity   Target Velocity            （RW）      I32
+
+3.6.3 Factory defined 2000h parameters
+
+         Subin   Register                                                             Data
+  Index                       Item                   Description              Property
+          dex    address                                                             Type
+                                    Status parameter group (read-only)
+  2000    00    0x0000    Drive model   Drive model code            （RO）    U16
+  2001    00    0x0001    Drive version   Drive version              （RO）    U16
+                                                 Bit0: In place flag bit, 0: Not in place, 1:
+                                               In place;
+                                                 Bit1: Homing bit, 0: Not completed, 1:
+                                          Completed;
+                                                 Bit2: Motor running bit, 0: Sleep, 1:
+                                          Running;
+                          Motion status
+  2100    00    0x0005                     Bit3: Alarm bit, 0: Normal, 1: Alarm;   （RO）    U16
+                                         bits
+                                                 Bit4: Motor enabling bit, 0: Enable, 1:
+                                               Release;
+                                                 Bit5: Positive software limit status, 0:
+                                               Noneffective; 1: Effective;
+                                                 Bit6: Negative software limit status, 0:
+                                               Noneffective; 1: Effective;
+                                                 Bit0: Input status of X0 terminal;
+                                                 Bit1: Input status of X1 terminal;
+                                                 Bit2: Input status of X2 terminal;
+                                                 Bit3: Input status of X3 terminal;
+                              Flag bits of
+                                                 Bit4: Input status of X4 terminal;
+  2101    00    0x0006    input terminal                      （RO）    U16
+                                                 Bit5: Input status of X5 terminal;
+                                      status
+                                                 Bit6: Input status of X6 terminal;
+
+                                                  0: Noneffective input level;
+                                                  1: Effective input level;
+                                                 Bit0: Output status of Y0 terminal;
+                                                 Bit1: Output status of Y1 terminal;
+                              Flag bits of
+                                                 Bit2: Output status of Y2 terminal;
+  2102    00    0x0007       output                        （RO）    U16
+                               terminal status
+                                                  0: Noneffective output level;
+                                                  1: Effective output level;
+
+
+
+
+                                                   15
+
+=== PDF PAGE 18 ===
+                        User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+
+                                Basic drive control parameter group
+2200    00    0x0010    Default direction   0：Pulse Sign； 1：Pulse /Sign；  （RW）    U16
+                              Subdivision
+2201    00    0x0011                    400~51200             （RW）    U16
+                                     setting
+                               Effective bit of    0: Noneffective; 1: Effective after
+2202    00    0x0012                             （RW）    U16
+                             software limit    homing
+2203    00    0x0013     CAN ID      0~127               （RW）    U16
+                                                    0: Noneffective;
+                              Parameter
+2300    00    0x0018                         1: Restoring factory settings;     （RW）    U16
+                                operation
+                                                    2: Saving current parameters
+2301    00    0x0019     Alarm reset      0: Noneffective; 1: Effective     （RW）    U16
+                            Current position
+2302    00    0x001A                         0: Noneffective; 1: Effective     （RW）    U16
+                                  clearing
+                              Input/output terminal parameter group
+                                                  Bit0: Input Terminal X0 control bit;
+                                                  Bit1: Input Terminal X1 control bit;
+                                                  Bit2: Input Terminal X2 control bit;
+                                                  Bit3: Input Terminal X3 control bit;
+                             Effective level of
+2400    01    0x0020                         Bit4: Input Terminal X4 control bit;  （RW）    U16
+                               input terminal
+                                                  Bit5: Input Terminal X5 control bit;
+                                                  Bit6: Input Terminal X6 control bit;
+                                                    0: Default;
+                                                    1: Level reversal;
+                     X0 terminal      0: Undefined;2400    02    0x0021                             （RW）    U16
+                            function selection   1: Origin signal;
+                     X1 terminal      2: Positive limit signal;2400    03    0x0022                             （RW）    U16
+                            function selection   3: Negative limit signal;
+                     X2 terminal      4: Motor MF signal;2400    04    0x0023                             （RW）    U16
+                            function selection   5: Stop signal;
+                     X3 terminal      6: Emergency stop signal;
+2400    05    0x0024                             （RW）    U16
+                            function selection   7: User Definition 0;
+                     X4 terminal      8: User Definition 1;
+2400    06    0x0025                             （RW）    U16
+                            function selection   9: User Definition 2;
+                     X5 terminal      10: User Definition 3;
+2400    07    0x0026                             （RW）    U16                            function selection   11: User Definition 4;
+                     X6 terminal      12: User Definition 5;
+2400    08    0x0027                             （RW）    U16                            function selection   13: User Definition 6;
+                              Input terminal
+2400   0A    0x002A         filtering        Input terminal filtering coefficient   （RW）    U16
+                                  coefficient
+                                                  Bit0: Output Terminal Y0 control
+                                                            bit;
+                             Effective level of   Bit1: Output Terminal Y1 control
+2400   0B    0x002B                             （RW）    U16
+                             output terminal     bit;
+                                                    0: Default;
+                                                    1: Level reversal;
+                     Y0 terminal      0: Undefined
+2400   0C    0x002C                             （RW）    U16
+                            function selection   1: Alarm signal;
+                     Y1 terminal      2: Homing completion signal;
+2400   0D    0x002D                             （RW）    U16                            function selection   3: Drive status signal;
+                                                    4: In place signal;
+                                                    5: Internal contracting brake signal;
+                     Y2 terminal
+2400    0E    0x002E                         9: User Definition 0;         （RW）    U16
+                            function selection                                               10: User Definition 1;
+                                                11: User Definition 2;
+                     X0 filtering
+2401    00    0x0030                X0 filtering coefficient        （RW）    U16
+                                  coefficient
+                     X1 filtering
+2402    00    0x0031                X1 filtering coefficient        （RW）    U16
+                                  coefficient
+
+
+
+
+                                                16
+
+=== PDF PAGE 19 ===
+                        User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+
+                      X2 filtering
+2403    00    0x0032                X2 filtering coefficient        （RW）    U16
+                                   coefficient
+                      X3 filtering
+2404    00    0x0033                X3 filtering coefficient        （RW）    U16
+                                   coefficient
+                      X4 filtering
+2405    00    0x0034                X4 filtering coefficient        （RW）    U16
+                                   coefficient
+                      X5 filtering
+2406    00    0x0035                X5 filtering coefficient        （RW）    U16
+                                   coefficient
+                      X6 filtering
+2407    00    0x0036                X6 filtering coefficient        （RW）    U16
+                                   coefficient
+                                Performance parameter group
+                                                    0: Noneffective;
+                           Drive operation
+2500    00    0x0050                         1: Open loop mode;         （RW）    U16
+                          mode
+                                                    2: Closed loop mode;
+                             Encoder
+2501    00    0x0051                     Encoder resolution          （RW）    U16
+                                  resolution
+2502    00    0x0052   Max. peak current   Unit: mA              （RW）    U16
+                    Maximum current
+2503    00    0x0053    ratio under closed   Unit: %               （RW）    U16
+                                 loop
+                           Basic current ratio
+2504    00    0x0054                        Unit: %               （RW）    U16
+                          under closed loop
+                    Maximum current
+2505    00    0x0055     ratio under open    Unit: %               （RW）    U16
+                                 loop
+                            Current ratio for
+2506    00    0x0056                        Unit: %               （RW）    U16
+                                 locking
+                          Locking current
+2507    00    0x0057                        Unit: ms              （RW）    U16
+                                 time
+                        Low-pass filtering  Factory default setting, adjustment
+2508    00    0x0058                             （RW）    U16
+                                enabling       not required generally
+                        Low-pass filtering  Factory default setting, adjustment
+2509    00    0x0059                             （RW）    U16
+                                   coefficient      not required generally
+                             Out-of-tolerance   Factory default setting, adjustment
+250A    00    0x005A                             （RW）    U16
+                           alarm threshold    not required generally
+                                Positioning
+                                              Factory default setting, adjustment
+250B    00    0x005B      completion                     （RW）    U16
+                                                not required generally
+                                 threshold
+                                Positioning      Factory default setting, adjustment
+250C    00    0x005C                             （RW）    U16
+                           completion time    not required generally
+                      Mean filtering    Factory default setting, adjustment
+250D    00    0x005D                             （RW）    U16
+                                   coefficient      not required generally
+                                              Factory default setting, adjustment
+250E    00    0x005E   Current loop ratio                   （RW）    U16
+                                                not required generally
+                           Current loop ratio   Factory default setting, adjustment
+250F    00    0x005F                             （RW）    U16
+                        Kp          not required generally
+                              Current loop     Factory default setting, adjustment
+2510    00    0x0060                             （RW）    U16
+                                   integral Ki      not required generally
+                              Current loop     Factory default setting, adjustment   （RW）
+2511    00    0x0061                                                        U16
+                                  differential Kc    not required generally
+                                              Factory default setting, adjustment   （RW）
+2512    00    0x0062   LA Velocity Kp1                                         U16
+                                                not required generally
+                                              Factory default setting, adjustment   （RW）
+2513    00    0x0063   LA Velocity Kv1                                         U16
+                                                not required generally
+                                              Factory default setting, adjustment   （RW）
+2514    00    0x0064     Velocity node 1                                         U16
+                                                not required generally
+                                              Factory default setting, adjustment   （RW）
+2515    00    0x0065   LA Velocity Kp2                                         U16
+                                                not required generally
+                                              Factory default setting, adjustment   （RW）
+2516    00    0x0066   LA Velocity Kv2                                         U16
+                                                not required generally
+
+
+                                                 17
+
+=== PDF PAGE 20 ===
+                          User Manual of CL86-C / OL86-C Bus-Type Step Drive
+
+
+                                                Factory default setting, adjustment   （RW）
+  2517    00    0x0067     Velocity node 2                                         U16
+                                                  not required generally
+                                   Velocity       Factory default setting, adjustment   （RW）
+  2518    00    0x0068                                                        U16
+                             feedforward Kvf   not required generally
+                                Position loop Ki   Factory default setting, adjustment   （RW）
+  2519    00    0x0069                                                        U16
+                                    gain         not required generally
+
+3.7 Alarm processing
+
+    The alarm information of this drive series is identified by the number of flashes of the indicator. See the
+specific alarm information shown in the following table:
+
+   Number of         Alarm
+                                                     Troubleshooting                    Reset
+  indicator flashes      description
+
+                                              1.   Short circuit of motor power line, check the
+                                         motor for correct wiring;
+ Flashing once every     Overcurrent                                                              Restart
+                                              2.  Motor damaged, measure the winding resistance
+     5 seconds            alarm                                                                       reset
+                                              values of Phases A and B of the motor;
+                                              3.   Drive damaged, replace the drive.
+                                              1.  Too high voltage, measure the power supply
+   Flashing twice       Overvoltage                                                              Restart
+                                              voltage or replace the power supply;
+  every 5 seconds         alarm                                                                       reset
+                                              2.   Drive damaged, replace the drive.
+                                              1.  Too low voltage, measure the power supply
+   Flashing thrice      Undervoltage                                                              Restart
+                                              voltage or replace the power supply;
+  every 5 seconds         alarm                                                                       reset
+                                              2.   Drive damaged, replace the drive.
+ Flashing four times   Read/write error
+                                      Drive damaged, replace the drive.                      Resettable
+  every 5 seconds        of memory
+                                              1.   Incorrect phase sequence of motor power line,
+                                         check the phase sequence;
+                           Position        2.   Phase loss of motor power line, check the line
+ Flashing five times
+                        out-of-tolerance         for being disconnected or loose;                  Resettable
+  every 5 seconds
+                          alarm         3.   Encoder disconnected;
+                                              4.  Load blocked;
+                                              5.  Too fast.
+
+
+
+
+
+                                                   18
