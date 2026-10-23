@@ -2,6 +2,10 @@
 
 This file tracks **future library implementation**, not completion of the planning audit. All implementation stages are initially pending. Update it after each stage; detailed evidence belongs in `docs/reports/stage_NN.md`.
 
+The user-expanded scope and [multi-drive criteria](MULTIDRIVE.md) apply to all stages: one stepper/servo library, Lichuan CANopen first, documented N5/EPOS4 contrasts, independent future CAN protocol profiles. Research and test-fixture planning do not mark another driver implemented.
+
+The expanded [conventions](CONVENTIONS.md), [documentation](DOCUMENTATION.md), [maintainability](MAINTAINABILITY.md) and [delegation](DELEGATION.md) contracts apply to every stage. Completing these planning documents does not change any implementation stage below from Pending.
+
 | Stage | Work | State | Report |
 | --- | --- | --- | --- |
 | 00 | Refresh audits and establish evidence | Pending | — |

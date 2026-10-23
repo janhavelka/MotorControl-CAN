@@ -1,0 +1,162 @@
+["ctest", "--test-dir", "C:\\Users\\Honza\\AppData\\Local\\Temp\\motorcontrol-rs-audit-20261023\\native", "--output-on-failure", "--no-tests=error"]
+Test project C:/Users/Honza/AppData/Local/Temp/motorcontrol-rs-audit-20261023/native
+      Start  1: human_console
+ 1/78 Test  #1: human_console ....................   Passed    0.05 sec
+      Start  2: console_text
+ 2/78 Test  #2: console_text .....................   Passed    0.04 sec
+      Start  3: debug_session
+ 3/78 Test  #3: debug_session ....................   Passed    0.05 sec
+      Start  4: discovery
+ 4/78 Test  #4: discovery ........................   Passed    0.03 sec
+      Start  5: discovery_app
+ 5/78 Test  #5: discovery_app ....................   Passed    0.11 sec
+      Start  6: discovery_console
+ 6/78 Test  #6: discovery_console ................   Passed    0.05 sec
+      Start  7: persistence
+ 7/78 Test  #7: persistence ......................   Passed    0.03 sec
+      Start  8: persistence_console
+ 8/78 Test  #8: persistence_console ..............   Passed    0.05 sec
+      Start  9: persistence_app
+ 9/78 Test  #9: persistence_app ..................   Passed    0.09 sec
+      Start 10: traffic
+10/78 Test #10: traffic ..........................   Passed    0.03 sec
+      Start 11: motion_profile_app
+11/78 Test #11: motion_profile_app ...............   Passed    0.06 sec
+      Start 12: communication
+12/78 Test #12: communication ....................   Passed    0.03 sec
+      Start 13: communication_console
+13/78 Test #13: communication_console ............   Passed    0.05 sec
+      Start 14: communication_app
+14/78 Test #14: communication_app ................   Passed    0.07 sec
+      Start 15: commissioning_owner
+15/78 Test #15: commissioning_owner ..............   Passed    0.03 sec
+      Start 16: units
+16/78 Test #16: units ............................   Passed    0.03 sec
+      Start 17: axis
+17/78 Test #17: axis .............................   Passed    0.04 sec
+      Start 18: registers
+18/78 Test #18: registers ........................   Passed    0.03 sec
+      Start 19: codec
+19/78 Test #19: codec ............................   Passed    0.03 sec
+      Start 20: reads
+20/78 Test #20: reads ............................   Passed    0.03 sec
+      Start 21: actions
+21/78 Test #21: actions ..........................   Passed    0.03 sec
+      Start 22: position
+22/78 Test #22: position .........................   Passed    0.04 sec
+      Start 23: position_command
+23/78 Test #23: position_command .................   Passed    0.04 sec
+      Start 24: velocity
+24/78 Test #24: velocity .........................   Passed    0.04 sec
+      Start 25: homing
+25/78 Test #25: homing ...........................   Passed    0.03 sec
+      Start 26: driver_settings
+26/78 Test #26: driver_settings ..................   Passed    0.03 sec
+      Start 27: segments
+27/78 Test #27: segments .........................   Passed    0.04 sec
+      Start 28: control_settings
+28/78 Test #28: control_settings .................   Passed    0.04 sec
+      Start 29: control_app
+29/78 Test #29: control_app ......................   Passed    0.10 sec
+      Start 30: tuning
+30/78 Test #30: tuning ...........................   Passed    0.04 sec
+      Start 31: tuning_app
+31/78 Test #31: tuning_app .......................   Passed    0.06 sec
+      Start 32: host_app
+32/78 Test #32: host_app .........................   Passed    0.07 sec
+      Start 33: host_console
+33/78 Test #33: host_console .....................   Passed    0.05 sec
+      Start 34: io
+34/78 Test #34: io ...............................   Passed    0.03 sec
+      Start 35: io_app
+35/78 Test #35: io_app ...........................   Passed    0.06 sec
+      Start 36: driver_app
+36/78 Test #36: driver_app .......................   Passed    0.08 sec
+      Start 37: home_app
+37/78 Test #37: home_app .........................   Passed    0.08 sec
+      Start 38: runner
+38/78 Test #38: runner ...........................   Passed    0.03 sec
+      Start 39: bus_owner
+39/78 Test #39: bus_owner ........................   Passed    0.04 sec
+      Start 40: bus_scheduling
+40/78 Test #40: bus_scheduling ...................   Passed    0.04 sec
+      Start 41: probe_console
+41/78 Test #41: probe_console ....................   Passed    0.06 sec
+      Start 42: esp32_uart
+42/78 Test #42: esp32_uart .......................   Passed    0.03 sec
+      Start 43: probe_app
+43/78 Test #43: probe_app ........................   Passed    0.21 sec
+      Start 44: probe_app_monitor_control
+44/78 Test #44: probe_app_monitor_control ........   Passed    0.05 sec
+      Start 45: move_app
+45/78 Test #45: move_app .........................   Passed    0.26 sec
+      Start 46: simple_motion_app
+46/78 Test #46: simple_motion_app ................   Passed    0.63 sec
+      Start 47: velocity_app
+47/78 Test #47: velocity_app .....................   Passed    0.08 sec
+      Start 48: capture_service
+48/78 Test #48: capture_service ..................   Passed    0.03 sec
+      Start 49: codec_independent
+49/78 Test #49: codec_independent ................   Passed    0.03 sec
+      Start 50: probe_app_load
+50/78 Test #50: probe_app_load ...................   Passed    0.22 sec
+      Start 51: idf_app
+51/78 Test #51: idf_app ..........................   Passed    0.07 sec
+      Start 52: idf_move_app
+52/78 Test #52: idf_move_app .....................   Passed    0.26 sec
+      Start 53: idf_simple_motion_app
+53/78 Test #53: idf_simple_motion_app ............   Passed    0.63 sec
+      Start 54: idf_control_app
+54/78 Test #54: idf_control_app ..................   Passed    0.09 sec
+      Start 55: units_preview
+55/78 Test #55: units_preview ....................   Passed    0.03 sec
+      Start 56: idf_config
+56/78 Test #56: idf_config .......................   Passed    0.54 sec
+      Start 57: bench_scenarios
+57/78 Test #57: bench_scenarios ..................   Passed    0.31 sec
+      Start 58: motion_campaign
+58/78 Test #58: motion_campaign ..................   Passed    0.14 sec
+      Start 59: communication_harness
+59/78 Test #59: communication_harness ............   Passed    0.09 sec
+      Start 60: discovery_harness
+60/78 Test #60: discovery_harness ................   Passed    0.11 sec
+      Start 61: persistence_harness
+61/78 Test #61: persistence_harness ..............   Passed    0.11 sec
+      Start 62: version_generated
+62/78 Test #62: version_generated ................   Passed    0.04 sec
+      Start 63: registers_generated
+63/78 Test #63: registers_generated ..............   Passed    0.06 sec
+      Start 64: register_gaps
+64/78 Test #64: register_gaps ....................   Passed    0.16 sec
+      Start 65: bench_probe
+65/78 Test #65: bench_probe ......................   Passed    0.94 sec
+      Start 66: velocity_console_parity
+66/78 Test #66: velocity_console_parity ..........   Passed    0.12 sec
+      Start 67: io_transport
+67/78 Test #67: io_transport .....................   Passed    0.11 sec
+      Start 68: segment_console_parity
+68/78 Test #68: segment_console_parity ...........   Passed    0.12 sec
+      Start 69: control_console_parity
+69/78 Test #69: control_console_parity ...........   Passed    0.15 sec
+      Start 70: tuning_console_parity
+70/78 Test #70: tuning_console_parity ............   Passed    0.21 sec
+      Start 71: io_console_parity
+71/78 Test #71: io_console_parity ................   Passed    0.14 sec
+      Start 72: driver_console_parity
+72/78 Test #72: driver_console_parity ............   Passed    0.25 sec
+      Start 73: home_console_parity
+73/78 Test #73: home_console_parity ..............   Passed    0.12 sec
+      Start 74: operations_inventory
+74/78 Test #74: operations_inventory .............   Passed    0.14 sec
+      Start 75: operations_inventory_failures
+75/78 Test #75: operations_inventory_failures ....   Passed    3.59 sec
+      Start 76: repository_checks
+76/78 Test #76: repository_checks ................   Passed    0.44 sec
+      Start 77: repository_check_failures
+77/78 Test #77: repository_check_failures ........   Passed    0.42 sec
+      Start 78: verification_failures
+78/78 Test #78: verification_failures ............   Passed    0.32 sec
+
+100% tests passed, 0 tests failed out of 78
+
+Total Test time (real) =  13.27 sec

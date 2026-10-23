@@ -1,0 +1,16 @@
+{
+  "name": "MotorControl-RS",
+  "version": "1.0.0",
+  "description": "Framework-independent C++11 exact targets, units, checked ESS-RS codecs, typed reads/settings and bounded motion/action operations. Partial native coverage; application-owned transport.",
+  "keywords": ["rs485", "modbus", "stepper", "servo", "ess23", "motion"],
+  "authors": [{"name": "Jan Havelka", "maintainer": true}],
+  "repository": {"type": "git", "url": "https://github.com/janhavelka/MotorControl-RS.git"},
+  "license": "MIT",
+  "frameworks": "*",
+  "platforms": "*",
+  "headers": ["MotorControlRS/MotorControlRS.h"],
+  "build": {"includeDir": "include", "srcDir": "src"},
+  "export": {
+    "include": ["include/", "src/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md"]
+  }
+}

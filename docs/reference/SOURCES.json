@@ -1,0 +1,370 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-23",
+  "timezone": "Europe/Prague",
+  "purpose": "Implementation source pack; not hardware qualification",
+  "sources": [
+    {
+      "id": "EN86",
+      "title": "CL86-C/OL86-C CANopen Bus-Type Step Drive User Manual",
+      "path": "vendor/86C_CANopen_user_manual_en.pdf",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/86c-canopen bus stepper driver manual.pdf",
+      "manufacturer_linking_page": "https://en.xlichuan.com/product-xq/143.html",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 2763702,
+      "sha256": "401df6c49c54fe56fed7c606ca45718f352235746e2faaeb65be778eef6c4b9f",
+      "language": "en",
+      "applicability": [
+        "CL86-C",
+        "OL86-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability.",
+      "pdf_pages": 20,
+      "pdf_metadata": {
+        "format": "PDF 1.5",
+        "title": "",
+        "author": "Sean",
+        "subject": "",
+        "keywords": "",
+        "creator": "Microsoft® Office Word 2007",
+        "producer": "Microsoft® Office Word 2007",
+        "creationDate": "D:20221129164240+08'00'",
+        "modDate": "D:20250922111520+08'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "ZH86",
+      "title": "CL86-C/OL86-C CANopen user manual",
+      "path": "vendor/86C_CANopen_user_manual_zh.pdf",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/86c系列-canopen总线驱动使用手册(2).pdf",
+      "manufacturer_linking_page": "https://www.xlichuan.com/download/23.html",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3161211,
+      "sha256": "3969c914aa291662e8c77941bcfbb0559769a96b75306266370890d03e824d13",
+      "language": "zh-Hans",
+      "applicability": [
+        "CL86-C",
+        "OL86-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability.",
+      "pdf_pages": 20,
+      "pdf_metadata": {
+        "format": "PDF 1.5",
+        "title": "",
+        "author": "Sean",
+        "subject": "",
+        "keywords": "",
+        "creator": "Microsoft® Office Word 2007",
+        "producer": "Microsoft® Office Word 2007",
+        "creationDate": "D:20231221073658",
+        "modDate": "D:20250918093205+08'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "OP86",
+      "title": "OL86C and CL86C operating manual",
+      "path": "vendor/CL86C_OL86C_operating_manual_zh.pdf",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/ol86c和cl86c操作手册(4).pdf",
+      "manufacturer_linking_page": "https://www.xlichuan.com/download/23.html",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3148226,
+      "sha256": "4c87679d210c99f4ac4f6ce29e7f2c82b13221fdf81c47ee59a989f708f504b5",
+      "language": "zh-Hans",
+      "applicability": [
+        "CL86-C",
+        "OL86-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability.",
+      "pdf_pages": 14,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "Draw",
+        "producer": "LibreOffice 7.6",
+        "creationDate": "D:20250918101149+08'00'",
+        "modDate": "D:20250918142255+08'00'",
+        "trapped": "",
+        "encryption": null
+      },
+      "notes": "Cover identifies 86C but internal headers say CL57-C/OL57-C and CAN pin table is titled RS485; preserve as a source contradiction."
+    },
+    {
+      "id": "ZH57",
+      "title": "CL57-C/OL57-C CANopen user manual",
+      "path": "vendor/57C_CANopen_user_manual_zh.pdf",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/57c系列-canopen总线驱动使用手册(2).pdf",
+      "manufacturer_linking_page": "https://www.xlichuan.com/download/23.html",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3120941,
+      "sha256": "47ce117cda7498210c09533e7d05dcd83ecb51e64cdd62ba054750b8ed3cf356",
+      "language": "zh-Hans",
+      "applicability": [
+        "CL57-C",
+        "OL57-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability.",
+      "pdf_pages": 20,
+      "pdf_metadata": {
+        "format": "PDF 1.5",
+        "title": "",
+        "author": "Sean",
+        "subject": "",
+        "keywords": "",
+        "creator": "Microsoft® Office Word 2007",
+        "producer": "Microsoft® Office Word 2007",
+        "creationDate": "D:20240923080240",
+        "modDate": "D:20250918092840+08'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "OP57",
+      "title": "OL57C and CL57C operating manual",
+      "path": "vendor/CL57C_OL57C_operating_manual_zh.pdf",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/ol57c和cl57c操作手册(4).pdf",
+      "manufacturer_linking_page": "https://www.xlichuan.com/download/23.html",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 3115924,
+      "sha256": "ce61bb1c1fde3cf689a2e8078b0823eb2734382b7713c0448006017a60396343",
+      "language": "zh-Hans",
+      "applicability": [
+        "CL57-C",
+        "OL57-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability.",
+      "pdf_pages": 14,
+      "pdf_metadata": {
+        "format": "PDF 1.7",
+        "title": "",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "Draw",
+        "producer": "LibreOffice 7.6",
+        "creationDate": "D:20250918100533+08'00'",
+        "modDate": "D:20250918141812+08'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "EDS",
+      "title": "LC_StepDriverCAN_V1.1.eds",
+      "path": "vendor/LC_StepDriverCAN_V1.1.eds",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/lc_stepdrivercan_v1.1.eds",
+      "manufacturer_linking_page": "https://www.xlichuan.com/download/23.html",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 31974,
+      "sha256": "dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c",
+      "language": "en",
+      "applicability": [
+        "Lichuan CANopen stepper family; exact model/firmware applicability unverified"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "EDSVersion=4.0; FileVersion=0x01; FileRevision=0x01; creation 2020-12-23; modification 2022-11-11",
+      "eds_file_info": {
+        "EDSVersion": "4.0",
+        "FileName": "LC_StepD.eds",
+        "FileVersion": "0x01",
+        "FileRevision": "0x01",
+        "Description": "1",
+        "CreationTime": "09:10 PM",
+        "CreationDate": "12-23-2020",
+        "ModificationTime": "03:52 PM",
+        "ModificationDate": "11-11-2022"
+      },
+      "eds_device_info": {
+        "VendorName": "XLC",
+        "VendorNumber": "0x00001000",
+        "ProductName": "LC_SterDriverCAN",
+        "ProductNumber": "0x00000001",
+        "RevisionNumber": "0x00000000",
+        "BaudRate_10": "0",
+        "BaudRate_20": "0",
+        "BaudRate_50": "1",
+        "BaudRate_125": "1",
+        "BaudRate_250": "1",
+        "BaudRate_500": "1",
+        "BaudRate_800": "0",
+        "BaudRate_1000": "1",
+        "SimpleBootUpMaster": "0",
+        "SimpleBootUpSlave": "1",
+        "Granularity": "0x08",
+        "DynamicChannelsSupported": "0x00000000",
+        "GroupMessaging": "0",
+        "LSS_Supported": "0",
+        "NrOfRXPDO": "4",
+        "NrOfTXPDO": "4",
+        "CompactPDO": "0x00"
+      },
+      "object_indexes": 99
+    },
+    {
+      "id": "PRODUCT",
+      "title": "CL86-C Bus Closed-Loop Stepper Driver",
+      "path": "vendor/CL86-C_manufacturer_product.html",
+      "url": "https://en.xlichuan.com/product-xq/143.html",
+      "manufacturer_linking_page": null,
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 483544,
+      "sha256": "b6aae1baf8dd729b61bf7809714735d0e6fc8cde29d9321f69120d4462f16a6b",
+      "language": "en",
+      "applicability": [
+        "CL86-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability."
+    },
+    {
+      "id": "INDEX",
+      "title": "Manufacturer CANopen stepper drive download index",
+      "path": "vendor/CANopen_manufacturer_download_index.html",
+      "url": "https://www.xlichuan.com/download/23.html",
+      "manufacturer_linking_page": null,
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 373477,
+      "sha256": "ba90e34c6ba9b5c2f42975f3ceea4834eeff095ae3b84709e9cf2a22547026da",
+      "language": "zh-Hans",
+      "applicability": [
+        "CL86-C",
+        "OL86-C",
+        "CL57-C",
+        "OL57-C"
+      ],
+      "firmware_match": "not established",
+      "origin": "manufacturer-hosted or manufacturer-linked CDN",
+      "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
+      "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability."
+    }
+  ],
+  "derived_artifacts": [
+    {
+      "path": "extracted/57C_CANopen_user_manual_zh.txt",
+      "bytes": 49890,
+      "sha256": "de94c247ad459552b201109b3a7e45f1c212e188e86a0e419f69c5dfc7a0fd10",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/86C_CANopen_user_manual_en.txt",
+      "bytes": 70042,
+      "sha256": "781f5c567fab261db43bc6ac03d7b49e2bd4315802c4a1d309da477e5a22b446",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/86C_CANopen_user_manual_en_page_12.png",
+      "bytes": 154376,
+      "sha256": "7eea0a0c38262851fc1532841cf6d19c0313313a4a1bd478affa2481d0dc7e07",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/86C_CANopen_user_manual_en_page_13.png",
+      "bytes": 168535,
+      "sha256": "0e3f7dc3059385bbb3241cec5e51601dd09405951ebdf0a2598fbead39738a8e",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/86C_CANopen_user_manual_zh.txt",
+      "bytes": 49480,
+      "sha256": "7bda72ffa3a948f4a194cfcca0f935f11b38c99fec8ba763497cdd1b6ec590f2",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/86C_CANopen_user_manual_zh_page_12.png",
+      "bytes": 119679,
+      "sha256": "57fe2e6a35cd9cd5f592e646c2966ba4154888e44766f6c8e541d566c721be1d",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/86C_CANopen_user_manual_zh_page_13.png",
+      "bytes": 149040,
+      "sha256": "028bcc3adbd06df6e8663d693aaf6aeb318e6e5547b67f32565597371167b49b",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/CL57C_OL57C_operating_manual_zh.txt",
+      "bytes": 29587,
+      "sha256": "15b87f9710fed2a6d27677fba478855011f79f818a6bec9527f0cbbc77b78aa7",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/CL86C_OL86C_operating_manual_zh.txt",
+      "bytes": 29589,
+      "sha256": "516ea6d389764193d67baafaeece7caeeee4af6789a229179c14c6f4c52a0b72",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/LC_StepDriverCAN_V1.1.raw_sections.json",
+      "bytes": 49860,
+      "sha256": "1db1085e9011b59b3c3327d6d62882eb88a56638dae20ad13b459969e294e40d",
+      "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    }
+  ],
+  "unavailable_sources": [
+    {
+      "url": "https://www.lichuanservomotor.com/upload/7257/20230823163201959730.pdf",
+      "checked_on": "2026-10-23",
+      "status": "HTTP 404 via browser and direct request",
+      "replacement_source": "EN86"
+    },
+    {
+      "url": "https://www.alibaba.com/product-detail/CANopen-CL86-C-DC30V-110V-AC20V_1600643108175.html",
+      "checked_on": "2026-10-23",
+      "status": "browser returned no usable body; not used as protocol authority"
+    }
+  ],
+  "retrieval_notes": [
+    "Browser CDN requests returned 403; ordinary HTTPS GET using manufacturer-page Referer succeeded.",
+    "CDN URLs were extracted from manufacturer HTML; original bytes were not edited.",
+    "No executable installers, configuration tools or mechanical STEP files downloaded; no hardware was exercised.",
+    "Full normative CiA specifications and firmware-matched behavioral confirmation remain unavailable."
+  ],
+  "auxiliary_artifacts": [
+    {
+      "path": "vendor/download_urls.json",
+      "bytes": 722,
+      "sha256": "c1405cbdfae150fc5581cb746b27391c52d59c997c403ec38afd5f2aee161228",
+      "generation": "Manufacturer-page extracted URL list retained from initial local commit; not an original vendor manual"
+    },
+    {
+      "path": "vendor/english_download_urls.json",
+      "bytes": 132,
+      "sha256": "98b4c4f666679bf661acadcc86e47b927721046ee4b060878afc3f4c62e08f40",
+      "generation": "Manufacturer-page extracted URL list retained from initial local commit; not an original vendor manual"
+    }
+  ]
+}

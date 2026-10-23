@@ -1,0 +1,415 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-23",
+  "timezone": "Europe/Prague",
+  "purpose": "Multi-manufacturer stepper/servo design evidence; no implemented support or hardware qualification",
+  "sources": [
+    {
+      "id": "N5",
+      "title": "Nanotec N5 CANopen Technical Manual",
+      "path": "vendor/nanotec_n5_canopen_v3.3.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/N5/fir-v2213/N5_CANopen_Technical-Manual_V3.3.0.pdf?1663055466=",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 7511934,
+      "sha256": "4c60e1415c3f2421a010c57d3fd050b49bed87606a0fda769dd874052867ea41",
+      "language": "en",
+      "applicability": [
+        "N5-1-2",
+        "N5-2-2"
+      ],
+      "revision": "3.3.0; firmware FIR-v2213; hardware W007 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release.",
+      "manufacturer_linking_page": "https://www.nanotec.com/us/en/products/1599-n5-1-2-motor-controller-for-canopen",
+      "pdf_pages": 418,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "N5 CANopen Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20220804080040+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "C5E",
+      "title": "Nanotec C5-E CANopen/USB Technical Manual",
+      "path": "vendor/nanotec_c5e_canopen_v3.3.0.pdf",
+      "url": "https://www.nanotec.com/fileadmin/files/Handbuecher/Motorsteuerungen/C5-E/fir-v2213/C5E_CANopen_USB_Technical-Manual_V3.3.0.pdf?1662973676=",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 5868852,
+      "sha256": "1bbc8e3a0552b9aa1cfb38f4263598d945798dcb26f7ba2869db9f4f2694074c",
+      "language": "en",
+      "applicability": [
+        "C5-E-1-09",
+        "C5-E-2-09"
+      ],
+      "revision": "3.3.0; firmware FIR-v2213; hardware W006 and later",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release.",
+      "manufacturer_linking_page": "https://www.nanotec.com/us/en/products/1768-c5-e-2-09-motor-controller-drive-for-canopen-or-usb",
+      "pdf_pages": 417,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "C5-E CANopen/USB Technical Manual",
+        "author": "",
+        "subject": "",
+        "keywords": "",
+        "creator": "DITA Open Toolkit",
+        "producer": "Apache FOP Version 2.1",
+        "creationDate": "D:20220803103149+02'00'",
+        "modDate": "",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "FHC",
+      "title": "FAULHABER Motion Controller V3 Communications Manual CANopen",
+      "path": "vendor/faulhaber_mc_v3_canopen_05050.pdf",
+      "url": "https://eshop.faulhaber.com/media/49/1f/ac/1775629774/EN_7000_05050.pdf",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 741365,
+      "sha256": "9d0312a437a0adb4fcdbd4300558ca2d51ee4d68fac782ac83cf43eb904e7d7f",
+      "language": "en",
+      "applicability": [
+        "Motion Controller V3; exact CANopen/CO hardware variant required"
+      ],
+      "revision": "7000.05050; edition 7; 2024-02-02; firmware M",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release.",
+      "manufacturer_linking_page": "https://eshop.faulhaber.com/en/MC-5005-S/Serie-MC-5005-S",
+      "pdf_pages": 49,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "Kommunikationshandbuch CANopen",
+        "author": "steatz",
+        "subject": "",
+        "keywords": "",
+        "creator": "FrameMaker 2019.0.8",
+        "producer": "Adobe PDF Library 15.0",
+        "creationDate": "D:20240201084203Z",
+        "modDate": "D:20240201084951+01'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "FHF",
+      "title": "FAULHABER Motion Controller V3 Drive Functions",
+      "path": "vendor/faulhaber_mc_v3_drive_functions_05048.pdf",
+      "url": "https://eshop.faulhaber.com/media/b0/fe/85/1775629774/EN_7000_05048.pdf",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 5130447,
+      "sha256": "44008999a829b5371ab9afb701203cc08a159831e8755e6e6b159f21e30047d9",
+      "language": "en",
+      "applicability": [
+        "Motion Controller V3; model-specific capabilities",
+        "Stepper support specifically MC 3602 B and MC 3606 B"
+      ],
+      "revision": "7000.05048; edition 6; footer 2025-05-05; firmware O",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release.",
+      "manufacturer_linking_page": "https://eshop.faulhaber.com/en/MC-5005-S/Serie-MC-5005-S",
+      "pdf_pages": 212,
+      "pdf_metadata": {
+        "format": "PDF 1.4",
+        "title": "Drive Functions Motion Controller",
+        "author": "SteAtz",
+        "subject": "",
+        "keywords": "",
+        "creator": "FrameMaker 2019.0.8",
+        "producer": "Adobe PDF Library 15.0",
+        "creationDate": "D:20250505101304Z",
+        "modDate": "D:20250505102848+02'00'",
+        "trapped": "",
+        "encryption": null
+      }
+    },
+    {
+      "id": "N5PAGE",
+      "title": "Nanotec N5-1-2 manufacturer product and download page",
+      "path": "vendor/nanotec_n5_product.html",
+      "url": "https://www.nanotec.com/us/en/products/1599-n5-1-2-motor-controller-for-canopen",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 225619,
+      "sha256": "c1951857c234117501d01da77fb43598afe29558f0a7c3044c2d0206d5b233f0",
+      "language": "en",
+      "applicability": [
+        "N5-1-2"
+      ],
+      "revision": "HTML snapshot retrieved 2026-10-23",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "FHPAGE",
+      "title": "FAULHABER MC 5005 S product selector",
+      "path": "vendor/faulhaber_mc5005_product.html",
+      "url": "https://eshop.faulhaber.com/en/MC-5005-S/Serie-MC-5005-S",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 771977,
+      "sha256": "f625ab8017da7ab3af88a7d386e9b6479fc067e1b59a8ca7ffb8bfe29117e53e",
+      "language": "en",
+      "applicability": [
+        "MC 5005 S; RS/CO/ET options require explicit protocol selection"
+      ],
+      "revision": "HTML snapshot retrieved 2026-10-23",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "FHSUPPORT",
+      "title": "FAULHABER Drive Electronics support page",
+      "path": "vendor/faulhaber_support.html",
+      "url": "https://www.faulhaber.com/en/support/drive-electronics/",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 463081,
+      "sha256": "18d4ed77005c45f55a4bd80d608da66f378229aec3b8f3025b3bff40000907fa",
+      "language": "en",
+      "applicability": [
+        "Discovery only; multiple product families"
+      ],
+      "revision": "HTML snapshot retrieved 2026-10-23",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "AKDPAGE",
+      "title": "Kollmorgen AKD manufacturer product page",
+      "path": "vendor/kollmorgen_akd_product.html",
+      "url": "https://www.kollmorgen.com/en-us/products/drives/servo/akd",
+      "retrieved_on": "2026-10-23",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 297506,
+      "sha256": "9d536c0dfad30c9dbccdaf64cd74e202842cbfb7a204f256430a18f6a8e75538",
+      "language": "en",
+      "applicability": [
+        "AKD family; variant-specific protocols"
+      ],
+      "revision": "HTML snapshot retrieved 2026-10-23",
+      "firmware_match": "Document scope only; no physical drive inspected",
+      "origin": "manufacturer-hosted",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    }
+  ],
+  "derived_artifacts": [
+    {
+      "path": "extracted/nanotec_n5_canopen_v3.3.0.txt",
+      "source_id": "N5",
+      "generated_on": "2026-10-23",
+      "method": "PyMuPDF page.get_text(); one-based PDF page markers; formatting is not authoritative",
+      "bytes": 916016,
+      "sha256": "ac6713ba9839c70e8c886755527a740adaa8913ed2acf987d87efece202c6ad9"
+    },
+    {
+      "path": "extracted/nanotec_c5e_canopen_v3.3.0.txt",
+      "source_id": "C5E",
+      "generated_on": "2026-10-23",
+      "method": "PyMuPDF page.get_text(); one-based PDF page markers; formatting is not authoritative",
+      "bytes": 906373,
+      "sha256": "9e4adc222010bf6a87006a4bf6af02864c00b1402a167f3f012f30caec73050e"
+    },
+    {
+      "path": "extracted/faulhaber_mc_v3_canopen_05050.txt",
+      "source_id": "FHC",
+      "generated_on": "2026-10-23",
+      "method": "PyMuPDF page.get_text(); one-based PDF page markers; formatting is not authoritative",
+      "bytes": 133084,
+      "sha256": "8e006b8f1b3489ea6dfc825985a179b56156afb6a2862c56df9a25d4264a4fd8"
+    },
+    {
+      "path": "extracted/faulhaber_mc_v3_drive_functions_05048.txt",
+      "source_id": "FHF",
+      "generated_on": "2026-10-23",
+      "method": "PyMuPDF page.get_text(); one-based PDF page markers; formatting is not authoritative",
+      "bytes": 652778,
+      "sha256": "9817f79cc7333855dc14d0243cd231aacc1ac429229b54b4b3199f241c59e6f8"
+    }
+  ],
+  "remote_only": [
+    {
+      "id": "CIA402",
+      "title": "CiA 402 series public profile overview",
+      "url": "https://www.can-cia.org/can-knowledge/cia-402-series-canopen-device-profile-for-drives-and-motion-control",
+      "revision": "Public overview; refers to CiA 402-2/-3 version 5.0.0 and separate CANopen FD extensions",
+      "retrieval_status": "browser_reviewed_not_downloaded",
+      "applicability": [
+        "Profile overview, not full normative standard"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "EPOSPAGE",
+      "title": "maxon EPOS4 Compact 50/5 CAN manufacturer product page",
+      "url": "https://www.maxongroup.com/maxon/view/product/control/Positionierung/EPOS-4/541718",
+      "revision": "Product part 541718; live page reviewed 2026-10-23",
+      "retrieval_status": "browser_reviewed_direct_download_http_403",
+      "applicability": [
+        "EPOS4 Compact 50/5 CAN"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "EPOSFW",
+      "title": "maxon EPOS4 Firmware Specification",
+      "url": "https://www.maxongroup.com/medias/sys_master/root/9579215585310/EPOS4-Firmware-Specification-En.pdf",
+      "revision": "2026-07; document rel13740",
+      "pdf_pages": 310,
+      "retrieval_status": "browser_pdf_reviewed_direct_download_http_403",
+      "applicability": [
+        "EPOS4; firmware/model-specific feature chart and exact EDS still required"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "EPOSCOMM",
+      "title": "maxon EPOS4 Communication Guide",
+      "url": "https://www.maxongroup.com/medias/sys_master/root/9567255756830/EPOS4-Communication-Guide-En.pdf",
+      "revision": "2026-04; document rel13604",
+      "pdf_pages": 54,
+      "retrieval_status": "browser_pdf_reviewed_direct_download_http_403",
+      "applicability": [
+        "EPOS4; exact CAN variant and firmware required"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "AKDCOMM",
+      "title": "Kollmorgen AKD CANopen Communications Manual",
+      "url": "https://www.kollmorgen.com/sites/default/files/public_downloads/903-200004-00%20AKD%20CANopen%20Communications%20Manual%20EN%20REV%20Y.pdf",
+      "revision": "Rev Y; October 2020; firmware 1.20",
+      "pdf_pages": 183,
+      "retrieval_status": "browser_pdf_reviewed_direct_download_http_403",
+      "applicability": [
+        "AKD CANopen-capable variants; firmware 1.20"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "DELTAPAGE",
+      "title": "Delta ASDA-A2 manufacturer product page",
+      "url": "https://www.delta-americas.com/en-US/products/Servo-Systems-AC-Servo-Motors-and-Drives/1471",
+      "revision": "Live product page reviewed 2026-10-23",
+      "retrieval_status": "browser_reviewed_not_downloaded",
+      "applicability": [
+        "ASDA-A2-M CANopen; does not establish -MN applicability"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "DELTACOMM",
+      "title": "Proposed Delta ASDA-A2 CANopen User Manual download",
+      "url": "https://filecenter.deltaww.com/Products/download/06/060201/Application%20Note/DELTA_IA-ASD_A2-CANopen_UM_EN_20120921.pdf",
+      "revision": "20120921 filename only; original not obtained or verified",
+      "retrieval_status": "redirected_to_terms_of_use_html_not_pdf",
+      "final_url": "https://www.deltaww.com/en-US/service-support/download-center/terms-of-use/verify?path=%2FProducts%2Fdownload%2F06%2F060201%2FApplication+Note%2FDELTA_IA-ASD_A2-CANopen_UM_EN_20120921.pdf",
+      "applicability": [
+        "Unverified; do not derive object-level capabilities from this unavailable document"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "C5EPAGE",
+      "title": "Nanotec C5-E-2-09 manufacturer product page",
+      "url": "https://www.nanotec.com/us/en/products/1768-c5-e-2-09-motor-controller-drive-for-canopen-or-usb",
+      "revision": "Live product page",
+      "retrieval_status": "browser_reviewed_not_downloaded",
+      "applicability": [
+        "C5-E-2-09 CANopen/USB"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    },
+    {
+      "id": "C501PAGE",
+      "title": "Nanotec C5-01 manufacturer product page",
+      "url": "https://www.nanotec.com/us/en/products/1740-c5-01",
+      "revision": "Live product page",
+      "retrieval_status": "browser_reviewed_not_downloaded",
+      "applicability": [
+        "C5-01 USB/open-loop; not CANopen evidence"
+      ],
+      "reviewed_on": "2026-10-23",
+      "retrieved_on": null,
+      "path": null,
+      "bytes": null,
+      "sha256": null,
+      "origin": "manufacturer or standards organization primary website",
+      "license": "Manufacturer copyright; no open redistribution license identified. Not covered by the future library source-code license; review redistribution rights before public release."
+    }
+  ],
+  "limitations": [
+    "No firmware-matched EDS acquired for the additional profiles.",
+    "No firmware, SDK or installer executed.",
+    "No hardware contacted or vendor correspondence.",
+    "Full normative CiA standard not obtained.",
+    "Public accessibility does not establish redistribution permission."
+  ]
+}

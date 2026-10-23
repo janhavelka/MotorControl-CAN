@@ -1,0 +1,106 @@
+{
+  "mode": "quick",
+  "firmware": "none",
+  "hardware": "NOT RUN (build and host tests only)",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "ctest": "ctest version 4.0.1",
+  "registered_tests": 78,
+  "package": {
+    "version": "1.0.0",
+    "file": "MotorControl-RS-1.0.0.zip",
+    "sha256": "dadc797f55a4053958e690d7eaea9c91de9363338db400dc2fe010c47240be20"
+  },
+  "status": "PASS",
+  "checks": [
+    {
+      "check": "offline-contrasts",
+      "exit": 0,
+      "seconds": 0.281,
+      "log": "01-offline-contrasts.log"
+    },
+    {
+      "check": "native-configure",
+      "exit": 0,
+      "seconds": 1.469,
+      "log": "02-native-configure.log"
+    },
+    {
+      "check": "native-build",
+      "exit": 0,
+      "seconds": 70.062,
+      "log": "03-native-build.log"
+    },
+    {
+      "check": "native-tests",
+      "exit": 0,
+      "seconds": 13.297,
+      "log": "04-native-tests.log"
+    },
+    {
+      "check": "package-configure",
+      "exit": 0,
+      "seconds": 0.875,
+      "log": "05-package-configure.log"
+    },
+    {
+      "check": "package-build",
+      "exit": 0,
+      "seconds": 1.328,
+      "log": "06-package-build.log"
+    },
+    {
+      "check": "package-install",
+      "exit": 0,
+      "seconds": 0.079,
+      "log": "07-package-install.log"
+    },
+    {
+      "check": "source-configure",
+      "exit": 0,
+      "seconds": 0.859,
+      "log": "08-source-configure.log"
+    },
+    {
+      "check": "source-build",
+      "exit": 0,
+      "seconds": 2.141,
+      "log": "09-source-build.log"
+    },
+    {
+      "check": "source-tests",
+      "exit": 0,
+      "seconds": 0.156,
+      "log": "10-source-tests.log"
+    },
+    {
+      "check": "source-codec-symbols",
+      "exit": 0,
+      "seconds": 0.015,
+      "log": "11-source-codec-symbols.log"
+    },
+    {
+      "check": "installed-configure",
+      "exit": 0,
+      "seconds": 0.766,
+      "log": "12-installed-configure.log"
+    },
+    {
+      "check": "installed-build",
+      "exit": 0,
+      "seconds": 1.172,
+      "log": "13-installed-build.log"
+    },
+    {
+      "check": "installed-tests",
+      "exit": 0,
+      "seconds": 0.156,
+      "log": "14-installed-tests.log"
+    },
+    {
+      "check": "installed-codec-symbols",
+      "exit": 0,
+      "seconds": 0.016,
+      "log": "15-installed-codec-symbols.log"
+    }
+  ]
+}

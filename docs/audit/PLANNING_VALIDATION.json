@@ -1,0 +1,17 @@
+{
+  "scope": "Planning package integrity only; no CAN library/HIL validation",
+  "passed": true,
+  "counts": {
+    "stages": 20,
+    "requirements": 35,
+    "multidrive_stage_gates": 20,
+    "shared_contracts": 5,
+    "concrete_stage_contracts": 20,
+    "reference_packs": 3,
+    "markdown_files": 52,
+    "local_links": 318,
+    "hashed_artifacts": 103,
+    "live_baseline_files": 0
+  },
+  "errors": []
+}

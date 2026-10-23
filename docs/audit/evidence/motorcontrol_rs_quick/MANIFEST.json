@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-10-23",
+  "source_head": "5da4ba7f13be457ea7bf9706ffd7d546821669c7",
+  "source_output_directory": "C:/Users/Honza/AppData/Local/Temp/motorcontrol-rs-audit-20261023",
+  "command": "python scripts/verify.py --mode quick --build-dir C:/Users/Honza/AppData/Local/Temp/motorcontrol-rs-audit-20261023",
+  "environment": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "python": "3.12.10",
+    "compiler": "MinGW GCC 15.1.0",
+    "cmake_ctest": "4.0.1",
+    "host": "Windows"
+  },
+  "files": [
+    {
+      "source": "summary.json",
+      "path": "summary.json",
+      "bytes": 2475,
+      "sha256": "fac9bed952a11adee077319b8d53077403485a83a95ec672efdb1d64ab6a5886"
+    },
+    {
+      "source": "01-offline-contrasts.log",
+      "path": "01-offline-contrasts.log",
+      "bytes": 219,
+      "sha256": "75bb47762c40b4a2fb3a3744375bb60c91f1351142f70517133dfd0aa4f9ac09"
+    },
+    {
+      "source": "02-native-configure.log",
+      "path": "02-native-configure.log",
+      "bytes": 1057,
+      "sha256": "a0776307551f387716083c3af9392502f21012aa6ae8cc8ee434c863dfa6f441"
+    },
+    {
+      "source": "03-native-build.log",
+      "path": "03-native-build.log",
+      "bytes": 38961,
+      "sha256": "82913ca33b0ef19bb8061bbca889c78866e53b08f701b88b1bee6bd472ec4c9a"
+    },
+    {
+      "source": "04-native-tests.log",
+      "path": "04-native-tests.log",
+      "bytes": 8324,
+      "sha256": "406e0e67b0919e56fefeb63a9ab608c8acd5a65e9229de6088c7dcf7e254bcd9"
+    },
+    {
+      "source": "05-package-configure.log",
+      "path": "05-package-configure.log",
+      "bytes": 970,
+      "sha256": "18d54c33761e7b5124426e3a6f2ff64169d0c580cd8b89826df639c8a564a8af"
+    },
+    {
+      "source": "06-package-build.log",
+      "path": "06-package-build.log",
+      "bytes": 1941,
+      "sha256": "0126c26db78d0e69f6294e02f3bb2fe6e55ca21bd1bfdb3333a9863cf04f8159"
+    },
+    {
+      "source": "07-package-install.log",
+      "path": "07-package-install.log",
+      "bytes": 4896,
+      "sha256": "5bb01e7344c9b5b55c737cec8209a3a1d2b0727ed083082a613a42e0c8097c1f"
+    },
+    {
+      "source": "08-source-configure.log",
+      "path": "08-source-configure.log",
+      "bytes": 1193,
+      "sha256": "60241e1040da9d4653bb6d64d8e89108b2854c5a90bb6459f5a25c1ff898a41b"
+    },
+    {
+      "source": "09-source-build.log",
+      "path": "09-source-build.log",
+      "bytes": 9055,
+      "sha256": "f9ff2e5058683ec8c59285b11a70513753949e6f9015e0029f8b994f6409ac83"
+    },
+    {
+      "source": "10-source-tests.log",
+      "path": "10-source-tests.log",
+      "bytes": 637,
+      "sha256": "63f33f515a06f1346dc91c6f93e65bba9cd98d08aa682a314b61340156394b5e"
+    },
+    {
+      "source": "11-source-codec-symbols.log",
+      "path": "11-source-codec-symbols.log",
+      "bytes": 37408,
+      "sha256": "67c64db070750e1036cd6e391cf2e1ce96e7187b6d7055932ed0f914f73d2efb"
+    },
+    {
+      "source": "12-installed-configure.log",
+      "path": "12-installed-configure.log",
+      "bytes": 1066,
+      "sha256": "519cf2234b74da821653bdf8fe035e6603ce3c23a5e765a6a7ffdc6f3b53ef59"
+    },
+    {
+      "source": "13-installed-build.log",
+      "path": "13-installed-build.log",
+      "bytes": 7138,
+      "sha256": "6ece85f16b955915e249416dedaf8c96d9d1315890d18d4f84561125b8780e7f"
+    },
+    {
+      "source": "14-installed-tests.log",
+      "path": "14-installed-tests.log",
+      "bytes": 643,
+      "sha256": "8e9ea908a238134f5dedcb5cfb70e64a64dc52093afbbc2d488ca875b02631c1"
+    },
+    {
+      "source": "15-installed-codec-symbols.log",
+      "path": "15-installed-codec-symbols.log",
+      "bytes": 37411,
+      "sha256": "955f9e928723edf6d94fd7e36767d5535cb64d24dd42a331b2d86aad7d0716da"
+    }
+  ]
+}

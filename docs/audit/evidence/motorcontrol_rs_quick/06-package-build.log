@@ -1,0 +1,21 @@
+["cmake", "--build", "C:\\Users\\Honza\\AppData\\Local\\Temp\\motorcontrol-rs-audit-20261023\\package-build", "--parallel", "4"]
+[1/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/Discovery.cpp.obj
+[2/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/Traffic.cpp.obj
+[3/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/Units.cpp.obj
+[4/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Discovery.cpp.obj
+[5/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Traffic.cpp.obj
+[6/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Registers.cpp.obj
+[7/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Reads.cpp.obj
+[8/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Actions.cpp.obj
+[9/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Codec.cpp.obj
+[10/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/Axis.cpp.obj
+[11/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Segments.cpp.obj
+[12/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Velocity.cpp.obj
+[13/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Position.cpp.obj
+[14/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/ControlSettings.cpp.obj
+[15/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Tuning.cpp.obj
+[16/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Communication.cpp.obj
+[17/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Homing.cpp.obj
+[18/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/Persistence.cpp.obj
+[19/20] Building CXX object CMakeFiles/MotorControlRS.dir/src/profiles/ess_rs/DriverSettings.cpp.obj
+[20/20] Linking CXX static library libMotorControlRS.a

@@ -1,0 +1,18 @@
+{
+  "scope": "Planning package integrity only; no CAN library/HIL validation",
+  "passed": false,
+  "counts": {
+    "stages": 20,
+    "markdown_files": 38,
+    "local_links": 120,
+    "hashed_artifacts": 80,
+    "live_baseline_files": 44
+  },
+  "errors": [
+    "Live source differs from snapshot: C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\AGENTS.md",
+    "Live source differs from snapshot: C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\README.md",
+    "Live source differs from snapshot: C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\docs\\architecture.md",
+    "Live source differs from snapshot: C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\docs\\profile_contract.md",
+    "Live source differs from snapshot: C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\docs\\source_map.md"
+  ]
+}

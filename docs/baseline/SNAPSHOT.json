@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "snapshot_date": "2026-10-23",
+  "source_repository": {
+    "name": "MotorControl-RS",
+    "local_path": "C:/Users/Honza/Documents/Projects/MotorControl-RS",
+    "remote": "https://github.com/janhavelka/MotorControl-RS.git",
+    "head": "5da4ba7f13be457ea7bf9706ffd7d546821669c7",
+    "working_tree": "clean"
+  },
+  "purpose": "Immutable selective architecture and API reference; not installed library code and not a complete buildable checkout. Re-audit live siblings before every implementation stage.",
+  "files": [
+    {
+      "source": ".github/workflows/verify.yml",
+      "path": "MotorControl-RS/.github/workflows/verify.yml",
+      "bytes": 2024,
+      "sha256": "39b0d8116dcaee9f897d9bfc9b9735e31cd98f579e05f58b7bfa866bed6c5dbb"
+    },
+    {
+      "source": "AGENTS.md",
+      "path": "MotorControl-RS/AGENTS.md",
+      "bytes": 19278,
+      "sha256": "a9560fea162a8f6426364f73944143002910ed47e1d06352efc5e5669ab61518"
+    },
+    {
+      "source": "CMakeLists.txt",
+      "path": "MotorControl-RS/CMakeLists.txt",
+      "bytes": 16759,
+      "sha256": "893dfb6f1cc42c4905ca4e07ec20bcf57a7a5e61dd9c1f62840449a7bd2163c5"
+    },
+    {
+      "source": "LICENSE",
+      "path": "MotorControl-RS/LICENSE",
+      "bytes": 1302,
+      "sha256": "0e499e0bf39725799040f7ea4c23dd2ea58b3c0f89e6492b73c6939ea649a806"
+    },
+    {
+      "source": "README.md",
+      "path": "MotorControl-RS/README.md",
+      "bytes": 7032,
+      "sha256": "43cff84bde0008410e9c1896706ac92a7780e4fd5b635070d216c0379e2ce864"
+    },
+    {
+      "source": "docs/architecture.md",
+      "path": "MotorControl-RS/docs/architecture.md",
+      "bytes": 36792,
+      "sha256": "926cb9eb50fb64b361780bdea334fb2c8dfbbd1ac9c364316e524143e7f3980e"
+    },
+    {
+      "source": "docs/axis_contract.md",
+      "path": "MotorControl-RS/docs/axis_contract.md",
+      "bytes": 35151,
+      "sha256": "ea92afc44aa521471b409db321f7c591a325638eab92b928561c11ffec48dd96"
+    },
+    {
+      "source": "docs/cli_contract.md",
+      "path": "MotorControl-RS/docs/cli_contract.md",
+      "bytes": 12888,
+      "sha256": "8ce8265fe0e2be9d980b4d54ce579bba4e4f372c028bb65ab2c8f542fa65121a"
+    },
+    {
+      "source": "docs/profile_contract.md",
+      "path": "MotorControl-RS/docs/profile_contract.md",
+      "bytes": 29318,
+      "sha256": "7fc6baeb305cd9077179279832c01152a7a451515d7a73728a3ba7bbb0db5fcb"
+    },
+    {
+      "source": "docs/source_map.md",
+      "path": "MotorControl-RS/docs/source_map.md",
+      "bytes": 10209,
+      "sha256": "292e209995fe0d5002fadf80b9cfdfdd10c8260bf733dbe2512d9384eaf1a6bf"
+    },
+    {
+      "source": "docs/verification.md",
+      "path": "MotorControl-RS/docs/verification.md",
+      "bytes": 6132,
+      "sha256": "0084c97597ea03ab1a3d9bd9af813f3512d3823d9dc8a43eea3c07ea5b492c5d"
+    },
+    {
+      "source": "include/MotorControlRS/ActionOperation.h",
+      "path": "MotorControl-RS/include/MotorControlRS/ActionOperation.h",
+      "bytes": 3247,
+      "sha256": "99d51601790c29b7c9268d864314516573eb5f6744d2cfb16ea74522f2eb3a9a"
+    },
+    {
+      "source": "include/MotorControlRS/Axis.h",
+      "path": "MotorControl-RS/include/MotorControlRS/Axis.h",
+      "bytes": 7779,
+      "sha256": "d616aac4a944107bbd1198bb656f9942f21bedc726d7b3e3f57726c3595cfbd4"
+    },
+    {
+      "source": "include/MotorControlRS/Discovery.h",
+      "path": "MotorControl-RS/include/MotorControlRS/Discovery.h",
+      "bytes": 2000,
+      "sha256": "c5a228b79a3d35b8374ad243d343a917479baabca78a380efbab4470b1adf946"
+    },
+    {
+      "source": "include/MotorControlRS/MotorControlRS.h",
+      "path": "MotorControl-RS/include/MotorControlRS/MotorControlRS.h",
+      "bytes": 406,
+      "sha256": "7841111df1992e9205ca4d3447ad132b46d411bce9aaf001ee54b6b2ae2e8011"
+    },
+    {
+      "source": "include/MotorControlRS/MoveOperation.h",
+      "path": "MotorControl-RS/include/MotorControlRS/MoveOperation.h",
+      "bytes": 1295,
+      "sha256": "bca840efb56b881db90c428b74d7a86380772fbcaf0a660ec42205282e553aa5"
+    },
+    {
+      "source": "include/MotorControlRS/ReadOperation.h",
+      "path": "MotorControl-RS/include/MotorControlRS/ReadOperation.h",
+      "bytes": 3917,
+      "sha256": "54a896a0e502e1f02b323e5aba16dc5cd8af5cb80e662af518e82293f799eb81"
+    },
+    {
+      "source": "include/MotorControlRS/Status.h",
+      "path": "MotorControl-RS/include/MotorControlRS/Status.h",
+      "bytes": 2053,
+      "sha256": "8c2bbf9d7e656230e84be64e57fa9d239314c3cf558669ef295c6a7db75d485e"
+    },
+    {
+      "source": "include/MotorControlRS/Traffic.h",
+      "path": "MotorControl-RS/include/MotorControlRS/Traffic.h",
+      "bytes": 3400,
+      "sha256": "4b6b1c7945f18eb8dc083b029bdd3d721769fe95824247ab5e03ab5292e5ac2e"
+    },
+    {
+      "source": "include/MotorControlRS/Units.h",
+      "path": "MotorControl-RS/include/MotorControlRS/Units.h",
+      "bytes": 5514,
+      "sha256": "e546a00d5626d874d33e7400da474027551677a25e06431c0a86205e5fa174b2"
+    },
+    {
+      "source": "include/MotorControlRS/VelocityOperation.h",
+      "path": "MotorControl-RS/include/MotorControlRS/VelocityOperation.h",
+      "bytes": 2344,
+      "sha256": "b362fbc941651d1333cbdc8b2115650b675eade50cbac720b3a5dacafc0fc48d"
+    },
+    {
+      "source": "include/MotorControlRS/Version.h",
+      "path": "MotorControl-RS/include/MotorControlRS/Version.h",
+      "bytes": 389,
+      "sha256": "0be85fe2240a6abb6ea20ae9070e8dd0647ff8dd176c400ffd4c2ac714a0af83"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Actions.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Actions.h",
+      "bytes": 7768,
+      "sha256": "ede788a1bf37438866e712567ebe4c3cea5d7d4f4107111560024072926a02d6"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Codec.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Codec.h",
+      "bytes": 8660,
+      "sha256": "a3d49fc63915e92a68282e49d3b67efbc2418032edcf6ba2c824fb5977166b12"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Communication.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Communication.h",
+      "bytes": 6387,
+      "sha256": "eb351bb92bb49dc8578a16b56480d40137676175de8e60203742f31efce95da5"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/ControlSettings.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/ControlSettings.h",
+      "bytes": 2310,
+      "sha256": "c9666d92f7b42b2af13a61772d6acd1d69d584afdf8d2568a1bf1a2124abde39"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Defaults.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Defaults.h",
+      "bytes": 1786,
+      "sha256": "b34264356a676130ba11b6bb7b71ea45cc2865246a9091bcaaf16f0a31aafe3c"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Discovery.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Discovery.h",
+      "bytes": 3721,
+      "sha256": "873f5af755873141ab503721c61b6de3c43c6135772b98de4c69cc349afa8803"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/DriverSettings.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/DriverSettings.h",
+      "bytes": 15404,
+      "sha256": "46201faff3c08596694b2dace154401604c2de0e6a2ee799e0771988dc951ef6"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Homing.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Homing.h",
+      "bytes": 7769,
+      "sha256": "9591e029a864a47f69975cdf46b162cdfc107c14f2a4ace03efb0c81f55e6b03"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Persistence.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Persistence.h",
+      "bytes": 6731,
+      "sha256": "ce8d0c36f4c67569b76a80ad1e34d0e9a723156bbf5f4e1abeff62ffb912921d"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Position.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Position.h",
+      "bytes": 14297,
+      "sha256": "38a5240637b5f0d134cd0c48c3f7343c0f127c86521d2ba28f09e3950cae92b6"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Reads.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Reads.h",
+      "bytes": 11122,
+      "sha256": "3785e972f0d7d22cafe1a12f184ca185ebc999c3a7ec6482fd4e55b2c769344a"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Registers.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Registers.h",
+      "bytes": 17924,
+      "sha256": "bcd417a00a548e49012519fc96980a2b617916ad63d487403b1cd7529145006c"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Segments.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Segments.h",
+      "bytes": 2444,
+      "sha256": "337f2bda4eadda15fb1b59782c9ebd05c5b1e1ea692cbd5b0f055bb09ef5c7ce"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Traffic.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Traffic.h",
+      "bytes": 1355,
+      "sha256": "be655a9e9217b30c81e81e96cf60b43aff9582d5507771450962c0a203e86645"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Tuning.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Tuning.h",
+      "bytes": 3069,
+      "sha256": "3d08ae2331142f4fe9368be147b98c8463b4b19a50722c7d9e1c22199711d217"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Types.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Types.h",
+      "bytes": 16471,
+      "sha256": "b4b633c817b5f332aeb345aeb9a8ffc306fae777b7a8922803a03d61ac7d86f3"
+    },
+    {
+      "source": "include/MotorControlRS/profiles/ess_rs/Velocity.h",
+      "path": "MotorControl-RS/include/MotorControlRS/profiles/ess_rs/Velocity.h",
+      "bytes": 5499,
+      "sha256": "dc6ac30878f1cd056ef84e55584fc415e71eccdbe1db34b8340a41b4b001fae4"
+    },
+    {
+      "source": "library.json",
+      "path": "MotorControl-RS/library.json",
+      "bytes": 798,
+      "sha256": "3aca2a830b4cfa34dfd59397148f778475ed70da31edbbbd966f6731fc5dfcaa"
+    },
+    {
+      "source": "platformio.ini",
+      "path": "MotorControl-RS/platformio.ini",
+      "bytes": 2039,
+      "sha256": "7f17165a4d985d955fa470154e6e6c32417cb5e266ce9920fa531f87f75dc288"
+    },
+    {
+      "source": "src/Axis.cpp",
+      "path": "MotorControl-RS/src/Axis.cpp",
+      "bytes": 42927,
+      "sha256": "260be39150fa7dabf2dfcac288c1c9a8c38c1e6491298856175712bd8ae11296"
+    },
+    {
+      "source": "src/UnitFactors.h",
+      "path": "MotorControl-RS/src/UnitFactors.h",
+      "bytes": 2999,
+      "sha256": "4704e4d2e113ae6ae61f903b3d47ad21fe3fd2fd25508cbf4d625b49df0a9044"
+    },
+    {
+      "source": "src/Units.cpp",
+      "path": "MotorControl-RS/src/Units.cpp",
+      "bytes": 8400,
+      "sha256": "208b780da2615ab637a78fa7ac7de7a64525ac834237541dda9efa0e3e22c202"
+    }
+  ]
+}
