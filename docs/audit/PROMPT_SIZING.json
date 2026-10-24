@@ -6,9 +6,9 @@
   "old_max": 988,
   "old_median": 749.0,
   "new_count": 50,
-  "new_min": 513,
-  "new_max": 690,
-  "new_median": 585.5,
+  "new_min": 531,
+  "new_max": 767,
+  "new_median": 638.5,
   "old_prompts": [
     {
       "file": "00_audit_and_evidence.md",
@@ -95,7 +95,7 @@
     {
       "id": 1,
       "file": "1_source_audit.md",
-      "words": 587,
+      "words": 638,
       "dependencies": [],
       "source_stages": [
         "00"
@@ -104,7 +104,7 @@
     {
       "id": 2,
       "file": "2_source_ledger.md",
-      "words": 574,
+      "words": 640,
       "dependencies": [
         1
       ],
@@ -116,7 +116,7 @@
     {
       "id": 3,
       "file": "3_lichuan_semantics.md",
-      "words": 597,
+      "words": 676,
       "dependencies": [
         2
       ],
@@ -127,7 +127,7 @@
     {
       "id": 4,
       "file": "4_drive_contrasts.md",
-      "words": 588,
+      "words": 650,
       "dependencies": [
         2,
         3
@@ -139,7 +139,7 @@
     {
       "id": 5,
       "file": "5_stack_decision.md",
-      "words": 613,
+      "words": 681,
       "dependencies": [
         3,
         4
@@ -184,7 +184,7 @@
     {
       "id": 9,
       "file": "9_status_units.md",
-      "words": 610,
+      "words": 665,
       "dependencies": [
         6,
         8
@@ -196,7 +196,7 @@
     {
       "id": 10,
       "file": "10_axis_coordinates.md",
-      "words": 566,
+      "words": 626,
       "dependencies": [
         9
       ],
@@ -207,7 +207,7 @@
     {
       "id": 11,
       "file": "11_can_sdo_codecs.md",
-      "words": 596,
+      "words": 666,
       "dependencies": [
         5,
         8,
@@ -220,7 +220,7 @@
     {
       "id": 12,
       "file": "12_object_generation.md",
-      "words": 595,
+      "words": 659,
       "dependencies": [
         3,
         8,
@@ -233,7 +233,7 @@
     {
       "id": 13,
       "file": "13_sdo_lifecycle.md",
-      "words": 655,
+      "words": 725,
       "dependencies": [
         5,
         6,
@@ -246,7 +246,7 @@
     {
       "id": 14,
       "file": "14_sdo_reconciliation.md",
-      "words": 610,
+      "words": 666,
       "dependencies": [
         13
       ],
@@ -257,7 +257,7 @@
     {
       "id": 15,
       "file": "15_network_events.md",
-      "words": 597,
+      "words": 650,
       "dependencies": [
         13,
         14
@@ -270,7 +270,7 @@
     {
       "id": 16,
       "file": "16_nmt_services.md",
-      "words": 619,
+      "words": 686,
       "dependencies": [
         15
       ],
@@ -281,7 +281,7 @@
     {
       "id": 17,
       "file": "17_pdo_observations.md",
-      "words": 590,
+      "words": 664,
       "dependencies": [
         12,
         15,
@@ -295,7 +295,7 @@
     {
       "id": 18,
       "file": "18_pdo_configuration.md",
-      "words": 622,
+      "words": 700,
       "dependencies": [
         16,
         17
@@ -307,7 +307,7 @@
     {
       "id": 19,
       "file": "19_typed_reads.md",
-      "words": 540,
+      "words": 613,
       "dependencies": [
         10,
         12,
@@ -322,7 +322,7 @@
     {
       "id": 20,
       "file": "20_driver_settings.md",
-      "words": 583,
+      "words": 665,
       "dependencies": [
         19
       ],
@@ -333,7 +333,7 @@
     {
       "id": 21,
       "file": "21_io_settings.md",
-      "words": 567,
+      "words": 644,
       "dependencies": [
         19,
         20
@@ -346,7 +346,7 @@
     {
       "id": 22,
       "file": "22_tuning_settings.md",
-      "words": 557,
+      "words": 639,
       "dependencies": [
         19,
         20
@@ -387,7 +387,7 @@
     {
       "id": 25,
       "file": "25_health_stats.md",
-      "words": 548,
+      "words": 610,
       "dependencies": [
         24
       ],
@@ -434,7 +434,7 @@
     {
       "id": 29,
       "file": "29_device_evidence.md",
-      "words": 690,
+      "words": 767,
       "dependencies": [
         3,
         19,
@@ -447,7 +447,7 @@
     {
       "id": 30,
       "file": "30_drive_actions.md",
-      "words": 520,
+      "words": 617,
       "dependencies": [
         19,
         20,
@@ -460,7 +460,7 @@
     {
       "id": 31,
       "file": "31_stop_actions.md",
-      "words": 532,
+      "words": 611,
       "dependencies": [
         24,
         30
@@ -472,7 +472,7 @@
     {
       "id": 32,
       "file": "32_fault_reference_actions.md",
-      "words": 523,
+      "words": 613,
       "dependencies": [
         21,
         30,
@@ -486,7 +486,7 @@
     {
       "id": 33,
       "file": "33_position_moves.md",
-      "words": 514,
+      "words": 593,
       "dependencies": [
         10,
         20,
@@ -500,7 +500,7 @@
     {
       "id": 34,
       "file": "34_angle_moves.md",
-      "words": 517,
+      "words": 580,
       "dependencies": [
         33
       ],
@@ -511,7 +511,7 @@
     {
       "id": 35,
       "file": "35_velocity.md",
-      "words": 525,
+      "words": 609,
       "dependencies": [
         31,
         33
@@ -523,7 +523,7 @@
     {
       "id": 36,
       "file": "36_homing.md",
-      "words": 528,
+      "words": 627,
       "dependencies": [
         31,
         32,
@@ -536,7 +536,7 @@
     {
       "id": 37,
       "file": "37_discovery.md",
-      "words": 523,
+      "words": 588,
       "dependencies": [
         19,
         25
@@ -548,7 +548,7 @@
     {
       "id": 38,
       "file": "38_communication_commissioning.md",
-      "words": 513,
+      "words": 601,
       "dependencies": [
         18,
         24,
@@ -561,7 +561,7 @@
     {
       "id": 39,
       "file": "39_persistence.md",
-      "words": 533,
+      "words": 596,
       "dependencies": [
         24,
         38
@@ -585,7 +585,7 @@
     {
       "id": 41,
       "file": "41_cli_device_routes.md",
-      "words": 621,
+      "words": 695,
       "dependencies": [
         21,
         22,
@@ -601,7 +601,7 @@
     {
       "id": 42,
       "file": "42_cli_motion_routes.md",
-      "words": 592,
+      "words": 662,
       "dependencies": [
         34,
         35,
@@ -615,7 +615,7 @@
     {
       "id": 43,
       "file": "43_python_console.md",
-      "words": 563,
+      "words": 632,
       "dependencies": [
         42
       ],
@@ -626,7 +626,7 @@
     {
       "id": 44,
       "file": "44_python_campaigns.md",
-      "words": 589,
+      "words": 653,
       "dependencies": [
         43
       ],
@@ -637,7 +637,7 @@
     {
       "id": 45,
       "file": "45_fault_integration.md",
-      "words": 594,
+      "words": 653,
       "dependencies": [
         36,
         39,
@@ -665,7 +665,7 @@
     {
       "id": 47,
       "file": "47_hardware_finite.md",
-      "words": 604,
+      "words": 675,
       "dependencies": [
         29,
         44,
@@ -679,7 +679,7 @@
     {
       "id": 48,
       "file": "48_hardware_stress.md",
-      "words": 620,
+      "words": 691,
       "dependencies": [
         47
       ],
@@ -690,7 +690,7 @@
     {
       "id": 49,
       "file": "49_documentation_package_audit.md",
-      "words": 596,
+      "words": 680,
       "dependencies": [
         42,
         44,
@@ -703,7 +703,7 @@
     {
       "id": 50,
       "file": "50_final_review.md",
-      "words": 637,
+      "words": 697,
       "dependencies": [
         49
       ],
@@ -711,5 +711,13 @@
         "19"
       ]
     }
-  ]
+  ],
+  "measurement_date": "2026-10-24",
+  "measurement_note": "Current bodies after concrete Lichuan evidence enrichment; source tables linked by prompt-owned group and not repeated as mandatory full-pack reading.",
+  "split_only_measurement": {
+    "revision": "2cda16e",
+    "min": 513,
+    "median": 585.5,
+    "max": 690
+  }
 }

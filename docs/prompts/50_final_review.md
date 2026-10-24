@@ -12,6 +12,10 @@ Perform the final independent contract review, resolve confirmed defects and ver
 
 Refresh relevant RS release/ownership/result behavior, ADS1115/INA228 verification and documentation practice, and FieldCore's current consumer boundary read-only. Inspect actual final files, all numbered prompt reports, requirement/native/API/CLI coverage, pending issues, CI and hardware artifacts. Review the user's entire accepted scope rather than just the final diff. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+Revisit [DEVICE_EVIDENCE.md](DEVICE_EVIDENCE.md), all owned ledger rows and factual corrections. Independently sample original PDF tables, raw EDS sections and pinned source lines against implementation/tests; don't review only generated summaries. Verify that unknown timing/access/effect claims never became defaults or unconditional capability. Check full 99-index/202-scalar accounting plus manual-only semantics, while keeping documented, implemented, host-tested and hardware-qualified counts distinct.
+
 ## Implement
 
 1. Commission an independent review of exact naming/units, status/health/result separation, ownership/lifetimes, no side effects on startup/cached reads, queue retirement, stop/cancel distinction, uncertainty, source contradictions and bounded resources. Reviewers receive contracts and changed files, not an instruction to endorse prior decisions. Findings need a concrete consequence, source and reproducible counterexample where possible.

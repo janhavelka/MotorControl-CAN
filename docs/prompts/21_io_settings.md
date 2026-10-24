@@ -12,6 +12,10 @@ Apply [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) a
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS I/O settings/actions, typed `getIo` callers and invalid-setting tests. Inspect PCA9555 output/observation validity and MCP45HVX1 explicit output controls; compare INA228 state validity. Review relevant FieldCore input projections read-only. Recheck original Lichuan tables and EDS for function numbers, polarity, masks, filter units, access and model applicability.
 
+### Concrete evidence to recheck
+
+The [rendered-source review](../audit/LICHUAN_OBJECT_FACTS.md) found a real address conflict: EDS and ZH86 p19 place DO polarity at `0x2400:0C`, DO0/1/2 at `:0D/:0E/:0F`; EN86 p8/p18, ZH86 p8 and OP86 p6 shift these to `:0B/:0C/:0D/:0E`. DO function 2/3 meanings also differ between wiring and dictionary tables. EDS filter defaults `50,40,100,4000,10,2,16` conflict with OP86's defaults of 2. These facts must not become a writable union or a reset recipe. Gate the actual address/function interpretation by firmware evidence.
+
 ## Implement
 
 1. Freeze assigned rows and their read/write/action classification. Extend the established typed group/context pattern using RS names only for matching semantics. Provide checked `getIo` and explicit output-action functions where the ledger supports them. Keep input observation and output mutation visibly different.

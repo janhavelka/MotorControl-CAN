@@ -12,6 +12,10 @@ Apply [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) a
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Position`, `Axis`, request/profile snapshot validation and terminal context tests. Compare BME280 partial configuration and I2C admitted-buffer ownership. Inspect actual FieldCore target/operation/step correlation and exact-target snapshots read-only. Recheck selected Lichuan mode, trigger, acknowledgement and completion evidence; unqualified status dialect remains a motion gate.
 
+### Concrete evidence to recheck
+
+Use [position sequences](../audit/LICHUAN_MOTION_FACTS.md): `607A` I32 target, documented -1000000..+1000000 pulses; `6081` U32 profile speed, 0..3000 rpm; `6083/6084` U32 times, 0..2000 ms. Controlword decimal `15 -> 31` starts absolute and `15 -> 95` relative; `15 -> 63/127` sets immediate-update bit5. Bit4 is the new-target rising edge; bit6 selects relative. The documents do not establish a target FIFO, capacity or acknowledgement timing. Completion bit15 must be fresh for this operation and interpreted under the qualified status dialect.
+
 ## Implement
 
 1. Implement `prepareMoveAbsolute`, `prepareMoveRelative`, `nextMove` and `advanceMove` using `profiles/lichuan_c/Position.h`, common `MoveOperation.h` and existing owner work/events. The concrete terminal context is the result; do not add `getMoveResult`.

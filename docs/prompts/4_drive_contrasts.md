@@ -12,6 +12,10 @@ Refresh RS, ADS1115 and INA228 and inspect their current variant/capability/type
 
 Use original available N5 and EPOS4 manuals and the supplied CANopen/proprietary surveys. Verify model, firmware and document scope before citing a value. Check primary ODrive, VESC and moteus material only at the framing, endpoint, acknowledgement and native-representation boundaries needed for extension cases. Missing sources remain explicit; a marketing page is not a wire specification.
 
+### Concrete evidence to recheck
+
+The [public research](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) identifies newer CL2-86C/CL2-57C products with absolute-encoder interfaces and USB-C. Treat these as different applicability scopes from the original CL86-C incremental-encoder family. Do not import their I/O counts, scaling, objects or manuals merely because the manufacturer and name prefix match. Keep N5/EPOS4 contrasts as assigned; discovering another product does not add an implementation obligation here.
+
 ## Implement
 
 1. Create a compact contrast ledger covering Lichuan C, N5 in stepper and BLDC configurations, and EPOS4 servo behavior. For each selected fact record source/page/version, native width/sign, command and feedback units, ramp interpretation, mode/capability, trigger/completion evidence, stop/brake/watchdog behavior and identity/configuration prerequisites. Keep motor kind, feedback and supported modes independent.

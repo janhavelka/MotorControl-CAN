@@ -10,6 +10,10 @@ Implement complete pure axis configuration, coordinate conversion and reference-
 
 Refresh RS, ADS1115 and INA228. Read RS `Axis.h/.cpp`, `Units.h/.cpp`, operation target callers and boundary tests; inspect implementation checks for ESS RPM/native-width leakage, not merely field names. Inspect current FieldCore exact motor targets, configuration/binding generation and reference semantics read-only. Apply [CONVENTIONS.md](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases), using the reviewed contrast ledger.
 
+### Concrete evidence to recheck
+
+Recheck the [position/scale findings](../audit/LICHUAN_MOTION_FACTS.md): `0x2201` subdivision, commanded `0x607A`, observed `0x6064`, following error and the manufacturer's encoder description do not establish one interchangeable coordinate unit. Do not calculate confirmed counts/revolution solely from a 1000-line encoder or use EDS defaults as live scale. `0x2302` position clear is a triggered device action, not an arbitrary host origin setter.
+
 ## Implement
 
 1. Implement `validateAxisConfig`, `configureAxis`, `setAxisOrigin`, `invalidateAxisReference`, `preparePosition` and `prepareVelocityTarget` with the agreed direct function style. Publish candidate configuration or prepared output only after complete validation. Preserve `prepareMoveAbsolute/Relative/Angle` vocabulary for later operation APIs without premature success implementations.

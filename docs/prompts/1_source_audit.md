@@ -12,6 +12,10 @@ Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty states, then ins
 
 Read RS guidance, public operation headers, ESS sequences, `examples/common/RtuBusOwner.*`, ProbeConsole and Python runners, test registration, packaging and current verifier/workflow. Compare the live command inventory against its protocol-3 documentation. Apply [CONVENTIONS.md](CONVENTIONS.md#1-public-names-layout-and-dependencies) and its status, operation and owner sections. Apply [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases) when inspecting multiple profiles; an ESS-only audit is insufficient.
 
+### Concrete evidence to recheck
+
+Use [DEVICE_EVIDENCE.md](DEVICE_EVIDENCE.md) to locate the new concrete intake. The public Lichuan example is a source to audit, not a naming or implementation baseline: it contains SDO-command, homing-width and ownership defects. Keep RS/I2C naming authority separate from device protocol authority, and record which source claims require corrections.
+
 ## Implement
 
 1. Inspect this checkout, upstream, recent commits and existing changes. Create the single new execution branch according to COMMON; record promptset identity, base commit and upstream in `PROGRESS.md`. Preserve unrelated changes and original supplied material.

@@ -10,6 +10,10 @@ Add continuous passive CANopen event decoding and node lifecycle evidence to the
 
 Refresh RS, ADS1115 and INA228. Read RS observation/generation and passive-traffic behavior, ADS1115 owner ingress and INA228 freshness semantics with relevant callers/tests. Inspect current FieldCore binding/availability invalidation read-only. Read selected stack NMT/heartbeat/EMCY configuration and original Lichuan evidence; do not assume drive-side watchdog behavior from host monitoring. Apply [CONVENTIONS.md](CONVENTIONS.md#4-one-application-can-owner) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+The [EDS facts](../audit/LICHUAN_OBJECT_FACTS.md) include `0x1017` U16/default 0, EMCY route `$NODEID+0x80`, and no `0x1016` consumer-heartbeat or `0x100C/0x100D` guarding entries. Preserve the distinction between not documented and proven unsupported. Standard heartbeat/boot-up decoding comes from the [pinned stack sources](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md). Do not invent a Lichuan host-loss stop guarantee from these host observations.
+
 ## Implement
 
 1. Add required pure boot-up, NMT heartbeat and EMCY codecs under the existing `canopen/` boundary, such as `Network.h`, without duplicating stack decoding responsibilities. Validate actual configured COB-ID, frame kind, length, source node/binding and generation. Preserve raw EMCY/error evidence alongside decoded known fields; unknown events remain diagnosable without corrupting active operation output.

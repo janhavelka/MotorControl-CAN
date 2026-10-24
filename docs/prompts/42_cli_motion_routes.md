@@ -10,6 +10,10 @@ Finish the console's finite motion/action routes and verify the complete shared 
 
 Read current RS motion/action command grammar, `ProbeApp` admission/result handling, stop responsiveness and retained results. Compare ADS1115/INA228 owner/health inspection and SHT3x shared command classification. Inspect FieldCore's actual motor result boundary read-only for semantic differences. Apply [CONVENTIONS.md](CONVENTIONS.md), the complete API/CLI mapping, [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) for user-facing units and capability reasons: ramp times are ms; position-profile speed and velocity-mode target are different objects; homing methods require different signals; setting/clearing a host origin is different from `2302` device clear. A motion command must not silently select an unresolved status dialect, reverse-velocity encoding or enable sequence. The public example's hidden save during zeroing is a specific negative CLI/runner regression.
+
 ## Implement
 
 1. Add the accepted `moveby`, `moveto`, `move relative`, `move absolute`, `move angle`, `velocity` and `home` routes using the same typed requests/native preparation as direct C++ callers. Preserve exact units, angle policy, coordinate/reference meaning, duration/deadline and preparation timing. CLI conversion code must not become the only implementation of a motor feature.

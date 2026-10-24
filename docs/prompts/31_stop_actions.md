@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence), it
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS stop/action interruption and owner urgency tests, plus its retained uncertain-operation evidence. Compare PCA9555 cancellation and INA228 validity. Inspect FieldCore stop admission and independent outcomes read-only. Recheck original Lichuan stop/option-code/controlword evidence and the selected firmware gate; absent `0x605A/0x6085` or vague `0x605D` semantics cannot be supplied from another drive.
 
+### Concrete evidence to recheck
+
+Recheck [stop evidence](../audit/LICHUAN_MOTION_FACTS.md): ZH86 p12 and OP86 p10 give normal stop `15 -> 271` (`0x000F -> 0x010F`); EN86 omits that row. All three give `15 -> 11` (`0x000F -> 0x000B`) as emergency stop. These are command examples, not a certified emergency-stop function, latency, braking curve or retained-torque guarantee. `0x605A/0x6085` are absent; `0x605D` is I16 RW/default 1 with unresolved options. Do not invent quick-stop settings or infer physical standstill from a reply or NMT state.
+
 ## Implement
 
 1. Specify the stop transition table before implementation: supported stop kinds, initial states, command/setup, option-code prerequisites, expected final state, target/queue disposition, reference/torque consequences and required new observations.

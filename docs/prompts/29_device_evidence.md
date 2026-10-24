@@ -10,6 +10,10 @@ Complete the early evidence-readiness package before implementing motion semanti
 
 Refresh RS finite bench/evidence practices and ADS1115/INA228 distinctions between planned, contract-tested and physically observed results. Inspect the actual owner, typed reads and adapter now implemented, along with current FieldCore evidence boundaries. Reopen exact Lichuan manual PDF pages and EDS rows recorded in the ledger; source extracts alone cannot settle conflicting tables. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+Prioritize the exact conflicts in [motion facts](../audit/LICHUAN_MOTION_FACTS.md) and [object facts](../audit/LICHUAN_OBJECT_FACTS.md): status-bit dialect, DO address/function layout, velocity sign/start trigger, position scale and zero-ramp meaning. Begin with identity/firmware and supported readback through one owner. A write probe to a disputed DO address can change another setting and is not read-only evidence. The conditional experimental route needs an independently reviewed exact action and fixture; never sweep unknown indexes or trial motion patterns to guess semantics.
+
 ## Implement
 
 1. Create a small native/firmware qualification harness using the ordinary application, single owner and public typed reads. It acquires identity and reviewed non-changing configuration/status evidence only after an explicit request. It works with fakes and does not require completed motion APIs, a command parser or a second service engine.

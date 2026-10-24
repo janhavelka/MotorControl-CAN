@@ -1,0 +1,203 @@
+{
+  "audit_date": "2026-10-24",
+  "method": "GitHub connector repository and code searches; official manufacturer websites and web search; bounded result pages, not exhaustive proof of absence",
+  "repository_searches": [
+    {
+      "query": "Lichuan motor",
+      "result_limit": 40,
+      "repositories": [
+        "pureskywalk/LichuanMotor",
+        "Tesla900/LichuanServoTest",
+        "amba-pro/motor_liCHuan",
+        "chuabo/LichuanMotor",
+        "mich1342/ethercar_lichuan_motor_TCL57E",
+        "InteractiveRoboticsHassen/LichuanServoTest"
+      ]
+    },
+    {
+      "query": "CL86",
+      "result_limit": 40,
+      "repositories": [
+        "WHJDevil/cl86",
+        "j-o-i-e/cl866645345435345345",
+        "cl868/cl868.github.io",
+        "cl865/cl865.github.io",
+        "dmunozc/cl86y-control",
+        "EitanWaks/adaptive-drum-kit-cl86t",
+        "dst68/cl86y-control",
+        "sbroboticsteam/stepper_driver_CL86RS",
+        "ZM2isVUqEDeckjO/i8rej8-cl86"
+      ]
+    },
+    {
+      "query": "CL57-C",
+      "result_limit": 40,
+      "repositories": [
+        "cl5706/cl5706",
+        "CL577/CL577",
+        "cl5706/cl5706.github.io",
+        "tarasii/arduino_cl5767_radio",
+        "Hemajey/CL57",
+        "Haoliao7/cl5703-HW-Week1",
+        "wwxihan2/git-workflow-practice-cl5706",
+        "ennio64/CL57R-Stepper-Driver-Arduino-Library",
+        "iosifnicolae2/cl57t_raspberry_pi_stepper_driver",
+        "dayatkun01/CL57R-Stepper-Driver-Arduino-Library",
+        "HenrikJStromberg/cl57t_raspberry_pi_stepper_driver"
+      ]
+    },
+    {
+      "query": "CL86-C",
+      "result_limit": 40,
+      "repositories": [
+        "WHJDevil/cl86",
+        "j-o-i-e/cl866645345435345345",
+        "cl868/cl868.github.io",
+        "cl865/cl865.github.io",
+        "dmunozc/cl86y-control",
+        "EitanWaks/adaptive-drum-kit-cl86t",
+        "dst68/cl86y-control",
+        "sbroboticsteam/stepper_driver_CL86RS",
+        "ZM2isVUqEDeckjO/i8rej8-cl86"
+      ]
+    },
+    {
+      "query": "LC_StepDriverCAN",
+      "result_limit": 40,
+      "repositories": []
+    },
+    {
+      "query": "xlichuan",
+      "result_limit": 40,
+      "repositories": []
+    }
+  ],
+  "code_searches": [
+    {
+      "query": "CL86-C CAN",
+      "result_limit": 30,
+      "urls": [
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/OTHER_CAN_PROTOCOLS.md",
+        "https://github.com/janhavelka/ESP32P4X-EasyEDA-PCB/blob/dea45c8654527e417bcfec7cd683f77a26fa1579/current/2026-10-20-can-rj45/research/can-driver-review.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/DEVICE_PROTOCOL_RESEARCH.md",
+        "https://github.com/janhavelka/ESP32P4X-EasyEDA-PCB/blob/dea45c8654527e417bcfec7cd683f77a26fa1579/current/2026-10-20-can-rj45/README.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/07_canopen_feasibility.md",
+        "https://github.com/janhavelka/ESP32P4X-EasyEDA-PCB/blob/dea45c8654527e417bcfec7cd683f77a26fa1579/current/2026-10-20-can-rj45/research/can-driver-evidence.json",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/CANOPEN_DRIVE_SURVEY.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/extracted/86C_CANopen_user_manual_zh.txt",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/README.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/extracted/86C_CANopen_user_manual_en.txt",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/SUMMARY.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/START_HERE.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/AGENTS.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/AGENTS.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/architecture_plan.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/README.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/architecture.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/multidrive_decision.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/MOTORCONTROL_RS_AUDIT.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/backlog.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/baseline/MotorControl-RS/AGENTS.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/18_hardware_qualification.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/extracted/CL86C_OL86C_operating_manual_zh.txt",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/SOURCES.json",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/baseline/MotorControl-RS/docs/architecture.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/01_dictionary_and_family.md",
+        "https://github.com/fossi-foundation/fossi-foundation.github.io/blob/0525710eda5f24c1f05975affde00d7e0b74d40a/_posts/2022-12-12-ecl57.md",
+        "https://github.com/fossi-foundation/fossi-foundation-web/blob/62aae519f3d6261c8c25bb9fa1f4cc08347d50b1/content/blog/2022-12-12-ecl57/index.md",
+        "https://github.com/janhavelka/ESP32P4X-EasyEDA-PCB/blob/dea45c8654527e417bcfec7cd683f77a26fa1579/current/2026-10-22-circuit-notes/research/interfaces-notes.json",
+        "https://github.com/athineama/athineama.github.io/blob/cb0b3bcf1602d48af83047b6dd8cfd99b8a79995/HTML/CaoUY4.html"
+      ]
+    },
+    {
+      "query": "CL57-C CAN",
+      "result_limit": 30,
+      "urls": [
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/CANOPEN_DRIVE_SURVEY.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/extracted/57C_CANopen_user_manual_zh.txt",
+        "https://github.com/cppcheck-opensource/cppcheck/blob/16be8ebc6d1b75bd4e46620cc371973762a4c3f8/lib/checkers.cpp",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/SUMMARY.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/architecture_plan.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/README.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/DEVICE_PROTOCOL_RESEARCH.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/18_hardware_qualification.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/extracted/CL57C_OL57C_operating_manual_zh.txt",
+        "https://github.com/cmu-sei/SCALe/blob/a2f32286a71dd378052a59512788004bf29e3f9d/scale.app/scripts/cert_rules.c.org",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/SOURCES.json",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/ERR50-CPP/ExplicitAbruptTerminationCert.md",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/ERR50-CPP/ExitHandlerThrowsExceptionCert.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/01_dictionary_and_family.md",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/ERR50-CPP/RethrowNestedWithoutCaptureCert.md",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/DCL57-CPP/DoNotLetExceptionsEscapeFromDestructorsOrDeallocationFunctions.md",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/ERR50-CPP/JoinableThreadCopiedOrDestroyedCert.md",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/DCL57-CPP/DoNotLetExceptionsEscapeFromDestructorsOrDeallocationFunctions.ql",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/ERR50-CPP/ConditionVariablePostConditionFailedCert.md",
+        "https://github.com/stinb/plugins/blob/ce15e144536699ef4e8df4bbdcc9fd5612cf856b/CodeCheck/Published Standards/SEI Cert Standards/C++/DCL57-CPP/check.upy",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/rule_packages/cpp/Exceptions2.json",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/extracted/CL86C_OL86C_operating_manual_zh.txt",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/cpp/cert/src/rules/ERR58-CPP/HandleAllExceptionsThrownBeforeMainBeginsExecuting.md",
+        "https://github.com/dyesmar/sei-cert-cppcs-samples/blob/133ccdf4922dba6dc9f45fe7f92b2bd4dcd14516/rules/dcl/57/nc2-a.cpp",
+        "https://github.com/cmu-sei/secure-coding-standards/blob/72e8a329fb731831a21cbd8f480b85a2f2711ae5/content/5.sei-cert-cpp-coding-standard/3.rules/05.declarations-and-initialization-dcl/09.dcl57-cpp.md",
+        "https://github.com/cmu-sei/secure-coding-standards/blob/72e8a329fb731831a21cbd8f480b85a2f2711ae5/content/5.sei-cert-cpp-coding-standard/3.rules/01.index.md",
+        "https://github.com/github/codeql-coding-standards/blob/bc8a0eb31ad2d6743cfb216b07786f303ff0a2dd/rules.csv",
+        "https://github.com/cmu-sei/secure-coding-standards/blob/72e8a329fb731831a21cbd8f480b85a2f2711ae5/content/5.sei-cert-cpp-coding-standard/3.rules/06.exceptions-and-error-handling-err/02.err50-cpp.md",
+        "https://github.com/AlexiaChen/my-notes/blob/0b5ac57a9392ca6d70b33678a29b01c691f3e39f/PL/c-cpp/CERT-CPP-spec/cert-cpp编码规范ERR.md",
+        "https://github.com/cmu-sei/secure-coding-standards/blob/72e8a329fb731831a21cbd8f480b85a2f2711ae5/content/5.sei-cert-cpp-coding-standard/4.back-matter/4.cc-analyzers/04.axivion-suite.md"
+      ]
+    },
+    {
+      "query": "Lichuan CANopen",
+      "result_limit": 30,
+      "urls": [
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/07_canopen_feasibility.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/13_lichuan_lc57bk_rs485.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/CANOPEN_DRIVE_SURVEY.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/14_lichuan_tl57_rs485.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/PROGRESS.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/README.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/DEVICE_PROTOCOL_RESEARCH.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/prompts/lichuan_tl57_rs485/execution_contract.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/prompts/lichuan_tl57_rs485/README.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/prompts/lichuan_lc57bk_rs485/README.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/prompts/lichuan_lc57bk_rs485/execution_contract.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/SOURCES.json",
+        "https://github.com/pempek18/Servo_Modbus_RTU_lib/blob/a8398dde64f9a75b7bfd55ca42ee41a1d0358e5f/lichuan/LCDA6.hpp",
+        "https://github.com/athineama/athineama.github.io/blob/cb0b3bcf1602d48af83047b6dd8cfd99b8a79995/HTML/H2LhQja4.html",
+        "https://github.com/atritant/atritant.github.io/blob/2166763ec7a049c8925c2bf501e92f2eee043d39/HTML/NmIV7V.html",
+        "https://github.com/beceting/beceting.github.io/blob/474084585567a6e1ce27f85418104a0e5a45d2ab/HTML/j3gSSFXi.html",
+        "https://github.com/denterne/denterne.github.io/blob/90a1e7354be20d4d8379e0e432cba4316eef7866/HTML/DlBAWlSJj.html",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/README.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/CHANGELOG.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/SUMMARY.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/api_cli_mapping.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/README.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/START_HERE.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/multidrive_decision.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/AGENTS.md",
+        "https://github.com/SwinRoverTeam/SRT_CAN_Motor/blob/30ec0a617fdbbcb6d17b42edc85c5210344f6796/2026 Season/Example/main.cpp",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/requirements_matrix.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/prompts/MULTIDRIVE.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/roadmap.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/backlog.md"
+      ]
+    },
+    {
+      "query": "xlichuan CANopen",
+      "result_limit": 30,
+      "urls": [
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/07_canopen_feasibility.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/audit/DEVICE_PROTOCOL_RESEARCH.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/README.md",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/14_lichuan_tl57_rs485.md",
+        "https://github.com/janhavelka/MotorControl-CAN/blob/986a00b286d98b4e1552861594f0226f63019a2b/docs/reference/SOURCES.json",
+        "https://github.com/janhavelka/MotorControl-RS/blob/bd831c859daa9c8c07b8d27a2dd879bb4e750511/docs/reference/13_lichuan_lc57bk_rs485.md"
+      ]
+    },
+    {
+      "query": "力川 CANopen",
+      "result_limit": 30,
+      "urls": []
+    }
+  ],
+  "finding": "No manufacturer-owned or manufacturer-linked GitHub CL86-C CANopen implementation was verified. SRT public CANopen implementation mentions Lichuan but does not establish exact model or firmware. Self-references to janhavelka repositories, text coincidences, marketplace spam and other physical protocols are not independent corroboration."
+}

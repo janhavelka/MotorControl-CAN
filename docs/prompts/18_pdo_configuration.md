@@ -10,6 +10,10 @@ Implement typed bounded PDO configuration sequences for documented Lichuan capab
 
 Refresh RS, ADS1115 and INA228 and inspect finite multi-write configuration actions, atomic preparation and effect-aware failure paths. Inspect FieldCore configuration generation and owner sequencing read-only. Read original Lichuan communication/mapping tables, reviewed object ledger and actual selected stack API/port behavior. Compare relevant MB85RC/RV3032-C7 partial-effect evidence where useful. Apply [CONVENTIONS.md](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence), its owner section, and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+Recheck [communication and mapping fields](../audit/LICHUAN_OBJECT_FACTS.md). For `k=0..3`, communication records are `1400+k/1800+k`; mapping records `1600+k/1A00+k`. Mapping counts are U8 RW with EDS limits 0..4; map slots U32. Communication type defaults 255, inhibit raw value 0, receive event value 1000 and transmit event value 100. Standard timing units and actual firmware effects need separate evidence. In particular, an RPDO event timer is not a proven host-loss motor watchdog. Confirm supported edit/state/disable/readback behavior before exposing remapping.
+
 ## Implement
 
 1. Expose typed configuration requests using the selected operation/service vocabulary. Validate the complete candidate before admission: applicable profile/firmware, current mapping provenance, required NMT/drive conditions, target COB-ID/frame kind, entry count/width/access, total payload and profile-specific limits. Reject unavailable capability or unresolved field semantics before yielding writes.

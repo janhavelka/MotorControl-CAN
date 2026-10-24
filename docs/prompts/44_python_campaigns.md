@@ -10,6 +10,10 @@ Complete the six-file runner family with finite scenario planning, motion/action
 
 Read current RS `bench_motion.py`, `bench_repeat.py`, `bench_scenarios.py`, `bench_session.py`, their tests and shared client usage. Refresh ADS1115/INA228/SHT3x/PCA9555 finite HIL options, parser discipline and evidence verdict distinctions; inspect FieldCore's result semantics where affected. Read actual CAN CLI capability/schema and prompt 43's client tests. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+Build scenario expectations from [motion](../audit/LICHUAN_MOTION_FACTS.md) and [object](../audit/LICHUAN_OBJECT_FACTS.md) evidence. Never assume EDS defaults are the fixture's starting state, convert LED's five-second diagnostic cycle into a timeout, or insert reset/save to make scenarios reproducible. Capture effective heartbeat/map/scale, firmware/dialect, requested parameters and host timing policies. Use exact homing method/input prerequisites and preserve raw evidence when a source claim disagrees with the device.
+
 ## Implement
 
 1. Implement `bench_motion.py` for finite movement/action campaigns; `bench_repeat.py` for finite repetition of a named scenario; `bench_scenarios.py` for named plans, prerequisites, execution and expected evidence; and `bench_session.py` for session orchestration/artifacts/cleanup. These import `Console` from `bench_probe.py` and interpretation from `_bench_evidence.py`. Keep planning helpers importable; extract another module only for a demonstrated readability/reuse need.

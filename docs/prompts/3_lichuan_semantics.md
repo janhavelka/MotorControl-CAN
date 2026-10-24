@@ -12,6 +12,10 @@ Refresh RS, ADS1115 and INA228 and inspect their relevant native-type, access an
 
 Read original EN86/ZH86 and 57-series manuals together with EDS, concentrating on exact pages identified in intake. Do not use generic CiA402 semantics or another manufacturer's manual to resolve Lichuan contradictions. Apply [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases) when distinguishing profile-specific objects from common intent.
 
+### Concrete evidence to recheck
+
+Review the [object conflicts](../audit/LICHUAN_OBJECT_FACTS.md) and [motion conflicts](../audit/LICHUAN_MOTION_FACTS.md) row by row. Concrete blockers include `0x2400` digital-output subindices/function numbers, three differing status layouts, `0x60FF` signedness/start order, mode U8 versus I8, and monitoring-object access. EN86's instruction to set `0x6061` does not override its read-only observation role. `0x605A/0x6085` are absent from retained dictionaries; `0x605D` exists without usable option semantics. Preserve each conflicting claim and gate only the dependent field/operation; a merged union of values is not a resolution.
+
 ## Implement
 
 1. Review every ledger row's type, width, signedness, access, bounds/default, units, mapping eligibility, model/firmware scope, actual effect and prerequisite. Preserve a source/page or EDS section for each fact. An EDS read/write flag does not establish that an object is a harmless setting; an upload is not automatically non-consuming.

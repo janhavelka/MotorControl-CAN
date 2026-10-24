@@ -12,6 +12,10 @@ Audit usable documentation, package/export boundaries and support coverage as a 
 
 Refresh RS source/install/package/version and documentation conventions plus ADS1115/INA228 checker/Doxygen/release practice. Inspect actual target code, exported headers, consumers, workflow commands, generated ledger, CLI, runners and retained reports. Review current FieldCore only to verify the handoff's prospective claims. Apply the complete inventory in [DOCUMENTATION.md](DOCUMENTATION.md), [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+Audit the [concrete evidence map](DEVICE_EVIDENCE.md) against the final reviewed ledger/code/docs. Resolve or visibly retain every recorded contradiction, particularly DO layout, status dialects, node activation, scale and velocity sequence. Unmodified reference snapshots and their accompanying licenses stay in the reference pack; retain all required notices for code actually adapted or linked. The public Lichuan example is GPL-3.0 reference code; do not silently copy it into differently licensed library code. Documentary research and protocol fixtures are not supported-driver or hardware-qualification claims.
+
 ## Implement
 
 1. Follow README alone through native install/include/link and an ordinary exact preparation/read/move/stop example using public functions and supplied events. Then verify separate firmware build/configuration and Python offline/live instructions. Every documented command must exist and match its actual prerequisite, traffic and evidence behavior; hardware configuration is not a requirement for pure native use.

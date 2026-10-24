@@ -2,6 +2,8 @@
 """Offline integrity checks for the planning package, not the future library."""
 
 import argparse
+from collections import Counter
+import configparser
 import hashlib
 import json
 from pathlib import Path
@@ -79,7 +81,7 @@ def main():
 
     refs = root / "docs/reference"
     reference_manifests = [refs / "SOURCES.json", refs / "multidrive/SOURCES.json",
-                           refs / "other_can/SOURCES.json"]
+                           refs / "other_can/SOURCES.json", refs / "public_code/SOURCES.json"]
     for manifest_path in reference_manifests:
         sources = read_json(manifest_path)
         originals = sources.get("sources", [])
@@ -96,6 +98,63 @@ def main():
         check_records(manifest_path.parent, originals + sources.get("derived_artifacts", [])
                       + sources.get("auxiliary_artifacts", []), str(manifest_path.relative_to(root)))
         counts["reference_packs"] += 1
+
+    # Verify the research intake against original strings, not its own summary.
+    # This checks transcription only; it cannot establish firmware semantics.
+    intake = read_json(refs / "extracted/LC_StepDriverCAN_V1.1.object_inventory.json")
+    eds_path = refs / "vendor/LC_StepDriverCAN_V1.1.eds"
+    require(intake.get("source_path") == eds_path.relative_to(root).as_posix()
+            and intake.get("source_sha256") == hashlib.sha256(eds_path.read_bytes()).hexdigest(),
+            "EDS intake: source identity mismatch")
+    eds_text = eds_path.read_text(encoding="utf-8-sig")
+    eds = configparser.ConfigParser(interpolation=None)
+    eds.optionxform = str
+    eds.read_string(eds_text)
+    section_starts = [(match.group(1), number) for number, line in enumerate(eds_text.splitlines(), 1)
+                      for match in [re.fullmatch(r"\[([^\]]+)\]", line.strip())] if match]
+    spans = {name: (start, section_starts[i + 1][1] - 1 if i + 1 < len(section_starts)
+                     else len(eds_text.splitlines()))
+             for i, (name, start) in enumerate(section_starts)}
+    eds_types = {"0x0003": ("I16", 2), "0x0004": ("I32", 4),
+                 "0x0005": ("U8", 1), "0x0006": ("U16", 2), "0x0007": ("U32", 4)}
+    expected_headers = {name for name in eds.sections() if re.fullmatch(r"[0-9A-Fa-f]{4}", name)}
+    expected_scalars = {name for name in eds.sections() if "DataType" in eds[name]}
+    for key, expected in (("object_headers", expected_headers), ("scalar_entries", expected_scalars)):
+        rows = intake.get(key, [])
+        require(len(rows) == len(expected) and {row.get("section") for row in rows} == expected,
+                "EDS intake: incomplete/duplicate " + key)
+        for row in rows:
+            section = row.get("section", "")
+            if section not in expected:
+                continue
+            fields = dict(eds[section])
+            address = re.fullmatch(r"([0-9A-Fa-f]{4})(?:sub([0-9A-Fa-f]+))?", section)
+            index = int(address.group(1), 16)
+            subindex = int(address.group(2), 16) if address.group(2) else (0 if "DataType" in fields else None)
+            require(row.get("fields") == fields, "EDS intake: field mismatch " + section)
+            require((row.get("index"), row.get("index_hex"), row.get("subindex"))
+                    == (index, "0x{:04X}".format(index), subindex),
+                    "EDS intake: address mismatch " + section)
+            require((row.get("source_line_start"), row.get("source_line_end")) == spans[section],
+                    "EDS intake: source lines mismatch " + section)
+            if "DataType" in fields:
+                require((row.get("type_name"), row.get("width_bytes")) == eds_types.get(fields["DataType"]),
+                        "EDS intake: datatype mismatch " + section)
+    for key, section in (("file_info", "FileInfo"), ("device_info", "DeviceInfo")):
+        require(intake.get(key) == dict(eds[section]), "EDS intake: metadata mismatch " + key)
+    require(intake.get("object_lists") == {key: dict(eds[key]) for key in
+            ("MandatoryObjects", "ManufacturerObjects", "OptionalObjects")},
+            "EDS intake: object list mismatch")
+    scalar_fields = [dict(eds[name]) for name in expected_scalars]
+    require(intake.get("counts") == {
+        "object_indexes": len(expected_headers),
+        "record_headers": sum("DataType" not in eds[name] for name in expected_headers),
+        "scalar_entries": len(expected_scalars),
+        "scalar_type_counts": dict(Counter(eds_types[row["DataType"]][0] for row in scalar_fields)),
+        "scalar_access_counts": dict(Counter(row["AccessType"] for row in scalar_fields)),
+        "scalar_pdo_mapping_counts": dict(Counter(row["PDOMapping"] for row in scalar_fields)),
+        "scalars_without_default": sum("DefaultValue" not in row for row in scalar_fields)},
+        "EDS intake: summary counts mismatch")
 
     baseline = root / "docs/baseline"
     snapshot = read_json(baseline / "SNAPSHOT.json")

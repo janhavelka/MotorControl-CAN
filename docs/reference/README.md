@@ -2,6 +2,8 @@
 
 Additional primary references for the expanded stepper/servo design are in [multidrive/](multidrive/README.md) (CANopen controller manuals and vendor pages) and [other_can/](other_can/README.md) (ODrive, moteus and VESC). Each has its own URL/revision/hash manifest. The main Lichuan originals below remain unchanged.
 
+The [24 October concrete evidence map](../prompts/DEVICE_EVIDENCE.md) adds full object accounting and detailed motion/settings/timing conflicts. [Public implementation research](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) includes pinned CANopenNode, canopen-python and a third-party Lichuan example in [public_code/SOURCES.json](public_code/SOURCES.json), with their licenses. The example contains protocol/ownership defects and is not a qualified driver or code-copy template. The [fresh source comparison](../audit/LICHUAN_SOURCE_RECHECK.json) found all five existing vendor PDFs and the EDS unchanged by hash; it does not resolve their contradictions.
+
 Retrieved on **2026-10-23**. These are source documents for implementation research;
 they do not establish that a physical drive or firmware has been qualified.
 

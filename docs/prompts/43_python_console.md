@@ -10,6 +10,10 @@ Deliver a tested Python client for the real console protocol, pure evidence inte
 
 Inspect current RS `bench_probe.Console`, handshake/correlation helpers, `_bench_evidence.py`, parser tests and verifier registration. Read ADS1115/INA228/SHT3x runner framing, exact-version checks and dry-run/evidence verdict conventions; do not assume identical flags or lifecycle. Inspect FieldCore only for affected result semantics. Read the implemented CAN CLI schema and application output rather than an old example. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+Use the [public implementation audit](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) as a negative design reference: fixed sleeps, shared global motor status and missing acknowledgement are insufficient correlation. Python consumes the established console protocol, not a separate copied CAN driver. If pinned canopen-python is used in a separate diagnostic tool, its retries/timeouts must not leak into automatic motion replay. Distinguish command acceptance, terminal result and raw device evidence in transcripts.
+
 ## Implement
 
 1. Keep shared `Console` framing/handshake/correlation in `bench_probe.py`, with pure interpretation/summary helpers in `_bench_evidence.py`. Provide injectable fake streams/time for tests. Keep imports and `--help` usable without serial packages or hardware; load optional serial dependencies only in live paths.

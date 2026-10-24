@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) for
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Reads`, actual getter callers and wrong-context tests; inspect INA228 freshness and destructive-read distinctions and ADS1115 output validity. Review FieldCore observation projection read-only. Inspect the reviewed Lichuan ledger and original pages for each owned block, including any read effects. Record the source delta rather than repeating unrelated audits.
 
+### Concrete evidence to recheck
+
+Inspect [object facts](../audit/LICHUAN_OBJECT_FACTS.md) for `0x1000/0x1001/0x1003`, `0x1009/0x100A`, `0x1018:00..03`, `0x2000/0x2001`, `0x2100..0x2102`, `0x603F/0x6041/0x6061/0x6064`, and I/O observations. No actual-following-error reading is established by the retained sources; alarm/in-position thresholds are settings, not measured following error. The EDS has no `0x1018:04` serial-number entry; do not require it for discovery. Several monitoring fields are RW in EDS but RO in manuals. Preserve raw observations and uncertainty instead of exporting write setters from the access flag.
+
 ## Implement
 
 1. Implement `prepareProbe`, `prepareIdentity`, `prepareState`, `prepareConfig`, `nextRead` and `advanceRead` with concrete caller-owned contexts. Probe is a documented minimal non-changing read; it never starts NMT, configures heartbeat or sweeps all state.

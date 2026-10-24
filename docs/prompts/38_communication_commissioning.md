@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#4-one-application-can-owner) and [MULTIDRIVE](M
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Communication`, binding changes and uncertainty tests; inspect MB85RC family policy and INA228 configuration validity. Review current FieldCore binding invalidation read-only. Recheck each Lichuan communication object's actual access, type, DIP/parameter relationship, restart behavior and firmware scope using original manuals/EDS.
 
+### Concrete evidence to recheck
+
+The [official communication tables](../audit/LICHUAN_OBJECT_FACTS.md) place node selection on SW1-5, bitrate on SW6-7 and termination on SW8; all node switches OFF means user-defined. `0x2203:00` is U16 RW/default 0, described as node setting 0..127, but activation/save/restart and DIP precedence need evidence; 0 is not a unicast node. Do not invent a software bitrate object or LSS workflow (`LSS_Supported=0`). EDS's 50 kbit/s flag has no documented DIP choice. `0x1005/0x1014/0x1017/0x1200` flags likewise do not establish live-change behavior. Keep each supported route tied to its source and applicability.
+
 ## Implement
 
 1. Freeze this prompt's exact communication rows, including relevant `0x1005/0x1014/0x1017/0x1200` and PDO records. Earlier read coverage remains intact. Implement direct typed preparation/stepping/results in `profiles/lichuan_c/Communication.h` or justified existing files; a raw object writer does not close these workflows.

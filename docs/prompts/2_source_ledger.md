@@ -12,6 +12,10 @@ Refresh RS, ADS1115 and INA228 revisions and inspect the dictionary/type/access-
 
 Read the reference manifests, original EN86, ZH86, OP86, ZH57 and OP57 covers and EDS sections. Use the protocol audit to locate conflict pages, checking rendered PDF pages when extracted text loses tables. Read [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases) to keep manufacturer identity and common capability facts separate.
 
+### Concrete evidence to recheck
+
+Start from the [full EDS inventory](../reference/extracted/LC_StepDriverCAN_V1.1.object_inventory.json) and [object facts](../audit/LICHUAN_OBJECT_FACTS.md), then compare with the original EDS. Preserve `$NODEID` expressions, absent limits, access spelling, reserved names and subindex-count fields. The intake includes 42 U8, 91 U16, 61 U32, one I16 and seven I32 explicitly typed entries. These are metadata claims, not verified device capabilities. Read [public-code provenance](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md); keep its licenses and defects visible.
+
 ## Implement
 
 1. Verify all original sources, extracts, copied baseline and retained evidence with `python scripts/check_promptset.py --check-git-ref HEAD`. Preserve `.gitattributes` byte-protection rules and immutable originals. Record source ID, URL, acquired file, SHA-256, document title/version, applicable model and the evidence for that applicability. PDF metadata and EDS creation times do not establish firmware identity.

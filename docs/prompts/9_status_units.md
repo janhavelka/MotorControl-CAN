@@ -10,6 +10,10 @@ Implement production Status and exact numeric/unit primitives, replacing the cor
 
 Refresh RS, ADS1115 and INA228. Read current RS `Status.h`, `Units.h/.cpp`, and the reusable exact helpers in `Axis.h/.cpp`, including `parseExactNumber` and `rationalToDouble`; inspect their actual tests and callers. Own reusable arithmetic/parsing here; keep origin/frame/angle-path policy in prompt 10 rather than duplicating conversion helpers. Compare I2C status differences and MB85RC overflow/output policy without importing competing helper names. Inspect FieldCore exact target handling read-only. Use prompt 4's contrasts, [CONVENTIONS.md](CONVENTIONS.md#2-status-is-a-call-result) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) for native-unit contrasts: `0x6083/0x6084/0x609A` carry milliseconds, `0x6081/0x6099` RPM, and position scaling remains model/firmware-dependent. `0x60FF` is I32 in EDS while EN86 lists U32 and nonnegative limits; retain that conflict instead of making every velocity unsigned. Native width and unit must remain distinct from the exact common unit representation.
+
 ## Implement
 
 1. Implement the selected RS-style `Err`, `Status`, free `Ok()`, `Status::isOk()`, explicit boolean conversion and free `errToString()`. `Status` carries `Err code`, documented `int32_t detail` and a static-lifetime `const char* msg`; apply valid C++11 constexpr rules. Use the chosen CAN error policy, including protocol rejection, without copying RTU-only error semantics or adding `ok()`/`success()`/`Status::Ok()` aliases.

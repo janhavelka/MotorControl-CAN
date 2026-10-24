@@ -7,12 +7,12 @@
     "multidrive_stage_gates": 50,
     "shared_contracts": 5,
     "concrete_stage_contracts": 50,
-    "reference_packs": 3,
-    "markdown_files": 115,
-    "local_links": 1046,
-    "hashed_artifacts": 103,
+    "reference_packs": 4,
+    "markdown_files": 120,
+    "local_links": 1139,
+    "hashed_artifacts": 123,
     "live_baseline_files": 0,
-    "git_artifact_files": 103
+    "git_artifact_files": 123
   },
   "errors": []
 }

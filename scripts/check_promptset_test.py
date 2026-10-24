@@ -83,6 +83,19 @@ class PromptSequenceTests(unittest.TestCase):
 
         self.assert_rejected(self.sequence_change(remove_origin), "retain ownership of all original stages")
 
+    def test_changed_eds_default_is_rejected_against_original(self):
+        path = ROOT / "docs/reference/extracted/LC_StepDriverCAN_V1.1.object_inventory.json"
+        intake = json.loads(path.read_text(encoding="utf-8"))
+        row = next(row for row in intake["scalar_entries"] if row["section"] == "2202")
+        row["fields"]["DefaultValue"] = "0"  # The original says 10, despite the manual's 0/1 set.
+        self.assert_rejected({path: json.dumps(intake)}, "EDS intake: field mismatch 2202")
+
+    def test_missing_eds_scalar_is_rejected(self):
+        path = ROOT / "docs/reference/extracted/LC_StepDriverCAN_V1.1.object_inventory.json"
+        intake = json.loads(path.read_text(encoding="utf-8"))
+        intake["scalar_entries"].pop()
+        self.assert_rejected({path: json.dumps(intake)}, "EDS intake: incomplete/duplicate scalar_entries")
+
 
 if __name__ == "__main__":
     unittest.main()

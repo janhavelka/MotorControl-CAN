@@ -12,6 +12,10 @@ Refresh RS, ADS1115 and INA228 and inspect current transport ownership, callback
 
 Inspect current primary CANopenNode source, API, license, configuration and native test port at a recorded immutable revision. Inspect actual candidate controller APIs where needed to answer TX retirement and callback questions. The earlier RS feasibility note recommends evaluation; it does not mandate adoption without this assessment.
 
+### Concrete evidence to recheck
+
+Inspect the pinned CANopenNode and canopen-python sources in the [public implementation review](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md). Record selected revision, ownership, SDO lifecycle, timeout/retry configuration and license obligations. Python `RESPONSE_TIMEOUT`/retry defaults and the example's sleeps are host policies, not CL86-C timing guarantees. The third-party Lichuan example has incorrect upload command bytes and uncorrelated status; use it to test the fit experiment's rejection paths, not as the service implementation.
+
 ## Implement
 
 1. Define the experiment's smallest required services from the reviewed ledger: initial SDO forms, heartbeat/NMT/EMCY handling, selected PDO/SYNC needs and observable controller evidence. Keep provisional request/frame types local to the experiment; identify which declarations prompt 6 must freeze rather than exposing an accidental public ABI.

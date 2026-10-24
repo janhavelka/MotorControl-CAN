@@ -10,6 +10,10 @@ Extend established finite qualification with bounded interruption, persistence/r
 
 Refresh RS failure investigation/session/repeat practices and ADS1115/INA228 distinctions among sustained observation, host regression and evidence-required results. Inspect current target firmware/runners, prior finite results, unresolved failures and relevant FieldCore evidence boundaries. Recheck original model-specific manual/EDS statements for persistent effects, restart, stop/watchdog, I/O and resource limits. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+The [timing ledger](../audit/LICHUAN_MOTION_FACTS.md) has no vendor-guaranteed SDO response maximum, stop latency, save duration, bus-off recovery bound or host-loss stop. State the tested fixture, load, observation window and measured distribution/maxima without promoting them to universal limits. Approximate 10 ms enable spacing is not a generic inter-frame sleep. Explicitly separate bus congestion, owner service gaps, diagnostic overhead and device response time, and preserve unknown write effects during failures.
+
 ## Implement
 
 1. Prepare a bounded campaign plan per fixture and feature with exact revision, configuration, intent, duration/count/load bounds, observation method and independent stop/control provisions. Distinguish inherited finite evidence from new qualification questions. Do not run an unlimited soak, random fault injection or a new stress scenario merely because a prior motion test was authorized.

@@ -6,6 +6,9 @@ This repository currently contains planning and reference material. No CAN libra
 
 ### Added
 
+- Complete Lichuan EDS intake: 99 indexes, 202 typed entries, raw fields and original line spans, with a source-comparison integrity check.
+- Detailed official-source motion, status, settings, I/O, PDO, commissioning and timing tables; pinned public implementations and 17 synthetic protocol fixtures with provenance and licenses.
+- Focused concrete evidence in 40 numbered prompts, a reading map, and an explicit source-check/correction loop in every prompt through COMMON and AGENTS.
 - Audits of MotorControl-RS, sibling I2C libraries and the FieldCore consumer boundary, with source revisions and retained verification evidence.
 - Manufacturer manuals, EDS and multi-drive protocol research with local provenance and integrity manifests.
 - A 20-stage implementation promptset for a portable C++11 stepper/servo library, starting with Lichuan Classical CANopen.
@@ -25,6 +28,8 @@ This repository currently contains planning and reference material. No CAN libra
 
 ### Fixed
 
+- Exposed conflicting DO addresses/functions, three status layouts, mode access, velocity sequence/sign, subdivision/soft-limit defaults and undocumented timing instead of treating generic CANopen or example code as firmware truth.
+- Documented and rejected public-example SDO command/width errors, shared status, hidden persistence and arbitrary timing assumptions; kept absent following-error/automatic-tuning capabilities out of the new evidence requirements.
 - Corrected velocity duration to start at successful preparation, matching RS, with queue/setup time included.
 - Corrected SDO upload size/transfer assumptions and scoped non-changing read claims to reviewed objects.
 - Clarified service eligibility with disabled heartbeat, first TPDO observations and NMT transition evidence.

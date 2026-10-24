@@ -11,11 +11,13 @@ The recurring reading requirement also loaded six shared documents totaling 11,2
 | Measurement | Previous assignments | Current assignments |
 | --- | --- | --- |
 | Number of executable prompts | 20, labeled 00–19 | 50, labeled 1–50 |
-| Shortest body | 649 words | 513 words |
-| Median body | 749 words | 585.5 words |
-| Longest body | 988 words | 690 words |
+| Shortest body | 649 words | 531 words |
+| Median body | 749 words | 638.5 words |
+| Longest body | 988 words | 767 words |
 | Scope unit | Frequently several subsystems | One bounded evidence, implementation or integration result |
 | Reading route | Broad recurring full-document list | Current prompt, prerequisite outputs and relevant contract/source sections |
+
+The current column includes the later concrete Lichuan evidence enrichment in 40 prompts. Immediately after the split, bodies measured 513 to 690 words, median 585.5; that checkpoint remains recorded in the JSON. Full source tables are reached through focused links, without adding new implementation scope or requiring every prompt to read the whole evidence pack.
 
 Counts use whitespace-separated words, not a tokenizer or an estimate of coding time. The [per-prompt measurements](PROMPT_SIZING.json) list every original and replacement file. No word quota determines correctness, and no prompt can guarantee a particular model will finish within one context window. The useful limit is a coherent result whose implementation, tests and documentation can be reviewed together.
 
@@ -46,6 +48,6 @@ Three agents audited and authored disjoint foundation, operation and integration
 
 Live RS, ADS1115, INA228 and FieldCore revisions remained the same as the [preceding correctness audit](PROMPTSET_REVIEW_2026-10-24.md), with clean sibling worktrees at inspection. Relevant source/guidance and RS Console/session ownership were reread. No sibling edit, CAN implementation, firmware run or hardware action was performed.
 
-The updated [planning validator](../../scripts/check_promptset.py) checks consecutive natural IDs, exact active-file inventory, earlier-only prerequisites, matching prerequisite links/index/progress rows, original-stage ownership, every prompt's sections/contracts/report/commit-sync closure, all 50 multi-drive gates, all 35 requirements, maintained Markdown links and the existing 103 artifact hashes. [Focused regression checks](../../scripts/check_promptset_test.py) cover the current valid sequence and rejection of a missing prompt, forward dependency, omitted prerequisite link, missing commit/sync closure and lost original scope. These checks mutate only in-memory reads.
+The updated [planning validator](../../scripts/check_promptset.py) checks consecutive natural IDs, exact active-file inventory, earlier-only prerequisites, matching prerequisite links/index/progress rows, original-stage ownership, every prompt's sections/contracts/report/commit-sync closure, all 50 multi-drive gates, all 35 requirements, maintained Markdown links and the 123 retained artifact hashes after evidence enrichment. [Focused regression checks](../../scripts/check_promptset_test.py) cover the current valid sequence and rejection of a missing prompt, forward dependency, omitted prerequisite link, missing commit/sync closure lost original scope, a corrupted EDS default and a missing scalar. The validator also compares the complete EDS intake fields, addresses, widths, source line spans and counts against the original file. These checks mutate only in-memory reads.
 
 Run `python scripts/check_promptset.py --check-git-ref HEAD` and `python scripts/check_promptset_test.py`. [PLANNING_VALIDATION.json](PLANNING_VALIDATION.json) records package integrity. These checks validate assignment structure and retained evidence, not the correctness of future motor-control code. Independent content review remains necessary when changing the scopes.

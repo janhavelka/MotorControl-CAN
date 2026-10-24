@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#5-selected-application-health-and-metrics) as t
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS owner counters, passive traffic and cached accessors; inspect ADS1115 owner diagnostics, INA228 failure reporting and SHT3x health policy. Review MB85RC saturation and FieldCore health projection read-only. Record intentional CAN differences: sensor retry thresholds and latching policies do not become motor admission policy.
 
+### Concrete evidence to recheck
+
+Use [motion status dialects](../audit/LICHUAN_MOTION_FACTS.md) and [communication facts](../audit/LICHUAN_OBJECT_FACTS.md). EN86 alarm bit 7, ZH86 alarm bit 3 and operating-manual combinations must remain raw/unknown until the dialect is established. A fresh `0x6041` sample does not resolve its meaning. A disabled `0x1017` producer does not independently make health Offline. Keep protocol activity, interpreted drive fault, motion outcome and application health separate.
+
 ## Implement
 
 1. Implement example-only `DriverState { UNINIT, READY, DEGRADED, OFFLINE }`, `Health` and `Stats`, with `health(binding)`, `driverState(binding)`, `stats()` and `clearStats()`. Reject unknown bindings rather than returning healthy defaults. All accessors use cached evidence and supplied time; none performs I/O or reads a clock.

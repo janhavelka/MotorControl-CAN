@@ -12,6 +12,10 @@ Follow [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) 
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `DriverSettings`, `ControlSettings`, motion-profile snapshots, group getters and whole-candidate validation tests. Inspect BME280 staged configuration and INA228 configuration/freshness handling. Read current FieldCore configuration-generation callers without editing that repository. Recheck original Lichuan pages and EDS types, access, ranges, ramp units and effects for every assigned field.
 
+### Concrete evidence to recheck
+
+Use [basic settings and tuning facts](../audit/LICHUAN_OBJECT_FACTS.md) plus [motion facts](../audit/LICHUAN_MOTION_FACTS.md). `2201` U16/default 0 conflicts with the detailed 400..51200 subdivision range; `2202` U16/default 10 conflicts with documented 0 disabled/1 effective after homing. `607D:01/:02` are I32 soft limits. `6083/6084` are U32 ramp times, mode-table range 0..2000 ms, not acceleration rates. Current/holding rows `2502..2507` use mA, percentages and ms as documented. Assign those rows here or to 22 once, with explicit ownership; do not implement them twice or invent percentage limits.
+
 ## Implement
 
 1. Freeze the exact ledger rows and direct typed group names before coding. Preserve RS names where meanings match, including `prepareDriverRead`, `prepareDriverSettings`, `nextDriver`, `advanceDriver` and `getDriver` where appropriate. Give genuinely different native groups clear typed names; a raw object accessor is not their public API.

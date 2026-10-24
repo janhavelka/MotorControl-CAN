@@ -12,6 +12,10 @@ Follow [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) 
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS angle preparation, path/tie/limit tests and actual `prepareMoveAngle` callers; inspect I2C immutable-input/output-on-error conventions. Review FieldCore exact target snapshots read-only. Recheck the existing N5/EPOS4 contrast evidence and prompt-10 coordinate contract; no new vendor sequence may be inferred from a common fixture.
 
+### Concrete evidence to recheck
+
+Use [position/scale evidence](../audit/LICHUAN_MOTION_FACTS.md). Keep angle conversion dependent on a confirmed command-unit scale and reference generation; do not substitute 4000 encoder counts/revolution for the configured subdivision because the product page mentions a 1000-line encoder. A software coordinate transform cannot resolve an unestablished actual-position scale. Retain native rounding/error and limit checks without adding a Lichuan-only assumption to common angle APIs.
+
 ## Implement
 
 1. Implement `prepareMoveAngle` through the established position context and `nextMove`/`advanceMove`. Reuse the common exact conversion functions. Every caller, including the future CLI, uses this same public path.

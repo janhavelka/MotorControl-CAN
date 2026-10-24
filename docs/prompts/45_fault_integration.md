@@ -10,6 +10,10 @@ Audit and strengthen end-to-end failure behavior across the implemented owner, s
 
 Refresh current RS common motion, owner, health, result/cancellation and runner failure behavior; inspect affected ADS1115/INA228 owner/parser tests and FieldCore's actual motor result/lifetime boundary. Read target workflows, implemented public contracts, retained reports and known failures. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md). Use source code and observable behavior, not just previous authors' summaries.
 
+### Concrete evidence to recheck
+
+Include [public-code counterexamples](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) and [source conflicts](../audit/LICHUAN_MOTION_FACTS.md): wrong SDO initiation command, homing width mismatch, cross-node cached status, old completion bits, write-to-mode-display, unconfirmed enable, hidden save and generic quick-stop-object assumptions. Test rejection/uncertainty through ordinary APIs and one owner. Numeric negative fixtures do not establish an undocumented drive response; report what is simulated separately from hardware captures.
+
 ## Implement
 
 1. Build deterministic end-to-end traces around public APIs. Prepare/admit a move, lose the trigger response, request stop, deliver a late acknowledgement and inspect both retained results. Prove later stop/recovery never rewrites the original uncertain motion into success.

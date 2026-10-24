@@ -13,6 +13,7 @@ Create one new branch at the start of a new execution and retain it across all 5
 - [MAINTAINABILITY.md](MAINTAINABILITY.md): direct code, single ownership, explicit state and justified abstractions.
 - [DELEGATION.md](DELEGATION.md): bounded subagents, model/effort choices, disjoint ownership and integrated review.
 - [MULTIDRIVE.md](MULTIDRIVE.md): each prompt's stepper/servo and protocol-neutral acceptance criterion.
+- [DEVICE_EVIDENCE.md](DEVICE_EVIDENCE.md): focused routes to concrete Lichuan object, motion and timing facts, source conflicts and reviewed public implementation examples. Recheck original sources before using any value.
 
 The first implementation is Lichuan C over Classical CANopen. N5/EPOS4 are test-only design contrasts. Other CAN protocols and CAN FD remain separately implemented future capabilities. The [scope decision](../multidrive_decision.md), [architecture](../architecture_plan.md), [API/CLI map](../api_cli_mapping.md), [requirements](../requirements_matrix.md), [audits](../audit/) and [original references](../reference/README.md) remain authoritative inputs.
 

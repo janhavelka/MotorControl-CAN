@@ -12,6 +12,10 @@ Apply [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence), 
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Persistence`, explicit restore/reset and uncertain-write tests; inspect RV3032 persistent effects and MB85RC partial writes. Review current FieldCore configuration ownership read-only. Recheck original Lichuan `0x2300` semantics, restart/reply behavior, persistence scope and model/firmware applicability against the EDS and reviewed ledger.
 
+### Concrete evidence to recheck
+
+The [source tables](../audit/LICHUAN_OBJECT_FACTS.md) identify `0x2300:00` as U16, value 2 save and value 1 restore factory parameters. Standard `0x1010/0x1011` objects are absent; do not substitute generic `save`/`load` signatures. No usable flash completion time, endurance or complete persistence scope is established. The [public example](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) saves during zeroing; reject that hidden coupling and test that reference/fault operations cannot issue persistence writes.
+
 ## Implement
 
 1. Implement typed operation contexts and direct prepare/next/advance functions for confirmed workflows in `profiles/lichuan_c/Persistence.h` and source where justified. Object `0x2300` value 2 means save and value 1 factory reset in the reviewed source; use distinct APIs/intent, not a generic persist integer accepting magic values.

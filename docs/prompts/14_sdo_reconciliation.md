@@ -10,6 +10,10 @@ Finish adversarial correlation and any evidence-backed channel reopening procedu
 
 Refresh RS, ADS1115 and INA228 and inspect late-reply, cancellation, time and retained-outcome implementations/tests. Inspect FieldCore recovery/binding invalidation read-only and the selected controller/stack's queued TX retirement, RX timestamp and server-session assumptions. Use source-backed service timing evidence rather than analogies with Modbus. Apply [CONVENTIONS.md](CONVENTIONS.md#4-one-application-can-owner) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+Use the [public-code defects](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) as adversarial scenarios: global cached status shared across motors, queued writes with fixed sleeps, absent matching acknowledgements and stale completion state. Test node/channel/binding isolation and indistinguishable late replies. Neither a longer delay nor a local request counter establishes which identical SDO request a late server response answered.
+
 ## Implement
 
 1. Write an explicit precedence table for receive time, processing time, operation deadline, cancellation, bus-off/reboot and terminal publication. A frame received after the deadline cannot become timely confirmation because the owner processes it later; also handle evidence received before a cutoff but processed afterward according to the documented contract. Terminal outcomes remain stable while separately timestamped later observations can still be retained.

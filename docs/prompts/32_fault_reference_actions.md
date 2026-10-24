@@ -12,6 +12,10 @@ Follow [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) 
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS alarm/device-position actions, reference invalidation and uncertainty tests; inspect INA228 hardware-state validity and PCA9555 explicit output actions. Review FieldCore reference generation and retained fault consumers read-only. Recheck original Lichuan fault-clear, monitor/EMCY and `0x2302` position-clear descriptions against the EDS and selected model/firmware.
 
+### Concrete evidence to recheck
+
+Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) and [object facts](../audit/LICHUAN_OBJECT_FACTS.md) for the distinct reset routes. `0x2301` is U16; EN86 p18 describes 1 clear/0 ineffective, but that does not establish an edge or equivalence to controlword bit7. The bit7 reset prose and full-word `15 -> 128` table also need reconciliation. `0x2302` position clear explicitly uses `0 -> 1` then manual return to 0. It does not prove a physical home, arbitrary set-position support or automatic rebase. Retain raw `0x603F` and post-action evidence; acknowledgement is not proof the fault cause disappeared.
+
 ## Implement
 
 1. Implement `prepareClearAlarm` and `prepareSetDevicePosition` only for their evidenced capabilities, through `nextAction`/`advanceAction`. A firmware supporting only zero-clear cannot claim arbitrary position setting; unsupported requested values reject before work.

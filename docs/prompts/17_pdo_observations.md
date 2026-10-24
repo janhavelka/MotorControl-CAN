@@ -10,6 +10,10 @@ Implement checked PDO mapping representation, explicit mapping evidence acquisit
 
 Refresh RS, ADS1115 and INA228, inspecting generation-tagged observations, native widths and freshness with actual consumers/tests. Inspect FieldCore binding/feedback invalidation read-only. Read selected stack PDO APIs, original Lichuan mapping objects and reviewed ledger eligibility. Use N5's documented larger PDO count only as a contrast. Follow [CONVENTIONS.md](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases), plus prompt 16's completed service-eligibility policy in normal execution order.
 
+### Concrete evidence to recheck
+
+The [EDS PDO table](../audit/LICHUAN_OBJECT_FACTS.md) supplies concrete fixtures: RPDO1 `1600` count 3 maps `60400010,60FF0020,60600008` (7 bytes); RPDO2 `1601` count 2 maps `607A0020,60810020` (8 bytes). TPDO1 `1A00` maps `60410010,60FD0020,60610008` (7 bytes); TPDO2 `1A01` maps `60640020,606C0020` (8 bytes). PDO3/4 counts default to 0 in both directions. Decode mapping words as index/subindex/bit length; all records offer four slots, not four necessarily active values. These are source-derived fake fixtures until live map/route evidence exists.
+
 ## Implement
 
 1. Add bounded pure PDO mapping validation and decoding under the existing `canopen/` boundary, such as `Pdo.h`. Validate index/subindex, reviewed datatype/bit width, mapping eligibility, accumulated Classical payload length, PDO direction/access and profile-specific supported count. Lichuan's four sets are not a universal library limit; common types must accommodate source-backed N5 contrast counts without stepper/servo branching.

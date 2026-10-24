@@ -10,6 +10,10 @@ Implement explicit NMT commands and evidence-based CANopen service eligibility, 
 
 Refresh RS, ADS1115 and INA228 and inspect explicit action/evidence and passive-versus-configured state patterns. Inspect FieldCore ownership and binding invalidation read-only. Read primary CANopen NMT service rules, selected stack behavior and Lichuan documented support; use the original ledger evidence for producer heartbeat and absent host-loss-consumer claims. Follow [CONVENTIONS.md](CONVENTIONS.md#4-one-application-can-owner) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+Use [pinned CANopenNode protocol definitions](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) for NMT command values and state evidence. The EDS claims `SimpleBootUpSlave=1`, but does not provide a complete measured startup/reset timeline. No fixed boot delay or observed response to an NMT request may be inferred from that flag. Requested NMT state, observed heartbeat state and CiA402 state remain separate; a motor-stop API cannot be implemented as NMT stop.
+
 ## Implement
 
 1. Add typed explicit NMT request encoding and bounded application-owned progression using the existing dispatch/storage. Validate addressed nodes separately from broadcast node zero. Support only reviewed commands. Queue/TX evidence is recorded separately from observed NMT state transition; NMT has no SDO-style acknowledgement and cannot return synthetic remote confirmation.

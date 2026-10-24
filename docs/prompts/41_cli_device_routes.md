@@ -10,6 +10,10 @@ Connect implemented typed reads, settings, discovery, commissioning, persistence
 
 Refresh current RS read/settings/discovery/persistence console routes and application dispatch, plus ADS1115/INA228 distinction between cached diagnostics and active reads. Inspect SHT3x command classifications and relevant FieldCore settings/ownership expectations. Read this repository's actual typed APIs, ledger and CLI mapping, including unresolved feature gates. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md).
 
+### Concrete evidence to recheck
+
+The [object tables](../audit/LICHUAN_OBJECT_FACTS.md) must drive typed command coverage: distinguish observed mode `6061` from requested `6060`, diagnostic `2102` bits0..2 from output commands `60FE` bits16..18, and node-setting `2203` from host selection. Print native values with explicit units and unknown/conflicting interpretation. Source conflicts in DO layout, filters or tuning remain capability gates in CLI; a raw command must not bypass typed policy. Save `2300=2` and factory reset `=1` remain explicit separate intents.
+
 ## Implement
 
 1. Add explicit bounded `probe`, `read identity`, `read config` and `read state` paths with their reviewed typed getters. Keep cached `status`, `health`, `stats`, `drv` and `result` unchanged. Unknown/stale fields remain explicit; an active read's success does not fabricate motion state or refresh unrelated evidence.

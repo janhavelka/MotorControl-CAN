@@ -12,6 +12,10 @@ Follow [CONVENTIONS](CONVENTIONS.md#4-one-application-can-owner) and [MULTIDRIVE
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Discovery`, profile inventory, minimal probe and uncertainty tests. Compare MB85RC family selection and actual I2C discovery CLI behavior without copying its address/retry policy. Inspect current FieldCore binding ownership read-only. Recheck Lichuan identity evidence and the contrast/profile support inventory.
 
+### Concrete evidence to recheck
+
+Recheck [identity and DIP facts](../audit/LICHUAN_OBJECT_FACTS.md). EDS identity defaults are vendor `0x1000`, product 1, revision 0; `0x1018` lists three identity fields and no serial subindex. `0x1009/0x100A` are U16, with defaults `0x2608`/1, while vendor `0x2000/0x2001` default 1/0. These values are generic metadata, not unique CL86-C/firmware detection. A configured host node binding or explicit conservative profile selection remains necessary when identity is insufficient.
+
 ## Implement
 
 1. Implement `Discovery.h` and profile-specific discovery responsibilities where separate files are justified. Preserve `getDiscoveryProfile`, `getDiscoveryCapabilities` and the minimal `prepareProbe` meaning. List implemented profiles only; surveyed N5/EPOS4 and proprietary protocol fixtures are not supported drivers.

@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) and
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Homing`, `getHomeReference`, prerequisite and interrupted-home tests; inspect RV3032 finite cleanup and MB85RC partial-effect handling. Review FieldCore reference publication/admission read-only. Recheck original Lichuan method tables, particularly 17/18/24/29, and their model/firmware scope against the reviewed ledger and actual evidence disposition.
 
+### Concrete evidence to recheck
+
+Use the [method-by-method homing table](../audit/LICHUAN_MOTION_FACTS.md). `6098` methods 17/18 use negative/positive limit; 24/29 use origin in positive/negative search directions. Method 29 finishes on leaving the switch during positive creep, not simply the reverse of method 24. `6099:01/:02` are U32 search/creep RPM (0..3000); `609A` is U32 ramp ms (0..2000); `607C` is I32 offset (-1000000..+1000000). Mode 6 and controlword bit4 rising/falling edges start/interrupt. Numeric backoff distance and search timeout are unspecified. Reject the example's wrong two-byte writes to `6098` (one byte), `6099:01/:02` and `609A` (four bytes), and its unexplained 5000 ms ramp; controlword itself remains two bytes.
+
 ## Implement
 
 1. Implement `prepareHome`, `nextHome`, `advanceHome` and checked `getHomeReference` in the concrete homing profile/context. Preserve direct operation naming and fixed caller-owned storage; no blocking run-home helper or generic executor.

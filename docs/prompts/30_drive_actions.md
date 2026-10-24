@@ -12,6 +12,10 @@ Follow [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) 
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `ActionOperation`, `Actions`, enable/release tests and uncertain-motion interlocks. Inspect INA228 hardware-state validity and actual FieldCore admission/wire/execution projections read-only. Reopen original Lichuan control/status/monitor diagrams and the prompt-29 evidence disposition for EN86/ZH86/ZH57/OP86 conflicts.
 
+### Concrete evidence to recheck
+
+Use [motion objects and state tables](../audit/LICHUAN_MOTION_FACTS.md). Mode request/display are `6060/6061`; documented operation values are 1 position, 3 velocity and 6 homing. Enable sequence is decimal `6,7,15` (`0006,0007,000F`) with approximately 10 ms spacing. `6040` is WO in EDS: do not require a read-modify-write or treat reading controlword as acceptance. EN86 puts alarm at bit7 and standstill at bit10; ZH86 puts alarm at bit3 and running at bit14; OP86 mixes alarm7/running14. Never merge these into one ready mask. ZH86 describes enabling as velocity start; establish separately whether a retained nonzero target can be used.
+
 ## Implement
 
 1. Implement an explicit reviewed state decoder and transition table. Retain raw statusword/controlword, mode display, monitor values and unknown/contradictory interpretation. Never union conflicting bit meanings or choose a dialect by language alone.

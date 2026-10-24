@@ -10,6 +10,10 @@ Implement protocol-neutral Classical CAN frame validation and the checked SDO co
 
 Refresh RS, ADS1115 and INA228. Read RS Protocol/access checks, output-atomic parsing tests and actual callers; compare INA228 signed-width handling and PCA9555 reserved-bit policy. Inspect FieldCore's relevant frame/transport integration read-only. Inspect primary CANopen protocol/selected stack sources for command/size/reserved-bit rules and the reviewed ledger for object widths. Apply [CONVENTIONS.md](CONVENTIONS.md#1-public-names-layout-and-dependencies) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+Use the [pinned protocol review and vectors](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md). Upload initiation is `0x40` regardless of the expected value width; `0x4F/0x4B/0x43` are size-indicated expedited server responses for 1/2/4 bytes. Downloads use `0x2F/0x2B/0x23`; acknowledgement is `0x60`. Test a synthetic `0x6041:00` read and U32 `0x609A:00` transfer, including the public example's wrong read command and two-byte homing encoding as negative cases. These are host-only vectors, not authorization to issue either transfer.
+
 ## Implement
 
 1. Implement `include/MotorControlCAN/can/Frame.h` with explicit 11/29-bit identifiers, standard/extended and data/RTR kinds, Classical DLC/data length and up to eight payload bytes. RTR may request a nonzero DLC but carries no payload. Do not access RTR payload bytes, truncate identifiers or silently convert FD to Classical. Describe unsupported FD as a capability failure at the initial adapter boundary.

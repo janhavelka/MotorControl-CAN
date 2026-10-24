@@ -10,6 +10,10 @@ Implement a complete bounded SDO transfer lifecycle with conservative uncertaint
 
 Refresh RS, ADS1115 and INA228. Inspect RS owner/runner cancellation, retained results and no-replay behavior with callers/tests; compare MB85RC effect results and RV3032-C7 uncertain writes. Inspect FieldCore service ownership read-only and the chosen stack's actual session/callback/error paths. Recheck ledger widths and [CONVENTIONS.md](CONVENTIONS.md#4-one-application-can-owner). Apply [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases): SDO is a CANopen service, not a universal native acknowledgement requirement.
 
+### Concrete evidence to recheck
+
+The EDS [communication records](../audit/LICHUAN_OBJECT_FACTS.md) give default client/server COB-IDs `$NODEID+0x600` and `$NODEID+0x580` in `0x1200:01/:02`; use an explicitly configured/source-backed initial channel and bounded non-changing confirmation; do not probe guessed alternatives with writes. The [public example](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) uses sleeps instead of acknowledgement and has no sufficient transaction correlation. Every download step must await matching protocol evidence. A caller-configured SDO deadline is not the vendor's approximate 10 ms enable-step interval.
+
 ## Implement
 
 1. Implement the selected boundary using prompt 6's existing channel storage. One active transfer per actual SDO channel; other channels/nodes and unsolicited traffic can progress through the same dispatch boundary. Keep controller I/O in the application adapter and time supplied by its caller. Admission copies retained request data and records target, operation/request/step identities and relevant epochs.

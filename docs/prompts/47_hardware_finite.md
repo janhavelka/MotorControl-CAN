@@ -10,6 +10,10 @@ Qualify finite behavior on the first real CL86-C fixture using the existing publ
 
 Refresh RS finite bench/evidence and failure-retention practices, ADS1115/INA228 HIL verdict boundaries and actual target runner/firmware identity. Read prompt 29's fixture/conflict record and the original applicable manual/EDS pages again. Inspect FieldCore only for relevant evidence distinctions. Apply [CONVENTIONS.md](CONVENTIONS.md), [MULTIDRIVE.md](MULTIDRIVE.md), [DOCUMENTATION.md](DOCUMENTATION.md), [MAINTAINABILITY.md](MAINTAINABILITY.md) and [DELEGATION.md](DELEGATION.md). RS bench authorization and wiring do not authorize or describe CAN activity.
 
+### Concrete evidence to recheck
+
+Recheck [wiring and DIP evidence](../audit/LICHUAN_OBJECT_FACTS.md): RJ45 pins1/2/3 are CAN_H/CAN_L/GND; SW8 ON inserts 120 ohms; SW6/SW7 select 125/250/500/1000 kbit/s. Manufacturer supply ranges conflict across pages, so identify the actual nameplate/fixture before energizing. Acquire model/firmware, raw identity, status dialect, scale and I/O applicability; don't test both disputed output addresses by trial writes. Qualification must retain exact traffic/timestamps and distinguish a source correction from a measurement on one unit.
+
 ## Implement
 
 1. Confirm controller/SDK, transceiver, pins/interface, termination/cabling, drive model/label/firmware/raw identity, motor/encoder/wiring, supply, node/DIP/bitrate, relevant I/O and mechanics. Record independent observation/stop provisions and action authorization. Resolve facts needed for each selected test; do not infer them from a similar model or guessed default.

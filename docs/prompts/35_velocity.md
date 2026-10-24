@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) and
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read actual RS `prepareVelocity`, `nextVelocity`, `advanceVelocity`, `serviceVelocity` and timing/stop tests. Compare RV3032 bounded cleanup and INA228 validity. Inspect FieldCore active-motion/admission assumptions read-only. Reopen the conflicting Lichuan English/Chinese target/enable ordering and signedness evidence; use the selected firmware disposition, not a guessed sequence.
 
+### Concrete evidence to recheck
+
+The [velocity evidence](../audit/LICHUAN_MOTION_FACTS.md) fixes the candidate target at `60FF:00`, EDS I32/default 120; the mode table instead says U32 and 0..3000 rpm. ZH86/OP86 prescribe mode 3, observed mode 3, target/ramp writes, then `6,7,15` enabling to start; EN86 enables first and later refers to position trigger bits. Require a justified firmware-specific sequence; never splice both procedures together. Neither an I32 representation nor one positive run proves reverse operation. Distinguish zero velocity, stop and disable, and keep the RS preparation-time duration contract.
+
 ## Implement
 
 1. Implement `prepareVelocity`, `nextVelocity`, `advanceVelocity` and `serviceVelocity` in the concrete velocity operation/profile files. Requests specify duration, signed engineering intent, units, native ramp time, stop policy and a fixed service deadline. Validate reverse-direction semantics before exposing reverse motion.

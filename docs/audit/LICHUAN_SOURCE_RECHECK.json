@@ -1,0 +1,86 @@
+{
+  "purpose": "Fresh public-source recheck; retrieved bytes compared in memory, not replacements for retained originals. Dynamic HTML can differ without a protocol change.",
+  "date": "2026-10-24",
+  "sources": [
+    {
+      "id": "EN86",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/86c-canopen bus stepper driver manual.pdf",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "401df6c49c54fe56fed7c606ca45718f352235746e2faaeb65be778eef6c4b9f",
+      "status": 200,
+      "bytes": 2763702,
+      "sha256": "401df6c49c54fe56fed7c606ca45718f352235746e2faaeb65be778eef6c4b9f",
+      "same_bytes": true
+    },
+    {
+      "id": "ZH86",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/86c\u7cfb\u5217-canopen\u603b\u7ebf\u9a71\u52a8\u4f7f\u7528\u624b\u518c(2).pdf",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "3969c914aa291662e8c77941bcfbb0559769a96b75306266370890d03e824d13",
+      "status": 200,
+      "bytes": 3161211,
+      "sha256": "3969c914aa291662e8c77941bcfbb0559769a96b75306266370890d03e824d13",
+      "same_bytes": true
+    },
+    {
+      "id": "OP86",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/ol86c\u548ccl86c\u64cd\u4f5c\u624b\u518c(4).pdf",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "4c87679d210c99f4ac4f6ce29e7f2c82b13221fdf81c47ee59a989f708f504b5",
+      "status": 200,
+      "bytes": 3148226,
+      "sha256": "4c87679d210c99f4ac4f6ce29e7f2c82b13221fdf81c47ee59a989f708f504b5",
+      "same_bytes": true
+    },
+    {
+      "id": "ZH57",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/57c\u7cfb\u5217-canopen\u603b\u7ebf\u9a71\u52a8\u4f7f\u7528\u624b\u518c(2).pdf",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "47ce117cda7498210c09533e7d05dcd83ecb51e64cdd62ba054750b8ed3cf356",
+      "status": 200,
+      "bytes": 3120941,
+      "sha256": "47ce117cda7498210c09533e7d05dcd83ecb51e64cdd62ba054750b8ed3cf356",
+      "same_bytes": true
+    },
+    {
+      "id": "OP57",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/ol57c\u548ccl57c\u64cd\u4f5c\u624b\u518c(4).pdf",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "ce61bb1c1fde3cf689a2e8078b0823eb2734382b7713c0448006017a60396343",
+      "status": 200,
+      "bytes": 3115924,
+      "sha256": "ce61bb1c1fde3cf689a2e8078b0823eb2734382b7713c0448006017a60396343",
+      "same_bytes": true
+    },
+    {
+      "id": "EDS",
+      "url": "https://omo-oss-file110.thefastfile.com/portal-saas/pg2024121216272237966/cms/file/lc_stepdrivercan_v1.1.eds",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c",
+      "status": 200,
+      "bytes": 31974,
+      "sha256": "dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c",
+      "same_bytes": true
+    },
+    {
+      "id": "PRODUCT",
+      "url": "https://en.xlichuan.com/product-xq/143.html",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "b6aae1baf8dd729b61bf7809714735d0e6fc8cde29d9321f69120d4462f16a6b",
+      "status": 200,
+      "bytes": 483591,
+      "sha256": "48213798f20e49e142c060362f61e014182d04a1dce5c5ad5506ae6d691a69f5",
+      "same_bytes": false
+    },
+    {
+      "id": "INDEX",
+      "url": "https://www.xlichuan.com/download/23.html",
+      "retrieved_on": "2026-10-24",
+      "stored_sha256": "ba90e34c6ba9b5c2f42975f3ceea4834eeff095ae3b84709e9cf2a22547026da",
+      "status": 200,
+      "bytes": 373477,
+      "sha256": "2804c05a671f2be7f708bc11c38cf9dd3083c510775ef8c3f03b9a76bb4a00f7",
+      "same_bytes": false
+    }
+  ]
+}

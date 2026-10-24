@@ -10,6 +10,10 @@ Generate compact native object declarations/access policy and readable coverage 
 
 Refresh RS, ADS1115 and INA228 and inspect current RS register ledger/generator, generated Types/Registers/access policy, generator tests and actual users. Compare relevant I2C reserved-field and model-access patterns; inspect FieldCore configuration/type consumers read-only. Recheck selected ledger rows against original PDFs/EDS, especially unresolved width/effect cases. Apply [CONVENTIONS.md](CONVENTIONS.md#1-public-names-layout-and-dependencies) and [MULTIDRIVE.md](MULTIDRIVE.md#required-contrasting-test-cases).
 
+### Concrete evidence to recheck
+
+Use the [full intake and conflict tables](../audit/LICHUAN_OBJECT_FACTS.md). Source fields such as `PDOMapping=1` on save, clear or reserved objects do not authorize a generated action route. `0x1009/0x100A` are U16 here, not automatically generic version strings. A record's count and reserved subentries need explicit dispositions. Generate only the resolved type/access/effect scope; retain the raw source claim and unresolved disagreement in coverage.
+
 ## Implement
 
 1. Implement one deterministic generator/check mode consuming `docs/reference/lichuan_objects.json`. Generate compact `Objects.h`, needed Types/access policy and reviewed documentation under `include/MotorControlCAN/profiles/lichuan_c/` and their documented output paths. Use public namespace `MotorControlCAN::LICHUAN_C`. Keep descriptive catalogue strings optional so minimal consumers do not link a reference dictionary accidentally.

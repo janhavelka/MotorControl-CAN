@@ -15,6 +15,8 @@ All 50 prompts include concrete files/APIs, failure cases, documentation duties 
 - [CANopen drive survey](docs/audit/CANOPEN_DRIVE_SURVEY.md) and [other CAN protocols](docs/audit/OTHER_CAN_PROTOCOLS.md)
 - [I2C and FieldCore conventions](docs/audit/ECOSYSTEM_CONVENTIONS.md)
 - [Device and protocol research](docs/audit/DEVICE_PROTOCOL_RESEARCH.md)
+- [Concrete Lichuan evidence for each prompt](docs/prompts/DEVICE_EVIDENCE.md): complete EDS inventory, motion/settings/timing tables and audited public code, with unresolved manufacturer contradictions kept explicit.
+- [Evidence enrichment review, 24 October](docs/audit/LICHUAN_ENRICHMENT_2026-10-24.md): findings, prompt-size measurements and validation scope.
 - [Downloaded references and provenance](docs/reference/README.md)
 - [Proposed structure and ownership](docs/architecture_plan.md)
 - [API and CLI naming map](docs/api_cli_mapping.md)

@@ -12,6 +12,10 @@ Use [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) and
 
 Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `Tuning`, `ControlSettings`, typed getter callers and group validation tests; inspect MB85RC variant policy and INA228 configuration validity. Review relevant FieldCore parameter consumers read-only. Check original Lichuan manual pages against EDS entries for each assigned tuning or other native field, including read effects and firmware contradictions.
 
+### Concrete evidence to recheck
+
+The [complete tuning table](../audit/LICHUAN_OBJECT_FACTS.md) accounts for all 33 indexes `2500..2520`, each U16 RW/PDO-mappable with no EDS default/range. `2500` selects drive loop mode (0 ineffective, 1 open, 2 closed), distinct from motion mode `6060`. `2501` encoder-resolution convention is unspecified; `2502` uses mA, `2503..2506` percent and `2507` ms. Do not infer `250C` in-position time is ms merely from its name. `251A..2520` have EDS-only gain names without reviewed units/effects. Keep that tail unresolved rather than manufacturing meaningful setters from strings.
+
 ## Implement
 
 1. List the finite assigned groups and their exact row ownership. Confirm every native row already has a named implementation prompt. Missing classification is a ledger defect to fix explicitly, not permission to silently enlarge this task or discard the row.
