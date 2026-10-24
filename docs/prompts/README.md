@@ -15,6 +15,8 @@ Every stage now includes concrete implementation contracts, documentation duties
 
 The [fresh conventions audit](../audit/CONVENTIONS_REAUDIT.md) distinguishes existing source facts from proposed CAN additions. The instruction to “match the libraries” is resolved into explicit choices; it does not mean forcing their differing I2C lifecycles or health policies onto motor control.
 
+The [24 October prompt audit](../audit/PROMPTSET_REVIEW_2026-10-24.md) fixes timer, SDO, NMT, stage-order and artifact-storage errors. It preserves the first-profile scope and replaces impossible future-driver gates with small source-backed contrasts.
+
 The broadened scope is one library for stepper and servo drives across manufacturers and CAN protocols. Read [the scope decision](../multidrive_decision.md) and mandatory [MULTIDRIVE.md](MULTIDRIVE.md) stage criteria. CANopen/Lichuan remains first; Nanotec N5 and EPOS4 validate the design. Use [ADD_DRIVE.md](ADD_DRIVE.md) for a later concrete profile, without treating research candidates as supported drivers.
 
 The [audits and drive surveys](../audit/), [reference originals](../reference/README.md), [copied baseline](../baseline/README.md), [architecture plan](../architecture_plan.md), [naming map](../api_cli_mapping.md) and [acceptance matrix](../requirements_matrix.md) are inputs. Downloaded manufacturer files are local, with hashes; blocked downloads are listed explicitly. English/Chinese Lichuan manuals and EDS have unresolved conflicts; affected behavior must be reconciled before code can claim it.
@@ -48,7 +50,7 @@ Execute sequentially by default. Unit work, documentation or isolated read-only 
 
 ## Completion and handoff
 
-Each stage writes `docs/reports/stage_NN.md`, updates [PROGRESS.md](PROGRESS.md), the backlog/roadmap and its relevant coverage. Re-read the previous stage's actual outputs before proceeding. No stage may mark a feature implemented solely because it was added to a table or rejected as unsupported.
+Each stage writes `docs/reports/stage_NN.md` and updates [PROGRESS.md](PROGRESS.md). Update the backlog, roadmap and coverage when their respective facts change, as specified in COMMON. Re-read the previous stage's actual outputs before proceeding. No stage may mark a feature implemented solely because it was added to a table or rejected as unsupported.
 
 Do not ask for routine confirmation between stages after the implementation assignment is authorized. Do not upload, publish, change sibling repositories or move hardware merely because an old RS document describes that workflow. Inspect current Git/remote/toolchain state rather than assuming the initial empty directory is unchanged; state unavailable CI/hardware honestly and continue host work.
 

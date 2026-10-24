@@ -8,7 +8,7 @@ Read current RS ProbeConsole command inventory/parser/formatter, `@ID` JSONL pro
 
 ## Deliver
 
-1. Implement one shared command inventory driving dispatch/help/capability output on native, Arduino and ESP-IDF. Follow `docs/api_cli_mapping.md`: local diagnostics, explicit reads, typed settings, exact preparation, finite motion, actions, discovery, persistence and CAN network services.
+1. Implement one shared command inventory driving dispatch/help/capability output on native, Arduino and ESP-IDF. Connect it to the stage-14 application and bounded platform input/output seams. Follow `docs/api_cli_mapping.md`: local diagnostics, explicit reads, typed settings, exact preparation, finite motion, actions, discovery, persistence and CAN network services.
 2. Use public library APIs for every drive command. Keep conversions, controlword sequencing, object writes and completion logic out of the parser. No private raw-register escape command may bypass public validation. Add native groups only for actual implemented typed features.
 3. Preserve plain human commands plus `@ID` correlated JSONL, distinct request/operation IDs, retained result lookup and stable output mode for asynchronous replies. Publish library/profile/protocol identity, capability, terminal outcome, wire/acceptance/execution/uncertainty evidence and raw protocol detail. Version schema deliberately; RS protocol 3 compatibility must be checked, not assumed.
 4. Keep `status`, `health`, `stats`, `result` passive; `stats reset` local; `recover` host-only; `cancel` local. Distinguish `release ID` from `motor-release`. Explain stop normal/fast profile behavior and unsupported operations with actionable reasons.
@@ -45,6 +45,6 @@ Under [DELEGATION.md](DELEGATION.md), independent parser tests and help/coverage
 
 ## Verify and exit
 
-Run command/API parity, help inventory, all invalid parser boundary cases, JSON escaping/schema/line integrity, interleaved events, mismatched IDs, late replies, retained results, queue-full and stop while output is congested. Test removed aliases reject cleanly. Equivalent Arduino/IDF builds must share routes and payload semantics.
+Run command/API parity, help inventory, all invalid parser boundary cases, JSON escaping/schema/line integrity, interleaved events, mismatched IDs, late replies, retained results, queue-full and stop while output is congested. Test removed aliases reject cleanly. Rebuild the native, Arduino and ESP-IDF examples with the real shared console now included; verify the same command inventory, routes, payload semantics and bounded service responsiveness. These are the console gates intentionally deferred from stage 14.
 
 Exit with a documented CLI and a machine protocol ready for an independent Python client. No console-only motor functionality is allowed.

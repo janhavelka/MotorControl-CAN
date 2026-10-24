@@ -25,6 +25,8 @@
 
 This checkout is currently an audited implementation promptset, not a working driver. Do not report planned APIs, tests or hardware behavior as implemented. The library package name is `MotorControl-CAN`; the proposed C++ namespace, include directory and CMake identity are `MotorControlCAN`. Implement only when instructed to execute the promptset. Preserve the original references and their provenance.
 
+CL86-C is a finished Lichuan motor drive with a CANopen interface, not an identified bare IC. Target its documented external protocol. Do not infer an internal chip, register map or shared firmware from similar product names; related models need their own applicability evidence.
+
 The accepted scope is one library for multiple manufacturers' stepper and servo drives. Common motion is motor- and protocol-neutral; CANopen/CiA402 is the first protocol backend and Lichuan C the first implemented family. Nanotec N5 (stepper and BLDC configurations) and maxon EPOS4 are mandatory design contrasts, not automatically supported products. Proprietary CAN and CAN FD require their own protocol/adapter milestones. Read `docs/multidrive_decision.md`; use `docs/prompts/ADD_DRIVE.md` when a concrete additional profile is selected. Do not split public APIs solely by motor technology or infer that every CAN controller speaks CANopen.
 
 Read `docs/prompts/README.md`, `docs/prompts/COMMON.md`, the active numbered prompt, the applicable reports in `docs/audit/`, and the applicable parent `AGENTS.md` before work. The parent Projects CI policy applies. Local Markdown in this checkout is repository documentation; keep it here.
@@ -40,6 +42,8 @@ The user authorizes subagents and model choices according to task complexity. In
 ## Recurring source audit
 
 For **every implementation, review or audit prompt**, inspect current `../MotorControl-RS` and the relevant sibling I2C implementations, callers, examples, tests, runners and CI. At minimum refresh MotorControl-RS, ADS1115 and INA228; select SHT3x-main, BME280, MB85RC, MCP45HVX1, PCA9555, RV3032-C7 and the stateless codec siblings according to the affected seam. Inspect current FieldCore-node read-only for ownership/integration changes. Record paths, revisions, dirty state, relevant behavior and intentional differences in the stage report. Do not rely solely on these historical audit reports or copy names from an old prompt.
+
+Keep that audit proportional: inspect current revisions and the sources relevant to this prompt, compare with the previous recorded findings, and record the delta. Do not reread unrelated modules or repeat unchanged suites at every checkpoint. A symbol search locates evidence; read enough implementation and callers to establish its meaning.
 
 MotorControl-RS is authoritative for common motion names/meaning; I2C libraries establish ecosystem style and owner integration, not a single universal lifecycle. Native CANopen names describe genuinely different services. Keep `Status`, protocol errors, drive state, command outcome and application health distinct. Never import sensor retry policy into motor commands.
 
@@ -79,6 +83,8 @@ When new behavior reaches an authorized CAN bench, run a short existing-feature 
 
 Preserve original manuals, EDS, source snapshots and hash manifests. Check original PDF pages when text extraction loses tables, figures or notation. Review any changed upstream document before replacing an existing snapshot, retain its provenance, and keep conflicts visible in the reviewed ledger. Never execute downloaded vendor tools as a side effect of preparing documentation.
 
+Preserve the `.gitattributes` rules that disable line-ending conversion for references, copied source and retained evidence. Hashes describe original bytes, not normalized text. For changes to these artifacts or Git attributes, check both working files and staged Git blobs with `python scripts/check_promptset.py --check-git-ref INDEX`, then verify `HEAD` after commit.
+
 Use one reviewed object ledger for generated declarations/access policy and coverage. Run the actual generator/check mode once implemented; do not hand-edit generated files or fill undocumented gaps with invented objects. Keep descriptive catalogue strings optional for minimal consumers. Vendor material is not covered by the library's software license and is excluded from distributable core packages. Separate disposable build output from retained audit/bench evidence; never delete evidence as cache cleanup.
 
 ## Work and verification
@@ -87,4 +93,4 @@ Keep changes scoped and use the CI/Git policies above throughout each prompt. Es
 
 Maintain a current handoff rather than a transcript: completed behavior, actual verification, source/firmware uncertainty, next executable work, branch/commits and sync status. Continue through already-authorized stages without routine confirmation. When one feature is blocked, keep its obligation visible and proceed with independent work; do not call a partial stage complete because its current subset builds.
 
-Maintain a stage report, object/API/CLI coverage, backlog and roadmap as work proceeds. Mark software checks, device evidence and remaining gaps independently. For major implementation milestones verify required CI on the actual final commit when a remote exists; report unavailable checks honestly. Documentation-only promptset changes need local validation, not remote CI.
+Maintain a stage report, object/API/CLI coverage, backlog and roadmap as work proceeds. Update each when its distinct information changes; link the authoritative contract instead of copying the same narrative into every file. Mark software checks, device evidence and remaining gaps independently. For major implementation milestones verify required CI on the actual final commit when a remote exists; report unavailable checks honestly. Documentation-only promptset changes need local validation, not remote CI.

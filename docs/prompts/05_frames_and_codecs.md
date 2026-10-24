@@ -9,9 +9,9 @@ Read RS checked codec/output guarantees, stateless SHZK-PT/VTN4xx/VibWire-108 co
 ## Deliver
 
 1. Implement bounded protocol-neutral Classical CAN frame values and validation: 11/29-bit identifier, standard/extended, RTR/data, FD capability rejection, actual data length/DLC and up to eight payload bytes. RTR contains no payload even with nonzero requested-response DLC. CANopen services reject inappropriate flags at their own boundary, not globally. Test documented extended/RTR shapes from the contrast survey without installing another protocol driver. Do not expose a UART byte-stream API or add Modbus CRC.
-2. Implement the needed pure SDO request encoding/reply checking or adapter-side checked decoding according to stage 02. For expedited transfers validate expected command, node/channel COB-ID, index/subindex, expedited/size bits and exact payload width; preserve little-endian signed values and complete abort codes.
+2. Implement the needed pure SDO request encoding/reply checking or adapter-side checked decoding according to stage 02. Validate expected command, node/channel COB-ID, index/subindex and legal expedited/size flags. With size indicated, check the encoded width against the reviewed object width. For an expedited upload without size indication, use the explicitly expected reviewed width; absent size bits do not encode a length. Reject unknown width rather than guessing, and validate reserved/padding fields according to the selected protocol source. Preserve little-endian signed values and complete abort codes.
 3. Add bounded pure NMT/heartbeat/boot-up/EMCY and selected PDO/SYNC codecs only for required services. Distinguish TX wire encoding from controller metadata. Unknown events remain diagnosable without corrupting active operation output.
-4. Generate compact `Objects.h`/Types/access policy from the reviewed ledger. Descriptive catalogue strings should be optional to link. Generation must not promote unresolved fields to writable operations. Preserve source citations in generated metadata/docs and a deterministic check mode.
+4. Generate compact `Objects.h`/Types/access policy from the reviewed ledger. Descriptive catalogue strings should be optional to link. Generation must not promote unresolved fields to writable operations. Preserve source citations in generated metadata/docs and a deterministic check mode. Check in the output and activate its real freshness check in the stage-03 verifier and CI now.
 5. Provide short direct helper names (`readWord`, `checkReply`, etc.) where meaningful. Builders/parsers take explicit expectations and capacities, borrow caller buffers only during the call, reject invalid overlap and publish payload atomically.
 
 ## Concrete implementation contract
@@ -30,7 +30,7 @@ Do not read payload bytes from an RTR frame. Do not silently truncate an extende
 
 For an ordinary default-channel expedited SDO, useful protocol vectors include upload request `40 41 60 00 00 00 00 00` for object `0x6041:00`, two-byte upload reply command `0x4B`, two-byte download command `0x2B`, download acknowledgement `0x60`, and abort command `0x80`. Verify these against the chosen CANopen source before using them. They illustrate protocol format; they do not prove CL86 permissions, values, writable state or configured COB-IDs.
 
-Each decoder accepts explicit expected address/type/length and commits output only on success. Preserve protocol rejection as typed evidence rather than malformed frame. Document if a low-level decoder returns a valid decoded abort while the higher service returns a rejected outcome. Test that distinction directly.
+Each decoder accepts explicit expected address/type/length and commits output only on success. Preserve protocol rejection as typed evidence rather than malformed frame. Document if a low-level decoder returns a valid decoded abort while the higher service returns a rejected outcome. Test that distinction directly. A valid segmented-upload initiation is also not a malformed reply merely because the current client supports only expedited uploads; stage 06 decides how to handle that unsupported transfer.
 
 Generate only facts reviewed in stage 01. Each generated object descriptor records its width/access/units and support gate; runtime public APIs cannot write unresolved/reserved fields through a generic descriptor escape path.
 
@@ -42,6 +42,6 @@ Under [DELEGATION.md](DELEGATION.md), vector construction and generator/schema c
 
 ## Verify and exit
 
-Test byte-exact vectors from original documents and separately constructed expected frames, every supported width/sign, valid device abort, wrong COB-ID/node/channel/index/subindex/command/length/flags, malformed size bits, insufficient capacity, overlaps and output sentinels. Vary unused bytes without reading beyond declared length. Run sanitizer builds where available.
+Test byte-exact vectors from original documents and separately constructed expected frames, every supported width/sign, size-indicated and non-size-indicated expedited uploads, valid segmented initiation, valid device abort, wrong COB-ID/node/channel/index/subindex/command/length/flags, malformed size bits, insufficient capacity, overlaps and output sentinels. Vary unused bytes without reading beyond declared length. Run sanitizer builds where available.
 
 Exit with pure independently usable codecs and catalogue policy. A valid frame is not evidence that an operation is permitted or completed. If the selected stack builds frames, tests exercise the adapter boundary without creating a duplicate transport engine.

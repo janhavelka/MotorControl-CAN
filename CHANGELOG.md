@@ -20,4 +20,15 @@ This repository currently contains planning and reference material. No CAN libra
 - Adapted RS/I2C agent guidance for CAN: one branch for the full promptset, verified commit-and-sync checkpoints during and at the end of each prompt, lead-owned Git operations, proportionate CI, failure investigation and reference maintenance.
 - Clarified branch creation: each new promptset execution starts a new dedicated branch, then reuses it across all stages and resumed sessions; maintenance audits do not start implementation.
 
+### Fixed
+
+- Corrected velocity duration to start at successful preparation, matching RS, with queue/setup time included.
+- Corrected SDO upload size/transfer assumptions and scoped non-changing read claims to reviewed objects.
+- Clarified service eligibility with disabled heartbeat, first TPDO observations and NMT transition evidence.
+- Moved catalogue freshness and console parity gates to the stages that implement their sources; narrowed multi-profile acceptance to the implemented scope and small shared contrast fixtures.
+- Removed unnecessary repeated report/audit work while keeping current source inspection and documentation mandatory.
+- Preserved original reference/baseline/evidence bytes in Git and added optional HEAD/index artifact checks; line-ending conversion previously broke 52 stored artifact hashes.
+
+The [24 October prompt audit](docs/audit/PROMPTSET_REVIEW_2026-10-24.md) records the findings, fixes, source revisions and validation limits.
+
 The multi-drive architecture and test contrasts are plans. Nanotec, maxon and other researched products are not implemented or qualified drivers in this checkout.

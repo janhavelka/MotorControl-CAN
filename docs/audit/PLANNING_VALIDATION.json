@@ -8,10 +8,11 @@
     "shared_contracts": 5,
     "concrete_stage_contracts": 20,
     "reference_packs": 3,
-    "markdown_files": 52,
-    "local_links": 318,
+    "markdown_files": 53,
+    "local_links": 339,
     "hashed_artifacts": 103,
-    "live_baseline_files": 0
+    "live_baseline_files": 0,
+    "git_artifact_files": 103
   },
   "errors": []
 }
