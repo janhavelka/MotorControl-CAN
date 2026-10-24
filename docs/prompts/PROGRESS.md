@@ -2,6 +2,8 @@
 
 This file tracks **future library implementation**, not completion of the planning audit. All implementation stages are initially pending. Update it after each stage; detailed evidence belongs in `docs/reports/stage_NN.md`.
 
+Execution has not started. When it starts, record the promptset identity, newly created execution branch, inspected base commit and upstream here. Reuse that branch for all stages and resumed sessions, committing and syncing after each prompt and at useful completed checkpoints. A maintenance/audit branch is not an implementation-stage completion or the automatically selected future execution branch.
+
 The user-expanded scope and [multi-drive criteria](MULTIDRIVE.md) apply to all stages: one stepper/servo library, Lichuan CANopen first, documented N5/EPOS4 contrasts, independent future CAN protocol profiles. Research and test-fixture planning do not mark another driver implemented.
 
 The expanded [conventions](CONVENTIONS.md), [documentation](DOCUMENTATION.md), [maintainability](MAINTAINABILITY.md) and [delegation](DELEGATION.md) contracts apply to every stage. Completing these planning documents does not change any implementation stage below from Pending.

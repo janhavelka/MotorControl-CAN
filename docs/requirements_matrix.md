@@ -25,7 +25,7 @@ These are obligations for the future implementation, not current feature claims.
 | R19 | Python finite runners and retained evidence | 16,18 | Offline parser/campaign failures/no replay, explicit connection/setup, logs and summaries |
 | R20 | Native/fault/consumer/package/CI gates | 03–17,19 | Registered *_test.cpp/*_test.py, GCC/Clang, package users, exact-commit CI when available |
 | R21 | FieldCore-like suitability without dependence | 00,02,12,17 | Read-only current dormant module audit, fake consumer, handoff; no imported app types |
-| R22 | Agent guidance and resumable delivery | All | Root AGENTS, per-stage actual report/progress, preserved evidence and open obligations |
+| R22 | Agent guidance and resumable delivery | All | One new branch per new promptset execution, reused across all stages/sessions; commit and sync each prompt/coherent checkpoint; reports preserve evidence and open obligations |
 | R23 | Documentation and release honesty | All; final 19 | Documentation accompanies changes; supported versus known/implemented/tested/qualified matrix; no fabricated firmware/HIL |
 | R24 | Maintainability and resource boundaries | All; architecture 02 | Selected single stack, compact linked metadata, bounded queues/work, no universal engine |
 | R25 | Correct package/license provenance | 03,19 | Copied MIT notice, optional stack license, third-party originals excluded from software export |

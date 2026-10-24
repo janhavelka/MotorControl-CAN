@@ -2,6 +2,8 @@
 
 Use [START_HERE.md](START_HERE.md) as a single assignment, or give an agent one numbered prompt at a time. Every stage incorporates [COMMON.md](COMMON.md) and root [AGENTS.md](../../AGENTS.md). **Every stage audits current sibling source again**, including MotorControl-RS, relevant I2C libraries and FieldCore's relevant consumer seam. This is essential because names, health policy, tests and CLI have evolved.
 
+Start each new promptset execution on one new dedicated branch and record it in PROGRESS. Keep it throughout that promptset, including resumed sessions. Commit and sync after every prompt and whenever a coherent tested chunk is ready; do not create a branch per numbered stage.
+
 Every stage now includes concrete implementation contracts, documentation duties and a useful work split, as well as the audit, deliverables and verification gate. Read these shared contracts first:
 
 | Contract | Concrete decisions |

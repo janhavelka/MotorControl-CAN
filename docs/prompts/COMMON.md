@@ -7,7 +7,7 @@ Apply the selected contracts in [CONVENTIONS.md](CONVENTIONS.md), [DOCUMENTATION
 ## First actions
 
 1. Read root and applicable parent `AGENTS.md`, this file, the numbered prompt, its predecessor's report, `docs/requirements_matrix.md`, `docs/architecture_plan.md`, `docs/api_cli_mapping.md`, and `docs/multidrive_decision.md`. Apply [MULTIDRIVE.md](MULTIDRIVE.md) for each stage's stepper/servo/protocol acceptance criteria.
-2. Apply root AGENTS Git workflow: inspect/fetch the current branch/upstream, preserve concurrent work and stay on the promptset's single branch. Inspect CI. Inspect live source in MotorControl-RS plus ADS1115 and INA228, then the I2C/reference repositories named by the stage. Read their relevant scoped agent instructions as context; CAN Git authorization comes from this user's instructions/root AGENTS, while sibling bench permissions do not transfer.
+2. Apply root AGENTS Git workflow: inspect/fetch branch/upstream and preserve concurrent work. At the start of a new promptset execution, create and record one new dedicated branch from the agreed base; for every later prompt or resumed session, use that same recorded branch. Inspect CI. Inspect live source in MotorControl-RS plus ADS1115 and INA228, then the I2C/reference repositories named by the stage. Read their relevant scoped agent instructions as context; CAN Git authorization comes from this user's instructions/root AGENTS, while sibling bench permissions do not transfer.
 3. Record current sibling HEADs and dirty status. Read the actual relevant headers, implementations, callers, CLI, native tests, Python tests/runners and workflows. Inspect FieldCore's relevant ownership seam read-only. Use the audit reports and copied baseline to locate code, then verify current behavior. If a sibling is unavailable, state it and use the pinned snapshot for the covered seam; do not pretend a live audit happened or block unrelated work.
 4. Verify source identity, original PDF/EDS hashes and model/firmware applicability for any device-dependent change. Read exact PDF pages where tables or diagrams matter. Resolve contradictory documents explicitly; no inferred constants, fallback defaults or invented firmware identity.
 5. Produce a short implementation plan within the stage report, then implement the bounded stage. Continue without routine confirmation. Ask only for information or authorization actually needed by a dependent operation, while continuing independent work.
@@ -46,7 +46,7 @@ Documentation: changed guides/comments/examples/CHANGELOG; justified N/A items
 Maintainability: reused/removed code; reasons for new types/modules; simpler choices
 Delegation: task/model/effort/file ownership and integrated review, or solo work
 Checks: exact commands + results + artifacts; separate skipped/blocked checks
-Git: promptset branch/upstream, completed checkpoint commits, sync result/blocker
+Git: promptset identity, execution branch/base/upstream, checkpoint commits, sync result/blocker
 Coverage: documented / implemented / host tested / hardware qualified
 Open issues: consequence, dependent stage, precise evidence needed
 Handoff: next executable stage and any feature-specific gates
