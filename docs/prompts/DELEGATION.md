@@ -26,9 +26,9 @@ If an override requires a fresh context, give the agent a complete bounded brief
 Each delegated task receives this information in one readable brief:
 
 ```text
-Goal and stage: one concrete result and why it is needed
-Read first: applicable AGENTS, COMMON, CONVENTIONS, active prompt,
-            DOCUMENTATION, MAINTAINABILITY and relevant evidence
+Goal and prompt: one concrete result and why it is needed
+Read first: applicable AGENTS, COMMON, CONVENTIONS, active prompt and its named sections of DOCUMENTATION,
+            MAINTAINABILITY and relevant evidence
 Scope: owned files or read-only review; files another agent owns
 Contract: selected names/types, prerequisites, unresolved facts
 Sources: sibling paths/revisions and exact vendor IDs/pages to verify
@@ -47,31 +47,23 @@ Read-only research can proceed while an implementer works, but dependent edits w
 
 The lead commits and syncs each coherent integrated chunk after its relevant checks, including useful checkpoints during a prompt and before finishing that prompt. Do not wait for every unrelated worker or the full promptset when a disjoint completed chunk is ready. Verify staged ownership and upstream synchronization under root AGENTS. A worker handoff must identify completed files/hunks, checks and remaining work so the lead can make a reviewable commit without including unfinished or unrelated edits.
 
-## Stage-specific work split
+## Prompt-specific work split
 
-These are useful splits, not a mandatory agent count. “Strong review” means the difficult-contract tier above or an available equivalent.
+Each numbered prompt gives its concrete work split and reviewer focus. These grouped defaults guide model/effort selection; they are not a required agent count or a second task list.
 
-| Stage | Useful independent work | Lead or single writer responsibility |
+| Prompts | Useful independent work | Lead or single writer responsibility |
 | --- | --- | --- |
-| 00 | RS audit, I2C/FieldCore audit, reference inventory | Reconcile concrete naming and changed revisions |
-| 01 | EN/ZH source comparison, EDS accounting; strong conflict review | Canonical ledger and support decisions |
-| 02 | Stack proof, alternate-drive contract review; strong architecture review | Public boundary, memory ownership and stack choice |
-| 03 | Isolated consumer check, Doxygen/style configuration review | CMake/verifier/CI integration and metadata |
-| 04 | Arithmetic vectors, independent overflow/rounding review | Public units/status/axis semantics |
-| 05 | Independent wire vectors, generator checks | Frame/object API and generation source |
-| 06 | Fake-service adversarial cases; strong correlation/deadline review | Channel state, stack adapter and service lifecycle |
-| 07 | Event/PDO vectors, remap-failure review | Single routing path and node storage |
-| 08 | Disjoint typed settings groups and source checks | Shared result types, access policy and coverage ledger |
-| 09 | Independent transition/stop evidence review | Action sequence, urgent interruption and uncertainty |
-| 10 | Exact-target review, motion timeline tests | Position handshake and retained result contract |
-| 11 | Homing method evidence, velocity deadline review | Finite service/stop behavior and native operation scope |
-| 12 | Fairness/capacity tests; strong stale-TX/owner review | Physical owner, health accounting and shared storage |
-| 13 | Non-changing discovery tests, persistence effect review | Commissioning sequence and binding invalidation |
-| 14 | Disjoint Arduino/IDF/SocketCAN adapter checks | Shared app behavior and adapter evidence contract |
-| 15 | Parser/JSONL adversarial tests, help/coverage audit | Command inventory, schema and side-effect classification |
-| 16 | Pure parser/evidence tests, scenario prerequisite review | Runner/session correlation and no-replay policy |
-| 17 | Independent fault, API/coverage and portability reviews | Resolve findings and run integrated verification |
-| 18 | Read-only evidence review and host regression tests | One authorized bench operator; no concurrent hardware commands |
-| 19 | Independent support/documentation/package review | Release scope, exact revision/check evidence and final report |
+| 1-4 | Bounded source audits, EDS accounting and independent conflict review | Canonical source map, ledger and applicability decisions |
+| 5-10 | Stack fit, isolated consumers, independent units/ownership vectors | Public boundary, memory ownership, tooling and exact arithmetic |
+| 11-18 | Independent protocol vectors, generator checks, adverse-event scenarios | One service implementation and channel/node storage; strong correlation/remap review |
+| 19-22 | Disjoint reviewed typed groups and source/test checks | Shared descriptors, read/effect types and ledger ownership |
+| 23-25 | Capacity/fairness tests and passive counter checks | One owner, TX retirement and uncertain effects; strong recovery review |
+| 26-29 | Disjoint platform checks and read-only evidence review | Shared application/adapter contract and explicit fixture gates |
+| 30-36 | Independent state/stop/trigger/timing/homing review | Concrete operation states and retained results; no concurrent writers in one state machine |
+| 37-39 | Discovery tests and route/persistence failure cases | Binding generation, partial effects and reconciliation |
+| 40-44 | Parser/schema negatives, coverage/help review and offline runner tests | Canonical command inventory, JSONL/Console correlation and no-replay policy |
+| 45-46 | Independent faults, consumer/contrast/coverage reviews | Integrate fixes and run complete affected gates |
+| 47-48 | Read-only evidence review and host regressions | One authorized bench operator; no concurrent hardware commands |
+| 49-50 | Independent docs/package/support and hard-contract review | Exact candidate revision, actual validation and honest remaining scope |
 
-Record task, model/effort actually used, file ownership and result in the normal stage report. If working alone, record that briefly. Do not create an agent-management subsystem or recurring report ceremony. Use short progress updates and plain engineering language; report a concrete finding and next action.
+Record actual task/model/effort, ownership and result briefly in `docs/reports/prompt_N.md`. Solo work is valid when appropriate. Do not create an agent-management subsystem or recurring report ceremony. The lead closes all owned work, verifies the integrated result, commits and syncs each prompt and coherent completed checkpoints on the same execution branch.

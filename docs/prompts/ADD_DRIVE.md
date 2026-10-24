@@ -31,6 +31,6 @@ For a CAN FD requirement, implement and test a concrete bounded FD frame/adapter
 
 ## Acceptance and handoff
 
-Write a per-profile report and coverage matrix linking each native function to evidence, API, CLI/rationale, tests and qualification. Record dependency pins and public compatibility changes. Host tests and a contract fixture do not establish hardware support. Qualify actual model/firmware/motor/configuration/fixture with the stage-18 procedure before making physical claims.
+Write a per-profile report and coverage matrix linking each native function to evidence, API, CLI/rationale, tests and qualification. Record dependency pins and public compatibility changes. Host tests and a contract fixture do not establish hardware support. Qualify actual model/firmware/motor/configuration/fixture with the procedures in prompts 29 and 47-48 before making physical claims.
 
 Update `docs/backlog.md`, `roadmap.md`, profile inventory, help/caps, package scope and release notes. Run applicable exact-commit CI for a major implementation when available. Keep incomplete confirmed functions and unresolved documents explicit; do not mark a placeholder adapter or raw-object escape hatch a complete new profile.

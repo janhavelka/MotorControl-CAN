@@ -14,6 +14,9 @@ This repository currently contains planning and reference material. No CAN libra
 
 ### Changed
 
+- Split the original 20 implementation stages into 50 complete prompts numbered 1–50, with smaller scopes, explicit prerequisites and focused completion checks. Preserved original obligations in a scope map and historical archive.
+- Moved owner/adapters before motion evidence, retained the early conditional experiment path, and separated CLI, runner and qualification work into bounded assignments.
+- Added targeted shared-contract reading, single-prompt/range execution instructions, a checked sequence manifest and regression checks for numbering, prerequisites, scope ownership and commit/sync closure.
 - Expanded every stage with concrete file/API contracts, failure cases, documentation duties and work splits.
 - Refreshed source-backed naming, including RS owner admission/service methods and the distinction between operation results and application health.
 - Clarified late SDO reply ambiguity, fixed operation deadlines, explicit stop outcomes and staged native-feature coverage.

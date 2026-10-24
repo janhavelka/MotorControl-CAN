@@ -1,23 +1,41 @@
-# Copy this assignment to the coding agent
+# Copyable execution assignments
 
-Implement the MotorControl-CAN library in this checkout by executing the staged promptset in `docs/prompts/README.md`, in dependency order. Read root `AGENTS.md` and `docs/prompts/COMMON.md` first. This is a complete implementation assignment, not a request to rewrite the plan.
+Use the [numbered index](README.md). Filenames use ordinary integers **1-50**, without a stage 0 or lettered subprompts. The index is the execution order; alphabetical file sorting is not. Each prompt carries its concrete scope, source audit, dependencies, checks, documentation and delegation guidance through COMMON and the named contracts.
 
-Apply the concrete contracts in `docs/prompts/CONVENTIONS.md`, `DOCUMENTATION.md`, `MAINTAINABILITY.md` and `DELEGATION.md`. They already select the source-backed names, status/outcome distinctions, example health fields/counters, owner methods, folder structure and documentation rules. Inspect current code before changing those choices. Each numbered stage specifies concrete files, behavior, failure cases and exit evidence.
+## Execute one prompt
 
-Before **every** stage, audit actual current MotorControl-RS and relevant sibling I2C library code, examples, CLI, statuses/health, ownership, native tests, Python runners, CI and agent guidance. Follow the stage's audit list. Inspect FieldCore-node read-only as one consumer. Preserve its framework independence and the existing MotorControl-RS motion naming/behavior, while implementing CANopen-specific protocols and event ownership correctly.
+Replace N with the next prompt number and give the agent this text together with that numbered file:
 
-Use the downloaded manufacturer originals, source manifests, protocol research, copied source baseline, architecture plan, naming map and requirements matrix. Read `docs/multidrive_decision.md` and apply `docs/prompts/MULTIDRIVE.md`: the library is for multiple manufacturers' stepper and servo CAN drives, with motor/protocol-neutral common motion and separate protocol/device profiles. CANopen and Lichuan CL86-C/related CL/OL C drives are the initial implementation. Use Nanotec N5 stepper/BLDC and maxon EPOS4 as mandatory design contrasts; proprietary CAN and FD remain distinct future backends. Do not implement or advertise all surveyed candidates automatically. Resolve manual/EDS contradictions before encoding affected behavior, and account for the selected family's entire documented native surface using typed APIs and explicit coverage.
+```text
+Execute prompt N from docs/prompts/README.md in this repository. Read root
+AGENTS.md, docs/prompts/COMMON.md and that prompt first. Verify its listed
+prerequisites and current source evidence. Complete all its deliverables,
+focused tests, affected documentation/Doxygen and its report. Use subagents
+and available model/effort choices where useful, with disjoint ownership and
+lead integration. Do not execute later prompts in this assignment.
 
-Work continuously through the stages that can be completed. Each stage has concrete deliverables, tests and an acceptance gate. Keep reports, backlog and `PROGRESS.md` current so another session can resume. Do not stop merely to request confirmation for the next already-authorized implementation stage. Continue useful independent work when hardware, firmware identity or a specific document fact is missing; leave the dependent feature/qualification explicitly pending.
+If this begins a new promptset execution, create and record one new dedicated
+branch from the inspected agreed base. Otherwise reuse the recorded branch.
+Commit and sync meaningful completed chunks and all completed work before
+handoff; verify upstream synchronization. Do not mark the prompt complete with
+unfinished owned work or failed required checks. Report any external blocker
+precisely and preserve the remaining obligation instead of inventing evidence.
+```
 
-Follow root AGENTS Git workflow: when starting this promptset's execution, create one new dedicated branch from the inspected agreed base and record its identity/base/upstream in PROGRESS. Keep that same branch throughout all prompts and resumed sessions; a new chat is not a new promptset. Inspect/fetch upstream before editing and preserve unrelated work. After relevant checks pass, commit and push meaningful completed chunks, including useful checkpoints during a prompt and before its final handoff. Routine branch creation/commit/push needs no further permission; set the matching remote branch as upstream on first push. The lead owns Git mutations for all subagents, stages only task-owned changes, verifies synchronization and reports exact commits or blockers. Do not make per-prompt/per-agent branches, force-push, merge to the base without authorization, or treat every small push as requiring a manually dispatched full CI run.
+## Execute the whole sequence or a range
 
-Produce the reusable C++11 core, native usage, shared Arduino/ESP-IDF reference application, consistent CLI and JSONL protocol, Python runners, host/firmware verification, packaging, agent instructions and complete user/integration documentation. Evaluate an existing CANopen stack before deciding service implementation, keep it application-owned, and avoid duplicating its engines. Never import RS485 framing, retry policy, bench pins, motor scales or physical qualification into CAN.
+```text
+Implement MotorControl-CAN by executing prompts 1 through 50 from
+ docs/prompts/README.md in numerical order, applying COMMON and root AGENTS.
+For a requested range, execute only that range after checking its prerequisites.
+Finish, test, document, commit and sync each prompt before proceeding.
+Keep one newly created execution branch throughout all prompts and resumed
+sessions. Continue already-authorized independent work without routine
+confirmation; retain blocked work and qualification gaps explicitly.
+```
 
-Write maintainable, readable, simple code with direct functions and explicit state. Keep documentation current in every stage: README/docs index, CHANGELOG and affected guides/examples, plus meaningful Doxygen in public headers and source rationale for non-obvious behavior. Establish CONTRIBUTING, SECURITY, Doxyfile and strict API-documentation checks in stage 03. Use plain engineering language; do not create a framework or duplicate state to satisfy a diagram.
+The result is one framework-independent C++11 library for CAN-controlled stepper and servo drives, Lichuan C over Classical CANopen first. Reuse audited RS naming/ownership, exact units, typed public functions, shared Arduino/ESP-IDF application/CLI, Python runners and native/package verification. FieldCore is a reference consumer, not a dependency. N5/EPOS4 are design contrasts; other CAN protocols remain future profiles. Use the original manuals and evidence ledger rather than generic CiA402 assumptions to settle device behavior.
 
-You may spawn subagents and select their models/effort according to complexity. Use the actual runtime's options: smaller models for bounded settled checks, normal coding models for implementation, and strong reasoning reviewers for vendor conflicts, arithmetic, timing, uncertain effects, stop and ownership. Give disjoint files or read-only tasks, keep shared contracts under one writer, and verify the integrated result. If selection is unavailable, inherit the current model and continue; do not invent a model or change global settings. The lead remains responsible for source evidence, tests and the final result.
+Keep the common contracts authoritative: [CONVENTIONS](CONVENTIONS.md), [DOCUMENTATION](DOCUMENTATION.md), [MAINTAINABILITY](MAINTAINABILITY.md), [DELEGATION](DELEGATION.md) and [MULTIDRIVE](MULTIDRIVE.md). Read relevant sections and live source deltas each prompt. Write simple engineering language and readable code; no speculative framework or duplicated owner. Required public Doxygen and durable docs accompany each change; prompt 8 establishes strict tooling.
 
-Do not flash or move hardware solely because a different repository records RS bench permission. Establish the actual CAN bench and applicable authorization when live tests become relevant. Do not modify FieldCore-node or other siblings as part of this assignment. Keep all work reviewable and retain failed evidence.
-
-Finish by reporting actual implemented coverage, validation evidence, unresolved device/document/bench limitations, and the exact local/remote revision verified. A software milestone may be complete while hardware qualification remains open; never describe that as fully qualified hardware support.
+Do not edit sibling repositories or borrow RS bench authorization, wiring or motor limits. Actual CAN hardware work needs the established fixture and applicable authorization. Prompts 29 and 47-48 distinguish host readiness from physical qualification. No fake test, build or missing-feature stub proves real drive support. Final software and hardware verdicts remain separate.

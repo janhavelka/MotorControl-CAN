@@ -1,0 +1,44 @@
+> Historical v1 promptset (00-19), retained for traceability. Do not execute this copy. Use the [current prompt index](../../README.md). Relative documentation links were relocated; task wording is retained from `dc8270740d0e16f19e170e2a982f67389c8a2c56`.
+
+# Mandatory stepper and servo design criteria
+
+This supplement is incorporated by [COMMON.md](COMMON.md) into every numbered stage. It implements the user's expanded requirement: one MotorControl-CAN library ready for multiple manufacturers' stepper and servo drives, all using CAN. Read [the decision](../../../multidrive_decision.md), [CANopen survey](../../../audit/CANOPEN_DRIVE_SURVEY.md), [other protocols](../../../audit/OTHER_CAN_PROTOCOLS.md) and [fresh source audit](../../../audit/MULTIDRIVE_SOURCE_REAUDIT.md).
+
+The first full profile implementation remains Lichuan C over Classical CANopen. N5 and EPOS4 are mandatory design contrasts; a test fixture is not a supported production driver. Future profile work follows [ADD_DRIVE.md](ADD_DRIVE.md). Do not add empty production APIs, folders or enums for every market candidate.
+
+| Stage | Additional concrete requirement and acceptance |
+| --- | --- |
+| 00 | Audit multi-profile RS types and consumers, not only ESS functions. Refresh survey evidence/version and source drift. Record motor kind, protocol and implementation maturity separately. |
+| 01 | Add a contrast ledger for N5 CANopen stepper/BLDC and EPOS4 servo: wire/native widths, command/feedback units, acceleration, modes, state/trigger/completion, stop/brake/watchdog, identity/config dependencies. Use original manuals; do not use one vendor to resolve another's conflict. A full N5 dictionary implementation is not part of the Lichuan task. |
+| 02 | Freeze common motion -> drive profile -> protocol service -> physical owner boundaries. Build test-only concrete common-contract fixtures from N5 and EPOS4 evidence, including N5 stepper/BLDC config without common API changes; no invented native sequence. Keep 7-bit node IDs, NMT, SDO/PDO and statusword out of generic axis requirements. Prove a controller endpoint can identify multiple logical axes. |
+| 03 | Build the common core with only selected profile dependencies. Compile contract fixtures as tests, excluded from install. Avoid forcing every protocol/stack or catalogue string into every consumer. |
+| 04 | Test generic signed rate/native-width handling, integer and lossy-native quantization, servo configurations without full-step geometry, command versus feedback counts, gear/load coordinates and independent motor/feedback capabilities. Current, torque and current-limit types cannot be conflated. |
+| 05 | Keep Classical CAN framing protocol-neutral: 11/29-bit IDs and data/RTR, with RTR's requested DLC distinct from its empty payload. Apply CANopen restrictions in its codecs. Describe FD capability rejection; do not pretend an S3 adapter supports it. Test a real non-CANopen identifier/payload shape without making it an active driver. |
+| 06 | Keep SDO client semantics in CANopen. Common results distinguish native acknowledgement absent/unknown/confirmed and cannot require an SDO success for all drives. Do not replay an uncertain proprietary no-ack command merely because there is no SDO to wait for. |
+| 07 | Make NMT/heartbeat/EMCY/PDO optional native observations. Other protocol liveness/state maps independently. Device identity can contain subaxis/channel metadata. Preserve capability and state-generation invalidation. |
+| 08 | Typed settings/read groups are profile-specific. Servo profiles need not have subdivision; stepper profiles need not have torque control. Keep actual/commanded/estimated feedback and unsupported getters separate. |
+| 09 | Shared action intent retains profile-specific hold/coast/brake/stop/enable/fault behavior. Commutation/calibration and feedback readiness may be prerequisites, never hidden startup side effects. NMT stopped is not a generic motor state. |
+| 10 | Demonstrate the same finite move/angle preparation in Lichuan and N5 contract fixtures. Controller-observed done/settled/zero velocity are separate facts; native finish behavior must not be generalized. |
+| 11 | Servo support does not require implementing generic torque/cyclic streaming now. Maintain capability/native scope for those features; a future effort/streaming implementation needs explicit units/leases/service deadlines/watchdog/stop behavior and independent acceptance. Finite onboard trajectories can also require documented watchdog/command refresh; it must not retrigger the move or be silently omitted. |
+| 12 | Route selected protocol domains and native events through one owner per interface. Reject ambiguous overlapping routes and unsupported frame capabilities. Two vendors on CANopen share the same service engine. Mixed protocols on one physical bus are opt-in after compatibility analysis. |
+| 13 | Discovery selects reviewed protocols/profiles; no global CAN ID sweep sending protocol guesses. A successful generic CANopen identity does not prove model/motor-mode compatibility. Persistent defaults remain vendor-specific. |
+| 14 | Make board adapters depend on frame/transport contracts, not the Lichuan object dictionary. Document Classical versus FD and RTR/extended capability; no framework types in common motion. |
+| 15 | `profile list`/`caps` distinguish compiled support, selected protocol, configured motor/feedback, firmware and qualified features. Common command names stay stable; native settings/network groups apply only to matching profiles. No NMT commands for non-CANopen profiles. |
+| 16 | Python handshake/evidence includes protocol/profile/model/firmware and capabilities. Select scenarios accordingly; no universal 1..127 address range, heartbeat decoding, statusword or float precision assumption. Unavailable features skip with explicit scope, not fabricated pass. |
+| 17 | Run documented N5 stepper+BLDC, EPOS4 semantic and proprietary-frame contrast fixtures; cover multi-axis identity, 29-bit IDs, RTR, FD rejection, native float/integer conversion, differing ramps, absent ack/done and state optionality. These tests validate extensibility, not full second-driver behavior. |
+| 18 | Qualify each real model/interface/firmware/motor/config separately; shared CiA402 services or motor technology never qualify a different drive. Profile brake/stop/torque/feedback behavior must match actual fixture evidence. |
+| 19 | Release scope distinguishes researched, contract-fixture tested, implemented subset/full scope, firmware built and hardware qualified. Publish an explicit future-profile procedure and keep surveyed candidates out of installed-support claims. |
+
+## Required contrasting test cases
+
+Keep the fixtures small and evidence-based. They must exercise production common code and endpoint/service contracts, not reproduce the implementation in tests. Where a target's exact behavior has no accessible authoritative evidence, use an explicitly abstract invariant test and leave that device detail unresolved.
+
+1. N5 configured for a stepper and a BLDC motor can use common exact position preparation without mandatory full steps/revolution. Motor kind does not select a different CAN transport.
+2. Lichuan millisecond ramp parameters and a servo's documented acceleration representation cannot be substituted without a profile conversion. Commands and sensor feedback need independent scale evidence.
+3. A servo native value wider than RS's int16/uint16 RPM fields does not overflow a shared request. A float-native protocol reports explicit quantization instead of falsely promising an exact wire integer.
+4. A logical axis maps to a protocol endpoint/subaxis without changing generic 1..127 address assumptions, because there are no such generic assumptions.
+5. A proprietary frame with a valid extended ID or RTR polling requirement is admitted by the framing boundary, rejected by a mismatched CANopen route, and never decoded simultaneously as two protocols. FD-required work rejects on Classical-only adapters.
+6. No-ack writes, reported trajectory completion with nonzero terminal velocity, optional brake/calibration and missing position/torque modes preserve explicit capability/outcome semantics.
+7. Profile-keyed object policy keeps N5 NanoJ control and Lichuan save/reset at index 0x2300 separate; resource capacities can accommodate documented PDO-count differences without changing common axis types. Unknown firmware/state terminology never becomes an invented CANopen standard state.
+
+Document which case uses vendor-backed values, which is a protocol framing fixture, and which is a pure common-contract invariant. No fixture belongs in `profile list` as a real installed drive.

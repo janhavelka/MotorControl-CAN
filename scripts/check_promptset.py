@@ -123,36 +123,83 @@ def main():
     check_records(evidence, evidence_manifest.get("files", []), "RS audit evidence")
 
     prompts = root / "docs/prompts"
-    stages = sorted(prompts.glob("[0-9][0-9]_*.md"))
+    sequence = read_json(prompts / "SEQUENCE.json")
+    entries = sequence.get("prompts", [])
+    require(sequence.get("version") == 2, "Expected active promptset version 2")
+    ids = [entry.get("id") for entry in entries]
+    require(bool(ids) and ids == list(range(1, len(ids) + 1)),
+            "Prompt IDs must be consecutive integers starting at 1")
+    names = [entry.get("file", "") for entry in entries]
+    require(len(names) == len(set(names)), "Duplicate prompt filename in sequence")
+    stages = [prompts / name for name in names]
     counts["stages"] = len(stages)
-    require([path.name[:2] for path in stages] == ["{:02d}".format(n) for n in range(20)],
-            "Expected one implementation stage each from 00 through 19")
+    actual_names = {path.name for path in prompts.glob("*.md")
+                    if re.match(r"^\d+_", path.name)}
+    require(actual_names == set(names),
+            "Active numbered files must exactly match SEQUENCE.json (no retired stages)")
+    source_stages = set()
+    file_ids = dict(zip(names, ids))
     index = (prompts / "README.md").read_text(encoding="utf-8")
-    for stage in stages:
+    progress = (prompts / "PROGRESS.md").read_text(encoding="utf-8")
+    expected_rows = [str(value) for value in ids]
+    for label, content in (("index", index), ("progress", progress)):
+        rows = re.findall(r"^\| (\d+) \|", content, flags=re.MULTILINE)
+        require(rows == expected_rows, label + ": prompt rows do not match numeric sequence")
+    for entry, stage in zip(entries, stages):
+        number = entry.get("id")
+        require(bool(re.fullmatch(r"[1-9]\d*_[a-z0-9_]+\.md", stage.name))
+                and stage.name.split("_", 1)[0] == str(number),
+                "Invalid natural-number prompt filename: " + stage.name)
+        dependencies = entry.get("depends_on", [])
+        require(len(dependencies) == len(set(dependencies))
+                and all(isinstance(value, int) and value in ids and value < number
+                        for value in dependencies),
+                stage.name + ": dependencies must be distinct earlier prompts")
+        origins = entry.get("source_stages", [])
+        require(bool(origins) and all(value in {"{:02d}".format(n) for n in range(20)}
+                                      for value in origins),
+                stage.name + ": missing or invalid original-stage ownership")
+        source_stages.update(origins)
+        if not stage.is_file():
+            errors.append("Missing numbered prompt: " + stage.name)
+            continue
         content = stage.read_text(encoding="utf-8")
+        require(content.startswith("# Prompt {} ".format(number)),
+                stage.name + ": title must identify the current prompt number")
         require("[COMMON.md](COMMON.md)" in content, stage.name + ": missing recurring contract")
-        require("## Audit" in content, stage.name + ": missing source audit")
-        require("## Verify and exit" in content or "## Exit" in content,
-                stage.name + ": missing acceptance gate")
-        require("## Concrete implementation contract" in content,
-                stage.name + ": missing concrete implementation contract")
-        require("## Documentation and work split" in content,
-                stage.name + ": missing documentation/work split")
-        for contract in ("DOCUMENTATION.md", "MAINTAINABILITY.md", "DELEGATION.md"):
-            require("(" + contract + ")" in content,
+        for heading in ("Objective and boundaries", "Read and audit", "Implement",
+                        "Verify and exit", "Documentation and delegation"):
+            require("## " + heading in content, stage.name + ": missing " + heading)
+        prerequisite = re.search(r"^.*Prerequisites:.*$", content, flags=re.MULTILINE)
+        require(prerequisite is not None, stage.name + ": missing prerequisite line")
+        if prerequisite:
+            targets = re.findall(r"\]\(([^)]+)\)", prerequisite.group())
+            linked_ids = [file_ids[target] for target in targets if target in file_ids]
+            require(sorted(linked_ids) == sorted(dependencies),
+                    stage.name + ": prerequisite links differ from sequence")
+        for contract in ("CONVENTIONS.md", "DOCUMENTATION.md", "MAINTAINABILITY.md",
+                         "DELEGATION.md", "MULTIDRIVE.md"):
+            require(re.search(r"\]\(" + re.escape(contract) + r"(?:#[^)]*)?\)", content),
                     stage.name + ": missing shared contract link " + contract)
-        counts["concrete_stage_contracts"] += int("## Concrete implementation contract" in content)
+        require("docs/reports/prompt_{}.md".format(number) in content,
+                stage.name + ": missing numbered completion report")
+        require(re.search(r"commit\b", content, flags=re.IGNORECASE)
+                and re.search(r"sync\b", content, flags=re.IGNORECASE),
+                stage.name + ": missing commit/sync closure")
+        counts["concrete_stage_contracts"] += int("## Implement" in content)
         require("(" + stage.name + ")" in index, stage.name + ": missing index link")
+    require(source_stages == {"{:02d}".format(n) for n in range(20)},
+            "The split must retain ownership of all original stages 00–19")
     matrix = (root / "docs/requirements_matrix.md").read_text(encoding="utf-8")
     requirement_ids = set(re.findall(r"\| (R\d\d) \|", matrix))
     counts["requirements"] = len(requirement_ids)
     require(requirement_ids == {"R{:02d}".format(n) for n in range(1, 36)},
             "Expected R01 through R35 with stage/evidence mapping")
     multidrive = (prompts / "MULTIDRIVE.md").read_text(encoding="utf-8")
-    drive_stages = re.findall(r"^\| (\d\d) \|", multidrive, flags=re.MULTILINE)
+    drive_stages = re.findall(r"^\| (\d+) \|", multidrive, flags=re.MULTILINE)
     counts["multidrive_stage_gates"] = len(drive_stages)
-    require(drive_stages == ["{:02d}".format(n) for n in range(20)],
-            "Expected a multi-drive acceptance gate for each stage")
+    require(drive_stages == expected_rows,
+            "Expected a multi-drive acceptance gate for each numbered prompt")
     require("[MULTIDRIVE.md](MULTIDRIVE.md)" in (prompts / "COMMON.md").read_text(encoding="utf-8"),
             "Common stage contract must incorporate multi-drive requirements")
     require((prompts / "ADD_DRIVE.md").is_file(), "Missing new-drive playbook")

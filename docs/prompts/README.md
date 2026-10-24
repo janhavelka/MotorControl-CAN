@@ -1,57 +1,82 @@
-# MotorControl-CAN implementation promptset
+# MotorControl-CAN implementation prompts 1-50
 
-Use [START_HERE.md](START_HERE.md) as a single assignment, or give an agent one numbered prompt at a time. Every stage incorporates [COMMON.md](COMMON.md) and root [AGENTS.md](../../AGENTS.md). **Every stage audits current sibling source again**, including MotorControl-RS, relevant I2C libraries and FieldCore's relevant consumer seam. This is essential because names, health policy, tests and CLI have evolved.
+Execute the numbered files below in ascending **numeric order**, one complete prompt at a time. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `50_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
-Start each new promptset execution on one new dedicated branch and record it in PROGRESS. Keep it throughout that promptset, including resumed sessions. Commit and sync after every prompt and whenever a coherent tested chunk is ready; do not create a branch per numbered stage.
+Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
-Every stage now includes concrete implementation contracts, documentation duties and a useful work split, as well as the audit, deliverables and verification gate. Read these shared contracts first:
+Create one new branch at the start of a new execution and retain it across all 50 prompts and resumed sessions. Commit and sync after every prompt and useful completed checkpoints. Only the lead changes Git state. A maintenance audit does not start implementation. See root [AGENTS.md](../../AGENTS.md).
 
-| Contract | Concrete decisions |
-| --- | --- |
-| [CONVENTIONS.md](CONVENTIONS.md) | Literal status/outcome/function/owner names; selected application health states, fields, counter/reset rules; folders, CLI and tests |
-| [DOCUMENTATION.md](DOCUMENTATION.md) | Stage-owned README/CHANGELOG/general docs; Doxygen units, lifetimes, timing and failure contracts; strict early documentation checks |
-| [MAINTAINABILITY.md](MAINTAINABILITY.md) | Direct C++11 code, small responsibilities, explicit state, single ownership, justified abstraction and plain engineering language |
-| [DELEGATION.md](DELEGATION.md) | Authorized subagents, task-complexity model choices, disjoint writes, independent review and integrated checks |
+## Shared contracts
 
-The [fresh conventions audit](../audit/CONVENTIONS_REAUDIT.md) distinguishes existing source facts from proposed CAN additions. The instruction to “match the libraries” is resolved into explicit choices; it does not mean forcing their differing I2C lifecycles or health policies onto motor control.
+- [CONVENTIONS.md](CONVENTIONS.md): authoritative names, Status/outcomes, owner, health/statistics and CLI behavior.
+- [DOCUMENTATION.md](DOCUMENTATION.md): current guides, general project files, meaningful public Doxygen and strict tooling.
+- [MAINTAINABILITY.md](MAINTAINABILITY.md): direct code, single ownership, explicit state and justified abstractions.
+- [DELEGATION.md](DELEGATION.md): bounded subagents, model/effort choices, disjoint ownership and integrated review.
+- [MULTIDRIVE.md](MULTIDRIVE.md): each prompt's stepper/servo and protocol-neutral acceptance criterion.
 
-The [24 October prompt audit](../audit/PROMPTSET_REVIEW_2026-10-24.md) fixes timer, SDO, NMT, stage-order and artifact-storage errors. It preserves the first-profile scope and replaces impossible future-driver gates with small source-backed contrasts.
-
-The broadened scope is one library for stepper and servo drives across manufacturers and CAN protocols. Read [the scope decision](../multidrive_decision.md) and mandatory [MULTIDRIVE.md](MULTIDRIVE.md) stage criteria. CANopen/Lichuan remains first; Nanotec N5 and EPOS4 validate the design. Use [ADD_DRIVE.md](ADD_DRIVE.md) for a later concrete profile, without treating research candidates as supported drivers.
-
-The [audits and drive surveys](../audit/), [reference originals](../reference/README.md), [copied baseline](../baseline/README.md), [architecture plan](../architecture_plan.md), [naming map](../api_cli_mapping.md) and [acceptance matrix](../requirements_matrix.md) are inputs. Downloaded manufacturer files are local, with hashes; blocked downloads are listed explicitly. English/Chinese Lichuan manuals and EDS have unresolved conflicts; affected behavior must be reconciled before code can claim it.
+The first implementation is Lichuan C over Classical CANopen. N5/EPOS4 are test-only design contrasts. Other CAN protocols and CAN FD remain separately implemented future capabilities. The [scope decision](../multidrive_decision.md), [architecture](../architecture_plan.md), [API/CLI map](../api_cli_mapping.md), [requirements](../requirements_matrix.md), [audits](../audit/) and [original references](../reference/README.md) remain authoritative inputs.
 
 ## Execution order
 
-| Stage | Prompt | Main dependency and exit |
+Prerequisites name completed earlier software/design results; the prompt also states any device or fixture evidence gate. All numbers refer to this sequence, not historical stages.
+
+| Prompt | Complete assignment | Prerequisites |
 | --- | --- | --- |
-| 00 | [Refresh audits and evidence](00_audit_and_evidence.md) | Establish live baselines and scoped backlog |
-| 01 | [Dictionary and family coverage](01_dictionary_and_family.md) | 00; reviewed object/function ledger and conflicts |
-| 02 | [Architecture and stack decision](02_architecture_and_stack.md) | 00–01; concrete portable API and service ownership proof |
-| 03 | [Build, packaging and CI](03_build_and_ci.md) | 02; offline core/source/install consumer gates |
-| 04 | [Statuses, units and axes](04_status_units_axis.md) | 03; exact common semantics and native widths |
-| 05 | [Frames and codecs](05_frames_and_codecs.md) | 01–04; checked CAN/SDO/PDO primitives |
-| 06 | [SDO service execution](06_sdo_services.md) | 02,05; bounded confirmed service outcomes |
-| 07 | [Network, events and PDO](07_network_and_pdo.md) | 05–06; continuous node-event handling |
-| 08 | [Typed reads and settings](08_reads_and_settings.md) | 01,04,06–07; native public coverage |
-| 09 | [Drive states and actions](09_drive_states_and_actions.md) | 07–08; evidenced enable/release/fault/stop |
-| 10 | [Position and angles](10_position_and_angles.md) | 04,08–09; finite positions and completion evidence |
-| 11 | [Velocity, homing and native features](11_velocity_homing_native.md) | 09–10; remaining documented motion/native scope |
-| 12 | [CAN owner and health](12_can_owner_and_health.md) | 06–11; shared scheduling/ownership and diagnostics |
-| 13 | [Discovery and commissioning](13_discovery_commissioning.md) | 08,12; non-changing discovery and explicit changes |
-| 14 | [Native and firmware examples](14_examples_and_adapters.md) | 12–13; native plus shared Arduino/IDF builds |
-| 15 | [CLI and JSONL](15_cli_and_jsonl.md) | 08–14; strict parser and API parity |
-| 16 | [Python runners](16_python_runners.md) | 15; correlated finite campaigns and evidence |
-| 17 | [Faults and consumer contracts](17_faults_and_integration.md) | 03–16; adversarial and cross-library regression |
-| 18 | [Hardware and family qualification](18_hardware_qualification.md) | Early evidence work after minimal 05–08/adapter; full campaign after 14–17 |
-| 19 | [Release and final audit](19_release_and_final_audit.md) | 00–17; 18 required for physical support claims |
+| 1 | [Current source audit](1_source_audit.md) | None |
+| 2 | [Source inventory and ledger intake](2_source_ledger.md) | 1 |
+| 3 | [Reviewed Lichuan semantics and family gates](3_lichuan_semantics.md) | 2 |
+| 4 | [Stepper and servo contrast ledger](4_drive_contrasts.md) | 2, 3 |
+| 5 | [CANopen service fit experiment](5_stack_decision.md) | 3, 4 |
+| 6 | [Common API and ownership proof](6_api_ownership.md) | 5 |
+| 7 | [Native build and package foundation](7_native_package.md) | 6 |
+| 8 | [Verification CI and documentation gates](8_verification_docs.md) | 7 |
+| 9 | [Status and exact units](9_status_units.md) | 6, 8 |
+| 10 | [Axis coordinates and references](10_axis_coordinates.md) | 9 |
+| 11 | [Classical CAN and SDO codecs](11_can_sdo_codecs.md) | 5, 8, 9 |
+| 12 | [Reviewed object generation](12_object_generation.md) | 3, 8, 11 |
+| 13 | [Bounded SDO transfer lifecycle](13_sdo_lifecycle.md) | 5, 6, 11 |
+| 14 | [SDO ambiguity and reconciliation](14_sdo_reconciliation.md) | 13 |
+| 15 | [Passive network events and invalidation](15_network_events.md) | 13, 14 |
+| 16 | [NMT requests and service eligibility](16_nmt_services.md) | 15 |
+| 17 | [Observed PDO maps and decoding](17_pdo_observations.md) | 12, 15, 16 |
+| 18 | [Explicit PDO remapping](18_pdo_configuration.md) | 16, 17 |
+| 19 | [Typed identity state and configuration reads](19_typed_reads.md) | 10, 12, 14, 15, 17 |
+| 20 | [Driver motion and scale settings](20_driver_settings.md) | 19 |
+| 21 | [Digital I/O settings and output actions](21_io_settings.md) | 19, 20 |
+| 22 | [Tuning and remaining nonpersistent groups](22_tuning_settings.md) | 19, 20 |
+| 23 | [CAN owner dispatch and retained results](23_owner_dispatch.md) | 6, 14, 18, 19, 20, 21, 22 |
+| 24 | [Owner urgent capacity and transport recovery](24_owner_recovery.md) | 23 |
+| 25 | [Passive health and statistics](25_health_stats.md) | 24 |
+| 26 | [Native examples and shared application](26_native_examples.md) | 10, 19, 25 |
+| 27 | [TWAI adapter and SDK evidence](27_twai_adapter.md) | 24, 26 |
+| 28 | [Arduino and ESP-IDF integration](28_firmware_examples.md) | 27 |
+| 29 | [Device evidence readiness and conflict gate](29_device_evidence.md) | 3, 19, 28 |
+| 30 | [Drive state enable and release](30_drive_actions.md) | 19, 20, 29 |
+| 31 | [Stop operations and owner integration](31_stop_actions.md) | 24, 30 |
+| 32 | [Fault clear and device-reference actions](32_fault_reference_actions.md) | 21, 30, 31 |
+| 33 | [Finite position operations](33_position_moves.md) | 10, 20, 31, 32 |
+| 34 | [Wrapped-angle motion integration](34_angle_moves.md) | 33 |
+| 35 | [Finite velocity operations](35_velocity.md) | 31, 33 |
+| 36 | [Homing and native coverage reconciliation](36_homing.md) | 31, 32, 35 |
+| 37 | [Non-changing discovery and binding](37_discovery.md) | 19, 25 |
+| 38 | [Explicit communication commissioning](38_communication_commissioning.md) | 18, 24, 37 |
+| 39 | [Persistence reset and reconciliation](39_persistence.md) | 24, 38 |
+| 40 | [Shared CLI parser and local routes](40_cli_parser.md) | 26, 28 |
+| 41 | [Typed device and network CLI routes](41_cli_device_routes.md) | 21, 22, 37, 38, 39, 40 |
+| 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | 34, 35, 36, 41 |
+| 43 | [Python Console and evidence primitives](43_python_console.md) | 42 |
+| 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | 43 |
+| 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | 36, 39, 44 |
+| 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | 4, 10, 28, 42, 45 |
+| 47 | [Finite hardware qualification](47_hardware_finite.md) | 29, 44, 45, 46 |
+| 48 | [Failure load and related-model qualification](48_hardware_stress.md) | 47 |
+| 49 | [User documentation and package audit](49_documentation_package_audit.md) | 42, 44, 46 |
+| 50 | [Final independent release-candidate review](50_final_review.md) | 49 |
 
-Execute sequentially by default. Unit work, documentation or isolated read-only reviews may run in parallel after their contracts are agreed. Stage 12's owner contract is designed in stage 02; earlier sequences can use a fake executor, avoiding a cyclic implementation dependency. Stage 18 has an early evidence phase: after minimal checked services/reads and a focused adapter slice, resolve firmware-dependent facts needed by stages 09–11, then return to implementation. Its full motion campaign still requires stages 14–17. Documentary conflicts can leave individual features gated while unrelated stages proceed. Final release status must preserve those gaps.
+## Completion and external blockers
 
-## Completion and handoff
+Update [PROGRESS.md](PROGRESS.md) and `docs/reports/prompt_N.md` after each prompt. A Complete verdict requires every owned deliverable and required check. Partial/Blocked preserves exactly what remains; it is not successful completion. Continue an independent later prompt only when its prerequisites are satisfied.
 
-Each stage writes `docs/reports/stage_NN.md` and updates [PROGRESS.md](PROGRESS.md). Update the backlog, roadmap and coverage when their respective facts change, as specified in COMMON. Re-read the previous stage's actual outputs before proceeding. No stage may mark a feature implemented solely because it was added to a table or rejected as unsupported.
+Owner/adapters in 23-28 precede device-evidence readiness in 29 and motion in 30-36. Prompt 29 completes the host harness and evidence assessment; it cannot invent missing firmware facts. Affected motion behavior remains gated until resolved. Physical qualification in 47-48 requires actual fixture/authorization and remains pending or blocked when unavailable. Prompts 49-50 can still produce an honestly scoped software candidate; they cannot close missing hardware qualification or silently drop blocked native features.
 
-Do not ask for routine confirmation between stages after the implementation assignment is authorized. Do not upload, publish, change sibling repositories or move hardware merely because an old RS document describes that workflow. Inspect current Git/remote/toolchain state rather than assuming the initial empty directory is unchanged; state unavailable CI/hardware honestly and continue host work.
-
-Stage 19 can produce an explicitly scoped software release candidate while physical qualification is pending. It cannot call the complete library family-qualified unless all required scope and hardware evidence exist. Hardware results are per model, firmware, motor, configuration and fixture.
+[SEQUENCE.json](SEQUENCE.json) is the machine-checked inventory of IDs, files, dependencies and original-stage ownership. [SPLIT_MAP.md](SPLIT_MAP.md) explains how all previous obligations were divided. The [historical v1 index](archive/v1/README.md) preserves the original 00-19 assignments for traceability; do not execute both versions. [ADD_DRIVE.md](ADD_DRIVE.md) is a later extension playbook, not an extra current prompt.
