@@ -1,0 +1,5 @@
+# Provenance hashes describe acquired bytes, including original line endings.
+# Preserve them in Git objects, archives and fresh Windows/Linux checkouts.
+/docs/reference/** -text
+/docs/baseline/MotorControl-RS/** -text
+/docs/audit/evidence/** -text

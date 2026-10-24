@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.parse import unquote
 
@@ -14,6 +15,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-live-baseline", action="store_true",
                         help="Also compare copied files with the recorded sibling checkout")
+    parser.add_argument("--check-git-ref", choices=("HEAD", "INDEX"),
+                        help="Also verify artifact bytes stored in Git HEAD or the staged index")
     parser.add_argument("--json-report", type=Path,
                         help="Write this planning-check result as JSON")
     args = parser.parse_args()
@@ -22,7 +25,7 @@ def main():
     counts = {"stages": 0, "requirements": 0, "multidrive_stage_gates": 0,
               "shared_contracts": 0, "concrete_stage_contracts": 0,
               "reference_packs": 0, "markdown_files": 0, "local_links": 0,
-              "hashed_artifacts": 0, "live_baseline_files": 0}
+              "hashed_artifacts": 0, "live_baseline_files": 0, "git_artifact_files": 0}
     original_reference_paths = set()
 
     def require(condition, message):
@@ -52,6 +55,22 @@ def main():
             require(hashlib.sha256(content).hexdigest() == record.get("sha256"),
                     label + ": SHA-256 mismatch " + rel)
             counts["hashed_artifacts"] += 1
+            if args.check_git_ref:
+                relative = path.relative_to(root).as_posix()
+                prefix = "HEAD:" if args.check_git_ref == "HEAD" else ":"
+                try:
+                    stored = subprocess.run(
+                        ["git", "cat-file", "blob", prefix + relative], cwd=root,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        timeout=10, check=False)
+                    require(stored.returncode == 0,
+                            "Git " + args.check_git_ref + ": missing artifact " + relative)
+                    if stored.returncode == 0:
+                        require(hashlib.sha256(stored.stdout).hexdigest() == record.get("sha256"),
+                                "Git " + args.check_git_ref + ": SHA-256 mismatch " + relative)
+                        counts["git_artifact_files"] += 1
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    errors.append("Git artifact check: " + str(exc))
             if path.suffix.lower() == ".pdf":
                 require(content.startswith(b"%PDF-"), label + ": not a PDF " + rel)
             if path.suffix.lower() == ".eds":

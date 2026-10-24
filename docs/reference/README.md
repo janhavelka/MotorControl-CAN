@@ -26,6 +26,13 @@ historical URLs. Names under `vendor/` are local descriptive filenames; contents
 are unmodified downloaded bytes. PDF metadata timestamps are not firmware
 versions or proof that one language edition supersedes another.
 
+The root `.gitattributes` preserves reference, baseline and retained evidence bytes
+without Git line-ending conversion. Keep those rules when adding sources; do not
+rewrite provenance hashes to match normalized copies. Run
+`python scripts/check_promptset.py --check-git-ref INDEX` after staging reference
+changes and `--check-git-ref HEAD` after committing. The ordinary check also works
+without Git and validates the files in an exported archive.
+
 [extracted/](extracted/) contains text with **one-based PDF page numbers**, a raw
 EDS section export, and selected rendered page images used to confirm conflicting
 tables. Printed manual page numbers are generally two lower than PDF page
