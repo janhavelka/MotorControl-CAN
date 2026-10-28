@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Adversarial checks for the source-intake validator."""
+"""Adversarial checks for reviewed policy and retained source accounting."""
 
 import copy
 from pathlib import Path
@@ -221,9 +221,9 @@ class LedgerTests(unittest.TestCase):
         del data["conflicts"][0]["decision"]
         errors = validate_ledger(data)
         self.assertTrue(any("firmware/binding must remain unverified" in value for value in errors))
-        self.assertTrue(any("reviewed semantics are premature" in value for value in errors))
-        self.assertTrue(any("reviewed permission is premature" in value for value in errors))
-        self.assertTrue(any("unreviewed entry disposition invalid" in value for value in errors))
+        self.assertTrue(any("reviewed semantics missing" in value for value in errors))
+        self.assertTrue(any("reviewed access cannot widen" in value for value in errors))
+        self.assertTrue(any("reviewed entry disposition invalid" in value for value in errors))
         self.assertTrue(any("pdf_pages differs from manifest" in value for value in errors))
         self.assertTrue(any("unresolved conflict has selected decision" in value for value in errors))
 
@@ -292,6 +292,146 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(entry(LEDGER, "0x2400:00")["type"]["name"], "U16")
         self.assertEqual(entry(LEDGER, "0x2400:00")["default_eds"], "16")
         self.assertEqual(entry(LEDGER, "0x1200:01")["default_eds"], "$NODEID+0x600")
+
+    def test_every_entry_requires_completed_documentary_review(self):
+        data = self.changed()
+        entry(data, "0x251F:00")["review"]["status"] = "pending"
+        self.reject(data, "documentary review incomplete")
+
+    def test_required_feature_gates_cannot_be_removed(self):
+        for key, gate in (("0x60FF:00", "Q03"), ("0x2300:00", "Q15"),
+                          ("0x605D:00", "Q12"), ("0x2401:00", "Q08"),
+                          ("0x251F:00", "Q09"), ("0x1600:01", "Q17"),
+                          ("0x2301:00", "Q01")):
+            with self.subTest(key=key, gate=gate):
+                data = self.changed()
+                entry(data, key)["review"]["gate_ids"].remove(gate)
+                self.reject(data, "required feature or binding gate missing")
+
+    def test_documentary_policy_cannot_authorize_writes(self):
+        data = self.changed()
+        entry(data, "0x2300:00")["review"]["write_policy"] = "approved"
+        self.reject(data, "documentary review cannot authorize writes")
+
+    def test_monitoring_and_opaque_settings_remain_read_only(self):
+        for key in ("0x2100:00", "0x603F:00", "0x605D:00", "0x2400:0C",
+                    "0x2401:00", "0x251F:00"):
+            with self.subTest(key=key):
+                data = self.changed()
+                value = entry(data, key)
+                value["access_reviewed"] = "RW"
+                value["review"]["write_policy"] = "qualification_required"
+                self.reject(data, "conservative read-only policy required")
+
+    def test_unestablished_read_effect_cannot_be_qualified_by_prose(self):
+        data = self.changed()
+        entry(data, "0x6041:00")["review"].update(
+            read_effect="non-consuming; verified", gate_ids=["Q01", "Q02"])
+        self.reject(data, "read effect cannot claim qualification")
+
+    def test_entry_owner_tracks_the_actual_feature(self):
+        for key, wrong_owner in (("0x2301:00", 20), ("0x2300:00", 19),
+                                  ("0x6098:00", 22)):
+            with self.subTest(key=key):
+                data = self.changed()
+                entry(data, key)["owner_prompt"] = wrong_owner
+                self.reject(data, "owner prompt invalid")
+
+    def test_malformed_review_and_family_values_return_errors(self):
+        for value in (None, {}, [None], [[]]):
+            with self.subTest(value=value):
+                data = self.changed()
+                entry(data, "0x60FF:00")["review"]["gate_ids"] = value
+                self.reject(data, "unknown or missing qualification gate")
+        for value in ([], {}, None):
+            with self.subTest(source_id=value):
+                data = self.changed()
+                data["semantic_review"]["families"][0]["source_refs"][0]["id"] = value
+                self.reject(data, "source ID must be a string")
+
+    def test_malformed_review_structures_fail_without_exceptions(self):
+        paths = [
+            ("semantic_review",), ("semantic_review", "gates"),
+            ("semantic_review", "gates", 0), ("semantic_review", "gates", 0, "id"),
+            ("semantic_review", "gates", 0, "models"),
+            ("semantic_review", "families"), ("semantic_review", "families", 0),
+            ("semantic_review", "families", 0, "model"),
+            ("semantic_review", "families", 0, "source_refs"),
+            ("semantic_review", "families", 0, "source_refs", 0, "id"),
+            ("semantic_review", "eds_capabilities"),
+            ("semantic_review", "eds_capabilities", "claims"),
+            ("objects", 0, "entries", 0, "review"),
+            ("objects", 0, "entries", 0, "review", "gate_ids"),
+            ("objects", 0, "entries", 0, "prerequisites"),
+        ]
+        for path in paths:
+            for value in (None, {}, [], [None], [[]]):
+                with self.subTest(path=path, value=value):
+                    data = self.changed()
+                    parent = data
+                    for key in path[:-1]:
+                        parent = parent[key]
+                    parent[path[-1]] = value
+                    self.assertTrue(validate_ledger(data))
+
+    def test_prerequisites_require_nonempty_text(self):
+        for value in ([{}], [None], [""], [" "]):
+            with self.subTest(value=value):
+                data = self.changed()
+                entry(data, "0x2300:00")["prerequisites"] = value
+                self.reject(data, "reviewed semantics missing")
+
+    def test_manual_action_obligation_cannot_be_dropped(self):
+        data = self.changed()
+        row = next(value for value in data["manual_only"] if value["key"] == "save_parameters")
+        row["owner_prompt"] = 19
+        row["review"].update(write_policy="not_writable", gate_ids=["Q19"])
+        errors = validate_ledger(data)
+        for fragment in ("manual owner obligation changed", "required manual feature or binding gate missing",
+                         "manual action obligation changed"):
+            self.assertTrue(any(fragment in value for value in errors), errors)
+
+    def test_manual_inventory_cannot_shrink_or_replace_a_key(self):
+        data = self.changed()
+        data["manual_only"] = [value for value in data["manual_only"] if value["key"] != "tuning_settings"]
+        data["accounting"]["manual_only_items"] = len(data["manual_only"])
+        self.reject(data, "manual obligation inventory incomplete")
+        data = self.changed()
+        data["manual_only"][0]["key"] = "arbitrary_replacement"
+        self.reject(data, "manual obligation inventory incomplete")
+
+    def test_original_conflict_alternatives_and_refs_cannot_disappear(self):
+        data = self.changed()
+        data["conflicts"][0]["claims"] = data["conflicts"][0]["claims"][:2]
+        self.reject(data, "original conflict claims or source references changed")
+        data = self.changed()
+        data["conflicts"][0]["claims"][-1]["source_ref"]["page"] = 9
+        self.reject(data, "original conflict claims or source references changed")
+
+    def test_gate_scope_cannot_merge_86c_and_57c_outputs(self):
+        for gate_id in ("Q06", "Q07"):
+            with self.subTest(gate=gate_id):
+                data = self.changed()
+                gate = next(value for value in data["semantic_review"]["gates"] if value["id"] == gate_id)
+                gate["models"] = ["CL86-C", "OL86-C", "CL57-C", "OL57-C"]
+                self.reject(data, "gate model applicability invalid")
+
+    def test_encoder_absence_is_not_unknown_feedback(self):
+        data = self.changed()
+        family = next(value for value in data["semantic_review"]["families"] if value["model"] == "OL86-C")
+        family["encoder_capability"] = "not_evidenced"
+        self.reject(data, "family encoder capability invalid")
+
+    def test_eds_capabilities_require_source_scope_and_exact_values(self):
+        data = self.changed()
+        data["semantic_review"]["eds_capabilities"]["scope_id"] = "manual_86"
+        self.reject(data, "EDS capabilities must retain unbound source scope")
+        data = self.changed()
+        data["semantic_review"]["eds_capabilities"]["claims"]["LSS_Supported"] = "1"
+        self.reject(data, "EDS capability claim differs from source")
+        data = self.changed()
+        del data["semantic_review"]["eds_capabilities"]["claims"]["SimpleBootUpSlave"]
+        self.reject(data, "EDS capability claims incomplete")
 
 
 if __name__ == "__main__":

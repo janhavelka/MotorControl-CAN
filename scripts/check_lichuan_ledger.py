@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Check the source intake against original EDS bytes and retained provenance."""
+"""Check reviewed documentary policy and lossless original-source accounting.
+
+This validates evidence structure, not firmware behavior. A complete review may
+retain an open qualification gate; it must never silently grant writable policy.
+"""
 
 import argparse
 from collections import Counter
@@ -19,6 +23,114 @@ INDEX_KEY = re.compile(r"0x[0-9A-F]{4}\Z")
 ENTRY_KEY = re.compile(r"0x[0-9A-F]{4}:[0-9A-F]{2}\Z")
 INTEGER = re.compile(r"(?:0|[1-9][0-9]*|-?[1-9][0-9]*|0x[0-9A-Fa-f]+)\Z")
 EXPRESSION = re.compile(r"\$NODEID\+0x[0-9A-Fa-f]+\Z")
+
+# Prompt-2 intake at f25aa0b07b79ae617f2df139c23c459b7e6f8a50:
+# SHA-256 of [{id, subject, scope_id, claims}, ...], serialized with sorted
+# keys, compact separators and UTF-8 (ensure_ascii=False). Review decisions
+# are excluded. Updating this preservation guard requires primary evidence
+# and an explicit correction record, not merely a newly passing ledger.
+ORIGINAL_CONFLICT_CLAIMS_SHA256 = "cf9fdece54e1cb61a542d3268ae8da8bc42c39c56411fe7ff45be1e69fa92537"
+MODELS = {"CL86-C", "OL86-C", "CL57-C", "OL57-C"}
+
+# Stable prompt-3 obligations: owner, mandatory gates, documentary write policy.
+# These guard loss of assigned scope; they are not another object dictionary.
+MANUAL_REQUIREMENTS = {
+    "mode_selection": (20, "Q01 Q10 Q11", "qualification_required"),
+    "enable_transition": (30, "Q01 Q11", "qualification_required"),
+    "position_parameters": (33, "Q01 Q04 Q11 Q02", "qualification_required"),
+    "position_trigger": (33, "Q01 Q04 Q11 Q02", "qualification_required"),
+    "position_update_policy": (33, "Q01 Q04 Q11 Q02", "qualification_required"),
+    "position_coordinate_mode": (33, "Q01 Q04 Q11 Q02", "qualification_required"),
+    "position_transition_examples": (33, "Q01 Q04 Q11 Q02", "qualification_required"),
+    "normal_stop": (31, "Q01 Q12", "qualification_required"),
+    "emergency_stop": (31, "Q01 Q12", "qualification_required"),
+    "status_interpretation": (19, "Q01 Q02", "not_writable"),
+    "velocity_parameters": (35, "Q01 Q03 Q11", "qualification_required"),
+    "velocity_start_order": (35, "Q01 Q03", "qualification_required"),
+    "homing_parameters": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "homing_negative_limit_17": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "homing_positive_limit_18": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "homing_positive_origin_24": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "homing_negative_origin_29": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "homing_trigger_and_interrupt": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "homing_status": (36, "Q01 Q21 Q02 Q14", "qualification_required"),
+    "clear_current_position": (32, "Q01 Q14", "qualification_required"),
+    "save_parameters": (39, "Q01 Q15", "qualification_required"),
+    "restore_factory_parameters": (39, "Q01 Q15", "qualification_required"),
+    "fault_reset_controlword": (32, "Q01 Q13", "qualification_required"),
+    "fault_reset_vendor_object": (32, "Q01 Q13", "qualification_required"),
+    "motion_monitor": (19, "Q01 Q20", "not_writable"),
+    "digital_input_observation": (19, "Q01 Q20", "not_writable"),
+    "digital_output_observation": (19, "Q01 Q20", "not_writable"),
+    "default_direction": (20, "Q01 Q04", "qualification_required"),
+    "subdivision_and_position_scale": (20, "Q01 Q04", "qualification_required"),
+    "software_limit_enable": (20, "Q01 Q05", "qualification_required"),
+    "software_node_setting": (38, "Q01 Q16", "qualification_required"),
+    "input_polarity": (21, "Q01 Q19", "qualification_required"),
+    "input_function_assignment": (21, "Q01 Q19", "qualification_required"),
+    "input_filter": (21, "Q01 Q08", "qualification_required"),
+    "output_polarity": (21, "Q01 Q06", "qualification_required"),
+    "output_function_assignment": (21, "Q01 Q06", "qualification_required"),
+    "user_output_command_and_mask": (21, "Q01 Q06", "qualification_required"),
+    "brake_output_wiring": (21, "Q01 Q06 Q19", "qualification_required"),
+    "drive_loop_mode": (22, "Q01 Q09", "qualification_required"),
+    "encoder_resolution": (22, "Q01 Q09 Q04", "qualification_required"),
+    "current_settings": (22, "Q01 Q09", "qualification_required"),
+    "tuning_settings": (22, "Q01 Q09", "qualification_required"),
+    "error_codes": (19, "Q01 Q20", "not_writable"),
+    "led_alarm_and_reset_class": (19, "Q01 Q20", "not_writable"),
+    "dip_node_selection": (38, "Q01 Q16", "qualification_required"),
+    "dip_bitrate_selection": (38, "Q01 Q16", "qualification_required"),
+    "termination_and_cabling": (47, "Q01 Q19", "not_writable"),
+    "electrical_input_output_contract": (47, "Q01 Q19", "not_writable"),
+    "product_protocol_and_geometry": (37, "Q01", "not_writable"),
+    "supply_voltage_applicability": (47, "Q01 Q19", "not_writable"),
+    "status_interpretation_57": (19, "Q01 Q02", "not_writable"),
+    "output_terminal_labels_57": (21, "Q01 Q07", "qualification_required"),
+    "supply_voltage_applicability_57": (47, "Q01 Q19", "not_writable"),
+}
+
+
+def entry_requirements(index, sub):
+    """Return the assigned owner and feature gates; source facts stay in the ledger."""
+    if 0x1400 <= index <= 0x1403 or 0x1800 <= index <= 0x1803:
+        return (17 if sub == 0 else 18), "Q17"
+    if 0x1600 <= index <= 0x1603 or 0x1A00 <= index <= 0x1A03:
+        return 18, "Q17"
+    if index == 0x1200:
+        return (13, "") if sub == 0 else (38, "Q16")
+    if index == 0x2400:
+        if sub == 0:
+            return 21, ""
+        return 21, "Q19" if sub <= 8 else ("Q08" if sub == 10 else "Q06")
+    if 0x2401 <= index <= 0x2407:
+        return 21, "Q08"
+    if 0x2500 <= index <= 0x2520:
+        return 22, "Q09 Q04" if index in (0x2501, 0x250A, 0x250B) else "Q09"
+    if index == 0x1018:
+        return 19, ""
+    if index in (0x607D, 0x6099, 0x60FE):
+        owner, gates = {0x607D: (20, "Q05"), 0x6099: (36, "Q21"),
+                        0x60FE: (21, "Q06 Q07")}[index]
+        return owner, gates if sub else ""
+    return {
+        0x1000: (19, ""), 0x1001: (19, "Q18"), 0x1003: (19, "Q18"),
+        0x1005: (38, "Q16"), 0x1009: (19, ""), 0x100A: (19, ""),
+        0x1014: (38, "Q16"), 0x1017: (38, "Q18"),
+        0x2000: (19, ""), 0x2001: (19, ""),
+        0x2100: (19, "Q02"), 0x2101: (19, ""), 0x2102: (19, ""),
+        0x2200: (20, "Q04"), 0x2201: (20, "Q04"), 0x2202: (20, "Q05"),
+        0x2203: (38, "Q16"), 0x2300: (39, "Q15"),
+        0x2301: (32, "Q13"), 0x2302: (32, "Q14"),
+        0x603F: (19, ""), 0x6040: (30, "Q11 Q12 Q13"),
+        0x6041: (19, "Q02"), 0x605D: (31, "Q12"),
+        0x6060: (20, "Q10 Q11"), 0x6061: (19, "Q10"),
+        0x6064: (19, "Q04"), 0x606C: (19, "Q04"),
+        0x607A: (33, "Q04 Q11"), 0x607C: (32, "Q14 Q21"),
+        0x6081: (20, "Q11"), 0x6083: (20, "Q11"), 0x6084: (20, "Q11"),
+        0x6098: (36, "Q10 Q21"), 0x609A: (36, "Q11 Q21"),
+        0x60FD: (19, "Q19"), 0x60FF: (35, "Q03"),
+    }.get(index, (None, ""))
 
 
 def load_json(path):
@@ -55,7 +167,7 @@ def validate_ledger(data, root=ROOT):
 
     if not isinstance(data, dict):
         return ["ledger root must be an object"]
-    require(data.get("schema_version") == 1, "schema_version must be 1")
+    require(data.get("schema_version") == 2, "schema_version must be 2")
     require(data.get("source_manifest") == "docs/reference/SOURCES.json", "wrong source manifest")
     manifest = load_json(root / "docs/reference/SOURCES.json")
     required_sources = {"EDS", "EN86", "ZH86", "OP86", "ZH57", "OP57"}
@@ -207,6 +319,111 @@ def validate_ledger(data, root=ROOT):
             require(value.get("documented") is True and all(value.get(k) is False for k in expected - {"documented"}),
                     label + ": intake cannot claim implementation, test or qualification")
 
+    review = data.get("semantic_review")
+    gate_ids = set()
+    require(isinstance(review, dict), "semantic review missing")
+    if isinstance(review, dict):
+        require(review.get("status") == "complete" and isinstance(review.get("binding_policy"), str)
+                and bool(review["binding_policy"].strip()),
+                "documentary review must be complete with explicit binding policy")
+        gates = review.get("gates")
+        require(isinstance(gates, list) and bool(gates), "qualification gates missing")
+        for gate in gates if isinstance(gates, list) else []:
+            if not isinstance(gate, dict) or not isinstance(gate.get("id"), str):
+                errors.append("invalid qualification gate")
+                continue
+            require(gate["id"] not in gate_ids, "duplicate qualification gate")
+            gate_ids.add(gate["id"])
+            require(gate.get("status") == "open" and all(isinstance(gate.get(field), str)
+                    and bool(gate[field].strip()) for field in ("feature", "required_evidence")),
+                    "gate needs feature and required observation")
+            owners = gate.get("owner_prompts")
+            require(isinstance(owners, list) and bool(owners) and
+                    all(type(n) is int and 12 <= n <= 48 for n in owners), "gate owners invalid")
+            models = gate.get("models")
+            expected_models = {"CL86-C", "OL86-C"} if gate["id"] == "Q06" else (
+                {"CL57-C", "OL57-C"} if gate["id"] == "Q07" else MODELS)
+            require(isinstance(models, list) and all(isinstance(m, str) for m in models)
+                    and len(models) == len(expected_models) and set(models) == expected_models,
+                    "gate model applicability invalid")
+        require(gate_ids == {"Q{:02d}".format(n) for n in range(1, 22)},
+                "qualification gate inventory incomplete")
+        families = review.get("families")
+        require(isinstance(families, list), "family matrix missing")
+        models = []
+        for family in families if isinstance(families, list) else []:
+            if not isinstance(family, dict):
+                errors.append("family must be an object")
+                continue
+            model = family.get("model")
+            models.append(model)
+            require(isinstance(model, str) and model in MODELS, "family model invalid")
+            require(family.get("firmware") is None and "firmware" in family and
+                    family.get("binding") == "user_selected_unqualified" and
+                    family.get("implemented") is False and family.get("hardware_qualified") is False,
+                    "family cannot claim a firmware binding or implementation")
+            require(all(isinstance(family.get(field), str) and bool(family[field].strip())
+                    for field in ("motor_feedback", "limitations")),
+                    "family motor/feedback limitations missing")
+            require(family.get("encoder_capability") == ("documented_present" if
+                    isinstance(model, str) and model.startswith("CL") else "explicitly_absent"),
+                    "family encoder capability invalid")
+            caps = family.get("capabilities")
+            require(caps == {"position": "documented_unqualified", "velocity": "documented_unqualified",
+                            "homing": "documented_unqualified", "canopen": "documented_unqualified",
+                            "torque": "not_evidenced", "cyclic_modes": "not_evidenced",
+                            "servo_motor": "not_evidenced"}, "family capability evidence invalid")
+            refs = family.get("source_refs")
+            require(isinstance(refs, list) and bool(refs), "family sources missing")
+            allowed = {"EN86", "ZH86", "OP86"} if model in ("CL86-C", "OL86-C") else {"ZH57", "OP57"}
+            for ref in refs if isinstance(refs, list) else []:
+                check_ref(ref, str(model))
+                require(isinstance(ref, dict) and isinstance(ref.get("id"), str) and ref["id"] in allowed,
+                        "family source model mismatch")
+        require(sorted(str(m) for m in models) == ["CL57-C", "CL86-C", "OL57-C", "OL86-C"],
+                "four separate model entries required")
+
+        capabilities = review.get("eds_capabilities")
+        require(isinstance(capabilities, dict), "explicit EDS capabilities missing")
+        if isinstance(capabilities, dict):
+            require(capabilities.get("scope_id") == "eds_family_unbound",
+                    "EDS capabilities must retain unbound source scope")
+            ref = capabilities.get("source_ref")
+            check_ref(ref, "EDS capabilities")
+            require(isinstance(ref, dict) and ref.get("id") == "EDS" and
+                    ref.get("section") == "DeviceInfo", "EDS capabilities must cite DeviceInfo")
+            claims = capabilities.get("claims")
+            fields = {"SimpleBootUpSlave", "SimpleBootUpMaster", "DynamicChannelsSupported",
+                      "GroupMessaging", "LSS_Supported"}
+            require(isinstance(claims, dict) and set(claims) == fields,
+                    "EDS capability claims incomplete")
+            if isinstance(claims, dict):
+                for field in fields:
+                    value = claims.get(field)
+                    original = eds["DeviceInfo"][field]
+                    require(isinstance(value, str) and bool(INTEGER.fullmatch(value)) and
+                            int(value, 0) == int(original, 0),
+                            "EDS capability claim differs from source: " + field)
+            require(isinstance(capabilities.get("interpretation"), str) and
+                    bool(capabilities["interpretation"].strip()), "EDS capability interpretation missing")
+
+    def check_review(value, label, fields):
+        if not isinstance(value, dict):
+            errors.append(label + ": documentary review missing")
+            return set()
+        require(value.get("status") == "complete", label + ": documentary review incomplete")
+        for field in fields:
+            require(isinstance(value.get(field), str) and bool(value[field].strip()),
+                    label + ": review field missing: " + field)
+        ids = value.get("gate_ids")
+        require(isinstance(ids, list) and bool(ids) and
+                all(isinstance(cid, str) and cid in gate_ids for cid in ids),
+                label + ": unknown or missing qualification gate")
+        if "write_policy" in fields:
+            require(value.get("write_policy") in ("not_writable", "qualification_required", "reserved"),
+                    label + ": documentary review cannot authorize writes")
+        return {cid for cid in ids if isinstance(cid, str)} if isinstance(ids, list) else set()
+
     objects = data.get("objects")
     if not isinstance(objects, list):
         return errors + ["objects must be an array"]
@@ -299,9 +516,15 @@ def validate_ledger(data, root=ROOT):
                     elabel + ": datatype/width/signedness mismatch")
             require(entry.get("access_eds") == raw.get("AccessType"), elabel + ": access spelling mismatch")
             require(entry.get("pdo_mapping_eds") == raw.get("PDOMapping"), elabel + ": PDO flag mismatch")
-            require("access_reviewed" in entry and "pdo_mapping_reviewed" in entry and
-                    entry.get("access_reviewed") is None and entry.get("pdo_mapping_reviewed") is None,
-                    elabel + ": reviewed permission is premature")
+            access = entry.get("access_reviewed")
+            allowed_access = {"RO": ("RO",), "WO": ("WO",), "RW": ("RO", "RW")}
+            require("access_reviewed" in entry and (access in allowed_access.get(raw.get("AccessType"), ())
+                    or (entry.get("role") == "reserved" and access is None)),
+                    elabel + ": reviewed access cannot widen source permission")
+            require("pdo_mapping_reviewed" in entry and
+                    (entry.get("pdo_mapping_reviewed") is False or
+                     (entry.get("pdo_mapping_reviewed") is None and raw.get("PDOMapping") == "1")),
+                    elabel + ": unqualified PDO mapping permission")
             for field, raw_name in (("low_limit_eds", "LowLimit"), ("high_limit_eds", "HighLimit"),
                                     ("default_eds", "DefaultValue")):
                 value = entry.get(field)
@@ -325,16 +548,41 @@ def validate_ledger(data, root=ROOT):
                 require(entry.get("disposition") == "excluded" and bool(entry.get("exclusion_reason")),
                         elabel + ": reserved entry must be excluded with reason")
             else:
-                require(entry.get("disposition") == "pending_review" and
+                require(entry.get("disposition") in ("supported_evidence", "conservative_read_only", "pending_qualification") and
                         "exclusion_reason" in entry and entry.get("exclusion_reason") is None,
-                        elabel + ": unreviewed entry disposition invalid")
+                        elabel + ": reviewed entry disposition invalid")
             require(entry.get("confidence") == "documented_metadata", elabel + ": confidence must be metadata only")
-            require(type(entry.get("owner_prompt")) is int and 2 <= entry["owner_prompt"] <= 50,
+            expected_owner, feature_gates = entry_requirements(index, sub)
+            require(type(entry.get("owner_prompt")) is int and expected_owner is not None and
+                    entry["owner_prompt"] == expected_owner,
                     elabel + ": owner prompt invalid")
-            require(all(field in entry for field in ("units", "scaling", "effect", "edge_behavior")) and
-                    entry.get("units") is None and entry.get("scaling") is None and
-                    entry.get("effect") is None and entry.get("edge_behavior") is None and
-                    entry.get("prerequisites") == [], elabel + ": reviewed semantics are premature")
+            require(all(isinstance(entry.get(field), str) and bool(entry[field].strip()) for field in
+                    ("units", "scaling", "effect", "edge_behavior")) and
+                    isinstance(entry.get("prerequisites"), list) and bool(entry["prerequisites"]) and
+                    all(isinstance(value, str) and bool(value.strip()) for value in entry["prerequisites"]),
+                    elabel + ": reviewed semantics missing")
+            selected_gates = check_review(entry.get("review"), elabel,
+                                          ("type_policy", "value_policy", "read_effect", "write_policy"))
+            required_gates = {"Q01"} | set(feature_gates.split())
+            if raw.get("AccessType") != "WO":
+                required_gates.add("Q20")
+            require(required_gates <= selected_gates, elabel + ": required feature or binding gate missing")
+            policy = entry.get("review", {})
+            if isinstance(policy, dict):
+                require(policy.get("read_effect") == "not_established",
+                        elabel + ": read effect cannot claim qualification")
+                if (index in (0x2100, 0x2101, 0x2102, 0x603F, 0x605D) or
+                        (index == 0x2400 and 12 <= sub <= 15) or
+                        0x2401 <= index <= 0x2407 or 0x2500 <= index <= 0x2520):
+                    require(access == "RO", elabel + ": conservative read-only policy required")
+                if entry.get("role") == "reserved":
+                    require(access is None and entry.get("pdo_mapping_reviewed") is False and
+                            policy.get("write_policy") == "reserved", elabel + ": reserved policy cannot grant access")
+                elif access == "RO":
+                    require(policy.get("write_policy") == "not_writable", elabel + ": read-only policy cannot grant writes")
+                else:
+                    require(policy.get("write_policy") == "qualification_required",
+                            elabel + ": command or setting needs qualification")
             require(isinstance(entry.get("conflict_ids"), list), elabel + ": conflict IDs must be an array")
             check_coverage(entry.get("coverage"), elabel)
             type_counts[name] += 1
@@ -368,9 +616,21 @@ def validate_ledger(data, root=ROOT):
         require(item.get("kind") in ("object", "semantic_function"), "{}: invalid manual kind".format(key))
         require(isinstance(item.get("scope_id"), str) and item.get("scope_id") in scope_ids,
                 "{}: missing applicability".format(key))
-        require(item.get("disposition") == "pending_review", "{}: manual semantics must remain pending".format(key))
-        require(bool(item.get("claim")) and type(item.get("owner_prompt")) is int and
-                2 <= item["owner_prompt"] <= 50,
+        require(item.get("disposition") == "reviewed", "{}: manual semantics must be reviewed".format(key))
+        selected_gates = check_review(item.get("review"), str(key), ("decision", "write_policy"))
+        obligation = MANUAL_REQUIREMENTS.get(key)
+        require(obligation is not None, "{}: unknown manual obligation".format(key))
+        if obligation is not None:
+            owner, needed_gates, write_policy = obligation
+            policy = item.get("review")
+            require(item.get("owner_prompt") == owner, "{}: manual owner obligation changed".format(key))
+            require(set(needed_gates.split()) <= selected_gates,
+                    "{}: required manual feature or binding gate missing".format(key))
+            require(isinstance(policy, dict) and policy.get("write_policy") == write_policy,
+                    "{}: manual action obligation changed".format(key))
+        require(isinstance(item.get("claim"), str) and bool(item["claim"].strip()) and
+                type(item.get("owner_prompt")) is int and
+                item["owner_prompt"] in set(range(12, 23)) | set(range(30, 40)) | {47},
                 "{}: missing claim/owner".format(key))
         refs = item.get("source_refs")
         require(isinstance(refs, list) and bool(refs), "{}: missing manual source refs".format(key))
@@ -402,6 +662,8 @@ def validate_ledger(data, root=ROOT):
                 require(identity not in seen_manual_addresses,
                         "{}: duplicate manual object address in scope".format(key))
                 seen_manual_addresses.add(identity)
+
+    require(seen_manual == set(MANUAL_REQUIREMENTS), "manual obligation inventory incomplete")
 
     inventory = data.get("manual_index_inventory")
     require(isinstance(inventory, dict), "manual index inventory missing")
@@ -439,9 +701,10 @@ def validate_ledger(data, root=ROOT):
             require(anomaly.get("scope_id") == "eds_family_unbound",
                     "source anomaly applicability invalid")
             require(bool(anomaly.get("id")) and bool(anomaly.get("observed")) and
-                    anomaly.get("disposition") == "pending_review" and
+                    anomaly.get("disposition") == "reviewed" and
                     type(anomaly.get("owner_prompt")) is int,
-                    "source anomaly lacks pending disposition")
+                    "source anomaly lacks reviewed disposition")
+            check_review(anomaly.get("review"), str(anomaly_id), ("decision",))
             refs = anomaly.get("source_refs")
             require(isinstance(refs, list) and bool(refs), "source anomaly lacks references")
             if isinstance(refs, list):
@@ -463,6 +726,7 @@ def validate_ledger(data, root=ROOT):
             continue
         require(cid not in conflict_ids, "duplicate conflict ID")
         conflict_ids.add(cid)
+        check_review(conflict.get("review"), str(cid), ("disposition", "consequence"))
         require(bool(conflict.get("subject")) and isinstance(conflict.get("scope_id"), str)
                 and conflict.get("scope_id") in scope_ids,
                 "{}: missing subject/applicability".format(cid))
@@ -484,7 +748,7 @@ def validate_ledger(data, root=ROOT):
         resolution = conflict.get("resolution")
         require(resolution in ("unresolved", "resolved"), "{}: invalid resolution".format(cid))
         if resolution == "resolved":
-            require(False, "{}: resolved without reviewed evidence is premature in prompt 2".format(cid))
+            require(False, "{}: resolved without reviewed evidence; documentary policy is not a firmware resolution".format(cid))
             if isinstance(conflict.get("resolution_evidence"), dict):
                 check_ref(conflict["resolution_evidence"], str(cid))
         else:
@@ -508,6 +772,12 @@ def validate_ledger(data, root=ROOT):
                     "{}: dangling conflict ID {}".format(item.get("key"), cid))
     require(conflict_ids == {"C{:02d}".format(number) for number in range(1, 25)},
             "source conflict inventory incomplete")
+    original_claims = [{field: row.get(field) for field in ("id", "subject", "scope_id", "claims")}
+                       for row in conflicts if isinstance(row, dict)]
+    claims_digest = hashlib.sha256(json.dumps(original_claims, sort_keys=True,
+                                   separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+    require(claims_digest == ORIGINAL_CONFLICT_CLAIMS_SHA256,
+            "original conflict claims or source references changed")
 
     counts = data.get("accounting", {})
     expected_counts = {"object_indexes": len(expected_headers), "record_headers": sum(

@@ -1,6 +1,6 @@
 # Executable backlog
 
-This is the current work/evidence queue after the source and ledger intakes. Requirements
+This is the current work/evidence queue after the Lichuan documentary review. Requirements
 and exact prompt owners remain in [the requirements matrix](requirements_matrix.md)
 and [execution progress](prompts/PROGRESS.md); [coverage](coverage.md) records
 what is actually evidenced. No driver function is implemented yet. Missing
@@ -10,19 +10,22 @@ device facts gate the smallest dependent feature, not all independent work.
 
 | ID | Open fact and consequence | Owner / next concrete action |
 | --- | --- | --- |
-| D01 | The [source intake ledger](reference/lichuan_objects.md) accounts for 99 EDS indexes, 202 typed entries and 53 manual semantic items; access, effect, model/firmware applicability and conflicts remain unreviewed | 3: review each claim against original pages, resolve only with evidence and establish the reviewed implementation policy; 12 later generates from that policy |
-| D02 | EN86/ZH86/OP86 disagree on status bits 3/7/10/12/14; ZH57 p12 has a separate 57C bit-7 alarm claim. Generic CiA402 masks do not settle the 86C conflict | 3 retains 86C alternatives; 4 keeps the 57C contrast separate; 29 obtains matched-firmware evidence; gate dependent interpretation/completion in 19/30-36, allow evidenced raw reads |
-| D03 | DO polarity/function addresses conflict in 2400; function 2/3 meaning and ZH57 terminal numbering also conflict | 3/21: review exact model/firmware mapping; 29 needs isolated authorized evidence, never try both disputed writes |
-| D04 | 6040/6060 WO versus RW claims; 6061 monitored RO versus a translated write instruction | 2 captured both claims; 3 reviews access and separate SDO/PDO policy; 19/30 must not assume read-modify-write or write observed mode |
+| D01 | **Documentary review closed:** the [reviewed dictionary](reference/lichuan_objects.md) covers 99 indexes, 202 entries and 53 manual functions, exact sources, effect/access policy, four model scopes and 21 qualification gates | [Prompt 3](reports/prompt_3.md) complete; 12 later generates reviewed policy. No feature implementation or firmware qualification closed by this documentary result. |
+| D02 | EN86/ZH86/OP86 disagree on status bits 3/7/10/12/14; ZH57 p12 has a separate 57C bit-7 alarm claim. Generic CiA402 masks do not settle the 86C conflict | Q02: 29 obtains matched-firmware evidence; 19/30-36 gate only dependent interpretation/completion. Consistent bits 8/15 still need fresh operation evidence; raw reads remain distinct. |
+| D03 | DO polarity/function addresses conflict in 2400; function 2/3 meaning and ZH57 terminal numbering also conflict | Q06/Q07: 21/29 need selected-model mapping and isolated output/mask evidence. 57C labels do not block 86C; never try both disputed writes. |
+| D04 | 6040/6060 WO versus RW claims; 6061 monitored RO versus a translated write instruction | Reviewed conservative policy: WO commands, RO display, separate PDO eligibility. 19/20/30 preserve this; Q10/Q11 qualify mode-change effects, without read-modify-write or writes to observed mode. |
 | D05 | Velocity start order/sign and retained-target behavior at enable are unresolved | 29: reviewed finite experiment or applicable manufacturer clarification; gate 30/35 transition semantics; no enabling preamble for 31/32 |
-| D06 | Actual feedback scale, subdivision 2201 default 0/range and 2202 default 10/choices 0-1 disagree | 3/20/29: establish scale/default/soft-limit meaning; gate target conversion/reference in 33/34/36, not pure checked arithmetic |
-| D07 | Ramp objects 6083/6084/609A are ms, but zero behavior, stop options 605D and stop latency are unqualified; 605A/6085 are absent | 3/20/29/31/33-36: retain native time and exact unknowns; no generic quick-stop fallback or invented device timing guarantee; caller deadlines remain explicit policy |
-| D08 | I/O filters and tuning 2500-2520 have incomplete units/ranges/effects; an EDS RW flag is not a safe setting | 2 assigned intake rows; 3/21/22 review meaning, keep opaque/reserved fields unresolved; no automatic tuning or protective-input reassignment |
-| D09 | Node 2203 activation/DIP precedence, live COB-ID changes, 2300 save/reset completion and 2301 reset edge are incomplete | 3/29/32/38/39: separate volatile, observed and persistent state; no hidden save/restart, delay guess or replay |
-| D10 | No drive-side host-loss stop guarantee; 1017 default 0 and missing 1016 do not prove one | 3/15/25/29: separate observed liveness, service health and physical behavior; identify required manufacturer/fixture evidence |
+| D06 | Actual feedback/offset/limit scales, subdivision 2201 default 0/range and 2202 default 10/choices 0-1 disagree; 607D operating bounds are absent | Q04/Q05/Q14: 20/29 establish selected-field meaning; gate conversion/reference in 33/34/36, not raw observations or pure arithmetic. Do not copy target limits/units into another object. |
+| D07 | Ramp objects 6083/6084/609A are ms, but zero behavior, stop options 605D and stop latency are unqualified; 605A/6085 are absent | Q11/Q12: 20/29/31/33-36 retain native time and unknowns; no generic quick-stop fallback or invented device timing guarantee. Caller deadlines remain explicit policy. |
+| D08 | I/O filters and tuning 2500-2520 have incomplete units/ranges/effects; an EDS RW flag is not a safe setting | Q08/Q09: 21/22 qualify the selected field; documentary review is complete. Opaque/reserved fields stay restricted, peak current stays distinct from RMS, and 250C has no assumed time unit. |
+| D09 | Node 2203 activation/DIP precedence, live COB-ID changes, 2300 save/reset completion and 2301 reset trigger/rearm are incomplete | Q13/Q15/Q16: 29/32/38/39 separate volatile, observed and persistent state; manual reset-bit return is not an established edge/pulse. No hidden save/restart, delay guess or replay. |
+| D10 | No drive-side host-loss stop guarantee; 1017 default 0 and missing 1016 do not prove one | Q18: 15/25/29 separate observed liveness, service health and physical behavior. Scalar widths also do not establish all-expedited uploads; 13 handles actual service form. |
 | D11 | Reused PDO ID/DLC can accept delayed old semantics despite a new host generation | 17/18/24/38/45: prove an applicable transition/retirement boundary, distinct route or observable marker; keep ambiguous samples unqualified |
-| D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware | 2-4/29/37: explicit model/profile provenance and identity limitations; N5/EPOS4 remain contrasts, not supported products |
+| D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware | Q01: 29/37 retain explicit model provenance; raw discovery may precede binding. Four model entries distinguish OL no-encoder hardware from unknown software capability. N5/EPOS4 remain prompt-4 contrasts. |
+| D13 | Read consumption and complete 60FD bit layout are not established by source access flags | Q20/Q19: 19 qualifies affected polling/decoding; retain raw values meanwhile. Do not copy 2101 bits or infer a non-consuming read. |
 
+The canonical [qualification checklist](reference/lichuan_review.md) and ledger
+give the exact required observations and selected-model scope for Q01-Q21.
 The [object](audit/LICHUAN_OBJECT_FACTS.md), [motion](audit/LICHUAN_MOTION_FACTS.md)
 and [public-code](audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) notes locate primary
 evidence. Reopen original tables before implementation; these notes do not

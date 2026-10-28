@@ -1,6 +1,6 @@
 # MotorControl-CAN documentation
 
-Execution has completed [prompt 1's source audit](reports/prompt_1.md) and [prompt 2's source intake](reports/prompt_2.md) on the recorded execution branch. No CAN driver is implemented yet. Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its requested source audit and original-byte checks are recorded in prompt 1.
+Execution has completed the source audit, intake and [prompt 3's Lichuan documentary review](reports/prompt_3.md) on the recorded execution branch. No CAN driver is implemented yet. Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its requested source audit and original-byte checks are recorded in prompt 1.
 
 | Material | Purpose |
 | --- | --- |
@@ -18,7 +18,7 @@ Execution has completed [prompt 1's source audit](reports/prompt_1.md) and [prom
 | [I2C/FieldCore audit](audit/ECOSYSTEM_CONVENTIONS.md) | Current conventions, intentional differences and real consumer boundary |
 | [Protocol research](audit/DEVICE_PROTOCOL_RESEARCH.md) | Manufacturer objects, family scope and contradictory behavior |
 | [Original reference pack](reference/README.md) | Five manuals, EDS, source pages and hashed extracts |
-| [Lichuan intake schema and ledger](reference/lichuan_objects.md) | Exact EDS accounting, manual semantic claims, unresolved conflicts and local validation |
+| [Lichuan dictionary schema](reference/lichuan_objects.md) and [reviewed decisions](reference/lichuan_review.md) | Complete documentary policy, original claims, four model scopes, qualification checklist and local validation |
 | [Source baseline](baseline/README.md) | 44 selected unmodified source/reference files with MIT notice and hashes |
 | [Architecture plan](architecture_plan.md) | Proposed file layout, responsibilities and CAN service boundary |
 | [API/CLI mapping](api_cli_mapping.md) | Literal RS names to preserve and CAN-specific differences |

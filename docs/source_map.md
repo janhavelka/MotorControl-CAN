@@ -113,6 +113,9 @@ evidence; its 500 ms age policy is RS application policy, not a CAN default.
   generation cannot identify delayed same-ID/same-DLC remote PDO bytes.
 
 Original applicability and feature gates are in [the execution report](reports/prompt_1.md),
-[backlog](backlog.md) and [bench facts](hardware_bench.md). The [prompt 2 intake](reference/lichuan_objects.md)
-now accounts for source metadata and pending manual claims; prompt 3 owns
-semantic review. This map supplies naming/ownership evidence only.
+[backlog](backlog.md) and [bench facts](hardware_bench.md). The
+[reviewed dictionary](reference/lichuan_objects.md) and
+[decision guide](reference/lichuan_review.md) now own source policy, per-model
+scope and feature gates. [Prompt 3's live sibling audit](reports/prompt_3_source_review.md)
+refreshes native access/effect/configuration provenance and their real callers.
+This map supplies naming/ownership evidence, not firmware qualification.

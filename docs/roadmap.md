@@ -3,7 +3,7 @@
 Execution identity: version 2, started 2026-10-28 on
 `promptset/motorcontrol-can`, base `7878f7c`. Keep this branch for the complete
 promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
-[prompt 2](reports/prompt_2.md) are complete. The next assigned work is prompt 3;
+[prompt 2](reports/prompt_2.md) and [prompt 3](reports/prompt_3.md) are complete. The next work is prompt 4;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -15,7 +15,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | Prompts | Deliverable and boundary | Current state / next acceptance |
 | --- | --- | --- |
 | 1 | Current source map, live delta, tools, bench facts and backlog | Complete; evidence and checks in its report |
-| 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | 2 complete: 99 indexes / 202 typed entries and 53 manual semantic rows accounted; next work 3 reviews meaning/model scope, then 4 contrasts |
+| 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | 2-3 complete: all 99 indexes / 202 entries and 53 manual functions reviewed; four Lichuan model scopes and 21 open feature gates. Next 4 owns N5/EPOS4 contrasts. |
 | 5-6 | Buildable stack fit experiment and common API/ownership proof | Pending; choose one service backend; prove stepper/servo and non-CANopen boundary without placeholder drivers |
 | 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Pending; reconcile available tools with actual selected pins; no current CAN build/CI target exists |
 | 9-10 | Status, exact units and axis/reference conversions | Pending; no native RPM width, stepper geometry or guessed feedback scale in common intent |
@@ -34,9 +34,11 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 3](prompts/3_lichuan_semantics.md), beginning with the
-[source intake ledger](reference/lichuan_objects.md). Its imported metadata is
-not an approved writable policy or a supported drive feature.
+Next assignment is [prompt 4](prompts/4_drive_contrasts.md). The
+[reviewed Lichuan dictionary](reference/lichuan_objects.md) is ready as documentary
+input; [its qualification gates](reference/lichuan_review.md) remain open for the
+affected later features. It is not an unconditional writable policy or an
+implemented drive profile.
 
 The former stage numbering is mapped in [SPLIT_MAP](prompts/SPLIT_MAP.md).
 Use current owners 11/12 for codecs/catalogue, 13/14 for services, 15-18 for

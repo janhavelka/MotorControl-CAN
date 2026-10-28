@@ -1,9 +1,11 @@
-# Lichuan C source intake schema
+# Lichuan C reviewed dictionary schema
 
-[lichuan_objects.json](lichuan_objects.json) is the single source-intake ledger for
-the retained Lichuan CANopen stepper material. It records original metadata and
-manual claims for review in prompt 3. It grants no SDO write, PDO mapping, drive
-action or model/firmware support. The original EDS and PDFs remain in
+[lichuan_objects.json](lichuan_objects.json) is the single reviewed dictionary for
+the retained Lichuan CANopen stepper material. Schema 2 completes documentary
+review of all 202 entries and 53 manual functions. Read the
+[decision tables and family gates](lichuan_review.md) alongside it. The review
+grants no SDO write, PDO mapping, implemented feature or firmware qualification.
+The original EDS and PDFs remain in
 [SOURCES.json](SOURCES.json) under their own copyright and are excluded from a
 future core package.
 
@@ -23,6 +25,13 @@ reference retains the source's own model claim. No row has a firmware binding.
 The validator checks each scope's manufacturer, model set, family and dialect
 against the source intake. Manual rows must cite a PDF for their own model scope.
 
+Raw identity acquisition may precede a selected-model binding. Retain the route,
+bytes, source and observation provenance; do not decode generic IDs as an exact
+model without evidence. A gate applies to its named field/effect and selected
+model, not every operation touching the containing object. In particular, Q07's
+57C output-label conflict does not block 86C output qualification, and an unknown
+feedback scale does not block retention of a raw feedback value.
+
 ## Row schema
 
 | Field | Meaning and validation |
@@ -30,16 +39,20 @@ against the source intake. Manual rows must cite a PDF for their own model scope
 | `objects[]` | One row for each EDS index. `key` is canonical `0xXXXX`; `index` is the matching integer; `kind` is the original `ObjectType` 7 scalar, 8 array or 9 record; `object_list` is the original list membership. No array header occurs in this EDS. |
 | `raw_fields`, `source_ref` | Exact EDS field spelling/value and named section/line span. The header and every typed child are checked against the original EDS, not just its extraction. |
 | `entries[]` | All explicitly typed scalar sections, keyed `0xXXXX:YY`. A scalar root has one entry at `:00`. A record retains its own header and every declared child, including the count entry at `:00`. `SubNumber` counts that entry. |
-| `role`, `disposition`, `exclusion_reason` | `count`, `value` or `reserved`; ordinary rows remain `pending_review`. The four EDS `2400` Reserved entries are `excluded` from typed public access despite RW/PDO flags, with a reason. |
-| `type`, `access_eds`, `pdo_mapping_eds` | Parsed type code, width and signedness plus exact raw EDS access and mapping flags. `access_reviewed` and `pdo_mapping_reviewed` are `null` until semantic review. An EDS RW or PDO flag does not authorize an effect. |
+| `role`, `disposition`, `exclusion_reason` | `count`, `value` or `reserved`; disposition is `supported_evidence`, `conservative_read_only`, `pending_qualification` or `excluded`. These describe documentary scope. The four EDS `2400` Reserved entries remain excluded from typed public access despite RW/PDO flags. |
+| `type`, `access_eds`, `pdo_mapping_eds` | Exact parsed EDS type, width, signedness, access and mapping claim. The separate reviewed type/value policy retains conflicting manual interpretations. Source representation is not an operating range. |
+| `access_reviewed` | Conservative SDO surface: RO, WO, RW or `null` for excluded entries. It never widens original access. RW/WO still require the separate write policy, binding and feature evidence; they do not authorize transactions. `6061`, monitors, errors and opaque settings retain conservative read-only scope. |
+| `pdo_mapping_reviewed` | `false` when the source gives no eligibility or the entry is excluded; `null` means source eligibility remains unqualified. No `true` approval exists in this review. PDO direction/effect policy remains separate from SDO access, including WO commands present in RPDO defaults. |
 | `low_limit_eds`, `high_limit_eds`, `default_eds` | Original strings or `null` when absent. `$NODEID+0x...` remains an expression. A missing value is never zero and `null` is never a writable default. |
-| `units`, `scaling`, `effect`, `prerequisites`, `edge_behavior` | Explicitly unknown in this intake. Prompt 3 reviews semantics; later owning prompts qualify implementation and effects. |
-| `source_refs`, `confidence`, `conflict_ids`, `owner_prompt` | Exact source locations, metadata-only confidence, linked unresolved conflicts and the next numbered owner. |
+| `units`, `scaling`, `effect`, `prerequisites`, `edge_behavior` | Reviewed descriptions, including explicit unknowns. Native ramp milliseconds are distinct from physical acceleration; command pulses do not establish feedback, home-offset or limit units. Only `2302` and mode-specific bit-4 actions have the stated source-backed edges; reset-bit manual return does not establish a pulse width. |
+| `source_refs`, `confidence`, `conflict_ids`, `owner_prompt` | Exact EDS and applicable per-entry PDF pages; confidence identifies the source claim, not measured behavior. The owner is the actual later implementation prompt, not prompt 3's documentary reviewer. |
+| `review` on an entry | `status=complete` means all documentary facets were reviewed. `type_policy` and `value_policy` state usable representation and limits/default treatment. `read_effect=not_established` forbids promotion to non-consuming qualification. `write_policy` is `not_writable`, `qualification_required` or `reserved`; none authorizes a device write. `gate_ids` links the smallest dependent evidence questions. |
 | `coverage` | Separate `documented`, `implemented`, `host_tested`, `hardware_qualified` booleans. `documented=true` means a source describes the row, not that the meaning or writable use is approved. The other three are false throughout this intake. |
-| `manual_only[]` | Semantic functions described by manuals but not encoded as EDS metadata. Every row has a claim, model scope, original PDF page, related EDS entries where applicable, pending-review disposition and independent coverage fields. There are no additional CANopen object addresses in the five manuals. |
-| `conflicts[]` | Competing source values with separate original locations. `resolution=unresolved`, `decision=null` and `resolution_evidence=null` throughout prompt 2. No file date or language selects a winner. |
+| `manual_only[]` | All 53 functions retain model scope, original pages, related entries and independent coverage. `disposition=reviewed` and `review.decision` close documentary review. The owner, required gates and action obligation remain explicit even where corresponding entries are currently read-only. No raw accessor or unsupported stub completes these future functions. There are no additional CANopen object addresses in the five manuals. |
+| `conflicts[]` | All 24 original competing claim sets and references remain intact. `resolution=unresolved`, `decision=null` and `resolution_evidence=null` mean no firmware winner was selected. The separate `review.disposition` records the conservative decision or limited documentary normalization, with consequences and gates. This is not fabricated resolution evidence. |
 | `source_anomalies[]` | Non-resolution structural questions with unique IDs and explicit source scope. `A01` retains `1018:00` HighLimit 4/default 3 beside the actual declared `00..03` children; no `1018:04` is created. |
 | `manual_index_inventory` | Accounts for zero additional CANopen object addresses, excluded nonobject labels such as `6000h`, and absent generic-index examples. Absence is not a measured unsupported response. |
+| `semantic_review` | Completed documentary scope/date, binding rule, 21 open feature gates, four separate model entries and explicitly scoped EDS capability claims. A gate names applicable models, later owners and the required observation/clarification. Family firmware remains unknown; implementation and hardware qualification remain false. |
 
 The ledger preserves the EDS's FileInfo, DeviceInfo, object lists, Comments,
 DummyUsage and empty DynamicChannels sections. Losslessness here means all
@@ -50,6 +63,13 @@ The 57C statusword bit-7 alarm/ready claim is a separate model contrast to
 the 86C bit-3 claim; it does not resolve the 86C status conflict. ZH86's own
 page 8 and page 19 disagree on DO addresses and function values, so both
 locations remain in conflicts C01/C02.
+
+An explicit unsupported capability is different from missing evidence: the OL
+product tables say no encoder, and unbound EDS metadata says `LSS_Supported=0`.
+Absent `1016`, `605A`, `6085`, `60F4` or `6502` establishes no implemented API
+or firmware behavior by itself. These distinctions remain visible in the family
+and network tables. Do not promote a type-correct setter with unknown effects
+to writable coverage to satisfy a later prompt.
 
 ## Accounting and commands
 
@@ -69,9 +89,14 @@ python scripts/check_lichuan_ledger_test.py
 python scripts/check_promptset.py --check-git-ref HEAD
 ```
 
-The first command validates source hashes, exact EDS fields/spans, canonical
-addresses, types/widths/numeric strings, all declared sections, scope, original
-PDF references, unresolved conflicts and independent coverage. The second
-challenges malformed rows and unsafe resolution claims. The planning checker
-also runs the ledger validator. Source content and page meaning still require
-human review against rendered originals; prompt 3 owns that semantic decision.
+The first command validates original hashes/fields/spans, addresses, all source
+accounting, reviewed policy, model scope, feature ownership, mandatory gates and
+independent coverage. It also preserves the original conflict claim inventory;
+changing that guard requires a source-backed correction record. The second
+challenges missing obligations, malformed rows, false non-consuming reads and
+unsafe writable or resolution claims. The planning checker runs the same
+validator. These checks cannot prove a PDF's meaning or device behavior: the
+[prompt 3 report](../reports/prompt_3.md) records the original-page review and
+its independent challenges. Future evidence-based schema changes must update
+the policy guards and their regression cases together, preserving original
+claims and the precise reason for each change.
