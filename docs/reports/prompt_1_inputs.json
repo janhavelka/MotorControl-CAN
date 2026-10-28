@@ -1,0 +1,138 @@
+{
+  "scope": "Read-only local audit inputs, not upstream synchronization or CAN support evidence",
+  "recorded_utc": "2026-10-28T13:41:14+00:00",
+  "execution_branch": "promptset/motorcontrol-can",
+  "base_commit": "7878f7c878f97e91fd9afebeebc65a4ae85d60b1",
+  "original_target_head": "986a00b",
+  "target_tree_before": "clean; planning/reference/checker only",
+  "repositories": [
+    {
+      "name": "MotorControl-RS",
+      "head": "bd831c859daa9c8c07b8d27a2dd879bb4e750511",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "bd831c859daa9c8c07b8d27a2dd879bb4e750511",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "ADS1115",
+      "head": "235af3e8c722661a89a44766a4ccd903a654f6fe",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "235af3e8c722661a89a44766a4ccd903a654f6fe",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "INA228",
+      "head": "b28c5ea69bcb4d26b351c52c24d3c6fae9fd282b",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "b28c5ea69bcb4d26b351c52c24d3c6fae9fd282b",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "SHT3x-main",
+      "head": "f65f15573e3c9b1ef04cce72ad08f307d021e563",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "f65f15573e3c9b1ef04cce72ad08f307d021e563",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "BME280",
+      "head": "d538f2e203ee26d6ddbc86f86d2b0cf4c73a6e98",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "d538f2e203ee26d6ddbc86f86d2b0cf4c73a6e98",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "MCP45HVX1",
+      "head": "c6c7feefd79b9fc16ddc7b7786ad187e5185fde6",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "c6c7feefd79b9fc16ddc7b7786ad187e5185fde6",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "MB85RC",
+      "head": "1bf7c293549b1038b2d8f3b7a8d655fa74201e6e",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "1bf7c293549b1038b2d8f3b7a8d655fa74201e6e",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "PCA9555",
+      "head": "498178e4d9e4acb6fab7d8b816ad5021efe8806a",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "498178e4d9e4acb6fab7d8b816ad5021efe8806a",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "RV3032-C7",
+      "head": "aabd8d9204e75072403fefb60cf8d2679a7f56de",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "aabd8d9204e75072403fefb60cf8d2679a7f56de",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "SHZK-PT",
+      "head": "0fabdd3f83e2c02055236fe5f8817163126e8e1f",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "0fabdd3f83e2c02055236fe5f8817163126e8e1f",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "VTN4xx",
+      "head": "c825c125b87b4f7f2b47bf4352d76367322447b4",
+      "branch": "feature/vtn4xx-idf-port",
+      "dirty_paths_before": [],
+      "head_after": "c825c125b87b4f7f2b47bf4352d76367322447b4",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "VibWire-108",
+      "head": "fe7b9788e12dba57980ce131c7e318090c6cc3e3",
+      "branch": "main",
+      "dirty_paths_before": [],
+      "head_after": "fe7b9788e12dba57980ce131c7e318090c6cc3e3",
+      "dirty_paths_after": []
+    },
+    {
+      "name": "FieldCore-node",
+      "head": "5ad9292dc8481cf08be9a61f662495a6474d1da0",
+      "branch": "rodtester",
+      "dirty_paths_before": [],
+      "head_after": "5ad9292dc8481cf08be9a61f662495a6474d1da0",
+      "dirty_paths_after": []
+    }
+  ],
+  "tools": {
+    "Python": "3.12.10",
+    "Git": "2.52.0.windows.1",
+    "CMake": "4.0.1",
+    "CTest": "4.0.1",
+    "Ninja": "1.12.1",
+    "MinGW_GCC": "15.1.0",
+    "Doxygen": "1.13.2",
+    "PlatformIO": "6.1.19",
+    "not_on_PATH": [
+      "clang++",
+      "cl",
+      "idf.py",
+      "pdftotext",
+      "pdftoppm"
+    ],
+    "IDF_PATH_set": false,
+    "python_modules_found": [
+      "fitz",
+      "pypdf",
+      "serial"
+    ]
+  },
+  "checked_after_utc": "2026-10-28T13:58:38+00:00"
+}

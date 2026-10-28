@@ -1,8 +1,8 @@
 # Prompt execution progress
 
-This tracks future **library implementation**, not promptset maintenance. Execution has not started; all 50 prompts remain Pending. The old 00-19 labels were superseded before implementation, so no completion status was transferred.
+This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. The library itself is not implemented. Full source/object-ledger intake in prompt 2 and all later implementation prompts remain Pending; no old status was transferred.
 
-At execution start, record promptset version 2, its new dedicated branch, inspected base commit, upstream and source-map revision here. Reuse that branch for all prompts and resumed sessions. Reports use `docs/reports/prompt_N.md`. Commit and sync after each prompt and useful completed checkpoints.
+Execution identity: promptset version 2; branch `promptset/motorcontrol-can`; inspected base `7878f7c` from updated `origin/main`; destination `origin/promptset/motorcontrol-can` (set on first push). Source-map inputs and exact base are in [prompt 1 inputs](../reports/prompt_1_inputs.json), and the current map is [source_map.md](../source_map.md). Reuse this branch across every prompt and resumed session. Reports use `docs/reports/prompt_N.md`; commit and sync each prompt and useful complete checkpoint.
 
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
@@ -10,7 +10,7 @@ Use numerical order among ready work within the assignment. Record the blocker a
 
 | Prompt | Work | State | Report |
 | --- | --- | --- | --- |
-| 1 | [Current source audit](1_source_audit.md) | Pending | - |
+| 1 | [Current source audit](1_source_audit.md) | Complete | [Report](../reports/prompt_1.md) |
 | 2 | [Source inventory and ledger intake](2_source_ledger.md) | Pending | - |
 | 3 | [Reviewed Lichuan semantics and family gates](3_lichuan_semantics.md) | Pending | - |
 | 4 | [Stepper and servo contrast ledger](4_drive_contrasts.md) | Pending | - |

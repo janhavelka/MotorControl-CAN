@@ -1,6 +1,6 @@
 # Requirements and acceptance matrix
 
-These are obligations for the future implementation, not current feature claims. The planning package supplies the audits, references and stages; `docs/prompts/PROGRESS.md` starts pending. Every stage must update traceability to real code/tests/evidence as it executes.
+These are obligations for the future implementation, not current feature claims. [Execution progress](prompts/PROGRESS.md) records the current audit milestone and pending prompts; [coverage](coverage.md) tracks every requirement without claiming driver support. Every stage must update traceability to real code/tests/evidence as it executes.
 
 | ID | Requirement | Prompt owners | Acceptance evidence |
 | --- | --- | --- | --- |

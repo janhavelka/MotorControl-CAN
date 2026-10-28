@@ -1,9 +1,14 @@
-# MotorControl-CAN planning documents
+# MotorControl-CAN documentation
 
-Start implementation with [the promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md). The current checkout is the planning/reference deliverable; no CAN driver is implemented yet.
+Execution has begun with [prompt 1's source audit](reports/prompt_1.md) on the recorded execution branch. No CAN driver is implemented yet. Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its requested source audit and original-byte checks are recorded in prompt 1, while the full object-ledger intake remains prompt 2.
 
 | Material | Purpose |
 | --- | --- |
+| [Live source map](source_map.md) | Actual declarations, implementations, callers, tests and deliberate CAN differences |
+| [Executable backlog](backlog.md) and [roadmap](roadmap.md) | Separate documentary gates, software, integration and physical qualification with current owners |
+| [Requirement coverage](coverage.md) | All 35 requirements tracked without turning audit evidence into implemented support |
+| [CAN bench facts](hardware_bench.md) | Known documentary facts and missing actual fixture/authorization details |
+| [Execution report](reports/prompt_1.md) and [source/tool inputs](reports/prompt_1_inputs.json) | Fresh revisions, scope, deltas, verification and handoff |
 | [Stepper and servo scope decision](multidrive_decision.md) | One multi-vendor library; CANopen first and protocol-specific extensions |
 | [CANopen drive survey](audit/CANOPEN_DRIVE_SURVEY.md) | Concrete stepper/servo candidates, manuals and recommended order |
 | [Other CAN protocol survey](audit/OTHER_CAN_PROTOCOLS.md) | ODrive, moteus and VESC differences that constrain the common boundary |
@@ -17,7 +22,7 @@ Start implementation with [the promptset index](prompts/README.md) and [copyable
 | [Architecture plan](architecture_plan.md) | Proposed file layout, responsibilities and CAN service boundary |
 | [API/CLI mapping](api_cli_mapping.md) | Literal RS names to preserve and CAN-specific differences |
 | [Requirements matrix](requirements_matrix.md) | User requirements mapped to implementation and acceptance stages |
-| [Implementation progress](prompts/PROGRESS.md) | Initially pending; future stages record actual status |
+| [Implementation progress](prompts/PROGRESS.md) | Current execution branch/base and each prompt's actual status |
 | [Concrete conventions](prompts/CONVENTIONS.md) and [fresh source audit](audit/CONVENTIONS_REAUDIT.md) | Exact selected API/status/owner/health/counter names with observed versus proposed distinctions |
 | [Documentation](prompts/DOCUMENTATION.md) and [maintainability](prompts/MAINTAINABILITY.md) | Stage-owned general docs, Doxygen, readable direct code and strict checks |
 | [Delegation and model selection](prompts/DELEGATION.md) | Authorized bounded subagents, available-model selection by complexity and integrated review |
