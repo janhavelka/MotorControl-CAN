@@ -2,9 +2,9 @@
 
 Execution identity: version 2, started 2026-10-28 on
 `promptset/motorcontrol-can`, base `7878f7c`. Keep this branch for the complete
-promptset and resumed sessions. The current assignment is the pasted former
-Stage 00 source audit, recorded as [prompt 1](reports/prompt_1.md). It does not
-authorize automatically executing the later prompts in this turn.
+promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
+[prompt 2](reports/prompt_2.md) are complete. The next assigned work is prompt 3;
+this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
 [PROGRESS](prompts/PROGRESS.md) owns stage status. This roadmap gives executable
@@ -15,7 +15,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | Prompts | Deliverable and boundary | Current state / next acceptance |
 | --- | --- | --- |
 | 1 | Current source map, live delta, tools, bench facts and backlog | Complete; evidence and checks in its report |
-| 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | Next work: 2; preserve all 99 indexes / 202 scalars and unresolved facts, then independently review meaning/model scope |
+| 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | 2 complete: 99 indexes / 202 typed entries and 52 manual semantic rows accounted; next work 3 reviews meaning/model scope, then 4 contrasts |
 | 5-6 | Buildable stack fit experiment and common API/ownership proof | Pending; choose one service backend; prove stepper/servo and non-CANopen boundary without placeholder drivers |
 | 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Pending; reconcile available tools with actual selected pins; no current CAN build/CI target exists |
 | 9-10 | Status, exact units and axis/reference conversions | Pending; no native RPM width, stepper geometry or guessed feedback scale in common intent |
@@ -34,10 +34,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 2](prompts/2_source_ledger.md), beginning with the
-verified original pack and lossless intake. This audit verifies bytes and
-representative applicability but does not replace that prompt's complete
-canonical implementation ledger, schema/checks and every-row ownership.
+Next assignment is [prompt 3](prompts/3_lichuan_semantics.md), beginning with the
+[source intake ledger](reference/lichuan_objects.md). Its imported metadata is
+not an approved writable policy or a supported drive feature.
 
 The former stage numbering is mapped in [SPLIT_MAP](prompts/SPLIT_MAP.md).
 Use current owners 11/12 for codecs/catalogue, 13/14 for services, 15-18 for

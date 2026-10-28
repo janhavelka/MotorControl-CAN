@@ -113,5 +113,6 @@ evidence; its 500 ms age policy is RS application policy, not a CAN default.
   generation cannot identify delayed same-ID/same-DLC remote PDO bytes.
 
 Original applicability and feature gates are in [the execution report](reports/prompt_1.md),
-[backlog](backlog.md) and [bench facts](hardware_bench.md). The next prompt owns
-the full reviewed ledger; this map supplies naming/ownership evidence only.
+[backlog](backlog.md) and [bench facts](hardware_bench.md). The [prompt 2 intake](reference/lichuan_objects.md)
+now accounts for source metadata and pending manual claims; prompt 3 owns
+semantic review. This map supplies naming/ownership evidence only.

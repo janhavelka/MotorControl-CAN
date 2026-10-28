@@ -6,6 +6,8 @@ This repository currently contains planning and reference material. No CAN libra
 
 ### Added
 
+- Completed prompt 2 source intake: a traceable Lichuan ledger for all 99 EDS indexes, 202 typed entries, 52 manual semantic claims, 24 unresolved conflicts and the `1018` count anomaly, with independent coverage fields and a source-byte validator.
+- Added adversarial ledger-validator tests and integrated ledger accounting into the planning-package check.
 - Started promptset execution with a live source/consumer audit, exact responsibility map, requirement coverage, executable backlog/roadmap and an explicit unknown CAN bench record. Original reference verification is separate from future ledger implementation and hardware qualification.
 - Complete Lichuan EDS intake: 99 indexes, 202 typed entries, raw fields and original line spans, with a source-comparison integrity check.
 - Detailed official-source motion, status, settings, I/O, PDO, commissioning and timing tables; pinned public implementations and 17 synthetic protocol fixtures with provenance and licenses.

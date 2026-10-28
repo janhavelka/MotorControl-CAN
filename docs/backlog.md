@@ -1,6 +1,6 @@
 # Executable backlog
 
-This is the current work/evidence queue after the source audit. Requirements
+This is the current work/evidence queue after the source and ledger intakes. Requirements
 and exact prompt owners remain in [the requirements matrix](requirements_matrix.md)
 and [execution progress](prompts/PROGRESS.md); [coverage](coverage.md) records
 what is actually evidenced. No driver function is implemented yet. Missing
@@ -10,14 +10,14 @@ device facts gate the smallest dependent feature, not all independent work.
 
 | ID | Open fact and consequence | Owner / next concrete action |
 | --- | --- | --- |
-| D01 | Original data is verified, but the canonical reviewed implementation ledger does not exist | 2: account for 99 indexes / 202 scalars plus manual-only claims with source/page, type/access/units/effect and explicit owners; 3 reviews semantics |
+| D01 | The [source intake ledger](reference/lichuan_objects.md) accounts for 99 EDS indexes, 202 typed entries and 52 manual semantic items; access, effect, model/firmware applicability and conflicts remain unreviewed | 3: review each claim against original pages, resolve only with evidence and establish the reviewed implementation policy; 12 later generates from that policy |
 | D02 | EN86/ZH86/OP86 disagree on status bits 3/7/10/12/14; generic CiA402 masks do not settle this | 3 retains alternatives; 29 obtains matched-firmware evidence; gate dependent interpretation/completion in 19/30-36, allow evidenced raw reads |
 | D03 | DO polarity/function addresses conflict in 2400; function 2/3 meaning and ZH57 terminal numbering also conflict | 3/21: review exact model/firmware mapping; 29 needs isolated authorized evidence, never try both disputed writes |
-| D04 | 6040/6060 WO versus RW claims; 6061 monitored RO versus a translated write instruction | 2/3: preserve access claims and separate SDO/PDO policy; 19/30 must not assume read-modify-write or write observed mode |
+| D04 | 6040/6060 WO versus RW claims; 6061 monitored RO versus a translated write instruction | 2 captured both claims; 3 reviews access and separate SDO/PDO policy; 19/30 must not assume read-modify-write or write observed mode |
 | D05 | Velocity start order/sign and retained-target behavior at enable are unresolved | 29: reviewed finite experiment or applicable manufacturer clarification; gate 30/35 transition semantics; no enabling preamble for 31/32 |
 | D06 | Actual feedback scale, subdivision 2201 default 0/range and 2202 default 10/choices 0-1 disagree | 3/20/29: establish scale/default/soft-limit meaning; gate target conversion/reference in 33/34/36, not pure checked arithmetic |
 | D07 | Ramp objects 6083/6084/609A are ms, but zero behavior, stop options 605D and stop latency are unqualified; 605A/6085 are absent | 3/20/29/31/33-36: retain native time and exact unknowns; no generic quick-stop fallback or invented device timing guarantee; caller deadlines remain explicit policy |
-| D08 | I/O filters and tuning 2500-2520 have incomplete units/ranges/effects; an EDS RW flag is not a safe setting | 2/3/21/22: assign every row once, keep opaque/reserved fields unresolved; no automatic tuning or protective-input reassignment |
+| D08 | I/O filters and tuning 2500-2520 have incomplete units/ranges/effects; an EDS RW flag is not a safe setting | 2 assigned intake rows; 3/21/22 review meaning, keep opaque/reserved fields unresolved; no automatic tuning or protective-input reassignment |
 | D09 | Node 2203 activation/DIP precedence, live COB-ID changes, 2300 save/reset completion and 2301 reset edge are incomplete | 3/29/32/38/39: separate volatile, observed and persistent state; no hidden save/restart, delay guess or replay |
 | D10 | No drive-side host-loss stop guarantee; 1017 default 0 and missing 1016 do not prove one | 3/15/25/29: separate observed liveness, service health and physical behavior; identify required manufacturer/fixture evidence |
 | D11 | Reused PDO ID/DLC can accept delayed old semantics despite a new host generation | 17/18/24/38/45: prove an applicable transition/retirement boundary, distinct route or observable marker; keep ambiguous samples unqualified |

@@ -5,6 +5,7 @@ import argparse
 from collections import Counter
 import configparser
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -27,7 +28,9 @@ def main():
     counts = {"stages": 0, "requirements": 0, "multidrive_stage_gates": 0,
               "shared_contracts": 0, "concrete_stage_contracts": 0,
               "reference_packs": 0, "markdown_files": 0, "local_links": 0,
-              "hashed_artifacts": 0, "live_baseline_files": 0, "git_artifact_files": 0}
+              "hashed_artifacts": 0, "live_baseline_files": 0, "git_artifact_files": 0,
+              "ledger_objects": 0, "ledger_entries": 0, "ledger_manual_items": 0,
+              "ledger_conflicts": 0}
     original_reference_paths = set()
 
     def require(condition, message):
@@ -328,6 +331,22 @@ def main():
             counts["local_links"] += 1
             require((path.parent / target).exists(),
                     "{}: missing link {}".format(path.relative_to(root), target))
+
+    # The reviewed intake has its own source and semantic cross-reference checks.
+    # Load by path so this checker also works when imported by its regression tests.
+    ledger_module = root / "scripts/check_lichuan_ledger.py"
+    spec = importlib.util.spec_from_file_location("lichuan_ledger_checker", ledger_module)
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    try:
+        ledger = checker.load_json(root / "docs/reference/lichuan_objects.json")
+        errors.extend("Lichuan ledger: " + message for message in checker.validate_ledger(ledger, root))
+        counts["ledger_objects"] = len(ledger.get("objects", []))
+        counts["ledger_entries"] = sum(len(obj.get("entries", [])) for obj in ledger.get("objects", []))
+        counts["ledger_manual_items"] = len(ledger.get("manual_only", []))
+        counts["ledger_conflicts"] = len(ledger.get("conflicts", []))
+    except (OSError, ValueError, configparser.Error) as exc:
+        errors.append("Lichuan ledger: " + str(exc))
 
     result = {"scope": "Planning package integrity only; no CAN library/HIL validation",
               "passed": not errors, "counts": counts, "errors": errors}

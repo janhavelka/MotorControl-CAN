@@ -1,6 +1,6 @@
 # Prompt execution progress
 
-This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. The library itself is not implemented. Full source/object-ledger intake in prompt 2 and all later implementation prompts remain Pending; no old status was transferred.
+This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. Prompt 2 completed the lossless source/object-ledger intake. The library itself is not implemented; semantic review and all later implementation prompts remain Pending. No old status was transferred.
 
 Execution identity: promptset version 2; branch `promptset/motorcontrol-can`; inspected base `7878f7c` from updated `origin/main`; destination `origin/promptset/motorcontrol-can` (set on first push). Source-map inputs and exact base are in [prompt 1 inputs](../reports/prompt_1_inputs.json), and the current map is [source_map.md](../source_map.md). Reuse this branch across every prompt and resumed session. Reports use `docs/reports/prompt_N.md`; commit and sync each prompt and useful complete checkpoint.
 
@@ -11,7 +11,7 @@ Use numerical order among ready work within the assignment. Record the blocker a
 | Prompt | Work | State | Report |
 | --- | --- | --- | --- |
 | 1 | [Current source audit](1_source_audit.md) | Complete | [Report](../reports/prompt_1.md) |
-| 2 | [Source inventory and ledger intake](2_source_ledger.md) | Pending | - |
+| 2 | [Source inventory and ledger intake](2_source_ledger.md) | Complete | [Report](../reports/prompt_2.md) |
 | 3 | [Reviewed Lichuan semantics and family gates](3_lichuan_semantics.md) | Pending | - |
 | 4 | [Stepper and servo contrast ledger](4_drive_contrasts.md) | Pending | - |
 | 5 | [CANopen service fit experiment](5_stack_decision.md) | Pending | - |

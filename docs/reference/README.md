@@ -2,7 +2,7 @@
 
 Additional primary references for the expanded stepper/servo design are in [multidrive/](multidrive/README.md) (CANopen controller manuals and vendor pages) and [other_can/](other_can/README.md) (ODrive, moteus and VESC). Each has its own URL/revision/hash manifest. The main Lichuan originals below remain unchanged.
 
-The [24 October concrete evidence map](../prompts/DEVICE_EVIDENCE.md) adds full object accounting and detailed motion/settings/timing conflicts. [Public implementation research](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) includes pinned CANopenNode, canopen-python and a third-party Lichuan example in [public_code/SOURCES.json](public_code/SOURCES.json), with their licenses. The example contains protocol/ownership defects and is not a qualified driver or code-copy template. The [fresh source comparison](../audit/LICHUAN_SOURCE_RECHECK.json) found all five existing vendor PDFs and the EDS unchanged by hash; it does not resolve their contradictions.
+The [source intake ledger](lichuan_objects.md) accounts for every EDS object and 52 manual semantic claims with original references and unresolved conflicts. It is metadata for prompt 3 review, not an approved access policy. The [24 October concrete evidence map](../prompts/DEVICE_EVIDENCE.md) locates motion/settings/timing conflicts. [Public implementation research](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) includes pinned CANopenNode, canopen-python and a third-party Lichuan example in [public_code/SOURCES.json](public_code/SOURCES.json), with their licenses. The example contains protocol/ownership defects and is not a qualified driver or code-copy template. The [fresh source comparison](../audit/LICHUAN_SOURCE_RECHECK.json) found all five existing vendor PDFs and the EDS unchanged by hash; it does not resolve their contradictions.
 
 Retrieved on **2026-10-23**. These are source documents for implementation research;
 they do not establish that a physical drive or firmware has been qualified.
@@ -15,9 +15,9 @@ CL57-C/OL57-C series. Keep support claims per model and firmware.
 | --- | --- | --- |
 | EN86 | [86C English user manual](vendor/86C_CANopen_user_manual_en.pdf) | 20 PDF pages; hardware, motion, dictionary, faults |
 | ZH86 | [86C Chinese user manual](vendor/86C_CANopen_user_manual_zh.pdf) | 20 PDF pages; substantial differences from English |
-| OP86 | [86C Chinese operating manual](vendor/CL86C_OL86C_operating_manual_zh.pdf) | 14 PDF pages; cover says 86C, many internal headers incorrectly say 57C |
+| OP86 | [86C Chinese manual](vendor/CL86C_OL86C_operating_manual_zh.pdf) | 14 PDF pages; filename calls it operating manual, printed cover says User Manual for 86C, many internal headers say 57C |
 | ZH57 | [57C Chinese user manual](vendor/57C_CANopen_user_manual_zh.pdf) | 20 PDF pages; 57C-family candidate evidence |
-| OP57 | [57C Chinese operating manual](vendor/CL57C_OL57C_operating_manual_zh.pdf) | 14 PDF pages |
+| OP57 | [57C Chinese manual](vendor/CL57C_OL57C_operating_manual_zh.pdf) | 14 PDF pages; filename calls it operating manual, printed cover says User Manual |
 | EDS | [LC_StepDriverCAN_V1.1.eds](vendor/LC_StepDriverCAN_V1.1.eds) | Manufacturer-linked dictionary; 99 object indexes, revision applicability unknown |
 | PRODUCT | [CL86-C manufacturer page snapshot](vendor/CL86-C_manufacturer_product.html) | Product identity and original English-manual download link |
 | INDEX | [Manufacturer download-index snapshot](vendor/CANopen_manufacturer_download_index.html) | Provenance of Chinese PDFs and EDS |
