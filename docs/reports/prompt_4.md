@@ -13,7 +13,7 @@ or physical qualification was added.
 Nanotec N5 in stepper and BLDC configurations, and maxon EPOS4 Compact 50/5
 CAN. It separates native width/sign, command and feedback units, ramp meaning,
 capability/mode, trigger and completion evidence, stop/brake/heartbeat behavior,
-identity and configured scale. Its nine test-only case groups give later prompts
+identity and configured scale. Its eleven test-only case groups give later prompts
 6, 9–11 and 46 actual source-backed inputs or explicitly abstract invariants.
 They include the N5 one-turn vector, no mandatory full-step geometry, separate
 command/encoder/load scales, signed common velocity wider than ESS RPM fields,
@@ -106,3 +106,42 @@ model/firmware, motor/feedback configuration, stop/brake/host-loss behavior and
 physical completion require their own later evidence; the contrast ledger does
 not close those gates. The delivery commit ID and final fresh-fetch sync result
 are recorded in the handoff, since this report is part of that commit.
+
+## Fresh independent audit after prompt 5
+
+On 2026-10-28, the user requested a new audit of original prompts 4 and 5.
+The lead and three fresh-context reviewers reread both prompts and checked the
+actual `aa8a3bc` / `49584d5` diffs and artifacts. The documentary review found
+three gaps; all are corrected in the maintained contrast ledger:
+
+| Finding | Original evidence and correction |
+| --- | --- |
+| EPOS4 unit configurability overstated | Official firmware specification rel13740, PDF pp234-236, Tables 6-159/161/163: `60A8` lists only increments and `60AA` only rpm/s; `60A9` supports decimal rpm scaling. Replaced the blanket configurable-units wording with those distinct limits. |
+| N5 PP entry exception omitted | Original v3.3.0/FIR-v2213 PDF p68: entry from another mode with bit4 already set can start travel without another rising edge. Added this condition and its consequence that a mode change need not be passive. |
+| Two required fixture groups absent | MULTIDRIVE cases 2/6 require explicit ramp-dimension and optional brake/calibration/missing-mode cases. Added C10's illustrative native `6083=100` contrast (LC 100 ms versus EP 100 rpm/s) and C11's two abstract capability variants with pre-admission rejection and no implicit calibration/brake action. No native conversion formula or manufacturer sequence was invented. |
+
+The lead independently reopened N5 p68 and the official EPOS4 tables and
+reviewed the corrected diff. The source reviewer also rechecked N5 widths,
+motor configuration, units, feedback, PDO counts and NanoJ; Lichuan original
+millisecond/peak-current/PDO facts; EPOS4 modes, target-reached exception,
+feedback, brake and identity; and the pinned VESC/ODrive/moteus frame examples.
+CL2 applicability remains separate. Original downloads and hash manifests
+were not modified; the EPOS4 source remains remote-only.
+
+All four sibling revisions and clean states in the table above were refreshed
+before/after actual owner/type/callback/deadline implementation, caller and test
+inspection. No source drift changes the design. The historical source audit
+and initial checks above remain evidence for their original revisions.
+RS still has only `ess_rs` under installed `include/` and `src/profiles/`;
+its architecture identifies Leadshine iEM-RS as a documentary contrast, not a
+second implemented profile. The lead rechecked that distinction, ESS's I16 RPM
+prerequisites and `Axis.cpp` validation/independent-reference handling; no
+nonexistent second profile was treated as code evidence.
+
+Fresh checks: promptset integrity and HEAD artifact verification passed (134
+hashes), all 18 checker regression tests passed, exact C1b/C3 arithmetic was
+rechecked, and whitespace checks passed. The [prompt 5 audit](prompt_5.md#fresh-independent-audit)
+records the independent native build and lifecycle checks. Prompt 4 remains
+complete within its documentary scope; executable common fixtures still belong
+to their named later prompts. No extra profile, runtime layer or hardware claim
+was added. This correction is committed/synced on the same execution branch.

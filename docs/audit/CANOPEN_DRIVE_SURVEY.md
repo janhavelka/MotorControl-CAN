@@ -45,6 +45,11 @@ The [July 2026 Firmware Specification](https://www.maxongroup.com/medias/sys_mas
 
 The [April 2026 Communication Guide](https://www.maxongroup.com/medias/sys_master/root/9567255756830/EPOS4-Communication-Guide-En.pdf) is a separate source. A future EPOS4 profile needs both communication and firmware descriptions, exact EDS and firmware applicability. The product also exposes feedback and brake options; the generic motion API should report these as capabilities and configured evidence, not imply all have been wired or enabled.
 
+2026-10-28 correction: configurable SI units above must not imply arbitrary
+position or acceleration representations. The [reviewed contrast ledger](../reference/drive_contrasts.md)
+now distinguishes the documented position/acceleration limits from velocity
+scaling, using the original value-range tables on PDF pp234-236.
+
 ### FAULHABER V3
 
 The local [Drive Functions manual](../reference/multidrive/vendor/faulhaber_mc_v3_drive_functions_05048.pdf), firmware O, pp. 8, 11, 66–67, 95, 140 and 202, covers DC, brushless and linear servomotors. Stepper support is specifically added for MC 3602 B / MC 3606 B; it cannot be attributed to every V3 product. Position and speed scaling are independently configurable. CST explicitly has no speed limiting; its speed-warning threshold generates error-monitoring information rather than imposing the speed profile. Supported mode values do not establish Profile Torque mode 4.

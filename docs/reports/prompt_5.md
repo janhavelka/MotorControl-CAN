@@ -80,3 +80,46 @@ segmented case demonstrates engine fit; capacity-boundary integration remains 13
 
 Next assignment: [prompt 6](../prompts/6_api_ownership.md). Commit and sync this
 checked prompt on the existing execution branch; preserve all later obligations.
+
+## Fresh independent audit
+
+On 2026-10-28, at starting HEAD `49584d5`, the lead and three fresh-context
+reviewers reread original prompts 4 and 5 in full and inspected the actual
+committed diff, local proof, upstream implementation and tests. Work stayed on
+`promptset/motorcontrol-can`; the starting tree was clean and fresh fetch showed
+0 ahead / 0 behind. Review roles were `gpt-6-astra` high for lifecycle/ownership,
+`gpt-6.1-sol` high for documentary contrasts, and `gpt-6.1-sol` high for
+build/provenance and live sibling source checks. Workers did not mutate Git.
+
+No prompt-5 runtime, ownership, package-boundary or unnecessary-abstraction
+defect was confirmed. The lead reread the service/receive/finish/handoff paths,
+fake driver and tests against the review findings. The actual upstream RX,
+initiate/process/close paths still support the selected boundary. No alternate
+engine or speculative refactor was added. The three documentary gaps and their
+corrections are recorded in [prompt 4's fresh audit](prompt_4.md#fresh-independent-audit-after-prompt-5).
+
+Independent fresh Release configure/build/CTest runs in
+`.build/reaudit_code` and `.build/reaudit_verification` passed (1/1 each), with
+the same measured 16/88/176/56/392-byte host sizes. A temporary independent
+review harness also passed 98 cases: write lengths 1-32, segmented reads 1-28
+with/without size indication, five post-handoff cancellation phases, deadline
+overflow/backward time, toggle and short/long transfer faults, and send failure
+after a write handoff. The lead inspected and reran that harness successfully. These were additional
+audit probes in ignored build output, not newly registered production tests or
+claims of larger transfer support. The maintained native experiment and its
+documented limitations are unchanged.
+
+The verifier review compared all eleven vendor files byte-for-byte with
+`git show` at the immutable upstream revision: 313,512 bytes including LICENSE,
+no upstream NOTICE. All four sibling revisions in the source report remained
+clean before/after inspection of actual implementations, callers/tests and
+workflow commands; there was no source delta. No sibling suite, firmware build,
+remote CI or hardware test was run. The repository still has no CI workflow.
+
+The lead's fresh Release configure/build in `.build/reaudit_final` and CTest
+passed (1/1), as did 18 checker regressions, exact contrast arithmetic,
+promptset/ledger integrity, HEAD artifact hashes and whitespace validation.
+Staged/final committed artifacts are checked again during delivery. The fixture corrections
+leave the prompt-5 engine decision unchanged. Public contracts, full-capacity
+upload draining, channel reconciliation and real controller qualification
+remain with their original later owners; they are not hidden completed work.

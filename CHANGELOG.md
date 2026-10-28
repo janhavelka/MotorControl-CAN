@@ -37,6 +37,7 @@ This repository contains planning/reference material and an isolated native CANo
 
 ### Fixed
 
+- Fresh independent audit of prompts 4-5 corrected EPOS4 unit configurability, retained N5's already-set-bit4 profile-position entry trigger, and added missing ramp-dimension and optional brake/calibration/missing-mode fixture specifications. The native stack experiment passed fresh ownership/failure/boundary review without a runtime change.
 - Corrected fault-reset edge wording, native mode/action ownership and per-entry manual citations. Kept unknown limit/offset/feedback units, peak-current meaning, model-specific output conflicts and raw identity acquisition distinct from qualified behavior.
 - Rechecked prompts 1-2 independently: completed the 126-path source-map check record, retained ZH86's same-manual DO contradictions and the separate 57C statusword contrast, and hardened ledger/planning validation for false applicability, missing conflicts and malformed rows.
 - Removed the evidence-harness dependency on firmware-gated remapping/settings, preserving unfinished feature and owner-integration obligations; aligned numeric execution order with independent progress after a blocker.

@@ -46,10 +46,10 @@ that support claim. Reference/data verification is not driver testing.
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
 | R24 | All; architecture 5-6 | One selected stack and explicit application/core boundary; fixed proof storage and measured host sizes. Production capacities and resource proof remain pending. |
 | R25 | 7-8, 49-50 | Pending |
-| R26 | 1-10, 45-46, 49-50 | RS installed profile distinguished from design contrasts; prompt 4 source-backed N5 stepper/BLDC and EPOS4 fixture specification complete. Prompt 6 production-boundary proof remains. |
+| R26 | 1-10, 45-46, 49-50 | Prompt 4 contrast specification includes corrected N5 PP entry behavior and explicit optional brake/calibration/missing-mode cases. Independent re-audit retained documentary-only support. Prompt 6 production-boundary proof remains. |
 | R27 | 5-6, 9-18, 23-25, 45-46 | Pending |
 | R28 | 5-6, 11-12, 15, 17, 23-28, 45-46 | Pending |
-| R29 | 2-4, 9-10, 21-22, 30-36, 45-46 | Lichuan millisecond ramp times contrast with N5 and EPOS4 configured acceleration units; command/feedback/load scale independence documented. Common units/axis implementations and physical conversion evidence pending. |
+| R29 | 2-4, 9-10, 21-22, 30-36, 45-46 | C10 explicitly contrasts Lichuan millisecond ramp time with EPOS4's documented rpm/s representation; EP velocity scaling is separate. Independent command/feedback/load scales retained. Common units/axis code and physical conversion evidence pending. |
 | R30 | 5-6, 29, 45-50 | Pending |
 | R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to declarations, implementations, callers and tests; CAN code pending. |
 | R32 | All | Prompts 1-5 used bounded independent reviews; 5 separated build, primary stack and sibling/controller audits. Independent review found and verified the handoff deadline fix. Lead owns decision and Git. |

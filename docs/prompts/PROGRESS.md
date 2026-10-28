@@ -4,6 +4,12 @@ This tracks **library implementation assignments**, including their source-audit
 
 Execution identity: promptset version 2; branch `promptset/motorcontrol-can`; inspected base `7878f7c` from updated `origin/main`; destination `origin/promptset/motorcontrol-can` (set on first push). Source-map inputs and exact base are in [prompt 1 inputs](../reports/prompt_1_inputs.json), and the current map is [source_map.md](../source_map.md). Reuse this branch across every prompt and resumed session. Reports use `docs/reports/prompt_N.md`; commit and sync each prompt and useful complete checkpoint.
 
+Fresh independent audit of prompts 4-5 on 2026-10-28 corrected two source
+interpretations and completed the missing ramp/capability fixture groups in
+[prompt 4](../reports/prompt_4.md#fresh-independent-audit-after-prompt-5).
+[Prompt 5's code and evidence audit](../reports/prompt_5.md#fresh-independent-audit)
+found no owned-scope runtime defect. Both remain Complete; prompt 6 is next.
+
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
 Use numerical order among ready work within the assignment. Record the blocker and completed artifacts before progressing to independent work; return when evidence arrives. Prompts 18/20-22 may stay Partial while the independent owner/adapter path reaches the evidence harness in 29. Their typed features and owner integration remain owed to their original prompts. A partial predecessor or dependent chunk is never marked Complete merely to continue.
