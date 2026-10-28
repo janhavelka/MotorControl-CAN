@@ -1,6 +1,6 @@
 # MotorControl-CAN architecture plan
 
-This is the proposed implementation contract, based on the 23 October 2026 source audits and [multi-drive decision](multidrive_decision.md). No files in the planned tree below are claimed to exist yet. The implementation agent must refresh the audits and record deliberate refinements before freezing public API.
+This is the proposed repository layout, based on the source audits and [multi-drive decision](multidrive_decision.md). Prompt 6's [architecture contract](architecture.md) now governs the concrete semantic boundary and its experimental declarations. The production tree below remains planned; prompt 7 migrates the checked proof into the package without installing synthetic profiles or stack dependencies in the pure core.
 
 Apply the concrete [conventions](prompts/CONVENTIONS.md), [documentation](prompts/DOCUMENTATION.md), [maintainability](prompts/MAINTAINABILITY.md) and [delegation](prompts/DELEGATION.md) contracts. They refine this layout with exact names, selected example health/counter rules, per-stage Doxygen and model-aware work allocation.
 

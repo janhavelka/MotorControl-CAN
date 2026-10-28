@@ -2,10 +2,12 @@
 
 ## Unreleased
 
-This repository contains planning/reference material and an isolated native CANopen service experiment. No CAN library, firmware or hardware qualification is released.
+This repository contains planning/reference material and native service/API ownership proofs. No CAN library, firmware or hardware qualification is released.
 
 ### Added
 
+- Completed prompt 6 with concrete C++11 value/operation contracts and one fixed-capacity application owner around the selected CANopenNode client. Added copied read/target-write flows, retained results, deadline/retirement checks, urgent fairness and boot-up invalidation.
+- Added core-only N5 stepper/BLDC, EPOS4 and proprietary-binding contrasts, independent scales and capability/ramp-dimension checks. Published five distinct architecture contracts and Doxygen for every public proof declaration; no installed profile or physical completion claim.
 - Completed prompt 5 with a pinned CANopenNode C/C++11 fake-controller exchange, retained payload/results, asynchronous events, segmented transfers and failure/retirement checks. Selected one application-side engine while keeping the future installed core independent of stack/SDK dependencies.
 - Recorded source-backed cancellation, deadline, callback and TWAI queue limits; preserved uncertain execution after controller handoff. Fixed an expired-frame handoff gap found during independent review.
 - Added offline vendor inventory/hash/license validation, CMake hash guards and seven integrity regressions for the retained experiment. Recorded measured host object sizes separately from unmeasured embedded memory/timing.

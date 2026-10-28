@@ -1,6 +1,6 @@
 # MotorControl-CAN documentation
 
-Execution has completed the source audit, intake, [Lichuan documentary review](reports/prompt_3.md), [drive contrasts](reports/prompt_4.md) and [native service fit experiment](reports/prompt_5.md) on the recorded execution branch. No installed CAN driver exists yet. Prompt 6 is next. Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its requested source audit and original-byte checks are recorded in prompt 1.
+Execution has completed prompts 1–6, including the [native service fit experiment](reports/prompt_5.md) and [common API/ownership proof](reports/prompt_6.md), on the recorded execution branch. No installed CAN driver exists yet. Prompt 7 is next. Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its source audit and original-byte checks are recorded in prompt 1.
 
 | Material | Purpose |
 | --- | --- |
@@ -22,6 +22,8 @@ Execution has completed the source audit, intake, [Lichuan documentary review](r
 | [Drive contrasts and test cases](reference/drive_contrasts.md) | Source-backed N5 stepper/BLDC, EPOS4 servo and proprietary-frame boundaries for later production-code proofs; no installed support |
 | [Source baseline](baseline/README.md) | 44 selected unmodified source/reference files with MIT notice and hashes |
 | [Architecture plan](architecture_plan.md) | Proposed file layout, responsibilities and CAN service boundary |
+| [Architecture](architecture.md), [axis](axis_contract.md), [profile](profile_contract.md), [services](canopen_services.md) and [owner](can_owner.md) | Concrete prompt-6 semantic contracts, fixed ownership table and prototype migration limits |
+| [Native ownership proof](../experiments/api_ownership/README.md) | Build all three native tests; portable contracts, actual selected client and test-only drive contrasts |
 | [CANopen stack decision](decisions/canopen_stack.md) and [prompt 5 report](reports/prompt_5.md) | Selected CANopenNode application adapter, actual native proof, ownership/resource/retirement evidence and remaining production contracts |
 | [Native fit experiment](../experiments/canopen_service_fit/README.md) | Offline C99/C++11 build and executable checks; no SDK, installed driver or hardware support claim |
 | [API/CLI mapping](api_cli_mapping.md) | Literal RS names to preserve and CAN-specific differences |

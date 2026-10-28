@@ -2,6 +2,12 @@
 
 This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The API names below are proposed for MotorControlCAN, not implemented promises.
 
+Prompt 6 now demonstrates `prepareIdentity/nextRead/advanceRead/getIdentity`,
+`prepareMoveAbsolute/nextMove/advanceMove` and the owner admission/result lifecycle
+in an [experimental synthetic profile](profile_contract.md). That page maps
+proof declarations to route intent. No CLI route or installed vendor API exists
+yet; the inventory below retains its later implementation owners.
+
 The selected detailed vocabulary is centralized in [CONVENTIONS.md](prompts/CONVENTIONS.md), backed by the [fresh source audit](audit/CONVENTIONS_REAUDIT.md). Use that contract for exact status, context, owner and health names; this file maps them to user-facing intent and CLI routes.
 
 The [multi-drive decision](multidrive_decision.md) makes these common motion names apply to both stepper and servo drives. CANopen and Lichuan are the first concrete backend/profile, not mandatory public axis semantics. Future families have their own namespaces and typed contexts; test-only N5/EPOS4/proprietary contrasts must not appear as installed drivers.

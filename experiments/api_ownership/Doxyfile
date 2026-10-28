@@ -1,0 +1,16 @@
+# Focused prompt-6 contract check, run from repository root with Doxygen 1.13.2.
+# The production documentation/CI gate remains prompt 8.
+PROJECT_NAME = "Prompt 6 contracts"
+OUTPUT_DIRECTORY = .build/api_ownership_doxygen
+INPUT = experiments/api_ownership/Contracts.h experiments/api_ownership/Operations.h experiments/api_ownership/CanBusOwner.h
+GENERATE_HTML = NO
+GENERATE_LATEX = NO
+GENERATE_XML = YES
+EXTRACT_ALL = NO
+EXTRACT_PRIVATE = NO
+WARN_IF_UNDOCUMENTED = YES
+WARN_IF_DOC_ERROR = YES
+WARN_NO_PARAMDOC = YES
+WARN_IF_UNDOC_ENUM_VAL = YES
+WARN_AS_ERROR = FAIL_ON_WARNINGS
+QUIET = YES

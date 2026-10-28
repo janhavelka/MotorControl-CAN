@@ -12,6 +12,17 @@ Target paths are relative to MotorControl-CAN and are **planned**, unless the
 row names an already existing documentation file. The numbered prompt owns
 implementation and tests; no new public header is created by this audit.
 
+Prompt 6 refreshed the relevant live seams in the
+[source review](reports/prompt_6_source_review.md), with no sibling revision or
+dirty-state delta. Its concrete proof navigation is separate from planned paths:
+
+| Responsibility | Actual declaration/implementation | Actual caller/test | Migration |
+| --- | --- | --- | --- |
+| Common identity/units/status | [Contracts.h](../experiments/api_ownership/Contracts.h), [Operations.cpp](../experiments/api_ownership/Operations.cpp) | [fixtures_test.cpp](../experiments/api_ownership/fixtures_test.cpp) | 7 splits public headers; 9–10 replace prototype math |
+| Typed profile contexts | [Operations.h](../experiments/api_ownership/Operations.h) and implementation above | [main.cpp](../experiments/api_ownership/main.cpp), fixtures | Keep synthetic profile test-only; 19/33 implement real read/motion sequences |
+| Physical owner/table | [CanBusOwner.h](../experiments/api_ownership/CanBusOwner.h), [CanBusOwner.cpp](../experiments/api_ownership/CanBusOwner.cpp) | Native main above | 13/15/23 extend the same table/client boundary; 27 qualifies controller |
+| Build/contract proof | [CMakeLists.txt](../experiments/api_ownership/CMakeLists.txt) | Three registered CTests | 7 registers in production build; 8 establishes CI/Doxygen gates |
+
 ## RS naming, motion and application ownership
 
 | Responsibility | Current declaration | Implementation | Real caller | Focused test | Planned target / owner / deliberate CAN difference |

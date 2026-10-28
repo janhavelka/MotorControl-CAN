@@ -5,7 +5,8 @@ This is the current work/evidence queue after the Lichuan review,
 [CANopen service decision](decisions/canopen_stack.md). Requirements
 and exact prompt owners remain in [the requirements matrix](requirements_matrix.md)
 and [execution progress](prompts/PROGRESS.md); [coverage](coverage.md) records
-what is actually evidenced. No driver function is implemented yet. Missing
+what is actually evidenced. A [synthetic API/owner proof](reports/prompt_6.md) now
+exists; no vendor driver function is implemented yet. Missing
 device facts gate the smallest dependent feature, not all independent work.
 
 ## Documentary and firmware questions
@@ -37,12 +38,12 @@ resolve the above facts by themselves.
 
 | ID | Bounded work | Owner and completion evidence |
 | --- | --- | --- |
-| S01 | Stack selection and protocol-neutral common boundary | [5 fit experiment and decision](decisions/canopen_stack.md) complete: CANopenNode selected. 6 still owns public work/evidence/capacity/retirement contracts and multi-drive proof; no production ABI frozen by local proof types. |
+| S01 | Stack selection and protocol-neutral common boundary | Complete for 5–6: [CANopenNode decision](decisions/canopen_stack.md), [concrete contracts](architecture.md), copied flows and contrast fixtures. Semantic boundary frozen; production package/migration still 7, arithmetic 9–10. |
 | S02 | Native install/export and verification foundation | 7-8: C++11 source/install consumers, real test registration, generated checks and strict Doxygen |
 | S03 | Exact status/unit/axis behavior | 9-10: atomic invalid-input results, extreme arithmetic, explicit reference/scale provenance |
 | S04 | CAN frames, generated object policy and SDO lifecycle | 11-14: integrate selected stack with owner deadline/abort/send-error guards, bounded FIFO draining, raw aborts and late-reply quarantine/reconciliation. Narrow prompt-5 proof is not a full production service. |
 | S05 | Network/PDO and typed groups | 15-22: bind stack callbacks to physical owner, preserve boot-up ingress, validate EMCY envelope, retain PDO provenance, observed configuration and explicit remap; typed groups retain feature gates. |
-| S06 | One owner with retained outcomes and passive diagnostics | 23-25: capacity/fairness/urgent admission, result lifetime, queue retirement and health-counter semantics |
+| S06 | One owner with retained outcomes and passive diagnostics | 6 proves one fixed table, fairness/urgent capacity, copied results, deadlines and fake retirement. 13/15/23 extend that same boundary; 24–25 add qualified recovery and health-counter semantics. |
 | S07 | Shared examples and evidence harness | 26-29: real public path and thin adapters. Inspected TWAI queue clear cannot retire an active hardware frame; 27 must verify actual controller evidence and synchronization. Conditional acquisition remains 29. |
 | S08 | Common motion and native commissioning/persistence | 30-39: each assigned supported function with positive/negative tests, Doxygen and failure evidence |
 | S09 | Shared CLI and Python automation | 40-44: one inventory/schema, correlation, exact parser, finite campaigns and offline failures |
@@ -54,7 +55,7 @@ resolve the above facts by themselves.
 
 | ID | Current limit | Owner / next action |
 | --- | --- | --- |
-| T01 | Standalone native fit experiment exists; no core build/install/verifier/workflow/public headers yet | 7-8 establish the production package and register the proof; planning checker validates evidence, not library behavior. |
+| T01 | Standalone service and API/owner proofs exist; no production install/verifier/workflow/public headers yet | 7-8 establish the package and register retained tests; planning checker validates evidence, not library behavior. |
 | T02 | Clang/MSVC and ESP-IDF entry point absent from current PATH; IDF_PATH unset | 7/8/27/28 select and verify actual required tools in the appropriate environment; present audit is not blocked |
 | T03 | Local Doxygen 1.13.2 differs from MCP45HVX1's 1.15.0 reference pin | 8 select/test a supported docs version; neither assume availability of 1.15.0 nor copy incompatible options blindly |
 | H01 | No established physical CAN fixture or applicable live authorization | 29 fill [bench facts](hardware_bench.md), qualify isolated acquisition and retain raw data; no port guessing or hardware activity in this audit |
