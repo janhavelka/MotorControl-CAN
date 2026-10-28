@@ -38,6 +38,11 @@ profiles. CAN's N5 stepper/BLDC and EPOS4 contrasts likewise do not establish
 support. Common motion must stay independent of manufacturer, motor kind and
 CANopen state/endpoint representation.
 
+[Prompt 4's contrast ledger](reference/drive_contrasts.md) now records N5
+stepper/BLDC, EPOS4 servo and non-CANopen test-only cases for the planned common
+units, endpoint, frame and owner paths above. It does not add a source module,
+installed profile or qualified device.
+
 The inspected RS owner lives in `examples/common/`, while its ProbeApp,
 ProbeConsole and StateCache live in `examples/probe_cli/`. The selected CAN
 plan places reusable application/console code in `examples/common/` with thin

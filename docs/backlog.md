@@ -1,6 +1,7 @@
 # Executable backlog
 
-This is the current work/evidence queue after the Lichuan documentary review. Requirements
+This is the current work/evidence queue after the Lichuan review and
+[stepper/servo contrasts](reference/drive_contrasts.md). Requirements
 and exact prompt owners remain in [the requirements matrix](requirements_matrix.md)
 and [execution progress](prompts/PROGRESS.md); [coverage](coverage.md) records
 what is actually evidenced. No driver function is implemented yet. Missing
@@ -21,7 +22,7 @@ device facts gate the smallest dependent feature, not all independent work.
 | D09 | Node 2203 activation/DIP precedence, live COB-ID changes, 2300 save/reset completion and 2301 reset trigger/rearm are incomplete | Q13/Q15/Q16: 29/32/38/39 separate volatile, observed and persistent state; manual reset-bit return is not an established edge/pulse. No hidden save/restart, delay guess or replay. |
 | D10 | No drive-side host-loss stop guarantee; 1017 default 0 and missing 1016 do not prove one | Q18: 15/25/29 separate observed liveness, service health and physical behavior. Scalar widths also do not establish all-expedited uploads; 13 handles actual service form. |
 | D11 | Reused PDO ID/DLC can accept delayed old semantics despite a new host generation | 17/18/24/38/45: prove an applicable transition/retirement boundary, distinct route or observable marker; keep ambiguous samples unqualified |
-| D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware | Q01: 29/37 retain explicit model provenance; raw discovery may precede binding. Four model entries distinguish OL no-encoder hardware from unknown software capability. N5/EPOS4 remain prompt-4 contrasts. |
+| D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware | Q01: 29/37 retain explicit model provenance; raw discovery may precede binding. Four model entries distinguish OL no-encoder hardware from unknown software capability. Prompt 4's N5/EPOS4 contrasts are documentary evidence, not installed profiles. |
 | D13 | Read consumption and complete 60FD bit layout are not established by source access flags | Q20/Q19: 19 qualifies affected polling/decoding; retain raw values meanwhile. Do not copy 2101 bits or infer a non-consuming read. |
 
 The canonical [qualification checklist](reference/lichuan_review.md) and ledger
@@ -35,7 +36,7 @@ resolve the above facts by themselves.
 
 | ID | Bounded work | Owner and completion evidence |
 | --- | --- | --- |
-| S01 | Stack selection and protocol-neutral common boundary | 4-6: source-backed contrasts, buildable fit experiment, ownership/resource decision |
+| S01 | Stack selection and protocol-neutral common boundary | [4 contrasts](reference/drive_contrasts.md) complete; 5-6 still owe a buildable fit experiment and ownership/resource decision |
 | S02 | Native install/export and verification foundation | 7-8: C++11 source/install consumers, real test registration, generated checks and strict Doxygen |
 | S03 | Exact status/unit/axis behavior | 9-10: atomic invalid-input results, extreme arithmetic, explicit reference/scale provenance |
 | S04 | CAN frames, generated object policy and SDO lifecycle | 11-14: independent byte vectors, schema/freshness, deadlines, cancellation, raw aborts and late-reply ambiguity |

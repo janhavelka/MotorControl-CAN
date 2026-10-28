@@ -1,0 +1,72 @@
+# Stepper, servo and protocol contrasts
+
+This is design evidence for prompts 5–6, 9–12, 17, 23–24 and 45–46, not an
+installed profile list. Only the Lichuan C dictionary has been reviewed for the
+first implementation; even it has no driver or matched physical firmware yet.
+The [Lichuan ledger](lichuan_review.md) owns its detailed permissions and open
+qualification gates. Values below describe their cited document scope, not an
+arbitrary connected drive. No operation here authorizes a write.
+
+## Sources and applicability
+
+| ID | Primary source and version | Scope and limit |
+| --- | --- | --- |
+| LC | [EN86](vendor/86C_CANopen_user_manual_en.pdf), [ZH86](vendor/86C_CANopen_user_manual_zh.pdf), [OP86](vendor/CL86C_OL86C_operating_manual_zh.pdf), [ZH57](vendor/57C_CANopen_user_manual_zh.pdf), [OP57](vendor/CL57C_OL57C_operating_manual_zh.pdf), and [EDS V1.1](vendor/LC_StepDriverCAN_V1.1.eds); hashes and provenance in [reference manifest](SOURCES.json) | Separate CL86-C/OL86-C/CL57C/OL57C applicability in the reviewed ledger. EDS model/firmware identity is unbound; conflicting claims remain open. Newer CL2-86C/CL2-57C absolute-encoder/USB-C products in [public research](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) are outside this scope. |
+| N5 | [N5 CANopen Technical Manual v3.3.0, FIR-v2213](multidrive/vendor/nanotec_n5_canopen_v3.3.0.pdf); [manifest](multidrive/SOURCES.json) | Cover p1 names N5-1-2/N5-2-2, hardware W007 and later. No installed hardware or firmware match. Page numbers below are PDF pages. |
+| EP | [maxon EPOS4 Firmware Specification, edition 2026-07, rel13740](https://www.maxongroup.com/medias/sys_master/root/9579215585310/EPOS4-Firmware-Specification-En.pdf) and [Communication Guide, edition 2026-04, rel13604](https://www.maxongroup.com/medias/sys_master/root/9567255756830/EPOS4-Communication-Guide-En.pdf) | Official [product page](https://www.maxongroup.com/maxon/view/product/control/Positionierung/EPOS-4/541718) identifies EPOS4 Compact 50/5 CAN, part 541718. Specifications cover an EPOS4 family; exact unit, option, firmware and EDS match for a device are unknown. Originals were browser-readable but manufacturer PDF downloads were unavailable locally; no local hash is claimed. PDF page numbers below are one-based. |
+
+## Native differences that constrain common types
+
+| Fact | Lichuan C (LC) | N5 stepper / BLDC (N5) | EPOS4 servo (EP) | Common consequence |
+| --- | --- | --- | --- | --- |
+| Motor and feedback | CL is an incremental-encoder closed-loop stepper; OL variants have no encoder hardware, but software capabilities still need model evidence. LC [family capability and identity](lichuan_review.md#family-capability-and-identity). | Same N5 controller can configure stepper `3202=0x08` or BLDC `3202=0x40`; open-loop stepper, encoder/Hall feedback and commutation are separate settings. N5 pp38, 51–53, 80. | Brushed DC or EC motor and selected main sensor; `6064` returns zero without a main sensor. EP pp11, 221. | Motor kind, feedback availability and supported modes are independent facts. A servo coordinate needs no full-step value. |
+| Position command / feedback | `607A` I32 command pulses; `6064` I32 feedback has unqualified physical scale; subdivision `2201` is not a universal geometry. LC EN86/ZH86 p11, p16–18; EDS §§607A,6064,2201. | `607A` I32 configured user position; `6063` I32 encoder increments from selected `3203` feedback, invalid if `608F` resolution is zero; `6064` I32 user position from selected feedback. N5 pp360-361, 370; units/gear pp62–65. | `607A` I32 configured position units; `6064` I32 main-sensor actual. Position unit `60A8` defaults to increments. EP pp221, 225, 234. | Exact motor/load target, command increments, feedback counts, origin and gear/load scale need separate evidence. No implicit equality of command and encoder scales. |
+| Velocity and ramp | `60FF` I32 signed storage but manual operating range/sign conflict; `6083/6084/609A` U32 **time** 0..2000 ms. LC EN86/ZH86/ZH57 p11,p13; OP86/OP57 p9,p11; EDS §§60FF,6083,6084,609A. | `60FF` I32 target, `606C` I32 actual; `6083/6084` U32 acceleration/deceleration in configured speed unit per second. N5 pp62–65, 364, 376, 412. | `60FF` I32 and `606C` I32; `6083/6084/6085` U32 in configured acceleration units. `60A9/60AA` default rpm and rpm/s, but are configurable. EP pp223, 230, 235–236, 256. | Common signed velocity must exceed ESS's I16 RPM range. A profile translates ramp intent to native **time** or **acceleration**, after checking its configured units; equal object numbers do not imply equal dimensions. |
+| Modes and trigger | Documented positive mode bytes position 1, velocity 3, homing 6; position bit-4 rising edge, but status/completion conflicts remain. LC EN86/ZH86 p11–12; [Q02/Q03/Q11](lichuan_review.md). | `6060` I8 includes PP1, velocity2, PV3, PT4, homing6, IP7, CSP8, CSV9, CST10; PT is closed-loop only. PP bit-4 rising setpoint, bit12 acknowledges, bit10 depends on window/time or halt. N5 pp68–69, 80, 359–360. | PP1, PV3, homing6, CSP8, CSV9, CST10; no PT4 in the cited table. PP new-setpoint edge, separate bit12 acknowledgement and bit10 target reached. Default `6067=0xFFFFFFFF` disables actual-position window check, so bit10 need not prove measured agreement. EP pp23–24, 220, 222. | Mode capability and trigger/completion evidence are profile-specific. A reported trajectory end does not prove standstill or target position. |
+| Effort | `2502` maximum **peak** current in mA is a setting with unresolved limits, not torque. LC EN86/ZH86 pp19–20; [Q09](lichuan_review.md). | `2031` max current mA; `6075` rated current mA; `6073` max current in 0.1% rated. `6071` I16 target torque in 0.1% rated torque. N5 pp38, 367. | `6071` I16 target torque in thousandths of rated torque; actual motor current `30D1:02` I32 mA. EP pp183, 224. | Current observation, current limit and torque intent require distinct units, capability and source. No generic effort conversion is implied. |
+| Stop, brake, host loss | Stop/quick-stop meanings, `605D` option and host-loss action unqualified; do not derive a watchdog from heartbeat/PDO metadata. LC [motion decisions](lichuan_review.md) §§motion/network. | `605A–605E`, `3700` and `6007` configure distinct reactions; optional brake via `3202` bit2 and actual X4 hardware. Heartbeat consumer `1016` may be configured. N5 pp59–61, 107, 134, 176–182, 345. | Quick-stop `605A` uses configured deceleration; shutdown/halt/fault differ. Holding brake needs configured output/sensor/standstill. Heartbeat error NMT policy `1029` and drive abort reaction `6007` are distinct. EP pp76, 193–195, 213, 217–219. | Stop, NMT stop, local cancel, output brake and host-loss reaction are separate. No automatic enabling or reset follows observation. |
+| Identity / PDO capacity | Unbound EDS `[DeviceInfo]`: four RxPDO/four TxPDO; `1018` alone cannot bind CL/OL model or firmware. LC EDS and [network decisions](lichuan_review.md). | `1018` provides vendor/product/revision identity; N5-1-2 product 0x08 and N5-2-2 0x0A in cited manual. Eight independent RxPDO and TxPDO mappings through `1607/1A07`. N5 pp127, 178–179, 207, 244. | `1018:02/:03/:04` supplies hardware/software/serial data; exact part, selected units, brake/feedback and firmware must be matched. EP pp75–76. | Capability and mapping capacity belong to a selected profile/configuration, not common axis identity. One CANopen service engine can serve more than one vendor. |
+
+The N5 p64 `60A9` field diagram and p65 example byte descriptions disagree;
+its p345 `6007` CANopen error discussion also uses the EtherCAT-sounding state
+name “SAFEOPERATIONAL”. Neither supplies a new CANopen state. The EP
+p224 `6076` rated-torque table says RW while its prose forbids writing. Neither
+ambiguity grants a setter. The exact N5 and EP values above are contrasts, not
+Lichuan capabilities. N5 `2300` is **NanoJ Control** (U32, bit0 runs/stops a
+program; p283); LC `2300` is **factory parameter/save/reset action** (U16;
+EN86/ZH86 p18 and EDS §2300). Object dispatch must include profile identity,
+not just index/subindex.
+
+## Test-only cases for later prompts
+
+These are inputs and expected **common invariants**, not fake production
+profiles. A case marked vendor-backed uses its source's format or value. A
+case marked abstract proves only the shared API boundary. Implement tests on
+real common/frame/owner code as each prompt creates it; fixtures never appear
+in installed support, discovery or CLI profile lists.
+
+| Case and owner | Input / source class | Expected invariant |
+| --- | --- | --- |
+| C1 — 6,9,10,46 | Vendor-backed N5 p64: configured `60A8=0xFF410000` (tenths of a degree), 1:1 gear, relative `607A=3600` denotes one mechanical turn. Repeat for documented `3202=0x08` stepper and `0x40` BLDC (p38). Abstract EP servo variant has the same exact one-turn intent and a selected command scale, but no full-step field. | Both N5 motor kinds and the servo represent common exact position intent without mandatory full steps; require selected unit/scale and identity before translation. The N5 values are documentary vectors, not writes to a drive. |
+| C1b — 9,10,46 | Abstract `1/2` load turn, command scale 4096 increments/motor turn, feedback 2048 counts/motor turn and 3/2 motor turns per load turn. N5 pp62–65 and EP pp221,234 establish that representations can differ; these numbers are illustrative, not vendor defaults. | The exact target is 3/4 motor turn = 3072 command increments; matching feedback would be 1536 counts. Retain independent scale provenance and reject a missing scale before admission. |
+| C2 — 9,10,46 | Vendor-backed N5/EP `60FF` I32, and abstract signed common velocity ±70000 in a declared unit; RS ESS `VelocityPrerequisites` and FieldCore `speedRpm` use narrower native RPM fields. | Common request retains sign/width; profile narrowing checks range and unit, with no wrap or implicit RPM. Native current limit and torque stay separately typed. |
+| C3 — 9,10,46 | Protocol-backed IEEE binary32 little-endian position encoding for exact `1/10` revolution: `cd cc cc 3d`; moteus [CAN format](other_can/moteus_can.md) specifies float32. | Round-trip is `0.10000000149011612` rev, absolute error `1/671088640` rev; report/check quantization against caller allowance. Encoding alone says nothing about drive acceptance. Reject ordinary NaN; any native sentinel needs a separate named operation. |
+| C4 — 6,11,23,46 | Abstract endpoint `(protocol, bus, profile, address, subaxis=2)` and a distinct logical axis ID; address may exceed 127 where its protocol permits. | Generic axis/endpoint accepts subaxis independently of a CANopen node; CANopen addressed-service validation alone imposes node 1..127. One physical receiver routes each frame once. |
+| C5 — 11,23,46 | Vendor-backed [VESC example](other_can/vesc_comm_can.md): Classical **extended** data frame ID `0x0117`, DLC 4, bytes `00 00 C7 38`, SET_CURRENT to VESC ID 23. The numeric ID also fits 11 bits. | Preserve the extended flag and signed BE scale 1000. Reject the same numeric ID marked standard on a VESC route and reject it on a CANopen route. Assert wire encoding/routing, not applied 51 A or completion. |
+| C6 — 11,23,46 | Vendor-backed [ODrive CANSimple 0.6.12](other_can/odrive_can_protocol_0.6.12.html) `Get_Encoder_Estimates` command 0x09: standard Classical RTR frame, zero data; response data contains two LE float32 values. Its node/command ID assembly is protocol-local. | Keep RTR, DLC and payload distinct; route response once. CANopen service rejects this route. ODrive's `RxSdo/TxSdo` names do not make this CANopen SDO/NMT. |
+| C7 — 11,23,27,46 | Vendor-backed [moteus CAN](other_can/moteus_can.md): extended FD request ID `0x8001`, reply requested, payload `01 00 0a 07 20 60 00 20 01 50 ff 14 04 00 13 0d`. | Reject before admission on Classical-only adapter; no silent truncation to eight bytes, CANopen decoding or invented CiA402 state. The pinned protocol prose's `0x7fff` extended-ID threshold conflicts with its actual transport's `0x7ff` threshold; frame format follows CAN's 11-bit limit. |
+| C8 — 13,14,24,45,46 | Abstract no-device-ack setter and optional native trajectory-done report with nonzero terminal velocity. Moteus [register description](other_can/moteus_registers.md) says `trajectory_complete` may leave final velocity nonzero. | TX/ACK is not device acceptance or completion; lost confirmation retains execution uncertainty, no auto replay. Done is not standstill. Missing native acknowledgement/state is represented as unavailable, without fabricated SDO/NMT/statusword. |
+| C9 — 12,17,46 | Vendor-backed LC EDS four Rx/Tx PDO, N5 p127 eight Rx/Tx PDO; LC/N5 `2300` meanings above. | Profile-keyed policy keeps both meanings and selected capacities; no global four-PDO maximum, object-number-only action or fake N5 implementation. |
+
+## Boundary decision
+
+Common motion owns exact intent, coordinate/reference provenance, logical axis
+identity and an endpoint binding whose address/subaxis semantics are supplied by
+the selected protocol/profile. A profile performs checked native conversion and
+declares its own supported modes, feedback and evidence. CANopen NMT, SDO, PDO,
+EMCY and CiA402 states belong below that boundary. One owner receives and
+dispatches all frames for a physical interface; multiple CANopen vendors share
+one service engine. A mixed-protocol bus needs an explicit analysis of identifier
+space, broadcast behavior, frame format and controller capabilities before
+routes may coexist. This ledger alone enables no such mixture, driver or FD
+adapter.
