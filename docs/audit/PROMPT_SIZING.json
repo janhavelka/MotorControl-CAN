@@ -1,0 +1,727 @@
+{
+  "scope": "Prompt body words using whitespace splitting; not source-code/task effort estimates",
+  "old_revision": "dc8270740d0e16f19e170e2a982f67389c8a2c56",
+  "old_count": 20,
+  "old_min": 649,
+  "old_max": 988,
+  "old_median": 749.0,
+  "new_count": 50,
+  "new_min": 561,
+  "new_max": 779,
+  "new_median": 650.0,
+  "old_prompts": [
+    {
+      "file": "00_audit_and_evidence.md",
+      "words": 720
+    },
+    {
+      "file": "01_dictionary_and_family.md",
+      "words": 759
+    },
+    {
+      "file": "02_architecture_and_stack.md",
+      "words": 924
+    },
+    {
+      "file": "03_build_and_ci.md",
+      "words": 649
+    },
+    {
+      "file": "04_status_units_axis.md",
+      "words": 692
+    },
+    {
+      "file": "05_frames_and_codecs.md",
+      "words": 793
+    },
+    {
+      "file": "06_sdo_services.md",
+      "words": 969
+    },
+    {
+      "file": "07_network_and_pdo.md",
+      "words": 917
+    },
+    {
+      "file": "08_reads_and_settings.md",
+      "words": 728
+    },
+    {
+      "file": "09_drive_states_and_actions.md",
+      "words": 676
+    },
+    {
+      "file": "10_position_and_angles.md",
+      "words": 659
+    },
+    {
+      "file": "11_velocity_homing_native.md",
+      "words": 713
+    },
+    {
+      "file": "12_can_owner_and_health.md",
+      "words": 691
+    },
+    {
+      "file": "13_discovery_commissioning.md",
+      "words": 680
+    },
+    {
+      "file": "14_examples_and_adapters.md",
+      "words": 790
+    },
+    {
+      "file": "15_cli_and_jsonl.md",
+      "words": 807
+    },
+    {
+      "file": "16_python_runners.md",
+      "words": 739
+    },
+    {
+      "file": "17_faults_and_integration.md",
+      "words": 761
+    },
+    {
+      "file": "18_hardware_qualification.md",
+      "words": 988
+    },
+    {
+      "file": "19_release_and_final_audit.md",
+      "words": 859
+    }
+  ],
+  "prompts": [
+    {
+      "id": 1,
+      "file": "1_source_audit.md",
+      "words": 638,
+      "dependencies": [],
+      "source_stages": [
+        "00"
+      ]
+    },
+    {
+      "id": 2,
+      "file": "2_source_ledger.md",
+      "words": 640,
+      "dependencies": [
+        1
+      ],
+      "source_stages": [
+        "00",
+        "01"
+      ]
+    },
+    {
+      "id": 3,
+      "file": "3_lichuan_semantics.md",
+      "words": 695,
+      "dependencies": [
+        2
+      ],
+      "source_stages": [
+        "01"
+      ]
+    },
+    {
+      "id": 4,
+      "file": "4_drive_contrasts.md",
+      "words": 650,
+      "dependencies": [
+        2,
+        3
+      ],
+      "source_stages": [
+        "01"
+      ]
+    },
+    {
+      "id": 5,
+      "file": "5_stack_decision.md",
+      "words": 681,
+      "dependencies": [
+        3,
+        4
+      ],
+      "source_stages": [
+        "02"
+      ]
+    },
+    {
+      "id": 6,
+      "file": "6_api_ownership.md",
+      "words": 592,
+      "dependencies": [
+        5
+      ],
+      "source_stages": [
+        "02"
+      ]
+    },
+    {
+      "id": 7,
+      "file": "7_native_package.md",
+      "words": 561,
+      "dependencies": [
+        6
+      ],
+      "source_stages": [
+        "03"
+      ]
+    },
+    {
+      "id": 8,
+      "file": "8_verification_docs.md",
+      "words": 580,
+      "dependencies": [
+        7
+      ],
+      "source_stages": [
+        "03"
+      ]
+    },
+    {
+      "id": 9,
+      "file": "9_status_units.md",
+      "words": 665,
+      "dependencies": [
+        6,
+        8
+      ],
+      "source_stages": [
+        "04"
+      ]
+    },
+    {
+      "id": 10,
+      "file": "10_axis_coordinates.md",
+      "words": 626,
+      "dependencies": [
+        9
+      ],
+      "source_stages": [
+        "04"
+      ]
+    },
+    {
+      "id": 11,
+      "file": "11_can_sdo_codecs.md",
+      "words": 666,
+      "dependencies": [
+        5,
+        8,
+        9
+      ],
+      "source_stages": [
+        "05"
+      ]
+    },
+    {
+      "id": 12,
+      "file": "12_object_generation.md",
+      "words": 684,
+      "dependencies": [
+        3,
+        8,
+        11
+      ],
+      "source_stages": [
+        "05"
+      ]
+    },
+    {
+      "id": 13,
+      "file": "13_sdo_lifecycle.md",
+      "words": 725,
+      "dependencies": [
+        5,
+        6,
+        11
+      ],
+      "source_stages": [
+        "06"
+      ]
+    },
+    {
+      "id": 14,
+      "file": "14_sdo_reconciliation.md",
+      "words": 666,
+      "dependencies": [
+        13
+      ],
+      "source_stages": [
+        "06"
+      ]
+    },
+    {
+      "id": 15,
+      "file": "15_network_events.md",
+      "words": 650,
+      "dependencies": [
+        13,
+        14
+      ],
+      "source_stages": [
+        "05",
+        "07"
+      ]
+    },
+    {
+      "id": 16,
+      "file": "16_nmt_services.md",
+      "words": 686,
+      "dependencies": [
+        15
+      ],
+      "source_stages": [
+        "07"
+      ]
+    },
+    {
+      "id": 17,
+      "file": "17_pdo_observations.md",
+      "words": 750,
+      "dependencies": [
+        12,
+        15,
+        16
+      ],
+      "source_stages": [
+        "05",
+        "07"
+      ]
+    },
+    {
+      "id": 18,
+      "file": "18_pdo_configuration.md",
+      "words": 761,
+      "dependencies": [
+        16,
+        17
+      ],
+      "source_stages": [
+        "07"
+      ]
+    },
+    {
+      "id": 19,
+      "file": "19_typed_reads.md",
+      "words": 613,
+      "dependencies": [
+        10,
+        12,
+        14,
+        15,
+        17
+      ],
+      "source_stages": [
+        "08"
+      ]
+    },
+    {
+      "id": 20,
+      "file": "20_driver_settings.md",
+      "words": 686,
+      "dependencies": [
+        19
+      ],
+      "source_stages": [
+        "08"
+      ]
+    },
+    {
+      "id": 21,
+      "file": "21_io_settings.md",
+      "words": 693,
+      "dependencies": [
+        19,
+        20
+      ],
+      "source_stages": [
+        "08",
+        "11"
+      ]
+    },
+    {
+      "id": 22,
+      "file": "22_tuning_settings.md",
+      "words": 654,
+      "dependencies": [
+        19,
+        20
+      ],
+      "source_stages": [
+        "08",
+        "11"
+      ]
+    },
+    {
+      "id": 23,
+      "file": "23_owner_dispatch.md",
+      "words": 586,
+      "dependencies": [
+        6,
+        14,
+        17,
+        19
+      ],
+      "source_stages": [
+        "12"
+      ]
+    },
+    {
+      "id": 24,
+      "file": "24_owner_recovery.md",
+      "words": 561,
+      "dependencies": [
+        23
+      ],
+      "source_stages": [
+        "12"
+      ]
+    },
+    {
+      "id": 25,
+      "file": "25_health_stats.md",
+      "words": 610,
+      "dependencies": [
+        24
+      ],
+      "source_stages": [
+        "12"
+      ]
+    },
+    {
+      "id": 26,
+      "file": "26_native_examples.md",
+      "words": 598,
+      "dependencies": [
+        10,
+        19,
+        25
+      ],
+      "source_stages": [
+        "14"
+      ]
+    },
+    {
+      "id": 27,
+      "file": "27_twai_adapter.md",
+      "words": 596,
+      "dependencies": [
+        24,
+        26
+      ],
+      "source_stages": [
+        "14"
+      ]
+    },
+    {
+      "id": 28,
+      "file": "28_firmware_examples.md",
+      "words": 584,
+      "dependencies": [
+        27
+      ],
+      "source_stages": [
+        "14"
+      ]
+    },
+    {
+      "id": 29,
+      "file": "29_device_evidence.md",
+      "words": 779,
+      "dependencies": [
+        3,
+        19,
+        28
+      ],
+      "source_stages": [
+        "18"
+      ]
+    },
+    {
+      "id": 30,
+      "file": "30_drive_actions.md",
+      "words": 617,
+      "dependencies": [
+        19,
+        20,
+        29
+      ],
+      "source_stages": [
+        "09"
+      ]
+    },
+    {
+      "id": 31,
+      "file": "31_stop_actions.md",
+      "words": 654,
+      "dependencies": [
+        24,
+        30
+      ],
+      "source_stages": [
+        "09"
+      ]
+    },
+    {
+      "id": 32,
+      "file": "32_fault_reference_actions.md",
+      "words": 652,
+      "dependencies": [
+        21,
+        30,
+        31
+      ],
+      "source_stages": [
+        "09",
+        "11"
+      ]
+    },
+    {
+      "id": 33,
+      "file": "33_position_moves.md",
+      "words": 593,
+      "dependencies": [
+        10,
+        20,
+        31,
+        32
+      ],
+      "source_stages": [
+        "10"
+      ]
+    },
+    {
+      "id": 34,
+      "file": "34_angle_moves.md",
+      "words": 580,
+      "dependencies": [
+        33
+      ],
+      "source_stages": [
+        "10"
+      ]
+    },
+    {
+      "id": 35,
+      "file": "35_velocity.md",
+      "words": 609,
+      "dependencies": [
+        31,
+        33
+      ],
+      "source_stages": [
+        "11"
+      ]
+    },
+    {
+      "id": 36,
+      "file": "36_homing.md",
+      "words": 627,
+      "dependencies": [
+        31,
+        32,
+        35
+      ],
+      "source_stages": [
+        "11"
+      ]
+    },
+    {
+      "id": 37,
+      "file": "37_discovery.md",
+      "words": 588,
+      "dependencies": [
+        19,
+        25
+      ],
+      "source_stages": [
+        "13"
+      ]
+    },
+    {
+      "id": 38,
+      "file": "38_communication_commissioning.md",
+      "words": 623,
+      "dependencies": [
+        18,
+        24,
+        37
+      ],
+      "source_stages": [
+        "13"
+      ]
+    },
+    {
+      "id": 39,
+      "file": "39_persistence.md",
+      "words": 596,
+      "dependencies": [
+        24,
+        38
+      ],
+      "source_stages": [
+        "13"
+      ]
+    },
+    {
+      "id": 40,
+      "file": "40_cli_parser.md",
+      "words": 570,
+      "dependencies": [
+        26,
+        28
+      ],
+      "source_stages": [
+        "15"
+      ]
+    },
+    {
+      "id": 41,
+      "file": "41_cli_device_routes.md",
+      "words": 695,
+      "dependencies": [
+        21,
+        22,
+        37,
+        38,
+        39,
+        40
+      ],
+      "source_stages": [
+        "15"
+      ]
+    },
+    {
+      "id": 42,
+      "file": "42_cli_motion_routes.md",
+      "words": 662,
+      "dependencies": [
+        34,
+        35,
+        36,
+        41
+      ],
+      "source_stages": [
+        "15"
+      ]
+    },
+    {
+      "id": 43,
+      "file": "43_python_console.md",
+      "words": 632,
+      "dependencies": [
+        42
+      ],
+      "source_stages": [
+        "16"
+      ]
+    },
+    {
+      "id": 44,
+      "file": "44_python_campaigns.md",
+      "words": 653,
+      "dependencies": [
+        43
+      ],
+      "source_stages": [
+        "16"
+      ]
+    },
+    {
+      "id": 45,
+      "file": "45_fault_integration.md",
+      "words": 688,
+      "dependencies": [
+        36,
+        39,
+        44
+      ],
+      "source_stages": [
+        "17"
+      ]
+    },
+    {
+      "id": 46,
+      "file": "46_consumer_contrasts.md",
+      "words": 574,
+      "dependencies": [
+        4,
+        10,
+        28,
+        42,
+        45
+      ],
+      "source_stages": [
+        "17"
+      ]
+    },
+    {
+      "id": 47,
+      "file": "47_hardware_finite.md",
+      "words": 675,
+      "dependencies": [
+        29,
+        44,
+        45,
+        46
+      ],
+      "source_stages": [
+        "18"
+      ]
+    },
+    {
+      "id": 48,
+      "file": "48_hardware_stress.md",
+      "words": 691,
+      "dependencies": [
+        47
+      ],
+      "source_stages": [
+        "18"
+      ]
+    },
+    {
+      "id": 49,
+      "file": "49_documentation_package_audit.md",
+      "words": 680,
+      "dependencies": [
+        42,
+        44,
+        46
+      ],
+      "source_stages": [
+        "19"
+      ]
+    },
+    {
+      "id": 50,
+      "file": "50_final_review.md",
+      "words": 697,
+      "dependencies": [
+        49
+      ],
+      "source_stages": [
+        "19"
+      ]
+    }
+  ],
+  "measurement_date": "2026-10-28",
+  "measurement_note": "Current bodies after the 28 October source and execution corrections; detailed source tables and PDO provenance reasoning remain linked, not repeated as mandatory full-pack reading.",
+  "split_only_measurement": {
+    "revision": "2cda16e",
+    "min": 513,
+    "median": 585.5,
+    "max": 690
+  },
+  "enrichment_measurement": {
+    "revision": "b93e609",
+    "date": "2026-10-24",
+    "min": 531,
+    "median": 638.5,
+    "max": 767
+  }
+}

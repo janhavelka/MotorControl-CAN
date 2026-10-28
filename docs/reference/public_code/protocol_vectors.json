@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-24",
+  "purpose": "Source-derived host-only encoding fixtures; values are not captured traffic, qualified device behavior, timing limits, or permission to transmit",
+  "node_example": 5,
+  "source_ids": "SOURCES.json in this pack; EDS and EN86 in ../SOURCES.json; numeric ranges after colon are one-based source line references unless marked PDF",
+  "vectors": [
+    {
+      "id": "read_statusword",
+      "kind": "request",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "40 41 60 00 00 00 00 00",
+      "interpretation": "SDO upload initiate for index 0x6041, subindex 0; expected data width is local metadata, never encoded as 0x4B in request.",
+      "sources": "PYCAN_CANOPEN_SDO_CLIENT_PY:252-255; CONODE_301_CO_SDOCLIENT_C:1542-1545"
+    },
+    {
+      "id": "statusword_response_synthetic",
+      "kind": "response",
+      "node_id": 5,
+      "can_id": "0x585",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "4B 41 60 00 34 12 00 00",
+      "interpretation": "Expedited size-indicated U16 payload 0x1234; synthetic raw bits have no qualified CL86-C state meaning.",
+      "sources": "PYCAN_CANOPEN_SDO_CLIENT_PY:269-275"
+    },
+    {
+      "id": "write_mode_one",
+      "kind": "request",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "2F 60 60 00 01 00 00 00",
+      "interpretation": "One-byte download of 1 to 0x6060:00; wire-only fixture, no startup action authorization.",
+      "sources": "PYCAN_CANOPEN_SDO_CLIENT_PY:373-377"
+    },
+    {
+      "id": "write_ramp_100",
+      "kind": "request",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "23 83 60 00 64 00 00 00",
+      "interpretation": "Four-byte U32 value 100 to 0x6083:00. Lichuan manuals call this a ramp time in ms; not 100 acceleration units.",
+      "sources": "PYCAN_CANOPEN_SDO_CLIENT_PY:373-377; EDS:6083; EN86:PDF11"
+    },
+    {
+      "id": "write_controlword_six",
+      "kind": "request",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "2B 40 60 00 06 00 00 00",
+      "interpretation": "Two-byte value 6; codec fixture only, not a complete safe enable sequence.",
+      "sources": "PYCAN_CANOPEN_SDO_CLIENT_PY:373-377"
+    },
+    {
+      "id": "write_position_minus1000",
+      "kind": "request",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "23 7A 60 00 18 FC FF FF",
+      "interpretation": "I32 -1000 encoded little-endian; native coordinate scale and move authorization remain separate.",
+      "sources": "PYCAN_CANOPEN_SDO_CONSTANTS_PY:5-10; EDS:607A"
+    },
+    {
+      "id": "write_confirmation",
+      "kind": "response",
+      "node_id": 5,
+      "can_id": "0x585",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "60 83 60 00 00 00 00 00",
+      "interpretation": "SDO download acknowledgement for 0x6083:00. Match node/channel/index/subindex/current transaction; not evidence of motor movement/completion.",
+      "sources": "CONODE_301_CO_SDOCLIENT_C:587-615"
+    },
+    {
+      "id": "abort_missing_object",
+      "kind": "response",
+      "node_id": 5,
+      "can_id": "0x585",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "80 34 12 00 00 00 02 06",
+      "interpretation": "Synthetic abort 0x06020000 for object 0x1234:00, preserve full raw abort value.",
+      "sources": "PYCAN_CANOPEN_SDO_CONSTANTS_PY:48; CONODE_301_CO_SDOCLIENT_C:1206-1211"
+    },
+    {
+      "id": "expedited_upload_size_unspecified",
+      "kind": "response",
+      "node_id": 5,
+      "can_id": "0x585",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "42 41 60 00 34 12 00 00",
+      "interpretation": "Expedited response without size indication. Four raw bytes present; resolve typed width from reviewed metadata, not unused-size bits.",
+      "sources": "CONODE_301_CO_SDOCLIENT_C:1231-1240"
+    },
+    {
+      "id": "segmented_upload_initiate",
+      "kind": "response",
+      "node_id": 5,
+      "can_id": "0x585",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "41 41 60 00 02 00 00 00",
+      "interpretation": "Valid segmented upload initiate with total size 2. A small object does not force expedited upload; unsupported segmented service must settle/abort explicitly.",
+      "sources": "CONODE_301_CO_SDOCLIENT_C:1243-1256"
+    },
+    {
+      "id": "nmt_preoperational",
+      "kind": "request",
+      "node_id": 5,
+      "can_id": "0x000",
+      "frame_format": "classical_standard_data",
+      "dlc": 2,
+      "data_hex": "80 05",
+      "interpretation": "NMT pre-operational request for node 5, two bytes; no SDO acknowledgement exists.",
+      "sources": "CONODE_301_CO_NMT_HEARTBEAT_H:51-56,81-88; PYCAN_CANOPEN_NMT_PY:149-150"
+    },
+    {
+      "id": "heartbeat_operational",
+      "kind": "event",
+      "node_id": 5,
+      "can_id": "0x705",
+      "frame_format": "classical_standard_data",
+      "dlc": 1,
+      "data_hex": "05",
+      "interpretation": "One-byte heartbeat reports NMT Operational, not CiA402 operation-enabled.",
+      "sources": "CONODE_301_CO_NMT_HEARTBEAT_H:58-75; PYCAN_CANOPEN_NMT_PY:262"
+    },
+    {
+      "id": "bootup",
+      "kind": "event",
+      "node_id": 5,
+      "can_id": "0x705",
+      "frame_format": "classical_standard_data",
+      "dlc": 1,
+      "data_hex": "00",
+      "interpretation": "Boot-up/reset evidence invalidates previous drive/transaction assumptions; not a periodic heartbeat freshness guarantee.",
+      "sources": "PYCAN_CANOPEN_NMT_PY:228"
+    },
+    {
+      "id": "pdo_status_mapping_literal",
+      "kind": "mapping_value",
+      "node_id": null,
+      "can_id": null,
+      "frame_format": null,
+      "dlc": 4,
+      "data_hex": "10 00 41 60",
+      "interpretation": "U32 mapping descriptor 0x60410010 for index 0x6041, subindex0, bit length16. Definition only, not verified CL86-C mapping or a remap instruction.",
+      "sources": "CONODE_301_CO_PDO_C:89-95"
+    },
+    {
+      "id": "pdo_position_mapping_literal",
+      "kind": "mapping_value",
+      "node_id": null,
+      "can_id": null,
+      "frame_format": null,
+      "dlc": 4,
+      "data_hex": "20 00 64 60",
+      "interpretation": "U32 mapping descriptor 0x60640020 for index0x6064,subindex0,bit length32. Combined with statusword is6bytes; only after actual reviewed map.",
+      "sources": "CONODE_301_CO_PDO_C:89-95"
+    },
+    {
+      "id": "reject_wrong_read_request",
+      "kind": "negative_fixture",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "4B 41 60 00 00 00 00 00",
+      "interpretation": "Wrong request copied from SRT example: 0x4B is expedited upload response form, not the 0x40 upload request.",
+      "sources": "SRT_2026_SEASON_SRT_OPENCAN_SRT_OPENCAN_CPP:57-78"
+    },
+    {
+      "id": "reject_wrong_homing_width",
+      "kind": "negative_fixture",
+      "node_id": 5,
+      "can_id": "0x605",
+      "frame_format": "classical_standard_data",
+      "dlc": 8,
+      "data_hex": "2B 99 60 01 64 00 00 00",
+      "interpretation": "Two-byte download conflicts with EDS U32 at6099:01; typed path must prepare0x23 and four payload bytes instead.",
+      "sources": "SRT_2026_SEASON_SRT_OPENCAN_SRT_OPENCAN_CPP:146; EDS:6099sub1"
+    }
+  ]
+}

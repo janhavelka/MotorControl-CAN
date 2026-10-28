@@ -1,5 +1,7 @@
 # Final planning review and source drift
 
+This is the historical 23 October review. The later [24 October correctness and simplicity audit](PROMPTSET_REVIEW_2026-10-24.md) records additional corrections, including the exact velocity timer origin, stage dependencies and Git artifact preservation. Use the current prompts for execution.
+
 Final review date: 23 October 2026. Two independent review passes checked the implementation prompts against the source audits and device research. Corrections incorporated into the package include:
 
 - Literal RS result access through contexts and typed getters, actual `*_test.cpp`/`*_test.py` conventions, missing settings/subdivision/profile CLI groups, and active `capture-read` semantics.

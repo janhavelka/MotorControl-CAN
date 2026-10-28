@@ -332,6 +332,13 @@
       "bytes": 49860,
       "sha256": "1db1085e9011b59b3c3327d6d62882eb88a56638dae20ad13b459969e294e40d",
       "generation": "PyMuPDF text/page rendering, or ConfigParser raw EDS section export; no authoritative normalization"
+    },
+    {
+      "path": "extracted/LC_StepDriverCAN_V1.1.object_inventory.json",
+      "bytes": 139798,
+      "sha256": "53f82b09af3d3dc0b4c24706e41a2d6ad4b72380d051d4f236bcb24f6805d48e",
+      "derived_from": "EDS",
+      "method": "Lossless EDS field extraction with hexadecimal object addresses and one-based original line spans; independently checked against original strings. Not a reviewed firmware ledger."
     }
   ],
   "unavailable_sources": [

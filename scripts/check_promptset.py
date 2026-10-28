@@ -2,10 +2,13 @@
 """Offline integrity checks for the planning package, not the future library."""
 
 import argparse
+from collections import Counter
+import configparser
 import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 from urllib.parse import unquote
 
@@ -14,6 +17,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-live-baseline", action="store_true",
                         help="Also compare copied files with the recorded sibling checkout")
+    parser.add_argument("--check-git-ref", choices=("HEAD", "INDEX"),
+                        help="Also verify artifact bytes stored in Git HEAD or the staged index")
     parser.add_argument("--json-report", type=Path,
                         help="Write this planning-check result as JSON")
     args = parser.parse_args()
@@ -22,7 +27,7 @@ def main():
     counts = {"stages": 0, "requirements": 0, "multidrive_stage_gates": 0,
               "shared_contracts": 0, "concrete_stage_contracts": 0,
               "reference_packs": 0, "markdown_files": 0, "local_links": 0,
-              "hashed_artifacts": 0, "live_baseline_files": 0}
+              "hashed_artifacts": 0, "live_baseline_files": 0, "git_artifact_files": 0}
     original_reference_paths = set()
 
     def require(condition, message):
@@ -52,6 +57,22 @@ def main():
             require(hashlib.sha256(content).hexdigest() == record.get("sha256"),
                     label + ": SHA-256 mismatch " + rel)
             counts["hashed_artifacts"] += 1
+            if args.check_git_ref:
+                relative = path.relative_to(root).as_posix()
+                prefix = "HEAD:" if args.check_git_ref == "HEAD" else ":"
+                try:
+                    stored = subprocess.run(
+                        ["git", "cat-file", "blob", prefix + relative], cwd=root,
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        timeout=10, check=False)
+                    require(stored.returncode == 0,
+                            "Git " + args.check_git_ref + ": missing artifact " + relative)
+                    if stored.returncode == 0:
+                        require(hashlib.sha256(stored.stdout).hexdigest() == record.get("sha256"),
+                                "Git " + args.check_git_ref + ": SHA-256 mismatch " + relative)
+                        counts["git_artifact_files"] += 1
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    errors.append("Git artifact check: " + str(exc))
             if path.suffix.lower() == ".pdf":
                 require(content.startswith(b"%PDF-"), label + ": not a PDF " + rel)
             if path.suffix.lower() == ".eds":
@@ -60,7 +81,7 @@ def main():
 
     refs = root / "docs/reference"
     reference_manifests = [refs / "SOURCES.json", refs / "multidrive/SOURCES.json",
-                           refs / "other_can/SOURCES.json"]
+                           refs / "other_can/SOURCES.json", refs / "public_code/SOURCES.json"]
     for manifest_path in reference_manifests:
         sources = read_json(manifest_path)
         originals = sources.get("sources", [])
@@ -77,6 +98,63 @@ def main():
         check_records(manifest_path.parent, originals + sources.get("derived_artifacts", [])
                       + sources.get("auxiliary_artifacts", []), str(manifest_path.relative_to(root)))
         counts["reference_packs"] += 1
+
+    # Verify the research intake against original strings, not its own summary.
+    # This checks transcription only; it cannot establish firmware semantics.
+    intake = read_json(refs / "extracted/LC_StepDriverCAN_V1.1.object_inventory.json")
+    eds_path = refs / "vendor/LC_StepDriverCAN_V1.1.eds"
+    require(intake.get("source_path") == eds_path.relative_to(root).as_posix()
+            and intake.get("source_sha256") == hashlib.sha256(eds_path.read_bytes()).hexdigest(),
+            "EDS intake: source identity mismatch")
+    eds_text = eds_path.read_text(encoding="utf-8-sig")
+    eds = configparser.ConfigParser(interpolation=None)
+    eds.optionxform = str
+    eds.read_string(eds_text)
+    section_starts = [(match.group(1), number) for number, line in enumerate(eds_text.splitlines(), 1)
+                      for match in [re.fullmatch(r"\[([^\]]+)\]", line.strip())] if match]
+    spans = {name: (start, section_starts[i + 1][1] - 1 if i + 1 < len(section_starts)
+                     else len(eds_text.splitlines()))
+             for i, (name, start) in enumerate(section_starts)}
+    eds_types = {"0x0003": ("I16", 2), "0x0004": ("I32", 4),
+                 "0x0005": ("U8", 1), "0x0006": ("U16", 2), "0x0007": ("U32", 4)}
+    expected_headers = {name for name in eds.sections() if re.fullmatch(r"[0-9A-Fa-f]{4}", name)}
+    expected_scalars = {name for name in eds.sections() if "DataType" in eds[name]}
+    for key, expected in (("object_headers", expected_headers), ("scalar_entries", expected_scalars)):
+        rows = intake.get(key, [])
+        require(len(rows) == len(expected) and {row.get("section") for row in rows} == expected,
+                "EDS intake: incomplete/duplicate " + key)
+        for row in rows:
+            section = row.get("section", "")
+            if section not in expected:
+                continue
+            fields = dict(eds[section])
+            address = re.fullmatch(r"([0-9A-Fa-f]{4})(?:sub([0-9A-Fa-f]+))?", section)
+            index = int(address.group(1), 16)
+            subindex = int(address.group(2), 16) if address.group(2) else (0 if "DataType" in fields else None)
+            require(row.get("fields") == fields, "EDS intake: field mismatch " + section)
+            require((row.get("index"), row.get("index_hex"), row.get("subindex"))
+                    == (index, "0x{:04X}".format(index), subindex),
+                    "EDS intake: address mismatch " + section)
+            require((row.get("source_line_start"), row.get("source_line_end")) == spans[section],
+                    "EDS intake: source lines mismatch " + section)
+            if "DataType" in fields:
+                require((row.get("type_name"), row.get("width_bytes")) == eds_types.get(fields["DataType"]),
+                        "EDS intake: datatype mismatch " + section)
+    for key, section in (("file_info", "FileInfo"), ("device_info", "DeviceInfo")):
+        require(intake.get(key) == dict(eds[section]), "EDS intake: metadata mismatch " + key)
+    require(intake.get("object_lists") == {key: dict(eds[key]) for key in
+            ("MandatoryObjects", "ManufacturerObjects", "OptionalObjects")},
+            "EDS intake: object list mismatch")
+    scalar_fields = [dict(eds[name]) for name in expected_scalars]
+    require(intake.get("counts") == {
+        "object_indexes": len(expected_headers),
+        "record_headers": sum("DataType" not in eds[name] for name in expected_headers),
+        "scalar_entries": len(expected_scalars),
+        "scalar_type_counts": dict(Counter(eds_types[row["DataType"]][0] for row in scalar_fields)),
+        "scalar_access_counts": dict(Counter(row["AccessType"] for row in scalar_fields)),
+        "scalar_pdo_mapping_counts": dict(Counter(row["PDOMapping"] for row in scalar_fields)),
+        "scalars_without_default": sum("DefaultValue" not in row for row in scalar_fields)},
+        "EDS intake: summary counts mismatch")
 
     baseline = root / "docs/baseline"
     snapshot = read_json(baseline / "SNAPSHOT.json")
@@ -104,36 +182,102 @@ def main():
     check_records(evidence, evidence_manifest.get("files", []), "RS audit evidence")
 
     prompts = root / "docs/prompts"
-    stages = sorted(prompts.glob("[0-9][0-9]_*.md"))
+    sequence = read_json(prompts / "SEQUENCE.json")
+    entries = sequence.get("prompts", [])
+    require(sequence.get("version") == 2, "Expected active promptset version 2")
+    ids = [entry.get("id") for entry in entries]
+    require(bool(ids) and ids == list(range(1, len(ids) + 1)),
+            "Prompt IDs must be consecutive integers starting at 1")
+    names = [entry.get("file", "") for entry in entries]
+    require(len(names) == len(set(names)), "Duplicate prompt filename in sequence")
+    stages = [prompts / name for name in names]
     counts["stages"] = len(stages)
-    require([path.name[:2] for path in stages] == ["{:02d}".format(n) for n in range(20)],
-            "Expected one implementation stage each from 00 through 19")
+    actual_names = {path.name for path in prompts.glob("*.md")
+                    if re.match(r"^\d+_", path.name)}
+    require(actual_names == set(names),
+            "Active numbered files must exactly match SEQUENCE.json (no retired stages)")
+    source_stages = set()
+    file_ids = dict(zip(names, ids))
     index = (prompts / "README.md").read_text(encoding="utf-8")
-    for stage in stages:
+    progress = (prompts / "PROGRESS.md").read_text(encoding="utf-8")
+    expected_rows = [str(value) for value in ids]
+    index_dependencies = dict(re.findall(r"^\| (\d+) \| [^|]+ \| ([^|]+) \|$",
+                                         index, flags=re.MULTILINE))
+    for label, content in (("index", index), ("progress", progress)):
+        rows = re.findall(r"^\| (\d+) \|", content, flags=re.MULTILINE)
+        require(rows == expected_rows, label + ": prompt rows do not match numeric sequence")
+    for entry, stage in zip(entries, stages):
+        number = entry.get("id")
+        require(bool(re.fullmatch(r"[1-9]\d*_[a-z0-9_]+\.md", stage.name))
+                and stage.name.split("_", 1)[0] == str(number),
+                "Invalid natural-number prompt filename: " + stage.name)
+        dependencies = entry.get("depends_on", [])
+        expected_dependencies = ", ".join(str(value) for value in dependencies) or "None"
+        require(index_dependencies.get(str(number), "").strip() == expected_dependencies,
+                stage.name + ": index prerequisites differ from sequence")
+        require(len(dependencies) == len(set(dependencies))
+                and all(isinstance(value, int) and value in ids and value < number
+                        for value in dependencies),
+                stage.name + ": dependencies must be distinct earlier prompts")
+        origins = entry.get("source_stages", [])
+        require(bool(origins) and all(value in {"{:02d}".format(n) for n in range(20)}
+                                      for value in origins),
+                stage.name + ": missing or invalid original-stage ownership")
+        source_stages.update(origins)
+        if not stage.is_file():
+            errors.append("Missing numbered prompt: " + stage.name)
+            continue
         content = stage.read_text(encoding="utf-8")
+        require(content.startswith("# Prompt {} ".format(number)),
+                stage.name + ": title must identify the current prompt number")
         require("[COMMON.md](COMMON.md)" in content, stage.name + ": missing recurring contract")
-        require("## Audit" in content, stage.name + ": missing source audit")
-        require("## Verify and exit" in content or "## Exit" in content,
-                stage.name + ": missing acceptance gate")
-        require("## Concrete implementation contract" in content,
-                stage.name + ": missing concrete implementation contract")
-        require("## Documentation and work split" in content,
-                stage.name + ": missing documentation/work split")
-        for contract in ("DOCUMENTATION.md", "MAINTAINABILITY.md", "DELEGATION.md"):
-            require("(" + contract + ")" in content,
+        for heading in ("Objective and boundaries", "Read and audit", "Implement",
+                        "Verify and exit", "Documentation and delegation"):
+            require("## " + heading in content, stage.name + ": missing " + heading)
+        prerequisite = re.search(r"^.*Prerequisites:.*$", content, flags=re.MULTILINE)
+        require(prerequisite is not None, stage.name + ": missing prerequisite line")
+        if prerequisite:
+            targets = re.findall(r"\]\(([^)]+)\)", prerequisite.group())
+            linked_ids = [file_ids[target] for target in targets if target in file_ids]
+            require(sorted(linked_ids) == sorted(dependencies),
+                    stage.name + ": prerequisite links differ from sequence")
+        for contract in ("CONVENTIONS.md", "DOCUMENTATION.md", "MAINTAINABILITY.md",
+                         "DELEGATION.md", "MULTIDRIVE.md"):
+            require(re.search(r"\]\(" + re.escape(contract) + r"(?:#[^)]*)?\)", content),
                     stage.name + ": missing shared contract link " + contract)
-        counts["concrete_stage_contracts"] += int("## Concrete implementation contract" in content)
+        require("docs/reports/prompt_{}.md".format(number) in content,
+                stage.name + ": missing numbered completion report")
+        require(re.search(r"commit\b", content, flags=re.IGNORECASE)
+                and re.search(r"sync\b", content, flags=re.IGNORECASE),
+                stage.name + ": missing commit/sync closure")
+        counts["concrete_stage_contracts"] += int("## Implement" in content)
         require("(" + stage.name + ")" in index, stage.name + ": missing index link")
+    require(source_stages == {"{:02d}".format(n) for n in range(20)},
+            "The split must retain ownership of all original stages 00–19")
+
+    # The harness acquires missing firmware evidence for these settings stages.
+    # Requiring them first would deadlock evidence acquisition even in an acyclic graph.
+    dependencies_by_id = {entry.get("id"): entry.get("depends_on", []) for entry in entries}
+    evidence_ancestors = set()
+    pending = list(dependencies_by_id.get(29, []))
+    while pending:
+        dependency = pending.pop()
+        if dependency in evidence_ancestors:
+            continue
+        evidence_ancestors.add(dependency)
+        pending.extend(dependencies_by_id.get(dependency, []))
+    require(not evidence_ancestors.intersection({18, 20, 21, 22}),
+            "Evidence harness 29 must not depend on firmware-gated remapping/settings 18/20-22")
     matrix = (root / "docs/requirements_matrix.md").read_text(encoding="utf-8")
     requirement_ids = set(re.findall(r"\| (R\d\d) \|", matrix))
     counts["requirements"] = len(requirement_ids)
     require(requirement_ids == {"R{:02d}".format(n) for n in range(1, 36)},
             "Expected R01 through R35 with stage/evidence mapping")
     multidrive = (prompts / "MULTIDRIVE.md").read_text(encoding="utf-8")
-    drive_stages = re.findall(r"^\| (\d\d) \|", multidrive, flags=re.MULTILINE)
+    drive_stages = re.findall(r"^\| (\d+) \|", multidrive, flags=re.MULTILINE)
     counts["multidrive_stage_gates"] = len(drive_stages)
-    require(drive_stages == ["{:02d}".format(n) for n in range(20)],
-            "Expected a multi-drive acceptance gate for each stage")
+    require(drive_stages == expected_rows,
+            "Expected a multi-drive acceptance gate for each numbered prompt")
     require("[MULTIDRIVE.md](MULTIDRIVE.md)" in (prompts / "COMMON.md").read_text(encoding="utf-8"),
             "Common stage contract must incorporate multi-drive requirements")
     require((prompts / "ADD_DRIVE.md").is_file(), "Missing new-drive playbook")

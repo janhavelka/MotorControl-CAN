@@ -315,7 +315,7 @@ object/function has original document/EDS/model/firmware evidence in its ledger.
 Choose a strict Doxygen build for the new library. RS supplies Doxygen-style
 comments but has no root Doxyfile in the inspected checkout; strict generation
 is an intentional addition based on the I2C and FieldCore documentation gates.
-Stage 03 establishes the configuration and local/CI command; later stages keep
+Prompt 8 establishes the configuration and local/CI command; later stages keep
 warnings and broken links at zero. Do not report this future gate as present.
 Keep architecture/user guides, API/CLI coverage and the stage report current,
 with documented/implemented/host-tested/hardware-qualified columns distinct.
@@ -323,7 +323,7 @@ with documented/implemented/host-tested/hardware-qualified columns distinct.
 Use the RS CMake/CTest pattern: explicitly register `test/*_test.cpp` suites,
 keep assertions enabled in Release, compile source and installed consumers in
 C++11, and run actual Python tests through the host verifier. Preserve focused
-fault fixtures; do not test only helper internals. Stage 03 adapts current
+fault fixtures; do not test only helper internals. Prompt 8 adapts current
 `python scripts/verify.py --mode quick --build-dir build/verification` and
 full Arduino/IDF modes into the new repository, with CAN's real gates and pinned
 SDKs. Those commands are RS precedents, not working CAN commands today.

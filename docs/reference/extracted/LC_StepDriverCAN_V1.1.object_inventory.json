@@ -1,0 +1,5703 @@
+{
+  "schema_version": 1,
+  "purpose": "Lossless indexed extraction of vendor EDS fields, not a reviewed firmware object ledger or permission to perform reads/writes. Missing fields remain missing; expressions remain strings.",
+  "source_path": "docs/reference/vendor/LC_StepDriverCAN_V1.1.eds",
+  "source_sha256": "dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c",
+  "source_encoding": "utf-8-sig",
+  "index_and_subindex_radix": 16,
+  "counts": {
+    "object_indexes": 99,
+    "record_headers": 23,
+    "scalar_entries": 202,
+    "scalar_type_counts": {
+      "I16": 1,
+      "I32": 7,
+      "U16": 91,
+      "U32": 61,
+      "U8": 42
+    },
+    "scalar_access_counts": {
+      "RO": 34,
+      "RW": 166,
+      "WO": 2
+    },
+    "scalar_pdo_mapping_counts": {
+      "0": 112,
+      "1": 90
+    },
+    "scalars_without_default": 65
+  },
+  "file_info": {
+    "EDSVersion": "4.0",
+    "FileName": "LC_StepD.eds",
+    "FileVersion": "0x01",
+    "FileRevision": "0x01",
+    "Description": "1",
+    "CreationTime": "09:10 PM",
+    "CreationDate": "12-23-2020",
+    "ModificationTime": "03:52 PM",
+    "ModificationDate": "11-11-2022"
+  },
+  "device_info": {
+    "VendorName": "XLC",
+    "VendorNumber": "0x00001000",
+    "ProductName": "LC_SterDriverCAN",
+    "ProductNumber": "0x00000001",
+    "RevisionNumber": "0x00000000",
+    "BaudRate_10": "0",
+    "BaudRate_20": "0",
+    "BaudRate_50": "1",
+    "BaudRate_125": "1",
+    "BaudRate_250": "1",
+    "BaudRate_500": "1",
+    "BaudRate_800": "0",
+    "BaudRate_1000": "1",
+    "SimpleBootUpMaster": "0",
+    "SimpleBootUpSlave": "1",
+    "Granularity": "0x08",
+    "DynamicChannelsSupported": "0x00000000",
+    "GroupMessaging": "0",
+    "LSS_Supported": "0",
+    "NrOfRXPDO": "4",
+    "NrOfTXPDO": "4",
+    "CompactPDO": "0x00"
+  },
+  "object_lists": {
+    "MandatoryObjects": {
+      "SupportedObjects": "0x0003",
+      "1": "0x1000",
+      "2": "0x1001",
+      "3": "0x1018"
+    },
+    "ManufacturerObjects": {
+      "SupportedObjects": "0x0035",
+      "1": "0x2000",
+      "2": "0x2001",
+      "3": "0x2100",
+      "4": "0x2101",
+      "5": "0x2102",
+      "6": "0x2200",
+      "7": "0x2201",
+      "8": "0x2202",
+      "9": "0x2203",
+      "10": "0x2300",
+      "11": "0x2301",
+      "12": "0x2302",
+      "13": "0x2400",
+      "14": "0x2401",
+      "15": "0x2402",
+      "16": "0x2403",
+      "17": "0x2404",
+      "18": "0x2405",
+      "19": "0x2406",
+      "20": "0x2407",
+      "21": "0x2500",
+      "22": "0x2501",
+      "23": "0x2502",
+      "24": "0x2503",
+      "25": "0x2504",
+      "26": "0x2505",
+      "27": "0x2506",
+      "28": "0x2507",
+      "29": "0x2508",
+      "30": "0x2509",
+      "31": "0x250A",
+      "32": "0x250B",
+      "33": "0x250C",
+      "34": "0x250D",
+      "35": "0x250E",
+      "36": "0x250F",
+      "37": "0x2510",
+      "38": "0x2511",
+      "39": "0x2512",
+      "40": "0x2513",
+      "41": "0x2514",
+      "42": "0x2515",
+      "43": "0x2516",
+      "44": "0x2517",
+      "45": "0x2518",
+      "46": "0x2519",
+      "47": "0x251A",
+      "48": "0x251B",
+      "49": "0x251C",
+      "50": "0x251D",
+      "51": "0x251E",
+      "52": "0x251F",
+      "53": "0x2520"
+    },
+    "OptionalObjects": {
+      "SupportedObjects": "0x002B",
+      "1": "0x1003",
+      "2": "0x1005",
+      "3": "0x1009",
+      "4": "0x100A",
+      "5": "0x1014",
+      "6": "0x1017",
+      "7": "0x1200",
+      "8": "0x1400",
+      "9": "0x1401",
+      "10": "0x1402",
+      "11": "0x1403",
+      "12": "0x1600",
+      "13": "0x1601",
+      "14": "0x1602",
+      "15": "0x1603",
+      "16": "0x1800",
+      "17": "0x1801",
+      "18": "0x1802",
+      "19": "0x1803",
+      "20": "0x1A00",
+      "21": "0x1A01",
+      "22": "0x1A02",
+      "23": "0x1A03",
+      "24": "0x603F",
+      "25": "0x6040",
+      "26": "0x6041",
+      "27": "0x605D",
+      "28": "0x6060",
+      "29": "0x6061",
+      "30": "0x6064",
+      "31": "0x606C",
+      "32": "0x607A",
+      "33": "0x607C",
+      "34": "0x607D",
+      "35": "0x6081",
+      "36": "0x6083",
+      "37": "0x6084",
+      "38": "0x6098",
+      "39": "0x6099",
+      "40": "0x609A",
+      "41": "0x60FD",
+      "42": "0x60FE",
+      "43": "0x60FF"
+    }
+  },
+  "object_headers": [
+    {
+      "section": "1000",
+      "source_line_start": 158,
+      "source_line_end": 166,
+      "index": 4096,
+      "index_hex": "0x1000",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Device Type",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x40192"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1001",
+      "source_line_start": 167,
+      "source_line_end": 175,
+      "index": 4097,
+      "index_hex": "0x1001",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Error Register",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1003",
+      "source_line_start": 176,
+      "source_line_end": 181,
+      "index": 4099,
+      "index_hex": "0x1003",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Pre-defined Error Field",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1005",
+      "source_line_start": 225,
+      "source_line_end": 233,
+      "index": 4101,
+      "index_hex": "0x1005",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "SYNC COB ID",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x80"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1009",
+      "source_line_start": 234,
+      "source_line_end": 242,
+      "index": 4105,
+      "index_hex": "0x1009",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "hardware version",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x2608"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "100A",
+      "source_line_start": 243,
+      "source_line_end": 251,
+      "index": 4106,
+      "index_hex": "0x100A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "software version",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1014",
+      "source_line_start": 252,
+      "source_line_end": 260,
+      "index": 4116,
+      "index_hex": "0x1014",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Emergency COB ID",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x80"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1017",
+      "source_line_start": 261,
+      "source_line_end": 269,
+      "index": 4119,
+      "index_hex": "0x1017",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Producer Heartbeat Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1018",
+      "source_line_start": 270,
+      "source_line_end": 275,
+      "index": 4120,
+      "index_hex": "0x1018",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x04",
+        "ParameterName": "Identity Object",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1200",
+      "source_line_start": 314,
+      "source_line_end": 319,
+      "index": 4608,
+      "index_hex": "0x1200",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x03",
+        "ParameterName": "Server SDO Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1400",
+      "source_line_start": 347,
+      "source_line_end": 352,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Receive PDO 1 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1401",
+      "source_line_start": 407,
+      "source_line_end": 412,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Receive PDO 2 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1402",
+      "source_line_start": 467,
+      "source_line_end": 472,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Receive PDO 3 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1403",
+      "source_line_start": 527,
+      "source_line_end": 532,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Receive PDO 4 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1600",
+      "source_line_start": 587,
+      "source_line_end": 592,
+      "index": 5632,
+      "index_hex": "0x1600",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Receive PDO 1 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1601",
+      "source_line_start": 639,
+      "source_line_end": 644,
+      "index": 5633,
+      "index_hex": "0x1601",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Receive PDO 2 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1602",
+      "source_line_start": 690,
+      "source_line_end": 695,
+      "index": 5634,
+      "index_hex": "0x1602",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Receive PDO 3 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1603",
+      "source_line_start": 739,
+      "source_line_end": 744,
+      "index": 5635,
+      "index_hex": "0x1603",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Receive PDO 4 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1800",
+      "source_line_start": 788,
+      "source_line_end": 793,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Transmit PDO 1 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1801",
+      "source_line_start": 848,
+      "source_line_end": 853,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Transmit PDO 2 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1802",
+      "source_line_start": 908,
+      "source_line_end": 913,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Transmit PDO 3 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1803",
+      "source_line_start": 968,
+      "source_line_end": 973,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x06",
+        "ParameterName": "Transmit PDO 4 Parameter",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1A00",
+      "source_line_start": 1028,
+      "source_line_end": 1033,
+      "index": 6656,
+      "index_hex": "0x1A00",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Transmit PDO 1 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1A01",
+      "source_line_start": 1080,
+      "source_line_end": 1085,
+      "index": 6657,
+      "index_hex": "0x1A01",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Transmit PDO 2 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1A02",
+      "source_line_start": 1131,
+      "source_line_end": 1136,
+      "index": 6658,
+      "index_hex": "0x1A02",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Transmit PDO 3 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "1A03",
+      "source_line_start": 1180,
+      "source_line_end": 1185,
+      "index": 6659,
+      "index_hex": "0x1A03",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x05",
+        "ParameterName": "Transmit PDO 4 Mapping",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "2000",
+      "source_line_start": 1229,
+      "source_line_end": 1237,
+      "index": 8192,
+      "index_hex": "0x2000",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.driverID",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2001",
+      "source_line_start": 1238,
+      "source_line_end": 1246,
+      "index": 8193,
+      "index_hex": "0x2001",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.softversion",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2100",
+      "source_line_start": 1247,
+      "source_line_end": 1255,
+      "index": 8448,
+      "index_hex": "0x2100",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.MonitorWord",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "8"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2101",
+      "source_line_start": 1256,
+      "source_line_end": 1264,
+      "index": 8449,
+      "index_hex": "0x2101",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DiStatus",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2102",
+      "source_line_start": 1265,
+      "source_line_end": 1273,
+      "index": 8450,
+      "index_hex": "0x2102",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DoStatus",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2200",
+      "source_line_start": 1274,
+      "source_line_end": 1282,
+      "index": 8704,
+      "index_hex": "0x2200",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DefautDir",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2201",
+      "source_line_start": 1283,
+      "source_line_end": 1291,
+      "index": 8705,
+      "index_hex": "0x2201",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.MicDivide",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2202",
+      "source_line_start": 1292,
+      "source_line_end": 1300,
+      "index": 8706,
+      "index_hex": "0x2202",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Soft_Limit",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "10"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2203",
+      "source_line_start": 1301,
+      "source_line_end": 1309,
+      "index": 8707,
+      "index_hex": "0x2203",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.CAN_ID",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2300",
+      "source_line_start": 1310,
+      "source_line_end": 1318,
+      "index": 8960,
+      "index_hex": "0x2300",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.FactoryPara",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2301",
+      "source_line_start": 1319,
+      "source_line_end": 1327,
+      "index": 8961,
+      "index_hex": "0x2301",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClearAlm",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2302",
+      "source_line_start": 1328,
+      "source_line_end": 1336,
+      "index": 8962,
+      "index_hex": "0x2302",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClearPos",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400",
+      "source_line_start": 1337,
+      "source_line_end": 1342,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x11",
+        "ParameterName": "Obj.DiDo",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "2401",
+      "source_line_start": 1496,
+      "source_line_end": 1504,
+      "index": 9217,
+      "index_hex": "0x2401",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di0Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "50"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2402",
+      "source_line_start": 1505,
+      "source_line_end": 1513,
+      "index": 9218,
+      "index_hex": "0x2402",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di1Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "40"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2403",
+      "source_line_start": 1514,
+      "source_line_end": 1522,
+      "index": 9219,
+      "index_hex": "0x2403",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di2Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2404",
+      "source_line_start": 1523,
+      "source_line_end": 1531,
+      "index": 9220,
+      "index_hex": "0x2404",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di3Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "4000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2405",
+      "source_line_start": 1532,
+      "source_line_end": 1540,
+      "index": 9221,
+      "index_hex": "0x2405",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di4Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "10"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2406",
+      "source_line_start": 1541,
+      "source_line_end": 1549,
+      "index": 9222,
+      "index_hex": "0x2406",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di5Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "2"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2407",
+      "source_line_start": 1550,
+      "source_line_end": 1558,
+      "index": 9223,
+      "index_hex": "0x2407",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di6Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "16"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2500",
+      "source_line_start": 1559,
+      "source_line_end": 1566,
+      "index": 9472,
+      "index_hex": "0x2500",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DrvMode",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2501",
+      "source_line_start": 1567,
+      "source_line_end": 1574,
+      "index": 9473,
+      "index_hex": "0x2501",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Encoder",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2502",
+      "source_line_start": 1575,
+      "source_line_end": 1582,
+      "index": 9474,
+      "index_hex": "0x2502",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Maxcurrent",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2503",
+      "source_line_start": 1583,
+      "source_line_end": 1590,
+      "index": 9475,
+      "index_hex": "0x2503",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClMaxCper",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2504",
+      "source_line_start": 1591,
+      "source_line_end": 1598,
+      "index": 9476,
+      "index_hex": "0x2504",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClbasCper",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2505",
+      "source_line_start": 1599,
+      "source_line_end": 1606,
+      "index": 9477,
+      "index_hex": "0x2505",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.OlMaxCper",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2506",
+      "source_line_start": 1607,
+      "source_line_end": 1614,
+      "index": 9478,
+      "index_hex": "0x2506",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.suo_per",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2507",
+      "source_line_start": 1615,
+      "source_line_end": 1622,
+      "index": 9479,
+      "index_hex": "0x2507",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.suo_time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2508",
+      "source_line_start": 1623,
+      "source_line_end": 1630,
+      "index": 9480,
+      "index_hex": "0x2508",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Filtable",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2509",
+      "source_line_start": 1631,
+      "source_line_end": 1638,
+      "index": 9481,
+      "index_hex": "0x2509",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Filtratio",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250A",
+      "source_line_start": 1639,
+      "source_line_end": 1646,
+      "index": 9482,
+      "index_hex": "0x250A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.PosAlrm",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250B",
+      "source_line_start": 1647,
+      "source_line_end": 1654,
+      "index": 9483,
+      "index_hex": "0x250B",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.PosError",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250C",
+      "source_line_start": 1655,
+      "source_line_end": 1662,
+      "index": 9484,
+      "index_hex": "0x250C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.PosinTime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250D",
+      "source_line_start": 1663,
+      "source_line_end": 1670,
+      "index": 9485,
+      "index_hex": "0x250D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj..AvrFiltime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250E",
+      "source_line_start": 1671,
+      "source_line_end": 1678,
+      "index": 9486,
+      "index_hex": "0x250E",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.kpscale",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250F",
+      "source_line_start": 1679,
+      "source_line_end": 1686,
+      "index": 9487,
+      "index_hex": "0x250F",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.kp",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2510",
+      "source_line_start": 1687,
+      "source_line_end": 1694,
+      "index": 9488,
+      "index_hex": "0x2510",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ki",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2511",
+      "source_line_start": 1695,
+      "source_line_end": 1702,
+      "index": 9489,
+      "index_hex": "0x2511",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.kc",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2512",
+      "source_line_start": 1703,
+      "source_line_end": 1710,
+      "index": 9490,
+      "index_hex": "0x2512",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kp1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2513",
+      "source_line_start": 1711,
+      "source_line_end": 1718,
+      "index": 9491,
+      "index_hex": "0x2513",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kv1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2514",
+      "source_line_start": 1719,
+      "source_line_end": 1726,
+      "index": 9492,
+      "index_hex": "0x2514",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_spd1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2515",
+      "source_line_start": 1727,
+      "source_line_end": 1734,
+      "index": 9493,
+      "index_hex": "0x2515",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kp2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2516",
+      "source_line_start": 1735,
+      "source_line_end": 1742,
+      "index": 9494,
+      "index_hex": "0x2516",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kv2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2517",
+      "source_line_start": 1743,
+      "source_line_end": 1750,
+      "index": 9495,
+      "index_hex": "0x2517",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_spd2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2518",
+      "source_line_start": 1751,
+      "source_line_end": 1758,
+      "index": 9496,
+      "index_hex": "0x2518",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kvff",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2519",
+      "source_line_start": 1759,
+      "source_line_end": 1766,
+      "index": 9497,
+      "index_hex": "0x2519",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_ki",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251A",
+      "source_line_start": 1767,
+      "source_line_end": 1774,
+      "index": 9498,
+      "index_hex": "0x251A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kp",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251B",
+      "source_line_start": 1775,
+      "source_line_end": 1782,
+      "index": 9499,
+      "index_hex": "0x251B",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_ki",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251C",
+      "source_line_start": 1783,
+      "source_line_end": 1790,
+      "index": 9500,
+      "index_hex": "0x251C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kc",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251D",
+      "source_line_start": 1791,
+      "source_line_end": 1798,
+      "index": 9501,
+      "index_hex": "0x251D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kvfbd1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251E",
+      "source_line_start": 1799,
+      "source_line_end": 1806,
+      "index": 9502,
+      "index_hex": "0x251E",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kvfbd2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251F",
+      "source_line_start": 1807,
+      "source_line_end": 1814,
+      "index": 9503,
+      "index_hex": "0x251F",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kvff",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2520",
+      "source_line_start": 1815,
+      "source_line_end": 1822,
+      "index": 9504,
+      "index_hex": "0x2520",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kacff",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "603F",
+      "source_line_start": 1823,
+      "source_line_end": 1831,
+      "index": 24639,
+      "index_hex": "0x603F",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "DSP Error Code",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "6040",
+      "source_line_start": 1832,
+      "source_line_end": 1840,
+      "index": 24640,
+      "index_hex": "0x6040",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "ControlWord",
+        "ObjectType": "7",
+        "AccessType": "WO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "6041",
+      "source_line_start": 1841,
+      "source_line_end": 1849,
+      "index": 24641,
+      "index_hex": "0x6041",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "StatusWord",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "605D",
+      "source_line_start": 1850,
+      "source_line_end": 1858,
+      "index": 24669,
+      "index_hex": "0x605D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Halt option code",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0003",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1"
+      },
+      "type_name": "I16",
+      "width_bytes": 2
+    },
+    {
+      "section": "6060",
+      "source_line_start": 1859,
+      "source_line_end": 1867,
+      "index": 24672,
+      "index_hex": "0x6060",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Mode of operation",
+        "ObjectType": "7",
+        "AccessType": "WO",
+        "DataType": "0x0005",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6061",
+      "source_line_start": 1868,
+      "source_line_end": 1876,
+      "index": 24673,
+      "index_hex": "0x6061",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Mode of operation display",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6064",
+      "source_line_start": 1877,
+      "source_line_end": 1885,
+      "index": 24676,
+      "index_hex": "0x6064",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "actual position",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "606C",
+      "source_line_start": 1886,
+      "source_line_end": 1893,
+      "index": 24684,
+      "index_hex": "0x606C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "actual speed",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607A",
+      "source_line_start": 1894,
+      "source_line_end": 1902,
+      "index": 24698,
+      "index_hex": "0x607A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "target position",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5000"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607C",
+      "source_line_start": 1903,
+      "source_line_end": 1911,
+      "index": 24700,
+      "index_hex": "0x607C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "home offset",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607D",
+      "source_line_start": 1912,
+      "source_line_end": 1917,
+      "index": 24701,
+      "index_hex": "0x607D",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x03",
+        "ParameterName": "Soft Limit",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "6081",
+      "source_line_start": 1943,
+      "source_line_end": 1951,
+      "index": 24705,
+      "index_hex": "0x6081",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "posmode speed",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "60"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6083",
+      "source_line_start": 1952,
+      "source_line_end": 1960,
+      "index": 24707,
+      "index_hex": "0x6083",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "accel time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6084",
+      "source_line_start": 1961,
+      "source_line_end": 1969,
+      "index": 24708,
+      "index_hex": "0x6084",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "decel time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6098",
+      "source_line_start": 1970,
+      "source_line_end": 1978,
+      "index": 24728,
+      "index_hex": "0x6098",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "homing method",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6099",
+      "source_line_start": 1979,
+      "source_line_end": 1984,
+      "index": 24729,
+      "index_hex": "0x6099",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x03",
+        "ParameterName": "homing speed/search speed",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "609A",
+      "source_line_start": 2012,
+      "source_line_end": 2020,
+      "index": 24730,
+      "index_hex": "0x609A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "homing accel/decel time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "60FD",
+      "source_line_start": 2021,
+      "source_line_end": 2028,
+      "index": 24829,
+      "index_hex": "0x60FD",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Digital inputs",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "60FE",
+      "source_line_start": 2029,
+      "source_line_end": 2034,
+      "index": 24830,
+      "index_hex": "0x60FE",
+      "subindex": null,
+      "fields": {
+        "SubNumber": "0x03",
+        "ParameterName": "Digital Outputs",
+        "ObjectType": "9",
+        "ObjFlags": "0x00000000"
+      }
+    },
+    {
+      "section": "60FF",
+      "source_line_start": 2060,
+      "source_line_end": 2068,
+      "index": 24831,
+      "index_hex": "0x60FF",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "velocity speed",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "120"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    }
+  ],
+  "scalar_entries": [
+    {
+      "section": "1000",
+      "source_line_start": 158,
+      "source_line_end": 166,
+      "index": 4096,
+      "index_hex": "0x1000",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Device Type",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x40192"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1001",
+      "source_line_start": 167,
+      "source_line_end": 175,
+      "index": 4097,
+      "index_hex": "0x1001",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Error Register",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1003sub0",
+      "source_line_start": 182,
+      "source_line_end": 192,
+      "index": 4099,
+      "index_hex": "0x1003",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1003sub1",
+      "source_line_start": 193,
+      "source_line_end": 200,
+      "index": 4099,
+      "index_hex": "0x1003",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Pre-defined Error Field_sub1",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1003sub2",
+      "source_line_start": 201,
+      "source_line_end": 208,
+      "index": 4099,
+      "index_hex": "0x1003",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Pre-defined Error Field_sub2",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1003sub3",
+      "source_line_start": 209,
+      "source_line_end": 216,
+      "index": 4099,
+      "index_hex": "0x1003",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Pre-defined Error Field_sub3",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1003sub4",
+      "source_line_start": 217,
+      "source_line_end": 224,
+      "index": 4099,
+      "index_hex": "0x1003",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Pre-defined Error Field_sub4",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1005",
+      "source_line_start": 225,
+      "source_line_end": 233,
+      "index": 4101,
+      "index_hex": "0x1005",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "SYNC COB ID",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x80"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1009",
+      "source_line_start": 234,
+      "source_line_end": 242,
+      "index": 4105,
+      "index_hex": "0x1009",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "hardware version",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x2608"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "100A",
+      "source_line_start": 243,
+      "source_line_end": 251,
+      "index": 4106,
+      "index_hex": "0x100A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "software version",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1014",
+      "source_line_start": 252,
+      "source_line_end": 260,
+      "index": 4116,
+      "index_hex": "0x1014",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Emergency COB ID",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x80"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1017",
+      "source_line_start": 261,
+      "source_line_end": 269,
+      "index": 4119,
+      "index_hex": "0x1017",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Producer Heartbeat Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1018sub0",
+      "source_line_start": 276,
+      "source_line_end": 286,
+      "index": 4120,
+      "index_hex": "0x1018",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "number of entries",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "1",
+        "HighLimit": "4",
+        "DefaultValue": "3"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1018sub1",
+      "source_line_start": 287,
+      "source_line_end": 295,
+      "index": 4120,
+      "index_hex": "0x1018",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Vendor ID",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x00001000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1018sub2",
+      "source_line_start": 296,
+      "source_line_end": 304,
+      "index": 4120,
+      "index_hex": "0x1018",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Product code",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x00000001"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1018sub3",
+      "source_line_start": 305,
+      "source_line_end": 313,
+      "index": 4120,
+      "index_hex": "0x1018",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Revision number",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1200sub0",
+      "source_line_start": 320,
+      "source_line_end": 328,
+      "index": 4608,
+      "index_hex": "0x1200",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "2"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1200sub1",
+      "source_line_start": 329,
+      "source_line_end": 337,
+      "index": 4608,
+      "index_hex": "0x1200",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB ID Client to Server",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x600"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1200sub2",
+      "source_line_start": 338,
+      "source_line_end": 346,
+      "index": 4608,
+      "index_hex": "0x1200",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "COB ID Server to Client",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x580"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1400sub0",
+      "source_line_start": 353,
+      "source_line_end": 361,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1400sub1",
+      "source_line_start": 362,
+      "source_line_end": 370,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by RPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x200"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1400sub2",
+      "source_line_start": 371,
+      "source_line_end": 379,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1400sub3",
+      "source_line_start": 380,
+      "source_line_end": 388,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1400sub4",
+      "source_line_start": 389,
+      "source_line_end": 397,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1400sub5",
+      "source_line_start": 398,
+      "source_line_end": 406,
+      "index": 5120,
+      "index_hex": "0x1400",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1401sub0",
+      "source_line_start": 413,
+      "source_line_end": 421,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1401sub1",
+      "source_line_start": 422,
+      "source_line_end": 430,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by RPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x300"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1401sub2",
+      "source_line_start": 431,
+      "source_line_end": 439,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1401sub3",
+      "source_line_start": 440,
+      "source_line_end": 448,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1401sub4",
+      "source_line_start": 449,
+      "source_line_end": 457,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1401sub5",
+      "source_line_start": 458,
+      "source_line_end": 466,
+      "index": 5121,
+      "index_hex": "0x1401",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1402sub0",
+      "source_line_start": 473,
+      "source_line_end": 481,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1402sub1",
+      "source_line_start": 482,
+      "source_line_end": 490,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by RPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x400"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1402sub2",
+      "source_line_start": 491,
+      "source_line_end": 499,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1402sub3",
+      "source_line_start": 500,
+      "source_line_end": 508,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1402sub4",
+      "source_line_start": 509,
+      "source_line_end": 517,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1402sub5",
+      "source_line_start": 518,
+      "source_line_end": 526,
+      "index": 5122,
+      "index_hex": "0x1402",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1403sub0",
+      "source_line_start": 533,
+      "source_line_end": 541,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1403sub1",
+      "source_line_start": 542,
+      "source_line_end": 550,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by RPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x500"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1403sub2",
+      "source_line_start": 551,
+      "source_line_end": 559,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1403sub3",
+      "source_line_start": 560,
+      "source_line_end": 568,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1403sub4",
+      "source_line_start": 569,
+      "source_line_end": 577,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1403sub5",
+      "source_line_start": 578,
+      "source_line_end": 586,
+      "index": 5123,
+      "index_hex": "0x1403",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1600sub0",
+      "source_line_start": 593,
+      "source_line_end": 603,
+      "index": 5632,
+      "index_hex": "0x1600",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "3"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1600sub1",
+      "source_line_start": 604,
+      "source_line_end": 612,
+      "index": 5632,
+      "index_hex": "0x1600",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1600_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60400010"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1600sub2",
+      "source_line_start": 613,
+      "source_line_end": 621,
+      "index": 5632,
+      "index_hex": "0x1600",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1600_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60ff0020"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1600sub3",
+      "source_line_start": 622,
+      "source_line_end": 630,
+      "index": 5632,
+      "index_hex": "0x1600",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1600_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60600008"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1600sub4",
+      "source_line_start": 631,
+      "source_line_end": 638,
+      "index": 5632,
+      "index_hex": "0x1600",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1600_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1601sub0",
+      "source_line_start": 645,
+      "source_line_end": 655,
+      "index": 5633,
+      "index_hex": "0x1601",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "2"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1601sub1",
+      "source_line_start": 656,
+      "source_line_end": 664,
+      "index": 5633,
+      "index_hex": "0x1601",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1601_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x607a0020"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1601sub2",
+      "source_line_start": 665,
+      "source_line_end": 673,
+      "index": 5633,
+      "index_hex": "0x1601",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1601_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60810020"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1601sub3",
+      "source_line_start": 674,
+      "source_line_end": 681,
+      "index": 5633,
+      "index_hex": "0x1601",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1601_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1601sub4",
+      "source_line_start": 682,
+      "source_line_end": 689,
+      "index": 5633,
+      "index_hex": "0x1601",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1601_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1602sub0",
+      "source_line_start": 696,
+      "source_line_end": 706,
+      "index": 5634,
+      "index_hex": "0x1602",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1602sub1",
+      "source_line_start": 707,
+      "source_line_end": 714,
+      "index": 5634,
+      "index_hex": "0x1602",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1602_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1602sub2",
+      "source_line_start": 715,
+      "source_line_end": 722,
+      "index": 5634,
+      "index_hex": "0x1602",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1602_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1602sub3",
+      "source_line_start": 723,
+      "source_line_end": 730,
+      "index": 5634,
+      "index_hex": "0x1602",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1602_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1602sub4",
+      "source_line_start": 731,
+      "source_line_end": 738,
+      "index": 5634,
+      "index_hex": "0x1602",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1602_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1603sub0",
+      "source_line_start": 745,
+      "source_line_end": 755,
+      "index": 5635,
+      "index_hex": "0x1603",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1603sub1",
+      "source_line_start": 756,
+      "source_line_end": 763,
+      "index": 5635,
+      "index_hex": "0x1603",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1603_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1603sub2",
+      "source_line_start": 764,
+      "source_line_end": 771,
+      "index": 5635,
+      "index_hex": "0x1603",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1603_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1603sub3",
+      "source_line_start": 772,
+      "source_line_end": 779,
+      "index": 5635,
+      "index_hex": "0x1603",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1603_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1603sub4",
+      "source_line_start": 780,
+      "source_line_end": 787,
+      "index": 5635,
+      "index_hex": "0x1603",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1603_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1800sub0",
+      "source_line_start": 794,
+      "source_line_end": 802,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1800sub1",
+      "source_line_start": 803,
+      "source_line_end": 811,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by TPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x180"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1800sub2",
+      "source_line_start": 812,
+      "source_line_end": 820,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1800sub3",
+      "source_line_start": 821,
+      "source_line_end": 829,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1800sub4",
+      "source_line_start": 830,
+      "source_line_end": 838,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1800sub5",
+      "source_line_start": 839,
+      "source_line_end": 847,
+      "index": 6144,
+      "index_hex": "0x1800",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1801sub0",
+      "source_line_start": 854,
+      "source_line_end": 862,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1801sub1",
+      "source_line_start": 863,
+      "source_line_end": 871,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by TPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x280"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1801sub2",
+      "source_line_start": 872,
+      "source_line_end": 880,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1801sub3",
+      "source_line_start": 881,
+      "source_line_end": 889,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1801sub4",
+      "source_line_start": 890,
+      "source_line_end": 898,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1801sub5",
+      "source_line_start": 899,
+      "source_line_end": 907,
+      "index": 6145,
+      "index_hex": "0x1801",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1802sub0",
+      "source_line_start": 914,
+      "source_line_end": 922,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1802sub1",
+      "source_line_start": 923,
+      "source_line_end": 931,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by TPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x380"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1802sub2",
+      "source_line_start": 932,
+      "source_line_end": 940,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1802sub3",
+      "source_line_start": 941,
+      "source_line_end": 949,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1802sub4",
+      "source_line_start": 950,
+      "source_line_end": 958,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1802sub5",
+      "source_line_start": 959,
+      "source_line_end": 967,
+      "index": 6146,
+      "index_hex": "0x1802",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1803sub0",
+      "source_line_start": 974,
+      "source_line_end": 982,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1803sub1",
+      "source_line_start": 983,
+      "source_line_end": 991,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "COB-ID used by TPDO",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "$NODEID+0x480"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1803sub2",
+      "source_line_start": 992,
+      "source_line_end": 1000,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Transmission Type",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "255"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1803sub3",
+      "source_line_start": 1001,
+      "source_line_end": 1009,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Inhibit Time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1803sub4",
+      "source_line_start": 1010,
+      "source_line_end": 1018,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Compatibility Entry",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1803sub5",
+      "source_line_start": 1019,
+      "source_line_end": 1027,
+      "index": 6147,
+      "index_hex": "0x1803",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Event Timer",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "1A00sub0",
+      "source_line_start": 1034,
+      "source_line_end": 1044,
+      "index": 6656,
+      "index_hex": "0x1A00",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "3"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1A00sub1",
+      "source_line_start": 1045,
+      "source_line_end": 1053,
+      "index": 6656,
+      "index_hex": "0x1A00",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1A00_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60410010"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A00sub2",
+      "source_line_start": 1054,
+      "source_line_end": 1062,
+      "index": 6656,
+      "index_hex": "0x1A00",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1A00_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60fd0020"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A00sub3",
+      "source_line_start": 1063,
+      "source_line_end": 1071,
+      "index": 6656,
+      "index_hex": "0x1A00",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1A00_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60610008"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A00sub4",
+      "source_line_start": 1072,
+      "source_line_end": 1079,
+      "index": 6656,
+      "index_hex": "0x1A00",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1A00_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A01sub0",
+      "source_line_start": 1086,
+      "source_line_end": 1096,
+      "index": 6657,
+      "index_hex": "0x1A01",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "2"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1A01sub1",
+      "source_line_start": 1097,
+      "source_line_end": 1105,
+      "index": 6657,
+      "index_hex": "0x1A01",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1A01_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x60640020"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A01sub2",
+      "source_line_start": 1106,
+      "source_line_end": 1114,
+      "index": 6657,
+      "index_hex": "0x1A01",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1A01_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0x606c0020"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A01sub3",
+      "source_line_start": 1115,
+      "source_line_end": 1122,
+      "index": 6657,
+      "index_hex": "0x1A01",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1A01_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A01sub4",
+      "source_line_start": 1123,
+      "source_line_end": 1130,
+      "index": 6657,
+      "index_hex": "0x1A01",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1A01_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A02sub0",
+      "source_line_start": 1137,
+      "source_line_end": 1147,
+      "index": 6658,
+      "index_hex": "0x1A02",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1A02sub1",
+      "source_line_start": 1148,
+      "source_line_end": 1155,
+      "index": 6658,
+      "index_hex": "0x1A02",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1A02_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A02sub2",
+      "source_line_start": 1156,
+      "source_line_end": 1163,
+      "index": 6658,
+      "index_hex": "0x1A02",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1A02_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A02sub3",
+      "source_line_start": 1164,
+      "source_line_end": 1171,
+      "index": 6658,
+      "index_hex": "0x1A02",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1A02_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A02sub4",
+      "source_line_start": 1172,
+      "source_line_end": 1179,
+      "index": 6658,
+      "index_hex": "0x1A02",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1A02_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A03sub0",
+      "source_line_start": 1186,
+      "source_line_end": 1196,
+      "index": 6659,
+      "index_hex": "0x1A03",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "LowLimit": "0",
+        "HighLimit": "4",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "1A03sub1",
+      "source_line_start": 1197,
+      "source_line_end": 1204,
+      "index": 6659,
+      "index_hex": "0x1A03",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Object 1A03_sub1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A03sub2",
+      "source_line_start": 1205,
+      "source_line_end": 1212,
+      "index": 6659,
+      "index_hex": "0x1A03",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Object 1A03_sub2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A03sub3",
+      "source_line_start": 1213,
+      "source_line_end": 1220,
+      "index": 6659,
+      "index_hex": "0x1A03",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Object 1A03_sub3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "1A03sub4",
+      "source_line_start": 1221,
+      "source_line_end": 1228,
+      "index": 6659,
+      "index_hex": "0x1A03",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Object 1A03_sub4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "2000",
+      "source_line_start": 1229,
+      "source_line_end": 1237,
+      "index": 8192,
+      "index_hex": "0x2000",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.driverID",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2001",
+      "source_line_start": 1238,
+      "source_line_end": 1246,
+      "index": 8193,
+      "index_hex": "0x2001",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.softversion",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2100",
+      "source_line_start": 1247,
+      "source_line_end": 1255,
+      "index": 8448,
+      "index_hex": "0x2100",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.MonitorWord",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "8"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2101",
+      "source_line_start": 1256,
+      "source_line_end": 1264,
+      "index": 8449,
+      "index_hex": "0x2101",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DiStatus",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2102",
+      "source_line_start": 1265,
+      "source_line_end": 1273,
+      "index": 8450,
+      "index_hex": "0x2102",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DoStatus",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2200",
+      "source_line_start": 1274,
+      "source_line_end": 1282,
+      "index": 8704,
+      "index_hex": "0x2200",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DefautDir",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2201",
+      "source_line_start": 1283,
+      "source_line_end": 1291,
+      "index": 8705,
+      "index_hex": "0x2201",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.MicDivide",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2202",
+      "source_line_start": 1292,
+      "source_line_end": 1300,
+      "index": 8706,
+      "index_hex": "0x2202",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Soft_Limit",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "10"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2203",
+      "source_line_start": 1301,
+      "source_line_end": 1309,
+      "index": 8707,
+      "index_hex": "0x2203",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.CAN_ID",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2300",
+      "source_line_start": 1310,
+      "source_line_end": 1318,
+      "index": 8960,
+      "index_hex": "0x2300",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.FactoryPara",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2301",
+      "source_line_start": 1319,
+      "source_line_end": 1327,
+      "index": 8961,
+      "index_hex": "0x2301",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClearAlm",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2302",
+      "source_line_start": 1328,
+      "source_line_end": 1336,
+      "index": 8962,
+      "index_hex": "0x2302",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClearPos",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub0",
+      "source_line_start": 1343,
+      "source_line_end": 1351,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "16"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub1",
+      "source_line_start": 1352,
+      "source_line_end": 1360,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Obj.Dilevel",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub2",
+      "source_line_start": 1361,
+      "source_line_end": 1369,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Obj.Di0",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub3",
+      "source_line_start": 1370,
+      "source_line_end": 1378,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 3,
+      "fields": {
+        "ParameterName": "Obj.Di1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub4",
+      "source_line_start": 1379,
+      "source_line_end": 1387,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 4,
+      "fields": {
+        "ParameterName": "Obj.Di2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub5",
+      "source_line_start": 1388,
+      "source_line_end": 1396,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 5,
+      "fields": {
+        "ParameterName": "Obj.Di3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub6",
+      "source_line_start": 1397,
+      "source_line_end": 1405,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 6,
+      "fields": {
+        "ParameterName": "Obj.Di4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub7",
+      "source_line_start": 1406,
+      "source_line_end": 1414,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 7,
+      "fields": {
+        "ParameterName": "Obj.Di5",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub8",
+      "source_line_start": 1415,
+      "source_line_end": 1423,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 8,
+      "fields": {
+        "ParameterName": "Obj.Di6",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub9",
+      "source_line_start": 1424,
+      "source_line_end": 1432,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 9,
+      "fields": {
+        "ParameterName": "rsvd1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400subA",
+      "source_line_start": 1433,
+      "source_line_end": 1441,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 10,
+      "fields": {
+        "ParameterName": "rsvd2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400subB",
+      "source_line_start": 1442,
+      "source_line_end": 1450,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 11,
+      "fields": {
+        "ParameterName": "rsvd3",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400subC",
+      "source_line_start": 1451,
+      "source_line_end": 1459,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 12,
+      "fields": {
+        "ParameterName": "Obj.Dolevel",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400subD",
+      "source_line_start": 1460,
+      "source_line_end": 1468,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 13,
+      "fields": {
+        "ParameterName": "Obj.Do0",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400subE",
+      "source_line_start": 1469,
+      "source_line_end": 1477,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 14,
+      "fields": {
+        "ParameterName": "Obj.Do1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400subF",
+      "source_line_start": 1478,
+      "source_line_end": 1486,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 15,
+      "fields": {
+        "ParameterName": "Obj.Do2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2400sub10",
+      "source_line_start": 1487,
+      "source_line_end": 1495,
+      "index": 9216,
+      "index_hex": "0x2400",
+      "subindex": 16,
+      "fields": {
+        "ParameterName": "rsvd4",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2401",
+      "source_line_start": 1496,
+      "source_line_end": 1504,
+      "index": 9217,
+      "index_hex": "0x2401",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di0Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "50"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2402",
+      "source_line_start": 1505,
+      "source_line_end": 1513,
+      "index": 9218,
+      "index_hex": "0x2402",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di1Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "40"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2403",
+      "source_line_start": 1514,
+      "source_line_end": 1522,
+      "index": 9219,
+      "index_hex": "0x2403",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di2Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2404",
+      "source_line_start": 1523,
+      "source_line_end": 1531,
+      "index": 9220,
+      "index_hex": "0x2404",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di3Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "4000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2405",
+      "source_line_start": 1532,
+      "source_line_end": 1540,
+      "index": 9221,
+      "index_hex": "0x2405",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di4Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "10"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2406",
+      "source_line_start": 1541,
+      "source_line_end": 1549,
+      "index": 9222,
+      "index_hex": "0x2406",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di5Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "2"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2407",
+      "source_line_start": 1550,
+      "source_line_end": 1558,
+      "index": 9223,
+      "index_hex": "0x2407",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Di6Filtime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "16"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2500",
+      "source_line_start": 1559,
+      "source_line_end": 1566,
+      "index": 9472,
+      "index_hex": "0x2500",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.DrvMode",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2501",
+      "source_line_start": 1567,
+      "source_line_end": 1574,
+      "index": 9473,
+      "index_hex": "0x2501",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Encoder",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2502",
+      "source_line_start": 1575,
+      "source_line_end": 1582,
+      "index": 9474,
+      "index_hex": "0x2502",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Maxcurrent",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2503",
+      "source_line_start": 1583,
+      "source_line_end": 1590,
+      "index": 9475,
+      "index_hex": "0x2503",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClMaxCper",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2504",
+      "source_line_start": 1591,
+      "source_line_end": 1598,
+      "index": 9476,
+      "index_hex": "0x2504",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ClbasCper",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2505",
+      "source_line_start": 1599,
+      "source_line_end": 1606,
+      "index": 9477,
+      "index_hex": "0x2505",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.OlMaxCper",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2506",
+      "source_line_start": 1607,
+      "source_line_end": 1614,
+      "index": 9478,
+      "index_hex": "0x2506",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.suo_per",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2507",
+      "source_line_start": 1615,
+      "source_line_end": 1622,
+      "index": 9479,
+      "index_hex": "0x2507",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.suo_time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2508",
+      "source_line_start": 1623,
+      "source_line_end": 1630,
+      "index": 9480,
+      "index_hex": "0x2508",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Filtable",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2509",
+      "source_line_start": 1631,
+      "source_line_end": 1638,
+      "index": 9481,
+      "index_hex": "0x2509",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.Filtratio",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250A",
+      "source_line_start": 1639,
+      "source_line_end": 1646,
+      "index": 9482,
+      "index_hex": "0x250A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.PosAlrm",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250B",
+      "source_line_start": 1647,
+      "source_line_end": 1654,
+      "index": 9483,
+      "index_hex": "0x250B",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.PosError",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250C",
+      "source_line_start": 1655,
+      "source_line_end": 1662,
+      "index": 9484,
+      "index_hex": "0x250C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.PosinTime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250D",
+      "source_line_start": 1663,
+      "source_line_end": 1670,
+      "index": 9485,
+      "index_hex": "0x250D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj..AvrFiltime",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250E",
+      "source_line_start": 1671,
+      "source_line_end": 1678,
+      "index": 9486,
+      "index_hex": "0x250E",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.kpscale",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "250F",
+      "source_line_start": 1679,
+      "source_line_end": 1686,
+      "index": 9487,
+      "index_hex": "0x250F",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.kp",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2510",
+      "source_line_start": 1687,
+      "source_line_end": 1694,
+      "index": 9488,
+      "index_hex": "0x2510",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.ki",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2511",
+      "source_line_start": 1695,
+      "source_line_end": 1702,
+      "index": 9489,
+      "index_hex": "0x2511",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.kc",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2512",
+      "source_line_start": 1703,
+      "source_line_end": 1710,
+      "index": 9490,
+      "index_hex": "0x2512",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kp1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2513",
+      "source_line_start": 1711,
+      "source_line_end": 1718,
+      "index": 9491,
+      "index_hex": "0x2513",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kv1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2514",
+      "source_line_start": 1719,
+      "source_line_end": 1726,
+      "index": 9492,
+      "index_hex": "0x2514",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_spd1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2515",
+      "source_line_start": 1727,
+      "source_line_end": 1734,
+      "index": 9493,
+      "index_hex": "0x2515",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kp2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2516",
+      "source_line_start": 1735,
+      "source_line_end": 1742,
+      "index": 9494,
+      "index_hex": "0x2516",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kv2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2517",
+      "source_line_start": 1743,
+      "source_line_end": 1750,
+      "index": 9495,
+      "index_hex": "0x2517",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_spd2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2518",
+      "source_line_start": 1751,
+      "source_line_end": 1758,
+      "index": 9496,
+      "index_hex": "0x2518",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_kvff",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2519",
+      "source_line_start": 1759,
+      "source_line_end": 1766,
+      "index": 9497,
+      "index_hex": "0x2519",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.an_ki",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251A",
+      "source_line_start": 1767,
+      "source_line_end": 1774,
+      "index": 9498,
+      "index_hex": "0x251A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kp",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251B",
+      "source_line_start": 1775,
+      "source_line_end": 1782,
+      "index": 9499,
+      "index_hex": "0x251B",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_ki",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251C",
+      "source_line_start": 1783,
+      "source_line_end": 1790,
+      "index": 9500,
+      "index_hex": "0x251C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kc",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251D",
+      "source_line_start": 1791,
+      "source_line_end": 1798,
+      "index": 9501,
+      "index_hex": "0x251D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kvfbd1",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251E",
+      "source_line_start": 1799,
+      "source_line_end": 1806,
+      "index": 9502,
+      "index_hex": "0x251E",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kvfbd2",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "251F",
+      "source_line_start": 1807,
+      "source_line_end": 1814,
+      "index": 9503,
+      "index_hex": "0x251F",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kvff",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "2520",
+      "source_line_start": 1815,
+      "source_line_end": 1822,
+      "index": 9504,
+      "index_hex": "0x2520",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Obj.v_kacff",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "603F",
+      "source_line_start": 1823,
+      "source_line_end": 1831,
+      "index": 24639,
+      "index_hex": "0x603F",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "DSP Error Code",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "6040",
+      "source_line_start": 1832,
+      "source_line_end": 1840,
+      "index": 24640,
+      "index_hex": "0x6040",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "ControlWord",
+        "ObjectType": "7",
+        "AccessType": "WO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "6041",
+      "source_line_start": 1841,
+      "source_line_end": 1849,
+      "index": 24641,
+      "index_hex": "0x6041",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "StatusWord",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0006",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U16",
+      "width_bytes": 2
+    },
+    {
+      "section": "605D",
+      "source_line_start": 1850,
+      "source_line_end": 1858,
+      "index": 24669,
+      "index_hex": "0x605D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Halt option code",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0003",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "1"
+      },
+      "type_name": "I16",
+      "width_bytes": 2
+    },
+    {
+      "section": "6060",
+      "source_line_start": 1859,
+      "source_line_end": 1867,
+      "index": 24672,
+      "index_hex": "0x6060",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Mode of operation",
+        "ObjectType": "7",
+        "AccessType": "WO",
+        "DataType": "0x0005",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6061",
+      "source_line_start": 1868,
+      "source_line_end": 1876,
+      "index": 24673,
+      "index_hex": "0x6061",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Mode of operation display",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6064",
+      "source_line_start": 1877,
+      "source_line_end": 1885,
+      "index": 24676,
+      "index_hex": "0x6064",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "actual position",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "606C",
+      "source_line_start": 1886,
+      "source_line_end": 1893,
+      "index": 24684,
+      "index_hex": "0x606C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "actual speed",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607A",
+      "source_line_start": 1894,
+      "source_line_end": 1902,
+      "index": 24698,
+      "index_hex": "0x607A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "target position",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "5000"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607C",
+      "source_line_start": 1903,
+      "source_line_end": 1911,
+      "index": 24700,
+      "index_hex": "0x607C",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "home offset",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607Dsub0",
+      "source_line_start": 1918,
+      "source_line_end": 1926,
+      "index": 24701,
+      "index_hex": "0x607D",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "2"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "607Dsub1",
+      "source_line_start": 1927,
+      "source_line_end": 1934,
+      "index": 24701,
+      "index_hex": "0x607D",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Soft MIN Limit",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "607Dsub2",
+      "source_line_start": 1935,
+      "source_line_end": 1942,
+      "index": 24701,
+      "index_hex": "0x607D",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Soft MAX Limit",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6081",
+      "source_line_start": 1943,
+      "source_line_end": 1951,
+      "index": 24705,
+      "index_hex": "0x6081",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "posmode speed",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "60"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6083",
+      "source_line_start": 1952,
+      "source_line_end": 1960,
+      "index": 24707,
+      "index_hex": "0x6083",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "accel time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6084",
+      "source_line_start": 1961,
+      "source_line_end": 1969,
+      "index": 24708,
+      "index_hex": "0x6084",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "decel time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6098",
+      "source_line_start": 1970,
+      "source_line_end": 1978,
+      "index": 24728,
+      "index_hex": "0x6098",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "homing method",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0005",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "0"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6099sub0",
+      "source_line_start": 1985,
+      "source_line_end": 1993,
+      "index": 24729,
+      "index_hex": "0x6099",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "2"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "6099sub1",
+      "source_line_start": 1994,
+      "source_line_end": 2002,
+      "index": 24729,
+      "index_hex": "0x6099",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "homing speed",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "120"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "6099sub2",
+      "source_line_start": 2003,
+      "source_line_end": 2011,
+      "index": 24729,
+      "index_hex": "0x6099",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "homing search speed",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "60"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "609A",
+      "source_line_start": 2012,
+      "source_line_end": 2020,
+      "index": 24730,
+      "index_hex": "0x609A",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "homing accel/decel time",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "100"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "60FD",
+      "source_line_start": 2021,
+      "source_line_end": 2028,
+      "index": 24829,
+      "index_hex": "0x60FD",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "Digital inputs",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "60FEsub0",
+      "source_line_start": 2035,
+      "source_line_end": 2043,
+      "index": 24830,
+      "index_hex": "0x60FE",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "HighestSubIndex",
+        "ObjectType": "7",
+        "AccessType": "RO",
+        "DataType": "0x0005",
+        "PDOMapping": "0",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "2"
+      },
+      "type_name": "U8",
+      "width_bytes": 1
+    },
+    {
+      "section": "60FEsub1",
+      "source_line_start": 2044,
+      "source_line_end": 2051,
+      "index": 24830,
+      "index_hex": "0x60FE",
+      "subindex": 1,
+      "fields": {
+        "ParameterName": "Physical outputs",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "60FEsub2",
+      "source_line_start": 2052,
+      "source_line_end": 2059,
+      "index": 24830,
+      "index_hex": "0x60FE",
+      "subindex": 2,
+      "fields": {
+        "ParameterName": "Bit Mask",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0007",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000"
+      },
+      "type_name": "U32",
+      "width_bytes": 4
+    },
+    {
+      "section": "60FF",
+      "source_line_start": 2060,
+      "source_line_end": 2068,
+      "index": 24831,
+      "index_hex": "0x60FF",
+      "subindex": 0,
+      "fields": {
+        "ParameterName": "velocity speed",
+        "ObjectType": "7",
+        "AccessType": "RW",
+        "DataType": "0x0004",
+        "PDOMapping": "1",
+        "ObjFlags": "0x00000000",
+        "DefaultValue": "120"
+      },
+      "type_name": "I32",
+      "width_bytes": 4
+    }
+  ]
+}

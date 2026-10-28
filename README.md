@@ -4,23 +4,28 @@ This checkout contains the audit, reference material and implementation prompts 
 
 The design follows `../MotorControl-RS`: the same motion vocabulary, exact units, caller-owned operation contexts, application-owned transport, shared example CLI, and native/Python verification. CANopen and proprietary CAN protocols have independent services/profiles beneath common motion. FieldCore-node is a reference consumer, not a dependency. Read [the stepper and servo scope decision](docs/multidrive_decision.md) for the researched candidates, boundaries and implementation order.
 
-Start with [the promptset](docs/prompts/README.md). To give the whole assignment to a coding agent, paste [START_HERE.md](docs/prompts/START_HERE.md). For separate sessions, execute the numbered prompts in order and carry forward their reports.
+Start with [the 50 numbered prompts](docs/prompts/README.md), beginning at [prompt 1](docs/prompts/1_source_audit.md). [START_HERE.md](docs/prompts/START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence. Complete each ready prompt with tests, documentation and commit/sync. Keep blocked scope explicit, continue independent assigned work and return when evidence arrives; Partial is not Complete.
 
-All 20 stages include concrete files/APIs, failure cases, documentation duties and work splits. Shared contracts fix [names/status/health/ownership](docs/prompts/CONVENTIONS.md), require [documentation and Doxygen throughout](docs/prompts/DOCUMENTATION.md), define [simple maintainable code](docs/prompts/MAINTAINABILITY.md), and authorize [subagents with task-based model selection](docs/prompts/DELEGATION.md). The [fresh conventions audit](docs/audit/CONVENTIONS_REAUDIT.md) records the actual source behind those choices.
+All 50 prompts include concrete files/APIs, failure cases, documentation duties and work splits. Shared contracts fix [names/status/health/ownership](docs/prompts/CONVENTIONS.md), require [documentation and Doxygen throughout](docs/prompts/DOCUMENTATION.md), define [simple maintainable code](docs/prompts/MAINTAINABILITY.md), and authorize [subagents with task-based model selection](docs/prompts/DELEGATION.md). The [fresh conventions audit](docs/audit/CONVENTIONS_REAUDIT.md) records the actual source behind those choices.
 
 - [MotorControl-RS audit](docs/audit/MOTORCONTROL_RS_AUDIT.md)
+- [Prompt correctness and simplicity review, 24 October](docs/audit/PROMPTSET_REVIEW_2026-10-24.md)
+- [Source and execution corrections, 28 October](docs/audit/PROMPTSET_REVIEW_2026-10-28.md): evidence dependency, stop/reset interpretation, output labels and PDO provenance.
+- [Prompt length and workload review](docs/audit/PROMPT_SIZING_2026-10-24.md) and [complete scope migration](docs/prompts/SPLIT_MAP.md)
 - [Fresh multi-drive source audit](docs/audit/MULTIDRIVE_SOURCE_REAUDIT.md)
 - [CANopen drive survey](docs/audit/CANOPEN_DRIVE_SURVEY.md) and [other CAN protocols](docs/audit/OTHER_CAN_PROTOCOLS.md)
 - [I2C and FieldCore conventions](docs/audit/ECOSYSTEM_CONVENTIONS.md)
 - [Device and protocol research](docs/audit/DEVICE_PROTOCOL_RESEARCH.md)
+- [Concrete Lichuan evidence for each prompt](docs/prompts/DEVICE_EVIDENCE.md): complete EDS inventory, motion/settings/timing tables and audited public code, with unresolved manufacturer contradictions kept explicit.
+- [Evidence enrichment review, 24 October](docs/audit/LICHUAN_ENRICHMENT_2026-10-24.md): findings, prompt-size measurements and validation scope.
 - [Downloaded references and provenance](docs/reference/README.md)
 - [Proposed structure and ownership](docs/architecture_plan.md)
 - [API and CLI naming map](docs/api_cli_mapping.md)
 - [Requirements and acceptance gates](docs/requirements_matrix.md)
 - [Copied source baseline](docs/baseline/README.md)
 
-Audit date: **23 October 2026**. Audits identify the exact sibling revisions inspected. Every implementation stage must refresh the relevant source audit; the snapshots are reproducible reference material, not a replacement for current code.
+Initial audit date: **23 October 2026**; latest prompt/source correction review: **28 October 2026**. Audits identify the exact sibling revisions inspected. Every implementation stage must refresh the relevant source audit; the snapshots are reproducible reference material, not a replacement for current code.
 
-Validate this planning package locally with `python scripts/check_promptset.py`. That validates the prompt/reference package only; it does not test a CAN library or qualify hardware.
+Validate this planning package locally with `python scripts/check_promptset.py`. Add `--check-git-ref HEAD` to verify committed artifact bytes or `--check-git-ref INDEX` to check staged artifact bytes before committing. That validates the prompt/reference package only; it does not test a CAN library or qualify hardware.
 
 Original vendor documents retain their owners' rights. Copied MotorControl-RS files retain their MIT notice. No existing motor bench authorization, COM port, pin assignment or motor limits are transferred to this new CAN setup.
