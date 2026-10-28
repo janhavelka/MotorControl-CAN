@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "execution_order": "Ascending integer id; one prompt at a time by default",
+  "execution_order": "Ascending integer id among ready work; preserve blocked scope and resume it when evidence arrives under COMMON",
   "source_revision": "dc8270740d0e16f19e170e2a982f67389c8a2c56",
   "prompts": [
     {
@@ -296,11 +296,8 @@
       "depends_on": [
         6,
         14,
-        18,
-        19,
-        20,
-        21,
-        22
+        17,
+        19
       ],
       "source_stages": [
         "12"

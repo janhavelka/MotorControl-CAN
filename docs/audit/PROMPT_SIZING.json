@@ -6,9 +6,9 @@
   "old_max": 988,
   "old_median": 749.0,
   "new_count": 50,
-  "new_min": 531,
-  "new_max": 767,
-  "new_median": 638.5,
+  "new_min": 561,
+  "new_max": 779,
+  "new_median": 650.0,
   "old_prompts": [
     {
       "file": "00_audit_and_evidence.md",
@@ -116,7 +116,7 @@
     {
       "id": 3,
       "file": "3_lichuan_semantics.md",
-      "words": 676,
+      "words": 695,
       "dependencies": [
         2
       ],
@@ -220,7 +220,7 @@
     {
       "id": 12,
       "file": "12_object_generation.md",
-      "words": 659,
+      "words": 684,
       "dependencies": [
         3,
         8,
@@ -281,7 +281,7 @@
     {
       "id": 17,
       "file": "17_pdo_observations.md",
-      "words": 664,
+      "words": 750,
       "dependencies": [
         12,
         15,
@@ -295,7 +295,7 @@
     {
       "id": 18,
       "file": "18_pdo_configuration.md",
-      "words": 700,
+      "words": 761,
       "dependencies": [
         16,
         17
@@ -322,7 +322,7 @@
     {
       "id": 20,
       "file": "20_driver_settings.md",
-      "words": 665,
+      "words": 686,
       "dependencies": [
         19
       ],
@@ -333,7 +333,7 @@
     {
       "id": 21,
       "file": "21_io_settings.md",
-      "words": 644,
+      "words": 693,
       "dependencies": [
         19,
         20
@@ -346,7 +346,7 @@
     {
       "id": 22,
       "file": "22_tuning_settings.md",
-      "words": 639,
+      "words": 654,
       "dependencies": [
         19,
         20
@@ -359,15 +359,12 @@
     {
       "id": 23,
       "file": "23_owner_dispatch.md",
-      "words": 531,
+      "words": 586,
       "dependencies": [
         6,
         14,
-        18,
-        19,
-        20,
-        21,
-        22
+        17,
+        19
       ],
       "source_stages": [
         "12"
@@ -376,7 +373,7 @@
     {
       "id": 24,
       "file": "24_owner_recovery.md",
-      "words": 541,
+      "words": 561,
       "dependencies": [
         23
       ],
@@ -434,7 +431,7 @@
     {
       "id": 29,
       "file": "29_device_evidence.md",
-      "words": 767,
+      "words": 779,
       "dependencies": [
         3,
         19,
@@ -460,7 +457,7 @@
     {
       "id": 31,
       "file": "31_stop_actions.md",
-      "words": 611,
+      "words": 654,
       "dependencies": [
         24,
         30
@@ -472,7 +469,7 @@
     {
       "id": 32,
       "file": "32_fault_reference_actions.md",
-      "words": 613,
+      "words": 652,
       "dependencies": [
         21,
         30,
@@ -548,7 +545,7 @@
     {
       "id": 38,
       "file": "38_communication_commissioning.md",
-      "words": 601,
+      "words": 623,
       "dependencies": [
         18,
         24,
@@ -637,7 +634,7 @@
     {
       "id": 45,
       "file": "45_fault_integration.md",
-      "words": 653,
+      "words": 688,
       "dependencies": [
         36,
         39,
@@ -712,12 +709,19 @@
       ]
     }
   ],
-  "measurement_date": "2026-10-24",
-  "measurement_note": "Current bodies after concrete Lichuan evidence enrichment; source tables linked by prompt-owned group and not repeated as mandatory full-pack reading.",
+  "measurement_date": "2026-10-28",
+  "measurement_note": "Current bodies after the 28 October source and execution corrections; detailed source tables and PDO provenance reasoning remain linked, not repeated as mandatory full-pack reading.",
   "split_only_measurement": {
     "revision": "2cda16e",
     "min": 513,
     "median": 585.5,
     "max": 690
+  },
+  "enrichment_measurement": {
+    "revision": "b93e609",
+    "date": "2026-10-24",
+    "min": 531,
+    "median": 638.5,
+    "max": 767
   }
 }

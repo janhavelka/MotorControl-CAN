@@ -76,6 +76,21 @@ class PromptSequenceTests(unittest.TestCase):
                       flags=re.IGNORECASE)
         self.assert_rejected({path: text}, "missing commit/sync closure")
 
+    def test_evidence_harness_cannot_depend_on_settings_or_remapping(self):
+        # These remain earlier numeric IDs, so the forward-dependency check alone
+        # would miss a documentary-evidence deadlock through the owner/adapter path.
+        for gated_stage in (18, 20, 21, 22):
+            with self.subTest(gated_stage=gated_stage):
+                changes = self.sequence_change(
+                    lambda entries: entries[22]["depends_on"].append(gated_stage))
+                self.assert_rejected(changes, "Evidence harness 29 must not depend")
+
+    def test_index_dependency_drift_is_rejected(self):
+        path = ROOT / "docs/prompts/README.md"
+        text = re.sub(r"^(\| 23 \| [^|]+ \| )[^|]+( \|)$", r"\g<1>6, 14, 18, 19\2",
+                      path.read_text(encoding="utf-8"), flags=re.MULTILINE)
+        self.assert_rejected({path: text}, "index prerequisites differ")
+
     def test_old_scope_cannot_disappear_from_mapping(self):
         def remove_origin(entries):
             for entry in entries:

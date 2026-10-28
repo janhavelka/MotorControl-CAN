@@ -1,6 +1,6 @@
 # MotorControl-CAN implementation prompts 1-50
 
-Execute the numbered files below in ascending **numeric order**, one complete prompt at a time. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `50_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
+Execute the numbered files below in ascending **numeric order** among ready work. Finish each ready prompt; if blocked, preserve its remaining scope, advance only to independent work within the assignment, and return when evidence arrives under COMMON. Start at [prompt 1](1_source_audit.md). Names use `1_...md` through `50_...md`; filesystem alphabetical order is not the execution order. [START_HERE.md](START_HERE.md) provides copyable instructions for one prompt, a range or the whole sequence.
 
 Every prompt includes its objective/boundaries, exact prerequisites, targeted source audit, concrete implementation work, tests, documentation, delegation and commit/sync closure. [COMMON.md](COMMON.md) applies in full. Read relevant shared contract sections and source deltas, rather than reloading every historical audit. Complete the current owned work before marking it done; a later integration review is not permission to defer component tests or leave stubs.
 
@@ -45,7 +45,7 @@ Prerequisites name completed earlier software/design results; the prompt also st
 | 20 | [Driver motion and scale settings](20_driver_settings.md) | 19 |
 | 21 | [Digital I/O settings and output actions](21_io_settings.md) | 19, 20 |
 | 22 | [Tuning and remaining nonpersistent groups](22_tuning_settings.md) | 19, 20 |
-| 23 | [CAN owner dispatch and retained results](23_owner_dispatch.md) | 6, 14, 18, 19, 20, 21, 22 |
+| 23 | [CAN owner dispatch and retained results](23_owner_dispatch.md) | 6, 14, 17, 19 |
 | 24 | [Owner urgent capacity and transport recovery](24_owner_recovery.md) | 23 |
 | 25 | [Passive health and statistics](25_health_stats.md) | 24 |
 | 26 | [Native examples and shared application](26_native_examples.md) | 10, 19, 25 |

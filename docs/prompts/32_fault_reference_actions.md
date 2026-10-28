@@ -19,7 +19,7 @@ Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) and [object facts](../audit
 ## Implement
 
 1. Implement `prepareClearAlarm` and `prepareSetDevicePosition` only for their evidenced capabilities, through `nextAction`/`advanceAction`. A firmware supporting only zero-clear cannot claim arbitrary position setting; unsupported requested values reject before work.
-2. Write a transition table per action: admissible drive/mode states, command/value/edge, rearm requirements, matching service reply, required new observation, terminal outcome and affected evidence. Do not infer edge behavior from a static object value.
+2. Write a transition table per action: admissible drive/mode states, command/value/edge, rearm requirements, matching service reply, required new observation, terminal outcome and affected evidence. Do not infer edge behavior from a static object value. The table's `15 -> 128` is not permission to enable first: never send `0x000F` or `6,7,15` merely to prepare fault reset. Resolve the current-state reset transition or reject before TX.
 3. Retain original error history, EMCY, raw status and failed operation evidence when fault clearing is requested. Acknowledged clear does not prove the fault condition is gone. No automatic retry, resume, enable or motion follows a clear.
 4. Treat confirmed or uncertain device counter changes as invalidating dependent axis origin/reference, cached position and prepared targets according to the established generation contract. Do not manufacture a known home reference from a local origin update or a counter reset.
 5. Publish outputs atomically and preserve partial/unknown effects. Integrate actions through the same owner and event precedence as other drive work. A late reply may update observation evidence without rewriting the original terminal failure.
@@ -29,7 +29,7 @@ Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) and [object facts](../audit
 
 Test supported and unsupported position values, clear/rearm edge sequences, wrong state/mode, active fault, persistent fault after acknowledged clear, lost reply, cancellation, deadline race, reboot and stale generation. Verify original error/EMCY evidence and interrupted operation outcomes survive fault clearing.
 
-Exercise counter-clear success, failure and uncertainty against axis/reference invalidation and later admission. Assert no implicit save, factory reset, enabling or resumed target. Test direct public API calls independently of CLI and include the owner integration. Exit only when every confirmed assigned action has positive/negative tests, documentation and coverage; unresolved firmware behavior remains precisely gated. Run action, reference and owner regression gates.
+Exercise counter-clear success, failure and uncertainty against axis/reference invalidation and later admission. Assert fault-reset traces contain no enabling preamble or subsequent re-enable; no action implies save, factory reset or resumed target. Test direct public API calls independently of CLI and include the owner integration. Exit only when every confirmed assigned action has positive/negative tests, documentation and coverage; unresolved firmware behavior remains precisely gated. Run action, reference and owner regression gates.
 
 ## Documentation and delegation
 

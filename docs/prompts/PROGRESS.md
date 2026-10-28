@@ -6,6 +6,8 @@ At execution start, record promptset version 2, its new dedicated branch, inspec
 
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
+Use numerical order among ready work within the assignment. Record the blocker and completed artifacts before progressing to independent work; return when evidence arrives. Prompts 18/20-22 may stay Partial while the independent owner/adapter path reaches the evidence harness in 29. Their typed features and owner integration remain owed to their original prompts. A partial predecessor or dependent chunk is never marked Complete merely to continue.
+
 | Prompt | Work | State | Report |
 | --- | --- | --- | --- |
 | 1 | [Current source audit](1_source_audit.md) | Pending | - |

@@ -201,6 +201,8 @@ def main():
     index = (prompts / "README.md").read_text(encoding="utf-8")
     progress = (prompts / "PROGRESS.md").read_text(encoding="utf-8")
     expected_rows = [str(value) for value in ids]
+    index_dependencies = dict(re.findall(r"^\| (\d+) \| [^|]+ \| ([^|]+) \|$",
+                                         index, flags=re.MULTILINE))
     for label, content in (("index", index), ("progress", progress)):
         rows = re.findall(r"^\| (\d+) \|", content, flags=re.MULTILINE)
         require(rows == expected_rows, label + ": prompt rows do not match numeric sequence")
@@ -210,6 +212,9 @@ def main():
                 and stage.name.split("_", 1)[0] == str(number),
                 "Invalid natural-number prompt filename: " + stage.name)
         dependencies = entry.get("depends_on", [])
+        expected_dependencies = ", ".join(str(value) for value in dependencies) or "None"
+        require(index_dependencies.get(str(number), "").strip() == expected_dependencies,
+                stage.name + ": index prerequisites differ from sequence")
         require(len(dependencies) == len(set(dependencies))
                 and all(isinstance(value, int) and value in ids and value < number
                         for value in dependencies),
@@ -249,6 +254,20 @@ def main():
         require("(" + stage.name + ")" in index, stage.name + ": missing index link")
     require(source_stages == {"{:02d}".format(n) for n in range(20)},
             "The split must retain ownership of all original stages 00–19")
+
+    # The harness acquires missing firmware evidence for these settings stages.
+    # Requiring them first would deadlock evidence acquisition even in an acyclic graph.
+    dependencies_by_id = {entry.get("id"): entry.get("depends_on", []) for entry in entries}
+    evidence_ancestors = set()
+    pending = list(dependencies_by_id.get(29, []))
+    while pending:
+        dependency = pending.pop()
+        if dependency in evidence_ancestors:
+            continue
+        evidence_ancestors.add(dependency)
+        pending.extend(dependencies_by_id.get(dependency, []))
+    require(not evidence_ancestors.intersection({18, 20, 21, 22}),
+            "Evidence harness 29 must not depend on firmware-gated remapping/settings 18/20-22")
     matrix = (root / "docs/requirements_matrix.md").read_text(encoding="utf-8")
     requirement_ids = set(re.findall(r"\| (R\d\d) \|", matrix))
     counts["requirements"] = len(requirement_ids)

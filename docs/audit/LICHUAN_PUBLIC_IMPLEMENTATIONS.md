@@ -5,6 +5,10 @@ No library code was implemented, no downloaded program was executed, and no CAN
 device was contacted. Original files, exact commits, licenses and SHA256 values
 are in [the public-code source pack](../reference/public_code/SOURCES.json).
 
+The [2026-10-28 recheck](PROMPTSET_REVIEW_2026-10-28.md) adds PDO direction and
+delayed-sample provenance findings from these same pinned files. It does not
+claim a new GitHub search or changed upstream code.
+
 ## Search result and applicability
 
 The search did not establish an official Lichuan GitHub implementation for
@@ -91,6 +95,7 @@ the selected stack's configuration still need review in prompt 5.
 | CANopenNode heartbeat monitor distinguishes unconfigured, unknown, active and timeout; monitoring begins after first heartbeat, not boot-up. | `CO_HBconsumer.h` 48-66. | Stack behavior. The host can have its own explicitly configured startup deadline; no missing heartbeat proves offline while producer is disabled. |
 | First four default TPDO IDs are `0x180/280/380/480 + node`; RPDO IDs `0x200/300/400/500 + node`. | `CO_PDO.h` 82-86. | Defaults only; read actual COB-ID and disable/format flags. Never overwrite active configuration from EDS defaults. |
 | PDO mapping descriptor packs index in upper 16 bits, subindex in next 8 and bit count in low 8. | `CO_PDO.c` 89-95, 337-344. | `0x60410010` means statusword/sub0/16 bits. Width, access, byte order, sum and actual map require independent checks. |
+| PDO direction attributes are checked separately as `ODA_RPDO` and `ODA_TPDO`. | `CO_PDO.c` 119-131. | SDO readability is not required for an RPDO-mapped command target. Lichuan EDS WO `6040/6060` occur in its default RPDO1; mapping flags still do not authorize unsafe actions. |
 | Disable PDO, clear mapping count, write entries, restore count, enable PDO is the documented CANopenNode remap order. | `CO_PDO.h` 93-103. | Its dynamic remap configuration can allow operational remapping; this does not establish Lichuan support/state requirements. Use an explicit reviewed device sequence. |
 | CANopenNode exposes transmission types 0, 1-240, 254, 255. TPDO inhibit-time conversion is value x 100 microseconds; event-time conversion is value x 1000 microseconds. | `CO_PDO.h` 141-145; `CO_PDO.c` 1027-1034, 1162-1163. | Protocol/stack timing units. Do not conflate these with Lichuan ramp milliseconds or assume every type is implemented by the drive. |
 | Emergency payload begins with 16-bit error code and 8-bit error register. | `CO_Emergency.h` 69-78. | CANopenNode uses byte 3 for its own error-condition index and bytes 4-7 for its argument. Keep all five manufacturer bytes opaque for Lichuan until its source defines them. |
@@ -124,6 +129,37 @@ The source ledger must distinguish **device requirement**, **protocol unit**,
 | PDO inhibit x100 us and event x1000 us | Object-unit conversions in CANopenNode. | Motion ramp time or drive response latency. |
 
 ## Host-only byte fixtures and prompt use
+
+### PDO sample provenance after a route changes
+
+The pinned CANopenNode `CO_PDO.h` lines 48-65 describe PDO without protocol
+overhead and buffering before mapped processing. `CO_PDO.c` lines 559-560
+configure identifier routing; lines 463-501 check validity and length, then
+copy bytes. There is no wire mapping generation. Lines 562-570 clear this
+receiver's internal flags on disable, not every external or remote queue.
+Driver send delegation at
+984-995 and 1344 supplies no universal retirement guarantee either.
+
+Consequently, map readback confirms configuration but not the origin of every
+later sample. A delayed eight-byte payload for `[6064:I32,606C:I32]` can pass
+ID/length/type checks after the same route changes to `[606C:I32,6064:I32]`.
+Tagging that newly arriving frame with the current host generation would
+silently swap position and velocity. This is a protocol counterexample, not
+an observation that Lichuan firmware retains such frames.
+
+For a route with potentially incompatible old semantics or producer identity,
+qualify new samples only after an applicable producer-transition and RX/TX
+retirement boundary, distinct verified wire route, or supported observable
+marker establishes their provenance. Host generations, mapping readback,
+host-only flushing and arbitrary waits do not independently establish this.
+Retain a confirmed configuration separately from ambiguous diagnostic samples;
+do not invalidate unrelated stable routes or add a general protocol engine.
+Earliest-ingress tagging can reject already queued local frames, but cannot
+identify old remote frames first arriving later. Prompts 17, 18, 24, 38 and 45
+must test both cases, including raw same-ID/same-length old bytes arriving
+after a new generation without a synthetic old-generation test label.
+
+### Retained synthetic fixtures
 
 [protocol_vectors.json](../reference/public_code/protocol_vectors.json) contains
 17 reviewed, source-derived fixtures. They are synthetic bytes, not captured

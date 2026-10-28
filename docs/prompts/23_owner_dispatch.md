@@ -1,6 +1,6 @@
 # Prompt 23 CAN owner dispatch and retained results
 
-Apply [COMMON.md](COMMON.md). Prerequisites: [6](6_api_ownership.md), [14](14_sdo_reconciliation.md), [18](18_pdo_configuration.md), [19](19_typed_reads.md), [20](20_driver_settings.md), [21](21_io_settings.md), [22](22_tuning_settings.md).
+Apply [COMMON.md](COMMON.md). Prerequisites: [6](6_api_ownership.md), [14](14_sdo_reconciliation.md), [17](17_pdo_observations.md), [19](19_typed_reads.md).
 
 ## Objective and boundaries
 
@@ -18,12 +18,12 @@ Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `
 2. Use actual RS role names `admit`, `service`, `result` and `release`, with selected `RequestId`, `SequenceId`, `BusAdmission` and `Completion` meanings. Freeze CAN-specific signatures without UART parameters or synonymous submit/poll APIs. Admission rejection leaves the caller's ID and queued work unchanged.
 3. Copy admitted input and reserve its terminal result slot before TX. Define non-consuming result lifetime, explicit release, foreign/stale ID rejection and generation/ID exhaustion. Never evict unread uncertainty to admit another request.
 4. Implement bounded ordinary scheduling, producer fairness, per-channel SDO serialization and per-axis sequence reservation where needed. Reservation cannot block unrelated nodes or passive events. Declare queue/channel/binding/result capacities and per-turn RX/TX/event budgets, including zero-budget behavior.
-5. Connect existing read and settings operations through the common yielded-work/event boundary. Use service completion callbacks/events to keep operation stepping outside the owner where the architecture places it. Do not introduce a universal operation executor or future motion-header dependencies.
+5. Connect existing typed reads and available confirmed settings through the common yielded-work/event boundary. Firmware-gated remapping/settings in 18/20-22 are not prerequisites for this owner or the evidence harness in 29. If no complete settings group is available, use a test-only synthetic service sequence for ownership tests, not an installed drive capability. Keep operation stepping outside the owner through service events; no universal executor or future motion-header dependency.
 6. Preserve controller queue acceptance, actual transmission, protocol confirmation and unknown effects separately. Already established SDO quarantine/reconciliation remains effective. This prompt does not claim complete urgent-stop or production firmware readiness before prompt 24.
 
 ## Verify and exit
 
-Use two-node, multi-producer native fake tests for fair service, asynchronous receive during a transfer, full queues, retained-result exhaustion, wrong/stale IDs, release lifetime, zero budgets and caller-buffer mutation after admission. Verify identical late SDO ambiguity cannot be solved by local IDs. Trace one public read and one settings sequence through admission, service and retained completion.
+Use two-node, multi-producer native fake tests for fair service, asynchronous receive during a transfer, full queues, retained-result exhaustion, wrong/stale IDs, release lifetime, zero budgets and caller-buffer mutation after admission. Verify identical late SDO ambiguity cannot be solved by local IDs. Trace one public typed read and one confirmed settings or clearly synthetic service sequence through admission, service and retained completion. A synthetic sequence proves owner behavior only. Actual settings must pass this path when their owning prompts resume; prompt 45 checks the combined integration.
 
 No receiver may consume frames away from ordinary dispatch; observer copies cannot become the authoritative input path. Run focused owner/service suites and the native example consumer. Exit with complete ordinary-owner behavior and explicit, separately assigned prompt-24 work, not success stubs for urgent APIs.
 

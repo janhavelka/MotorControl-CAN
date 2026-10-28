@@ -28,6 +28,10 @@ This repository currently contains planning and reference material. No CAN libra
 
 ### Fixed
 
+- Removed the evidence-harness dependency on firmware-gated remapping/settings, preserving unfinished feature and owner-integration obligations; aligned numeric execution order with independent progress after a blocker.
+- Clarified that stop/reset controlword arrows never require enabling first; added explicit repeated-stop and fault-reset trace requirements.
+- Preserved the 57C manual's conflicting DO0/1/2 versus DO1/2/3 labels, separated SDO access from PDO eligibility, and required qualified provenance for delayed PDOs on reused routes.
+- Added planning regressions for transitive evidence deadlocks and README prerequisite drift. Rechecked the five official PDFs and EDS without replacing their identical original bytes.
 - Exposed conflicting DO addresses/functions, three status layouts, mode access, velocity sequence/sign, subdivision/soft-limit defaults and undocumented timing instead of treating generic CANopen or example code as firmware truth.
 - Documented and rejected public-example SDO command/width errors, shared status, hidden persistence and arbitrary timing assumptions; kept absent following-error/automatic-tuning capabilities out of the new evidence requirements.
 - Corrected velocity duration to start at successful preparation, matching RS, with queue/setup time included.
@@ -38,5 +42,7 @@ This repository currently contains planning and reference material. No CAN libra
 - Preserved original reference/baseline/evidence bytes in Git and added optional HEAD/index artifact checks; line-ending conversion previously broke 52 stored artifact hashes.
 
 The [24 October prompt audit](docs/audit/PROMPTSET_REVIEW_2026-10-24.md) records the findings, fixes, source revisions and validation limits.
+
+The [28 October correction audit](docs/audit/PROMPTSET_REVIEW_2026-10-28.md) records the new source-backed findings, live sibling delta and current prompt measurements.
 
 The multi-drive architecture and test contrasts are plans. Nanotec, maxon and other researched products are not implemented or qualified drivers in this checkout.

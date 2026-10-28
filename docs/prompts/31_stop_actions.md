@@ -18,7 +18,7 @@ Recheck [stop evidence](../audit/LICHUAN_MOTION_FACTS.md): ZH86 p12 and OP86 p10
 
 ## Implement
 
-1. Specify the stop transition table before implementation: supported stop kinds, initial states, command/setup, option-code prerequisites, expected final state, target/queue disposition, reference/torque consequences and required new observations.
+1. Specify the stop transition table before implementation: supported stop kinds, initial states, command/setup, option-code prerequisites, expected final state, target/queue disposition, reference/torque consequences and required new observations. The manual arrows are transition examples, not mandatory two-write scripts: never send `0x000F` or the `6,7,15` enable sequence to prepare a stop. Use an evidenced current-state transition or reject before TX.
 2. Implement `prepareStop` through existing `nextAction`/`advanceAction` and concrete action context evidence. Unsupported stop kinds or unproved prerequisites fail before work. Acknowledged command and observed stopped state remain distinct; neither claims independent physical standstill.
 3. Admit stop as its own urgent work with a finite deadline and reserved terminal result. Integrate the real profile action with owner capacity and occupied-channel policy rather than adding a separate priority receiver or bypass path.
 4. Retire stale queued work at every established software/adapter/controller boundary. Identify which entries are definitely retired and which submitted work remains uncertain. Stop cannot invent channel availability or claim an ambiguous late SDO reply; a PDO stop path needs confirmed mapping and documented behavior.
@@ -29,7 +29,7 @@ Recheck [stop evidence](../audit/LICHUAN_MOTION_FACTS.md): ZH86 p12 and OP86 p10
 
 Run native owner/action tests for each supported stop kind/state, occupied and quarantined channels, full ordinary/result capacity, stop on another node, stale queued targets before/after stop, adapter retirement uncertainty, lost reply, conflicting completion evidence, fault/reboot and exact deadline boundaries. Use concrete non-motion work fixtures until later move APIs exist; later prompts add their real interrupted contexts.
 
-Assert precise writes and retained outcomes. No test helper may substitute NMT stopped for drive stop or silently clear faults. Exit with the complete reviewed stop/owner contract, leaving unsupported firmware semantics specifically blocked. Run focused stop/owner/service suites and Doxygen.
+Assert precise writes and retained outcomes, including repeated stop and stop from halted/released states with no enabling preamble. No test helper may substitute NMT stopped for drive stop or silently clear faults. Exit with the complete reviewed stop/owner contract, leaving unsupported firmware semantics specifically blocked. Run focused stop/owner/service suites and Doxygen.
 
 ## Documentation and delegation
 

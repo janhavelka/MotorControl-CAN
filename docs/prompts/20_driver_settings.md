@@ -29,7 +29,7 @@ Use [basic settings and tuning facts](../audit/LICHUAN_OBJECT_FACTS.md) plus [mo
 
 Test complete-candidate rejection before first TX, every supported boundary and reserved-bit rule, cross-field failures, wrong context, immutable admitted settings, partial write failure, uncertain final write, readback mismatch and configuration/reference invalidation. Verify no command is emitted for unsupported capability or invalid state. Include at least one native caller preparing and advancing a group without CLI support.
 
-Exit with every confirmed assigned group implemented, documented and tested, including its read and failure paths. A source conflict stays explicitly blocked for that field; do not mark an omitted confirmed setting complete. Run focused native, generated-freshness, consumer and Doxygen checks appropriate to these changes.
+Exit with every confirmed assigned group implemented, documented and tested, including its read and failure paths. A source conflict stays explicitly blocked for that field; do not mark an omitted confirmed setting complete. If resumed after owner construction, integrate real groups through that owner and test retained partial effects before closing this scope; prompt 45 checks combined paths. Run focused native, generated-freshness, consumer and Doxygen checks.
 
 ## Documentation and delegation
 

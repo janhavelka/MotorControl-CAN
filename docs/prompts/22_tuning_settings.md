@@ -29,7 +29,7 @@ The [complete tuning table](../audit/LICHUAN_OBJECT_FACTS.md) accounts for all 3
 
 Test every owned type, access/range rule, cross-field invalid candidate before TX, wrong context, atomic read output, partial writes, uncertain write, readback mismatch and generation invalidation. Use direct public API tests and independently derived vendor cases; generated descriptors cannot be their own sole oracle. Assert no hidden communication change or persistent action occurs.
 
-Exit only when this finite assignment is complete. If additional confirmed work is discovered, give it a named owning prompt and return the affected prior prompt to pending; do not claim completeness or append an unlimited catch-all. Run focused suites, catalogue/coverage freshness and documentation checks.
+Exit only when this finite assignment is complete. If resumed after owner construction, integrate confirmed groups through that owner and test retained partial effects before closing this scope; prompt 45 checks combined paths. Newly discovered confirmed work needs a named owning prompt returned to pending, not a completeness claim or unlimited catch-all. Run focused suites, catalogue/coverage freshness and documentation checks.
 
 ## Documentation and delegation
 

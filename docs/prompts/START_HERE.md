@@ -28,7 +28,11 @@ precisely and preserve the remaining obligation instead of inventing evidence.
 Implement MotorControl-CAN by executing prompts 1 through 50 from
  docs/prompts/README.md in numerical order, applying COMMON and root AGENTS.
 For a requested range, execute only that range after checking its prerequisites.
-Finish, test, document, commit and sync each prompt before proceeding.
+Finish, test, document, commit and sync each ready prompt before proceeding.
+If blocked, retain its Partial/Blocked status and exact remaining work, commit
+and sync completed chunks, then continue the next independent ready work within
+the assignment under COMMON. Return to earlier work when its evidence arrives.
+Never mark unmet prerequisites satisfied or unfinished work Complete.
 Keep one newly created execution branch throughout all prompts and resumed
 sessions. Continue already-authorized independent work without routine
 confirmation; retain blocked work and qualification gaps explicitly.

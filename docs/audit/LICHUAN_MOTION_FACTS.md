@@ -5,6 +5,10 @@ not a firmware qualification record. All PDF page numbers below are one-based
 file pages, not the printed page number. The objects are CANopen index/subindex
 addresses, not addresses of an identified internal chip.
 
+The [2026-10-28 recheck](PROMPTSET_REVIEW_2026-10-28.md) clarifies that the
+stop/reset arrows do not authorize enabling first. Numeric source values and
+original artifacts are unchanged.
+
 ## Sources and current checks
 
 Use the original files and hashes in [SOURCES.json](../reference/SOURCES.json):
@@ -88,7 +92,7 @@ These are documented candidates. They need current-state/mode checking and a
 qualified firmware interpretation; a successful SDO download is not terminal
 motion evidence.
 
-| Action | Decimal sequence | Same values in hex | Source and limits |
+| Action | Documented transition/example, decimal | Same values in hex | Source and limits |
 | --- | --- | --- | --- |
 | Enable | 6, then 7, then 15 | `0x0006`, `0x0007`, `0x000F` | EN86/ZH86 p12, OP86 p9; approximately 10 ms between writes. State observation is still needed. |
 | Absolute position | 15 to 31 | `0x000F` to `0x001F` | EN86/ZH86 p12, OP86 p10; bit4 rising edge, bit6 clear. |
@@ -98,6 +102,15 @@ motion evidence.
 | Stop | 15 to 271 | `0x000F` to `0x010F` | ZH86 p12, OP86 p10; EN86 p12 omits this row. A halt-bit candidate, not a proved deceleration or queue-discard policy. |
 | Vendor-labelled emergency stop | 15 to 11 | `0x000F` to `0x000B` | EN86/ZH86 p12, OP86 p10; bit2 cleared. Do not promise certified safety, immediate torque removal or a particular stop distance. |
 | Alarm reset | 15 to 128 in the table | `0x000F` to `0x0080` | ZH86 p12, OP86 p10. Separate prose p15 says set bit7 then manually clear it; full-word transition vs preserving other bits is unresolved. |
+
+The arrows are not universal write scripts. In particular, never write
+`0x000F` or run the `6,7,15` enable sequence merely to prepare a stop or fault
+reset. ZH86 p13 section 3.3.2 and OP86 p11 use that enable sequence to start
+velocity operation; an enabling preamble could resume motion, depending on
+the current state and retained target. Derive each stop/reset action from its
+qualified current-state transition, or reject an unsupported transition before
+TX. Repeated stop and stop from halted/released states must not enable first.
+This is a source-based risk analysis, not a measured target-retention claim.
 
 Bit masks derived arithmetically from the documented bit numbers: new position
 `1<<4 = 0x0010`; immediate update `1<<5 = 0x0020`; relative positioning

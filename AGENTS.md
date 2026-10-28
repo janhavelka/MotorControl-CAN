@@ -71,6 +71,8 @@ No implicit enabling, movement, homing, fault clearing, NMT reset/start, paramet
 
 Distinguish controller state, CANopen NMT state, CiA402 drive state, mode, heartbeat freshness, fault events and application health. Boot-up/reset/bus-off/rebinding/configuration changes invalidate dependent evidence and queued work. No health recovery clears a drive fault implicitly. An NMT stop is not a CiA402 quick stop. Host heartbeat observation does not establish drive action on host loss.
 
+Manual controlword arrows are state-transition examples, not universal scripts: never enable merely to prepare a stop or reset. PDO host generations are not wire tags. On a reused route with potentially old semantics/identity, a confirmed map and new host epoch do not qualify delayed same-ID/same-length samples; require an evidenced transition/retirement boundary, distinct verified route or applicable observable marker. Keep ambiguous samples unqualified without invalidating unrelated stable traffic.
+
 The RS bench authorization and wiring are not CAN bench facts. Host-only work can proceed without hardware. Before live CAN/motion work establish the actual board, transceiver, drive/motor/firmware, wiring, node/bitrate and applicable user authorization. Do not guess defaults from the RS setup. Missing hardware blocks qualification, not independent implementation and testing.
 
 External I/O may be unused. An unconnected terminal does not mean its configured function is disabled. Require physical signals only for operations that need them; never silently disable limits, stops or input assignments to make a motion test run. Use only this profile's documented function values and actual fixture evidence.

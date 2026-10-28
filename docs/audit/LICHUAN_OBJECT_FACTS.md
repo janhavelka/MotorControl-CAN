@@ -2,6 +2,8 @@
 
 Research date: 2026-10-24. This is an extraction and crosscheck for the implementation prompts, not a firmware-qualified object ledger. It covers the external CANopen interface of the complete CL86-C/OL86-C drives. It is not an internal chip register map. Every default below is a document value, not an observation of the user's hardware.
 
+The [2026-10-28 recheck](PROMPTSET_REVIEW_2026-10-28.md) adds the ZH57 terminal-label conflict and separates SDO access from PDO direction eligibility. Original sources and numeric inventory values were preserved.
+
 ## Sources and how to use this file
 
 Source IDs match [the retained source manifest](../reference/SOURCES.json). Page numbers here are **one-based PDF pages**, including the cover and contents; printed page numbers are usually two lower.
@@ -12,6 +14,7 @@ Source IDs match [the retained source manifest](../reference/SOURCES.json). Page
 | EN86 | [English 86C CANopen manual](../reference/vendor/86C_CANopen_user_manual_en.pdf) | PDF 3, 5-10, 15-20 |
 | ZH86 | [Chinese 86C CANopen manual](../reference/vendor/86C_CANopen_user_manual_zh.pdf) | PDF 3, 5-10, 15-20 |
 | OP86 | [86C operating manual](../reference/vendor/CL86C_OL86C_operating_manual_zh.pdf) | PDF 3-8, 13-14; internal headers incorrectly identify 57C |
+| ZH57 | [Chinese 57C CANopen manual](../reference/vendor/57C_CANopen_user_manual_zh.pdf) | PDF 8 section 2.2.2 versus PDF 17 section 3.6.2; conflicting output labels, not an 86C terminal specification |
 
 The [official Lichuan download index](https://www.xlichuan.com/download/23.html), rechecked on this date, still lists this EDS and both 86C manuals. The documents have no established correspondence to a particular installed firmware. The EDS SHA256 is `dd3c96e7282c012a522dddb5bbdbbf561c1f5c23716b31f12472f45829d4f52c`.
 
@@ -59,6 +62,8 @@ For each `k=0..3`, communication records `1400+k` and `1800+k` have: `:00` RO U8
 
 Each mapping count is RW U8 with range 0..4; each record exposes four RW U32 mapping slots. The decoded lengths above are arithmetic consequences of the EDS words, not observations of the drive. Validate active mapping and COB-ID before accepting a PDO layout. A zero count does not make invented entries valid. `PDOMapping=1` on a factory action is not authorization to include that action in periodic PDO traffic.
 
+SDO access and PDO direction eligibility are separate facts. EDS `6040` and `6060` are WO with `PDOMapping=1`, and appear in default RPDO1. Do not require an SDO upload of mapped payload targets to validate an RPDO. Reading supported communication/mapping records is a different operation. The [pinned CANopenNode implementation](LICHUAN_PUBLIC_IMPLEMENTATIONS.md) checks RPDO/TPDO attributes separately in `CO_PDO.c` lines 119-131; that corroborates the distinction, not Lichuan's unresolved action permissions.
+
 ## Typed reads, basic settings and access conflicts: prompts 19-20
 
 | Object | Concrete manual meaning | EDS conflict or constraint |
@@ -96,6 +101,8 @@ DI assignment values in EN86/ZH86 p8 and OP86 p7: 0 undefined, 1 origin, 2 posit
 DO values have a second contradiction: EN86/ZH86 p8 and OP86 p7 say 0 undefined, 1 alarm, **2 running**, **3 homing complete**, 4 in-position, 5 brake release, 9..11 user-defined outputs 0..2. EN86 p18 and ZH86 p19 instead say **2 homing complete**, **3 drive status**. No choices 6..8 are documented. Keep unresolved semantic choices out of a purportedly verified enum mapping.
 
 OP86 p7 documents user-defined outputs through `60FE:01` physical outputs and `60FE:02` mask, with DO0/1/2 at bits 16/17/18; both corresponding bits must be 1 for an output. EDS confirms both subentries RW U32 and PDO-mappable, with no defaults. Treat this as an OP86-specific claim whose internal 57C headers weaken applicability; audit real firmware and output assignment before use. `2102` output-status bits 0..2 and `60FE` command bits 16..18 are different layouts. Do not guess a complete `60FD` function-to-bit mapping from either one.
+
+The 57C manual also contradicts itself: ZH57 PDF p8 section 2.2.2 labels those `60FE` bits 16/17/18 **DO0/DO1/DO2**, while PDF p17 section 3.6.2 labels both `60FE:01` and `:02` **DO1/DO2/DO3**. Both original rendered tables were checked on 2026-10-28. Preserve both claims and bind the actual terminal identity explicitly; do not silently renumber, infer an extra physical output from the DO3 label, or apply the 57C interpretation to 86C without model/firmware evidence.
 
 ## Tuning: prompt 22
 
