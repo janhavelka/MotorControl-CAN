@@ -136,3 +136,66 @@ This final delivery note records that verified implementation checkpoint; it
 changes no executable source. It is committed and synchronized on the same
 branch under the ordinary handoff procedure. Prompt 6 is Complete; prompt 7
 remains Pending.
+
+## Fresh independent audit
+
+On 2026-10-28, reread the original prompt 6 in full and audited the actual
+`fea0d94..8835536` changes, declarations, implementations, callers and tests.
+The starting tree at `8835536dd5daf00c48000ece2a259f9f4cb5d038` was clean;
+fresh fetch showed 0 ahead / 0 behind on the same execution branch.
+
+Three parallel reviewers separately inspected owner/bridge edge cases
+(gpt-6-astra, high), pure operations and fixtures (gpt-6.1-sol, high), and
+requirements/source/build/documentation coverage (gpt-6.1-sol, high). The lead
+inspected their actual probes, code and diff and reran the additional probes.
+No runtime defect or unnecessary architecture requiring refactoring was found
+within the original scope. No vendor fact or sequence needed correction.
+
+One documentation gap was confirmed: the shared conventions require explicit
+RX/TX/event budgets, but the owner described only bounded scans and starts.
+The [owner contract](../can_owner.md) and public header now state the fixed
+per-entry limits and zero-budget behavior. They distinguish staging a fake TX
+frame from handing it off, and event copying from consuming the observation
+ring. No budget API, runtime scheduler, production feature or test-only driver
+was added. All six implementation items and their original exit criteria remain
+satisfied by the artifacts in the scope table above.
+
+The source refresh again inspected RS Units/Axis and concrete read/action/move/
+velocity contexts, ESS callers, ProbeApp and owner/tests; ADS1115 owner-safe
+binding/results; INA228 poll/take-job and retained results; and FieldCore's frozen
+axis configuration, start path and ACK-without-stopped regression. All four
+revisions listed above remained identical and clean before/after inspection.
+The exact source navigation remains in [the source review](prompt_6_source_review.md).
+N5 original PDF pages 38/64, Lichuan EN86 PDF page 11 and the official EPOS4
+rel13740 PDF pages 230/236 were rechecked against fixture comments: motor codes,
+configured 3600 units/turn and differing ramp dimensions remain supported.
+
+Fresh verification:
+
+- Lead Release configure/build in `.build/p6_reaudit_lead`: all three maintained
+  CTests passed with C++11 and authored-code warnings treated as errors.
+- The independent owner harness in `.build/p6_reaudit_owner` passed alongside
+  all three maintained tests (4/4). It checks copied 32-byte segmented download
+  payloads, replies before initial/segment handoff, stale released handles,
+  wrong-object replies, malformed segment toggle with raw abort `0x05030000`,
+  unsent ordinary/urgent work after quarantine, and first-terminal retention.
+- The independent core harness in `.build/p6_reaudit_core` passed the required
+  servo-without-full-steps and proprietary-endpoint attempts, 4,352 combinations
+  of event kind/flags/payload length for atomicity and uncertainty, supplied-time
+  boundaries, stale typed-getter provenance and prototype arithmetic limits.
+  These additional audit probes are ignored local artifacts, not new maintained
+  production suites or hardware evidence.
+- `python -m unittest discover -s scripts -p '*_test.py'`: 73/73 passed.
+- `python scripts/check_promptset.py --check-git-ref HEAD`: complete ledger,
+  prompt/link integrity and all 134 original Git artifact hashes passed.
+- `doxygen experiments/api_ownership/Doxyfile`: Doxygen 1.13.2, zero warnings.
+  Whitespace checks passed. Affected documentation is rechecked before commit.
+
+Only documentation and public comments changed after these behavioral checks;
+the native proof is unchanged. The audit is committed and synchronized on
+`promptset/motorcontrol-can`, with a fresh upstream comparison at handoff.
+No remote CI was dispatched for this documentation-only correction; this
+repository still defines no CI workflow. No sibling or hardware action occurred.
+Prompt 6 remains Complete. Real controller retirement, ambiguous-route recovery,
+production arithmetic and manufacturer motion sequences remain explicitly
+assigned to later prompts, rather than counted as implemented by this audit.

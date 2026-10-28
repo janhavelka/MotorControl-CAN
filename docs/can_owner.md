@@ -66,6 +66,28 @@ at most one urgent start before eligible ordinary work gets its turn. Earlier
 nonterminal steps of the same reservation stay ahead of later steps. Urgency
 does not preempt a transfer or imply a motor-stop sequence.
 
+The proof uses fixed per-call budgets, rather than runtime budget arguments:
+
+| Entry | Supplied RX frames | Observation copies | New transfers started | Fake TX handoffs |
+| --- | --- | --- | --- | --- |
+| `service` | 0 | 0 | At most 1 | 0 |
+| `receive` | At most 1 | At most 1 | At most 1 through service | 0 |
+| `handoff` | 0 | 0 | At most 1 through service | At most 1 |
+
+`service` scans the fixed three request slots and can progress the active
+transfer before starting another. Conservative bounds on calls to the private
+bridge's `service` are two from `service`, four from `receive` and three from
+`handoff`. These are source-derived work bounds, not elapsed-time measurements.
+`takeObservation` consumes at most one already copied event.
+
+A caller with zero RX or TX budget omits `receive` or `handoff` for that turn;
+zero event-consumption budget omits `takeObservation`. Calling `service` can
+still expire work or stage a frame in the single retirable fake TX slot, without
+transmitting it. Observation copying accompanies an accepted event frame and
+has no independent budget argument. This describes the fake interface boundary,
+not a production receive-starvation policy: deadlines keep advancing and the
+application must schedule subsequent receive service.
+
 Reservations enforce exclusion/order, **not success dependencies**. Callers must
 not preadmit a dependent next step before advancing the previous result. An
 independently authorized urgent stop may share a reservation without pretending

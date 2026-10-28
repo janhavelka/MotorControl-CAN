@@ -86,12 +86,18 @@ public:
      */
     bool admitUrgent(SequenceId sequence, const ServiceWork& work, uint64_t nowUs, RequestId& id);
     /** Bounded cooperative progress; expires queued work before starting a transfer.
+     * Scans the three request slots and starts at most one transfer. Consumes no
+     * RX input, copies no observation and performs no fake TX handoff; it may
+     * stage a frame in the single retirable TX slot. At most two bridge service calls.
      * @param[in] nowUs Nondecreasing microseconds; backwards input returns false
      * without mutation. At equality the absolute deadline wins over any response.
      * @return True for accepted time, even when work terminates with a failure.
      */
     bool service(uint64_t nowUs);
     /** Sole RX entry; asynchronous dispatch continues with no active SDO request.
+     * Accepts at most one supplied frame and copies at most one raw event. Performs
+     * no fake TX handoff; service may start one transfer. At most four bridge service
+     * calls. A zero supplied-RX budget means the caller omits this entry for the turn.
      * @param[in] frame Borrowed for this call; checked and copied before return.
      * @param[in] nowUs Same clock as service. Invalid frame/time returns false.
      * Only Classical standard data frames enter this CANopen proof adapter.
@@ -99,6 +105,9 @@ public:
      */
     bool receive(const Frame& frame, uint64_t nowUs);
     /** Explicit fake controller handoff: first point transmission becomes possible.
+     * Hands off at most one frame, with no RX input or observation copy; service
+     * may start one transfer. At most three bridge service calls. Omit this entry
+     * for a zero TX budget; queued work can still expire through service.
      * @param[in] nowUs Same clock; expiry retires queued frames before handoff.
      * @return True for a handoff, never proof of CAN ACK or SDO/motion success.
      */

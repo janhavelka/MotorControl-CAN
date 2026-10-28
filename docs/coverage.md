@@ -27,7 +27,7 @@ that support claim. Reference/data verification is not driver testing.
 | R02 | All | Prompt 6 refresh inspects ADS1115/INA228 storage/result/deadline seams and actual callers/tests; differences from CAN result/release retained. Recurring audits remain. |
 | R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; installed API/CLI remain pending. |
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | C++11 api_contract and fixtures build without stack/SDK/Python/siblings; optional owner uses the selected C99 client. Installed consumer/export checks remain 7–8. |
-| R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table and lifetimes; native tests cover copied payload, single RX, reservations, urgent capacity, immutable operation deadlines and retained terminals. Production extensions remain 13/15/23. |
+| R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table, lifetimes and per-call RX/TX/event budgets including zero-budget behavior. Native tests cover copied payload, single RX, reservations, urgent capacity, immutable operation deadlines and retained terminals. Fresh independent audit found no runtime defect; production extensions remain 13/15/23. |
 | R06 | 2-4, 19-22, 29-36, 47-50 | Pending |
 | R07 | 1-4 | Original bytes verified; every EDS entry and all 53 manual functions reviewed with exact sources. Four Lichuan model scopes and N5/EPOS4 documentary contrasts complete. |
 | R08 | 2-4, 19-22, 29-36, 47-48 | All 24 conflicting claim sets retain original alternatives and reviewed dispositions; 21 bounded feature gates remain open. No firmware winner invented. |
