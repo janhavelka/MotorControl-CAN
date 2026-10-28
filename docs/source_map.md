@@ -124,3 +124,19 @@ Original applicability and feature gates are in [the execution report](reports/p
 scope and feature gates. [Prompt 3's live sibling audit](reports/prompt_3_source_review.md)
 refreshes native access/effect/configuration provenance and their real callers.
 This map supplies naming/ownership evidence, not firmware qualification.
+
+## Prompt 5 service boundary
+
+The [refreshed source/controller audit](reports/prompt_5_source_review.md) checks
+RS owner/operation storage, ADS callback budgets, INA explicit owner expiry and
+the FieldCore settlement/effect contract against current implementations,
+callers and tests. These are unchanged clean source revisions, not copied API
+assumptions. The [stack decision](decisions/canopen_stack.md) is now authoritative
+for the service choice; the proposed production tree is still owned by prompt 6.
+
+| Responsibility | Current implementation and focused evidence | Production owner / difference |
+| --- | --- | --- |
+| Selected SDO engine | [Pinned source inventory](../experiments/canopen_service_fit/UPSTREAM.json), actual client/OD/FIFO C files | 13/14: one CANopenNode application adapter; pure core does not include it |
+| Owner/result lifetime and fake retirement | [Proof declarations](../experiments/canopen_service_fit/fit_proof.h), [implementation](../experiments/canopen_service_fit/fit_proof.cpp), [caller/tests](../experiments/canopen_service_fit/main.cpp) | 6 freezes contract; 23/24 integrate existing service storage. Local proof types are not installed ABI |
+| Controller port | [Fake shim](../experiments/canopen_service_fit/fake_controller.cpp), [target types](../experiments/canopen_service_fit/CO_driver_target.h); installed TWAI evidence in source review | 27: SDK acceptance may already mean transmission; fake retirement cannot qualify hardware |
+| Build/provenance | [Standalone CMake](../experiments/canopen_service_fit/CMakeLists.txt), [commands and limits](../experiments/canopen_service_fit/README.md) | 7 registers proof and core source/install consumers; 8 establishes repository verification/docs CI |

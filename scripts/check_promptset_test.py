@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SEQUENCE = ROOT / "docs/prompts/SEQUENCE.json"
+UPSTREAM = ROOT / "experiments/canopen_service_fit/UPSTREAM.json"
 SPEC = importlib.util.spec_from_file_location("planning_checker", ROOT / "scripts/check_promptset.py")
 CHECKER = importlib.util.module_from_spec(SPEC)
 # Keep these read-only tests from creating a local __pycache__ artifact.
@@ -26,17 +27,22 @@ finally:
 
 
 class PromptSequenceTests(unittest.TestCase):
-    def check_with(self, replacements=None):
+    def check_with(self, replacements=None, missing_files=()):
         replacements = replacements or {}
         original_read = Path.read_text
+        original_is_file = Path.is_file
 
         def read(path, *args, **kwargs):
             if path.resolve() in replacements:
                 return replacements[path.resolve()]
             return original_read(path, *args, **kwargs)
 
+        def is_file(path):
+            return path.resolve() not in missing_files and original_is_file(path)
+
         output = io.StringIO()
-        with patch.object(Path, "read_text", read), patch.object(sys, "argv", ["check_promptset.py"]):
+        with patch.object(Path, "read_text", read), patch.object(Path, "is_file", is_file), \
+                patch.object(sys, "argv", ["check_promptset.py"]):
             with contextlib.redirect_stdout(output):
                 code = CHECKER.main()
         return code, json.loads(output.getvalue())
@@ -56,6 +62,59 @@ class PromptSequenceTests(unittest.TestCase):
         code, result = self.check_with()
         self.assertEqual(code, 0, result["errors"])
         self.assertEqual(result["counts"]["stages"], 50)
+        self.assertEqual(result["counts"]["hashed_artifacts"], 134)
+
+    def upstream_change(self, change):
+        upstream = json.loads(UPSTREAM.read_text(encoding="utf-8"))
+        change(upstream)
+        return {UPSTREAM: json.dumps(upstream)}
+
+    def test_fit_missing_license_file_is_rejected(self):
+        license_path = UPSTREAM.parent / "vendor/CANopenNode/LICENSE"
+        code, result = self.check_with(missing_files={license_path.resolve()})
+        self.assertEqual(code, 1)
+        self.assertIn("CANopen fit upstream: missing file vendor/CANopenNode/LICENSE", result["errors"])
+
+    def test_fit_license_cannot_be_removed_from_manifest(self):
+        changes = self.upstream_change(lambda data: data["files"].pop())
+        self.assert_rejected(changes, "complete 11-file inventory including LICENSE")
+
+    def test_fit_altered_manifest_hash_is_rejected(self):
+        changes = self.upstream_change(lambda data: data["files"][0].update(sha256="0" * 64))
+        self.assert_rejected(changes, "CANopen fit upstream: SHA-256 mismatch")
+
+    def test_fit_revision_must_match_immutable_public_pin(self):
+        for revision in ("main", "0" * 40):
+            with self.subTest(revision=revision):
+                changes = self.upstream_change(lambda data: data.update(revision=revision))
+                self.assert_rejected(changes, "immutable revision differs from public_code pin")
+
+    def test_fit_source_mapping_cannot_name_another_upstream_file(self):
+        changes = self.upstream_change(
+            lambda data: data["files"][0].update(upstream_path="301/CO_config.h"))
+        self.assert_rejected(changes, "invalid source mapping vendor/CANopenNode/301/CO_driver.h")
+
+    def test_fit_manifest_path_cannot_escape_proof(self):
+        changes = self.upstream_change(
+            lambda data: data["files"][0].update(path="../../AGENTS.md"))
+        self.assert_rejected(changes, "path escapes base: ../../AGENTS.md")
+
+    def test_fit_unlisted_vendor_file_is_rejected(self):
+        vendor = UPSTREAM.parent / "vendor"
+        extra = vendor / "CANopenNode/unlisted.c"
+        original_rglob = Path.rglob
+        original_is_file = Path.is_file
+
+        def rglob(path, pattern):
+            yield from original_rglob(path, pattern)
+            if path == vendor:
+                yield extra
+
+        def is_file(path):
+            return path == extra or original_is_file(path)
+
+        with patch.object(Path, "rglob", rglob), patch.object(Path, "is_file", is_file):
+            self.assert_rejected({}, "missing/unexpected vendored files")
 
     def test_missing_prompt_cannot_silently_shrink_sequence(self):
         changes = self.sequence_change(lambda entries: entries.pop(16))

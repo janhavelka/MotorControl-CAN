@@ -2,10 +2,13 @@
 
 ## Unreleased
 
-This repository currently contains planning and reference material. No CAN library, firmware or hardware qualification is released.
+This repository contains planning/reference material and an isolated native CANopen service experiment. No CAN library, firmware or hardware qualification is released.
 
 ### Added
 
+- Completed prompt 5 with a pinned CANopenNode C/C++11 fake-controller exchange, retained payload/results, asynchronous events, segmented transfers and failure/retirement checks. Selected one application-side engine while keeping the future installed core independent of stack/SDK dependencies.
+- Recorded source-backed cancellation, deadline, callback and TWAI queue limits; preserved uncertain execution after controller handoff. Fixed an expired-frame handoff gap found during independent review.
+- Added offline vendor inventory/hash/license validation, CMake hash guards and seven integrity regressions for the retained experiment. Recorded measured host object sizes separately from unmeasured embedded memory/timing.
 - Completed prompt 4's source-backed N5 stepper/BLDC and EPOS4 servo contrast ledger, with test-only cases for exact coordinates, native units, frame formats, protocol routing and evidence limits. No additional driver or hardware support is claimed.
 - Completed prompt 3 documentary review of every Lichuan entry/function, with per-field policy, four separate model records, source-backed decision tables and 21 bounded qualification gates. No CAN implementation or hardware support is claimed.
 - Reviewed-schema guards and regressions retain exact feature owners, manual obligations and original conflict alternatives; reject unconditional writes, false non-consuming reads, erased gates and malformed review data.

@@ -3,3 +3,5 @@
 /docs/reference/** -text
 /docs/baseline/MotorControl-RS/** -text
 /docs/audit/evidence/** -text
+/experiments/canopen_service_fit/vendor/** -text
+/experiments/canopen_service_fit/UPSTREAM.json text eol=lf

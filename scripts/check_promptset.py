@@ -51,7 +51,9 @@ def main():
             require(bool(rel) and rel not in seen, label + ": missing/duplicate path " + rel)
             seen.add(rel)
             path = (base / rel).resolve()
-            require(base.resolve() in path.parents, label + ": path escapes base: " + rel)
+            if base.resolve() not in path.parents:
+                errors.append(label + ": path escapes base: " + rel)
+                continue
             if not path.is_file():
                 errors.append(label + ": missing file " + rel)
                 continue
@@ -101,6 +103,78 @@ def main():
         check_records(manifest_path.parent, originals + sources.get("derived_artifacts", [])
                       + sources.get("auxiliary_artifacts", []), str(manifest_path.relative_to(root)))
         counts["reference_packs"] += 1
+
+    # The offline proof builds this exact upstream subset. It must retain its
+    # license and the same immutable source identity as the research snapshot.
+    fit = root / "experiments/canopen_service_fit"
+    upstream = read_json(fit / "UPSTREAM.json")
+    label = "CANopen fit upstream"
+    if not isinstance(upstream, dict):
+        errors.append(label + ": manifest must be an object")
+        upstream = {}
+    required_upstream = {
+        "301/CO_driver.h", "301/CO_config.h", "301/CO_SDOclient.c",
+        "301/CO_SDOclient.h", "301/CO_SDOserver.h", "301/CO_ODinterface.c",
+        "301/CO_ODinterface.h", "301/CO_fifo.c", "301/CO_fifo.h",
+        "301/crc16-ccitt.h", "LICENSE",
+    }
+    required_paths = {"vendor/CANopenNode/" + path for path in required_upstream}
+    public_sources = read_json(refs / "public_code/SOURCES.json").get("sources", [])
+    shared_sources = {source["upstream_path"]: source for source in public_sources
+                      if source.get("repository") == "CANopenNode/CANopenNode"}
+    shared_revisions = {source.get("revision") for source in shared_sources.values()}
+    revision = upstream.get("revision", "")
+    require(upstream.get("schema_version") == 1 and
+            upstream.get("repository") == "https://github.com/CANopenNode/CANopenNode",
+            label + ": invalid repository/schema")
+    require(isinstance(revision, str) and re.fullmatch(r"[0-9a-f]{40}", revision) is not None
+            and shared_revisions == {revision}, label + ": immutable revision differs from public_code pin")
+    require(upstream.get("upstream_head_at_check") == revision and upstream.get("checked_on")
+            and upstream.get("acquisition") and upstream.get("license"),
+            label + ": missing provenance/license")
+    records = upstream.get("files", [])
+    if not isinstance(records, list) or any(
+            not isinstance(row, dict) or not isinstance(row.get("path"), str)
+            or not isinstance(row.get("upstream_path"), str) for row in records):
+        errors.append(label + ": files must be an array of objects")
+        records = []
+    listed_paths = [row.get("path") for row in records]
+    require(len(records) == 11 and set(listed_paths) == required_paths,
+            label + ": expected complete 11-file inventory including LICENSE")
+    for row in records:
+        rel = row.get("path", "")
+        origin = row.get("upstream_path", "")
+        require(origin in required_upstream and rel == "vendor/CANopenNode/" + origin,
+                label + ": invalid source mapping " + str(rel))
+        if origin in shared_sources:
+            source = shared_sources[origin]
+            require(all(row.get(key) == source.get(key) for key in ("bytes", "sha256")),
+                    label + ": shared source differs from public_code pin " + origin)
+    actual_paths = {path.relative_to(fit).as_posix()
+                    for path in (fit / "vendor").rglob("*") if path.is_file()}
+    require(actual_paths == required_paths, label + ": missing/unexpected vendored files")
+    check_records(fit, records, label)
+    if args.check_git_ref:
+        relative = "experiments/canopen_service_fit/UPSTREAM.json"
+        prefix = "HEAD:" if args.check_git_ref == "HEAD" else ":"
+        try:
+            stored = subprocess.run(["git", "cat-file", "blob", prefix + relative], cwd=root,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    timeout=10, check=False)
+            require(stored.returncode == 0 and stored.stdout == (fit / "UPSTREAM.json").read_bytes(),
+                    "Git " + args.check_git_ref + ": upstream manifest missing/differs " + relative)
+            vendor_relative = "experiments/canopen_service_fit/vendor"
+            inventory_command = (["git", "ls-tree", "-r", "--name-only", "-z", "HEAD", "--", vendor_relative]
+                                 if args.check_git_ref == "HEAD" else
+                                 ["git", "ls-files", "--cached", "-z", "--", vendor_relative])
+            inventory = subprocess.run(inventory_command, cwd=root, stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE, timeout=10, check=False)
+            expected_git_paths = {"experiments/canopen_service_fit/" + path for path in required_paths}
+            require(inventory.returncode == 0 and
+                    set(inventory.stdout.decode("utf-8", errors="replace").split("\0")) - {""} == expected_git_paths,
+                    "Git " + args.check_git_ref + ": missing/unexpected vendored files")
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            errors.append("Git upstream manifest check: " + str(exc))
 
     # Verify the research intake against original strings, not its own summary.
     # This checks transcription only; it cannot establish firmware semantics.

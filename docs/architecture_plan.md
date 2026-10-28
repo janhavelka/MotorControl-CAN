@@ -76,7 +76,7 @@ Mirror responsibilities and established names; omit unused empty abstractions. F
 | Units, scale, coordinate frames and quantization | Pure validation and exact arithmetic | Supplies explicit scales/origin/limits and provenance |
 | Native objects and operations | Reviewed descriptors, typed codecs, capability checks | Selects protocol/family/firmware, logical axis and motor/feedback configuration |
 | Motion/action sequences | Concrete fixed contexts; work/event/result functions | Owns contexts, drives service turns and policy |
-| CANopen services | Pure frame validation/service descriptions; bounded protocol state only if selected | Owns chosen stack, channel storage, callbacks and CAN controller |
+| CANopen services | Pure frame validation/service descriptions; no second active SDO/PDO engine | Owns selected CANopenNode adapter, channel storage, callbacks and CAN controller |
 | Reception | Protocol-specific decoding of validated evidence | One receiver routes the selected domain's events; CANopen includes SDO/PDO/heartbeat/boot-up/EMCY |
 | Bus ownership | No I/O or scheduler | Fair admission, urgent capacity, deadlines, queue generation, cancellation |
 | State and health | Typed observations, raw errors and pure projections | Caches, freshness thresholds, counters and health transitions |
@@ -102,11 +102,11 @@ One local owner does not prohibit other CAN nodes from transmitting. Ordinary pe
 
 The owner uses `admit/admitUrgent/service/result/release/cancel`, following current RS source. Prompts 13-17 establish service/event storage; prompt 18 adds explicit remapping. Prompts 23-25 integrate the existing storage, not another node table or receiver, and do not depend on completed firmware-gated work in 18/20-22. Test-only service fixtures can prove owner mechanisms while those features remain pending. Their original prompts integrate real typed groups when resumed; 45 checks combined behavior. The prompt-6 proof moves into the build in 7 and production units/contrasts in 9-10. Owner/adapters 23-28 enable the prompt-29 evidence harness before motion 30-36. Application-only `Health`/`Stats` remain separate from drive/motion state.
 
-## Decide the service implementation before coding it
+## Selected service implementation
 
-Prompt 5 must compare a pinned CANopenNode integration with a bounded service subset implemented locally. Use the existing RS feasibility decision as background and inspect the actual stack API/license/port requirements. Prefer a proven stack when it satisfies resource/ownership needs. The decision must include a buildable proof, ownership/allocation accounting, supported services, error/timeout semantics, testability, package dependency effects and an upgrade policy.
+Prompt 5 selected [CANopenNode behind an application adapter](decisions/canopen_stack.md), using a pinned, buildable native SDO exchange and source inspection of the required services. The [isolated proof](../experiments/canopen_service_fit/README.md) demonstrates owned payload/results, interleaved events, deadlines and retirement limits. The decision records resource facts, license/export effects and the comparison with a local subset. The rest of this tree remains a plan; prompt 6 freezes the shared contract and prompt 7 registers the proof in the real build.
 
-The installed axis/profile core must not require a framework or chosen stack. If a stack is selected, the adapter translates yielded service work/results and the stack alone performs SDO/PDO transactions. Pure frame/object decoders remain useful, but do not add a second active transaction engine. If a local subset is selected, justify it, declare precisely which CANopen services it implements, and implement all services needed by the reviewed native surface. Do not market a few expedited SDO messages as a complete CANopen master. LSS, block transfer or SYNC need not exist merely because the standard defines them; their necessity comes from confirmed device/workflow scope.
+The installed axis/profile core must not require a framework or chosen stack. The adapter translates yielded service work/results and CANopenNode alone performs active SDO/PDO protocol work. Pure frame/object decoders remain useful, but do not add a second active transaction engine or runtime stack-selection framework. Do not market the narrow experiment as a complete CANopen master. LSS, block transfer or SYNC need not exist merely because the standard defines them; their necessity comes from confirmed device/workflow scope.
 
 ## Protocol invariants
 

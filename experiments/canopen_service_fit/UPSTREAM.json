@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/CANopenNode/CANopenNode",
+  "revision": "9b8beed8367241e96ac03f916cd5a500bcb2cf23",
+  "checked_on": "2026-10-28",
+  "upstream_head_at_check": "9b8beed8367241e96ac03f916cd5a500bcb2cf23",
+  "acquisition": "Exact git blobs; unmodified vendored subset for offline native fit proof. Root/example reviewed separately.",
+  "license": "Apache-2.0; preserve LICENSE and notices in each file. No upstream NOTICE file at this revision.",
+  "files": [
+    {
+      "path": "vendor/CANopenNode/301/CO_driver.h",
+      "upstream_path": "301/CO_driver.h",
+      "bytes": 33047,
+      "sha256": "ab42dae276ff244ebb511cf8d5374f5017891eaa57a1c7696b8a91a06b95d246"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_config.h",
+      "upstream_path": "301/CO_config.h",
+      "bytes": 29622,
+      "sha256": "da059de7fa1108e038f25fa5004202b688538544dee08727f2ea8b3b3cd27503"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_SDOclient.c",
+      "upstream_path": "301/CO_SDOclient.c",
+      "bytes": 77859,
+      "sha256": "2c5a779e4ec9e65215e3ebd119dfddcee98bac4d6ea59574e6f6d90d1f3b5529"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_SDOclient.h",
+      "upstream_path": "301/CO_SDOclient.h",
+      "bytes": 20158,
+      "sha256": "052abb856a533001afbcc8de5b3404358c5678b56777fdd562c8eb0b5f1d47b7"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_SDOserver.h",
+      "upstream_path": "301/CO_SDOserver.h",
+      "bytes": 26145,
+      "sha256": "1679a82fb5b41114c2c9353b445cf4e408a2aa48082ad65f41da208c3bf5b2c3"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_ODinterface.c",
+      "upstream_path": "301/CO_ODinterface.c",
+      "bytes": 12441,
+      "sha256": "af3672c73c8b2e6141fb59a21d0f8b757240fc77dc25720b446a21a96fc1dd75"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_ODinterface.h",
+      "upstream_path": "301/CO_ODinterface.h",
+      "bytes": 33810,
+      "sha256": "6d0335b932871f32b95beabef60a204b07aae7aa6294299a25ede92e3505ac93"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_fifo.c",
+      "upstream_path": "301/CO_fifo.c",
+      "bytes": 46834,
+      "sha256": "f7bd28caa6af90bd243fddf500058113dd9cf0a22e46638c4b6f0c331fb6c3fc"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_fifo.h",
+      "upstream_path": "301/CO_fifo.h",
+      "bytes": 19973,
+      "sha256": "09d1af2b58bb7f270cad013e2c4b37990d721c73a44dddfe415d94e94f0fa8b4"
+    },
+    {
+      "path": "vendor/CANopenNode/301/crc16-ccitt.h",
+      "upstream_path": "301/crc16-ccitt.h",
+      "bytes": 2265,
+      "sha256": "e503c0483788412f45cabd039155927e2ddd8d688f412a082bd249584d21c33b"
+    },
+    {
+      "path": "vendor/CANopenNode/LICENSE",
+      "upstream_path": "LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    }
+  ]
+}
