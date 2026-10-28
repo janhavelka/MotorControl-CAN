@@ -12,8 +12,8 @@ The starting checkout was clean on `main` at `986a00b`, eight commits behind
 its fetched upstream. The lead inspected the incoming merged correction work,
 fast-forwarded to `7878f7c`, then created `promptset/motorcontrol-can` for this
 new promptset execution. This branch will be retained across later prompts.
-The destination is `origin/promptset/motorcontrol-can`; establish that upstream
-on the first authorized push. No sibling checkout is fetched or modified.
+The destination and configured upstream are `origin/promptset/motorcontrol-can`.
+No sibling checkout was fetched or modified.
 
 1. Read current RS declarations, implementations, consumers, tests and workflow;
    compare the protocol-3 console and the retained verification scope.
@@ -37,7 +37,7 @@ There are no worker branches, hardware sessions or sibling edits.
 | Live revisions, dirty state, CI/tool availability and target state | [Input record](prompt_1_inputs.json), source delta and verification below; target has no core, build target or CI workflow yet |
 | Source map, backlog and roadmap | [Source map](../source_map.md), [backlog](../backlog.md), [roadmap](../roadmap.md); current 1-50 owners replace old stage numbers |
 | Actual naming/ownership/CLI/runner/package inventory | Source-map rows include declarations, implementations, real callers, focused tests and planned CAN differences |
-| Original hashes, covers and conflict applicability | All 8 main originals and all 17 public-code originals independently checked; full planning checker covers123 artifacts; page review below |
+| Original hashes, covers and conflict applicability | All 8 main originals and all 17 public-code originals independently checked; full planning checker covers 123 artifacts; page review below |
 | No-hardware assumptions and bench facts | [Bench record](../hardware_bench.md); actual controller/transceiver/drive/motor/firmware/wiring/node/bitrate and live authorization unknown |
 | Requirements and honest execution ledger | [Coverage](../coverage.md) retains R01-R35 and their owners; [PROGRESS](../prompts/PROGRESS.md) records this assignment only; full ledger 2 remains pending |
 
@@ -170,10 +170,10 @@ despite count HighLimit 4; no serial subindex 04 is declared.
 | Mode/control access | EN86 p11/EDS 6061 RO versus EN86 p12 translated set instruction; 6040/6060 WO in EDS versus manual RW | 2/3 policy; no write to mode display or assumed controlword read-modify-write |
 | Start/target order | EN86 p13 versus ZH86 p13/OP86 p11 velocity sequence | 29 then30/35; no enable merely to prepare stop/reset |
 | Scale/default/range | 2201 default 0 versus detailed 400-51200 range; 2202 default 10 versus 0/1 choices | 20/29/33/34: observed scale/reference and valid values; no startup defaults |
-| Ramp and command widths | EN86 pp11/13 ramps 6083/6084/609A U32 ms 0-2000; 6099 speeds U32 and6098 one byte | Confirmed documentary widths; zero behavior/response bounds still unqualified |
+| Ramp and command widths | EN86 pp11/13 ramps 6083/6084/609A U32 ms 0-2000; 6099 speeds U32 and 6098 one byte | Confirmed documentary widths; zero behavior/response bounds still unqualified |
 | Host loss/stop/persistence/tuning | Missing consumer/quick-stop objects, unresolved 605D options and incomplete 2500-2520 units/effects | Explicit [backlog D07-D12](../backlog.md); no borrowed generic capability or guessed timing |
 
-No contradiction was resolved by this audit. The28 October corrections were
+No contradiction was resolved by this audit. The 28 October corrections were
 independently corroborated. The public Lichuan example was rechecked as a
 counterexample: response command bytes used for SDO requests, wrong homing
 widths, shared caches, missing-reply-as-stopped behavior, implicit enable/save
@@ -226,6 +226,28 @@ is 78/78 at its recorded `5da4ba7` revision, plus its source/install/package
 checks. It is not a fresh 79-test pass at current RS. No broad sibling suite,
 CAN compilation, firmware build, remote CI or hardware check was performed.
 This documentation/evidence milestone has no target CI workflow to dispatch.
+
+## Acceptance review on 2026-10-28
+
+A read-only review against unchanged, clean sibling revisions found three
+source-map issues and corrected them in the same branch:
+
+- The map now names RS `ReadContext` and `ActionContext` terminal fields. Live
+  `Reads.h`, `Actions.h`, `Reads.cpp` and `ProbeApp.cpp` show direct context
+  inspection and the distinction between whole-read publication and a
+  successful state block retained before a later failure.
+- The map now includes `RtuRunner.h/.cpp`, its owner caller and `runner_test.cpp`.
+  Its physical TX and receive-interval evidence is separate from CAN controller
+  enqueue, transmission, ACK and service confirmation.
+- The old SHZK map row implied atomic output on every parse failure. Live
+  `SHZK_PT.cpp` and `test_parsers.cpp` show that a checked scalar value resets to
+  zero, while the multi-register count resets and its value array is preserved.
+  The row now records both exceptions instead of importing them into CAN.
+
+The planning checker passed for all 50 prompts, 35 requirements, 1,220 local
+links and 123 artifact hashes. Its 10 regression tests passed; `git diff --check`
+passed. Newly named sibling paths were checked locally. No sibling suite, CAN
+build, remote CI or hardware test was run for this documentation correction.
 
 ## Maintainability and handoff
 
