@@ -14478,6 +14478,10 @@
         {
           "id": "OP86",
           "page": 7
+        },
+        {
+          "id": "ZH86",
+          "page": 8
         }
       ],
       "confidence": "documented_manual",
@@ -14556,6 +14560,10 @@
         {
           "id": "OP86",
           "page": 6
+        },
+        {
+          "id": "ZH86",
+          "page": 8
         }
       ],
       "confidence": "documented_manual",
@@ -14598,6 +14606,10 @@
         {
           "id": "OP86",
           "page": 7
+        },
+        {
+          "id": "ZH86",
+          "page": 8
         }
       ],
       "confidence": "documented_manual",
@@ -15062,6 +15074,31 @@
       }
     },
     {
+      "key": "status_interpretation_57",
+      "kind": "semantic_function",
+      "scope_id": "manual_57_contrast",
+      "claim": "ZH57 statusword table assigns bit 7 to alarm/ready; this 57C model contrast does not establish a CL86-C status mask",
+      "related_entries": [
+        "0x6041:00"
+      ],
+      "source_refs": [
+        {
+          "id": "ZH57",
+          "page": 12
+        }
+      ],
+      "confidence": "documented_manual",
+      "conflict_ids": [],
+      "owner_prompt": 4,
+      "disposition": "pending_review",
+      "coverage": {
+        "documented": true,
+        "implemented": false,
+        "host_tested": false,
+        "hardware_qualified": false
+      }
+    },
+    {
       "key": "output_terminal_labels_57",
       "kind": "semantic_function",
       "scope_id": "manual_57_contrast",
@@ -15187,6 +15224,20 @@
             "id": "ZH86",
             "page": 19
           }
+        },
+        {
+          "value": "0B polarity; 0C..0E DO assignments",
+          "source_ref": {
+            "id": "EN86",
+            "page": 8
+          }
+        },
+        {
+          "value": "0B polarity; 0C..0E DO assignments",
+          "source_ref": {
+            "id": "ZH86",
+            "page": 8
+          }
         }
       ],
       "resolution": "unresolved",
@@ -15218,6 +15269,20 @@
           "source_ref": {
             "id": "ZH86",
             "page": 19
+          }
+        },
+        {
+          "value": "2 running; 3 homing complete",
+          "source_ref": {
+            "id": "ZH86",
+            "page": 8
+          }
+        },
+        {
+          "value": "2 running; 3 homing complete",
+          "source_ref": {
+            "id": "OP86",
+            "page": 7
           }
         }
       ],
@@ -15635,6 +15700,13 @@
             "id": "EN86",
             "page": 8
           }
+        },
+        {
+          "value": "DI0=1,DI1=2,DI2=3,DO0=1 defaults",
+          "source_ref": {
+            "id": "ZH86",
+            "page": 8
+          }
         }
       ],
       "resolution": "unresolved",
@@ -15969,7 +16041,7 @@
     "record_headers": 23,
     "scalar_entries": 202,
     "reserved_entries": 4,
-    "manual_only_items": 52,
+    "manual_only_items": 53,
     "scalar_type_counts": {
       "U8": 42,
       "U16": 91,

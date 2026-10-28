@@ -270,3 +270,13 @@ Delivery is the commit containing this report on `promptset/motorcontrol-can`,
 with the same branch on `origin`. The lead verifies committed artifact bytes,
 pushes normally and reports the actual commit and fresh upstream comparison in
 the final handoff. This avoids a self-referential commit hash in the report.
+
+## Independent follow-up audit
+
+A later read-only review of prompts 1 and 2 found that the retained
+[path-check record](prompt_1_source_checks.json) still listed 123 source-map
+paths after the Runner declaration, implementation and test were added to the
+map. The record now lists all 126 distinct sibling paths; each exists at the
+current clean sibling revisions. The original prompt-1 source claims and
+support boundary remain unchanged. This corrects audit traceability, not a
+CAN implementation or a rerun of unchanged sibling suites.

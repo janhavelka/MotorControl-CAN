@@ -13,7 +13,7 @@ hardware exchange was added.
 | --- | --- |
 | Original identity and byte integrity | [Ledger sources](../reference/lichuan_objects.json) record ID, original URL, acquired path, SHA-256, manifest and printed titles, revision statement, named models and applicability evidence for EN86, ZH86, OP86, ZH57, OP57 and EDS. [SOURCES.json](../reference/SOURCES.json) and the original files retain their bytes and separate licensing. |
 | Lossless dictionary accounting | The ledger stores all 99 EDS index headers, 202 typed scalar sections, original fields/line spans, object-list membership, other EDS sections and 27 address-gap ranges. It preserves absent values and 11 `$NODEID` expressions verbatim. |
-| Manual-only meaning | Fifty-two pending semantic-function rows cite original PDF pages, related EDS entries, scope and a later owner. A manual index review found zero additional CANopen object addresses; the `6000h` heading, PA labels and MODBUS columns have exclusion reasons. |
+| Manual-only meaning | Fifty-three pending semantic-function rows cite original PDF pages, related EDS entries, scope and a later owner. A manual index review found zero additional CANopen object addresses; the `6000h` heading, PA labels and MODBUS columns have exclusion reasons. |
 | Conflicting evidence | Twenty-four conflicts retain competing source claims and exact references with no selected winner. `1018:00` HighLimit 4/default 3 beside actual `00..03` children is retained separately as anomaly A01; no `1018:04` was invented. |
 | Schema and checks | [Schema guide](../reference/lichuan_objects.md), [validator](../../scripts/check_lichuan_ledger.py), and [adversarial tests](../../scripts/check_lichuan_ledger_test.py). The ordinary promptset checker invokes the ledger validator. |
 | Handoff | [Backlog](../backlog.md), [roadmap](../roadmap.md), [coverage](../coverage.md), [PROGRESS](../prompts/PROGRESS.md), README and CHANGELOG now point to semantic review in prompt 3 without advertising support. |
@@ -90,12 +90,12 @@ workflow yet. No new C++ declarations require Doxygen in this prompt.
 
 | Check | Result |
 | --- | --- |
-| `python scripts/check_lichuan_ledger.py` | PASS: 99 indexes, 202 typed entries and 52 manual items; exact original hashes/fields, scopes, addresses, types, refs, coverage and unresolved claims checked. |
-| `python scripts/check_lichuan_ledger_test.py` | PASS: 32 tests including malformed rows, numeric formats/ranges, duplicate keys/addresses, missing applicability, fabricated values/subindex, invalid coverage and false conflict resolution. |
+| `python scripts/check_lichuan_ledger.py` | PASS: 99 indexes, 202 typed entries and 53 manual items; exact original hashes/fields, scopes, addresses, types, refs, coverage and unresolved claims checked. |
+| `python scripts/check_lichuan_ledger_test.py` | PASS: 40 tests including malformed rows, numeric formats/ranges, duplicate keys/addresses, missing applicability, fabricated values/subindex, invalid coverage and false conflict resolution. |
 | `python scripts/check_promptset.py --check-git-ref HEAD` | PASS: 50 prompts, 35 requirements, 123 retained artifact hashes and 123 committed source bytes. |
-| `python scripts/check_promptset_test.py` | PASS: 10 planning-checker regressions. |
+| `python scripts/check_promptset_test.py` | PASS: 11 planning-checker regressions. |
 | `python scripts/generate_ess_registers.py --check` and `python test/generator_test.py` from `../MotorControl-RS` | PASS: current RS generated policy is fresh (221 descriptors/242 words); 18 focused tests. |
-| `python scripts/check_promptset.py --check-git-ref INDEX` | PASS after explicit staging: 123 retained artifact hashes and staged Git bytes, 99 ledger objects, 202 entries, 52 manual items and 24 unresolved conflicts. |
+| `python scripts/check_promptset.py --check-git-ref INDEX` | PASS after explicit staging: 123 retained artifact hashes and staged Git bytes, 99 ledger objects, 202 entries, 53 manual items and 24 unresolved conflicts. |
 | `git diff --check` and `git diff --cached --check` | PASS after integration and staging. |
 
 The validator was reviewed independently against raw EDS sections and
@@ -108,6 +108,31 @@ kept the velocity, access, DO, supply and status alternatives unresolved.
 No unchanged sibling suite was repeated. No CAN compilation, firmware build,
 remote CI or hardware test was run; none is a prompt-2 acceptance gate and the
 target has no CI workflow to dispatch.
+
+### Independent follow-up audit
+
+A fresh review against the original prompts, EDS and rendered manual pages
+found a missing 57C statusword contrast: ZH57 p12 describes alarm/ready at
+bit 7, while ZH86 p12 places it at bit 3. The ledger now has a separate
+pending 57C semantic row; it does not merge the model scopes or select a
+CL86-C mask. ZH86 p8 also supplies the `2400:0B` polarity / `:0C..0E`
+assignment and output-function 2/3 claims that disagree with its own p19
+dictionary. C01/C02 and the relevant manual rows now cite both pages; C14
+retains ZH86 p8's factory-value corroboration. No original byte changed.
+
+Adversarial review found that changing a scope's model/dialect, citing a
+57C PDF for an 86C manual row, deleting all conflicts, or dropping explicit
+unknown fields could previously pass validation. The intake checker now
+rejects those changes. The integrated planning checker now reports a malformed
+ledger row or missing required manifest source as an error instead of raising
+an exception. Focused regressions
+cover these cases; the 99/202 EDS accounting and 24 unresolved conflicts
+are unchanged. No semantic access was approved by these corrections.
+
+The correction keeps one standard-library validator and its existing test
+runner. It adds no runtime module, generated declarations or second source of
+object policy. The original PDFs/EDS, copied baseline and retained evidence
+remain byte-identical; the new 57C row remains pending prompt 4 contrast review.
 
 ## Handoff and limits
 

@@ -5,6 +5,7 @@ import copy
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from check_lichuan_ledger import ROOT, load_json, validate_ledger
 
@@ -29,7 +30,7 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(validate_ledger(LEDGER), [])
         self.assertEqual(len(LEDGER["objects"]), 99)
         self.assertEqual(sum(len(obj["entries"]) for obj in LEDGER["objects"]), 202)
-        self.assertEqual(len(LEDGER["manual_only"]), 52)
+        self.assertEqual(len(LEDGER["manual_only"]), 53)
 
     def test_duplicate_json_member_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -57,7 +58,15 @@ class LedgerTests(unittest.TestCase):
     def test_missing_applicability_rejected(self):
         data = self.changed()
         data["scopes"][0]["family"] = ""
-        self.reject(data, "missing family/model applicability")
+        self.reject(data, "manufacturer/family/dialect applicability invalid")
+
+    def test_false_model_or_protocol_scope_rejected(self):
+        for field, value in (("manufacturer", "Nanotec"), ("models", ["CL57-C"]),
+                             ("dialect", "MODBUS RTU")):
+            with self.subTest(field=field):
+                data = self.changed()
+                data["scopes"][1][field] = value
+                self.assertTrue(validate_ledger(data))
 
     def test_firmware_binding_cannot_be_invented(self):
         data = self.changed()
@@ -136,6 +145,12 @@ class LedgerTests(unittest.TestCase):
         next(source for source in data["sources"] if source["id"] == "EN86")["sha256"] = "0" * 64
         self.reject(data, "sha256 differs from manifest")
 
+    def test_missing_required_manifest_source_reports_error(self):
+        manifest = load_json(ROOT / "docs/reference/SOURCES.json")
+        manifest["sources"] = [row for row in manifest["sources"] if row["id"] != "EN86"]
+        with patch("check_lichuan_ledger.load_json", return_value=manifest):
+            self.reject(self.changed(), "source manifest has duplicate or missing required IDs")
+
     def test_missing_manual_related_object_rejected(self):
         data = self.changed()
         data["manual_only"][0]["related_entries"] = ["0x1018:04"]
@@ -200,9 +215,47 @@ class LedgerTests(unittest.TestCase):
         data = self.changed()
         del data["scopes"][0]["firmware"]
         del data["objects"][0]["entries"][0]["units"]
+        del data["objects"][0]["entries"][0]["access_reviewed"]
+        del data["objects"][0]["entries"][0]["exclusion_reason"]
+        del next(source for source in data["sources"] if source["id"] == "EDS")["pdf_pages"]
+        del data["conflicts"][0]["decision"]
         errors = validate_ledger(data)
         self.assertTrue(any("firmware/binding must remain unverified" in value for value in errors))
         self.assertTrue(any("reviewed semantics are premature" in value for value in errors))
+        self.assertTrue(any("reviewed permission is premature" in value for value in errors))
+        self.assertTrue(any("unreviewed entry disposition invalid" in value for value in errors))
+        self.assertTrue(any("pdf_pages differs from manifest" in value for value in errors))
+        self.assertTrue(any("unresolved conflict has selected decision" in value for value in errors))
+
+    def test_manual_claim_needs_matching_model_pdf(self):
+        data = self.changed()
+        data["manual_only"][0]["source_refs"] = [{"id": "ZH57", "page": 1}]
+        self.reject(data, "manual PDF refs do not match scope")
+
+    def test_malformed_manual_scope_returns_error(self):
+        data = self.changed()
+        data["manual_only"][0]["scope_id"] = []
+        self.reject(data, "missing applicability")
+
+    def test_conflict_claim_needs_matching_model_pdf(self):
+        data = self.changed()
+        data["conflicts"][0]["claims"][-1]["source_ref"] = {"id": "ZH57", "page": 8}
+        self.reject(data, "conflict PDF ref does not match scope")
+
+    def test_malformed_conflict_scope_returns_error(self):
+        data = self.changed()
+        data["conflicts"][0]["scope_id"] = {}
+        self.reject(data, "missing subject/applicability")
+
+    def test_all_original_conflicts_must_remain(self):
+        data = self.changed()
+        data["conflicts"] = []
+        for obj in data["objects"]:
+            for value in obj["entries"]:
+                value["conflict_ids"] = []
+        for item in data["manual_only"]:
+            item["conflict_ids"] = []
+        self.reject(data, "source conflict inventory incomplete")
 
     def test_source_anomalies_need_unique_id_and_scope(self):
         data = self.changed()
@@ -218,7 +271,20 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(conflict["resolution"], "unresolved")
         self.assertEqual({row["source_ref"]["id"] for row in conflict["claims"]},
                          {"EDS", "EN86", "ZH86"})
+        self.assertIn({"value": "0B polarity; 0C..0E DO assignments",
+                       "source_ref": {"id": "ZH86", "page": 8}}, conflict["claims"])
+        function_claims = next(row["claims"] for row in LEDGER["conflicts"] if row["id"] == "C02")
+        self.assertIn({"value": "2 running; 3 homing complete",
+                       "source_ref": {"id": "ZH86", "page": 8}}, function_claims)
         self.assertIsNone(entry(LEDGER, "0x2400:0B")["access_reviewed"])
+
+    def test_57c_status_is_separate_model_claim(self):
+        row = next(item for item in LEDGER["manual_only"]
+                   if item["key"] == "status_interpretation_57")
+        self.assertEqual(row["scope_id"], "manual_57_contrast")
+        self.assertEqual(row["source_refs"], [{"id": "ZH57", "page": 12}])
+        self.assertEqual(row["related_entries"], ["0x6041:00"])
+        self.assertFalse(row["coverage"]["implemented"])
 
     def test_inactive_mapping_slots_and_u16_count_are_preserved(self):
         self.assertEqual(entry(LEDGER, "0x1602:00")["default_eds"], "0")

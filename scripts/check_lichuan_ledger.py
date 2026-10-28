@@ -58,8 +58,22 @@ def validate_ledger(data, root=ROOT):
     require(data.get("schema_version") == 1, "schema_version must be 1")
     require(data.get("source_manifest") == "docs/reference/SOURCES.json", "wrong source manifest")
     manifest = load_json(root / "docs/reference/SOURCES.json")
-    originals = {s["id"]: s for s in manifest["sources"]}
     required_sources = {"EDS", "EN86", "ZH86", "OP86", "ZH57", "OP57"}
+    manifest_sources = manifest.get("sources") if isinstance(manifest, dict) else None
+    if not isinstance(manifest_sources, list) or any(not isinstance(row, dict) or
+            not isinstance(row.get("id"), str) for row in manifest_sources):
+        return errors + ["source manifest has invalid rows"]
+    manifest_ids = [row["id"] for row in manifest_sources]
+    if len(manifest_ids) != len(set(manifest_ids)) or not required_sources.issubset(manifest_ids):
+        return errors + ["source manifest has duplicate or missing required IDs"]
+    originals = {row["id"]: row for row in manifest_sources}
+    for sid in required_sources:
+        original = originals[sid]
+        if (not all(isinstance(original.get(field), str) for field in
+                    ("title", "path", "url", "sha256", "revision")) or
+                not isinstance(original.get("applicability"), list) or
+                (sid != "EDS" and type(original.get("pdf_pages")) is not int)):
+            return errors + ["{}: source manifest metadata invalid".format(sid)]
     sources = data.get("sources")
     if not isinstance(sources, list):
         return errors + ["sources must be an array"]
@@ -84,7 +98,8 @@ def validate_ledger(data, root=ROOT):
                                 ("revision", original["revision"]),
                                 ("models_named", original["applicability"]),
                                 ("pdf_pages", original.get("pdf_pages"))):
-            require(source.get(field) == expected, "{}: {} differs from manifest".format(sid, field))
+            require(field in source and source.get(field) == expected,
+                    "{}: {} differs from manifest".format(sid, field))
         require(bool(source.get("applicability_evidence")) and bool(source.get("printed_title")),
                 "{}: missing cover/title or applicability evidence".format(sid))
         source_path = (root / "docs/reference" / original["path"]).resolve()
@@ -99,6 +114,16 @@ def validate_ledger(data, root=ROOT):
     if not isinstance(scopes, list) or not scopes:
         return errors + ["scopes must be a nonempty array"]
     scope_ids = set()
+    expected_scopes = {
+        "eds_family_unbound": ([], "Lichuan CANopen stepper drive family",
+                               "LC_StepDriverCAN_V1.1.eds", "unverified"),
+        "manual_86": (originals["EN86"]["applicability"], "86C CANopen drives",
+                      "EN86/ZH86/OP86 claims kept per source",
+                      "documentary cover only; OP86 internal 57C headers conflict"),
+        "manual_57_contrast": (originals["ZH57"]["applicability"], "57C CANopen drives",
+                               "ZH57/OP57 contrast claims kept per source",
+                               "documentary cover only; not an implemented profile"),
+    }
     for scope in scopes:
         if not isinstance(scope, dict):
             errors.append("scope must be an object")
@@ -109,16 +134,20 @@ def validate_ledger(data, root=ROOT):
             continue
         require(sid not in scope_ids, "duplicate scope id")
         scope_ids.add(sid)
-        require(bool(scope.get("manufacturer")) and bool(scope.get("dialect")),
-                "{}: missing manufacturer or dialect applicability".format(sid))
-        require(bool(scope.get("family")) or bool(scope.get("models")),
-                "{}: missing family/model applicability".format(sid))
-        require(isinstance(scope.get("models"), list), "{}: models must be an array".format(sid))
-        require("firmware" in scope and scope.get("firmware") is None and scope.get("binding") in
-                ("unverified", "documentary cover only; OP86 internal 57C headers conflict",
-                 "documentary cover only; not an implemented profile"),
+        expected = expected_scopes.get(sid)
+        if expected is None:
+            errors.append("{}: unknown source scope".format(sid))
+            continue
+        models, family, dialect, binding = expected
+        require(scope.get("manufacturer") == "Lichuan" and scope.get("family") == family and
+                scope.get("dialect") == dialect,
+                "{}: manufacturer/family/dialect applicability invalid".format(sid))
+        require(scope.get("models") == models,
+                "{}: models differ from source applicability".format(sid))
+        require("firmware" in scope and scope.get("firmware") is None and
+                scope.get("binding") == binding,
                 "{}: prompt-2 firmware/binding must remain unverified".format(sid))
-    require("eds_family_unbound" in scope_ids, "EDS scope missing")
+    require(scope_ids == set(expected_scopes), "scope set differs from source intake")
 
     eds_path = root / "docs/reference/vendor/LC_StepDriverCAN_V1.1.eds"
     eds, spans = eds_sections(eds_path)
@@ -270,7 +299,8 @@ def validate_ledger(data, root=ROOT):
                     elabel + ": datatype/width/signedness mismatch")
             require(entry.get("access_eds") == raw.get("AccessType"), elabel + ": access spelling mismatch")
             require(entry.get("pdo_mapping_eds") == raw.get("PDOMapping"), elabel + ": PDO flag mismatch")
-            require(entry.get("access_reviewed") is None and entry.get("pdo_mapping_reviewed") is None,
+            require("access_reviewed" in entry and "pdo_mapping_reviewed" in entry and
+                    entry.get("access_reviewed") is None and entry.get("pdo_mapping_reviewed") is None,
                     elabel + ": reviewed permission is premature")
             for field, raw_name in (("low_limit_eds", "LowLimit"), ("high_limit_eds", "HighLimit"),
                                     ("default_eds", "DefaultValue")):
@@ -295,7 +325,8 @@ def validate_ledger(data, root=ROOT):
                 require(entry.get("disposition") == "excluded" and bool(entry.get("exclusion_reason")),
                         elabel + ": reserved entry must be excluded with reason")
             else:
-                require(entry.get("disposition") == "pending_review" and entry.get("exclusion_reason") is None,
+                require(entry.get("disposition") == "pending_review" and
+                        "exclusion_reason" in entry and entry.get("exclusion_reason") is None,
                         elabel + ": unreviewed entry disposition invalid")
             require(entry.get("confidence") == "documented_metadata", elabel + ": confidence must be metadata only")
             require(type(entry.get("owner_prompt")) is int and 2 <= entry["owner_prompt"] <= 50,
@@ -322,6 +353,8 @@ def validate_ledger(data, root=ROOT):
         manual = []
     seen_manual, seen_manual_addresses = set(), set()
     eds_addresses = {"0x{:04X}:{:02X}".format(index, sub) for _, index, sub in seen_entries}
+    manual_sources = {"manual_86": {"EN86", "ZH86", "OP86"},
+                      "manual_57_contrast": {"ZH57", "OP57"}}
     for item in manual:
         if not isinstance(item, dict):
             errors.append("manual item must be an object")
@@ -344,6 +377,11 @@ def validate_ledger(data, root=ROOT):
         if isinstance(refs, list):
             for ref in refs:
                 check_ref(ref, str(key))
+            scope_id = item.get("scope_id")
+            allowed = manual_sources.get(scope_id, set()) if isinstance(scope_id, str) else set()
+            pdf_ids = [ref.get("id") for ref in refs if isinstance(ref, dict) and ref.get("id") != "EDS"]
+            require(bool(pdf_ids) and all(isinstance(sid, str) and sid in allowed for sid in pdf_ids),
+                    "{}: manual PDF refs do not match scope".format(key))
         check_coverage(item.get("coverage"), str(key))
         require(item.get("confidence") in ("documented_manual", "contradicted"),
                 "{}: manual confidence invalid".format(key))
@@ -359,6 +397,7 @@ def validate_ledger(data, root=ROOT):
                     "{}: manual object address invalid".format(key))
             if isinstance(address, str):
                 require(address not in eds_addresses, "{}: object already in EDS".format(key))
+            if isinstance(address, str) and isinstance(item.get("scope_id"), str):
                 identity = (item.get("scope_id"), address)
                 require(identity not in seen_manual_addresses,
                         "{}: duplicate manual object address in scope".format(key))
@@ -435,7 +474,13 @@ def validate_ledger(data, root=ROOT):
                     errors.append("{}: claim must be an object".format(cid))
                     continue
                 require(bool(claim.get("value")), "{}: claim value missing".format(cid))
-                check_ref(claim.get("source_ref"), str(cid))
+                ref = claim.get("source_ref")
+                check_ref(ref, str(cid))
+                if isinstance(ref, dict) and ref.get("id") != "EDS":
+                    scope_id = conflict.get("scope_id")
+                    allowed = manual_sources.get(scope_id, set()) if isinstance(scope_id, str) else set()
+                    require(isinstance(ref.get("id"), str) and ref.get("id") in allowed,
+                            "{}: conflict PDF ref does not match scope".format(cid))
         resolution = conflict.get("resolution")
         require(resolution in ("unresolved", "resolved"), "{}: invalid resolution".format(cid))
         if resolution == "resolved":
@@ -443,7 +488,8 @@ def validate_ledger(data, root=ROOT):
             if isinstance(conflict.get("resolution_evidence"), dict):
                 check_ref(conflict["resolution_evidence"], str(cid))
         else:
-            require(conflict.get("decision") is None and conflict.get("resolution_evidence") is None,
+            require("decision" in conflict and "resolution_evidence" in conflict and
+                    conflict.get("decision") is None and conflict.get("resolution_evidence") is None,
                     "{}: unresolved conflict has selected decision".format(cid))
     for obj in objects:
         if not isinstance(obj, dict) or not isinstance(obj.get("entries"), list):
@@ -460,6 +506,8 @@ def validate_ledger(data, root=ROOT):
         for cid in item["conflict_ids"]:
             require(isinstance(cid, str) and cid in conflict_ids,
                     "{}: dangling conflict ID {}".format(item.get("key"), cid))
+    require(conflict_ids == {"C{:02d}".format(number) for number in range(1, 25)},
+            "source conflict inventory incomplete")
 
     counts = data.get("accounting", {})
     expected_counts = {"object_indexes": len(expected_headers), "record_headers": sum(

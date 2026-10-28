@@ -20,6 +20,8 @@ metadata dates and the EDS FileInfo dates are not installed-firmware evidence.
 contrast. An EDS object refers to `eds_family_unbound`, which names no exact
 model. Manual semantic rows use `manual_86` or `manual_57_contrast`; each PDF
 reference retains the source's own model claim. No row has a firmware binding.
+The validator checks each scope's manufacturer, model set, family and dialect
+against the source intake. Manual rows must cite a PDF for their own model scope.
 
 ## Row schema
 
@@ -43,6 +45,11 @@ The ledger preserves the EDS's FileInfo, DeviceInfo, object lists, Comments,
 DummyUsage and empty DynamicChannels sections. Losslessness here means all
 declared EDS object fields and relevant source metadata are retained verbatim;
 the immutable original file remains the full byte-for-byte source.
+
+The 57C statusword bit-7 alarm/ready claim is a separate model contrast to
+the 86C bit-3 claim; it does not resolve the 86C status conflict. ZH86's own
+page 8 and page 19 disagree on DO addresses and function values, so both
+locations remain in conflicts C01/C02.
 
 ## Accounting and commands
 

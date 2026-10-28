@@ -341,10 +341,18 @@ def main():
     try:
         ledger = checker.load_json(root / "docs/reference/lichuan_objects.json")
         errors.extend("Lichuan ledger: " + message for message in checker.validate_ledger(ledger, root))
-        counts["ledger_objects"] = len(ledger.get("objects", []))
-        counts["ledger_entries"] = sum(len(obj.get("entries", [])) for obj in ledger.get("objects", []))
-        counts["ledger_manual_items"] = len(ledger.get("manual_only", []))
-        counts["ledger_conflicts"] = len(ledger.get("conflicts", []))
+        if isinstance(ledger, dict):
+            objects = ledger.get("objects")
+            if isinstance(objects, list):
+                counts["ledger_objects"] = len(objects)
+                counts["ledger_entries"] = sum(len(obj["entries"]) for obj in objects
+                                               if isinstance(obj, dict) and
+                                               isinstance(obj.get("entries"), list))
+            for field, key in (("manual_only", "ledger_manual_items"),
+                               ("conflicts", "ledger_conflicts")):
+                rows = ledger.get(field)
+                if isinstance(rows, list):
+                    counts[key] = len(rows)
     except (OSError, ValueError, configparser.Error) as exc:
         errors.append("Lichuan ledger: " + str(exc))
 

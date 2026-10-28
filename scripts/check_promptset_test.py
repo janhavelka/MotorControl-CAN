@@ -111,6 +111,12 @@ class PromptSequenceTests(unittest.TestCase):
         intake["scalar_entries"].pop()
         self.assert_rejected({path: json.dumps(intake)}, "EDS intake: incomplete/duplicate scalar_entries")
 
+    def test_malformed_ledger_reports_error_instead_of_crashing(self):
+        path = ROOT / "docs/reference/lichuan_objects.json"
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+        ledger["objects"][0] = None
+        self.assert_rejected({path: json.dumps(ledger)}, "Lichuan ledger: object row must be an object")
+
 
 if __name__ == "__main__":
     unittest.main()

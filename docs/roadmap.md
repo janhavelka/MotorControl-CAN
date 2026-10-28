@@ -15,7 +15,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | Prompts | Deliverable and boundary | Current state / next acceptance |
 | --- | --- | --- |
 | 1 | Current source map, live delta, tools, bench facts and backlog | Complete; evidence and checks in its report |
-| 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | 2 complete: 99 indexes / 202 typed entries and 52 manual semantic rows accounted; next work 3 reviews meaning/model scope, then 4 contrasts |
+| 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | 2 complete: 99 indexes / 202 typed entries and 53 manual semantic rows accounted; next work 3 reviews meaning/model scope, then 4 contrasts |
 | 5-6 | Buildable stack fit experiment and common API/ownership proof | Pending; choose one service backend; prove stepper/servo and non-CANopen boundary without placeholder drivers |
 | 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Pending; reconcile available tools with actual selected pins; no current CAN build/CI target exists |
 | 9-10 | Status, exact units and axis/reference conversions | Pending; no native RPM width, stepper geometry or guessed feedback scale in common intent |

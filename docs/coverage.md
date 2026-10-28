@@ -19,7 +19,7 @@ that support claim. Reference/data verification is not driver testing.
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | Pending |
 | R05 | 5-6, 13-18, 23-25, 45-46 | Pending |
 | R06 | 2-4, 19-22, 29-36, 47-50 | Pending |
-| R07 | 1-4 | Original bytes verified; prompt 2 accounts for every EDS section and 52 manual semantic items with source references. Semantic review and profile applicability remain 3-4. |
+| R07 | 1-4 | Original bytes verified; prompt 2 accounts for every EDS section and 53 manual semantic items with source references. Semantic review and profile applicability remain 3-4. |
 | R08 | 2-4, 19-22, 29-36, 47-48 | Twenty-four conflicting claims are retained side by side; no firmware contradiction resolved. |
 | R09 | 9-10, 21-22, 32-36 | Pending |
 | R10 | 9-10, 13-25, 30-32 | Pending |
