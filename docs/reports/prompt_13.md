@@ -6,8 +6,10 @@ Implemented the selected CANopenNode application adapter with bounded transfer
 progress, copied admission intent, immutable deadlines, retained evidence and
 persistent per-channel quarantine. No controller I/O, hardware exchange,
 automatic retry, motion operation or channel reopening is implemented here.
-Focused contracts, independent reviews and integrated local verification pass;
-milestone CI and final synchronization are in progress.
+Complete: focused contracts, independent reviews, integrated local verification
+and implementation-checkpoint CI pass. The checkpoint is committed and synced;
+the final documentation/build-standard closure receives its own exact-commit CI
+check before handoff.
 
 Started clean at `1e3df68215d2786252e8edacce45aaa5c039c62f` on the continuing
 `promptset/motorcontrol-can` execution branch. Configured upstream is
@@ -105,6 +107,9 @@ Confirmed issues fixed before exit:
   checks; both optional build modes pass without weakening provenance.
 - Per-call documentation now includes initiation, a possible abort progression
   and FIFO drain rather than understating the bounded work.
+- The promoted C++ port object explicitly compiles as strict C++11 in the
+  mixed C/C++ engine archive. Public Doxygen states the external no-duplicate
+  premise required for successful-channel reuse; host tokens cannot prove it.
 
 ## Verification
 
@@ -132,6 +137,10 @@ without the adapter, stack, Python, ledger or references in the core package.
 
 `python scripts/verify.py --mode quick --compiler gcc --build-dir .build/p13-quick`
 passed 23/23 CTests, retained as `20261029T154746140084Z-85404-9qwbhjau`.
+After the final explicit C++11 setting and public reuse-premise clarification,
+the same quick command passed 23/23 again, retained as
+`20261029T155824186969Z-69180-5_iqb8xp`; four focused native contracts and
+direct strict Doxygen also passed.
 Version/object freshness, repository and source integrity passed. An altered
 external upstream source intentionally failed optional CMake configuration
 with its exact SHA-256 diagnostic; `.build/p13-pin-negative/negative-command.log`
@@ -167,6 +176,13 @@ own full application-owner integration/recovery; 27 owns actual SDK/controller
 retirement. The current port deliberately rejects unreviewed non-little-endian
 targets. Lichuan source/model/firmware/read-effect/write gates remain open.
 
-Commit/synchronization and exact final-commit CI results are checked before
-handoff and reported with the resulting SHA. No firmware, physical test or
-claimed device support is hidden behind the native results.
+Implementation checkpoint `48c80b5ad177f428bd73d6d2cad3881e4d37b8aa` is pushed
+to `origin/promptset/motorcontrol-can`; a fresh fetch confirmed 0 ahead / 0
+behind. Working, staged and committed source-integrity checks passed, as did
+`git diff --check`. Its [CI run 40905770119](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40905770119)
+passed Windows quick verification and both Linux GCC/Clang full ASan/UBSan,
+package and strict Doxygen gates on that exact SHA.
+
+The final closure commit's synchronization and exact-commit CI are checked
+before handoff and reported with its resulting SHA. No firmware, physical test
+or claimed device support is hidden behind the native results.

@@ -36,6 +36,8 @@ if(NOT TARGET canopennode_sdo)
 endif()
 # Keep the port symbols with the C engine archive so ordinary static link order resolves them.
 target_sources(canopennode_sdo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Driver.cpp")
+set_target_properties(canopennode_sdo PROPERTIES
+    CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
 add_library(MotorControlCANCanopenNode STATIC SdoClient.cpp)
 add_library(MotorControlCAN::CanopenNode ALIAS MotorControlCANCanopenNode)
 target_include_directories(MotorControlCANCanopenNode PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

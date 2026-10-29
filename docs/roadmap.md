@@ -12,7 +12,9 @@ preview and passing local/Windows/GCC/Clang sanitizer CI.
 [Prompt 11](reports/prompt_11.md) is complete with pure frame/SDO checks and passing
 local full plus Windows/GCC/Clang sanitizer CI. [Prompt 12](reports/prompt_12.md)
 is complete with reviewed generation and passing local/Windows/GCC/Clang
-sanitizer CI. The next numbered assignment is prompt 13;
+sanitizer CI. [Prompt 13](reports/prompt_13.md) completes the bounded selected-stack
+SDO lifecycle with passing local and Windows/GCC/Clang sanitizer CI.
+The next numbered assignment is prompt 14;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -30,7 +32,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 9-10 | Status, exact units and axis/reference conversions | 9 complete: production exact units/status and quantization with local/CI evidence. 10 complete: pure axis/reference conversions, offline preview and local/Windows/GCC/Clang sanitizer CI. No native RPM width, mandatory step geometry or guessed feedback scale. |
 | 11 | Classical CAN and checked SDO codec boundary | Complete: local full and exact-commit Windows/GCC/Clang sanitizer CI pass. One selected encoder, explicit channel/width correlation, full aborts and unchanged failure outputs. |
 | 12 | Reviewed generated object metadata and coverage | Complete: 194 resolved descriptors, four withheld/four excluded and active freshness; local and exact-commit Windows/GCC/Clang sanitizer CI pass. No semantic operation is implemented. |
-| 13 | Bounded SDO lifecycle | Implemented: optional selected-stack adapter, two unique channels, copied intent, immutable cutoffs, retained terminals, 1-32-byte forms and persistent quarantine; verification in the stage report |
+| 13 | Bounded SDO lifecycle | Complete: optional selected-stack adapter, two unique channels, copied intent, immutable cutoffs, retained terminals, 1-32-byte forms and persistent quarantine; [local/CI evidence](reports/prompt_13.md) |
 | 14 | SDO ambiguity/reconciliation | Next: adversarial retirement/correlation proof and only evidence-backed reopening; unresolved channels remain blocked |
 | 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
@@ -46,8 +48,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 13](prompts/13_sdo_lifecycle.md),
-bounded SDO transfer lifecycle over the implemented pure SDO boundary and
+Next assignment is [prompt 14](prompts/14_sdo_reconciliation.md),
+adversarial correlation and evidence-backed reconciliation over the implemented
+[bounded SDO lifecycle](canopen_services.md) and
 [reviewed object metadata](reference/lichuan_generated.md),
 [axis](axis_contract.md) and [production units](units_status.md), under the established
 [verification gates](verification.md). The

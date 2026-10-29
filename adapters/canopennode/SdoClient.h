@@ -28,6 +28,8 @@ struct SdoTxId {
  * Contexts cannot move while callback pointers/handles exist. Application TX
  * acceptance may already permit transmission; nextTx conservatively marks that
  * boundary before returning bytes. Quarantine survives release and all tokens.
+ * Success reuse requires a qualified peer/controller premise that completed
+ * exchanges will not later be duplicated; host tokens cannot establish it.
  */
 class SdoClient {
 public:
