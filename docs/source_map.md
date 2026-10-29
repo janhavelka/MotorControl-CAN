@@ -2,14 +2,15 @@
 
 Audited 2026-10-28 for [prompt 1](reports/prompt_1.md). This is navigation to
 current declarations, implementation, real callers and focused tests, not a
-directory dump or a claim that CAN code exists. Exact revisions and clean-tree
+directory dump. The original sibling audit remains below; production additions
+and their actual callers/tests are recorded in the migration tables. Exact revisions and clean-tree
 observations are in [the input record](reports/prompt_1_inputs.json).
 
 Source paths below are relative to the sibling `Projects/` directory. They are
 written as code so a standalone clone does not require sibling checkouts merely
 to validate its documentation. The audit checks their existence locally.
 Target paths are relative to MotorControl-CAN and are **planned**, unless the
-row names an already existing documentation file. The numbered prompt owns
+row links an existing implementation or documentation file. The numbered prompt owns
 implementation and tests; no new public header is created by this audit.
 
 Prompt 6 refreshed the relevant live seams in the
@@ -18,8 +19,8 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 
 | Responsibility | Actual declaration/implementation | Actual caller/test | Migration |
 | --- | --- | --- | --- |
-| Installed status/identity/frame | [Public headers](../include/MotorControlCAN/MotorControlCAN.h), [Endpoint.cpp](../src/Endpoint.cpp), [Frame.cpp](../src/can/Frame.cpp) | [core_test.cpp](../test/core_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | 7 complete; 9/11 extend the same implementations |
-| Prototype units and typed profile contexts | [Contracts.h](../experiments/api_ownership/Contracts.h), [Operations.h](../experiments/api_ownership/Operations.h), [Operations.cpp](../experiments/api_ownership/Operations.cpp) | [api_ownership_test.cpp](../test/api_ownership_test.cpp), [multidrive_contract_test.cpp](../test/multidrive_contract_test.cpp) | Synthetic profile stays test-only; 9–10 replace prototype math; 19/33 implement real operations |
+| Installed status/identity/frame | [Public headers](../include/MotorControlCAN/MotorControlCAN.h), [Endpoint.cpp](../src/Endpoint.cpp), [Frame.cpp](../src/can/Frame.cpp) | [core_test.cpp](../test/core_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | 7/9/11 complete the current pure status/frame boundary |
+| Prototype units and typed profile contexts | [Contracts.h](../experiments/api_ownership/Contracts.h), [Operations.h](../experiments/api_ownership/Operations.h), [Operations.cpp](../experiments/api_ownership/Operations.cpp) | [api_ownership_test.cpp](../test/api_ownership_test.cpp), [multidrive_contract_test.cpp](../test/multidrive_contract_test.cpp) | Synthetic profile stays test-only; 9/10 replaced prototype math with production Units/Axis; 19/33 implement real operations |
 | Physical owner/table | [CanBusOwner.h](../experiments/api_ownership/CanBusOwner.h), [CanBusOwner.cpp](../experiments/api_ownership/CanBusOwner.cpp) | Native main above | 13/15/23 extend the same table/client boundary; 27 qualifies controller |
 | Build/package | [Root CMake](../CMakeLists.txt), [manifest](../library.json), [version helper](../scripts/generate_version.py) | [Registered tests](../test/CMakeLists.txt), [package contract](../test/package_test.py), [version contract](../test/version_test.py) | 7 complete; [verifier](../scripts/verify.py), [checker](../scripts/check_repository.py), [workflow](../.github/workflows/verify.yml) and [Doxyfile](../Doxyfile) implement prompt 8 gates |
 
@@ -159,4 +160,14 @@ for the service choice; the proposed production tree is still owned by prompt 6.
 | Call status, static labels and unknown values | [Status.h](../include/MotorControlCAN/Status.h), header-only | [Core tests](../test/core_test.cpp), retained proof operations/abort tests | RS shape retained; CAN service rejection separate from raw U32 abort, faults and health |
 | Exact parsing, reduction and directed double | [Units.h](../include/MotorControlCAN/Units.h) / [Units.cpp](../src/Units.cpp) | [Isolated consumer](../test/installed_consumer/main.cpp), [numeric vectors](../test/units_test.cpp) | Reusable arithmetic leaves RS Axis; directed conversion corrects both neighboring directions |
 | Dimensional conversion and quantization | Same Units API/implementation | [Proof target conversion](../experiments/api_ownership/Operations.cpp), units tests and N5/EPOS4 contrast tests | Ordinary exact rational overloads; explicit radians/float error budgets, no full-step prerequisite or native RPM width |
-| Axis configuration, independent origins and reference policy | [Axis.h](../include/MotorControlCAN/Axis.h) / [Axis.cpp](../src/Axis.cpp) | [Offline preview](../examples/units_preview/main.cpp), [installed consumer](../test/installed_consumer/main.cpp), [axis vectors](../test/axis_test.cpp) and retained proof | Prompt 10 complete: I64/mixed exact endpoints, explicit binary32, required relative basis, independent epochs and preserved observation age. CAN velocity stays wide and permits arithmetic zero; RS narrows to int16 RPM. Finite operations remain 33?36 |
+| Axis configuration, independent origins and reference policy | [Axis.h](../include/MotorControlCAN/Axis.h) / [Axis.cpp](../src/Axis.cpp) | [Offline preview](../examples/units_preview/main.cpp), [installed consumer](../test/installed_consumer/main.cpp), [axis vectors](../test/axis_test.cpp) and retained proof | Prompt 10 complete: I64/mixed exact endpoints, explicit binary32, required relative basis, independent epochs and preserved observation age. CAN velocity stays wide and permits arithmetic zero; RS narrows to int16 RPM. Finite operations remain 33-36 |
+
+## Production CAN/SDO boundary (prompt 11)
+
+| Responsibility | Declaration / implementation | Real caller / focused test | Deliberate difference and next owner |
+| --- | --- | --- | --- |
+| Classical identifier, DLC, data/RTR and FD flag validity | [Frame.h](../include/MotorControlCAN/can/Frame.h) / [Frame.cpp](../src/can/Frame.cpp) | [Frame vectors](../test/frame_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | Extended/RTR remain valid common frames; FD is an unsupported capability, BRS/ESI invalid for Classical; timestamps/controller state are external |
+| Explicit SDO channel/binding, request and reply envelopes | [Sdo.h](../include/MotorControlCAN/canopen/Sdo.h) / [Sdo.cpp](../src/canopen/Sdo.cpp) | [Installed consumer](../test/installed_consumer/main.cpp), [independent literal vectors](../test/sdo_codec_test.cpp) | Reviewed width and two explicit COB-IDs, no derived default; no RTU CRC, stream or device permission |
+| Authoritative request encoder / checked adapter boundary | Pinned [CO_SDOclient.c](../experiments/canopen_service_fit/vendor/CANopenNode/301/CO_SDOclient.c), installed pure checks above | [Real engine vectors](../test/sdo_adapter_test.cpp) | One optional application-side CANopenNode engine; guarded test ingress does not claim production transfer integration. Sessions/ambiguity remain 13/14 |
+| Little-endian width/sign and protocol evidence | Same Sdo API / implementation | Word/alias/sentinel cases in codec tests; real engine abort tests | Full U32 abort distinct from local Status; valid segmented initiation is evidence, not malformed or completed. Borrow spans only during call, publish owned output atomically |
+| Package/header/documentation boundary | [CMake](../CMakeLists.txt), [manifest](../library.json), [service guide](canopen_services.md) | [Isolated package checks](../test/package_test.py), independent header compilation | Installed core needs no stack, SDK, Python, vendor source or research fixture; no driver/profile added |

@@ -9,7 +9,7 @@ promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
 [prompt 8](reports/prompt_8.md) and [prompt 9](reports/prompt_9.md) are complete.
 [Prompt 10](reports/prompt_10.md) is complete with pure axis targets, offline
 preview and passing local/Windows/GCC/Clang sanitizer CI.
-The next numbered assignment is prompt 11;
+[Prompt 11](reports/prompt_11.md) has implemented pure frame/SDO checks and passed local full verification; milestone CI is pending. The next numbered assignment after closure is prompt 12;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -25,7 +25,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 5-6 | Buildable stack fit experiment and common API/ownership proof | Complete: one selected engine, concrete common contracts, one fixed owner table and checked read/write/contrast fixtures. Production package/units now exist under 7–9; production axis/reference policy now exists under 10. |
 | 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Complete: minimal C++11 core with isolated source/install/export consumers, quick/full verification, strict Doxygen and passing Windows quick and Linux GCC/Clang sanitizer CI. Exact results are in the stage reports. |
 | 9-10 | Status, exact units and axis/reference conversions | 9 complete: production exact units/status and quantization with local/CI evidence. 10 complete: pure axis/reference conversions, offline preview and local/Windows/GCC/Clang sanitizer CI. No native RPM width, mandatory step geometry or guessed feedback scale. |
-| 11-14 | CAN/SDO codecs, reviewed generated dictionary, bounded service/reconciliation | Pending; preserve full aborts, publication/ownership and late identical-response uncertainty |
+| 11 | Classical CAN and checked SDO codec boundary | Implemented and locally verified; exact milestone CI pending. One selected encoder, explicit channel/width correlation, full aborts and unchanged failure outputs. |
+| 12-14 | Reviewed generated dictionary, bounded service/reconciliation | Pending; integrate pure checks with the selected engine, preserve publication/ownership and late identical-response uncertainty |
 | 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
 | 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
@@ -40,9 +41,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 11](prompts/11_can_sdo_codecs.md),
-Classical CAN/SDO codec boundaries over the implemented [axis](axis_contract.md)
-and [production units](units_status.md), under the established
+Next assignment after prompt 11 closure is [prompt 12](prompts/12_object_generation.md),
+reviewed object generation over the implemented pure SDO boundary,
+[axis](axis_contract.md) and [production units](units_status.md), under the established
 [verification gates](verification.md). The
 [reviewed Lichuan dictionary](reference/lichuan_objects.md) and
 [contrast cases](reference/drive_contrasts.md) are documentary inputs;

@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added pure checked CANopen SDO request/reply envelopes, explicit channel/binding/width correlation, unsigned and signed little-endian reads, and owned reply evidence. Valid aborts retain every bit; valid segmented initiation remains distinct from malformed input. CANopenNode remains the sole selected encoder/session engine.
+- Added Classical BRS/ESI rejection, exhaustive frame/command checks, raw-buffer overlap/atomic-output regressions and actual CANopenNode-generated request tests. Isolated installed consumers and strict API documentation cover the new declarations; no device permission or live exchange is implied.
+
 - Added production pure axis configuration, independent mechanical/encoder origins, exact position/rate preparation, wrapped-angle path primitives and reference-aware admission revalidation. Relative targets require their selected basis; observation age survives unchanged reconfiguration, and exhausted generations fail closed.
 - Added offline units preview, installed/native axis consumers and independent coordinate, time, overflow, limit and binary32 regressions. Replaced proof coordinate arithmetic with the production API; synthetic I32 capabilities remain test-only. No device command or motion operation is implemented.
 

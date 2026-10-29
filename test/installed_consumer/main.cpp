@@ -38,5 +38,16 @@ int main() {
     PreparedTarget target;
     if (!preparePosition(request, config, nullptr, target) || target.endpointNative != 1536) return 7;
     if (!validatePreparedTarget(target, config, nullptr, 0)) return 8;
+    CANOPEN::SdoExpectation sdo;
+    sdo.channel.binding = binding; sdo.channel.binding.endpoint.protocol = Protocol::CANOPEN;
+    sdo.channel.binding.endpoint.address = 5;
+    sdo.channel.clientToServerId = 0x605; sdo.channel.serverToClientId = 0x585;
+    sdo.index = 0x6041; sdo.width = 2;
+    Frame response; response.id = 0x585; response.dlc = response.payloadLength = 8;
+    response.data[0] = 0x4b; response.data[1] = 0x41; response.data[2] = 0x60;
+    response.data[4] = 0x34; response.data[5] = 0x12;
+    CANOPEN::SdoReply reply; uint32_t word = 0;
+    if (!CANOPEN::checkReply(response, sdo, reply) ||
+        !CANOPEN::readWord(reply.data, reply.length, sdo.width, word) || word != 0x1234) return 9;
     return 0;
 }

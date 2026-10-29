@@ -21,13 +21,15 @@ FILES = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
     "include/MotorControlCAN/Axis.h", "src/Axis.cpp", "test/axis_test.cpp",
     "examples/units_preview/CMakeLists.txt", "examples/units_preview/main.cpp", "examples/units_preview/README.md",
     "include/MotorControlCAN/can/Frame.h", "src/Endpoint.cpp", "src/can/Frame.cpp",
+    "include/MotorControlCAN/canopen/Sdo.h", "src/canopen/Sdo.cpp",
+    "test/frame_test.cpp", "test/sdo_codec_test.cpp", "test/sdo_adapter_test.cpp",
     "scripts/verify.py", "scripts/check_repository.py", "scripts/generate_version.py",
     "scripts/export_package.py", "scripts/check_promptset.py",
     "scripts/check_lichuan_ledger.py", "scripts/doxygen_filter.py",
@@ -39,7 +41,7 @@ FILES = {
     "test/installed_consumer/main.cpp", "experiments/canopen_service_fit/CMakeLists.txt",
 }
 EXPORTS = ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md"]
+           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md"]
 
 
 class RepositoryTests(unittest.TestCase):
@@ -58,7 +60,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "units", "axis", "api_ownership", "multidrive_contract"):
+        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

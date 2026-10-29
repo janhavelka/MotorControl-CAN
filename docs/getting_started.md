@@ -2,7 +2,7 @@
 
 The development package `MotorControl-CAN` currently implements local call
 status, exact numeric/unit conversion and quantization, pure axis targets, copied logical endpoint/
-binding identity and Classical CAN frame validation. The C++ namespace, include
+binding identity, Classical CAN frame validation and pure checked CANopen SDO envelopes. The C++ namespace, include
 directory, CMake package and target are
 `MotorControlCAN`, with imported target `MotorControlCAN::MotorControlCAN`.
 There is no installed drive profile, CAN controller, motion operation or
@@ -33,7 +33,11 @@ checked position/velocity targets; these prepare values without transmitting mot
 `validateBinding` checks common nonzero identities/generations, without probing
 a drive or imposing CANopen addressing. `validateFrame` checks Classical CAN
 shape and rejects an FD requirement. Their successful `Status` proves local
-validation only. Public headers document validity, units, ownership and limits.
+validation only. Include `<MotorControlCAN/canopen/Sdo.h>` for explicit
+channel/binding/width checks, owned reply evidence and signed little-endian
+words; see the [service guide](canopen_services.md). These functions neither
+encode an active transfer nor open a controller. Public headers document
+validity, units, ownership and limits.
 
 For source consumption use `add_subdirectory("path/to/MotorControl-CAN" core)`
 and link the same target; the library does not enable repository tests or change
@@ -119,7 +123,7 @@ python scripts/export_package.py dist/MotorControl-CAN.zip
 Extract it with a ZIP tool, then use the native build/install commands above.
 The exported build needs neither Python nor network access. The archive contains
 only `include/`, `src/`, `cmake/`, root CMake/metadata/license/readme/changelog
-and the package, units/status and axis guides. Vendor material, audits, test/experiment
+and the package, units/status, axis and CANopen service guides. Vendor material, audits, test/experiment
 sources and dependencies, examples and sibling snapshots are excluded. PlatformIO 6.1.19's equivalent
 developer packaging command is `pio pkg pack --output dist/MotorControl-CAN.tar.gz`;
 its platforms/frameworks are wildcard because the core has no SDK dependency.

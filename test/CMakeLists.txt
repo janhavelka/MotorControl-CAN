@@ -34,6 +34,15 @@ target_link_libraries(native_consumer PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(native_consumer)
 add_test(NAME native_consumer COMMAND native_consumer)
 
+add_executable(frame_test frame_test.cpp)
+target_link_libraries(frame_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(frame_test)
+add_test(NAME frame COMMAND frame_test)
+add_executable(sdo_codec_test sdo_codec_test.cpp)
+target_link_libraries(sdo_codec_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(sdo_codec_test)
+add_test(NAME sdo_codec COMMAND sdo_codec_test)
+
 # Synthetic profiles and application owner remain test support; numeric code is core.
 enable_language(C)
 add_subdirectory(../experiments/canopen_service_fit fit_stack)
@@ -57,6 +66,12 @@ target_link_libraries(multidrive_contract_test PRIVATE proof_contract)
 strict_test(multidrive_contract_test)
 add_test(NAME multidrive_contract COMMAND multidrive_contract_test)
 
+# Exercise the real selected engine's bytes through the installed pure checks.
+add_executable(sdo_adapter_test sdo_adapter_test.cpp)
+target_link_libraries(sdo_adapter_test PRIVATE proof_owner)
+strict_test(sdo_adapter_test)
+add_test(NAME sdo_adapter COMMAND sdo_adapter_test)
+
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 add_test(NAME version_generated COMMAND "${Python3_EXECUTABLE}"
     "${PROJECT_SOURCE_DIR}/scripts/generate_version.py" check)
@@ -70,7 +85,7 @@ add_test(NAME documentation_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CU
 add_test(NAME planning_integrity COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset.py")
 add_test(NAME planning_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset_test.py")
 add_test(NAME ledger_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_lichuan_ledger_test.py")
-set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract PROPERTIES TIMEOUT 10)
+set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract frame sdo_codec sdo_adapter PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
 set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
 set_tests_properties(package_contract PROPERTIES LABELS full)

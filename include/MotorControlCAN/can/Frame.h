@@ -12,7 +12,9 @@ namespace MotorControlCAN {
  * RTR has no data payload even when its requested DLC is nonzero. The fd flag
  * expresses a requirement rejected by this Classical-only type; there is no FD
  * storage path. A future FD adapter requires its own bounded contract. Default
- * is a valid empty standard data frame. Unused data bytes have no meaning. */
+ * is a valid empty standard data frame. Unused data bytes have no meaning.
+ * Timestamps, error frames and controller/bus status stay outside this wire value.
+ * There is no raw flag mask to silently discard unknown adapter flags. */
 struct Frame {
     uint32_t id = 0; ///< Identifier, 0..0x7ff standard or 0..0x1fffffff extended.
     uint8_t dlc = 0; ///< Classical wire DLC, 0..8; requested byte count for RTR.
@@ -20,6 +22,8 @@ struct Frame {
     bool extended = false; ///< Preserve 29-bit wire format even when id fits 11 bits.
     bool rtr = false; ///< Remote request with no data payload.
     bool fd = false; ///< Unsupported FD requirement; rejected by validateFrame before other checks.
+    bool brs = false; ///< FD bit-rate-switch wire flag; invalid without FD, which is unsupported here.
+    bool esi = false; ///< FD error-state-indicator wire flag; invalid in Classical frames, not host health.
     uint8_t data[8] = {}; ///< Owned payload storage; only payloadLength bytes are meaningful.
 };
 
@@ -29,8 +33,9 @@ struct Frame {
  * Performs bounded validation only, with no allocation, I/O or clock access.
  * @param[in] frame Caller-owned frame; unchanged and borrowed only during this call.
  * @return UNSUPPORTED for fd=true, taking precedence over other invalid fields;
- * otherwise FRAME_ERROR for an out-of-range identifier/DLC/length, RTR data, or
- * data length unequal to DLC. Returns OK for a representable Classical frame.
+ * otherwise FRAME_ERROR for FD-only brs/esi flags, an out-of-range identifier,
+ * DLC/length, RTR data, or data length unequal to DLC. Returns OK for a
+ * representable Classical frame.
  * All returned detail values are zero. Success sends no frame and establishes no
  * protocol acceptance, controller capability or device acknowledgement.
  */
