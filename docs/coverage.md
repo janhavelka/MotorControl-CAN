@@ -21,6 +21,11 @@ tests. Status, endpoint identity, Classical frame validation and prompt 9's
 [Prompt 8](reports/prompt_8.md) adds real quick/full verification, strict public
 documentation and passing Windows quick and Linux GCC/Clang sanitizer CI.
 
+The [fresh prompt-14 audit](reports/prompt_14_audit.md) strengthens R12/R20
+with segmented-upload cancellation boundaries and a toggle-wrap counterexample.
+It also supplies current independent review evidence for R32. No runtime or
+hardware-support claim changed.
+
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
 build or hardware qualification has been delivered for that requirement. No CAN
 vendor driver exists yet. The small installed API does not implement motion; prototype evidence below does not change

@@ -141,8 +141,10 @@ must not become implicit recovery/actuation policies in this owner.
 The production adapter's `nextTx` is the conservative possible-transmission
 boundary. If application staging separates handoff from controller submission,
 retain the complete `SdoTxId` with the frame and check `canTransmit(id, nowUs)`
-immediately before a one-shot enqueue, serialized with lifecycle events. A false
-result discards that local copy; a true result never authorizes resending a frame
+immediately before a one-shot enqueue, serialized with lifecycle events. Supply
+nondecreasing time even though this pure check does not advance the adapter's
+stored processing time. A false result discards that local copy; a true result
+never authorizes resending a frame
 already accepted by the controller. The pure check cannot revoke or inspect an
 external queue. Cancellation, expiry, boot-up, binding withdrawal or bus-off must
 also retire application/controller work under the actual SDK contract. Preserve

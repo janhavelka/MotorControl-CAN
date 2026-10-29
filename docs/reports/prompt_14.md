@@ -1,5 +1,10 @@
 # Prompt 14 SDO ambiguity and reconciliation
 
+A [fresh independent audit](prompt_14_audit.md) subsequently clarified the
+per-segment freshness premise and strengthened upload cancellation/toggle-wrap
+regressions. No runtime defect was reproduced; its fresh checks are recorded
+separately from the original implementation results below.
+
 Executed 2026-10-29 on `promptset/motorcontrol-can`, continuing promptset v2
 from `6af5283`. Initial worktree and index were clean; upstream fetch showed
 0 ahead / 0 behind. No new branch, sibling mutation or hardware action occurred.

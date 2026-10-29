@@ -262,9 +262,19 @@ old `60` response. During a live initial exchange the adapter checks the object;
 later segment command/toggle checks belong to the selected engine. Known stale
 capture or an unsolicited frame invalidates the premise even if its object is
 different. An indistinguishable duplicate arriving only after a new handoff
-cannot be detected without external evidence: success reuse therefore requires
-exclusive ownership and no later duplicate delivery of completed exchanges.
-Host fake tests demonstrate this limitation; they do not prove a real session.
+cannot be detected without external evidence. Every exchange requires exclusive
+ownership and no delayed duplicate response from any completed initiation or
+segment exchange, including segments within the same active transfer.
+
+The segmented toggle is one bit, not a sequence number: download acknowledgements
+repeat `20, 30, 20`. A delayed first `20` can therefore look like the third
+segment's acknowledgement. The retained counterexample deliberately violates the
+external premise and demonstrates that the unknown-capture path cannot detect
+this case. Supplying its original pre-handoff capture time instead quarantines
+the route. A duplicate that first arrives locally after the later handoff is
+still indistinguishable, even with an accurate local timestamp. Capture time is
+not server-generation time. Host tests document these limits; they do not prove
+a real session or authorize its configuration.
 
 ### Evidence, effects and quarantine
 

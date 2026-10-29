@@ -28,8 +28,9 @@ struct SdoTxId {
  * Contexts cannot move while callback pointers/handles exist. Application TX
  * acceptance may already permit transmission; nextTx conservatively marks that
  * boundary before returning bytes. Quarantine survives release and all tokens.
- * Success reuse requires a qualified peer/controller premise that completed
- * exchanges will not later be duplicated; host tokens cannot establish it.
+ * Every exchange requires a qualified peer/controller premise that old responses
+ * cannot arrive as a later exchange's reply. This includes individual segments
+ * within one transfer; a repeated toggle or host token cannot establish freshness.
  */
 class SdoClient {
 public:
@@ -53,8 +54,10 @@ public:
      * @param[in] freshSessionQualified Required external premise that the local
      * TX/RX queues and remote session contain no indistinguishable old work.
      * A fresh C++ object or successful probe cannot establish this premise.
-     * Also requires no later duplicated completed exchange and exclusive ownership
-     * of this peer's SDO server channel. A different host epoch is not a new server.
+     * Also requires no delayed duplicate response from any completed initiation or
+     * segment exchange, and exclusive ownership of this peer's SDO server channel.
+     * These premises apply during a transfer as well as between transfers.
+     * A different host epoch is not a new server.
      * @return False atomically for invalid, duplicate or already configured route.
      */
     bool configure(uint8_t slot, const SdoChannel& channel, bool externallyConfirmed,
@@ -117,7 +120,9 @@ public:
      * Caller serializes check/enqueue with lifecycle events and enqueues each handoff
      * at most once. True is not permission to replay a previously accepted frame.
      * @param[in] id Exact most recent live handoff, including bounded cleanup after release.
-     * @param[in] nowUs Same processing clock, before its cutoff; backward time rejects.
+     * @param[in] nowUs Same processing clock, before its cutoff. Values before the
+     * last mutating entry reject; this pure check does not advance that clock.
+     * The caller must still supply nondecreasing time across its calls.
      * @return False after reply, confirmation, cancellation, expiry, invalidation or
      * superseding handoff. A controller's already accepted queue still needs actual
      * retirement evidence; this function cannot recall bytes outside the adapter.

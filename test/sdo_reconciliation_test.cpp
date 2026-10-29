@@ -91,39 +91,60 @@ void blocked(C::SdoClient& c, C::SdoTransfer w, uint64_t now) {
 
 void cancelEveryTxBoundary() {
     // Each prefix ends at one externally meaningful boundary of a 10-byte
-    // download: admitted, staged initiation, handed-off initiation, staged
+    // transfer: admitted, staged initiation, handed-off initiation, staged
     // segment, handed-off segment, staged final segment, handed-off final.
-    for (unsigned phase = 0; phase < 7; ++phase) {
-        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
-        const C::SdoRequestId id = admit(c, work(true, 10));
-        C::SdoTxId latest;
-        if (phase >= 1) CHECK(c.service(0));
-        if (phase >= 2) CHECK(take(c, 1, 0, &latest).data[0] == 0x21);
-        if (phase >= 3) CHECK(c.receive(reply(0x60), 2));
-        if (phase >= 4) CHECK(take(c, 3, 0, &latest).data[0] == 0x00);
-        if (phase >= 5) CHECK(c.receive(reply(0x20), 4));
-        if (phase >= 6) CHECK(take(c, 5, 0, &latest).data[0] == 0x19);
-        const uint32_t handed = c.port(0)->handedOff;
-        CHECK(c.cancel(id, 6));
-        const C::SdoCompletion saved = terminal(c, id, C::SdoOutcome::CANCELLED);
-        CHECK(saved.transmissionPossible == (phase >= 2));
-        CHECK(saved.effectPossible == (phase >= 2) && saved.effectUncertain == (phase >= 2));
-        CHECK(saved.transfer.size == 10 && saved.transfer.data[9] == 10);
-        CHECK(!c.port(0)->queueOccupied);
-        CHECK(!c.canTransmit(latest, 7));
-        CHECK(!c.confirmTx(latest, 7));
-        if (phase >= 2) CHECK(!c.receive(reply(phase >= 6 ? 0x30 : phase >= 4 ? 0x20 : 0x60), 8));
-        M::Frame sentinel = reply(0xa5); C::SdoTxId tx; tx.frame = 99;
-        const M::Frame previous = sentinel;
-        CHECK(!c.nextTx(0, 9, sentinel, tx));
-        CHECK(sameFrame(sentinel, previous) && tx.frame == 99);
-        CHECK(c.service(10000));
-        CHECK(c.port(0)->handedOff == handed);
-        unchanged(*c.result(id), saved);
-        CHECK(c.release(id));
-        C::SdoRequestId fresh;
-        CHECK(c.admit(0, work(), 10000, fresh) == (phase < 2));
-        CHECK(c.unresolved(0) == (phase >= 2));
+    // Downloads and both upload effect classes share retirement boundaries;
+    // upload progress also owns already received data that must not be published.
+    for (unsigned form = 0; form < 3; ++form) {
+        for (unsigned phase = 0; phase < 7; ++phase) {
+            const bool download = form == 0, reviewed = form == 2;
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            C::SdoTransfer w = work(download, 10);
+            if (reviewed) w.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING;
+            const C::SdoRequestId id = admit(c, w);
+            C::SdoTxId latest;
+            if (phase >= 1) CHECK(c.service(0));
+            if (phase >= 2) CHECK(take(c, 1, 0, &latest).data[0] == (download ? 0x21 : 0x40));
+            if (phase >= 3) {
+                M::Frame initiation = reply(download ? 0x60 : 0x41);
+                if (!download) initiation.data[4] = 10;
+                CHECK(c.receive(initiation, 2));
+            }
+            if (phase >= 4) CHECK(take(c, 3, 0, &latest).data[0] == (download ? 0x00 : 0x60));
+            if (phase >= 5) {
+                M::Frame segment = reply(download ? 0x20 : 0x00);
+                if (!download) for (unsigned i = 1; i < 8; ++i) segment.data[i] = static_cast<uint8_t>(i);
+                CHECK(c.receive(segment, 4));
+            }
+            if (phase >= 6) CHECK(take(c, 5, 0, &latest).data[0] == (download ? 0x19 : 0x70));
+            const uint32_t handed = c.port(0)->handedOff;
+            CHECK(c.cancel(id, 6));
+            const C::SdoCompletion saved = terminal(c, id, C::SdoOutcome::CANCELLED);
+            CHECK(saved.transmissionPossible == (phase >= 2));
+            CHECK(saved.effectPossible == (phase >= 2 && !reviewed));
+            CHECK(saved.effectUncertain == saved.effectPossible);
+            CHECK(saved.transfer.size == 10 && saved.transfer.data[9] == 10);
+            CHECK(saved.size == 0); // Partial upload data never becomes a completed value.
+            CHECK(!c.port(0)->queueOccupied);
+            CHECK(!c.canTransmit(latest, 7));
+            CHECK(!c.confirmTx(latest, 7));
+            if (phase >= 2) {
+                const uint8_t late = download ? (phase >= 6 ? 0x30 : phase >= 4 ? 0x20 : 0x60)
+                                              : (phase >= 6 ? 0x19 : phase >= 4 ? 0x00 : 0x41);
+                CHECK(!c.receive(reply(late), 8));
+            }
+            M::Frame sentinel = reply(0xa5); C::SdoTxId tx; tx.frame = 99;
+            const M::Frame previous = sentinel;
+            CHECK(!c.nextTx(0, 9, sentinel, tx));
+            CHECK(sameFrame(sentinel, previous) && tx.frame == 99);
+            CHECK(c.service(10000));
+            CHECK(c.port(0)->handedOff == handed);
+            unchanged(*c.result(id), saved);
+            CHECK(c.release(id));
+            C::SdoRequestId fresh;
+            CHECK(c.admit(0, work(), 10000, fresh) == (phase < 2));
+            CHECK(c.unresolved(0) == (phase >= 2));
+        }
     }
 }
 
@@ -172,8 +193,8 @@ void failedPremisesCannotReopen() {
     C::SdoTxId cleanup;
     CHECK(take(c, 2, 0, &cleanup).data[0] == 0x80);
     CHECK(c.canTransmit(cleanup, 3));
-    CHECK(!c.canTransmit(cleanup, 4)); // Cleanup staging cutoff remains fixed after release/handoff.
     blocked(c, work(), 3);
+    CHECK(!c.canTransmit(cleanup, 4)); // Cleanup staging cutoff remains fixed after release/handoff.
     CHECK(c.service(4)); CHECK(!c.canTransmit(cleanup, 4));
     CHECK(c.service(10000)); blocked(c, work(), 10000);
 }
@@ -320,6 +341,46 @@ void duplicateSegmentsAndSameObjectPayloads() {
     for (unsigned i = 4; i < 8; ++i) CHECK(oldAcknowledgement.data[i] == 0);
     CHECK(!c.receive(oldAcknowledgement, 7));
     blocked(c, second, 7);
+}
+
+void toggleWrapAmbiguityLimitation() {
+    // This counterexample deliberately violates the external no-duplicate
+    // session premise. Ordinary segment ACKs have only one toggle bit: after
+    // it wraps, an old ACK can match a later segment. Host tokens cannot help.
+    for (unsigned evidence = 0; evidence < 3; ++evidence) {
+        C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(c, work(true, 21));
+        take(c); CHECK(c.receive(reply(0x60), 1));
+        CHECK(take(c, 2).data[0] == 0x00);
+        const M::Frame firstAck = reply(0x20);
+        CHECK(c.receive(firstAck, 3));
+        CHECK(take(c, 4).data[0] == 0x10);
+        CHECK(c.receive(reply(0x30), 5));
+        C::SdoTxId finalTx;
+        CHECK(take(c, 6, 0, &finalTx).data[0] == 0x01);
+        if (evidence == 0) {
+            // A delayed copy with unknown capture time is indistinguishable
+            // from a fresh final ACK. Success here demonstrates the limitation;
+            // it does not qualify any real peer/controller freshness premise.
+            CHECK(c.receive(firstAck, 7));
+        } else if (evidence == 1) {
+            CHECK(!c.receive(firstAck, 3, 7)); // Original capture proves it is old.
+        } else {
+            CHECK(c.receive(reply(0x20), 7, 7)); // Independently fresh final ACK.
+        }
+        const C::SdoCompletion& result = terminal(c, id,
+            evidence == 1 ? C::SdoOutcome::CORRELATION_LOST : C::SdoOutcome::SUCCESS);
+        CHECK(result.transmissionPossible && result.effectPossible);
+        CHECK(result.effectUncertain == (evidence == 1));
+        CHECK(result.protocolAcknowledged == (evidence != 1));
+        CHECK(c.unresolved(0) == (evidence == 1));
+        CHECK(!c.canTransmit(finalTx, 7));
+        CHECK(c.observation(0)->receivedTimeKnown == (evidence != 0));
+        if (evidence == 1) {
+            CHECK(c.observation(0)->disposition == C::SdoRxDisposition::UNRESOLVED);
+            CHECK(c.observation(0)->receivedUs == 3 && c.observation(0)->processedUs == 7);
+        }
+    }
 }
 
 void capturedAndProcessingTime() {
@@ -570,6 +631,7 @@ int main() {
     cleanupEligibilityAfterReleaseAndInvalidation();
     distinctRouteAndUnrelatedEvents(); partialWorkflowAndReadEffects();
     duplicateSegmentsAndSameObjectPayloads();
+    toggleWrapAmbiguityLimitation();
     capturedAndProcessingTime(); terminalPrecedenceAndLaterObservations();
     sameTimeTerminalOrdering(); segmentCaptureAndBorrowedObservation(); extendedObservationPreservesLiveRequest();
     staleBeforeHandoffAndObservedDuplicates(); transmitEligibilityAndBindingInvalidation();
