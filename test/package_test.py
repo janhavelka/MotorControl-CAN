@@ -18,7 +18,7 @@ import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Endpoint.h",
+HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/Version.h",
            "MotorControlCAN/MotorControlCAN.h"}
 
@@ -85,9 +85,9 @@ def check_package(args, work, summary):
     run(sys.executable, str(ROOT / "scripts/export_package.py"), str(archive))
     source = work / "exported source"
     expected = {"include/" + h for h in HEADERS} | {
-        "src/Endpoint.cpp", "src/can/Frame.cpp", "CMakeLists.txt", "library.json",
+        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
-        "docs/getting_started.md"}
+        "docs/getting_started.md", "docs/units_status.md"}
     with zipfile.ZipFile(archive) as package:
         require(len(package.namelist()) == len(expected) and set(package.namelist()) == expected,
                 package.namelist())

@@ -4,8 +4,9 @@ Prompt 6 freezes the minimum semantic contract in the
 [native ownership proof](../experiments/api_ownership/README.md). The concrete
 declarations are buildable C++11. Prompt 7 moved stable status, endpoint/binding
 and Classical frame validation into the [native package](getting_started.md).
-Synthetic operations, bounded prototype arithmetic and the owner remain test
-support. No installed driver, hardware support or complete motion implementation
+Prompt 9 supplies production [exact units and quantization](units_status.md).
+Synthetic operations, coordinate policy and the owner remain test support.
+No installed driver, hardware support or complete motion implementation
 is claimed. The [architecture plan](architecture_plan.md) remains
 the target repository layout; this document governs the narrower proven boundary.
 
@@ -58,7 +59,8 @@ fake N5/EPOS4 profiles or freeze struct byte layout as a binary ABI.
 Keep the synthetic I32 native bounds/origin and the documentary ramp fixture
 dimensions profile-specific; they are not universal native representations.
 
-Prompts 9–10 replace the bounded exact-only prototype calculation. Prompts
+Prompt 9 replaces the duplicate numeric types and bounded arithmetic through
+production Units; prompt 10 owns axis/reference/frame policy. Prompts
 13/15/23 extend the same owner/service storage boundary for transfers, network
 observations and application scheduling; they must not add competing client
 engines or result tables. Prompt 14 establishes reconciliation evidence. Native

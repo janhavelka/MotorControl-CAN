@@ -35,7 +35,10 @@ claim is source-inspected. Tests use standard output only for reporting.
 
 Prompt 7 moved the two test entry points to repository `test/` and the stable
 status/endpoint/frame functions into the native package. Synthetic profiles,
-prototype arithmetic and bridge dependencies remain outside installed headers. Production arithmetic remains prompts 9–10; complete services, real
-motion and controller qualification retain their assigned later stages. Read
+coordinate policy and bridge dependencies remain outside installed headers.
+Prompt 9 migrates numeric types/conversion/quantization to production
+[Units](../../docs/units_status.md), removing duplicate bounded arithmetic;
+prompt 10 retains axis/reference policy. Complete services, real motion and
+controller qualification retain their assigned later stages. Read
 [owner lifetimes](../../docs/can_owner.md) and
 [service premises](../../docs/canopen_services.md) before reusing this proof.

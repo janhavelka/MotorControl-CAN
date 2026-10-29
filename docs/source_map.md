@@ -151,3 +151,12 @@ for the service choice; the proposed production tree is still owned by prompt 6.
 | Owner/result lifetime and fake retirement | [Proof declarations](../experiments/canopen_service_fit/fit_proof.h), [implementation](../experiments/canopen_service_fit/fit_proof.cpp), [caller/tests](../experiments/canopen_service_fit/main.cpp) | 6 freezes contract; 23/24 integrate existing service storage. Local proof types are not installed ABI |
 | Controller port | [Fake shim](../experiments/canopen_service_fit/fake_controller.cpp), [target types](../experiments/canopen_service_fit/CO_driver_target.h); installed TWAI evidence in source review | 27: SDK acceptance may already mean transmission; fake retirement cannot qualify hardware |
 | Build/provenance | [Standalone CMake](../experiments/canopen_service_fit/CMakeLists.txt), [commands and limits](../experiments/canopen_service_fit/README.md) | 7 registers proof and core source/install consumers; 8 establishes repository verification/docs CI |
+
+## Production numeric migration (prompt 9)
+
+| Responsibility | Declaration / implementation | Real caller / focused test | Deliberate difference and next owner |
+| --- | --- | --- | --- |
+| Call status, static labels and unknown values | [Status.h](../include/MotorControlCAN/Status.h), header-only | [Core tests](../test/core_test.cpp), retained proof operations/abort tests | RS shape retained; CAN service rejection separate from raw U32 abort, faults and health |
+| Exact parsing, reduction and directed double | [Units.h](../include/MotorControlCAN/Units.h) / [Units.cpp](../src/Units.cpp) | [Isolated consumer](../test/installed_consumer/main.cpp), [numeric vectors](../test/units_test.cpp) | Reusable arithmetic leaves RS Axis; directed conversion corrects both neighboring directions |
+| Dimensional conversion and quantization | Same Units API/implementation | [Proof target conversion](../experiments/api_ownership/Operations.cpp), units tests and N5/EPOS4 contrast tests | Ordinary exact rational overloads; explicit radians/float error budgets, no full-step prerequisite or native RPM width |
+| Axis policy | [Retained proof contracts](../experiments/api_ownership/Contracts.h), operations above | [Ownership test](../test/api_ownership_test.cpp) / [contrasts](../test/multidrive_contract_test.cpp) | Duplicate arithmetic removed; origins, frame/reference mutation and wrapped paths remain prompt 10 |

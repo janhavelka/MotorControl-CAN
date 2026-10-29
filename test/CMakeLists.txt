@@ -13,7 +13,12 @@ target_link_libraries(core_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(core_test)
 add_test(NAME core COMMAND core_test)
 
-# Synthetic profiles, arithmetic and application owner remain test support.
+add_executable(units_test units_test.cpp)
+target_link_libraries(units_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(units_test)
+add_test(NAME units COMMAND units_test)
+
+# Synthetic profiles and application owner remain test support; numeric code is core.
 enable_language(C)
 add_subdirectory(../experiments/canopen_service_fit fit_stack)
 add_library(proof_contract STATIC ../experiments/api_ownership/Operations.cpp)
@@ -49,7 +54,7 @@ add_test(NAME documentation_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CU
 add_test(NAME planning_integrity COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset.py")
 add_test(NAME planning_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset_test.py")
 add_test(NAME ledger_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_lichuan_ledger_test.py")
-set_tests_properties(core api_ownership multidrive_contract PROPERTIES TIMEOUT 10)
+set_tests_properties(core units api_ownership multidrive_contract PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
 set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
 set_tests_properties(package_contract PROPERTIES LABELS full)

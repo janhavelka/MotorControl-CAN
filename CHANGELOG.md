@@ -6,6 +6,8 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added production exact rational parsing/conversion, independent dimensional scales, all integer rounding policies and checked binary32 quantization with exact tolerance tests. Added explicit bounded radians approximation and installed C++11/C++17/no-RTTI consumer coverage.
+- Migrated retained proof arithmetic and numeric types to production Units, preserving test-only N5/EPOS4 contrasts and profile-specific coordinate policy.
 - Added quick/full verification with bounded commands, retained logs/artifacts, generated-version and actual CTest registration checks. Added Windows GCC quick and Ubuntu GCC/Clang sanitizer full CI with pinned actions and Doxygen source.
 - Added strict Doxygen 1.13.2 and installed API extraction checks, deliberate checker/documentation failure tests, contributor/security guidance, formatting policy and a maintained current/planned verification table.
 
@@ -44,6 +46,7 @@ This repository contains planning/reference material and native service/API owne
 
 ### Fixed
 
+- Corrected the adapted directed binary64 conversion to check both neighboring directions; rare rounded-operand underestimates now return the closest toward-zero value, with independent regression vectors.
 - Allocated retained verifier directories atomically so equal Windows clock readings cannot collide; the retention regression now fixes the clock deliberately.
 - Preserved arbitrary 32-bit SDO abort words at the experimental C/C++ bridge without an invalid enum load, found by the new GCC/Clang UBSan jobs. Added upload/download high-bit regressions.
 

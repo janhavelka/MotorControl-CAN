@@ -66,7 +66,7 @@ M::AxisConfig axis(M::MotorKind motor) {
     value.capabilities.position = true;
     value.capabilities.velocity = true;
     value.originKnown = true;
-    value.units.commandIncrementsPerMotorTurn = scale(3600);
+    value.units.commandStepsPerMotorTurn = scale(3600);
     value.units.motorTurnsPerLoadTurn = scale(1);
     return value;
 }
@@ -122,7 +122,7 @@ void motorKindsAndOptionalGeometry() {
     // This selected 8192 scale is abstract, not an EPOS4 factory default.
     M::AxisConfig servo = axis(M::MotorKind::BRUSHED_DC);
     servo.binding.endpoint.profile = 23;
-    servo.units.commandIncrementsPerMotorTurn = scale(8192);
+    servo.units.commandStepsPerMotorTurn = scale(8192);
     P::MoveContext context;
     CHECK(P::prepareMoveAbsolute(turns(servo, 3, 2), servo, operation(), 0, 100, context));
     CHECK(context.nativeTarget == 12288);
@@ -134,18 +134,19 @@ void independentScalesAndWideIntent() {
     // C1b is explicitly abstract: 1/2 load turn * 3/2 motor/load * 4096 = 3072.
     // The same mechanical displacement is 1536 feedback counts at 2048/turn.
     M::AxisConfig configuration = axis(M::MotorKind::BLDC);
-    configuration.units.commandIncrementsPerMotorTurn = scale(4096);
+    configuration.units.commandStepsPerMotorTurn = scale(4096);
     configuration.units.motorTurnsPerLoadTurn = scale(3, 2);
-    configuration.units.feedbackCountsPerMotorTurn = scale(2048);
-    configuration.units.feedbackCountsPerMotorTurn.source = M::ScaleSource::READBACK;
+    configuration.units.encoder.countsPerUnit = scale(2048);
+    configuration.units.encoder.sourceId = 1;
+    configuration.units.encoder.countsPerUnit.source = M::ScaleSource::READBACK;
     P::MoveContext context;
     CHECK(P::prepareMoveAbsolute(turns(configuration, 1, 2), configuration,
                                  operation(), 0, 100, context));
     CHECK(context.nativeTarget == 3072);
-    CHECK(context.configuration.units.feedbackCountsPerMotorTurn.numerator == 2048);
-    CHECK(context.configuration.units.feedbackCountsPerMotorTurn.source == M::ScaleSource::READBACK);
-    CHECK(context.configuration.units.commandIncrementsPerMotorTurn.source == M::ScaleSource::DOCUMENTED);
-    configuration.units.feedbackCountsPerMotorTurn = M::UnitScale();
+    CHECK(context.configuration.units.encoder.countsPerUnit.numerator == 2048);
+    CHECK(context.configuration.units.encoder.countsPerUnit.source == M::ScaleSource::READBACK);
+    CHECK(context.configuration.units.commandStepsPerMotorTurn.source == M::ScaleSource::DOCUMENTED);
+    configuration.units.encoder.countsPerUnit = M::UnitScale();
     P::MoveContext withoutFeedback;
     CHECK(P::prepareMoveAbsolute(turns(configuration, 1, 2), configuration,
                                  operation(8), 0, 100, withoutFeedback));
@@ -170,6 +171,76 @@ void independentScalesAndWideIntent() {
     const uint8_t negative70000[] = {0x90, 0xEE, 0xFE, 0xFF};
     CHECK(work.payload.length == 4);
     CHECK(std::memcmp(work.payload.bytes, negative70000, sizeof negative70000) == 0);
+}
+
+void productionNumericMigration() {
+    M::AxisConfig configuration = axis(M::MotorKind::BLDC);
+    configuration.units.commandStepsPerMotorTurn = scale(1);
+    P::MoveContext context;
+    CHECK(P::prepareMoveAbsolute(turns(configuration, 71), configuration,
+        operation(), 0, 100, context));
+    const Saved<P::MoveContext> original(context);
+    M::PositionRequest request = turns(configuration, INT64_MAX);
+    request.frame = M::CoordinateFrame::MOTOR;
+    configuration.originNative = 1;
+    M::Status status = P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context);
+    CHECK(status.code == M::Err::ILLEGAL_VALUE);
+    CHECK(status.detail == static_cast<int32_t>(M::MoveError::OUT_OF_RANGE));
+    CHECK(original.unchanged(context));
+    request.value = M::Rational(INT64_MIN); configuration.originNative = -1;
+    status = P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context);
+    CHECK(status.code == M::Err::ILLEGAL_VALUE);
+    CHECK(status.detail == static_cast<int32_t>(M::MoveError::OUT_OF_RANGE));
+    CHECK(original.unchanged(context));
+
+    // Origin addition is checked in int64 before the final I32 profile bound.
+    request.value = M::Rational(static_cast<int64_t>(INT32_MAX) + 1);
+    CHECK(P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context));
+    CHECK(context.nativeTarget == INT32_MAX);
+    request.value = M::Rational(static_cast<int64_t>(INT32_MIN) - 1);
+    configuration.originNative = 1;
+    CHECK(P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context));
+    CHECK(context.nativeTarget == INT32_MIN);
+
+    M::PositionRequest native;
+    native.configurationGeneration = configuration.binding.configurationGeneration;
+    native.value = M::Rational(1, 2);
+    const Saved<P::MoveContext> boundary(context);
+    status = P::prepareMoveAbsolute(native, configuration, operation(), 0, 100, context);
+    CHECK(status.code == M::Err::ILLEGAL_VALUE);
+    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::FRACTIONAL_TARGET));
+    CHECK(boundary.unchanged(context));
+    native.value = M::Rational(1, 0);
+    status = P::prepareMoveAbsolute(native, configuration, operation(), 0, 100, context);
+    CHECK(status.code == M::Err::ILLEGAL_VALUE);
+    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::INVALID_ARGUMENT));
+    CHECK(boundary.unchanged(context));
+
+    // A native request still validates malformed supplied optional facts.
+    native.value = M::Rational(1);
+    configuration.units.fullStepsPerMotorTurn = scale(1, 0);
+    status = P::prepareMoveAbsolute(native, configuration, operation(), 0, 100, context);
+    CHECK(status.code == M::Err::INVALID_CONFIG);
+    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::INVALID_SCALE));
+    CHECK(boundary.unchanged(context));
+    configuration.units.fullStepsPerMotorTurn = M::UnitScale();
+    configuration.units.motorTurnsPerLoadTurn = scale(1, 0);
+    request.value = M::Rational(1);
+    status = P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context);
+    CHECK(status.code == M::Err::INVALID_CONFIG);
+    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::INVALID_SCALE));
+    CHECK(boundary.unchanged(context));
+
+    // The proof now consumes production arithmetic rather than its old 1e6 cap.
+    configuration.originNative = 0;
+    configuration.units.motorTurnsPerLoadTurn = scale(1);
+    configuration.units.commandStepsPerMotorTurn = scale(2000000, 2000000);
+    request.value = M::Rational(2000000, 2000000);
+    CHECK(P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context));
+    CHECK(context.nativeTarget == 1);
+    native.value = M::Rational(INT32_MAX);
+    CHECK(P::prepareMoveAbsolute(native, configuration, operation(), 0, 100, context));
+    CHECK(context.nativeTarget == INT32_MAX);
 }
 
 void protocolNeutralBindingAndFrames() {
@@ -310,7 +381,7 @@ void atomicPublicationAndTerminalEvidence() {
     CHECK(P::nextMove(move, 20, output, ready) && !ready);
     CHECK(originalWork.unchanged(output));
     const Saved<P::MoveContext> terminalMove(move);
-    configuration.units.commandIncrementsPerMotorTurn = M::UnitScale();
+    configuration.units.commandStepsPerMotorTurn = M::UnitScale();
     CHECK(!P::prepareMoveAbsolute(turns(configuration, 1), configuration, operation(9), 0, 100, move));
     CHECK(terminalMove.unchanged(move));
 }
@@ -319,6 +390,7 @@ void atomicPublicationAndTerminalEvidence() {
 int main() {
     motorKindsAndOptionalGeometry();
     independentScalesAndWideIntent();
+    productionNumericMigration();
     protocolNeutralBindingAndFrames();
     rampDimensionsAndCapabilityGuards();
     atomicPublicationAndTerminalEvidence();

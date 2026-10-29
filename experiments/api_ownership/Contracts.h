@@ -5,6 +5,7 @@
 #pragma once
 
 #include <MotorControlCAN/Endpoint.h>
+#include <MotorControlCAN/Units.h>
 #include <MotorControlCAN/can/Frame.h>
 
 /** Portable proof values and concrete synthetic operations. */
@@ -127,61 +128,12 @@ enum class Capability : uint8_t {
  * MoveError::UNSUPPORTED_CAPABILITY or CALIBRATION_UNQUALIFIED. No state changes. */
 Status requireCapability(const Capabilities& facts, Capability requested) noexcept;
 
-/** Exact signed value; positive denominator. Default denotes exact zero. */
-struct Rational {
-    int64_t numerator = 0; ///< Exact signed numerator; prototype consumers bound magnitude.
-    uint64_t denominator = 1; ///< Positive exact denominator; zero is invalid.
-    /** Construct exact zero with denominator one. */
-    Rational() = default;
-    /** Preserve exact components without normalization or validation.
-     * @param[in] n Signed numerator in the selected quantity's unit.
-     * @param[in] d Positive denominator; consumers reject zero/out-of-bound values. */
-    Rational(int64_t n, uint64_t d = 1) : numerator(n), denominator(d) {}
-};
-/** Retained scale provenance; metadata does not verify active drive settings. */
-enum class ScaleSource : uint8_t {
-    UNKNOWN,    ///< No usable scale provenance supplied.
-    ASSUMED,    ///< Application explicitly accepts an assumption.
-    DOCUMENTED, ///< Supplied scale comes from applicable documentation.
-    READBACK,   ///< Supplied scale comes from checked device readback.
-    QUALIFIED   ///< Supplied scale has additional application qualification.
-};
-/** Positive rational scale; numerator zero denotes unavailable optional data. */
-struct UnitScale {
-    uint32_t numerator = 0; ///< Positive known-scale numerator, or zero for unavailable.
-    uint32_t denominator = 1; ///< Positive known-scale denominator; zero is invalid if used.
-    ScaleSource source = ScaleSource::UNKNOWN; ///< Retained evidence class, not active-state proof.
-};
-/** Independent command, gear and feedback scales. No full-step prerequisite.
- * Command increments and feedback counts are per motor turn. Geometry is
- * optional metadata; gear is motor turns per load turn. No scale is inferred. */
-struct UnitConfig {
-    UnitScale commandIncrementsPerMotorTurn; ///< Selected native command increments per motor turn.
-    UnitScale motorTurnsPerLoadTurn; ///< Gear ratio in motor turns per load turn.
-    UnitScale feedbackCountsPerMotorTurn; ///< Independent feedback counts per motor turn.
-    UnitScale fullStepsPerMotorTurn; ///< Optional stepper geometry, unused by proof conversion.
-};
-/** Input spatial dimension. NATIVE_INCREMENTS is profile command representation. */
-enum class PositionUnit : uint8_t {
-    NATIVE_INCREMENTS, ///< Exact selected-profile command increments.
-    TURNS,             ///< Mechanical turns in the declared motor/load frame.
-    DEGREES            ///< Mechanical degrees, exactly 360 per turn.
-};
 /** Reference basis. Ordinary absolute targets preserve all turns without wrap. */
 enum class CoordinateFrame : uint8_t {
     NATIVE, ///< Already in selected native command coordinates, without host-origin addition.
     MOTOR,  ///< Mechanical motor coordinate relative to the supplied host origin.
     LOAD    ///< Mechanical load coordinate using the supplied motor/load ratio and origin.
 };
-/** Quantization intent; this prototype implements EXACT only. */
-enum class Rounding : uint8_t {
-    EXACT,       ///< Require exact integer native representation; supported in this proof.
-    NEAREST,     ///< Nearest-integer intent; rejected by this prototype.
-    TOWARD_ZERO, ///< Truncation intent; rejected by this prototype.
-    FLOOR,       ///< Round toward negative infinity; rejected by this prototype.
-    CEIL         ///< Round toward positive infinity; rejected by this prototype.
-};
-
 /** Caller-owned host interpretation; changing it causes no drive traffic.
  * Native bounds are inclusive; originNative is the established command zero for
  * MOTOR/LOAD coordinates. Default binding and scales are invalid for a move. */
@@ -197,28 +149,16 @@ struct AxisConfig {
 
 /** Exact absolute multi-turn target. configurationGeneration must match binding.
  * Quantization error is in native increments; prototype requires exactly zero.
- * No wrapping/relative/reference or production arithmetic is implemented here. */
+ * Production units are reused; wrapping/relative/reference policy remains proof-only. */
 struct PositionRequest {
     Rational value; ///< Requested exact absolute multi-turn coordinate.
-    PositionUnit unit = PositionUnit::NATIVE_INCREMENTS; ///< Dimension of value.
+    PositionUnit unit = PositionUnit::STEPS; ///< Dimension of value.
     CoordinateFrame frame = CoordinateFrame::NATIVE; ///< Coordinate basis of value.
     Generation configurationGeneration = 0; ///< Must match the current binding; zero invalid.
     Rounding rounding = Rounding::EXACT; ///< Explicit conversion intent; only EXACT is supported.
     Rational maximumQuantizationError; ///< Allowed native-increment error; proof requires exact zero.
 };
 
-/** Wide signed exact velocity intent only; no prototype velocity engine.
- * position/time dimensions are explicit; a profile must check native narrowing. */
-enum class TimeUnit : uint8_t {
-    SECOND,     ///< SI second, used as a velocity denominator.
-    MINUTE,     ///< Exactly 60 seconds, without implying native RPM representation.
-    MILLISECOND ///< Exactly 1/1000 second.
-};
-/** Velocity dimension, independent of RS native RPM widths. */
-struct VelocityUnit {
-    PositionUnit position = PositionUnit::TURNS; ///< Numerator spatial dimension.
-    TimeUnit time = TimeUnit::SECOND; ///< Denominator time dimension.
-};
 /** Unconverted exact signed request; retains values such as +/-70000 intact. */
 struct VelocityRequest {
     Rational value; ///< Wide signed exact requested rate; no native narrowing here.
@@ -321,9 +261,10 @@ enum class MoveError : int32_t {
     UNSUPPORTED_CAPABILITY,  ///< Requested position/velocity/torque/brake capability absent.
     INVALID_REQUEST,         ///< Unsupported coordinate/rounding intent or invalid limits.
     FRACTIONAL_TARGET,       ///< Exact target is not an integer native command increment.
-    OUT_OF_RANGE,            ///< Prototype arithmetic bound or inclusive native limit exceeded.
+    OUT_OF_RANGE,            ///< Exact arithmetic storage or inclusive native limit exceeded.
     MISSING_ORIGIN,          ///< Motor/load coordinate lacks a known native host origin.
-    CALIBRATION_UNQUALIFIED  ///< Required calibration evidence was not supplied.
+    CALIBRATION_UNQUALIFIED, ///< Required calibration evidence was not supplied.
+    UNIT_ERROR_BASE = 100    ///< Numeric failures add UnitError to this base; Err/msg preserved.
 };
 
 } // namespace MotorControlCAN

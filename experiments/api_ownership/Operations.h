@@ -116,11 +116,11 @@ Status advanceRead(ReadContext& context, const ServiceEvidence& evidence) noexce
 Status getIdentity(const ReadContext& context, const Binding& currentBinding,
                    Identity& output) noexcept;
 
-/** Prepare a synthetic absolute target write with exact bounded arithmetic.
+/** Prepare a synthetic absolute target write using production numeric primitives.
  * Only exact native I32 targets or motor/load TURNS/DEGREES are supported.
- * Used numerator magnitudes/denominators/scales are <=1,000,000; three-factor
- * products are <=10^18, with checked origin addition and exact integer division.
- * Full-step and feedback scales are independent optional data and are unused.
+ * Uses production Units for reduction, cross-cancelled conversion and EXACT
+ * integer quantization, followed by checked origin addition and native narrowing.
+ * Full-step geometry/feedback are optional; malformed supplied facts still reject.
  * @param[in] request Exact target, matching generation, EXACT rounding and zero
  * quantization allowance. MOTOR/LOAD targets require explicit known origin.
  * @param[in] configuration Valid CANopen binding, position capability and any required
@@ -131,6 +131,7 @@ Status getIdentity(const ReadContext& context, const Binding& currentBinding,
  * @param[out] output Caller-owned copied context, unchanged on every rejection.
  * @return OK prepares only; unsupported capability/conversion is rejected before
  * work exists. Proprietary bindings reject before any SDO work is created.
+ * Numeric detail is MoveError::UNIT_ERROR_BASE + UnitError; other detail uses MoveError.
  * No enabling, trigger, motor I/O, allocation or retry occurs. */
 Status prepareMoveAbsolute(const PositionRequest& request, const AxisConfig& configuration,
                            OperationToken operation, uint64_t nowUs, uint64_t deadlineUs,

@@ -43,7 +43,7 @@ quantization allowance. Its ordinary absolute target retains all turns.
 
 | Coordinate frame | Accepted proof input | Required interpretation |
 | --- | --- | --- |
-| `NATIVE` | `NATIVE_INCREMENTS` | Already in selected signed command coordinates; no origin or angular scale is consumed |
+| `NATIVE` | `STEPS` (command increments) | Already in selected signed command coordinates; no origin or angular scale is consumed |
 | `MOTOR` | `TURNS` or `DEGREES` | Explicit known host origin and command increments per motor turn |
 | `LOAD` | `TURNS` or `DEGREES` | Motor requirements plus motor turns per load turn |
 
@@ -56,12 +56,10 @@ representation, not a universal width for other profiles. Keep profile-native
 bounds/conversion separate when migrating the common exact intent; a future
 floating or wider native profile must supply its own checked representation.
 
-`UnitConfig` stores command increments/motor turn, motor turns/load turn,
-feedback counts/motor turn and optional full steps/motor turn independently.
-Each scale carries `ScaleSource`; a zero numerator means unavailable metadata.
-A used scale must be positive and have known provenance. Provenance describes
-the supplied evidence class, not verification that a setting is active on a
-connected drive. Unused feedback/full-step scales are not prerequisites.
+Production [UnitConfig](units_status.md) stores independent command, gearing,
+selected feedback, optional full-step and linear scales. The proof now reuses
+these types and their validation. Missing optional geometry/feedback is legal;
+malformed supplied facts are rejected. No scale is inferred from motor kind.
 
 The [contrast ledger](reference/drive_contrasts.md) owns documentary scope.
 Its N5 one-turn/3600-unit vector fits either stepper or BLDC facts without full
@@ -76,21 +74,21 @@ dimensions, including values such as ±70000. There is no proof velocity engine
 or implied native RPM conversion. `NativeRamp` distinguishes milliseconds from
 rpm/s; equal numeric settings do not imply equal dimensions or trajectories.
 
-## Deliberately restricted prototype arithmetic
+## Numeric migration and remaining coordinate policy
 
-The conversion inside `ProofProfile::prepareMoveAbsolute` implements only
-`Rounding::EXACT` with zero quantization allowance. It checks exact divisibility
-and signed I32/native limits. Used input numerator magnitudes, denominators and
-scale components are bounded by 1,000,000; intermediate products, including a
-degree denominator factor, must fit the explicit 10^18 prototype bound. An
-otherwise representable value outside those bounds is rejected. Fractional
-native targets and unsupported frames/units are rejected before work exists.
+`ProofProfile::prepareMoveAbsolute` reuses production reduction, exact
+displacement conversion and integer quantization. The artificial million-unit
+input and `10^18` product bounds are removed. The synthetic profile still accepts
+only EXACT/zero allowance, angular motor/load input or native increments, then
+checks origin addition and I32 limits. Numeric detail uses
+`MoveError::UNIT_ERROR_BASE + UnitError`; other reasons retain MoveError.
+Fractional native targets and unsupported frames/units reject before work exists.
 
-This is not production exact arithmetic. Prompts 9–10 replace it with their
-full checked units/coordinate contracts. Relative motion, wrapped-angle path
-selection, reference/origin mutation and approximate/native floating conversion
-are absent from this proof. Preparation builds a complete local candidate;
-every failure leaves the caller's existing context unchanged.
+Production Units supports all selected rounding policies and explicit radians/
+binary32 quantization. Applying those to axis preparation, relative/wrapped
+targets, reference/origin mutation and native-profile policy belongs to prompt 10
+and later profiles. Preparation builds a complete local candidate; every failure
+leaves the caller's existing context unchanged.
 
 Typed identity publication checks the complete current binding, including both
 generations, rather than accepting a matching address alone. Its exact behavior

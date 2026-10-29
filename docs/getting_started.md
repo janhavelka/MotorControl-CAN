@@ -1,8 +1,9 @@
 # Native package use
 
 The development package `MotorControl-CAN` currently implements local call
-status, copied logical endpoint/binding identity and Classical CAN frame
-validation. The C++ namespace, include directory, CMake package and target are
+status, exact numeric/unit conversion and quantization, copied logical endpoint/
+binding identity and Classical CAN frame validation. The C++ namespace, include
+directory, CMake package and target are
 `MotorControlCAN`, with imported target `MotorControlCAN::MotorControlCAN`.
 There is no installed drive profile, CAN controller, motion operation or
 hardware qualification. Version `0.1.0` describes this development source and
@@ -23,7 +24,9 @@ target_link_libraries(my_app PRIVATE MotorControlCAN::MotorControlCAN)
 ```
 
 Include `<MotorControlCAN/MotorControlCAN.h>` for the small complete interface,
-or `<MotorControlCAN/Endpoint.h>` and `<MotorControlCAN/can/Frame.h>` individually.
+or `<MotorControlCAN/Units.h>`, `<MotorControlCAN/Endpoint.h>` and
+`<MotorControlCAN/can/Frame.h>` individually. The [units/status guide](units_status.md)
+documents exact inputs, scale dependencies, rounding and explicit approximation.
 `validateBinding` checks common nonzero identities/generations, without probing
 a drive or imposing CANopen addressing. `validateFrame` checks Classical CAN
 shape and rejects an FD requirement. Their successful `Status` proves local

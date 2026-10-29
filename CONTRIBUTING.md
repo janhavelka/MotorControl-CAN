@@ -2,7 +2,7 @@
 
 Read [AGENTS.md](AGENTS.md), the [current handoff](docs/prompts/PROGRESS.md) and
 the assigned numbered prompt before editing. The working package currently
-contains status, endpoint identity and Classical CAN frame validation. Synthetic
+contains status, exact units/quantization, endpoint identity and Classical CAN frame validation. Synthetic
 motion/profile tests do not establish implemented drive support.
 
 ## Build and check a change

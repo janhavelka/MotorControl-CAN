@@ -1,11 +1,11 @@
 # Tested with Doxygen 1.13.2; scripts/verify.py checks the exact tool version.
 PROJECT_NAME           = "MotorControl-CAN"
-PROJECT_BRIEF          = "Portable status, endpoint identity and Classical CAN frame validation"
+PROJECT_BRIEF          = "Portable exact units, quantization, status, endpoint identity and CAN validation"
 OUTPUT_DIRECTORY       = .build/doxygen
 OUTPUT_LANGUAGE        = English
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = .
-INPUT                  = include README.md docs/getting_started.md docs/verification.md
+INPUT                  = include README.md docs/getting_started.md docs/verification.md docs/units_status.md
 FILE_PATTERNS          = *.h *.md
 FILTER_PATTERNS        = *.md="python scripts/doxygen_filter.py"
 RECURSIVE              = YES

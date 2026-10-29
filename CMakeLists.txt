@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp)
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
@@ -50,6 +50,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/MotorControlCANCon
 install(TARGETS MotorControlCAN EXPORT MotorControlCANTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h
+    include/MotorControlCAN/Units.h
     include/MotorControlCAN/Endpoint.h include/MotorControlCAN/Version.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
 install(FILES include/MotorControlCAN/can/Frame.h

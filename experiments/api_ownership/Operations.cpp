@@ -95,71 +95,44 @@ void encodeI32(int32_t value, Payload& payload) {
     for (uint8_t i = 0; i < 4; ++i) payload.bytes[i] = static_cast<uint8_t>(bits >> (8 * i));
 }
 
-// Small prototype bounds make every admitted multiplication auditable. Prompts
-// 9-10 replace this limited conversion; no general rational engine is implied.
-constexpr uint64_t INPUT_LIMIT = 1000000ULL;
-constexpr uint64_t PRODUCT_LIMIT = 1000000000000000000ULL;
-
-bool multiplyBounded(uint64_t& value, uint64_t factor) {
-    if (!factor || value > PRODUCT_LIMIT / factor) return false;
-    value *= factor;
-    return true;
-}
-
-bool scaleUsable(const UnitScale& scale) {
-    return scale.numerator > 0 && scale.numerator <= INPUT_LIMIT &&
-        scale.denominator > 0 && scale.denominator <= INPUT_LIMIT &&
-        scale.source != ScaleSource::UNKNOWN &&
-        static_cast<uint8_t>(scale.source) <= static_cast<uint8_t>(ScaleSource::QUALIFIED);
-}
-
+// Coordinate/origin policy remains in this proof until prompt 10. Numeric
+// conversion and integer quantization have one production implementation.
 Status convertTarget(const PositionRequest& request, const AxisConfig& config, int32_t& output) {
     if (request.configurationGeneration != config.binding.configurationGeneration)
         return moveError(MoveError::STALE_CONFIGURATION, "stale coordinate generation");
     if (request.rounding != Rounding::EXACT || request.maximumQuantizationError.numerator != 0 ||
         request.maximumQuantizationError.denominator == 0)
-        return moveError(MoveError::INVALID_REQUEST, "prototype requires exact integer quantization", Err::UNSUPPORTED);
-    if (request.value.denominator == 0 || request.value.denominator > INPUT_LIMIT ||
-        request.value.numerator < -static_cast<int64_t>(INPUT_LIMIT) ||
-        request.value.numerator > static_cast<int64_t>(INPUT_LIMIT))
-        return moveError(MoveError::OUT_OF_RANGE, "prototype input bound exceeded", Err::ILLEGAL_VALUE);
+        return moveError(MoveError::INVALID_REQUEST, "proof requires exact integer target", Err::UNSUPPORTED);
     if (config.nativeMinimum > config.nativeMaximum)
         return moveError(MoveError::INVALID_REQUEST, "invalid inclusive native limits");
-
-    const bool negative = request.value.numerator < 0;
-    uint64_t numerator = static_cast<uint64_t>(negative ? -request.value.numerator : request.value.numerator);
-    uint64_t denominator = request.value.denominator;
+    Rational quantity;
+    Status status = validateUnitConfig(config.units);
+    if (!status) return Status(status.code, static_cast<int32_t>(MoveError::UNIT_ERROR_BASE) + status.detail, status.msg);
     if (request.frame == CoordinateFrame::NATIVE) {
-        if (request.unit != PositionUnit::NATIVE_INCREMENTS)
-            return moveError(MoveError::INVALID_REQUEST, "native frame requires native increments", Err::UNSUPPORTED);
+        if (request.unit != PositionUnit::STEPS)
+            return moveError(MoveError::INVALID_REQUEST, "native frame requires command increments", Err::UNSUPPORTED);
+        status = reduceRational(request.value, quantity);
     } else if (request.frame == CoordinateFrame::MOTOR || request.frame == CoordinateFrame::LOAD) {
         if (request.unit != PositionUnit::TURNS && request.unit != PositionUnit::DEGREES)
-            return moveError(MoveError::INVALID_REQUEST, "angular frame requires turns or degrees", Err::UNSUPPORTED);
+            return moveError(MoveError::INVALID_REQUEST, "proof accepts turns/degrees", Err::UNSUPPORTED);
         if (!config.originKnown) return moveError(MoveError::MISSING_ORIGIN, "coordinate origin unavailable");
-        if (!scaleUsable(config.units.commandIncrementsPerMotorTurn))
-            return moveError(MoveError::UNRESOLVED_UNITS, "command scale unavailable");
-        if (!multiplyBounded(numerator, config.units.commandIncrementsPerMotorTurn.numerator) ||
-            !multiplyBounded(denominator, config.units.commandIncrementsPerMotorTurn.denominator))
-            return moveError(MoveError::OUT_OF_RANGE, "prototype product bound exceeded", Err::ILLEGAL_VALUE);
-        if (request.frame == CoordinateFrame::LOAD) {
-            if (!scaleUsable(config.units.motorTurnsPerLoadTurn))
-                return moveError(MoveError::UNRESOLVED_UNITS, "gear scale unavailable");
-            if (!multiplyBounded(numerator, config.units.motorTurnsPerLoadTurn.numerator) ||
-                !multiplyBounded(denominator, config.units.motorTurnsPerLoadTurn.denominator))
-                return moveError(MoveError::OUT_OF_RANGE, "prototype product bound exceeded", Err::ILLEGAL_VALUE);
-        }
-        if (request.unit == PositionUnit::DEGREES && !multiplyBounded(denominator, 360))
-            return moveError(MoveError::OUT_OF_RANGE, "prototype degree denominator bound exceeded", Err::ILLEGAL_VALUE);
-    } else {
-        return moveError(MoveError::INVALID_REQUEST, "unknown coordinate frame");
+        UnitConfig selected = config.units;
+        if (request.frame == CoordinateFrame::MOTOR)
+            selected.motorTurnsPerLoadTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
+        status = convertDisplacement(request.value, request.unit, PositionUnit::STEPS, selected, quantity);
+    } else return moveError(MoveError::INVALID_REQUEST, "unknown coordinate frame");
+    if (!status) return Status(status.code, static_cast<int32_t>(MoveError::UNIT_ERROR_BASE) + status.detail, status.msg);
+    IntegerQuantization rounded;
+    status = quantizeInteger(quantity, Rounding::EXACT, Rational(), rounded);
+    if (!status) return Status(status.code, static_cast<int32_t>(MoveError::UNIT_ERROR_BASE) + status.detail, status.msg);
+    int64_t native = rounded.value;
+    if (request.frame != CoordinateFrame::NATIVE) {
+        const int64_t origin = config.originNative;
+        if ((origin > 0 && native > INT64_MAX - origin) || (origin < 0 && native < INT64_MIN - origin))
+            return moveError(MoveError::OUT_OF_RANGE, "origin addition overflow", Err::ILLEGAL_VALUE);
+        native += origin;
     }
-    if (numerator % denominator)
-        return moveError(MoveError::FRACTIONAL_TARGET, "target is not exact native integer", Err::ILLEGAL_VALUE);
-    const int64_t magnitude = static_cast<int64_t>(numerator / denominator);
-    int64_t native = negative ? -magnitude : magnitude;
-    if (request.frame != CoordinateFrame::NATIVE) native += config.originNative;
-    if (native < INT32_MIN || native > INT32_MAX ||
-        native < config.nativeMinimum || native > config.nativeMaximum)
+    if (native < INT32_MIN || native > INT32_MAX || native < config.nativeMinimum || native > config.nativeMaximum)
         return moveError(MoveError::OUT_OF_RANGE, "native target outside inclusive limits", Err::ILLEGAL_VALUE);
     output = static_cast<int32_t>(native);
     return Ok();

@@ -1,7 +1,7 @@
 {
   "name": "MotorControl-CAN",
   "version": "0.1.0",
-  "description": "Portable C++11 status, endpoint identity and Classical CAN frame validation. Development package; no drive profile or controller adapter is implemented.",
+  "description": "Portable C++11 exact units, quantization, status, endpoint identity and Classical CAN validation. Development package; no drive profile or controller adapter is implemented.",
   "keywords": ["can", "canopen", "stepper", "servo", "motion"],
   "authors": [{"name": "Jan Havelka", "maintainer": true}],
   "repository": {"type": "git", "url": "https://github.com/janhavelka/MotorControl-CAN.git"},
@@ -11,6 +11,6 @@
   "headers": ["MotorControlCAN/MotorControlCAN.h"],
   "build": {"includeDir": "include", "srcDir": "src"},
   "export": {
-    "include": ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md", "docs/getting_started.md"]
+    "include": ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md"]
   }
 }
