@@ -103,8 +103,9 @@ No `library.properties` is needed for the current CMake/PlatformIO distribution.
 `library.json` is the only version source. After intentionally changing it,
 run `python scripts/generate_version.py sync`, commit the generated `Version.h`
 and rerun `check`. Ordinary builds consume that checked-in header directly.
-Object catalogue generation belongs to prompt 12. The central verifier, CI
-and strict repository Doxygen gate belong to prompt 8; they do not exist yet.
+Object catalogue generation belongs to prompt 12. The [verification guide](verification.md)
+documents the working quick/full verifier, CI and strict Doxygen gate. These
+developer tools are outside the core distribution.
 
 ## Optional ESP-IDF component boundary
 

@@ -1,0 +1,18 @@
+# LLVM-derived portable-core style: four spaces and attached braces match the
+# current MotorControlCAN/RS sources. No SDK-specific include ordering.
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+BreakBeforeBraces: Attach
+NamespaceIndentation: None
+IndentCaseLabels: false
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+PointerAlignment: Left
+DerivePointerAlignment: false
+SortIncludes: CaseSensitive
+ReflowComments: false

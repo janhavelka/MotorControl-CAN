@@ -14,6 +14,17 @@ import sys
 from urllib.parse import unquote
 
 
+def maintained_markdown(root):
+    """Scan source documents, excluding only root development-output directories."""
+    for entry in sorted(root.iterdir()):
+        if entry.name in {".git", ".build", "build", ".install", "dist"}:
+            continue
+        if entry.is_dir():
+            yield from sorted(entry.rglob("*.md"))
+        elif entry.suffix == ".md":
+            yield entry
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check-live-baseline", action="store_true",
@@ -368,7 +379,7 @@ def main():
     # Copied source docs intentionally retain original links to a partial snapshot.
     # Manufacturer HTML/PDF and full extracts are immutable third-party artifacts.
     excluded = baseline / "MotorControl-RS"
-    for path in sorted(root.rglob("*.md")):
+    for path in maintained_markdown(root):
         if excluded in path.parents or path.resolve() in original_reference_paths or ".git" in path.parts:
             continue
         try:

@@ -1,10 +1,11 @@
 # MotorControl-CAN documentation
 
-Execution has completed prompts 1–7, including the [native service fit experiment](reports/prompt_5.md) and [common API/ownership proof](reports/prompt_6.md), on the recorded execution branch. The [minimal native package](getting_started.md) provides status, endpoint and Classical frame validation. No drive profile exists yet. Prompt 8 is next. Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its source audit and original-byte checks are recorded in prompt 1.
+Execution has completed prompts 1–7, including the [native service fit experiment](reports/prompt_5.md) and [common API/ownership proof](reports/prompt_6.md), on the recorded execution branch. The [minimal native package](getting_started.md) provides status, endpoint and Classical frame validation. No drive profile exists yet. The [verification guide](verification.md) documents working local/CI gates; prompt 8 delivery is tracked in [its report](reports/prompt_8.md). Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its source audit and original-byte checks are recorded in prompt 1.
 
 | Material | Purpose |
 | --- | --- |
 | [Live source map](source_map.md) | Actual declarations, implementations, callers, tests and deliberate CAN differences |
+| [Verification](verification.md), [contributing](../CONTRIBUTING.md), [security](../SECURITY.md) | Working commands, required tools, retained evidence, current versus planned checks and development reporting limits |
 | [Executable backlog](backlog.md) and [roadmap](roadmap.md) | Separate documentary gates, software, integration and physical qualification with current owners |
 | [Requirement coverage](coverage.md) | All 35 requirements tracked without turning audit evidence into implemented support |
 | [CAN bench facts](hardware_bench.md) | Known documentary facts and missing actual fixture/authorization details |

@@ -1,6 +1,6 @@
 # Prompt execution progress
 
-This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. Prompts 2–4 completed intake, Lichuan documentary semantics and test-only drive contrasts. Prompt 5 selected CANopenNode through a native experiment. Prompt 6 completed concrete common API/ownership contracts and a checked native proof. Prompt 7 added the minimal native package, version metadata and registered proofs; prompts 8–50 remain Pending. No old status was transferred.
+This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. Prompts 2–4 completed intake, Lichuan documentary semantics and test-only drive contrasts. Prompt 5 selected CANopenNode through a native experiment. Prompt 6 completed concrete common API/ownership contracts and a checked native proof. Prompt 7 added the minimal native package, version metadata and registered proofs; prompt 8 local gates are implemented with remote CI pending, and prompts 9–50 remain Pending. No old status was transferred.
 
 Execution identity: promptset version 2; branch `promptset/motorcontrol-can`; inspected base `7878f7c` from updated `origin/main`; destination `origin/promptset/motorcontrol-can` (set on first push). Source-map inputs and exact base are in [prompt 1 inputs](../reports/prompt_1_inputs.json), and the current map is [source_map.md](../source_map.md). Reuse this branch across every prompt and resumed session. Reports use `docs/reports/prompt_N.md`; commit and sync each prompt and useful complete checkpoint.
 
@@ -30,7 +30,7 @@ Use numerical order among ready work within the assignment. Record the blocker a
 | 5 | [CANopen service fit experiment](5_stack_decision.md) | Complete | [Report](../reports/prompt_5.md) |
 | 6 | [Common API and ownership proof](6_api_ownership.md) | Complete | [Report](../reports/prompt_6.md) |
 | 7 | [Native build and package foundation](7_native_package.md) | Complete | [Report](../reports/prompt_7.md) |
-| 8 | [Verification CI and documentation gates](8_verification_docs.md) | Pending | - |
+| 8 | [Verification CI and documentation gates](8_verification_docs.md) | In progress | [Report](../reports/prompt_8.md) |
 | 9 | [Status and exact units](9_status_units.md) | Pending | - |
 | 10 | [Axis coordinates and references](10_axis_coordinates.md) | Pending | - |
 | 11 | [Classical CAN and SDO codecs](11_can_sdo_codecs.md) | Pending | - |

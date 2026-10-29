@@ -42,5 +42,16 @@ add_test(NAME version_generated COMMAND "${Python3_EXECUTABLE}"
 add_test(NAME version_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/version_test.py")
 add_test(NAME package_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/package_test.py"
     --cmake "${CMAKE_COMMAND}" --compiler "${CMAKE_CXX_COMPILER}")
+add_test(NAME repository_checks COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_repository.py")
+add_test(NAME repository_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/repository_test.py")
+add_test(NAME verification_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/verification_test.py")
+add_test(NAME documentation_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/documentation_test.py")
+add_test(NAME planning_integrity COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset.py")
+add_test(NAME planning_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset_test.py")
+add_test(NAME ledger_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_lichuan_ledger_test.py")
 set_tests_properties(core api_ownership multidrive_contract PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
+set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
+set_tests_properties(package_contract PROPERTIES LABELS full)
+set_tests_properties(version_contract repository_contract verification_contract planning_integrity
+    planning_validator_contract ledger_validator_contract repository_checks PROPERTIES TIMEOUT 90)

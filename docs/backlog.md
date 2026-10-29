@@ -39,7 +39,7 @@ resolve the above facts by themselves.
 | ID | Bounded work | Owner and completion evidence |
 | --- | --- | --- |
 | S01 | Stack selection and protocol-neutral common boundary | Complete for 5–6: [CANopenNode decision](decisions/canopen_stack.md), [concrete contracts](architecture.md), copied flows and contrast fixtures. Semantic boundary frozen; minimal package complete in 7; arithmetic remains 9–10. |
-| S02 | Native install/export and verification foundation | 7 complete: C++11 source/install/export and registered contracts; 8 still owns central verifier, CI and strict Doxygen gate |
+| S02 | Native install/export and verification foundation | 7 complete; 8 adds working quick/full verification, CI and strict Doxygen, with final remote status in its report |
 | S03 | Exact status/unit/axis behavior | 9-10: atomic invalid-input results, extreme arithmetic, explicit reference/scale provenance |
 | S04 | CAN frames, generated object policy and SDO lifecycle | 11-14: integrate selected stack with owner deadline/abort/send-error guards, bounded FIFO draining, raw aborts and late-reply quarantine/reconciliation. Narrow prompt-5 proof is not a full production service. |
 | S05 | Network/PDO and typed groups | 15-22: bind stack callbacks to physical owner, preserve boot-up ingress, validate EMCY envelope, retain PDO provenance, observed configuration and explicit remap; typed groups retain feature gates. |
@@ -55,7 +55,7 @@ resolve the above facts by themselves.
 
 | ID | Current limit | Owner / next action |
 | --- | --- | --- |
-| T01 | Minimal native package and registered proofs exist; central verifier/workflow still absent | 8 establishes CI/verifier; package CTests validate native behavior while the planning checker validates evidence. |
+| T01 | Minimal native package, registered proofs and verification workflow exist | Current quick/full and package gates validate software; the planning checker validates original evidence. See verification.md for the maintained gate table. |
 | T02 | Clang/MSVC and ESP-IDF entry point absent from current PATH; IDF_PATH unset | 7/8/27/28 select and verify actual required tools in the appropriate environment; present audit is not blocked |
 | T03 | Local Doxygen 1.13.2 differs from MCP45HVX1's 1.15.0 reference pin | 8 select/test a supported docs version; neither assume availability of 1.15.0 nor copy incompatible options blindly |
 | H01 | No established physical CAN fixture or applicable live authorization | 29 fill [bench facts](hardware_bench.md), qualify isolated acquisition and retain raw data; no port guessing or hardware activity in this audit |

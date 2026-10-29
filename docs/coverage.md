@@ -44,12 +44,12 @@ that support claim. Reference/data verification is not driver testing.
 | R17 | 26-28, 40-42, 49-50 | Pending |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Pending |
-| R20 | 7-28, 30-46, 49-50 | Seven root Release CTests pass, including source/install/export, version and retained proofs. Central verifier/CI remains prompt 8; later behavior adds its own checks. |
+| R20 | 7-28, 30-46, 49-50 | Fourteen explicit CTests now cover the core/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 12; full runs 13 plus a retained package contract. Remote final status belongs to prompt 8 report. |
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
 | R24 | All; architecture 5-6 | One selected stack and one documented fixed ownership table, no runtime selection or universal operation engine. Host owner sizeof 1384 bytes; production sizing, timing and controller qualification pending. |
-| R25 | 7-8, 49-50 | Prompt 7 delivers C++11 core, installed/exported consumers, independent headers, C++17/no-RTTI checks, exact distribution lists and MIT attribution. CI/docs gate remains 8. |
+| R25 | 7-8, 49-50 | Prompt 7 delivers C++11 core, installed/exported consumers, independent headers, C++17/no-RTTI checks, exact distribution lists and MIT attribution. Prompt 8 adds working verifier/CI/strict docs; final delivery status remains in its report. |
 | R26 | 1-10, 45-46, 49-50 | Core-only N5 stepper/BLDC and EPOS4 fixtures pass with optional full-step geometry, independent scales and C11 capability/calibration gates. No additional installed driver or vendor sequence. |
 | R27 | 5-6, 9-18, 23-25, 45-46 | Generic proprietary address 500/subaxis 2 and servo-without-CANopen-state review attempts pass. Synthetic CANopen profile/owner reject unsupported protocol before admission. Separate real protocol implementation pending. |
 | R28 | 5-6, 11-12, 15, 17, 23-28, 45-46 | Classical eight-byte value preserves extended/RTR shape; protocol adapter narrows accepted frames. FD explicitly rejected; real codecs/controller/FD milestone pending. |
@@ -57,7 +57,7 @@ that support claim. Reference/data verification is not driver testing.
 | R30 | 5-6, 29, 45-50 | Explicit test-only N5/EPOS4/proprietary fixtures and synthetic profile do not install or advertise another driver. Actual additional profile/qualification milestones remain pending. |
 | R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to actual prototype functions, contexts and owner methods, with current RS/I2C source evidence. Production API/CLI/health still pending. |
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. Lead owns integration and Git. |
-| R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; production docs gate remains 8. |
+| R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
 | R35 | 1-50 | Current owners retained; prompts 1–7 complete. All later feature, integration and qualification obligations remain pending. |
 

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -27,6 +28,16 @@ finally:
 
 
 class PromptSequenceTests(unittest.TestCase):
+    def test_only_root_development_output_is_excluded_from_links(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for directory in (".build", "build", ".install", "dist", "docs/build", "docs/reports"):
+                path = root / directory / "page.md"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("[broken](missing.md)", encoding="utf-8")
+            found = {path.relative_to(root).as_posix() for path in CHECKER.maintained_markdown(root)}
+            self.assertEqual(found, {"docs/build/page.md", "docs/reports/page.md"})
+
     def check_with(self, replacements=None, missing_files=()):
         replacements = replacements or {}
         original_read = Path.read_text

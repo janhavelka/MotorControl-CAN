@@ -1,0 +1,66 @@
+name: Verify portable core
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Quick GCC on Windows
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - run: python scripts/verify.py --mode quick --compiler gcc --build-dir .build/verification
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-windows
+          path: |
+            .build/verification/**/*.log
+            .build/verification/**/*.json
+          include-hidden-files: true
+  native:
+    name: Full ${{ matrix.compiler }} with ASan and UBSan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+    env:
+      CC: ${{ matrix.compiler == 'gcc' && 'gcc-13' || 'clang-18' }}
+      CXX: ${{ matrix.compiler == 'gcc' && 'g++-13' || 'clang++-18' }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Build pinned Doxygen 1.13.2
+        shell: bash
+        run: |
+          git init .build/doxygen-tool/source
+          git -C .build/doxygen-tool/source remote add origin https://github.com/doxygen/doxygen.git
+          git -C .build/doxygen-tool/source fetch --depth 1 origin 26342b775ea25e6fefb53220926b20702c56fcb3
+          git -C .build/doxygen-tool/source checkout --detach FETCH_HEAD
+          test "$(git -C .build/doxygen-tool/source rev-parse HEAD)" = 26342b775ea25e6fefb53220926b20702c56fcb3
+          cmake -S .build/doxygen-tool/source -B .build/doxygen-tool/build -G Ninja -DCMAKE_BUILD_TYPE=Release -Dbuild_doc=OFF -Dbuild_wizard=OFF
+          cmake --build .build/doxygen-tool/build --target doxygen --parallel 2
+          echo "$PWD/.build/doxygen-tool/build/bin" >> "$GITHUB_PATH"
+      - name: Full verification
+        run: python scripts/verify.py --mode full --compiler ${{ matrix.compiler }} --sanitize --build-dir .build/verification
+      - name: Retain verification and documentation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: verification-${{ matrix.compiler }}
+          path: |
+            .build/verification/**/*.log
+            .build/verification/**/*.json
+            .build/verification/**/*.zip
+            .build/doxygen/html
+            .build/doxygen/xml
+          include-hidden-files: true
+          if-no-files-found: warn

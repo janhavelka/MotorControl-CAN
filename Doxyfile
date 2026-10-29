@@ -1,0 +1,43 @@
+# Tested with Doxygen 1.13.2; scripts/verify.py checks the exact tool version.
+PROJECT_NAME           = "MotorControl-CAN"
+PROJECT_BRIEF          = "Portable status, endpoint identity and Classical CAN frame validation"
+OUTPUT_DIRECTORY       = .build/doxygen
+OUTPUT_LANGUAGE        = English
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        = .
+INPUT                  = include README.md docs/getting_started.md docs/verification.md
+FILE_PATTERNS          = *.h *.md
+FILTER_PATTERNS        = *.md="python scripts/doxygen_filter.py"
+RECURSIVE              = YES
+# INPUT is intentionally explicit. These guards use repository-specific paths:
+# a broad */test/* pattern would hide headers in a checkout under a test folder.
+EXCLUDE_PATTERNS       = */MotorControl-CAN/.build/* \
+                         */MotorControl-CAN/docs/reference/* \
+                         */MotorControl-CAN/docs/audit/* \
+                         */MotorControl-CAN/docs/reports/* \
+                         */MotorControl-CAN/docs/baseline/* \
+                         */MotorControl-CAN/experiments/*
+USE_MDFILE_AS_MAINPAGE  = ./README.md
+MARKDOWN_SUPPORT       = YES
+JAVADOC_AUTOBRIEF      = YES
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+WARN_IF_UNDOC_ENUM_VAL = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+QUIET                  = YES
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+TIMESTAMP              = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+HAVE_DOT               = NO
