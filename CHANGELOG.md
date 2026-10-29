@@ -55,6 +55,8 @@ This repository contains planning/reference material and native service/API owne
 
 ### Fixed
 
+- Fixed object catalogue generation for supplementary Unicode and C++11 trigraph/escape boundaries; invalid UTF-8 surrogates fail before publication. Generated coverage now retains each documentary disposition and all three RPDO1 source mapping words.
+
 - Fresh independent prompts 10-11 audit corrected a stale retained-proof unit/rounding comment and an ADS1115 source citation. Axis/reference arithmetic, CAN/SDO checks and isolated package consumption passed new independent probes and integrated verification; no executable change was needed.
 
 - Independent prompts 7–9 audit made quick-mode omissions explicit in verifier summaries, added a useful failure for empty tool-version output, and corrected stale package inventory and floating-environment documentation. Arithmetic and package consumption passed independent review.

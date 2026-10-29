@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from check_lichuan_ledger import ROOT, load_json, validate_ledger
 from generate_lichuan_objects import (LEDGER_PATH, OUTPUT_PATHS, catalogue_header,
-                                      coverage_document, generate, objects_header, projected_rows, publish)
+                                      coverage_document, cpp_string, generate, objects_header, projected_rows, publish)
 
 
 def fixture_entry(index=0x1009, subindex=0):
@@ -42,6 +42,13 @@ class ProjectionTests(unittest.TestCase):
     def reject(self, entry, fragment):
         with self.assertRaisesRegex(ValueError, fragment):
             projected_rows(fixture_objects(entry))
+
+    def test_cpp_literal_uses_utf8_bytes_without_trigraphs_or_escape_ambiguity(self):
+        self.assertEqual(cpp_string(None), "nullptr")
+        self.assertEqual(cpp_string('quote " slash \\ ??/ \u00b0\U0001f50d\x017\n'),
+                         r'"quote \" slash \\ \?\?/ \302\260\360\237\224\215\0017\012"')
+        with self.assertRaises(UnicodeEncodeError):
+            cpp_string("isolated \ud800 surrogate")
 
     def test_small_projection_is_ordered_and_preserves_native_version(self):
         rows = projected_rows(fixture_objects(fixture_entry(0x100A), fixture_entry()))
@@ -178,7 +185,7 @@ class GenerationTests(unittest.TestCase):
         data = copy.deepcopy(self.ledger)
         mutate(data)
         path = self.root / "ledger.json"
-        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        path.write_text(json.dumps(data, ensure_ascii=True), encoding="utf-8")
         return path
 
     def test_repeated_generation_and_check_are_byte_identical(self):
@@ -255,6 +262,15 @@ class GenerationTests(unittest.TestCase):
                 generate(ROOT / LEDGER_PATH, self.root)
         self.assertEqual(self.snapshot(), before)
 
+    def test_unencodable_source_text_does_not_publish_partial_outputs(self):
+        generate(ROOT / LEDGER_PATH, self.root)
+        before = self.snapshot()
+        path = self.changed_ledger(lambda data: data["objects"][0]["entries"][0].update(
+            units="unknown \ud800"))
+        with self.assertRaises(UnicodeEncodeError):
+            generate(path, self.root)
+        self.assertEqual(self.snapshot(), before)
+
     def test_replacement_failure_rolls_back_existing_and_new_files(self):
         for existing in (False, True):
             with self.subTest(existing=existing):
@@ -314,6 +330,17 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("| Typed settings | 0 |", document)
         self.assertIn("| Actions | 0 |", document)
         self.assertIn("| Workflows | 0 |", document)
+
+    def test_coverage_lists_all_three_source_rpdo1_words(self):
+        document = coverage_document(self.ledger, projected_rows(self.ledger["objects"]))
+        self.assertIn("default RPDO1 source words 0x60400010, 0x60ff0020, 0x60600008", document)
+        self.assertIn("do not grant SDO reads of WO 6040/6060 or any ungated action", document)
+
+    def test_coverage_preserves_each_documentary_disposition(self):
+        document = coverage_document(self.ledger, projected_rows(self.ledger["objects"]))
+        for row in projected_rows(self.ledger["objects"]):
+            section = document.split("### " + row["key"] + "\n", 1)[1].split("\n### ", 1)[0]
+            self.assertIn("| Documentary disposition | " + row["disposition"] + " |", section)
 
 
 if __name__ == "__main__":

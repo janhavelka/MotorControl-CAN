@@ -189,7 +189,7 @@ Counts and reserved subentries retain their own explicit native types. A record'
 
 ## Scalar declaration coverage
 
-The independent native type/access/units columns describe source claims; only resolved rows generate declarations. Source PDOMapping=1 is never a write permission. The default RPDO1 source words 0x60400010 and 0x60ff0020 do not grant SDO reads of WO 6040/6060 or any ungated action; mapping templates belong to their later prompt.
+The independent native type/access/units columns describe source claims; only resolved rows generate declarations. Source PDOMapping=1 is never a write permission. The default RPDO1 source words 0x60400010, 0x60ff0020, 0x60600008 do not grant SDO reads of WO 6040/6060 or any ungated action; mapping templates belong to their later prompt.
 
 | Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | D/I/H/Q |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -406,6 +406,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1000] lines 158-166 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -427,6 +428,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1001] lines 167-175 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw error field |
 | Scaling | Error register/history layout and read consumption require evidence. |
@@ -448,6 +450,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1003sub0] lines 182-192 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -469,6 +472,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1003sub1] lines 193-200 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw error field |
 | Scaling | Error register/history layout and read consumption require evidence. |
@@ -490,6 +494,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1003sub2] lines 201-208 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw error field |
 | Scaling | Error register/history layout and read consumption require evidence. |
@@ -511,6 +516,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1003sub3] lines 209-216 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw error field |
 | Scaling | Error register/history layout and read consumption require evidence. |
@@ -532,6 +538,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1003sub4] lines 217-224 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw error field |
 | Scaling | Error register/history layout and read consumption require evidence. |
@@ -553,6 +560,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1005] lines 225-233 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID field |
 | Scaling | U32 route plus flags; accepted flags need profile evidence. |
@@ -574,6 +582,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1009] lines 234-242 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -595,6 +604,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [100A] lines 243-251 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -616,6 +626,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1014] lines 252-260 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID field |
 | Scaling | U32 route plus flags; accepted flags need profile evidence. |
@@ -637,6 +648,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1017] lines 261-269 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw producer-time field |
 | Scaling | EDS does not specify time unit here; protocol unit is not a tested drive reaction. |
@@ -658,6 +670,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1018sub0] lines 276-286 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -679,6 +692,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1018sub1] lines 287-295 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -700,6 +714,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1018sub2] lines 296-304 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -721,6 +736,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1018sub3] lines 305-313 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -742,6 +758,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1200sub0] lines 320-328 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -763,6 +780,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1200sub1] lines 329-337 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID field |
 | Scaling | U32 route plus flags; accepted flags need profile evidence. |
@@ -784,6 +802,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1200sub2] lines 338-346 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID field |
 | Scaling | U32 route plus flags; accepted flags need profile evidence. |
@@ -805,6 +824,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1400sub0] lines 353-361 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -826,6 +846,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1400sub1] lines 362-370 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -847,6 +868,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1400sub2] lines 371-379 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -868,6 +890,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1400sub3] lines 380-388 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -889,6 +912,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1400sub4] lines 389-397 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -910,6 +934,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1400sub5] lines 398-406 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -931,6 +956,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1401sub0] lines 413-421 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -952,6 +978,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1401sub1] lines 422-430 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -973,6 +1000,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1401sub2] lines 431-439 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -994,6 +1022,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1401sub3] lines 440-448 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1015,6 +1044,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1401sub4] lines 449-457 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1036,6 +1066,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1401sub5] lines 458-466 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1057,6 +1088,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1402sub0] lines 473-481 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1078,6 +1110,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1402sub1] lines 482-490 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1099,6 +1132,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1402sub2] lines 491-499 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1120,6 +1154,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1402sub3] lines 500-508 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1141,6 +1176,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1402sub4] lines 509-517 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1162,6 +1198,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1402sub5] lines 518-526 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1183,6 +1220,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1403sub0] lines 533-541 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1204,6 +1242,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1403sub1] lines 542-550 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1225,6 +1264,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1403sub2] lines 551-559 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1246,6 +1286,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1403sub3] lines 560-568 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1267,6 +1308,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1403sub4] lines 569-577 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1288,6 +1330,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1403sub5] lines 578-586 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1309,6 +1352,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1600sub0] lines 593-603 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1330,6 +1374,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1600sub1] lines 604-612 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1351,6 +1396,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1600sub2] lines 613-621 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1372,6 +1418,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1600sub3] lines 622-630 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1393,6 +1440,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1600sub4] lines 631-638 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1414,6 +1462,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1601sub0] lines 645-655 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1435,6 +1484,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1601sub1] lines 656-664 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1456,6 +1506,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1601sub2] lines 665-673 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1477,6 +1528,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1601sub3] lines 674-681 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1498,6 +1550,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1601sub4] lines 682-689 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1519,6 +1572,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1602sub0] lines 696-706 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1540,6 +1594,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1602sub1] lines 707-714 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1561,6 +1616,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1602sub2] lines 715-722 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1582,6 +1638,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1602sub3] lines 723-730 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1603,6 +1660,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1602sub4] lines 731-738 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1624,6 +1682,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1603sub0] lines 745-755 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1645,6 +1704,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1603sub1] lines 756-763 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1666,6 +1726,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1603sub2] lines 764-771 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1687,6 +1748,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1603sub3] lines 772-779 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1708,6 +1770,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1603sub4] lines 780-787 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1729,6 +1792,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1800sub0] lines 794-802 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1750,6 +1814,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1800sub1] lines 803-811 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1771,6 +1836,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1800sub2] lines 812-820 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1792,6 +1858,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1800sub3] lines 821-829 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1813,6 +1880,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1800sub4] lines 830-838 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1834,6 +1902,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1800sub5] lines 839-847 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1855,6 +1924,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1801sub0] lines 854-862 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -1876,6 +1946,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1801sub1] lines 863-871 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1897,6 +1968,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1801sub2] lines 872-880 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1918,6 +1990,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1801sub3] lines 881-889 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1939,6 +2012,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1801sub4] lines 890-898 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1960,6 +2034,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1801sub5] lines 899-907 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -1981,6 +2056,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1802sub0] lines 914-922 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2002,6 +2078,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1802sub1] lines 923-931 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2023,6 +2100,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1802sub2] lines 932-940 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2044,6 +2122,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1802sub3] lines 941-949 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2065,6 +2144,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1802sub4] lines 950-958 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2086,6 +2166,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1802sub5] lines 959-967 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2107,6 +2188,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1803sub0] lines 974-982 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2128,6 +2210,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1803sub1] lines 983-991 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | COB-ID |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2149,6 +2232,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1803sub2] lines 992-1000 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | transmission type |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2170,6 +2254,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1803sub3] lines 1001-1009 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | inhibit time |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2191,6 +2276,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1803sub4] lines 1010-1018 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | compatibility entry |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2212,6 +2298,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1803sub5] lines 1019-1027 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | event timer |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2233,6 +2320,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A00sub0] lines 1034-1044 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2254,6 +2342,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A00sub1] lines 1045-1053 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2275,6 +2364,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A00sub2] lines 1054-1062 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2296,6 +2386,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A00sub3] lines 1063-1071 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2317,6 +2408,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A00sub4] lines 1072-1079 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2338,6 +2430,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A01sub0] lines 1086-1096 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2359,6 +2452,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A01sub1] lines 1097-1105 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2380,6 +2474,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A01sub2] lines 1106-1114 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2401,6 +2496,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A01sub3] lines 1115-1122 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2422,6 +2518,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A01sub4] lines 1123-1130 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2443,6 +2540,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A02sub0] lines 1137-1147 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2464,6 +2562,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A02sub1] lines 1148-1155 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2485,6 +2584,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A02sub2] lines 1156-1163 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2506,6 +2606,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A02sub3] lines 1164-1171 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2527,6 +2628,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A02sub4] lines 1172-1179 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2548,6 +2650,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A03sub0] lines 1186-1196 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2569,6 +2672,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A03sub1] lines 1197-1204 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2590,6 +2694,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A03sub2] lines 1205-1212 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2611,6 +2716,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A03sub3] lines 1213-1220 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2632,6 +2738,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [1A03sub4] lines 1221-1228 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mapping descriptor |
 | Scaling | Raw protocol field; no invented device timing or flags. |
@@ -2653,6 +2760,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -2674,6 +2782,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | raw identity code |
 | Scaling | No exact-model/firmware auto-detection from generic values. |
@@ -2695,6 +2804,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2100] lines 1247-1255; EN86 PDF page 17; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | bit field |
 | Scaling | Native monitor bits; no CiA402 mask substitution. |
@@ -2716,6 +2826,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2101] lines 1256-1264; EN86 PDF page 17; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | bit field |
 | Scaling | Native monitor bits; no CiA402 mask substitution. |
@@ -2737,6 +2848,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2102] lines 1265-1273; EN86 PDF page 17; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | bit field |
 | Scaling | Native monitor bits; no CiA402 mask substitution. |
@@ -2758,6 +2870,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2200] lines 1274-1282; EN86 PDF page 18; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | direction selector |
 | Scaling | Physical positive direction not established. |
@@ -2779,6 +2892,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2201] lines 1283-1291; EN86 PDF page 18; ZH86 PDF page 18; EN86 PDF page 11 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | subdivision |
 | Scaling | Command/feedback/encoder scales remain separate. |
@@ -2800,6 +2914,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2202] lines 1292-1300; EN86 PDF page 18; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | enable selector |
 | Scaling | Native enumerated choice. |
@@ -2821,6 +2936,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2203] lines 1301-1309; EN86 PDF page 18; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | node selector |
 | Scaling | Native U16; CANopen unicast node remains 1..127. |
@@ -2842,6 +2958,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2300] lines 1310-1318; EN86 PDF page 15; EN86 PDF page 18; ZH86 PDF page 15; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | action code |
 | Scaling | Not a harmless setting. |
@@ -2863,6 +2980,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2301] lines 1319-1327; EN86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | action code |
 | Scaling | Not a harmless setting. |
@@ -2884,6 +3002,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2302] lines 1328-1336; EN86 PDF page 15; EN86 PDF page 18; ZH86 PDF page 15; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | action code |
 | Scaling | Not a harmless setting. |
@@ -2905,6 +3024,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub0] lines 1343-1351 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -2926,6 +3046,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub1] lines 1352-1360; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 18 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | polarity bit field |
 | Scaling | Bits0..6 correspond to DI0..6. |
@@ -2947,6 +3068,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub2] lines 1361-1369; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI0. |
@@ -2968,6 +3090,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub3] lines 1370-1378; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI1. |
@@ -2989,6 +3112,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub4] lines 1379-1387; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI2. |
@@ -3010,6 +3134,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub5] lines 1388-1396; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI3. |
@@ -3031,6 +3156,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub6] lines 1397-1405; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI4. |
@@ -3052,6 +3178,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub7] lines 1406-1414; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI5. |
@@ -3073,6 +3200,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub8] lines 1415-1423; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input function code |
 | Scaling | One assignment for DI6. |
@@ -3094,6 +3222,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub9] lines 1424-1432 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | excluded |
+| Documentary disposition | excluded |
 | Exclusion reason | EDS names this entry Reserved; no typed public access is approved |
 | Units | unknown |
 | Scaling | Unknown. |
@@ -3115,6 +3244,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400subA] lines 1433-1441; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | excluded |
+| Documentary disposition | excluded |
 | Exclusion reason | EDS names this entry Reserved; no typed public access is approved |
 | Units | unknown |
 | Scaling | Unknown. |
@@ -3136,6 +3266,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400subB] lines 1442-1450; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | excluded |
+| Documentary disposition | excluded |
 | Exclusion reason | EDS names this entry Reserved; no typed public access is approved |
 | Units | unknown |
 | Scaling | Unknown. |
@@ -3157,6 +3288,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400subC] lines 1451-1459; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | output polarity/function code |
 | Scaling | 2400:0B..0F meanings conflict. |
@@ -3178,6 +3310,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400subD] lines 1460-1468; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | output polarity/function code |
 | Scaling | 2400:0B..0F meanings conflict. |
@@ -3199,6 +3332,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400subE] lines 1469-1477; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | output polarity/function code |
 | Scaling | 2400:0B..0F meanings conflict. |
@@ -3220,6 +3354,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400subF] lines 1478-1486; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 8; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | output polarity/function code |
 | Scaling | 2400:0B..0F meanings conflict. |
@@ -3241,6 +3376,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2400sub10] lines 1487-1495 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | excluded |
+| Documentary disposition | excluded |
 | Exclusion reason | EDS names this entry Reserved; no typed public access is approved |
 | Units | unknown |
 | Scaling | Unknown. |
@@ -3262,6 +3398,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2401] lines 1496-1504; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3283,6 +3420,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2402] lines 1505-1513; EN86 PDF page 8; EN86 PDF page 18; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3304,6 +3442,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2403] lines 1514-1522; EN86 PDF page 8; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3325,6 +3464,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2404] lines 1523-1531; EN86 PDF page 8; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3346,6 +3486,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2405] lines 1532-1540; EN86 PDF page 8; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3367,6 +3508,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2406] lines 1541-1549; EN86 PDF page 8; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3388,6 +3530,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2407] lines 1550-1558; EN86 PDF page 8; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | filter coefficient |
 | Scaling | No time unit or equation established. |
@@ -3409,6 +3552,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2500] lines 1559-1566; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | loop selector |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3430,6 +3574,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | encoder resolution |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3451,6 +3596,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mA |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3472,6 +3618,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2503] lines 1583-1590; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | percent |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3493,6 +3640,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2504] lines 1591-1598; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | percent |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3514,6 +3662,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | percent |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3535,6 +3684,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2506] lines 1607-1614; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | percent |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3556,6 +3706,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2507] lines 1615-1622; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | ms |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3577,6 +3728,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2508] lines 1623-1630; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | enable code |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3598,6 +3750,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2509] lines 1631-1638; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | coefficient |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3619,6 +3772,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | position threshold |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3640,6 +3794,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [250B] lines 1647-1654; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | position threshold |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3661,6 +3816,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [250C] lines 1655-1662; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | time field |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3682,6 +3838,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [250D] lines 1663-1670; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3703,6 +3860,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [250E] lines 1671-1678; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3724,6 +3882,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [250F] lines 1679-1686; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3745,6 +3904,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2510] lines 1687-1694; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3766,6 +3926,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2511] lines 1695-1702; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3787,6 +3948,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2512] lines 1703-1710; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3808,6 +3970,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2513] lines 1711-1718; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3829,6 +3992,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2514] lines 1719-1726; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3850,6 +4014,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2515] lines 1727-1734; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3871,6 +4036,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2516] lines 1735-1742; EN86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3892,6 +4058,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2517] lines 1743-1750; EN86 PDF page 20; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3913,6 +4080,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2518] lines 1751-1758; EN86 PDF page 20; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3934,6 +4102,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2519] lines 1759-1766; EN86 PDF page 20; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3955,6 +4124,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [251A] lines 1767-1774 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3976,6 +4146,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [251B] lines 1775-1782 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -3997,6 +4168,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [251C] lines 1783-1790 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -4018,6 +4190,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [251D] lines 1791-1798 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -4039,6 +4212,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [251E] lines 1799-1806 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -4060,6 +4234,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [251F] lines 1807-1814 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -4081,6 +4256,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [2520] lines 1815-1822 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | native tuning value |
 | Scaling | No unqualified conversion or range inferred. |
@@ -4102,6 +4278,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [603F] lines 1823-1831; EN86 PDF page 16; ZH86 PDF page 16 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | raw error code |
 | Scaling | Preserve unknown codes. |
@@ -4123,6 +4300,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 17; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | controlword bits |
 | Scaling | Mode and current-state dependent. |
@@ -4144,6 +4322,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6041] lines 1841-1849; EN86 PDF page 12; ZH86 PDF page 12; OP86 PDF page 10; ZH57 PDF page 12; OP57 PDF page 10 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | statusword bits |
 | Scaling | Three 86C layouts; no merged mask. |
@@ -4165,6 +4344,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [605D] lines 1850-1858; EN86 PDF page 16; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | halt option code |
 | Scaling | I16 native; options not established. |
@@ -4186,6 +4366,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6060] lines 1859-1867; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 16; ZH86 PDF page 11; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | withheld |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | mode code |
 | Scaling | Raw byte; U8 EDS versus I8 manual. |
@@ -4207,6 +4388,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6061] lines 1868-1876; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 16; ZH86 PDF page 11; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | withheld |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | mode code |
 | Scaling | Raw byte; U8 EDS versus I8 manual. |
@@ -4228,6 +4410,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6064] lines 1877-1885; EN86 PDF page 3; EN86 PDF page 16; ZH86 PDF page 3; ZH86 PDF page 17; ZH57 PDF page 3; ZH57 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | raw actual-position count |
 | Scaling | Feedback scale/sign independent of command pulse/rpm conventions. |
@@ -4249,6 +4432,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [606C] lines 1886-1893; EN86 PDF page 3; EN86 PDF page 16; ZH86 PDF page 3; ZH86 PDF page 17; ZH57 PDF page 3; ZH57 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | conservative_read_only |
 | Exclusion reason | `null` (not stated) |
 | Units | raw actual-velocity value |
 | Scaling | Feedback scale/sign independent of command pulse/rpm conventions. |
@@ -4270,6 +4454,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [607A] lines 1894-1902; EN86 PDF page 11; EN86 PDF page 16; ZH86 PDF page 11; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | command pulses |
 | Scaling | Command scale must be bound separately from feedback. |
@@ -4291,6 +4476,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [607C] lines 1903-1911; EN86 PDF page 13; EN86 PDF page 16; ZH86 PDF page 13; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw native home offset |
 | Scaling | Offset units, scale and reference application point not established. |
@@ -4312,6 +4498,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [607Dsub0] lines 1918-1926 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -4333,6 +4520,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [607Dsub1] lines 1927-1934; EN86 PDF page 16; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw native software-limit coordinate |
 | Scaling | Units and coordinate scale are not established. |
@@ -4354,6 +4542,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [607Dsub2] lines 1935-1942; EN86 PDF page 17; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | raw native software-limit coordinate |
 | Scaling | Units and coordinate scale are not established. |
@@ -4375,6 +4564,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6081] lines 1943-1951; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | rpm |
 | Scaling | Profile-specific U32 command speed; not generic common-axis width. |
@@ -4396,6 +4586,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6083] lines 1952-1960; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | ms |
 | Scaling | Native ramp duration, not acceleration units. |
@@ -4417,6 +4608,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6084] lines 1961-1969; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | ms |
 | Scaling | Native ramp duration, not acceleration units. |
@@ -4438,6 +4630,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6098] lines 1970-1978; EN86 PDF page 13; EN86 PDF page 14; EN86 PDF page 17; ZH86 PDF page 13; ZH86 PDF page 14; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | withheld |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | homing method code |
 | Scaling | Raw byte; U8 EDS versus I8 dictionary. |
@@ -4459,6 +4652,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6099sub0] lines 1985-1993 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -4480,6 +4674,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6099sub1] lines 1994-2002; EN86 PDF page 13; EN86 PDF page 14; EN86 PDF page 17; ZH86 PDF page 13; ZH86 PDF page 14; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | rpm |
 | Scaling | U32 homing speed fields, not 16-bit values. |
@@ -4501,6 +4696,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [6099sub2] lines 2003-2011; EN86 PDF page 13; EN86 PDF page 14; EN86 PDF page 17; ZH86 PDF page 13; ZH86 PDF page 14; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | rpm |
 | Scaling | U32 homing speed fields, not 16-bit values. |
@@ -4522,6 +4718,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [609A] lines 2012-2020; EN86 PDF page 13; EN86 PDF page 14; EN86 PDF page 17; ZH86 PDF page 13; ZH86 PDF page 14; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | ms |
 | Scaling | Native ramp duration, not acceleration units. |
@@ -4543,6 +4740,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [60FD] lines 2021-2028; EN86 PDF page 17; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | input bit field |
 | Scaling | No union of terminal numbering with 2101. |
@@ -4564,6 +4762,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [60FEsub0] lines 2035-2043 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | supported_evidence |
 | Exclusion reason | `null` (not stated) |
 | Units | entry count |
 | Scaling | Integer record count; retain this entry's own EDS width. |
@@ -4585,6 +4784,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [60FEsub1] lines 2044-2051; EN86 PDF page 17; ZH86 PDF page 17; OP86 PDF page 7; ZH57 PDF page 8; ZH57 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | output bit field |
 | Scaling | Native bits16/17/18, physical labels model-specific. |
@@ -4606,6 +4806,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [60FEsub2] lines 2052-2059; EN86 PDF page 17; ZH86 PDF page 17; OP86 PDF page 7; ZH57 PDF page 8; ZH57 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | output bit field |
 | Scaling | Native bits16/17/18, physical labels model-specific. |
@@ -4627,6 +4828,7 @@ The independent native type/access/units columns describe source claims; only re
 | Sources | EDS [60FF] lines 2060-2068; EN86 PDF page 13; EN86 PDF page 17; ZH86 PDF page 13; ZH86 PDF page 17; OP86 PDF page 11 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | withheld |
+| Documentary disposition | pending_qualification |
 | Exclusion reason | `null` (not stated) |
 | Units | rpm command |
 | Scaling | EDS I32 versus procedure U32; no negative-speed approval. |

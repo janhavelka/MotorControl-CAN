@@ -134,6 +134,11 @@ consumption. Neither header is pulled into the common umbrella. Package tests
 compile all public headers independently and exercise relocated consumers with
 the catalogue removed.
 
+Catalogue text is encoded as UTF-8 bytes in portable C++11 literals, including
+supplementary Unicode characters. Fixed-width byte escapes preserve following
+digits, and question-mark escapes prevent trigraph translation. An isolated
+Unicode surrogate is invalid UTF-8 and fails before any output is published.
+
 `6060`, `6061`, `6098` and `60FF` have known byte widths but conflicting complete
 signed types. Their original EDS claims, manual alternatives, owners and gates
 stay visible in coverage; no typed descriptor or alternate catalogue route is
@@ -149,7 +154,9 @@ approve active maps or enable actions. No default PDO template is implemented
 here; observed mapping belongs to prompt 17. Lichuan `0x2300` save/reset cannot
 dispatch N5 NanoJ control merely because its index matches.
 
-Generated coverage accounts separately for all 99 indexes, 202 typed source
+Generated coverage retains each row's documentary disposition independently of
+its declaration disposition: a resolved type may still be pending qualification.
+It accounts separately for all 99 indexes, 202 typed source
 entries, 53 manual functions, 24 conflicts, gaps and anomaly A01. Descriptor
 presence is separate from typed reads/settings/actions/workflows and their
 documented, implemented, host-tested and hardware-qualified flags. All semantic

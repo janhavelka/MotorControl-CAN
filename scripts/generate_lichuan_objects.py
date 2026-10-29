@@ -245,7 +245,17 @@ def objects_header(rows):
 
 
 def cpp_string(value):
-    return "nullptr" if value is None else json.dumps(value, ensure_ascii=True)
+    """Encode UTF-8 bytes as a C++11 literal, independent of compiler encoding.
+
+    Fixed three-digit octal escapes cannot absorb following digits. Escaping
+    question marks also prevents C++11 trigraph translation. UTF-8 encoding
+    rejects isolated surrogates before any generated file is published.
+    """
+    if value is None:
+        return "nullptr"
+    escapes = {34: '\\"', 63: '\\?', 92: '\\\\'}
+    return '"' + "".join(escapes.get(byte, chr(byte)) if 32 <= byte <= 126
+                         else "\\{:03o}".format(byte) for byte in value.encode("utf-8")) + '"'
 
 
 def catalogue_header(rows, scopes):
@@ -365,11 +375,11 @@ def coverage_document(data, rows):
         lines.append("| {} | {} | {} | {} |\n".format(obj["key"], obj["kind"],
                      text(source_text([obj["source_ref"]])), text(obj["raw_fields"])))
     rpdo1_words = [row["default_eds"] for row in rows if row["index"] == 0x1600 and
-                   row["subindex"] in (1, 2)]
+                   row["subindex"] in (1, 2, 3)]
     lines += ["\n## Scalar declaration coverage\n\n",
               "The independent native type/access/units columns describe source claims; only resolved "
               "rows generate declarations. Source PDOMapping=1 is never a write permission. The "
-              "default RPDO1 source words " + " and ".join(text(value) for value in rpdo1_words) +
+              "default RPDO1 source words " + ", ".join(text(value) for value in rpdo1_words) +
               " do not grant SDO reads of WO "
               "6040/6060 or any ungated action; mapping templates belong to their later prompt.\n\n",
               "| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | D/I/H/Q |\n",
@@ -387,6 +397,7 @@ def coverage_document(data, rows):
         fields = [("EDS name", row["raw_fields"]["ParameterName"]),
                   ("Sources", source_text(row["source_refs"])), ("Applicability", row["scope_id"]),
                   ("Declaration disposition", row["review"]["generation_type"]),
+                  ("Documentary disposition", row["disposition"]),
                   ("Exclusion reason", row["exclusion_reason"]),
                   ("Units", row["units"]), ("Scaling", row["scaling"]),
                   ("Original low / high / default", [row["low_limit_eds"], row["high_limit_eds"], row["default_eds"]]),

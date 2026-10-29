@@ -150,6 +150,11 @@ passing local sanitizer gates. No sibling suites or physical CAN tests ran.
 
 ## Handoff
 
+A subsequent [independent audit](prompt_12_audit.md) records fresh source,
+implementation and package review, confirmed generator/coverage corrections
+and their verification. The original implementation results below retain
+their exact revision scope.
+
 Generated declarations are not implemented semantic functions or qualified
 support. Remaining model/firmware/read-effect/write/PDO gates stay visible in
 the ledger/generated coverage. Prompt 13 owns production SDO sessions; typed
