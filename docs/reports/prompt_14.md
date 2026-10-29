@@ -107,5 +107,19 @@ Later gates do not reopen an unresolved channel silently. No physical CAN,
 firmware qualification or memory/timing measurement on embedded hardware occurred.
 The next numbered assignment is prompt 15; it is not executed by this handoff.
 
-Synchronization and exact-commit CI are checked before final handoff; this report
-does not treat an older green commit as evidence for the new code.
+## Delivery
+
+Implementation commit `be7ee1fac8295aa268d7b19dbf1199cbe0c90d34` was pushed to
+`origin/promptset/motorcontrol-can`; a fresh fetch confirmed 0 ahead / 0 behind.
+Staged and committed original-artifact checks both passed. Its
+[push CI run 40939019340](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40939019340)
+completed successfully on that exact SHA: Windows quick GCC, full Linux GCC
+ASan/UBSan, and full Linux Clang ASan/UBSan, including package/Doxygen gates.
+Job IDs were `123677112086`, `123677111615` and `123677112161`, respectively.
+The local read-only CI receipt is `.build/p14_ci/implementation.json`.
+
+Prompt 14's owned software and evidence-policy scope is complete. This
+documentation closure retains the same branch and is checked with integrity
+and diff validation. Its own final commit, automatic CI and fresh remote
+synchronization are verified in the handoff; implementation CI is not substituted
+for that final-commit check. No task-owned implementation work remains pending.
