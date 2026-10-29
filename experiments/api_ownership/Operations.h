@@ -118,11 +118,11 @@ Status getIdentity(const ReadContext& context, const Binding& currentBinding,
 
 /** Prepare a synthetic absolute target write using production numeric primitives.
  * Only exact native I32 targets or motor/load TURNS/DEGREES are supported.
- * Uses production Units for reduction, cross-cancelled conversion and EXACT
- * integer quantization, followed by checked origin addition and native narrowing.
+ * Uses production preparePosition for checked conversion, origin-before-rounding
+ * and selected integer quantization, followed by the synthetic I32 wire bound.
  * Full-step geometry/feedback are optional; malformed supplied facts still reject.
- * @param[in] request Exact target, matching generation, EXACT rounding and zero
- * quantization allowance. MOTOR/LOAD targets require explicit known origin.
+ * @param[in] request Absolute unwrapped target with matching generation, selected
+ * rounding and allowance. Mechanical coordinates require their appropriate origin.
  * @param[in] configuration Valid CANopen binding, position capability and any required
  * calibration qualification, selected command/gear scales and inclusive limits.
  * @param[in] operation Nonzero host token; does not correlate SDO on the wire.
@@ -131,7 +131,8 @@ Status getIdentity(const ReadContext& context, const Binding& currentBinding,
  * @param[out] output Caller-owned copied context, unchanged on every rejection.
  * @return OK prepares only; unsupported capability/conversion is rejected before
  * work exists. Proprietary bindings reject before any SDO work is created.
- * Numeric detail is MoveError::UNIT_ERROR_BASE + UnitError; other detail uses MoveError.
+ * Coordinate rejection preserves AxisError (including UNIT_ERROR_BASE + UnitError).
+ * Synthetic profile permission, wire-range and sequencing failures use MoveError.
  * No enabling, trigger, motor I/O, allocation or retry occurs. */
 Status prepareMoveAbsolute(const PositionRequest& request, const ProofAxisConfig& configuration,
                            OperationToken operation, uint64_t nowUs, uint64_t deadlineUs,

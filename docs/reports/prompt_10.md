@@ -186,6 +186,11 @@ state without changing production code or tests. Its exact HEAD and automatic
 CI result are verified again before the final user handoff, rather than treating
 the earlier green run as verification of a new commit.
 
+The final documentation review also corrected retained proof comments that still
+described pre-migration rounding order, EXACT-only policy and MoveError numeric
+details. Those comments now describe the actual production preparePosition path;
+no executable behavior or test expectation changed.
+
 Final integrated local summary: `.build/p10-integrated/summary.json`; quick:
 `.build/p10-quick/summary.json`; local Clang unavailability:
 `.build/p10-full-clang/summary.json`. Staged and committed integrity checks

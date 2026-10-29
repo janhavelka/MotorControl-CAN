@@ -213,7 +213,8 @@ enum class ReadError : int32_t {
     WRONG_KIND,        ///< Context is not the requested typed read kind.
     STALE_GENERATION   ///< Typed getter's complete current binding differs.
 };
-/** Numeric Status detail for prototype move preparation/advancement. */
+/** Synthetic move permission/sequencing details. Production coordinate
+ * preparation preserves AxisError, including its UnitError offset. */
 enum class MoveError : int32_t {
     NONE,                    ///< No move-specific reason.
     INVALID_TARGET,          ///< Invalid binding or incompatible proof protocol.
