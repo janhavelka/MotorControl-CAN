@@ -6,6 +6,10 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added pure checked PDO layouts/decoding, complete SDO map-readback evidence and eight passive routes in the existing owner. Actual map contents, wire-sample provenance and capture freshness remain independent; reused routes require explicit producer/ingress retirement evidence.
+- Generated the eight unverified EDS PDO templates and ten reviewed passive layout facts from the single ledger, retaining raw unresolved mode/velocity signedness and all existing SDO/write gates. No PDO configuration write, NMT inference, scaled position or completion is added.
+- SDO terminals now retain supplied admission time and node lifecycle epoch so mixed stale readback results cannot certify a newer map.
+
 - Added explicit typed CANopen NMT manager requests through the pinned native producer, with one retained local result, bounded deadlines and addressed/domain-broadcast invalidation. Queue/TX evidence remains separate from observed remote state; nothing starts or resets automatically.
 - Added NMT versus SDO service eligibility, heartbeat-disabled reviewed probing/configuration, caller evidence-age policy and separate configured-TPDO receive admission. Known Stopped retires ordinary SDO work while retaining uncertainty and terminals; NMT Stop is not a physical motor stop.
 

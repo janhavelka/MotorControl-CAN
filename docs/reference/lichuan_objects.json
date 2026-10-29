@@ -15091,7 +15091,69 @@
               "Q13",
               "Q03"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "RPDO"
+              ],
+              "role": "RAW",
+              "representation": "UNSIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "6040",
+                  "line_start": 1832,
+                  "line_end": 1840
+                },
+                {
+                  "id": "EN86",
+                  "page": 11
+                },
+                {
+                  "id": "EN86",
+                  "page": 12
+                },
+                {
+                  "id": "EN86",
+                  "page": 15
+                },
+                {
+                  "id": "EN86",
+                  "page": 16
+                },
+                {
+                  "id": "ZH86",
+                  "page": 12
+                },
+                {
+                  "id": "ZH86",
+                  "page": 15
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "OP86",
+                  "page": 9
+                },
+                {
+                  "id": "OP86",
+                  "page": 10
+                },
+                {
+                  "id": "OP86",
+                  "page": 13
+                },
+                {
+                  "id": "EDS",
+                  "section": "1600sub1",
+                  "line_start": 604,
+                  "line_end": 612
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -15206,7 +15268,49 @@
               "Q02",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "TPDO"
+              ],
+              "role": "RAW",
+              "representation": "UNSIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "6041",
+                  "line_start": 1841,
+                  "line_end": 1849
+                },
+                {
+                  "id": "EN86",
+                  "page": 12
+                },
+                {
+                  "id": "ZH86",
+                  "page": 12
+                },
+                {
+                  "id": "OP86",
+                  "page": 10
+                },
+                {
+                  "id": "ZH57",
+                  "page": 12
+                },
+                {
+                  "id": "OP57",
+                  "page": 10
+                },
+                {
+                  "id": "EDS",
+                  "section": "1A00sub1",
+                  "line_start": 1045,
+                  "line_end": 1053
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -15423,7 +15527,49 @@
               "Q10",
               "Q11"
             ],
-            "generation_type": "withheld"
+            "generation_type": "withheld",
+            "pdo_observation": {
+              "directions": [
+                "RPDO"
+              ],
+              "role": "RAW",
+              "representation": "RAW",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "6060",
+                  "line_start": 1859,
+                  "line_end": 1867
+                },
+                {
+                  "id": "EN86",
+                  "page": 11
+                },
+                {
+                  "id": "EN86",
+                  "page": 12
+                },
+                {
+                  "id": "EN86",
+                  "page": 16
+                },
+                {
+                  "id": "ZH86",
+                  "page": 11
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1600sub3",
+                  "line_start": 622,
+                  "line_end": 630
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -15539,7 +15685,49 @@
               "Q10",
               "Q20"
             ],
-            "generation_type": "withheld"
+            "generation_type": "withheld",
+            "pdo_observation": {
+              "directions": [
+                "TPDO"
+              ],
+              "role": "RAW",
+              "representation": "RAW",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "6061",
+                  "line_start": 1868,
+                  "line_end": 1876
+                },
+                {
+                  "id": "EN86",
+                  "page": 11
+                },
+                {
+                  "id": "EN86",
+                  "page": 12
+                },
+                {
+                  "id": "EN86",
+                  "page": 16
+                },
+                {
+                  "id": "ZH86",
+                  "page": 11
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1A00sub3",
+                  "line_start": 1063,
+                  "line_end": 1071
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -15656,7 +15844,53 @@
               "Q04",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "TPDO"
+              ],
+              "role": "ACTUAL",
+              "representation": "SIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "6064",
+                  "line_start": 1877,
+                  "line_end": 1885
+                },
+                {
+                  "id": "EN86",
+                  "page": 3
+                },
+                {
+                  "id": "EN86",
+                  "page": 16
+                },
+                {
+                  "id": "ZH86",
+                  "page": 3
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "ZH57",
+                  "page": 3
+                },
+                {
+                  "id": "ZH57",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1A01sub1",
+                  "line_start": 1097,
+                  "line_end": 1105
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -15771,7 +16005,53 @@
               "Q04",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "TPDO"
+              ],
+              "role": "ACTUAL",
+              "representation": "SIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "606C",
+                  "line_start": 1886,
+                  "line_end": 1893
+                },
+                {
+                  "id": "EN86",
+                  "page": 3
+                },
+                {
+                  "id": "EN86",
+                  "page": 16
+                },
+                {
+                  "id": "ZH86",
+                  "page": 3
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "ZH57",
+                  "page": 3
+                },
+                {
+                  "id": "ZH57",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1A01sub2",
+                  "line_start": 1106,
+                  "line_end": 1114
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -15883,7 +16163,45 @@
               "Q11",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "RPDO"
+              ],
+              "role": "COMMANDED",
+              "representation": "SIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "607A",
+                  "line_start": 1894,
+                  "line_end": 1902
+                },
+                {
+                  "id": "EN86",
+                  "page": 11
+                },
+                {
+                  "id": "EN86",
+                  "page": 16
+                },
+                {
+                  "id": "ZH86",
+                  "page": 11
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1601sub1",
+                  "line_start": 656,
+                  "line_end": 664
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -16343,7 +16661,45 @@
               "Q11",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "RPDO"
+              ],
+              "role": "COMMANDED",
+              "representation": "UNSIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "6081",
+                  "line_start": 1943,
+                  "line_end": 1951
+                },
+                {
+                  "id": "EN86",
+                  "page": 11
+                },
+                {
+                  "id": "EN86",
+                  "page": 17
+                },
+                {
+                  "id": "ZH86",
+                  "page": 11
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1601sub2",
+                  "line_start": 665,
+                  "line_end": 673
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -17175,7 +17531,37 @@
               "Q19",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "pdo_observation": {
+              "directions": [
+                "TPDO"
+              ],
+              "role": "RAW",
+              "representation": "UNSIGNED",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "60FD",
+                  "line_start": 2021,
+                  "line_end": 2028
+                },
+                {
+                  "id": "EN86",
+                  "page": 17
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "EDS",
+                  "section": "1A00sub2",
+                  "line_start": 1054,
+                  "line_end": 1062
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]
@@ -17562,7 +17948,49 @@
               "Q03",
               "Q20"
             ],
-            "generation_type": "withheld"
+            "generation_type": "withheld",
+            "pdo_observation": {
+              "directions": [
+                "RPDO"
+              ],
+              "role": "COMMANDED",
+              "representation": "RAW",
+              "source_refs": [
+                {
+                  "id": "EDS",
+                  "section": "60FF",
+                  "line_start": 2060,
+                  "line_end": 2068
+                },
+                {
+                  "id": "EN86",
+                  "page": 13
+                },
+                {
+                  "id": "EN86",
+                  "page": 17
+                },
+                {
+                  "id": "ZH86",
+                  "page": 13
+                },
+                {
+                  "id": "ZH86",
+                  "page": 17
+                },
+                {
+                  "id": "OP86",
+                  "page": 11
+                },
+                {
+                  "id": "EDS",
+                  "section": "1600sub2",
+                  "line_start": 613,
+                  "line_end": 621
+                }
+              ],
+              "live_qualification_required": true
+            }
           }
         }
       ]

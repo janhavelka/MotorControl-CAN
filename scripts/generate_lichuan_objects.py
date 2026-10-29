@@ -17,13 +17,15 @@ import sys
 import tempfile
 
 from check_lichuan_ledger import (EXPRESSION, INTEGER, ROOT, TYPE_CODES,
-                                  generation_disposition, load_json, validate_ledger)
+                                  generation_disposition, load_json, pdo_observation_errors,
+                                  validate_ledger)
 
 
 LEDGER_PATH = "docs/reference/lichuan_objects.json"
 PUBLIC_PATH = "include/MotorControlCAN/profiles/lichuan_c"
 OUTPUT_PATHS = (PUBLIC_PATH + "/Types.h", PUBLIC_PATH + "/Objects.h",
-                PUBLIC_PATH + "/Catalogue.h", "docs/reference/lichuan_generated.md")
+                PUBLIC_PATH + "/Catalogue.h", "docs/reference/lichuan_generated.md",
+                PUBLIC_PATH + "/Pdo.h")
 COMMAND = "python scripts/generate_lichuan_objects.py"
 NAMESPACE = "namespace MotorControlCAN {\nnamespace LICHUAN_C {\n"
 CLOSE_NAMESPACE = "} // namespace LICHUAN_C\n} // namespace MotorControlCAN\n"
@@ -258,6 +260,81 @@ def cpp_string(value):
                          else "\\{:03o}".format(byte) for byte in value.encode("utf-8")) + '"'
 
 
+def pdo_header(objects, rows):
+    """Generate only reviewed passive facts and original, unverified templates."""
+    errors = pdo_observation_errors(objects)
+    if errors:
+        raise ValueError("; ".join(errors))
+    lines = [notice("Pdo.h", "Reviewed passive layout facts and unverified EDS PDO templates."),
+             '#include <MotorControlCAN/canopen/Pdo.h>\n\n',
+             '/** Portable library value contracts; no device I/O. */\nnamespace MotorControlCAN {\n',
+             '/** Lichuan documentary PDO layouts; model/firmware and live evidence remain unqualified. */\n',
+             'namespace LICHUAN_C {\n\n', r'''/** Return reviewed raw-layout facts without authorizing any service or action.
+ * The returned table has static lifetime and contains ten default-mapped objects.
+ * Unresolved mode/velocity signedness remains raw-only. No time, I/O or allocation.
+ * @param[in] profileId Caller-selected profile identity, nonzero for subsequent validation.
+ * Zero remains invalid; this constructor does not establish a model binding.
+ * @return Value containing four sets per direction and four slots per set, plus
+ * borrowed immutable static facts. Validation and live qualification are separate.
+ */
+inline CANOPEN::PdoProfile pdoProfile(uint32_t profileId) noexcept {
+    static const CANOPEN::PdoObject objects[] = {
+''']
+    for row in rows:
+        fact = row["review"].get("pdo_observation")
+        if fact is None:
+            continue
+        lines.append("        CANOPEN::PdoObject(0x{:04X}, 0x{:02X}, {}, CANOPEN::PdoSign::{}, "
+                     "CANOPEN::PdoRole::{}, {}, {}),\n".format(
+                         row["index"], row["subindex"], row["type"]["width_bytes"],
+                         fact["representation"], fact["role"],
+                         "true" if "RPDO" in fact["directions"] else "false",
+                         "true" if "TPDO" in fact["directions"] else "false"))
+    lines += [r'''    };
+    CANOPEN::PdoProfile profile;
+    profile.profile = profileId;
+    profile.sets = 4;
+    profile.slots = 4;
+    profile.objects = objects;
+    profile.objectCount = sizeof(objects) / sizeof(objects[0]);
+    return profile;
+}
+
+/** Copy an original EDS layout template; never confirms live map contents.
+ * Performs no device writes, reads, time acquisition or allocation. Independent
+ * calls are reentrant; the caller serializes mutation of shared output.
+ * @param[in] direction RPDO or TPDO, relative to the drive.
+ * @param[in] number One-based set number, 1..4. Sets 3/4 have disabled count zero.
+ * @param[out] output Owned complete candidate, unchanged on rejection. No input
+ * pointer is retained. Inactive mapping words are always zero.
+ * @return OK proves source-template construction only. INVALID_CONFIG rejects
+ * invalid direction/number, detail zero; no live qualification follows.
+ */
+inline Status pdoTemplate(CANOPEN::PdoDirection direction, uint16_t number,
+                          CANOPEN::PdoMap& output) noexcept {
+    if ((direction != CANOPEN::PdoDirection::RPDO && direction != CANOPEN::PdoDirection::TPDO) ||
+        number < 1 || number > 4) {
+        return Status(Err::INVALID_CONFIG, 0, nullptr);
+    }
+    CANOPEN::PdoMap candidate;
+    candidate.direction = direction;
+    candidate.number = number;
+''']
+    by_address = {(row["index"], row["subindex"]): row for row in rows}
+    for base, direction in ((0x1600, "RPDO"), (0x1A00, "TPDO")):
+        lines.append("    if (direction == CANOPEN::PdoDirection::{}) {{\n".format(direction))
+        lines.append("        switch (number) {\n")
+        for number in range(4):
+            count = int(by_address[(base + number, 0)]["default_eds"], 0)
+            lines.append("        case {}:\n            candidate.count = {};\n".format(number + 1, count))
+            for slot in range(1, count + 1):
+                word = int(by_address[(base + number, slot)]["default_eds"], 0)
+                lines.append("            candidate.words[{}] = 0x{:08X}u;\n".format(slot - 1, word))
+            lines.append("            break;\n")
+        lines.append("        }\n    }\n")
+    return "".join(lines) + "    output = candidate;\n    return Ok();\n}\n\n" + CLOSE_NAMESPACE
+
+
 def catalogue_header(rows, scopes):
     lines = [notice("Catalogue.h", "Optional static-lifetime descriptive metadata; no device support."),
              '#include "MotorControlCAN/profiles/lichuan_c/Objects.h"\n\n', NAMESPACE, r'''
@@ -381,7 +458,11 @@ def coverage_document(data, rows):
               "rows generate declarations. Source PDOMapping=1 is never a write permission. The "
               "default RPDO1 source words " + ", ".join(text(value) for value in rpdo1_words) +
               " do not grant SDO reads of WO "
-              "6040/6060 or any ungated action; mapping templates belong to their later prompt.\n\n",
+              "6040/6060 or any ungated action. `Pdo.h` generates ten explicitly reviewed passive "
+              "layout facts and all eight source templates. They support raw-layout validation, "
+              "not write permission, live configuration, sample provenance, physical units or motion "
+              "completion. Mode bytes and target velocity retain raw representation while signedness "
+              "conflicts remain unresolved; every live qualification gate stays open.\n\n",
               "| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | D/I/H/Q |\n",
               "| --- | --- | --- | --- | --- | --- | --- | --- |\n"]
     for row in rows:
@@ -438,7 +519,7 @@ def render(data):
     """Render candidates in memory after projection checks; no filesystem mutation."""
     rows = projected_rows(data["objects"])
     products = (types_header(), objects_header(rows), catalogue_header(rows, data["scopes"]),
-                coverage_document(data, rows))
+                coverage_document(data, rows), pdo_header(data["objects"], rows))
     return {path: product.encode("utf-8") for path, product in zip(OUTPUT_PATHS, products)}
 
 

@@ -187,3 +187,13 @@ service guide. Keep TPDO receive validation independent of PDO transmit
 eligibility. Neither manager TX nor heartbeat can rewrite an SDO terminal or
 settle an earlier uncertain write. Applications remain the sole controller
 receiver and must serialize TX eligibility/enqueue with lifecycle dispatch.
+
+Passive PDO routes now share that receive boundary and the existing node table.
+Eight permanently bound wire-route slots hold actual map evidence, independent
+sample qualification and one complete latest observation each. Old identifiers
+stay reserved; they cannot be recycled into a false distinct-route premise.
+The same four-record raw diagnostic FIFO carries copied PDO frames and map
+epochs without consuming normal delivery. See [PDO evidence and capacities](canopen_services.md#one-owner-independent-sample-provenance)
+for acquisition, lifetime, invalidation and delayed-frame requirements. The
+complete scheduling owner and actual controller queue retirement remain later
+integration work; these are working passive routes, not remapping sequences.

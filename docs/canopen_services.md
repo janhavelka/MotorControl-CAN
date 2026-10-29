@@ -581,3 +581,116 @@ The original EDS lines 26–27 claim `SimpleBootUpMaster=0` and
 nor a fixed response deadline. Producer `1017` default zero is factory metadata;
 missing consumer/guarding entries establish no host-loss behavior. These are
 documented source claims, not measured firmware support or hardware qualification.
+
+## Observed PDO maps and passive samples
+
+`canopen/Pdo.h` provides bounded `validatePdoMap`, `validatePdoRoute`,
+`decodePdo` and `pdoMapFromReadback`. They perform no I/O or configuration.
+PDO direction is relative to the drive and independent of SDO access. Mapping
+words contain index/subindex/bit length; the selected subset accepts complete
+1–4-byte fields, at most eight entries/eight payload bytes, exact standard
+Classical data envelopes and a source-backed profile set/slot limit. Partial
+bits, zero active widths, duplicate/ineligible/reserved/unknown objects and
+overflow reject atomically. Disabled count-zero templates remain representable;
+they cannot establish an active receiving route. Common Frame still accepts
+valid extended/RTR shapes and rejects FD explicitly; this PDO subset accepts
+only standard Classical data.
+
+### Source templates versus actual-map evidence
+
+Generated `profiles/lichuan_c/Pdo.h` exposes `LICHUAN_C::pdoProfile(profileId)`
+and `pdoTemplate(direction, number, output)`. These come from the single reviewed
+ledger, without linking catalogue strings. Lichuan source facts describe four
+sets per direction with four mapping slots each. PDO3/4 templates have count
+zero; their unused slots are not active values. Pure profile validation also
+accepts an explicit eight-set contrast without installing N5 support. The
+owner's eight route slots are an application resource, not a global protocol
+or manufacturer limit.
+
+The default source-derived fixtures are RPDO1 `60400010,60FF0020,60600008`
+(seven bytes), RPDO2 `607A0020,60810020` (eight), TPDO1
+`60410010,60FD0020,60610008` (seven), and TPDO2 `60640020,606C0020` (eight).
+RPDO1's WO `6040/6060` targets need no SDO upload to read mapping records.
+Three unresolved signedness claims remain raw-only: `6060/6061` bytes and
+`60FF` word. `numericKnown=false` preserves their bits without a numeric guess.
+Resolved signed values use checked widening and sign extension. `PdoRole`
+separates dictionary actual, commanded, estimated and uninterpreted fields;
+it does not establish physical feedback scale, drive acceptance or completion.
+No statusword or input-bit interpretation is inferred from raw PDO values.
+
+`PdoMapEvidence` contains the complete binding/profile/configuration identity,
+actual identifier and frame expectation, map epoch/layout, full communication
+COB-ID parameter/transmission type, acquisition times and provenance record.
+`TEMPLATE` provenance cannot install a confirmed map. Callers may supply an
+explicitly established reviewed actual configuration, or collect matched SDO
+completions through the existing bounded owner and call `pdoMapFromReadback`.
+That helper checks communication `:01/:02`, mapping `:00` and each active slot,
+in order, with exact sizes, matching channel/full binding, successful upload,
+no abort and the specified node epoch. It never uploads mapped payload targets.
+All completions retain admission time/node epoch from the actual service owner;
+earliest admission and latest completion remain separate. Stale constituent
+reads cannot hide behind one newer timestamp. Concurrent external configuration
+still requires a coherent acquisition/exclusive configuration premise; matching
+values alone cannot prove it. No read is newly declared non-changing here.
+
+### One owner, independent sample provenance
+
+`configurePdo(routeSlot, nodeSlot, evidence, profile, observer, nowUs)` installs
+validated actual map contents in the existing owner. Every route attaches to
+its existing node anchor; there is no second node table or CAN receiver.
+Identifiers cannot cross SDO, heartbeat, EMCY, NMT or another PDO route, in
+either configuration order. A bound wire identifier is never recycled during
+that owner's lifetime. A replacement map needs a strictly newer epoch and
+post-boundary acquisition; at most one map for a physical node/direction/set
+can be confirmed. To move a set to a distinct verified wire route, explicitly
+withdraw the previous map first. Eight fixed slots include those reserved old
+routes; exhaustion rejects without stealing another route.
+
+Confirmed map contents do **not** qualify any sample. `qualifyPdo` requires
+exact current route/layout/binding/map/node scope, a nonzero external evidence
+record and either an evidenced producer plus controller/application-ingress
+retirement boundary, or a genuinely distinct verified non-reused route. A free
+host slot, quiet time, newer timestamp, heartbeat, SDO success or host generation
+increment proves neither premise. No generic counter/timestamp marker is offered
+without reviewed producer semantics. After reuse or lifecycle/NMT withdrawal,
+this fixed route requires producer-and-ingress retirement; a distinct-route
+claim cannot reopen it. Qualification while already qualified rejects: explicitly
+`invalidatePdo(slot, false, nowUs)` before replacing proof, so dependent consumers
+are revoked too. Proof never retroactively promotes old diagnostics or samples.
+
+One matching frame enters `receive` once. It must have known source capture
+strictly after the qualification and invalidation boundaries, pass the existing
+service-eligibility policy and decode completely before the latest observation
+or any callback changes. Unknown exact NMT allows the first configured qualified
+TPDO; arrival sets no NMT state. Known Stopped/Pre-operational or unavailable
+controller prevents publication. No PDO updates heartbeat, SDO timestamps,
+producer configuration, EMCY history, faults or operation results. PDO admission
+and reception create no NMT or configuration traffic.
+
+Malformed/unproven/stale frames remain copied diagnostics. The existing four-
+record FIFO gains a PDO flag and map epoch; draining it cannot steal reception.
+Overflow drops newest diagnostic copies while normal publication/invalidation
+continues. Each of eight route records retains one complete sample, current-map
+and qualification facts and historical provenance independently. Its bounded
+synchronous observer receives call-only complete copies and invalidation notices;
+retained consumers must copy them and may not reenter or perform I/O.
+
+Boot-up/reset, binding/dialect/configuration withdrawal and controller failure
+revoke affected maps and sample qualification before consumer callbacks, even
+with full history. Nonreset NMT transitions and known non-Operational heartbeat
+withdraw sample qualification while preserving unchanged map contents. Local
+`invalidatePdo` affects only the selected route; unrelated stable traffic stays
+qualified. Old observations remain historical and cannot renew in a new map
+epoch merely because identical bytes arrive with a later capture time. The
+same-ID/eight-byte position/velocity swap regression exercises precisely that
+case without an old-generation test label.
+
+`pdoFreshness(record, nowUs, maximumAgeUs, output)` uses only the current
+qualified PDO capture and an explicit nonzero inclusive age policy. It
+distinguishes absent map, unresolved provenance, never observed, fresh and
+expired. Evidence installation refreshes no sample time. Snapshot copies
+describe validity at their copy time; inspect the current owner record for
+later invalidation. Generations never wrap; maximum map epoch permits no
+replacement. No active SYNC scheduling or codec is needed by the reviewed
+asynchronous fixtures, and no trajectory guarantee is added here. Remapping
+and its explicit mutation/partial-effect sequences remain prompt 18.

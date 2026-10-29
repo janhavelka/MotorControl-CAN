@@ -46,7 +46,8 @@ SdoExpectation expectation(const SdoTransfer& work) {
 } // namespace
 
 bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed, bool fresh) {
-    if (nmtOccupied_ || slot >= CHANNELS || channels_[slot].configured || !fresh || !validateSdoChannel(route))
+    if (nmtOccupied_ || slot >= CHANNELS || channels_[slot].configured || !fresh || !validateSdoChannel(route) ||
+        pdoIdentifier(route.clientToServerId, false) || pdoIdentifier(route.serverToClientId, false))
         return false;
     if (channels_[slot].networkConfigured &&
         (!sameBinding(channels_[slot].network.route.binding, route.binding) ||
@@ -118,6 +119,9 @@ bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
         (!c.confirmed && (work.direction != SdoDirection::UPLOAD ||
                          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING))) return false;
     c.work = work;
+    c.admittedUs = now;
+    const int anchor = networkAnchor(slot);
+    c.nodeGeneration = anchor < 0 ? 0 : channels_[anchor].network.route.generation;
     ++c.generation;
     c.occupied = true;
     c.terminal = c.started = c.awaiting = c.queued = c.possible = c.txConfirmed = false;
@@ -150,6 +154,8 @@ void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t ret
     out.transfer = c.work;
     out.outcome = outcome;
     out.completedUs = now;
+    out.admittedUs = c.admittedUs;
+    out.nodeGeneration = c.nodeGeneration;
     out.queued = c.queued;
     out.transmissionPossible = c.possible;
     out.transmissionConfirmed = c.txConfirmed;
@@ -282,6 +288,9 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
     // A caller may return our borrowed observation frame; copy before replacing it.
     const Frame f = input;
     service(now);
+    bool pdoMatched = false;
+    const bool pdoAccepted = dispatchPdo(f, timeKnown, received, now, pdoMatched);
+    if (pdoMatched) return pdoAccepted;
     bool networkIdentifier = false;
     for (const Channel& c : channels_)
         if (c.networkConfigured && (f.id == c.network.route.heartbeatId || f.id == c.network.route.emcyId))

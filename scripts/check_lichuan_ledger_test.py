@@ -32,6 +32,59 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(sum(len(obj["entries"]) for obj in LEDGER["objects"]), 202)
         self.assertEqual(len(LEDGER["manual_only"]), 53)
 
+    def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
+        facts = [value for obj in LEDGER["objects"] for value in obj["entries"]
+                 if "pdo_observation" in value["review"]]
+        self.assertEqual(len(facts), 10)
+        for value in facts:
+            fact = value["review"]["pdo_observation"]
+            self.assertIs(fact["live_qualification_required"], True)
+            self.assertIsNone(value["pdo_mapping_reviewed"])
+            self.assertEqual(value["review"]["read_effect"], "not_established")
+            self.assertIn(value["review"]["write_policy"], ("not_writable", "qualification_required"))
+        self.assertEqual(entry(LEDGER, "0x6040:00")["access_reviewed"], "WO")
+        self.assertEqual(entry(LEDGER, "0x6060:00")["access_reviewed"], "WO")
+
+    def test_pdo_metadata_mutations_rejected(self):
+        cases = [
+            ("0x6064:00", "directions", ["RPDO"], "directions differ"),
+            ("0x6064:00", "representation", "UNSIGNED", "representation conflicts"),
+            ("0x6061:00", "representation", "SIGNED", "representation conflicts"),
+            ("0x60FF:00", "representation", "SIGNED", "representation conflicts"),
+            ("0x607A:00", "role", "ACTUAL", "role conflicts"),
+            ("0x6064:00", "role", "COMMANDED", "role conflicts"),
+            ("0x6041:00", "live_qualification_required", False, "cannot waive"),
+            ("0x6041:00", "live_qualification_required", 1, "cannot waive"),
+            ("0x6041:00", "source_refs", [], "source refs missing"),
+            ("0x6041:00", "source_refs", [{"id": "EN86", "page": 999}], "source refs missing"),
+        ]
+        for key, field, value, fragment in cases:
+            with self.subTest(key=key, field=field, value=value):
+                data = self.changed()
+                entry(data, key)["review"]["pdo_observation"][field] = value
+                self.reject(data, "PDO observation " + fragment)
+
+    def test_missing_extra_reserved_and_ineligible_pdo_facts_rejected(self):
+        data = self.changed()
+        fact = entry(data, "0x6041:00")["review"].pop("pdo_observation")
+        self.reject(data, "PDO observation review missing")
+        for key in ("0x2400:09", "0x1000:00", "0x2300:00"):
+            data = self.changed()
+            entry(data, key)["review"]["pdo_observation"] = copy.deepcopy(fact)
+            self.reject(data, "PDO observation not supported by default mapping source")
+        data = self.changed()
+        entry(data, "0x6041:00")["pdo_mapping_reviewed"] = False
+        self.reject(data, "PDO observation ineligible target")
+
+    def test_pdo_width_and_mapping_source_forgery_rejected(self):
+        data = self.changed()
+        entry(data, "0x6041:00")["type"]["width_bytes"] = 4
+        self.reject(data, "PDO observation ineligible target or source width mismatch")
+        data = self.changed()
+        entry(data, "0x1A00:01")["default_eds"] = "0x60410020"
+        self.reject(data, "default_eds absent/value changed")
+        self.reject(data, "PDO observation ineligible target or source width mismatch")
+
     def test_duplicate_json_member_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "duplicate.json"

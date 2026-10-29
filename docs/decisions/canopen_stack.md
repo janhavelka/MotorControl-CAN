@@ -50,6 +50,27 @@ boundary and remaining reconciliation/controller duties are in the
 
 ## Pinned inputs and reproducibility
 
+### Prompt-17 passive PDO boundary
+
+Passive PDO observation uses the installed pure `canopen/Pdo.h` checks and one
+projection in the existing receive owner, superseding the original table's
+native configured-consumer choice for this responsibility only. No native
+RPDO receiver is compiled alongside it. Selected native SDO/NMT remain active;
+active PDO/SYNC work still needs its separately reviewed workflow and adapter.
+There is no second active PDO engine or implicit remapping.
+
+Pinned `CO_PDO.c:463–500` accepts at least the mapped length and coalesces its
+mailbox. `CO_RPDO_init` requires local OD/EM contexts; processing at lines
+742–754 drops data without known Operational state, while lines 799–879 write
+OD fields sequentially. Inventing Operational to accept a first possible TPDO
+would violate prompt 16. The checked passive path instead requires exact length,
+publishes a whole candidate and checks map/sample provenance independently.
+An isolated actual-pinned native experiment confirms known bytes, longer-DLC
+acceptance, mailbox coalescing and non-Operational discard with zero TX; commands,
+hashes and results are in the [prompt-17 report](../reports/prompt_17.md).
+The initial service subset accepts standard Classical data PDOs and complete
+byte fields of 1–4 bytes; broader common `Frame` capability is unchanged.
+
 Prompt 16 implements the selected native NMT producer with restricted,
 pin-specific producer-field initialization and `CO_NMT_sendCommand` only.
 It never initializes/processes a local NMT slave, installs NMT RX or emits

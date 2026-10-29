@@ -160,6 +160,7 @@ void SdoClient::applyNmt(uint64_t now) {
             invalidateNode(i, NetworkInvalidation::NMT_RESET, now);
             state.nmtTime = previous; state.nmt = previousState; state.sdo = previousSdo;
         } else {
+            revokeNodePdos(i, false, now);
             if (work.command == NmtCommand::STOP) stopSdo(i, now);
             NetworkInvalidationEvent event;
             event.previous = state.route; event.generation = state.route.generation;

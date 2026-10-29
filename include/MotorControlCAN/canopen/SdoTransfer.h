@@ -50,6 +50,8 @@ struct SdoCompletion {
     SdoTransfer transfer; ///< Complete admission copy, including payload, target and local identities.
     SdoOutcome outcome = SdoOutcome::TRANSPORT_ERROR; ///< Service cause, never application health.
     uint64_t completedUs = 0; ///< Supplied processing time at terminal publication; zero is valid.
+    uint64_t admittedUs = 0; ///< Supplied admission processing time; not a wire timestamp.
+    Generation nodeGeneration = 0; ///< Passive node lifecycle epoch at admission, zero if no anchor was configured then.
     bool queued = false; ///< A request frame entered retirable local staging; no TX is implied.
     bool transmissionPossible = false; ///< At least one request frame crossed the application boundary.
     bool transmissionConfirmed = false; ///< Application confirmed a frame TX/ACK; not SDO success.

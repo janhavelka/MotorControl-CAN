@@ -59,6 +59,7 @@ int SdoClient::networkAnchor(uint8_t slot) const {
 
 bool SdoClient::configureNetwork(uint8_t slot, const NetworkRoute& route, NetworkObserver observer, uint64_t now) {
     if (nmtOccupied_ || slot >= CHANNELS || channels_[slot].networkConfigured || !validateNetworkRoute(route) ||
+        pdoIdentifier(route.heartbeatId, false) || pdoIdentifier(route.emcyId, false) ||
         !validObserver(observer) || now < lastUs_ ||
         (channels_[slot].configured && !sameBinding(channels_[slot].route.binding, route.binding))) return false;
     for (const Channel& c : channels_) {
@@ -145,6 +146,7 @@ void SdoClient::invalidateNode(unsigned anchor, NetworkInvalidation cause, uint6
     state.boundaryUs = now; state.strictBoundary = true;
     state.heartbeat = state.nmtTime = state.sdo = ObservationTime();
     state.serviceQualification = ObservationTime();
+    revokeNodePdos(anchor, true, now);
     state.producerKnown = false; // Old readback/defaults cannot establish a new effective interval.
     const SdoOutcome outcome = cause == NetworkInvalidation::BOOTUP ? SdoOutcome::REBOOT :
         cause == NetworkInvalidation::BUS_OFF ? SdoOutcome::BUS_OFF : SdoOutcome::BINDING_INVALIDATED;
@@ -254,6 +256,8 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
                 ServiceEligibility eligibility;
                 if (serviceEligibility(state, now, eligibility) && eligibility.exactNmtKnown &&
                     eligibility.state == NmtState::STOPPED) stopSdo(i, now);
+                if (eligibility.exactNmtKnown && eligibility.state != NmtState::OPERATIONAL)
+                    revokeNodePdos(i, false, now);
             }
         } else {
             if (state.emcyCount != UINT32_MAX) ++state.emcyCount;

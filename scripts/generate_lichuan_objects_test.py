@@ -13,7 +13,8 @@ from unittest.mock import patch
 
 from check_lichuan_ledger import ROOT, load_json, validate_ledger
 from generate_lichuan_objects import (LEDGER_PATH, OUTPUT_PATHS, catalogue_header,
-                                      coverage_document, cpp_string, generate, objects_header, projected_rows, publish)
+                                      coverage_document, cpp_string, generate, objects_header,
+                                      pdo_header, projected_rows, publish)
 
 
 def fixture_entry(index=0x1009, subindex=0):
@@ -194,7 +195,7 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(generate(ROOT / LEDGER_PATH, self.root), first)
         self.assertEqual(generate(ROOT / LEDGER_PATH, self.root, check=True), first)
         self.assertEqual(times, {path: (self.root / path).stat().st_mtime_ns for path in OUTPUT_PATHS})
-        self.assertEqual(len(first), 4)
+        self.assertEqual(len(first), 5)
         self.assertEqual(len(self.ledger["objects"]), 99)
         rows = projected_rows(self.ledger["objects"])
         self.assertEqual(len(rows), 202)
@@ -335,6 +336,48 @@ class GenerationTests(unittest.TestCase):
         document = coverage_document(self.ledger, projected_rows(self.ledger["objects"]))
         self.assertIn("default RPDO1 source words 0x60400010, 0x60ff0020, 0x60600008", document)
         self.assertIn("do not grant SDO reads of WO 6040/6060 or any ungated action", document)
+
+    def test_pdo_header_preserves_independent_default_vectors_and_raw_conflicts(self):
+        data = copy.deepcopy(self.ledger)
+        before = copy.deepcopy(data)
+        header = pdo_header(data["objects"], projected_rows(data["objects"]))
+        self.assertEqual(data, before)
+        self.assertIn("#include <MotorControlCAN/canopen/Pdo.h>", header)
+        self.assertNotIn("Catalogue.h", header)
+        self.assertNotIn("const char*", header)
+        self.assertIn("profile.sets = 4", header)
+        self.assertIn("profile.slots = 4", header)
+        self.assertEqual(header.count("CANOPEN::PdoObject("), 10)
+        for word in ("60400010", "60FF0020", "60600008", "607A0020", "60810020",
+                     "60410010", "60FD0020", "60610008", "60640020", "606C0020"):
+            self.assertIn("0x" + word + "u", header)
+        for index, width in (("6060", 1), ("6061", 1), ("60FF", 4)):
+            self.assertIn("PdoObject(0x" + index + ", 0x00, " + str(width) +
+                          ", CANOPEN::PdoSign::RAW", header)
+        self.assertIn("PdoObject(0x6064, 0x00, 4, CANOPEN::PdoSign::SIGNED, CANOPEN::PdoRole::ACTUAL", header)
+        self.assertEqual(header.count("candidate.count = 0;"), 4)
+        self.assertIn("output = candidate", header)
+
+    def test_bad_pdo_metadata_cannot_publish_any_generated_output(self):
+        generate(ROOT / LEDGER_PATH, self.root)
+        before = self.snapshot()
+        def mutate(data):
+            target = next(entry for obj in data["objects"] for entry in obj["entries"]
+                          if entry["key"] == "0x6061:00")
+            target["review"]["pdo_observation"]["representation"] = "SIGNED"
+        with self.assertRaisesRegex(ValueError, "PDO observation representation conflicts"):
+            generate(self.changed_ledger(mutate), self.root)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_generation_preserves_original_source_bytes_and_unqualified_policies(self):
+        originals = list((ROOT / "docs/reference/vendor").glob("*"))
+        before = {path: path.read_bytes() for path in originals if path.is_file()}
+        ledger_before = (ROOT / LEDGER_PATH).read_bytes()
+        generate(ROOT / LEDGER_PATH, self.root)
+        self.assertEqual(before, {path: path.read_bytes() for path in before})
+        self.assertEqual(ledger_before, (ROOT / LEDGER_PATH).read_bytes())
+        self.assertIn("PdoPolicy::UNQUALIFIED", (self.root / OUTPUT_PATHS[1]).read_text(encoding="utf-8"))
+        self.assertNotIn("OBJECT_6061_00", (self.root / OUTPUT_PATHS[1]).read_text(encoding="utf-8"))
 
     def test_coverage_preserves_each_documentary_disposition(self):
         document = coverage_document(self.ledger, projected_rows(self.ledger["objects"]))

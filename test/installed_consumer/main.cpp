@@ -3,6 +3,7 @@
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/canopen/Network.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
+#include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <cstring>
 
 int main() {
@@ -68,5 +69,16 @@ int main() {
     if (LICHUAN_C::OBJECT_1009_00.widthBytes != 2 ||
         LICHUAN_C::OBJECT_2300_00.writePolicy != LICHUAN_C::WritePolicy::QUALIFICATION_REQUIRED)
         return 10;
+    CANOPEN::PdoMap pdoMap;
+    CANOPEN::PdoRoute pdoRoute;
+    pdoRoute.binding = network.binding; pdoRoute.generation = 1; pdoRoute.cobId = 0x285;
+    if (!LICHUAN_C::pdoTemplate(CANOPEN::PdoDirection::TPDO, 2, pdoMap) ||
+        !CANOPEN::validatePdoMap(pdoMap, LICHUAN_C::pdoProfile(network.binding.endpoint.profile), pdoRoute.layout)) return 23;
+    Frame pdoFrame; pdoFrame.id = 0x285; pdoFrame.dlc = pdoFrame.payloadLength = 8;
+    pdoFrame.data[0] = 0xfe; pdoFrame.data[1] = pdoFrame.data[2] = pdoFrame.data[3] = 0xff;
+    pdoFrame.data[7] = 0x80;
+    CANOPEN::PdoSample pdoSample;
+    if (!CANOPEN::decodePdo(pdoFrame, pdoRoute, pdoSample) ||
+        pdoSample.values[0].native != -2 || pdoSample.values[1].native != INT32_MIN) return 24;
     return 0;
 }

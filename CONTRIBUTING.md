@@ -73,6 +73,12 @@ generated headers/coverage, relevant tests and docs together. Optional descripti
 flags implement a semantic read, setting or action. Ordinary consumers require
 no generator, ledger, vendor file or Python. Version generation remains independent.
 
+The same object generator owns profile `Pdo.h`: its ten passive layout facts
+and eight source templates come from reviewed ledger metadata and original
+mapping words. Edit the ledger/review/schema/generator together; do not hand-edit
+that output or promote an EDS template into live configuration. PDO map and
+sample evidence contracts are in the service guide.
+
 Document public declarations in their headers, including parameters, validity,
 units, ownership, failure output and evidence limits where applicable. Extend
 the maintained guide and CHANGELOG with public behavior changes. Run

@@ -1,5 +1,14 @@
 # Optional CANopenNode service adapter
 
+Prompt 17 adds `configurePdo`, `qualifyPdo`, `invalidatePdo` and `pdo` in this
+same owner, without another receiver. Install complete actual-map evidence
+from bounded SDO readback or explicitly reviewed current configuration, then
+establish independent sample provenance. EDS templates and host generations
+cannot qualify old same-ID/same-DLC bytes. Eight fixed wire routes retain
+complete atomic samples and call-only copy callbacks; the existing diagnostic
+history remains a copy consumer. Read the [PDO contract](../../docs/canopen_services.md#observed-pdo-maps-and-passive-samples)
+before supplying external retirement evidence. No remapping or SYNC is implicit.
+
 `MotorControlCAN::CANOPEN::SdoClient` is a stationary cooperative application
 adapter around the selected CANopenNode client. It stages Classical frames;
 it never opens a controller or performs I/O. Read the

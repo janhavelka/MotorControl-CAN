@@ -45,6 +45,97 @@ def generation_disposition(entry):
         return "withheld"
     return "resolved"
 
+
+def pdo_observation_errors(objects):
+    """Check passive layout claims against the reviewed default mapping records.
+
+    These facts permit raw layout validation only. They leave every effect,
+    service-access and live-source qualification gate independent.
+    """
+    errors = []
+    rows = {}
+    for obj in objects:
+        entries = obj.get("entries") if isinstance(obj, dict) else None
+        if isinstance(entries, list):
+            rows.update((entry["key"], entry) for entry in entries
+                        if isinstance(entry, dict) and isinstance(entry.get("key"), str))
+    claims = {}
+    for base, direction in ((0x1600, "RPDO"), (0x1A00, "TPDO")):
+        for number in range(4):
+            index = base + number
+            count = rows.get("0x{:04X}:00".format(index), {}).get("default_eds")
+            if not isinstance(count, str) or not INTEGER.fullmatch(count):
+                errors.append("PDO observation: missing source mapping count")
+                continue
+            active = int(count, 16) if count.startswith("0x") else int(count, 10)
+            if not 0 <= active <= 4:
+                errors.append("PDO observation: source mapping count outside four slots")
+                continue
+            for slot in range(1, active + 1):
+                mapped = rows.get("0x{:04X}:{:02X}".format(index, slot), {})
+                word = mapped.get("default_eds")
+                if not isinstance(word, str) or not INTEGER.fullmatch(word):
+                    errors.append("PDO observation: missing source mapping word")
+                    continue
+                value = int(word, 0)
+                key = "0x{:04X}:{:02X}".format(value >> 16, (value >> 8) & 255)
+                claim = claims.setdefault(key, {"directions": set(), "refs": [], "bits": []})
+                claim["directions"].add(direction)
+                refs = mapped.get("source_refs")
+                if isinstance(refs, list):
+                    claim["refs"].extend(refs)
+                claim["bits"].append(value & 255)
+    if len(claims) != 10:
+        errors.append("PDO observation: expected ten original default-mapped targets")
+    for key, row in rows.items():
+        review = row.get("review", {})
+        observation = review.get("pdo_observation") if isinstance(review, dict) else None
+        claim = claims.get(key)
+        if claim is None:
+            if observation is not None:
+                errors.append(str(key) + ": PDO observation not supported by default mapping source")
+            continue
+        label = str(key) + ": PDO observation "
+        if not isinstance(observation, dict):
+            errors.append(label + "review missing")
+            continue
+        if set(observation) != {"directions", "role", "representation", "source_refs",
+                                "live_qualification_required"}:
+            errors.append(label + "fields invalid")
+        directions = observation.get("directions")
+        if (not isinstance(directions, list) or directions != sorted(claim["directions"])):
+            errors.append(label + "directions differ from source mapping words")
+        native = row.get("type")
+        native = native if isinstance(native, dict) else {}
+        width = native.get("width_bytes")
+        if (row.get("role") == "reserved" or row.get("pdo_mapping_eds") != "1" or
+                row.get("pdo_mapping_reviewed") is not None or type(width) is not int or
+                any(bits != width * 8 for bits in claim["bits"])):
+            errors.append(label + "ineligible target or source width mismatch")
+        representation = ("RAW" if generation_disposition(row) == "withheld" else
+                          "SIGNED" if native.get("signed") is True else "UNSIGNED")
+        if observation.get("representation") != representation:
+            errors.append(label + "representation conflicts with reviewed native type")
+        # These are semantic preservation guards, not a second object catalogue.
+        expected_role = ("ACTUAL" if key in {"0x6064:00", "0x606C:00"} else
+                         "COMMANDED" if key in {"0x607A:00", "0x6081:00", "0x60FF:00"} else "RAW")
+        if observation.get("role") != expected_role:
+            errors.append(label + "role conflicts with reviewed object meaning")
+        refs = observation.get("source_refs")
+        target_refs = row.get("source_refs")
+        target_refs = target_refs if isinstance(target_refs, list) else []
+        required = claim["refs"] + [ref for ref in target_refs
+                                    if isinstance(ref, dict) and ref.get("id") == "EDS"]
+        allowed = claim["refs"] + target_refs
+        if (not isinstance(refs, list) or not refs or
+                any(ref not in refs for ref in required) or any(ref not in allowed for ref in refs)):
+            errors.append(label + "source refs missing or outside reviewed target/mapping evidence")
+        if observation.get("live_qualification_required") is not True:
+            errors.append(label + "cannot waive live qualification")
+    for key in claims.keys() - rows.keys():
+        errors.append(key + ": PDO observation target absent")
+    return errors
+
 # Stable prompt-3 obligations: owner, mandatory gates, documentary write policy.
 # These guard loss of assigned scope; they are not another object dictionary.
 MANUAL_REQUIREMENTS = {
@@ -610,6 +701,7 @@ def validate_ledger(data, root=ROOT):
             pdo_counts[raw.get("PDOMapping")] += 1
     require({index for _, index in seen_headers} == {int(s, 16) for s in expected_headers}
             and len(seen_headers) == len(expected_headers), "EDS object headers not accounted exactly once")
+    errors.extend(pdo_observation_errors(objects))
     require(len(seen_entries) == len(expected_entries), "EDS typed entries not accounted exactly once")
     gap_ranges = [{"first": "0x{:04X}".format(a + 1), "last": "0x{:04X}".format(b - 1)}
                   for a, b in zip(sorted(listed), sorted(listed)[1:]) if b > a + 1]

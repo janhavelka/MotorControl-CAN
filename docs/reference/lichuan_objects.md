@@ -48,6 +48,7 @@ feedback scale does not block retention of a raw feedback value.
 | `source_refs`, `confidence`, `conflict_ids`, `owner_prompt` | Exact EDS and applicable per-entry PDF pages; confidence identifies the source claim, not measured behavior. The owner is the actual later implementation prompt, not prompt 3's documentary reviewer. |
 | `review` on an entry | `status=complete` means all documentary facets were reviewed. `type_policy` and `value_policy` state usable representation and limits/default treatment. `read_effect=not_established` forbids promotion to non-consuming qualification. `write_policy` is `not_writable`, `qualification_required` or `reserved`; none authorizes a device write. `gate_ids` links the smallest dependent evidence questions. |
 | `review.generation_type` | Required declaration disposition: `resolved` for the 194 compact descriptors, `withheld` for the four unresolved complete signed types, or `excluded` for the four reserved entries. The validator checks consistency with reviewed policy. This does not resolve other conflicts, qualify effects or change semantic coverage. |
+| `review.pdo_observation` | Ten default-mapped targets have explicit source-backed passive directions, role, representation and source references. `live_qualification_required=true` is mandatory. Unresolved `6060/6061/60FF` representation stays RAW. These facts generate layout validation only; existing `PdoPolicy::UNQUALIFIED`, SDO permissions, action gates and semantic coverage are unchanged. |
 | `coverage` | Separate `documented`, `implemented`, `host_tested`, `hardware_qualified` booleans. `documented=true` means a source describes the row, not that the meaning or writable use is approved. The other three are false throughout this intake. |
 | `manual_only[]` | All 53 functions retain model scope, original pages, related entries and independent coverage. `disposition=reviewed` and `review.decision` close documentary review. The owner, required gates and action obligation remain explicit even where corresponding entries are currently read-only. No raw accessor or unsupported stub completes these future functions. There are no additional CANopen object addresses in the five manuals. |
 | `conflicts[]` | All 24 original competing claim sets and references remain intact. `resolution=unresolved`, `decision=null` and `resolution_evidence=null` mean no firmware winner was selected. The separate `review.disposition` records the conservative decision or limited documentary normalization, with consequences and gates. This is not fabricated resolution evidence. |
@@ -107,7 +108,7 @@ claims and the precise reason for each change.
 
 ## Generated native declarations and access policy
 
-The generator emits checked-in `Types.h`, `Objects.h` and optional `Catalogue.h`
+The generator emits checked-in `Types.h`, `Objects.h`, passive-layout `Pdo.h` and optional `Catalogue.h`
 under `include/MotorControlCAN/profiles/lichuan_c/`, plus
 [readable generated accounting](lichuan_generated.md). Its only editable object
 source is this ledger. It first runs full original-source/schema/accounting

@@ -24,7 +24,8 @@ HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCA
            "MotorControlCAN/MotorControlCAN.h",
            "MotorControlCAN/profiles/lichuan_c/Types.h",
            "MotorControlCAN/profiles/lichuan_c/Objects.h",
-           "MotorControlCAN/profiles/lichuan_c/Catalogue.h"}
+           "MotorControlCAN/profiles/lichuan_c/Catalogue.h", "MotorControlCAN/profiles/lichuan_c/Pdo.h",
+           "MotorControlCAN/canopen/Pdo.h"}
 
 
 def require(condition, evidence):
@@ -89,7 +90,7 @@ def check_package(args, work, summary):
     run(sys.executable, str(ROOT / "scripts/export_package.py"), str(archive))
     source = work / "exported source"
     expected = {"include/" + h for h in HEADERS} | {
-        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "CMakeLists.txt", "library.json",
+        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
         "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md"}
     with zipfile.ZipFile(archive) as package:

@@ -136,6 +136,11 @@ Reviewed object headers are checked in. Include
 `<MotorControlCAN/profiles/lichuan_c/Objects.h>` explicitly for compact metadata;
 `Catalogue.h` adds optional static descriptive strings. The root umbrella remains
 common-only, and neither header establishes an operational drive profile.
+`<MotorControlCAN/profiles/lichuan_c/Pdo.h>` separately provides reviewed passive
+layout facts and unverified EDS templates. Pure `<MotorControlCAN/canopen/Pdo.h>`
+validates/decodes supplied native layouts; the optional owner separately requires
+actual-map and sample-provenance evidence. No catalogue or stack is needed by
+these core headers, and no PDO configuration is written by including them.
 Developer freshness uses `python scripts/generate_lichuan_objects.py --check`;
 installed consumers need no Python, ledger or original vendor material. The [verification guide](verification.md)
 documents the working quick/full verifier, CI and strict Doxygen gate. These

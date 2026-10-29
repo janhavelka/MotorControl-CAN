@@ -6,6 +6,7 @@
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include "NetworkState.h"
 #include "Nmt.h"
+#include "PdoState.h"
 #include "301/CO_SDOclient.h"
 #include "301/CO_NMT_Heartbeat.h"
 
@@ -39,7 +40,8 @@ class SdoClient {
 public:
     /** Fixed storage capacities, independent of the number of network nodes or PDOs. */
     enum { CHANNELS = 2, ///< Channels on this physical interface.
-           NETWORK_HISTORY = 4 ///< Copied passive/unknown frame records; overflow drops newest.
+           NETWORK_HISTORY = 4, ///< Copied passive/unknown frame records; overflow drops newest.
+           PDO_ROUTES = 8 ///< Permanently bound PDO wire routes on this interface; distinct from profile set count.
     };
     SdoClient() = default; ///< Initializes storage without configuring or transmitting a route.
     SdoClient(const SdoClient&) = delete; ///< Callback addresses and owner identities cannot be copied.
@@ -102,6 +104,48 @@ public:
      * @return False atomically for invalid slot/age/time.
      */
     bool setServiceAge(uint8_t slot, uint64_t maximumAgeUs, uint64_t nowUs);
+    /** Install explicitly established actual map contents, without any writes or automatic sample qualification.
+     * @param[in] slot PDO route slot 0..PDO_ROUTES-1. Once bound, its identifier/frame kind cannot be reused/rebound.
+     * @param[in] nodeSlot Existing shared node/SDO slot, with exactly matching binding.
+     * @param[in] evidence Owned actual-map candidate, complete communication facts and nonzero evidence identity.
+     * Template provenance rejects. Replacement mapping epoch must strictly increase;
+     * evidence time cannot predate the node/route boundary or lie in the future.
+     * @param[in] profile Call-only reviewed layout facts; no pointer is retained.
+     * @param[in] observer Borrowed stationary bounded cache consumer/invalidator.
+     * @param[in] nowUs Supplied nondecreasing monotonic microseconds.
+     * @return False atomically for incomplete/stale/invalid evidence, collision,
+     * occupied NMT membership, invalid observer or exhausted epoch. Success
+     * revokes prior sample validity and notifies its consumer, never confirms a sample.
+     */
+    bool configurePdo(uint8_t slot, uint8_t nodeSlot, const PdoMapEvidence& evidence,
+                      const PdoProfile& profile, PdoObserver observer, uint64_t nowUs);
+    /** Establish external sample provenance independently of actual-map contents.
+     * @param[in] slot Bound PDO route with current confirmed map.
+     * @param[in] evidence Exact route/lifecycle scope, nonzero source record and
+     * reviewed producer+all-ingress retirement or genuinely distinct non-reused
+     * route premise. A new host epoch, readback or timestamp alone is insufficient.
+     * After map replacement/lifecycle/NMT withdrawal, this fixed reused route
+     * requires producer+ingress retirement; distinct-route proof cannot reopen it.
+     * @param[in] nowUs Same clock; evidence boundary must be current, not future.
+     * @return False atomically on invalid/stale evidence or an already qualified
+     * route; explicitly invalidatePdo(false) before replacing its proof, so
+     * dependent consumers are revoked too. Success affects only
+     * future frames with known capture strictly after its boundary; no diagnostic
+     * or old accepted sample is promoted retroactively.
+     */
+    bool qualifyPdo(uint8_t slot, const PdoQualification& evidence, uint64_t nowUs);
+    /** Withdraw one uncertain map or its sample provenance; other routes stay independent.
+     * @param[in] slot Bound PDO route.
+     * @param[in] mapUncertain True revokes map confirmation too; false preserves map contents.
+     * @param[in] nowUs Same supplied clock; raw observation history remains retained.
+     * @return False atomically on invalid slot/time; no reconfiguration, traffic or retry.
+     */
+    bool invalidatePdo(uint8_t slot, bool mapUncertain, uint64_t nowUs);
+    /** Inspect confirmed-map/sample/history facts without I/O or mutation.
+     * @param[in] slot Bound PDO route.
+     * @return Borrowed record until destruction; subsequent mutation overwrites it, so copy retained history.
+     */
+    const PdoRecord* pdo(uint8_t slot) const;
 
     /** Configure a previously unused slot, with no traffic or guessed default IDs.
      * Duplicate/crossing CAN-IDs or aliases of the same peer node/server channel
@@ -334,6 +378,8 @@ private:
         uint32_t generation = 0, frame = 0;
         uint64_t queueCutoff = 0, responseCutoff = 0;
         uint64_t handoffUs = 0, handoffCutoff = 0;
+        uint64_t admittedUs = 0;
+        Generation nodeGeneration = 0;
         SdoTransfer work;
         SdoCompletion completion;
         uint8_t upload[32] = {}, uploaded = 0;
@@ -362,6 +408,16 @@ private:
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
+    struct PdoSlot {
+        bool bound = false, reused = false;
+        uint8_t anchor = 0;
+        PdoRecord record;
+        PdoObserver observer;
+    } pdos_[PDO_ROUTES];
+    void revokePdo(unsigned slot, bool mapUncertain, uint64_t nowUs);
+    void revokeNodePdos(unsigned anchor, bool mapUncertain, uint64_t nowUs);
+    bool dispatchPdo(const Frame& frame, bool timeKnown, uint64_t receivedUs, uint64_t nowUs, bool& matched);
+    bool pdoIdentifier(uint32_t id, bool extended) const;
     bool valid(SdoRequestId id) const;
     void expire(Channel& c, uint64_t nowUs);
     void pump(Channel& c, uint64_t nowUs);

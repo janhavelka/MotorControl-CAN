@@ -120,6 +120,8 @@ struct NetworkObservation {
     NetworkDisposition disposition = NetworkDisposition::UNKNOWN_ROUTE; ///< Qualification outcome.
     bool decoded = false; ///< Makes event meaningful.
     NetworkEvent event; ///< Checked decoded fields when available; raw bytes always survive above.
+    bool pdo = false; ///< Raw PDO-route diagnostic copy; decoded refers only to network event above.
+    Generation mappingGeneration = 0; ///< PDO map epoch at normal dispatch, never a wire tag.
 };
 } // namespace CANOPEN
 } // namespace MotorControlCAN
