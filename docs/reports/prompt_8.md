@@ -1,6 +1,6 @@
 # Prompt 8 verification, CI and documentation gates
 
-Date: 2026-10-29. Local gates complete; remote delivery verification pending.
+Date: 2026-10-29. Complete: local and exact-commit CI gates passed.
 Started from `95d7b7ad46c4fe8dbdd4b333de0cee6b6bb3c946`, clean and 0 ahead /
 0 behind after fetch, on `promptset/motorcontrol-can` with its existing origin
 upstream. Prompt 7 is complete. This stage changes developer gates, not drive
@@ -94,7 +94,7 @@ unavailable/nonzero with retained diagnostics, not a passing skip.
 | Check | Result |
 | --- | --- |
 | `python scripts/verify.py --mode quick --build-dir .build/p8-final-quick` | PASS: actual CTest inventory and 12 quick contracts |
-| `python scripts/verify.py --mode full --compiler gcc --build-dir .build/p8-final-full` | PASS: 13 CTests plus separately retained package contract, strict docs and XML API inventory |
+| `python scripts/verify.py --mode full --compiler gcc --build-dir .build/p8-atomic-full` | PASS on committed `e4c7923`: 13 CTests plus separately retained package contract, strict docs and XML API inventory |
 | Checker, verifier and documentation regressions | PASS: 15 repository methods, 9 verifier methods and 7 documentation methods, including useful real failure diagnostics |
 | Existing version and planning/ledger regressions | PASS: 6 version methods and 74 planning/ledger methods |
 | `doxygen Doxyfile` | PASS: zero warnings, complete installed API extraction |
@@ -103,9 +103,8 @@ unavailable/nonzero with retained diagnostics, not a passing skip.
 
 Early integrated failures were retained: a development-output Markdown scan and
 file-only XML count failed until corrected. Final runs use the corrected checks.
-Local snapshots record dirty paths because implementation was uncommitted when
-tested; delivery CI will verify the actual pushed commit. The exact remote run
-and terminal result will be recorded after synchronization, before handoff.
+Early local snapshots record dirty paths because implementation was uncommitted
+when tested. The final local full run and remote jobs verified committed source.
 
 The first exact-commit [CI run](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40853693620)
 passed Windows quick but both Linux sanitizer jobs failed the ownership proof.
@@ -125,9 +124,28 @@ retention regression fixes the clock and proves both directories and summaries
 survive; no sleep or retry hides the collision. Its original failing log is
 retained under `.build/p8-ci-fix-windows`.
 
+## Remote delivery verification
+
+Commit `e4c792339c7f0e0744251845c587230a88d640ed`, containing the integrated gates
+and both fixes, passed [CI run 40855402527](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40855402527).
+All required jobs completed successfully:
+
+| Job | Result and scope |
+| --- | --- |
+| Quick GCC on Windows | PASS: GCC 15.2, all 12 quick contracts |
+| Full GCC with ASan and UBSan | PASS: GCC 13, 13 contracts, isolated source/install/export package consumers, strict docs and XML inventory |
+| Full Clang with ASan and UBSan | PASS: Clang 18, the same full gates and sanitizers |
+
+Each job uploaded its command logs, tool versions and summaries; full jobs also
+retained exported package and documentation artifacts. The original failing
+runs remain available. No test, warning or sanitizer was disabled to obtain the
+passing results. The final documentation checkpoint records these results;
+its exact commit/run status and fresh upstream comparison are verified in the
+final handoff, without treating this older green run as proof of a new commit.
+
 README/index, native/verification guides, contributor/security policy, source
 map, backlog, coverage, roadmap, progress and CHANGELOG accompany the tooling.
 No verified private reporting channel exists yet; SECURITY records that release
 gap without inventing an address. No source API, profile, hardware workflow or
 new runtime abstraction was added. Prompts 12 and 27–28 retain their generation
-and firmware responsibilities. Prompt 9 is next after this stage's CI closure.
+and firmware responsibilities. Prompt 9 is next.

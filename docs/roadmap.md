@@ -5,7 +5,8 @@ Execution identity: version 2, started 2026-10-28 on
 promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
 [prompt 2](reports/prompt_2.md), [prompt 3](reports/prompt_3.md) and
 [prompt 4](reports/prompt_4.md), [prompt 5](reports/prompt_5.md) and
-[prompt 6](reports/prompt_6.md) and [prompt 7](reports/prompt_7.md) are complete. The next work is prompt 8;
+[prompt 6](reports/prompt_6.md), [prompt 7](reports/prompt_7.md) and
+[prompt 8](reports/prompt_8.md) are complete. The next work is prompt 9;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -19,7 +20,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 1 | Current source map, live delta, tools, bench facts and backlog | Complete; evidence and checks in its report |
 | 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | Complete: 99 indexes / 202 entries and 53 manual functions reviewed; four Lichuan model scopes and 21 open feature gates. [Test-only contrast ledger](reference/drive_contrasts.md) covers N5 stepper/BLDC, EPOS4 and protocol boundary cases without claiming support. |
 | 5-6 | Buildable stack fit experiment and common API/ownership proof | Complete: one selected engine, concrete common contracts, one fixed owner table and checked read/write/contrast fixtures. Semantic freeze is documented; production install and full arithmetic remain later work. |
-| 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | 7 complete: minimal C++11 core with source/install/export consumers and registered proofs. 8 implements quick/full verification, CI and strict Doxygen; remote delivery verification is tracked in its report. |
+| 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Complete: minimal C++11 core with isolated source/install/export consumers, quick/full verification, strict Doxygen and passing Windows quick and Linux GCC/Clang sanitizer CI. Exact results are in the stage reports. |
 | 9-10 | Status, exact units and axis/reference conversions | Pending; no native RPM width, stepper geometry or guessed feedback scale in common intent |
 | 11-14 | CAN/SDO codecs, reviewed generated dictionary, bounded service/reconciliation | Pending; preserve full aborts, publication/ownership and late identical-response uncertainty |
 | 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
@@ -36,9 +37,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 8](prompts/8_verification_docs.md), establishing the
-central verifier, CI and strict documentation gate for the
-[native package](getting_started.md) and retained tests. The
+Next assignment is [prompt 9](prompts/9_status_units.md), extending status and
+exact units in the [native package](getting_started.md) under the established
+[verification gates](verification.md). The
 [reviewed Lichuan dictionary](reference/lichuan_objects.md) and
 [contrast cases](reference/drive_contrasts.md) are documentary inputs;
 [Lichuan qualification gates](reference/lichuan_review.md) remain open for the

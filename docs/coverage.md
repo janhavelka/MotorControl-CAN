@@ -1,4 +1,4 @@
-# Requirement coverage after native package foundation
+# Requirement coverage after verification foundation
 
 The [requirements matrix](requirements_matrix.md) owns the full acceptance criteria.
 This ledger tracks the actual milestone evidence and retains every requirement ID
@@ -17,6 +17,8 @@ an actual owner/read/write proof and core-only drive contrasts. Production
 controller and vendor drive support remain pending. [Prompt 7](reports/prompt_7.md)
 adds the [minimal package](getting_started.md), version freshness and source/install/export
 tests. Only status, endpoint identity and Classical frame validation are installed.
+[Prompt 8](reports/prompt_8.md) adds real quick/full verification, strict public
+documentation and passing Windows quick and Linux GCC/Clang sanitizer CI.
 
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
 build or hardware qualification has been delivered for that requirement. No CAN
@@ -59,7 +61,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners retained; prompts 1–7 complete. All later feature, integration and qualification obligations remain pending. |
+| R35 | 1-50 | Current owners retained; prompts 1–8 complete. All later feature, integration and qualification obligations remain pending. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified
