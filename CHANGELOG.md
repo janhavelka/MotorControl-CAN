@@ -58,6 +58,8 @@ This repository contains planning/reference material and native service/API owne
 
 ### Fixed
 
+- Fixed matching server aborts being ignored while the next SDO segment was staged; pending TX is now retired before processing the abort. Delayed controller confirmation for the latest live handoff now remains valid after a nonfinal reply, until the next handoff supersedes its token. Independent upload/download regressions preserve quarantine, deadlines and immutable terminals.
+
 - Fixed object catalogue generation for supplementary Unicode and C++11 trigraph/escape boundaries; invalid UTF-8 surrogates fail before publication. Generated coverage now retains each documentary disposition and all three RPDO1 source mapping words.
 
 - Fresh independent prompts 10-11 audit corrected a stale retained-proof unit/rounding comment and an ADS1115 source citation. Axis/reference arithmetic, CAN/SDO checks and isolated package consumption passed new independent probes and integrated verification; no executable change was needed.

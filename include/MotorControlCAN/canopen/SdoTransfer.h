@@ -14,7 +14,7 @@ enum class SdoReadEffect : uint8_t {
     UNQUALIFIED, ///< Upload may change/consume device state; preserve possible effects.
     REVIEWED_NON_CHANGING ///< Applicable source review establishes no drive-changing effect.
 };
-/** Native service terminal cause, separate from local admission Status and drive state. */
+/** Native service terminal cause, separate from local admission rejection and drive state. */
 enum class SdoOutcome : uint8_t {
     SUCCESS, ///< Matching SDO completed; a download acknowledgement is not motion completion.
     SERVER_ABORT, ///< Matching unsigned server abort; earlier workflow writes are not undone.

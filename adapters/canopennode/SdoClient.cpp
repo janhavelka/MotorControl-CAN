@@ -247,8 +247,9 @@ bool SdoClient::receive(const Frame& f, uint64_t now) {
     service(now);
     if (!validateFrame(f) || f.extended || f.rtr || f.fd) return false;
     for (Channel& c : channels_) {
-        if (!c.configured || !c.occupied || c.terminal || !c.awaiting ||
-            c.port.queueOccupied || f.id != c.route.serverToClientId) continue;
+        if (!c.configured || !c.occupied || c.terminal || f.id != c.route.serverToClientId) continue;
+        const bool serverAbort = c.possible && f.payloadLength == 8 && f.data[0] == 0x80;
+        if (!serverAbort && (!c.awaiting || c.port.queueOccupied)) continue;
         if (f.payloadLength != 8) {
             c.lastReply = f; c.replyValid = true;
             abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_CMD, now);
@@ -297,6 +298,9 @@ bool SdoClient::receive(const Frame& f, uint64_t now) {
                 return true;
             }
         }
+        // A peer abort can arrive while its next segment is still in our staging
+        // slot. After object correlation, retire that slot before closing the engine.
+        if (serverAbort) retire(c);
         c.awaiting = false;
         StackFrame incoming = native(f);
         c.port.rx.CANrx_callback(c.port.rx.object, &incoming);
@@ -339,7 +343,7 @@ bool SdoClient::confirmTx(SdoTxId id, uint64_t now) {
     lastUs_ = now;
     Channel& c = channels_[id.request.channel];
     expire(c, now);
-    if (c.terminal || id.frame == 0 || id.frame != c.frame || !c.possible || !c.awaiting) return false;
+    if (c.terminal || id.frame == 0 || id.frame != c.frame || !c.possible) return false;
     c.txConfirmed = true;
     return true;
 }

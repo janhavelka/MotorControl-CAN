@@ -78,6 +78,7 @@ public:
      * progression calls and one FIFO drain on the selected channel.
      * Unmatched IDs, extended/RTR and other nodes remain available to the caller.
      * A matching malformed envelope fails locally; wrong-object replies are ignored.
+     * A matching abort after possible TX retires even a not-yet-handed-off next segment.
      * @param[in] frame Borrowed frame; copied before any selected-engine callback.
      * @param[in] nowUs Processing time; deadline wins before callback at equality.
      * @return True only if a live matching SDO route consumed the frame.
@@ -95,6 +96,8 @@ public:
      */
     bool nextTx(uint8_t slot, uint64_t nowUs, Frame& frame, SdoTxId& id);
     /** Record actual controller TX/ACK separately from protocol confirmation.
+     * A report can follow a nonfinal reply until the next frame handoff supersedes
+     * its token. Recording it neither renews a cutoff nor rewrites a terminal.
      * @param[in] id Most recent live request frame handoff; stale/foreign reports reject.
      * @param[in] nowUs Same supplied time; deadline has priority.
      * @return True on recorded confirmation; terminal evidence is never rewritten.

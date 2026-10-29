@@ -38,6 +38,11 @@ A [fresh independent prompt-12 audit](../reports/prompt_12_audit.md) corrected
 catalogue Unicode escaping and two generated coverage omissions. Original
 source facts, declaration permissions and semantic coverage remain unchanged.
 
+A [fresh independent prompt-13 audit](../reports/prompt_13_audit.md) corrected
+server-abort handling during segment staging and delayed controller TX reports.
+Independent vectors verify retirement, quarantine, fixed cutoffs and retained
+terminals. The original stage remains Complete with the checked corrections.
+
 Use numerical order among ready work within the assignment. Record the blocker and completed artifacts before progressing to independent work; return when evidence arrives. Prompts 18/20-22 may stay Partial while the independent owner/adapter path reaches the evidence harness in 29. Their typed features and owner integration remain owed to their original prompts. A partial predecessor or dependent chunk is never marked Complete merely to continue.
 
 | Prompt | Work | State | Report |

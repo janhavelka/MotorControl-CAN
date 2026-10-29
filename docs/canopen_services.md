@@ -182,7 +182,11 @@ adapter publishes only the admitted 1-4-byte prefix and retains the entire raw
 frame. Every download waits for the matching native acknowledgement. Server
 aborts must match index/subindex before entering the upstream callback, and all
 32 bits remain unsigned. Native abort evidence is not a malformed frame and
-does not roll back earlier writes.
+does not roll back earlier writes. After possible TX, a matching server abort
+also terminates work while the next segment is still in local staging. That
+staged frame is retired before processing the abort; a wrong-object abort
+cannot discard it. Before the initial handoff, no abort can belong to the
+untransmitted request.
 
 A server may choose segmented upload for a small scalar. Segmented transfers
 use the actual selected engine's toggle/last-bit protocol. Declared size and
@@ -220,7 +224,7 @@ overall lease after progress.
 | Service/RX/TX at overall cutoff | Expiry wins before callbacks or handoff, including equality |
 | Staged frame reaches queue cutoff | Retire software bytes and publish timeout; never transmit them later |
 | `nextTx` succeeds | Copies one frame and marks possible TX before returning, since controller acceptance may immediately transmit |
-| `confirmTx` | Records an actual controller TX/ACK report for the current frame token; cannot complete SDO or extend a cutoff |
+| `confirmTx` | Records an actual controller TX/ACK report for the latest live frame token, even after a nonfinal reply; the next handoff supersedes that token. Cannot complete SDO, extend a cutoff or rewrite a terminal |
 | Response cutoff after handoff | Clamped to overall deadline; CAN ACK/unrelated traffic/progress cannot extend the total budget |
 | Cancel | Expires first, then cancels without pumping unsent work; retires local staging and never means stop |
 | Bus-off/reboot | Expiry first; quarantine relevant channels and retire local staging; earlier immutable terminals remain unchanged |

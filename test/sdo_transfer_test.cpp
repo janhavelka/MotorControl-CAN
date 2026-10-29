@@ -275,6 +275,79 @@ void segmentedDownloads() {
     }
 }
 
+void abortWhileStaged() {
+    const uint8_t bytes[] = {1,2,3,4,5,6,7};
+    for (unsigned download = 0; download < 2; ++download) {
+        for (unsigned progressed = 0; progressed < 2; ++progressed) {
+            C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+            CHECK(client.configure(1, route(2), true, true));
+            const C::SdoRequestId id = admit(client, work(16, download != 0));
+            const C::SdoRequestId other = admit(client, work(2, false, 2), 1);
+            take(client, 0); take(client, 0, 1);
+            M::Frame initial = reply(download ? 0x60 : 0x41); initial.data[4] = 16;
+            CHECK(client.receive(initial, 1));
+            if (progressed) {
+                take(client, 2);
+                CHECK(client.receive(download ? reply(0x20) : segment(0x00, bytes, 7), 3));
+            }
+            CHECK(client.port(0)->queueOccupied);
+            const StackFrame staged = client.port(0)->queued;
+            M::Frame aborted = reply(0x80);
+            aborted.data[4] = 0x67; aborted.data[5] = 0x45;
+            aborted.data[6] = 0x23; aborted.data[7] = 0xf1;
+            M::Frame wrong = aborted; ++wrong.data[3];
+            CHECK(!client.receive(wrong, 4)); CHECK(!client.result(id));
+            CHECK(client.port(0)->queueOccupied && client.port(0)->queued.ident == staged.ident);
+            CHECK(std::memcmp(client.port(0)->queued.data, staged.data, 8) == 0);
+            // A server may abort while waiting for a segment still in our local queue.
+            CHECK(client.receive(aborted, 5)); terminal(client, id, C::SdoOutcome::SERVER_ABORT);
+            const C::SdoCompletion saved = *client.result(id);
+            CHECK(saved.abortValid && saved.abortCode == 0xf1234567u);
+            CHECK(saved.replyValid && sameFrame(saved.reply, aborted));
+            CHECK(saved.transmissionPossible && saved.effectUncertain && client.unresolved(0));
+            CHECK(!saved.protocolAcknowledged && !saved.clientAbortQueued);
+            CHECK(!client.port(0)->queueOccupied);
+            CHECK(!client.unresolved(1));
+            CHECK(client.receive(reply(0x4b, 2), 6)); terminal(client, other, C::SdoOutcome::SUCCESS);
+            M::Frame output = reply(0xa5); const M::Frame before = output;
+            C::SdoTxId tx; tx.frame = 91; const C::SdoTxId beforeTx = tx;
+            CHECK(!client.nextTx(0, 7, output, tx));
+            CHECK(sameFrame(output, before) && sameTx(tx, beforeTx));
+            CHECK(client.service(10000));
+            CHECK(client.result(id)->outcome == saved.outcome && client.result(id)->completedUs == saved.completedUs);
+            CHECK(client.release(id)); C::SdoRequestId next;
+            CHECK(!client.admit(0, work(), 10000, next));
+        }
+    }
+    // Before the initial handoff, a matching abort cannot belong to this request.
+    C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+    const C::SdoRequestId id = admit(client, work(8));
+    CHECK(client.service(0)); CHECK(!client.receive(reply(0x80), 1));
+    CHECK(!client.result(id) && client.port(0)->queueOccupied);
+    CHECK(take(client, 2).data[0] == 0x40);
+}
+
+void confirmationAfterReply() {
+    const uint8_t bytes[] = {1,2,3,4,5,6,7};
+    for (unsigned download = 0; download < 2; ++download) {
+        C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(client, work(8, download != 0));
+        C::SdoTxId first; take(client, 0, 0, &first);
+        M::Frame initial = reply(download ? 0x60 : 0x41); initial.data[4] = 8;
+        CHECK(client.receive(initial, 1)); CHECK(!client.result(id));
+        // Controller reports can arrive after the peer's reply, before the next handoff.
+        CHECK(client.confirmTx(first, 2));
+        C::SdoTxId second; take(client, 3, 0, &second);
+        CHECK(!client.confirmTx(first, 3));
+        CHECK(client.receive(download ? reply(0x20) : segment(0x00, bytes, 7), 4));
+        CHECK(client.confirmTx(second, 5));
+        take(client, 6); CHECK(!client.confirmTx(second, 6));
+        CHECK(client.receive(download ? reply(0x30) : segment(0x1d, bytes, 1), 7));
+        terminal(client, id, C::SdoOutcome::SUCCESS);
+        CHECK(client.result(id)->transmissionConfirmed);
+    }
+}
+
 void malformedAndAbort() {
     const uint32_t codes[] = {0, 0x06020000u, 0x80000000u, 0xf1234567u, 0xffffffffu};
     for (unsigned i = 0; i < sizeof codes / sizeof codes[0]; ++i) {
@@ -593,7 +666,8 @@ void channelsAndFailure() {
 
 int main() {
     admissionAndRoutes(); expeditedTransfers(); segmentedUploads(); segmentedDownloads();
-    malformedAndAbort(); deadlinesAndCancellation(); unsupportedAndEffects(); channelsAndFailure();
+    abortWhileStaged(); confirmationAfterReply(); malformedAndAbort();
+    deadlinesAndCancellation(); unsupportedAndEffects(); channelsAndFailure();
     std::printf("SDO transfer vectors passed: %u checks\n", checks);
     return 0;
 }
