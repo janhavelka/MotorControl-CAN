@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/MotorControlCAN.h>
 #include <MotorControlCAN/canopen/SdoTransfer.h>
+#include <MotorControlCAN/canopen/Network.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <cstring>
 
@@ -16,6 +17,13 @@ int main() {
     binding.endpoint.address = 500;
     binding.endpoint.subaxis = 2;
     binding.bindingGeneration = binding.configurationGeneration = 1;
+    CANOPEN::NetworkRoute network;
+    network.binding = binding; network.binding.endpoint.protocol = Protocol::CANOPEN;
+    network.binding.endpoint.address = 5; network.heartbeatId = 0x705; network.emcyId = 0x85;
+    Frame heartbeat; heartbeat.id = 0x705; heartbeat.dlc = heartbeat.payloadLength = 1; heartbeat.data[0] = 5;
+    CANOPEN::NetworkEvent event;
+    if (!CANOPEN::checkNetworkEvent(heartbeat, network, network.binding, network.generation, event) ||
+        event.kind != CANOPEN::NetworkEventKind::HEARTBEAT || event.state != CANOPEN::NmtState::OPERATIONAL) return 21;
     Frame frame;
     frame.id = 0x117;
     frame.extended = true;

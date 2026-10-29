@@ -108,6 +108,8 @@ public:
 
     /** Read-only fake controller inspection, valid for owner lifetime. */
     const CO_CANmodule_t& controller() const { return *client_.port(0); }
+    /** @return Persistent production-channel quarantine; reading performs no I/O. */
+    bool channelUnresolved() const { return client_.unresolved(0); }
     /** Count of checked synthetic heartbeat events, independent of SDO results. */
     uint32_t heartbeats() const { return heartbeats_; }
     /** Count of copied synthetic EMCY events. */

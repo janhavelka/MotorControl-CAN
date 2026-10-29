@@ -203,10 +203,13 @@ bool CanBusOwner::service(uint64_t nowUs) {
 bool CanBusOwner::receive(const Frame& frame, uint64_t nowUs) {
     if (!validateFrame(frame).isOk() || frame.extended || frame.rtr || frame.fd ||
         !service(nowUs)) return false;
+    storage_.channel.receive(toNative(frame), nowUs);
+    if (storage_.active >= 0) collect(nowUs);
     const bool event = (frame.id == 0x701 && frame.payloadLength == 1) ||
         (frame.id == 0x81 && frame.payloadLength == 8) ||
         (frame.id == 0x181 && frame.payloadLength >= 1);
     if (event) {
+        // The production table consumed the frame once; this ring is only a copy.
         if (storage_.observationCount == OBSERVATIONS) {
             if (storage_.dropped != UINT32_MAX) ++storage_.dropped;
         } else {
@@ -217,17 +220,13 @@ bool CanBusOwner::receive(const Frame& frame, uint64_t nowUs) {
         }
         // Boot-up invalidates this route qualification even if the event ring is
         // full. Keep results, retire local TX and require external reconciliation.
-        if (frame.id == 0x701 && frame.data[0] == 0) {
+        if (storage_.channel.channelUnresolved()) {
             storage_.unresolved = true;
             if (storage_.active >= 0) {
-                storage_.channel.cancel(storage_.activeId);
                 collect(nowUs, true, EventKind::TRANSPORT_FAILURE);
             }
             service(nowUs);
         }
-    } else if (storage_.active >= 0 && frame.id == 0x581) {
-        storage_.channel.receive(toNative(frame), nowUs);
-        collect(nowUs);
     }
     return true;
 }

@@ -78,3 +78,23 @@ withdraws a binding without reopening or erasing earlier possible effects.
 Two slots mean two explicit physical channels, not simultaneous aliases for
 one reply ID. The application owns all scheduling, controller queues and RX.
 No retry, motion command, stop, fault clear or recovery action is implicit.
+
+## Passive node evidence
+
+Include `NetworkState.h` with `SdoClient.h`. `configureNetwork` reserves passive
+routing in the same two-slot table, with explicit heartbeat/EMCY IDs and a
+borrowed stationary `NetworkObserver` for actual cache invalidation. It can
+precede SDO setup; one anchor per physical node is shared by its SDO channels.
+Offer every frame once through the ordinary receive path, preserving qualified
+capture time and ingress binding/epoch when available. No native HB/EM consumer
+runs in parallel; the [decision correction](../../docs/decisions/canopen_stack.md#prompt-15-passive-boundary-correction)
+records the source-backed boundary.
+
+`node(slot)` exposes independent NMT, heartbeat, effective producer interval,
+checked SDO and raw EMCY facts. `takeNetworkObservation` consumes copied history
+from four fixed records; overflow drops newest while lifecycle invalidation
+continues. Report controller recovery/bus-off separately. AVAILABLE and a new
+heartbeat cannot restore an invalidated cache or reopen an SDO channel. Read
+the [service guide](../../docs/canopen_services.md#passive-network-events-and-node-lifecycle)
+for timestamps, generation exhaustion and callback lifetimes. Focused host
+commands are `ctest --test-dir <build> -R network --output-on-failure`.

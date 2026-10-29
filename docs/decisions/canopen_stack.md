@@ -2,12 +2,39 @@
 
 Date: 2026-10-28. Status: selected by prompt 5's native fit experiment.
 
-Use **CANopenNode as the single authoritative CANopen service engine**, behind
+Use **CANopenNode as the single authoritative SDO and selected active CANopen service engine**, behind
 an optional application adapter. The installed C++11 axis/profile core yields
 bounded work and consumes evidence; it neither includes stack headers nor runs
 a second SDO/PDO engine. No runtime backend selection framework is needed.
 This decision selects an implementation boundary, not a completed controller
 port, CANopen conformance claim or supported motor driver.
+
+## Prompt-15 passive boundary correction
+
+The original required-services table selected native heartbeat and EMCY
+consumers. Prompt 15 replaces that narrow choice with installed pure checked
+`canopen/Network.h` envelopes and one passive projection in the existing
+application-owned channel table. CANopenNode remains the SDO engine; active NMT
+and PDO responsibilities remain assigned to prompts 16-18. This is an explicit
+decision change, not a claim that native HB/EM consumers run in the adapter.
+
+At the selected pin, `CO_HBconsumer.c` accepts any state byte and its one-byte
+mailbox can coalesce boot-up followed by heartbeat. It derives the default
+heartbeat route. `CO_Emergency.c` reads all eight bytes without checking DLC,
+registers a default identifier-range filter, and provides no callback context.
+Its byte-3 error index is CANopenNode's own producer convention, not a Lichuan
+manufacturer-field definition. Reusing both consumers here would add a second
+projection/timer model or global callback state without closing these checks.
+
+The checked passive boundary validates configured routes, full source binding
+and event epoch, frame kind/length and supported states; it preserves all five
+opaque EMCY bytes. Per-frame lifecycle invalidation occurs before bounded
+history insertion. An isolated actual-pinned-consumer parity proof verifies
+known bytes and demonstrates the native envelope/default-route limitations;
+its commands and source hashes are recorded in the [prompt-15 report](../reports/prompt_15.md).
+No native consumer is compiled alongside this projection, and no producer or
+network command runs implicitly. This closes passive HB/EM handling here;
+there is no deferred duplicate-consumer integration obligation.
 
 The [native proof](../../experiments/canopen_service_fit/README.md) compiles and
 executes the actual upstream SDO client. The [independent stack review](../reports/prompt_5_stack_review.md)
@@ -54,9 +81,9 @@ repository verifier; no root library/install target is introduced by prompt 5.
 | Service | Initial need and selected implementation | Evidence in this prompt |
 | --- | --- | --- |
 | SDO client | CANopenNode expedited and bounded segmented uploads/downloads. Disable local OD transfers and block mode initially. All EDS scalars are one to four bytes; that does not establish the server's upload form. | Real engine executes expedited and two-segment transfers, wrong responses, aborts and deadlines. Thirty-two-byte proof capacity is test policy, not a production capacity or device limit. |
-| Heartbeat and boot-up | Selected stack consumer with owner ingress evidence and explicit freshness policy. Preserve every boot-up invalidation before mailbox overwrite. Producer time zero/unknown cannot establish host-loss behavior. | Stack inspected; synthetic heartbeat copied while SDO pending. Actual heartbeat consumer, expiry and boot invalidation integration belong to 15. |
+| Heartbeat and boot-up | Prompt-15 checked passive boundary and one owner projection, superseding the initial native-consumer choice above. Preserve every boot-up before history overflow; use explicit capture/epoch/age policy. | Implemented in the existing channel table; parity checked against the actual pinned consumer. No watchdog guarantee. |
 | NMT | Selected stack producer for explicitly requested transitions; no startup/reset/start discovery preamble. Local state mutation is not remote observation. | Source inspected; no NMT traffic in the executable. Integration belongs to 16. |
-| EMCY | Selected stack consumer; validate an eight-byte envelope first and retain code/register/five manufacturer bytes. Callback dispatch must bind the correct physical owner. | Source inspected; synthetic EMCY copy interleaved. No production decoder/history or inferred Lichuan meaning. Integration belongs to 15. |
+| EMCY | Prompt-15 checked configured eight-byte envelope plus owned raw code/register/five manufacturer bytes. One owner retains snapshots and bounded history. | Implemented without a second native callback registry; actual pinned-consumer parity and adverse envelopes checked. |
 | PDO | Selected stack handles configured Classical PDO protocol/mapping; owner retains raw source, timestamp and configuration provenance. Readback does not qualify delayed same-ID/same-length old frames. | PDO source inspected; one synthetic PDO event copied, no live mapping. Observations/remapping belong to 17/18. |
 | SYNC | Selected stack only where a reviewed mapping/workflow requires it. Configure explicit bounded production policy; never generate it just because the stack supports it. | Source/API fit inspection only; no scheduler or transmitted SYNC in this proof. Applicable integration belongs to 17/18. |
 | Controller evidence | One application receive owner; copied pending TX, explicit handoff/retirement and retained fault evidence. | Fake exercises both retirement before handoff and uncertainty after handoff. Real TWAI source inspected; hardware behavior unmeasured. |

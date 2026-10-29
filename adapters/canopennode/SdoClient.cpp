@@ -48,7 +48,19 @@ SdoExpectation expectation(const SdoTransfer& work) {
 bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed, bool fresh) {
     if (slot >= CHANNELS || channels_[slot].configured || !fresh || !validateSdoChannel(route))
         return false;
+    if (channels_[slot].networkConfigured &&
+        (!sameBinding(channels_[slot].network.route.binding, route.binding) ||
+         channels_[slot].network.strictBoundary || channels_[slot].network.exhausted)) return false;
     for (const Channel& other : channels_) {
+        if (other.networkConfigured) {
+            const NetworkRoute& network = other.network.route;
+            if (network.binding.endpoint.bus == route.binding.endpoint.bus &&
+                network.binding.endpoint.address == route.binding.endpoint.address &&
+                (other.network.strictBoundary || other.network.exhausted)) return false;
+            if (network.binding.endpoint.bus != route.binding.endpoint.bus ||
+                route.clientToServerId == network.heartbeatId || route.clientToServerId == network.emcyId ||
+                route.serverToClientId == network.heartbeatId || route.serverToClientId == network.emcyId) return false;
+        }
         if (!other.configured) continue;
         if (other.route.binding.endpoint.bus != route.binding.endpoint.bus ||
             (other.route.binding.endpoint.address == route.binding.endpoint.address &&
@@ -66,7 +78,8 @@ bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed,
     OD_entry_t entry = {0x1280, 4, ODT_REC, fields, nullptr};
     // Dynamic/local OD and callback wakeups are disabled; no temporary OD pointer survives init.
     if (CO_SDOclient_init(&c.engine, nullptr, &entry, 0, &c.port, 0, &c.port, 0, nullptr) != CO_ERROR_NO) {
-        c = Channel();
+        c.engine = CO_SDOclient_t();
+        c.port = CO_CANmodule_t(); // Preserve any passive route and borrowed cache observer.
         return false;
     }
     c.route = route;
@@ -259,6 +272,12 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
     // A caller may return our borrowed observation frame; copy before replacing it.
     const Frame f = input;
     service(now);
+    bool networkIdentifier = false;
+    for (const Channel& c : channels_)
+        if (c.networkConfigured && (f.id == c.network.route.heartbeatId || f.id == c.network.route.emcyId))
+            networkIdentifier = true;
+    const bool networkAccepted = dispatchNetwork(f, nullptr, timeKnown, received, now);
+    if (networkIdentifier) return networkAccepted;
     for (Channel& c : channels_) {
         if (!c.configured || f.id != c.route.serverToClientId) continue;
         c.observation.channel = c.route;
@@ -313,6 +332,7 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
             }
             if (c.work.direction == SdoDirection::UPLOAD && (f.data[0] == 0x40 || f.data[0] == 0x41)) {
                 if (!c.work.allowSegmentedUpload) {
+                    recordSdo(c, timeKnown, received, now);
                     abort(c, SdoOutcome::UNSUPPORTED, CO_SDO_AB_UNSUPPORTED_ACCESS, now);
                     return true;
                 }
@@ -339,6 +359,8 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
         StackFrame incoming = native(f);
         c.port.rx.CANrx_callback(c.port.rx.object, &incoming);
         pump(c, now); // Drain the single native mailbox before accepting another frame.
+        if (!c.terminal || c.completion.outcome == SdoOutcome::SUCCESS || c.completion.outcome == SdoOutcome::SERVER_ABORT)
+            recordSdo(c, timeKnown, received, now);
         return true;
     }
     return false;
@@ -409,21 +431,15 @@ bool SdoClient::cancel(SdoRequestId id, uint64_t now) {
 }
 
 bool SdoClient::busOff(uint64_t now) {
-    if (now < lastUs_) return false;
-    lastUs_ = now;
-    for (Channel& c : channels_) {
-        expire(c, now);
-        if (!c.configured) continue;
-        retire(c);
-        c.unresolved = true;
-        finish(c, SdoOutcome::BUS_OFF, now);
-    }
-    return true;
+    return reportController(ControllerState::BUS_OFF, now);
 }
 
 bool SdoClient::reboot(uint8_t node, uint64_t now) {
     if (node == 0 || node > 127 || now < lastUs_) return false;
     lastUs_ = now;
+    for (unsigned i = 0; i < CHANNELS; ++i)
+        if (channels_[i].networkConfigured && channels_[i].network.route.binding.endpoint.address == node)
+            invalidateNode(i, NetworkInvalidation::BOOTUP, now);
     for (Channel& c : channels_) {
         expire(c, now);
         if (!c.configured || c.route.binding.endpoint.address != node) continue;
@@ -436,6 +452,7 @@ bool SdoClient::reboot(uint8_t node, uint64_t now) {
 
 bool SdoClient::invalidate(uint8_t slot, uint64_t now) {
     if (slot >= CHANNELS || !channels_[slot].configured || now < lastUs_) return false;
+    if (networkAnchor(slot) >= 0) return invalidateNetwork(slot, NetworkInvalidation::BINDING, now);
     lastUs_ = now;
     Channel& c = channels_[slot];
     expire(c, now);

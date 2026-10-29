@@ -1,5 +1,12 @@
 # Prompt 5 execution report
 
+Later decision change: [prompt 15](prompt_15.md) replaces the initial native
+HB/EM consumer choice with checked passive codecs and one owner projection,
+based on pinned-consumer callback/envelope limits and actual parity checks.
+The [maintained decision](../decisions/canopen_stack.md#prompt-15-passive-boundary-correction)
+owns that correction; active NMT/PDO integration remains assigned to 16-18.
+The original fit results and forward assignments below are historical.
+
 Date: 2026-10-28. Status: **Complete** for the assigned service fit experiment
 and decision. Prerequisites 3 and 4 were complete at starting HEAD `aa8a3bc`.
 The existing `promptset/motorcontrol-can` branch was reused; initial working

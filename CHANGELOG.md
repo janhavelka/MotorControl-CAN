@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added pure configured-route heartbeat/boot-up/EMCY codecs and a single passive projection in the existing optional owner's channel table. Independent capture/processing times, producer interval facts, NMT/SDO/error observations and four copied diagnostic records remain separate from drive state, outcomes and health.
+- Added synchronous cache/axis invalidation on reset, binding/dialect/configuration withdrawal and controller recovery, including full-history and generation-exhaustion behavior. No heartbeat configuration, NMT command, drive action or channel reopening is implicit. The passive HB/EM implementation decision now uses checked owner projection with pinned native-consumer parity.
+
 - Added SDO capture/processing precedence, separate retained raw observations, stale/unsolicited-response quarantine, explicit binding withdrawal and copied-TX eligibility checks. Unsupported reopening remains blocked without remote-session and local queue evidence; no reset/retry or device read permission is inferred.
 - Added independent adversarial reconciliation tests for duplicate replies, different-value writes, every segmented TX cancellation boundary, delayed processing, clock limits, controller caches, alternate qualified channels and partial effects. Updated retained proofs to fail closed on pre-handoff traffic.
 

@@ -15,7 +15,8 @@ is complete with reviewed generation and passing local/Windows/GCC/Clang
 sanitizer CI. [Prompt 13](reports/prompt_13.md) completes the bounded selected-stack
 SDO lifecycle with passing local and Windows/GCC/Clang sanitizer CI.
 [Prompt 14](reports/prompt_14.md) completes ambiguity settlement, retained late observations and permanent quarantine with passing local/Windows/GCC/Clang sanitizer CI.
-The next numbered assignment is prompt 15;
+[Prompt 15](reports/prompt_15.md) completes passive network events and shared lifecycle invalidation.
+The next numbered assignment is prompt 16;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -35,7 +36,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 12 | Reviewed generated object metadata and coverage | Complete: 194 resolved descriptors, four withheld/four excluded and active freshness; local and exact-commit Windows/GCC/Clang sanitizer CI pass. No semantic operation is implemented. |
 | 13 | Bounded SDO lifecycle | Complete: optional selected-stack adapter, two unique channels, copied intent, immutable cutoffs, retained terminals, 1-32-byte forms and persistent quarantine; [local/CI evidence](reports/prompt_13.md) |
 | 14 | SDO ambiguity/reconciliation | Complete: processing/capture precedence, retained observations, invalidation and TX eligibility; permanent quarantine without proven reopening. Local/CI evidence in [report](reports/prompt_14.md) |
-| 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
+| 15 | Passive network events and invalidation | Complete: pure codecs, shared node anchors, captured-time/epoch facts, four copied diagnostics and synchronous cache invalidation; checks in [report](reports/prompt_15.md) |
+| 16-18 | Explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
 | 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
 | 26-28 | Native example, TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |
@@ -49,8 +51,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 15](prompts/15_network_events.md),
-passive network events and invalidation over the implemented
+Next assignment is [prompt 16](prompts/16_nmt_services.md),
+explicit NMT requests and service eligibility over the implemented
 [bounded SDO lifecycle](canopen_services.md) and
 [reviewed object metadata](reference/lichuan_generated.md),
 [axis](axis_contract.md) and [production units](units_status.md), under the established

@@ -17,6 +17,9 @@ CanBusOwner::CanBusOwner() {
     // This fake fixture starts with an explicitly qualified, fresh route.
     // Construction alone is not such evidence for a real controller/server.
     ready_ = client_.configure(0, channel_, true, true);
+    C::NetworkRoute network;
+    network.binding = channel_.binding; network.heartbeatId = 0x701; network.emcyId = 0x81;
+    ready_ = ready_ && client_.configureNetwork(0, network, C::NetworkObserver(), 0);
 }
 
 bool CanBusOwner::admit(bool download, uint16_t index, uint8_t subIndex,
@@ -99,25 +102,24 @@ void CanBusOwner::service(uint64_t nowUs) {
 void CanBusOwner::receive(const FitFrame& frame, uint64_t nowUs) {
     if (nowUs < lastUs_) return;
     service(nowUs);
-    if (frame.extended || frame.rtr || frame.DLC > 8) return;
-    if ((frame.ident == 0x701 && frame.DLC == 1) ||
-        (frame.ident == 0x81 && frame.DLC == 8) ||
-        (frame.ident == 0x181 && frame.DLC == 4)) {
-        lastEvent_ = frame;
-        if (frame.ident == 0x701) ++heartbeats_;
-        else if (frame.ident == 0x81) ++emergencies_;
-        else ++pdos_;
-        return;
-    }
-    // Preserve the retained proof's envelope filter. The production adapter has
-    // its own matching-route malformed-frame settlement tests.
-    if (frame.DLC != 8) return;
+    if (frame.DLC > 8) return;
+    // Preserve the retained experiment's SDO envelope filter. Production malformed
+    // SDO settlement is exercised directly; passive events still reach their decoder.
+    if (frame.ident == 0x581 && frame.DLC != 8) return;
     MotorControlCAN::Frame borrowed;
     borrowed.id = frame.ident;
-    borrowed.dlc = borrowed.payloadLength = frame.DLC;
-    std::memcpy(borrowed.data, frame.data, frame.DLC);
-    client_.receive(borrowed, nowUs);
+    borrowed.extended = frame.extended; borrowed.rtr = frame.rtr;
+    borrowed.dlc = frame.DLC; borrowed.payloadLength = frame.rtr ? 0 : frame.DLC;
+    if (!frame.rtr) std::memcpy(borrowed.data, frame.data, frame.DLC);
+    const bool accepted = client_.receive(borrowed, nowUs, nowUs);
     collect();
+    if (frame.extended || frame.rtr) return;
+    // Legacy counters observe copied traffic; the production owner decoded it once.
+    if (accepted && frame.ident == 0x701 && frame.DLC == 1) ++heartbeats_;
+    else if (accepted && frame.ident == 0x81 && frame.DLC == 8) ++emergencies_;
+    else if (frame.ident == 0x181 && frame.DLC == 4) ++pdos_;
+    else return;
+    lastEvent_ = frame;
 }
 
 bool CanBusOwner::handoff(uint64_t nowUs) {

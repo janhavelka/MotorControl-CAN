@@ -1,5 +1,9 @@
 # CANopen service contract
 
+Passive heartbeat/boot-up/EMCY handling uses the checked boundary and shared
+owner projection described below. The [prompt-15 decision correction](decisions/canopen_stack.md#prompt-15-passive-boundary-correction)
+records why native HB/EM consumers do not run alongside that projection.
+
 The authoritative service engine is **CANopenNode**, selected in
 [the pinned fit decision](decisions/canopen_stack.md), revision
 `9b8beed8367241e96ac03f916cd5a500bcb2cf23`. The installed portable package now
@@ -336,3 +340,114 @@ Installed/exported core consumers need no adapter, upstream source, SDK, ledger,
 Python or reference material; portable service value types compile independently.
 No CAN traffic, live drive acknowledgement, motion or hardware qualification is
 claimed by the native harness.
+
+## Passive network events and node lifecycle
+
+Installed `canopen/Network.h` contains pure `validateNetworkRoute` and
+`checkNetworkEvent` functions. They borrow inputs only during the call and
+publish an owned event atomically. The optional `SdoClient` consumes those
+events through the same receive entry as SDO. There is no second controller
+receiver or installed node registry. Native NMT and EMCY facts are not common
+motion requirements for proprietary protocols.
+
+### Explicit routing and storage
+
+`configureNetwork(slot, route, observer, nowUs)` adds a passive node anchor in
+the existing two-slot channel table. It may precede SDO configuration: passive
+monitoring needs no SDO fresh-session premise. One anchor owns a physical
+bus/node; another configured SDO channel of that node shares `node(slot)`.
+All slots belong to one interface. Duplicate anchors and crossing heartbeat,
+EMCY or SDO identifiers reject in either configuration order. Routes contain
+the full host binding, nonzero event generation and actual standard CAN-IDs;
+neither source-node identity nor IDs are guessed from low identifier bits.
+An invalidated passive anchor cannot be used to qualify a new SDO alias.
+
+| Route | Required Classical frame shape | Checked payload |
+| --- | --- | --- |
+| Configured heartbeat ID | Standard data, DLC/length 1 | `00` boot-up; `04` Stopped; `05` Operational; `7F` Pre-operational |
+| Configured EMCY ID | Standard data, DLC/length 8 | Little-endian U16 error code, complete register byte and five opaque manufacturer bytes |
+| Configured SDO response | Existing selected channel and reviewed transfer expectation | Ordinary SDO validation, independent of events |
+| Unknown ID or unsupported event | Copied diagnostic only | No discovery, protocol switch, inferred native state or command result |
+
+Unknown heartbeat states, including `85`, cannot update valid NMT/heartbeat
+facts. Unknown/zero EMCY codes and reserved register bit 6 remain raw evidence;
+CANopenNode's private byte-3 convention is not imposed on Lichuan. EMCY zero
+does not clear an application drive fault. A fresh heartbeat changes no drive
+state/mode, SDO failure, position, reference or configuration evidence.
+
+One four-record FIFO retains copied raw event/unknown-frame observations.
+`takeNetworkObservation` copies one independently owned entry; overflow drops
+the newest history record and saturates `droppedNetworkObservations`. Normal
+snapshot updates, EMCY counting and reset invalidation occur even when full.
+The latest EMCY and its originating route survive invalidation as history.
+Snapshot views are borrowed until the next mutation; copy them for retention.
+No consumer borrows callback or controller RX bytes.
+
+### Time, generations and independent facts
+
+Every timestamp uses the supplied nonwrapping monotonic microsecond domain.
+Capture zero is valid. `receive(frame, receivedUs, nowUs)` preserves source
+capture; the two-argument form leaves capture unknown. `receiveNetwork` also
+accepts binding/event-route provenance captured at earliest ingress. It rejects
+old binding/epoch qualification while retaining those original tags in history.
+A host epoch is not on the wire and cannot identify delayed remote traffic.
+Future capture or backward processing time rejects before service or mutation.
+
+Configured node snapshots keep heartbeat, observed NMT and last checked matching
+SDO times independently. Malformed SDO frames cannot renew that communication
+fact. A valid abort proves matching service communication without success.
+Older heartbeat capture cannot replace a newer heartbeat; EMCY has its own
+ordering, so an EMCY older than the latest heartbeat remains independent evidence.
+Unknown capture cannot replace a known newer observation. After invalidation,
+unknown-capture heartbeat/EMCY are diagnostic only; known capture must be
+strictly after the processing boundary. An explicitly old route epoch always
+fails. This conservatively rejects already queued pre-boundary samples.
+
+Boot-up is a reset observation, not a periodic heartbeat: it cannot start
+heartbeat monitoring. Unless capture/provenance proves it predates the current
+lifecycle boundary, even a delayed boot-up conservatively invalidates caches.
+A later heartbeat does not prove that earlier configuration survived that reset.
+When a delayed boot-up predates a newer NMT observation, that newer observation
+remains historical with its old generation; qualify NMT only when its timestamp
+epoch matches the current route and the node is not exhausted.
+
+`setProducerInterval` records an externally established effective U16 interval
+in milliseconds. Zero explicitly means disabled. EDS default zero and packet
+cadence do not establish that live fact. `heartbeatFreshness` distinguishes
+unknown producer, disabled, never observed, unqualified, fresh and expired;
+its nonzero maximum age is explicit application policy. Age uses original
+capture and an inclusive limit; processing delay never renews it. Expiration
+does not assert a drive watchdog action, motor stop or application health state.
+
+### Invalidation and actual application dependencies
+
+Boot-up, explicit reboot, `invalidateNetwork` and legacy binding withdrawal
+revoke the node's SDO channels and advance its event generation. Bus-off and
+reported controller recovery revoke all configured nodes. Controller AVAILABLE
+restores neither node evidence nor channel admission. Generations never wrap:
+at maximum, the node stays exhausted/unqualified while invalidation still runs.
+Prior terminal results and possible effects remain immutable; local TX staging
+and cached handoff eligibility are retired, and no write is replayed.
+
+Register a bounded synchronous `NetworkObserver` for actual dependent caches.
+It runs after all affected channels have been retired and before another TX can
+be yielded, independently of history space. The stationary context/callback
+are borrowed, must not reenter the owner or perform I/O, and identical pairs
+are notified once per node event. Each notification carries the dependent
+binding and revoked/new epoch. Callers retaining configuration/PDO maps, scale,
+drive state/mode, references or prepared operations must revoke their actual
+dependencies here or check the current epoch before every use.
+
+The native fixture connects this callback to production
+`invalidateAxisReference(..., COORDINATES)`, revokes readback-dependent command
+and encoder scales and invalidates prepared work. Axis invalidation deliberately
+does not itself clear scale provenance: the cache owner does that according to
+its source dependence. Raw faults/history and interrupted command outcomes are
+retained. Future typed settings/PDO modules use this same notification; this
+stage installs no placeholder cache or generic health state machine.
+
+The original EDS documents producer `1017` U16/default zero and EMCY route
+`$NODEID+0x80`. It contains no `1016`, `100C` or `100D` entries. That absence is
+not proof of unsupported firmware behavior, and none of these host observations
+establishes a Lichuan host-loss stop guarantee. No implicit NMT, heartbeat,
+drive or PDO configuration write is performed.

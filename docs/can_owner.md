@@ -9,6 +9,17 @@ concurrent ISR/tasks. Core code has no pointer back to this owner.
 
 ## One storage table
 
+Prompt 15 extends the production adapter's **existing** `Channel[2]` table with
+optional passive routing and node facts. One network anchor per physical node
+is shared by its SDO channels; a slot may be passive-only. One four-record
+network diagnostic FIFO drops newest on overflow, independently of current
+snapshot updates and synchronous invalidation callbacks. The older proof's
+four-record raw observer ring remains a copy consumer, with no node registry
+or separate receive loop. It forwards network frames into the production
+table once; its boot-up handling now consumes that table's quarantine result.
+See the [passive lifecycle contract](canopen_services.md#passive-network-events-and-node-lifecycle)
+for route collisions, capture/processing clocks, producer facts and cache epochs.
+
 `CanBusOwner::OwnerStorage` owns every row below. These are proof capacities,
 not measured requirements for an embedded product. Prompts 13/15/23 extend this
 same table rather than adding an independent request/channel/result registry.
@@ -133,8 +144,12 @@ Previously retained results remain historical evidence with their old binding.
 Native source timing, real controller retirement and late identical-response
 ambiguity are bounded premises in [canopen_services.md](canopen_services.md).
 The fake proof is not evidence that real hardware can retract an accepted frame.
-Health, caches, traces and persistence belong to the later application; they
-must not become implicit recovery/actuation policies in this owner.
+Health, traces and persistence remain application policy. Actual configuration,
+map, scale, drive/mode and axis caches attach bounded synchronous invalidators
+or check the current event epoch before use. The production native test invokes
+the real axis/reference invalidator and revokes readback scale evidence; no
+placeholder production PDO/settings cache is introduced before its owning stage.
+These invalidators never perform recovery or actuation.
 
 ## Copied TX and receive-time responsibility
 

@@ -4,6 +4,7 @@
  */
 #pragma once
 #include <MotorControlCAN/canopen/SdoTransfer.h>
+#include "NetworkState.h"
 #include "301/CO_SDOclient.h"
 
 namespace MotorControlCAN {
@@ -35,7 +36,8 @@ struct SdoTxId {
 class SdoClient {
 public:
     /** Fixed storage capacities, independent of the number of network nodes or PDOs. */
-    enum { CHANNELS = 2 ///< Channels on this physical interface.
+    enum { CHANNELS = 2, ///< Channels on this physical interface.
+           NETWORK_HISTORY = 4 ///< Copied passive/unknown frame records; overflow drops newest.
     };
     SdoClient() = default; ///< Initializes storage without configuring or transmitting a route.
     SdoClient(const SdoClient&) = delete; ///< Callback addresses and owner identities cannot be copied.
@@ -62,6 +64,68 @@ public:
      */
     bool configure(uint8_t slot, const SdoChannel& channel, bool externallyConfirmed,
                    bool freshSessionQualified);
+    /** Configure passive routing in an existing unused network slot, without I/O.
+     * A passive-only slot needs no SDO session premise. One route per physical
+     * node; other SDO channels share that anchor. All identifiers must be unique
+     * across network and SDO routes on this interface, in either configure order.
+     * @param[in] slot Fixed channel slot; existing SDO binding must match route.
+     * @param[in] route Explicit current binding, event epoch and actual identifiers.
+     * @param[in] observer Borrowed stationary cache invalidator; no reentrancy/I/O.
+     * @param[in] nowUs Nondecreasing monotonic microseconds; establishes the boundary.
+     * @return False atomically for invalid/duplicate route, observer or time.
+     */
+    bool configureNetwork(uint8_t slot, const NetworkRoute& route, NetworkObserver observer, uint64_t nowUs);
+    /** Attach one invalidator to a configured SDO channel sharing its node anchor.
+     * @param[in] slot Existing SDO/network slot.
+     * @param[in] observer Stationary borrowed context/callback; both null detaches.
+     * @return False for invalid slot/observer; no callback is invoked on attachment.
+     */
+    bool setNetworkObserver(uint8_t slot, NetworkObserver observer);
+    /** Inspect shared physical-node facts without clocks or I/O.
+     * @param[in] slot Passive or SDO slot with a configured network anchor.
+     * @return Borrowed view until destruction; mutations overwrite fields, so copy history.
+     */
+    const NodeSnapshot* node(uint8_t slot) const;
+    /** Accept explicit earliest-ingress provenance for a passive frame.
+     * @param[in] frame Borrowed once; copied before mutation.
+     * @param[in] source Binding/epoch captured at ingress, not a wire generation tag.
+     * @param[in] receivedUs Source-qualified capture microseconds, at most nowUs.
+     * @param[in] nowUs Nondecreasing processing time. Future time rejects atomically.
+     * @return True only for a checked current event; stale/rejected data remain diagnostic.
+     */
+    bool receiveNetwork(const Frame& frame, const NetworkRoute& source, uint64_t receivedUs, uint64_t nowUs);
+    /** Set externally established effective producer timing, without writing a node.
+     * @param[in] slot Node anchor or one of its SDO slots.
+     * @param[in] source Exact current route binding/epoch.
+     * @param[in] milliseconds Effective U16 interval, zero explicitly disables production.
+     * @param[in] nowUs Same supplied processing clock.
+     * @return False atomically for stale/invalid input; heartbeat facts are not renewed.
+     */
+    bool setProducerInterval(uint8_t slot, const NetworkRoute& source, uint16_t milliseconds, uint64_t nowUs);
+    /** Revoke node-dependent evidence and all its SDO channels, with no reopening.
+     * Synchronous callbacks run before later TX and regardless of history capacity.
+     * @param[in] slot Node anchor or matching SDO slot.
+     * @param[in] cause Explicit reset/binding/dialect/configuration/recovery reason.
+     * @param[in] nowUs Same processing clock; epochs never wrap, exhaustion fails closed.
+     * @return False atomically for invalid slot/reason/time; otherwise invalidates.
+     */
+    bool invalidateNetwork(uint8_t slot, NetworkInvalidation cause, uint64_t nowUs);
+    /** Report controller state independently of NMT/drive state; no I/O occurs.
+     * @param[in] state Application-reported controller state.
+     * @param[in] nowUs Same clock. BUS_OFF/RECOVERING revoke every node/channel;
+     * AVAILABLE restores no node evidence or service qualification.
+     * @return False atomically for invalid state/backward time.
+     */
+    bool reportController(ControllerState state, uint64_t nowUs);
+    /** @return Cached application-reported controller state; never probes hardware. */
+    ControllerState controllerState() const { return controllerState_; }
+    /** Consume one copied observer record, independent of results and lifecycle.
+     * @param[out] output Owned copy on success; unchanged if empty or overlapping owner.
+     * @return True when one record was copied; never calls a controller or callback.
+     */
+    bool takeNetworkObservation(NetworkObservation& output);
+    /** @return Saturating count of newest observer records dropped on full history. */
+    uint32_t droppedNetworkObservations() const { return networkDropped_; }
     /** Copy complete work and reserve its result, without initiating TX.
      * @param[in] slot Configured unique channel, not unresolved or occupied.
      * @param[in] transfer Borrowed complete request with explicit size 1..32,
@@ -154,10 +218,12 @@ public:
      */
     bool reboot(uint8_t node, uint64_t nowUs);
     /** Withdraw one binding without overwriting the route or clearing possible effects.
-     * @param[in] slot Configured fixed channel; other channels remain independent.
+     * @param[in] slot Configured fixed channel; other physical nodes remain independent.
      * @param[in] nowUs Same processing clock; expiry wins before invalidation.
      * @return False atomically for invalid slot/time; true quarantines permanently,
-     * retires local staging and closes live work. Existing terminals stay immutable.
+     * retires local staging and closes live work. With a passive anchor, shared
+     * node-dependent evidence and its channels are revoked too. Other physical
+     * nodes and existing terminals stay independent/immutable.
      */
     bool invalidate(uint8_t slot, uint64_t nowUs);
     /** Retain an adapter/controller failure without implicit retry or requalification.
@@ -214,8 +280,15 @@ private:
         Frame lastReply;
         bool replyValid = false;
         SdoRxObservation observation;
+        bool networkConfigured = false;
+        NodeSnapshot network;
+        NetworkObserver observer;
     } channels_[CHANNELS];
     uint64_t lastUs_ = 0;
+    ControllerState controllerState_ = ControllerState::UNKNOWN;
+    NetworkObservation networkHistory_[NETWORK_HISTORY];
+    uint8_t networkHead_ = 0, networkCount_ = 0;
+    uint32_t networkDropped_ = 0;
     bool valid(SdoRequestId id) const;
     void expire(Channel& c, uint64_t nowUs);
     void pump(Channel& c, uint64_t nowUs);
@@ -224,6 +297,12 @@ private:
     void abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t nowUs);
     void retire(Channel& c);
     bool receiveFrame(const Frame& frame, bool receivedTimeKnown, uint64_t receivedUs, uint64_t nowUs);
+    int networkAnchor(uint8_t slot) const;
+    void recordNetwork(const NetworkObservation& observation);
+    bool dispatchNetwork(const Frame& frame, const NetworkRoute* source, bool timeKnown,
+                         uint64_t receivedUs, uint64_t nowUs);
+    void invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t nowUs);
+    void recordSdo(Channel& channel, bool timeKnown, uint64_t receivedUs, uint64_t nowUs);
 };
 } // namespace CANOPEN
 } // namespace MotorControlCAN
