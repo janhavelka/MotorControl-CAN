@@ -117,7 +117,8 @@ Status getIdentity(const ReadContext& context, const Binding& currentBinding,
                    Identity& output) noexcept;
 
 /** Prepare a synthetic absolute target write using production numeric primitives.
- * Only exact native I32 targets or motor/load TURNS/DEGREES are supported.
+ * Only absolute unwrapped INTEGER targets within the synthetic I32 wire range
+ * are supported; units and rounding follow production preparePosition.
  * Uses production preparePosition for checked conversion, origin-before-rounding
  * and selected integer quantization, followed by the synthetic I32 wire bound.
  * Full-step geometry/feedback are optional; malformed supplied facts still reject.

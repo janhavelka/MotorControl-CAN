@@ -1,5 +1,10 @@
 # Prompt 11 - Classical CAN and SDO codecs
 
+The [fresh independent prompts 10-11 audit](prompts_10_11_audit.md) rechecked
+the full original requirements and actual code/diff. Protocol, package and
+integrated checks passed; the ADS1115 source citation below was corrected.
+No production defect was confirmed; this stage remains Complete.
+
 ## Scope and delivery state
 
 Implemented pure Classical CAN validation and checked CANopen SDO request/reply
@@ -25,7 +30,7 @@ full prompt and applicable shared contracts were read before implementation.
 | Checkout | Revision and dirty state | Actual implementation, caller/test evidence and consequence |
 | --- | --- | --- |
 | MotorControl-RS | `bd831c859daa9c8c07b8d27a2dd879bb4e750511`, clean | Actual protocol seam is `include/MotorControlRS/profiles/ess_rs/Codec.h`, `src/profiles/ess_rs/Codec.cpp`, private `src/rtu/Frame.h` and generated `Access.h`, not a public Protocol.h. Exact envelope checks precede payload publication; Reads.cpp and owner collection call those checks. Codec/parseRegisters tests exercise capacity, aliasing and sentinels; its count-reset exception is explicit. CAN keeps atomic outputs, separates raw access policy, and imports no RTU address, CRC or big-endian framing. |
-| ADS1115 | `235af3e8c722661a89a44766a4ccd903a654f6fe`, clean | `src/ADS1115.cpp::readADC` publishes raw I16 only after successful register read; actual owner/basic tests distinguish bind/apply/result behavior. CAN imports neither sensor retry nor its lifecycle. |
+| ADS1115 | `235af3e8c722661a89a44766a4ccd903a654f6fe`, clean | `src/ADS1115.cpp::readLatestRaw` publishes raw I16 only after successful register read; actual owner/basic tests distinguish bind/apply/result behavior. CAN imports neither sensor retry nor its lifecycle. |
 | INA228 | `b28c5ea69bcb4d26b351c52c24d3c6fae9fd282b`, clean | `src/INA228.cpp::_signExtend20`, `_signExtend40`, raw-sample candidate publication and width/output tests. CAN uses explicit I64 subtraction for sign extension, with no out-of-range unsigned-to-signed cast. |
 | PCA9555 | `498178e4d9e4acb6fab7d8b816ad5021efe8806a`, clean | Public CommandTable upper bits, `_readRegs`/validRegister and invalid-register/partial-output tests reject reserved command bits without masking. CAN likewise rejects reserved command/flag combinations rather than repairing input. |
 | FieldCore-node | `5ad9292dc8481cf08be9a61f662495a6474d1da0`, clean | `include/TunnelMonitor/contracts/MotorControl.h`, `src/devices/rs485_motor/Rs485MotorModule.cpp:385-432` and host motor tests: bounded raw bytes, separate times/settlement/uncertainty. No current native CANopen/TWAI motor integration was found. Read-only contrast, no FieldCore dependency. |

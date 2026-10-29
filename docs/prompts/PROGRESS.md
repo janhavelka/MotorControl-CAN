@@ -28,6 +28,12 @@ records sources, corrections, checks and synchronization. Prompt 11 is complete;
 
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
+A [fresh independent audit of prompts 10-11](../reports/prompts_10_11_audit.md)
+found no production defect or unfulfilled feature requirement. It corrected
+a retained-proof comment and an ADS1115 source citation; independent numeric,
+protocol and package probes plus integrated full/Doxygen checks passed. Both
+stages remain Complete; prompt 12 is next.
+
 Use numerical order among ready work within the assignment. Record the blocker and completed artifacts before progressing to independent work; return when evidence arrives. Prompts 18/20-22 may stay Partial while the independent owner/adapter path reaches the evidence harness in 29. Their typed features and owner integration remain owed to their original prompts. A partial predecessor or dependent chunk is never marked Complete merely to continue.
 
 | Prompt | Work | State | Report |
