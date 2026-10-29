@@ -9,3 +9,4 @@
 /include/MotorControlCAN/profiles/lichuan_c/Types.h text eol=lf
 /include/MotorControlCAN/profiles/lichuan_c/Objects.h text eol=lf
 /include/MotorControlCAN/profiles/lichuan_c/Catalogue.h text eol=lf
+/include/MotorControlCAN/profiles/lichuan_c/Pdo.h text eol=lf

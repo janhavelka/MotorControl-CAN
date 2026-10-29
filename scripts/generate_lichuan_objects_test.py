@@ -222,6 +222,26 @@ class GenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing or stale.*Types.h"):
             generate(ROOT / LEDGER_PATH, self.root, check=True)
 
+    def test_autocrlf_checkout_preserves_every_generated_product(self):
+        generate(ROOT / LEDGER_PATH, self.root)
+        before = self.snapshot()
+        (self.root / ".gitattributes").write_bytes((ROOT / ".gitattributes").read_bytes())
+
+        def git(*arguments):
+            subprocess.run(["git", "-c", "core.autocrlf=true", "-c", "core.safecrlf=false",
+                            *arguments], cwd=self.root, check=True, capture_output=True,
+                           timeout=30)
+
+        git("init", "--quiet")
+        git("add", "--", ".gitattributes", *OUTPUT_PATHS)
+        for path in OUTPUT_PATHS:
+            (self.root / path).unlink()
+        git("checkout-index", "--all")
+        for path in OUTPUT_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual((self.root / path).read_bytes(), before[path])
+        generate(ROOT / LEDGER_PATH, self.root, check=True)
+
     def test_missing_output_check_does_not_create_a_file(self):
         with self.assertRaisesRegex(ValueError, "missing or stale"):
             generate(ROOT / LEDGER_PATH, self.root / "absent", check=True)
