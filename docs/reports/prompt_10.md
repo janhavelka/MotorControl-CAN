@@ -8,10 +8,10 @@ The offline preview and native/installed consumers use that production API.
 No controller is opened; no device setting, drive counter, lifecycle or motion
 sequence is implemented or physically qualified by this work.
 
-Local implementation, independent review and required local gates pass.
-The stage remains **In progress** until exact-commit milestone CI completes.
-This is the first checked implementation checkpoint, not the final handoff.
-Prompt 11 is the next assignment after closure; finite motion remains 33-36.
+The stage is **Complete**: independent review, integrated local gates and
+Windows/GCC/Clang milestone CI passed on implementation commit `694af55`.
+This checked documentation closure leaves that production source unchanged.
+Prompt 11 is the next assignment; finite motion remains 33-36.
 
 ## Inspected source and applicability
 
@@ -138,7 +138,9 @@ Maintainability: two cohesive public modules, direct free functions, fixed calle
 values and private bounded arithmetic; no virtual/heap/framework/state engine.
 Units owns shared mixed arithmetic; Axis owns frame/origin/path/reference policy.
 The only inheritance is a test-only synthetic configuration wrapper. No deferred
-cleanup or unimplemented prompt-10 behavior remains.
+cleanup or unimplemented prompt-10 behavior remains. Production velocity defaults
+are coherent native command increments/second; the replaced prototype default
+was motor turns/second. The rate unit/frame is explicit in retained callers.
 
 ## Verification
 
@@ -153,7 +155,7 @@ Doxygen 1.13.2. All commands run from the repository unless noted.
 | `python scripts/verify.py --mode quick --compiler gcc --build-dir .build/p10-quick` | PASS: all 16 quick contracts, including axis/preview/native consumer; retained summary/logs in this build directory. |
 | `python scripts/verify.py --mode full --compiler clang --build-dir .build/p10-full-clang` | UNAVAILABLE locally: no `clang` executable. Nonzero result retained as unavailable, not a passing skip. Linux CI owns the available Clang/sanitizer check. |
 | `python scripts/check_promptset.py`; `git diff --check` | PASS: all 134 retained artifact hashes, ledger accounting and maintained links; no whitespace errors. Originals and byte-protection attributes unchanged. Staged/committed reference-byte checks also run. |
-| Exact-commit remote CI | Pending first checked implementation push. Existing automatic workflow triggers remain unchanged; no fabricated CI success or firmware job. |
+| Exact-commit remote CI | PASS on implementation commit `694af550bbb135184cc84360f3e32bf1a0200b40`: [run 40868026066](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40868026066), Windows quick plus Linux GCC 13 / Clang 18 full ASan/UBSan, packages and strict Doxygen. All three jobs completed successfully. Existing triggers/pins unchanged. |
 
 Initial integrated checks exposed stale proof-detail assertions and independently
 maintained checker fixture registrations after migration. Updated those fixtures
@@ -172,5 +174,27 @@ version ownership is unchanged. Original licenses/artifacts remain separate.
 
 No hardware, live drive scale or firmware claim is tested. Native wire conversion,
 permission, post-trigger evidence and finite motion retain their assigned later
-prompts. All pure prompt-10 software scope is implemented; final milestone CI and
-commit/sync closure remain before marking the stage Complete.
+prompts. All pure prompt-10 software scope and required checks are complete.
+
+## Commit, synchronization and final handoff
+
+Implementation commit `694af550bbb135184cc84360f3e32bf1a0200b40` was pushed to
+`origin/promptset/motorcontrol-can`; fresh fetch confirmed ahead/behind 0/0 and
+a clean tree. All three jobs of its linked run passed. This subsequent checked
+documentation checkpoint records that terminal result and updates stage/coverage
+state without changing production code or tests. Its exact HEAD and automatic
+CI result are verified again before the final user handoff, rather than treating
+the earlier green run as verification of a new commit.
+
+Final integrated local summary: `.build/p10-integrated/summary.json`; quick:
+`.build/p10-quick/summary.json`; local Clang unavailability:
+`.build/p10-full-clang/summary.json`. Staged and committed integrity checks
+verify all 134 retained Git artifact blobs. The documented optional source preview
+also passed with `-DBUILD_TESTING=OFF -DMOTORCONTROLCAN_BUILD_EXAMPLES=ON` in
+`.build/p10-preview`; standalone `examples/units_preview` passed against the
+relocated package prefix in `.build/p10-installed-preview`.
+
+Documentation-only closure checks: planning integrity (working/staged/committed
+bytes), whitespace and Doxygen. No additional native suite is needed for these
+status/link edits; existing automatic CI still runs and is checked at final HEAD.
+No task-owned software gaps remain. No further prompt is executed in this turn.

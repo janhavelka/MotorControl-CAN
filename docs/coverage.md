@@ -30,7 +30,7 @@ that support claim. Reference/data verification is not driver testing.
 | --- | --- | --- |
 | R01 | 1-2; recurring all | Prompt 6 refresh records actual RS contracts, ESS callers/tests and clean unchanged revision; source map links current proof declarations. Recurring audits remain. |
 | R02 | All | Prompt 6 refresh inspects ADS1115/INA228 storage/result/deadline seams and actual callers/tests; differences from CAN result/release retained. Recurring audits remain. |
-| R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; installed API/CLI remain pending. |
+| R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; motion operations/CLI remain pending. |
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | C++11 api_contract and fixtures build without stack/SDK/Python/siblings; optional owner uses the selected C99 client. Prompt 7 source/install/export consumers pass; the core excludes the optional owner/stack. |
 | R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table, lifetimes and per-call RX/TX/event budgets including zero-budget behavior. Native tests cover copied payload, single RX, reservations, urgent capacity, immutable operation deadlines and retained terminals. Fresh independent audit found no runtime defect; production extensions remain 13/15/23. |
 | R06 | 2-4, 19-22, 29-36, 47-50 | Pending |
@@ -58,11 +58,11 @@ that support claim. Reference/data verification is not driver testing.
 | R28 | 5-6, 11-12, 15, 17, 23-28, 45-46 | Classical eight-byte value preserves extended/RTR shape; protocol adapter narrows accepted frames. FD explicitly rejected; real codecs/controller/FD milestone pending. |
 | R29 | 2-4, 9-10, 21-22, 30-36, 45-46 | Production tests exercise independent command/feedback/load/linear scales and exact time dimensions without full-step geometry. C10 keeps Lichuan ms distinct from acceleration. Pure axis/reference policy is implemented; native/physical scaling qualification remains pending. |
 | R30 | 5-6, 29, 45-50 | Explicit test-only N5/EPOS4/proprietary fixtures and synthetic profile do not install or advertise another driver. Actual additional profile/qualification milestones remain pending. |
-| R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to actual prototype functions, contexts and owner methods, with current RS/I2C source evidence. Production API/CLI/health still pending. |
+| R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to actual prototype functions, contexts and owner methods, with current RS/I2C source evidence. Production motion operations/CLI/health remain pending; pure units and axis targets are installed. |
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners retained; prompts 1–9 complete. All later feature, integration and qualification obligations remain pending. |
+| R35 | 1-50 | Current owners retained; prompts 1-10 complete, with exact local/CI evidence in their reports. All later feature, integration and qualification obligations remain pending. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified
