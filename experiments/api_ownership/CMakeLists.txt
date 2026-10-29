@@ -3,7 +3,7 @@ project(api_ownership_proof LANGUAGES C CXX)
 enable_testing()
 add_subdirectory(../.. core_package)
 
-# One pinned engine, reused from prompt 5. No production install/export target yet.
+# One pinned engine, reused from prompt 5; excluded from the installed core.
 add_subdirectory(../canopen_service_fit fit_stack)
 add_library(api_contract STATIC Operations.cpp)
 target_link_libraries(api_contract PUBLIC MotorControlCAN::MotorControlCAN)

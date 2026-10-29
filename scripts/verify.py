@@ -44,7 +44,9 @@ class Runner:
         stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
         self.base.mkdir(parents=True, exist_ok=True)
         self.directory = Path(tempfile.mkdtemp(prefix=stamp + "-" + str(os.getpid()) + "-", dir=self.base))
-        self.summary = {"mode": mode, "platform": platform.platform(),
+        self.summary = {"mode": mode,
+                        "omitted_gates": ["package", "documentation"] if mode == "quick" else [],
+                        "platform": platform.platform(),
                         "python": sys.version, "root": str(ROOT),
                         "artifacts": str(self.directory), "status": "running",
                         "tools": {}, "steps": []}
@@ -94,7 +96,11 @@ class Runner:
             # Run the missing name through the same logging/error path.
             self.run(name + "_version", [executable, "--version"], timeout=20)
         output = self.run(name + "_version", [path, "--version"], timeout=20)
-        self.summary["tools"][name] = {"path": path, "version": output.splitlines()[0]}
+        lines = output.strip().splitlines()
+        if not lines:
+            raise VerificationFailure("{} returned an empty version; see {}".format(
+                name, self.summary["steps"][-1]["log"]))
+        self.summary["tools"][name] = {"path": path, "version": lines[0]}
         self.save()
         return path
 

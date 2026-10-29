@@ -99,8 +99,9 @@ unchanged exact requests. A later profile owns its native format and tolerance.
 The explicit approximate conversion overloads consume a positive finite
 destination-unit error allowance and return `UnitConversion` with a conservative
 arithmetic/pi error bound. They require the default IEEE round-to-nearest
-environment, do not change that environment, and do not promise exact
-representation. Nonfinite/underflowing results or exceeded allowances reject.
+environment and do not change the rounding mode. Floating calculations may raise
+ordinary exception flags; they do not promise exact representation.
+Nonfinite/underflowing results or exceeded allowances reject.
 Bounds exclude uncertainty in caller scales. Approximation never supplies an
 origin, coordinate reference or angle-path choice; prompt 10 owns that policy.
 

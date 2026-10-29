@@ -11,9 +11,10 @@ does not identify a published release or tag.
 
 ## Requirements and ordinary use
 
-Native consumers need CMake 3.19+, a C++11 compiler and a build tool. Python,
-ESP-IDF, Arduino, CANopenNode, sibling checkouts and reference documents are
-not package dependencies. The maintained consumer in
+Native consumers need CMake 3.19+, a C++11 compiler and a build tool. The numeric
+API requires IEEE binary32/binary64. Python, ESP-IDF, Arduino, CANopenNode,
+sibling checkouts and reference documents are not package dependencies.
+The maintained consumer in
 `test/installed_consumer/main.cpp` exercises the public functions under C++11
 and C++17, with RTTI disabled for the C++17 target.
 
@@ -62,7 +63,7 @@ ctest --test-dir .build/consumer --output-on-failure
 
 Install locations follow `GNUInstallDirs`, including a custom
 `CMAKE_INSTALL_INCLUDEDIR`. The prefix is relocatable. Installation contains
-five public headers, the static library, CMake config/target/version files and
+the public headers, static library, CMake config/target/version files and
 the software license. The consumer may request an exact metadata version with
 `find_package(MotorControlCAN 0.1.0 EXACT CONFIG REQUIRED)`.
 
@@ -70,8 +71,10 @@ the software license. The consumer may request an exact metadata version with
 
 Developer tests need Python 3.10+, Ninja and C/C++ compilers. They register the
 retained synthetic operations/owner and N5/EPOS4 fixtures under `test/`; these
-tests additionally build the pinned local CANopenNode experiment. The installed
-library does not link that experiment. Checks stay active in Release builds.
+tests additionally build the pinned local CANopenNode experiment. Running the
+complete CTest inventory also requires Doxygen 1.13.2; the quick verifier omits
+documentation and package checks as described in the [verification guide](verification.md).
+The installed library does not link that experiment. Checks stay active in Release builds.
 
 ```text
 python scripts/generate_version.py check
@@ -97,8 +100,8 @@ python scripts/export_package.py dist/MotorControl-CAN.zip
 Extract it with a ZIP tool, then use the native build/install commands above.
 The exported build needs neither Python nor network access. The archive contains
 only `include/`, `src/`, `cmake/`, root CMake/metadata/license/readme/changelog
-and this guide. Vendor material, audits, test/experiment sources and dependencies,
-examples and sibling snapshots are excluded. PlatformIO 6.1.19's equivalent
+and the package and units/status guides. Vendor material, audits, test/experiment
+sources and dependencies, examples and sibling snapshots are excluded. PlatformIO 6.1.19's equivalent
 developer packaging command is `pio pkg pack --output dist/MotorControl-CAN.tar.gz`;
 its platforms/frameworks are wildcard because the core has no SDK dependency.
 No `library.properties` is needed for the current CMake/PlatformIO distribution.
@@ -113,7 +116,7 @@ developer tools are outside the core distribution.
 ## Optional ESP-IDF component boundary
 
 When ESP-IDF supplies `idf_component_register`, root CMake registers the same
-two pure sources and public include directory with a C++11 floor. The application
+portable sources and public include directory with a C++11 floor. The application
 owns the SDK, controller, bus configuration and all I/O. Native builds never
 load ESP-IDF. Actual board adapters and firmware examples are later milestones;
 the current component contract does not imply a tested firmware target.

@@ -135,3 +135,10 @@ No prompt-9 semantic feature is deferred. Common axis/reference mutation is
 prompt 10; native widths, scaling qualification and device motion remain their
 existing later owners. There is no CAN hardware result, installed vendor profile
 or drive-specific write in this prompt. Prompt 10 is next.
+
+## Fresh independent audit of prompts 7-9
+
+The [independent audit](prompts_7_9_audit.md) reread this original prompt and
+checked the actual current code, diff, callers and failure tests. It records
+the confirmed fixes, source revisions and integrated delivery verification.
+This stage retains Complete status and its original scope.

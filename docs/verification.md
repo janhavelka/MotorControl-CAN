@@ -42,6 +42,10 @@ nor sanitizer libraries become exported package requirements.
 Use a fresh ignored build directory for a clean run. The latest summary is
 `<build-dir>/summary.json`; each invocation also retains its own timestamped
 subdirectory with numbered command logs, summary and build/package artifacts.
+Quick summaries explicitly list `package` and `documentation` in `omitted_gates`;
+full summaries list no mode omissions. Sanitizer selection and tool availability
+remain separate fields. A tool returning empty version output fails with its log
+location rather than leaving a run marked in progress.
 These identify the executed argument list, tool/version,
 status, elapsed time and artifact location. A failure retains its diagnostics
 and returns nonzero. Save relevant logs before removing disposable build output;
@@ -55,9 +59,9 @@ This table is the maintained inventory. Stage reports record individual results.
 
 | Check | Current command or registration | Mode/status |
 | --- | --- | --- |
-| Structure, manifest, package files, links, explicit test registration | `python scripts/check_repository.py` | Quick and full |
+| Structure, manifest, package files, explicit test registration | `python scripts/check_repository.py` | Quick and full |
 | Checked-in version freshness | `python scripts/generate_version.py check` | Quick and full |
-| Retained reference/ledger integrity | `python scripts/check_promptset.py` | Quick and full |
+| Maintained links and retained reference/ledger integrity | `python scripts/check_promptset.py` | Quick and full |
 | Native core, exact units/quantization, retained ownership proof and multidrive contracts | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full; C++11, strict private warnings |
 | Python version/checker/planning regressions | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full |
 | Source, relocated install and exported-source consumers; missing dependency rejection | `test/package_test.py` / `package_contract` | Full; isolated paths, C++11 and C++17/no RTTI |

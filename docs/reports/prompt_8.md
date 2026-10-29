@@ -149,3 +149,10 @@ No verified private reporting channel exists yet; SECURITY records that release
 gap without inventing an address. No source API, profile, hardware workflow or
 new runtime abstraction was added. Prompts 12 and 27–28 retain their generation
 and firmware responsibilities. Prompt 9 is next.
+
+## Fresh independent audit of prompts 7-9
+
+The [independent audit](prompts_7_9_audit.md) reread this original prompt and
+checked the actual current code, diff, callers and failure tests. It records
+the confirmed fixes, source revisions and integrated delivery verification.
+This stage retains Complete status and its original scope.

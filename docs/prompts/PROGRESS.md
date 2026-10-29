@@ -17,6 +17,11 @@ rechecked the actual code and original acceptance criteria. It clarified fixed
 owner work budgets; native, documentation and integrity checks passed. Prompt 6
 remains Complete, with no newly discovered runtime defect or scope blocker.
 
+A [fresh independent audit of prompts 7-9](../reports/prompts_7_9_audit.md)
+corrected verifier omission/empty-version reporting and package/numeric
+documentation. Arithmetic and isolated package reviews found no functional
+defect. Prompts 7-9 retain Complete status; prompt 10 remains next.
+
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
 Use numerical order among ready work within the assignment. Record the blocker and completed artifacts before progressing to independent work; return when evidence arrives. Prompts 18/20-22 may stay Partial while the independent owner/adapter path reaches the evidence harness in 29. Their typed features and owner integration remain owed to their original prompts. A partial predecessor or dependent chunk is never marked Complete merely to continue.

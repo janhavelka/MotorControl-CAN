@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -45,6 +46,28 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(caught.exception.status, "unavailable")
         self.assertEqual(self.last()["status"], "unavailable")
 
+    def test_empty_tool_version_fails_and_retains_a_final_summary(self):
+        for index, output in enumerate(("", " \n\t ")):
+            with self.subTest(output=output):
+                base = self.base / ("empty-version-" + str(index))
+                result = subprocess.CompletedProcess([], 0, stdout=output)
+                with mock.patch.object(verify.shutil, "which", return_value=sys.executable), \
+                     mock.patch.object(verify.subprocess, "run", return_value=result):
+                    status = verify.main(["--build-dir", str(base)])
+                summary = json.loads((base / "summary.json").read_text(encoding="utf-8"))
+                self.assertEqual(status, 1)
+                self.assertEqual(summary["status"], "failed")
+                self.assertIn("cmake returned an empty version", summary["error"])
+                self.assertNotIn("cmake", summary["tools"])
+                self.assertTrue(Path(summary["steps"][-1]["log"]).is_file())
+
+    def test_summary_explicitly_identifies_omitted_mode_gates(self):
+        for mode, expected in (("quick", ["package", "documentation"]), ("full", [])):
+            with self.subTest(mode=mode):
+                runner = verify.Runner(self.base / mode, mode)
+                summary = json.loads((runner.directory / "summary.json").read_text(encoding="utf-8"))
+                self.assertEqual(summary["omitted_gates"], expected)
+
     def test_timeout_retains_failure_and_command(self):
         with self.assertRaises(verify.VerificationFailure):
             self.runner.run("timeout", [sys.executable, "-c", "import time; time.sleep(10)"], timeout=0.1)
@@ -84,7 +107,6 @@ class VerificationTests(unittest.TestCase):
             self.assertFalse(verify.doxygen_matches(invalid), invalid)
 
     def test_optimized_python_is_rejected(self):
-        import subprocess
         result = subprocess.run([sys.executable, "-O", str(ROOT / "scripts/verify.py"),
                                  "--build-dir", str(self.base / "optimized")],
                                 capture_output=True, text=True, timeout=10)

@@ -175,7 +175,8 @@ Status convertVelocity(const Rational& value, VelocityUnit from, VelocityUnit to
 Status convertAcceleration(const Rational& value, AccelerationUnit from, AccelerationUnit to,
     const UnitConfig& config, Rational& output);
 /** Explicit approximate displacement, including radians with a conservative pi
- * bound. Assumes IEEE binary64 round-to-nearest; no change to floating environment.
+ * bound. Assumes IEEE binary64 round-to-nearest; does not change the rounding mode.
+ * Ordinary floating-point exception flags may be raised.
  * @param[in] value Exact input. @param[in] from Input unit. @param[in] to Output unit.
  * @param[in] config Facts. @param[in] maximumError Positive finite absolute error allowance.
  * @param[out] output Approximation/error bound, unchanged on failure. @return Local status. */
