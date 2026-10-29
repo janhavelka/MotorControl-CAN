@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added deterministic reviewed Lichuan object generation, 194 compact profile-scoped descriptors, optional descriptive metadata and complete generated source/semantic coverage. Four disputed signed types and four reserved entries remain withheld or excluded; all read effects and write qualifications retain their gates.
+- Activated exact object freshness in quick/full verification and CI, with malformed-ledger, deterministic, stale-byte and atomic-publication regressions. Added independent-header, installed/exported and catalogue-free consumers; generated metadata implements no typed operation or device support.
+
 - Added pure checked CANopen SDO request/reply envelopes, explicit channel/binding/width correlation, unsigned and signed little-endian reads, and owned reply evidence. Valid aborts retain every bit; valid segmented initiation remains distinct from malformed input. CANopenNode remains the sole selected encoder/session engine.
 - Added Classical BRS/ESI rejection, exhaustive frame/command checks, raw-buffer overlap/atomic-output regressions and actual CANopenNode-generated request tests. Isolated installed consumers and strict API documentation cover the new declarations; no device permission or live exchange is implied.
 

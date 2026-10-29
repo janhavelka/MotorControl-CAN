@@ -35,6 +35,11 @@ REQUIRED = {
     "scripts/verify.py", "scripts/check_repository.py", "scripts/generate_version.py",
     "scripts/export_package.py", "scripts/check_promptset.py",
     "scripts/check_lichuan_ledger.py", "scripts/doxygen_filter.py",
+    "scripts/generate_lichuan_objects.py", "scripts/generate_lichuan_objects_test.py",
+    "docs/reference/lichuan_objects.json", "docs/reference/lichuan_generated.md",
+    "include/MotorControlCAN/profiles/lichuan_c/Types.h",
+    "include/MotorControlCAN/profiles/lichuan_c/Objects.h",
+    "include/MotorControlCAN/profiles/lichuan_c/Catalogue.h", "test/objects_test.cpp",
     "scripts/check_promptset_test.py", "scripts/check_lichuan_ledger_test.py",
     "test/CMakeLists.txt", "test/core_test.cpp", "test/api_ownership_test.cpp",
     "test/multidrive_contract_test.cpp", "test/version_test.py", "test/package_test.py",
@@ -44,6 +49,7 @@ REQUIRED = {
 }
 CHECKS = {
     "version_generated": ("scripts/generate_version.py", ["check"]),
+    "objects_generated": ("scripts/generate_lichuan_objects.py", ["--check"]),
     "repository_checks": ("scripts/check_repository.py", []),
     "planning_integrity": ("scripts/check_promptset.py", []),
 }

@@ -5,3 +5,7 @@
 /docs/audit/evidence/** -text
 /experiments/canopen_service_fit/vendor/** -text
 /experiments/canopen_service_fit/UPSTREAM.json text eol=lf
+# Generated object headers are compared byte-for-byte by their freshness check.
+/include/MotorControlCAN/profiles/lichuan_c/Types.h text eol=lf
+/include/MotorControlCAN/profiles/lichuan_c/Objects.h text eol=lf
+/include/MotorControlCAN/profiles/lichuan_c/Catalogue.h text eol=lf

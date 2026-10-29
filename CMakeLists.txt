@@ -62,6 +62,10 @@ install(FILES include/MotorControlCAN/can/Frame.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/can")
 install(FILES include/MotorControlCAN/canopen/Sdo.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/canopen")
+install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
+    include/MotorControlCAN/profiles/lichuan_c/Objects.h
+    include/MotorControlCAN/profiles/lichuan_c/Catalogue.h
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/profiles/lichuan_c")
 install(EXPORT MotorControlCANTargets NAMESPACE MotorControlCAN::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MotorControlCAN")
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/MotorControlCANConfig.cmake"

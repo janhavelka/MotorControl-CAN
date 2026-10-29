@@ -72,9 +72,18 @@ target_link_libraries(sdo_adapter_test PRIVATE proof_owner)
 strict_test(sdo_adapter_test)
 add_test(NAME sdo_adapter COMMAND sdo_adapter_test)
 
+add_executable(objects_test objects_test.cpp)
+target_link_libraries(objects_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(objects_test)
+add_test(NAME objects COMMAND objects_test)
+
 find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
 add_test(NAME version_generated COMMAND "${Python3_EXECUTABLE}"
     "${PROJECT_SOURCE_DIR}/scripts/generate_version.py" check)
+add_test(NAME objects_generated COMMAND "${Python3_EXECUTABLE}"
+    "${PROJECT_SOURCE_DIR}/scripts/generate_lichuan_objects.py" --check)
+add_test(NAME objects_generator_contract COMMAND "${Python3_EXECUTABLE}"
+    "${PROJECT_SOURCE_DIR}/scripts/generate_lichuan_objects_test.py")
 add_test(NAME version_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/version_test.py")
 add_test(NAME package_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/package_test.py"
     --cmake "${CMAKE_COMMAND}" --compiler "${CMAKE_CXX_COMPILER}")
@@ -85,9 +94,9 @@ add_test(NAME documentation_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CU
 add_test(NAME planning_integrity COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset.py")
 add_test(NAME planning_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset_test.py")
 add_test(NAME ledger_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_lichuan_ledger_test.py")
-set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract frame sdo_codec sdo_adapter PROPERTIES TIMEOUT 10)
+set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract frame sdo_codec sdo_adapter objects PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
 set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
 set_tests_properties(package_contract PROPERTIES LABELS full)
 set_tests_properties(version_contract repository_contract verification_contract planning_integrity
-    planning_validator_contract ledger_validator_contract repository_checks PROPERTIES TIMEOUT 90)
+    planning_validator_contract ledger_validator_contract repository_checks objects_generated objects_generator_contract PROPERTIES TIMEOUT 90)

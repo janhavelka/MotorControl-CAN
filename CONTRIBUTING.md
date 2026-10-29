@@ -2,7 +2,8 @@
 
 Read [AGENTS.md](AGENTS.md), the [current handoff](docs/prompts/PROGRESS.md) and
 the assigned numbered prompt before editing. The working package currently
-contains status, exact units/quantization, endpoint identity and Classical CAN frame validation. Synthetic
+contains status, exact units/axis targets, endpoint identity, Classical CAN/SDO
+checks and reviewed Lichuan object metadata. Synthetic
 motion/profile tests do not establish implemented drive support.
 
 ## Build and check a change
@@ -53,8 +54,24 @@ Keep N5/EPOS4 and synthetic operations in test support.
 `library.json` is the version authority. After an intentional version change run
 `python scripts/generate_version.py sync`, review and commit `Version.h`, then
 run `python scripts/generate_version.py check`. Fix documentation of generated
-declarations in the generator rather than editing generated output. Catalogue
-generation is a later stage with its own reviewed ledger and check mode.
+declarations in the generator rather than editing generated output.
+
+The single reviewed object source is `docs/reference/lichuan_objects.json`.
+After a source-backed reviewed policy change, validate and regenerate:
+
+```text
+python scripts/check_lichuan_ledger.py
+python scripts/generate_lichuan_objects.py
+python scripts/generate_lichuan_objects.py --check
+```
+
+The object generator uses only Python's standard library and retained developer
+evidence. It validates source accounting/policy before preparing all outputs.
+Check mode compares exact bytes without writing. Commit the ledger, generator,
+generated headers/coverage, relevant tests and docs together. Optional descriptive
+`Catalogue.h` is separate from numeric `Objects.h`; neither metadata nor EDS access
+flags implement a semantic read, setting or action. Ordinary consumers require
+no generator, ledger, vendor file or Python. Version generation remains independent.
 
 Document public declarations in their headers, including parameters, validity,
 units, ownership, failure output and evidence limits where applicable. Extend

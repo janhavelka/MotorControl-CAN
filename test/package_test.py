@@ -20,7 +20,10 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h", "MotorControlCAN/Version.h",
-           "MotorControlCAN/MotorControlCAN.h"}
+           "MotorControlCAN/MotorControlCAN.h",
+           "MotorControlCAN/profiles/lichuan_c/Types.h",
+           "MotorControlCAN/profiles/lichuan_c/Objects.h",
+           "MotorControlCAN/profiles/lichuan_c/Catalogue.h"}
 
 
 def require(condition, evidence):
@@ -137,6 +140,14 @@ def check_package(args, work, summary):
                "-DMOTORCONTROLCAN_EXPECTED_VERSION=" + version,
                "-DMOTORCONTROLCAN_HEADERS_DIR=" + str(relocated / "sdk/include"))
     consumer(work / "installed consumer", *options)
+    # Profile numeric metadata has no required descriptive catalogue dependency.
+    catalogue = relocated / "sdk/include/MotorControlCAN/profiles/lichuan_c/Catalogue.h"
+    original_catalogue = catalogue.read_bytes()
+    catalogue.unlink()
+    try:
+        consumer(work / "no catalogue consumer", *options)
+    finally:
+        catalogue.write_bytes(original_catalogue)
     # A real direct public dependency must fail in a fresh consumer build.
     required_header = relocated / "sdk/include/MotorControlCAN/Status.h"
     original_header = required_header.read_bytes()

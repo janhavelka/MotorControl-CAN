@@ -132,7 +132,12 @@ No `library.properties` is needed for the current CMake/PlatformIO distribution.
 `library.json` is the only version source. After intentionally changing it,
 run `python scripts/generate_version.py sync`, commit the generated `Version.h`
 and rerun `check`. Ordinary builds consume that checked-in header directly.
-Object catalogue generation belongs to prompt 12. The [verification guide](verification.md)
+Reviewed object headers are checked in. Include
+`<MotorControlCAN/profiles/lichuan_c/Objects.h>` explicitly for compact metadata;
+`Catalogue.h` adds optional static descriptive strings. The root umbrella remains
+common-only, and neither header establishes an operational drive profile.
+Developer freshness uses `python scripts/generate_lichuan_objects.py --check`;
+installed consumers need no Python, ledger or original vendor material. The [verification guide](verification.md)
 documents the working quick/full verifier, CI and strict Doxygen gate. These
 developer tools are outside the core distribution.
 

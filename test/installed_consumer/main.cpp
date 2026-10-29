@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/MotorControlCAN.h>
+#include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <cstring>
 
 int main() {
@@ -49,5 +50,8 @@ int main() {
     CANOPEN::SdoReply reply; uint32_t word = 0;
     if (!CANOPEN::checkReply(response, sdo, reply) ||
         !CANOPEN::readWord(reply.data, reply.length, sdo.width, word) || word != 0x1234) return 9;
+    if (LICHUAN_C::OBJECT_1009_00.widthBytes != 2 ||
+        LICHUAN_C::OBJECT_2300_00.writePolicy != LICHUAN_C::WritePolicy::QUALIFICATION_REQUIRED)
+        return 10;
     return 0;
 }

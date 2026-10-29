@@ -179,6 +179,7 @@ def main(argv=None):
         runner.summary["tools"]["python"] = {"path": sys.executable, "version": platform.python_version()}
         runner.run("repository", [sys.executable, ROOT / "scripts/check_repository.py"])
         runner.run("version", [sys.executable, ROOT / "scripts/generate_version.py", "check"])
+        runner.run("objects", [sys.executable, ROOT / "scripts/generate_lichuan_objects.py", "--check"])
         doxygen = None
         if args.mode == "full":
             doxygen = runner.tool("doxygen", "doxygen")

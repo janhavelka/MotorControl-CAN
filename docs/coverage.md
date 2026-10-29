@@ -40,14 +40,14 @@ that support claim. Reference/data verification is not driver testing.
 | R10 | 9-10, 13-25, 30-32 | Production Status preserves selected call-result semantics/static labels. Production SDO checks and the proof preserve raw U32 aborts separately; acknowledged write retains completion NOT_OBSERVED. Real drive/health/state behavior remains pending. |
 | R11 | 11-18, 23-25 | Real expedited/two-segment SDO proof plus prompt-6 continuous raw event dispatch and boot-up invalidation even when the observation ring is full. Prompt 11 adds installed checked initiation envelopes, legal segmented/abort evidence and real selected-engine vectors. Production service/network/PDO lifecycle remains pending. |
 | R12 | 13-14, 21-25, 30-39, 45-46 | Proof tests deadline, cancellation, fake retirement, retained uncertainty and no replay. Real SDK queues and channel reconciliation remain pending. |
-| R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Generation, typed features and their tests remain pending; restricted raw reads do not complete setters/actions. |
+| R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Prompt 12 generates 194 compact descriptors and complete source/semantic coverage with active freshness checks; four conflicting types and four reserved entries are withheld/excluded. Typed features remain pending; descriptors do not complete reads, setters or actions. |
 | R14 | 21-25, 29-36, 47-48 | Pending |
 | R15 | 21-22, 29, 32-36, 47-48 | Pending |
 | R16 | 37-39 | Pending |
 | R17 | 26-28, 40-42, 49-50 | Pending |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Pending |
-| R20 | 7-28, 30-46, 49-50 | Twenty-one explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 19; full runs 20 plus a retained package contract. Prompt-11 local full/package/Doxygen and Windows/GCC/Clang sanitizer CI pass in [its report](reports/prompt_11.md). |
+| R20 | 7-28, 30-46, 49-50 | Twenty-four explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 22; full runs 23 plus a retained package contract. Prompt-12 generator/object/header tests are registered with existing contracts; integrated local and milestone CI results belong to [its report](reports/prompt_12.md). |
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
@@ -62,7 +62,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners retained; prompts 1-11 complete, with exact local/CI evidence in their reports. All later feature, integration and qualification obligations remain pending. |
+| R35 | 1-50 | Current owners retained; prompts 1-11 complete; prompt 12 local implementation/checks pass with milestone CI pending in its report. All later feature, integration and qualification obligations remain pending. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified

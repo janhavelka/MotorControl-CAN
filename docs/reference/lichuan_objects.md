@@ -7,7 +7,7 @@ review of all 202 entries and 53 manual functions. Read the
 grants no SDO write, PDO mapping, implemented feature or firmware qualification.
 The original EDS and PDFs remain in
 [SOURCES.json](SOURCES.json) under their own copyright and are excluded from a
-future core package.
+core package.
 
 ## Scope and source identity
 
@@ -47,6 +47,7 @@ feedback scale does not block retention of a raw feedback value.
 | `units`, `scaling`, `effect`, `prerequisites`, `edge_behavior` | Reviewed descriptions, including explicit unknowns. Native ramp milliseconds are distinct from physical acceleration; command pulses do not establish feedback, home-offset or limit units. Only `2302` and mode-specific bit-4 actions have the stated source-backed edges; reset-bit manual return does not establish a pulse width. |
 | `source_refs`, `confidence`, `conflict_ids`, `owner_prompt` | Exact EDS and applicable per-entry PDF pages; confidence identifies the source claim, not measured behavior. The owner is the actual later implementation prompt, not prompt 3's documentary reviewer. |
 | `review` on an entry | `status=complete` means all documentary facets were reviewed. `type_policy` and `value_policy` state usable representation and limits/default treatment. `read_effect=not_established` forbids promotion to non-consuming qualification. `write_policy` is `not_writable`, `qualification_required` or `reserved`; none authorizes a device write. `gate_ids` links the smallest dependent evidence questions. |
+| `review.generation_type` | Required declaration disposition: `resolved` for the 194 compact descriptors, `withheld` for the four unresolved complete signed types, or `excluded` for the four reserved entries. The validator checks consistency with reviewed policy. This does not resolve other conflicts, qualify effects or change semantic coverage. |
 | `coverage` | Separate `documented`, `implemented`, `host_tested`, `hardware_qualified` booleans. `documented=true` means a source describes the row, not that the meaning or writable use is approved. The other three are false throughout this intake. |
 | `manual_only[]` | All 53 functions retain model scope, original pages, related entries and independent coverage. `disposition=reviewed` and `review.decision` close documentary review. The owner, required gates and action obligation remain explicit even where corresponding entries are currently read-only. No raw accessor or unsupported stub completes these future functions. There are no additional CANopen object addresses in the five manuals. |
 | `conflicts[]` | All 24 original competing claim sets and references remain intact. `resolution=unresolved`, `decision=null` and `resolution_evidence=null` mean no firmware winner was selected. The separate `review.disposition` records the conservative decision or limited documentary normalization, with consequences and gates. This is not fabricated resolution evidence. |
@@ -86,6 +87,9 @@ Run from the repository root:
 ```text
 python scripts/check_lichuan_ledger.py
 python scripts/check_lichuan_ledger_test.py
+python scripts/generate_lichuan_objects.py
+python scripts/generate_lichuan_objects.py --check
+python scripts/generate_lichuan_objects_test.py
 python scripts/check_promptset.py --check-git-ref HEAD
 ```
 
@@ -100,3 +104,53 @@ validator. These checks cannot prove a PDF's meaning or device behavior: the
 its independent challenges. Future evidence-based schema changes must update
 the policy guards and their regression cases together, preserving original
 claims and the precise reason for each change.
+
+## Generated native declarations and access policy
+
+The generator emits checked-in `Types.h`, `Objects.h` and optional `Catalogue.h`
+under `include/MotorControlCAN/profiles/lichuan_c/`, plus
+[readable generated accounting](lichuan_generated.md). Its only editable object
+source is this ledger. It first runs full original-source/schema/accounting
+validation, renders every candidate in memory and stages all files before
+replacement. A failed replacement restores prior file contents. Check mode
+compares exact UTF-8/LF bytes and changes nothing, including on failure.
+Both quick/full verification and CI run this real freshness command; version
+generation remains independent. Developer generation needs Python's standard
+library and retained evidence. Ordinary installed/exported consumers need none
+of Python, the ledger, originals or generator execution.
+
+```cpp
+#include <MotorControlCAN/profiles/lichuan_c/Objects.h>
+// Representation metadata only; it grants no transfer or semantic operation.
+static_assert(MotorControlCAN::LICHUAN_C::OBJECT_1009_00.widthBytes == 2,
+              "Lichuan hardware version is a U16 code");
+```
+
+The compact header has named profile-scoped constants and restrictive policy;
+it contains no strings, runtime dictionary, lookup route or write-admission
+helper. Descriptive strings and original limit/default spelling live in the
+separately included `Catalogue.h`. A missing catalogue does not prevent numeric
+consumption. Neither header is pulled into the common umbrella. Package tests
+compile all public headers independently and exercise relocated consumers with
+the catalogue removed.
+
+`6060`, `6061`, `6098` and `60FF` have known byte widths but conflicting complete
+signed types. Their original EDS claims, manual alternatives, owners and gates
+stay visible in coverage; no typed descriptor or alternate catalogue route is
+generated for them. The malformed `607A` spelling has a reviewed I32 documentary
+normalization, so it retains a descriptor. Reserved `2400:09/0A/0B/10` remain
+excluded. Counts keep their own native types and access: `2400:00` is U16 and
+mapping counts can be RW, while `1018` retains only children `00..03`.
+
+All reads retain `UNQUALIFIED` effects; RO does not mean harmless polling.
+Every write policy is forbidden or qualification-required. PDO eligibility is
+independent: the EDS RPDO1 claims for WO commands do not add SDO uploads,
+approve active maps or enable actions. No default PDO template is implemented
+here; observed mapping belongs to prompt 17. Lichuan `0x2300` save/reset cannot
+dispatch N5 NanoJ control merely because its index matches.
+
+Generated coverage accounts separately for all 99 indexes, 202 typed source
+entries, 53 manual functions, 24 conflicts, gaps and anomaly A01. Descriptor
+presence is separate from typed reads/settings/actions/workflows and their
+documented, implemented, host-tested and hardware-qualified flags. All semantic
+implementation/test/qualification fields remain false at this stage.

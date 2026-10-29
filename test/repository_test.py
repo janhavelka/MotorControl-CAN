@@ -33,6 +33,11 @@ FILES = {
     "scripts/verify.py", "scripts/check_repository.py", "scripts/generate_version.py",
     "scripts/export_package.py", "scripts/check_promptset.py",
     "scripts/check_lichuan_ledger.py", "scripts/doxygen_filter.py",
+    "scripts/generate_lichuan_objects.py", "scripts/generate_lichuan_objects_test.py",
+    "docs/reference/lichuan_objects.json", "docs/reference/lichuan_generated.md",
+    "include/MotorControlCAN/profiles/lichuan_c/Types.h",
+    "include/MotorControlCAN/profiles/lichuan_c/Objects.h",
+    "include/MotorControlCAN/profiles/lichuan_c/Catalogue.h", "test/objects_test.cpp",
     "scripts/check_promptset_test.py", "scripts/check_lichuan_ledger_test.py",
     "test/CMakeLists.txt", "test/core_test.cpp", "test/api_ownership_test.cpp",
     "test/multidrive_contract_test.cpp", "test/version_test.py", "test/package_test.py",
@@ -60,7 +65,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "api_ownership", "multidrive_contract"):
+        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})
@@ -68,6 +73,8 @@ class RepositoryTests(unittest.TestCase):
             str(self.build / "test/fit_stack" / ("canopen_service_fit" + suffix))]})
         for name, relative, args in (
                 ("version_generated", "scripts/generate_version.py", ["check"]),
+                ("objects_generated", "scripts/generate_lichuan_objects.py", ["--check"]),
+                ("objects_generator_contract", "scripts/generate_lichuan_objects_test.py", []),
                 ("repository_checks", "scripts/check_repository.py", []),
                 ("planning_integrity", "scripts/check_promptset.py", []),
                 ("version_contract", "test/version_test.py", []),

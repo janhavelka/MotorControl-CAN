@@ -31,6 +31,19 @@ EXPRESSION = re.compile(r"\$NODEID\+0x[0-9A-Fa-f]+\Z")
 # and an explicit correction record, not merely a newly passing ledger.
 ORIGINAL_CONFLICT_CLAIMS_SHA256 = "cf9fdece54e1cb61a542d3268ae8da8bc42c39c56411fe7ff45be1e69fa92537"
 MODELS = {"CL86-C", "OL86-C", "CL57-C", "OL57-C"}
+# These documentary conflicts do not establish a complete native signed type.
+# Their raw EDS claims remain in the ledger and generated coverage, not in the
+# resolved descriptor surface. This guard is independent of semantic gates.
+WITHHELD_GENERATION_KEYS = {"0x6060:00", "0x6061:00", "0x6098:00", "0x60FF:00"}
+
+
+def generation_disposition(entry):
+    """Return the reviewed declaration disposition without granting operations."""
+    if entry.get("role") == "reserved":
+        return "excluded"
+    if entry.get("key") in WITHHELD_GENERATION_KEYS:
+        return "withheld"
+    return "resolved"
 
 # Stable prompt-3 obligations: owner, mandatory gates, documentary write policy.
 # These guard loss of assigned scope; they are not another object dictionary.
@@ -484,7 +497,8 @@ def validate_ledger(data, root=ROOT):
                 continue
             ekey = "0x{:04X}:{:02X}".format(index, sub) if type(sub) is int and 0 <= sub <= 0xFF else None
             elabel = str(entry.get("key"))
-            require(bool(ENTRY_KEY.fullmatch(elabel)) and elabel == ekey and entry.get("index") == index,
+            require(bool(ENTRY_KEY.fullmatch(elabel)) and elabel == ekey and
+                    type(entry.get("index")) is int and entry.get("index") == index,
                     elabel + ": invalid entry key/address")
             identity = (entry.get("scope_id"), index, sub)
             require(identity not in seen_entries, elabel + ": duplicate entry address in scope")
@@ -511,8 +525,12 @@ def validate_ledger(data, root=ROOT):
             if code not in TYPE_CODES:
                 continue
             name, width, signed = TYPE_CODES[code]
-            require(entry.get("type") == {"eds_code": code, "name": name,
-                                          "width_bytes": width, "signed": signed},
+            native_type = entry.get("type")
+            require(isinstance(native_type, dict) and
+                    type(native_type.get("width_bytes")) is int and
+                    type(native_type.get("signed")) is bool and
+                    native_type == {"eds_code": code, "name": name,
+                                    "width_bytes": width, "signed": signed},
                     elabel + ": datatype/width/signedness mismatch")
             require(entry.get("access_eds") == raw.get("AccessType"), elabel + ": access spelling mismatch")
             require(entry.get("pdo_mapping_eds") == raw.get("PDOMapping"), elabel + ": PDO flag mismatch")
@@ -569,6 +587,8 @@ def validate_ledger(data, root=ROOT):
             require(required_gates <= selected_gates, elabel + ": required feature or binding gate missing")
             policy = entry.get("review", {})
             if isinstance(policy, dict):
+                require(policy.get("generation_type") == generation_disposition(entry),
+                        elabel + ": missing or inconsistent generation type disposition")
                 require(policy.get("read_effect") == "not_established",
                         elabel + ": read effect cannot claim qualification")
                 if (index in (0x2100, 0x2101, 0x2102, 0x603F, 0x605D) or

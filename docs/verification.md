@@ -69,7 +69,7 @@ This table is the maintained inventory. Stage reports record individual results.
 | ASan/UBSan | `scripts/verify.py --mode full --sanitize` | Explicit full option; required in supported CI job |
 | GCC/Clang comparison | Full runs with `--compiler gcc` and `--compiler clang` | Supported toolchains checked separately |
 | Whitespace | `git diff --check` | Required local handoff check |
-| Object catalogue freshness | Actual reviewed generator/check command | Planned prompt 12; no current catalogue output |
+| Reviewed object freshness and generator failure contracts | `python scripts/generate_lichuan_objects.py --check` plus `objects_generated` / `objects_generator_contract` | Quick and full; exact bytes, original-source/schema/policy validation, deterministic generation and failure atomicity |
 | Arduino / ESP-IDF firmware builds | Actual buildable adapters and examples | Planned prompts 27–28; component registration mock is not firmware |
 | Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Planned hardware prompts; no current physical result |
 
