@@ -118,6 +118,13 @@ cases cover high-bit, vendor and all-one words. Upstream originals, sanitizer
 settings and existing assertions remain intact. Failed logs/artifacts are
 retained under `.build/p8-ci-gcc` and `.build/p8-ci-clang` and in that CI run.
 
+The next Windows run exposed equal timestamp/PID directory names when two
+verifier instances were created within one clock tick. The run directory now
+uses atomic `mkdtemp` allocation with its timestamp/PID prefix. The existing
+retention regression fixes the clock and proves both directories and summaries
+survive; no sleep or retry hides the collision. Its original failing log is
+retained under `.build/p8-ci-fix-windows`.
+
 README/index, native/verification guides, contributor/security policy, source
 map, backlog, coverage, roadmap, progress and CHANGELOG accompany the tooling.
 No verified private reporting channel exists yet; SECURITY records that release

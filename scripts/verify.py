@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import xml.etree.ElementTree as ET
 
@@ -41,8 +42,8 @@ class Runner:
     def __init__(self, base, mode):
         self.base = Path(base).resolve()
         stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-        self.directory = self.base / (stamp + "-" + str(os.getpid()))
-        self.directory.mkdir(parents=True)
+        self.base.mkdir(parents=True, exist_ok=True)
+        self.directory = Path(tempfile.mkdtemp(prefix=stamp + "-" + str(os.getpid()) + "-", dir=self.base))
         self.summary = {"mode": mode, "platform": platform.platform(),
                         "python": sys.version, "root": str(ROOT),
                         "artifacts": str(self.directory), "status": "running",

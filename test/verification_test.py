@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("verify", ROOT / "scripts/verify.py")
@@ -57,9 +58,13 @@ class VerificationTests(unittest.TestCase):
         verify.check_test_output("100% tests passed, 0 tests failed out of 3")
 
     def test_new_run_keeps_previous_evidence(self):
-        previous = self.runner.directory
-        verify.Runner(self.base, "full")
+        with mock.patch.object(verify.datetime, "datetime") as clock:
+            clock.now.return_value.strftime.return_value = "fixed-time"
+            previous = verify.Runner(self.base, "quick").directory
+            current = verify.Runner(self.base, "full").directory
+        self.assertNotEqual(previous, current)
         self.assertTrue((previous / "summary.json").is_file())
+        self.assertTrue((current / "summary.json").is_file())
 
     def test_empty_documentation_extraction_fails(self):
         header = self.base / "include/MotorControlCAN/Public.h"

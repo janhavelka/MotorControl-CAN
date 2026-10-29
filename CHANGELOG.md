@@ -44,6 +44,7 @@ This repository contains planning/reference material and native service/API owne
 
 ### Fixed
 
+- Allocated retained verifier directories atomically so equal Windows clock readings cannot collide; the retention regression now fixes the clock deliberately.
 - Preserved arbitrary 32-bit SDO abort words at the experimental C/C++ bridge without an invalid enum load, found by the new GCC/Clang UBSan jobs. Added upload/download high-bit regressions.
 
 - Fresh independent prompt-6 audit clarified the fake owner's fixed per-call RX/TX/event budgets and zero-budget behavior. Additional core/owner probes and all maintained checks passed; no runtime correction was required.
