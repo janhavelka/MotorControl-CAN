@@ -6,37 +6,6 @@
 
 namespace MotorControlCAN {
 
-bool sameBinding(const Binding& a, const Binding& b) noexcept {
-    return a.logicalAxisId == b.logicalAxisId &&
-        a.bindingGeneration == b.bindingGeneration &&
-        a.configurationGeneration == b.configurationGeneration &&
-        a.endpoint.protocol == b.endpoint.protocol && a.endpoint.bus == b.endpoint.bus &&
-        a.endpoint.profile == b.endpoint.profile && a.endpoint.address == b.endpoint.address &&
-        a.endpoint.channel == b.endpoint.channel && a.endpoint.subaxis == b.endpoint.subaxis;
-}
-
-Status validateBinding(const Binding& binding) noexcept {
-    if (!binding.logicalAxisId || !binding.endpoint.profile || !binding.bindingGeneration ||
-        !binding.configurationGeneration ||
-        (binding.endpoint.protocol != Protocol::CANOPEN &&
-         binding.endpoint.protocol != Protocol::PROPRIETARY)) {
-        return Status(Err::INVALID_CONFIG, static_cast<int32_t>(ReadError::INVALID_TARGET),
-                      "invalid common binding");
-    }
-    return Ok();
-}
-
-Status validateFrame(const Frame& frame) noexcept {
-    if (frame.fd) return Status(Err::UNSUPPORTED, 0, "Classical frame has no FD payload path");
-    const uint32_t maximum = frame.extended ? 0x1FFFFFFFUL : 0x7FFUL;
-    if (frame.id > maximum || frame.dlc > 8 || frame.payloadLength > sizeof frame.data ||
-        (frame.rtr && frame.payloadLength != 0) ||
-        (!frame.rtr && frame.payloadLength != frame.dlc)) {
-        return Status(Err::FRAME_ERROR, 0, "invalid CAN frame shape");
-    }
-    return Ok();
-}
-
 Status requireCapability(const Capabilities& facts, Capability requested) noexcept {
     bool available = false;
     switch (requested) {

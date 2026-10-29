@@ -1,4 +1,4 @@
-/** @file fixtures_test.cpp
+/** @file multidrive_contract_test.cpp
  * @brief Test-only documentary/common invariants for the prompt-6 prototype.
  * No N5/EPOS4 profile, native vendor sequence or hardware behavior is implemented.
  * Sources: docs/reference/drive_contrasts.md C1, C1b, C2, C4, C10 and C11.

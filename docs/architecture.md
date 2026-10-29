@@ -2,9 +2,11 @@
 
 Prompt 6 freezes the minimum semantic contract in the
 [native ownership proof](../experiments/api_ownership/README.md). The concrete
-declarations are buildable C++11, but remain experimental until prompt 7 moves
-them into the package. No installed driver, hardware support or complete motion
-implementation is claimed. The [architecture plan](architecture_plan.md) remains
+declarations are buildable C++11. Prompt 7 moved stable status, endpoint/binding
+and Classical frame validation into the [native package](getting_started.md).
+Synthetic operations, bounded prototype arithmetic and the owner remain test
+support. No installed driver, hardware support or complete motion implementation
+is claimed. The [architecture plan](architecture_plan.md) remains
 the target repository layout; this document governs the narrower proven boundary.
 
 | Layer | Owns | Dependencies allowed |
@@ -28,8 +30,9 @@ Distinct contracts own distinct facts:
 - [CANopen services](canopen_services.md): one selected engine, wire evidence and adapter limits.
 - [CAN owner](can_owner.md): the single capacity table, scheduling, lifetimes and retirement.
 
-The pure `api_contract` target contains only `Contracts.h`, `Operations.h` and
-`Operations.cpp`. It neither includes nor links CANopenNode. Its source contains
+The root `MotorControlCAN` target contains only the installed common core.
+The test-only `proof_contract` target contains `Contracts.h`, `Operations.h` and
+`Operations.cpp` and links that core. Neither includes nor links CANopenNode. Their source contains
 no allocation, clock acquisition, I/O, logging, retry, persistence or framework
 types. `api_fixtures` links only this target. Application storage and the optional
 stack bridge are compiled separately in `api_owner`. Test executables use host
@@ -47,10 +50,10 @@ the default; mixed-domain traffic requires an explicit compatibility design.
 
 ## Migration and acceptance
 
-Prompt 7 registers these retained proofs in the real build and splits the small
-common declarations into their planned public headers. Keep synthetic
-`ProofProfile`, fake controller, fixtures and optional stack dependencies out of
-installed public includes. Preserve these tests while migrating; do not install
+Prompt 7 registers these retained proofs in the real build and splits the stable
+status/endpoint/frame declarations into public headers. Synthetic
+`ProofProfile`, fake controller, fixtures and optional stack dependencies stay out of
+installed public includes. Preserve these tests during later migration; do not install
 fake N5/EPOS4 profiles or freeze struct byte layout as a binary ABI.
 Keep the synthetic I32 native bounds/origin and the documentary ramp fixture
 dimensions profile-specific; they are not universal native representations.

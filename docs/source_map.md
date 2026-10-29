@@ -18,10 +18,10 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 
 | Responsibility | Actual declaration/implementation | Actual caller/test | Migration |
 | --- | --- | --- | --- |
-| Common identity/units/status | [Contracts.h](../experiments/api_ownership/Contracts.h), [Operations.cpp](../experiments/api_ownership/Operations.cpp) | [fixtures_test.cpp](../experiments/api_ownership/fixtures_test.cpp) | 7 splits public headers; 9–10 replace prototype math |
-| Typed profile contexts | [Operations.h](../experiments/api_ownership/Operations.h) and implementation above | [main.cpp](../experiments/api_ownership/main.cpp), fixtures | Keep synthetic profile test-only; 19/33 implement real read/motion sequences |
+| Installed status/identity/frame | [Public headers](../include/MotorControlCAN/MotorControlCAN.h), [Endpoint.cpp](../src/Endpoint.cpp), [Frame.cpp](../src/can/Frame.cpp) | [core_test.cpp](../test/core_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | 7 complete; 9/11 extend the same implementations |
+| Prototype units and typed profile contexts | [Contracts.h](../experiments/api_ownership/Contracts.h), [Operations.h](../experiments/api_ownership/Operations.h), [Operations.cpp](../experiments/api_ownership/Operations.cpp) | [api_ownership_test.cpp](../test/api_ownership_test.cpp), [multidrive_contract_test.cpp](../test/multidrive_contract_test.cpp) | Synthetic profile stays test-only; 9–10 replace prototype math; 19/33 implement real operations |
 | Physical owner/table | [CanBusOwner.h](../experiments/api_ownership/CanBusOwner.h), [CanBusOwner.cpp](../experiments/api_ownership/CanBusOwner.cpp) | Native main above | 13/15/23 extend the same table/client boundary; 27 qualifies controller |
-| Build/contract proof | [CMakeLists.txt](../experiments/api_ownership/CMakeLists.txt) | Three registered CTests | 7 registers in production build; 8 establishes CI/Doxygen gates |
+| Build/package | [Root CMake](../CMakeLists.txt), [manifest](../library.json), [version helper](../scripts/generate_version.py) | [Registered tests](../test/CMakeLists.txt), [package contract](../test/package_test.py), [version contract](../test/version_test.py) | 7 complete; 8 establishes CI/verifier/Doxygen gates |
 
 ## RS naming, motion and application ownership
 

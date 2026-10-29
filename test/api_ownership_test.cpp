@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-/** @file main.cpp @brief Native boundary tests; only test reporting performs I/O. */
+/** @file api_ownership_test.cpp @brief Native boundary tests; only test reporting performs I/O. */
 #include "CanBusOwner.h"
 #include "Operations.h"
 #include <cstdio>

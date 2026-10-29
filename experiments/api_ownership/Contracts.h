@@ -4,57 +4,11 @@
  */
 #pragma once
 
-#include <stdint.h>
+#include <MotorControlCAN/Endpoint.h>
+#include <MotorControlCAN/can/Frame.h>
 
 /** Portable proof values and concrete synthetic operations. */
 namespace MotorControlCAN {
-
-/** Pure-call errors, separate from protocol/drive state and application health. */
-enum class Err : uint8_t {
-    OK,             ///< The local calculation/validation succeeded.
-    INVALID_CONFIG, ///< Invalid argument, configuration, provenance or sequence.
-    ILLEGAL_VALUE,  ///< Requested value exceeds exact representation or limits.
-    UNSUPPORTED,    ///< Required capability or conversion is unavailable.
-    FRAME_ERROR,    ///< Native reply or CAN frame shape is invalid.
-    PROTOCOL_ERROR  ///< Checked native service rejection; raw abort stays separate.
-};
-
-/** Local call result. msg has static lifetime; detail is a typed reason value.
- * Success does not establish a successful service or physical motor behavior. */
-struct Status {
-    Err code;       ///< Local call category; default OK.
-    int32_t detail; ///< Typed numeric reason, not raw SDO abort; default zero.
-    const char* msg; ///< Static-lifetime diagnostic text; default empty string.
-    /** Construct local success without side effects. */
-    constexpr Status() : code(Err::OK), detail(0), msg("") {}
-    /** Construct an explicit local-call result without owning text.
-     * @param[in] c Call-result category.
-     * @param[in] d Typed numeric reason associated with the called function.
-     * @param[in] m Static-lifetime diagnostic string supplied by the caller. */
-    constexpr Status(Err c, int32_t d, const char* m) : code(c), detail(d), msg(m) {}
-    /** @return True exactly when code is OK, independent of operation outcome. */
-    constexpr bool isOk() const { return code == Err::OK; }
-    /** @return The same local-call success predicate as isOk(). */
-    constexpr explicit operator bool() const { return isOk(); }
-};
-
-/** @return Default local-call success; allocates nothing and performs no I/O. */
-constexpr Status Ok() { return Status(); }
-
-/** Return a static diagnostic label without allocation or retained input.
- * @param[in] code Local-call error value.
- * @return Static label, or UNKNOWN for an unrecognized value. */
-inline const char* errToString(Err code) {
-    switch (code) {
-    case Err::OK: return "OK";
-    case Err::INVALID_CONFIG: return "INVALID_CONFIG";
-    case Err::ILLEGAL_VALUE: return "ILLEGAL_VALUE";
-    case Err::UNSUPPORTED: return "UNSUPPORTED";
-    case Err::FRAME_ERROR: return "FRAME_ERROR";
-    case Err::PROTOCOL_ERROR: return "PROTOCOL_ERROR";
-    }
-    return "UNKNOWN";
-}
 
 /** Host-only identities, never wire correlation tags. Zero is invalid. */
 struct OperationToken {
@@ -64,67 +18,6 @@ struct OperationToken {
 struct StepToken {
     uint32_t value = 0; ///< Nonzero step identity; synthetic operations use one.
 };
-/** Nonzero application generation. Never wrap/reuse while old work may exist. */
-typedef uint32_t Generation;
-
-/** Selected protocol domain, without native network or drive state. */
-enum class Protocol : uint8_t {
-    CANOPEN,    ///< Selected Classical CANopen domain.
-    PROPRIETARY ///< Non-CANopen domain with its own protocol-local services.
-};
-
-/** Protocol-owned wire addressing. Generic code imposes no CANopen node range.
- * bus identifies a physical interface; channel/subaxis are independent selectors.
- * profile is an application-assigned nonzero identity, not a runtime registry. */
-struct Endpoint {
-    Protocol protocol = Protocol::CANOPEN; ///< Selects the protocol validation boundary.
-    uint32_t bus = 0;     ///< Application physical-interface identity; zero is permitted.
-    uint32_t profile = 0; ///< Application profile identity; zero is invalid in a binding.
-    uint32_t address = 0; ///< Protocol-owned address; no generic 1..127 restriction.
-    uint16_t channel = 0; ///< Protocol-owned channel selector; zero is permitted.
-    uint16_t subaxis = 0; ///< Independent axis selector within the endpoint.
-};
-
-/** Logical axis and immutable route/interpretation provenance for admitted work.
- * Default is invalid. Native NMT/statusword/EMCY observations are not axis fields. */
-struct Binding {
-    uint32_t logicalAxisId = 0; ///< Nonzero logical identity independent of wire address.
-    Endpoint endpoint; ///< Copied route and profile identity.
-    Generation bindingGeneration = 0; ///< Nonzero route/identity epoch; never wrap/reuse live work.
-    Generation configurationGeneration = 0; ///< Nonzero coordinate-interpretation epoch.
-};
-
-/** Compare all identity, route and generation fields; acquires no external data.
- * @param[in] a First caller-owned binding, borrowed only for this call.
- * @param[in] b Second caller-owned binding, borrowed only for this call.
- * @return True when all fields match; matching invalid values are not validation. */
-bool sameBinding(const Binding& a, const Binding& b) noexcept;
-/** Check common identity only. Protocol owners additionally validate their route.
- * @param[in] binding Caller-owned route/identity, borrowed only during this call.
- * @return INVALID_CONFIG for zero identity/generation or an unknown protocol. */
-Status validateBinding(const Binding& binding) noexcept;
-
-/** Owned frame. dlc is the wire DLC, payloadLength the actual byte count.
- * RTR has no payload even when dlc is nonzero. The fd flag expresses an
- * unsupported requirement for rejection before admission; this Classical frame
- * has no FD payload storage. Default is a valid empty standard data frame.
- * A future FD path requires its own bounded frame and adapter contract. */
-struct Frame {
-    uint32_t id = 0; ///< Identifier bits, <=0x7ff standard or <=0x1fffffff extended.
-    uint8_t dlc = 0; ///< Classical wire DLC, 0..8, including RTR requested length.
-    uint8_t payloadLength = 0; ///< Actual copied data bytes, 0..8; zero for RTR.
-    bool extended = false; ///< True preserves 29-bit wire format even for a small ID.
-    bool rtr = false; ///< True denotes remote request with no data payload.
-    bool fd = false; ///< Unsupported FD requirement; rejected before admission.
-    uint8_t data[8] = {}; ///< Owned payload; only payloadLength bytes are meaningful.
-};
-
-/** Check CAN identifier/format/DLC/payload invariants; no protocol restrictions.
- * @param[in] frame Caller-owned Classical frame, unchanged and never retained.
- * @return UNSUPPORTED for fd=true; otherwise FRAME_ERROR for invalid shape and
- * OK for representable Classical frames. No frame is sent, changed or retained. */
-Status validateFrame(const Frame& frame) noexcept;
-
 /** Fixed owned service bytes. length is 0..32; no call retains borrowed storage. */
 struct Payload {
     uint8_t length = 0; ///< Active prefix length, 0..32 bytes; default empty.

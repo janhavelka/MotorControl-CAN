@@ -24,8 +24,8 @@ documentation and CI gates remain prompt 8 work.
 | --- | --- |
 | `Contracts.h`, `Operations.h/.cpp` / `api_contract` | Pure values, synthetic read and acknowledged target-write contexts; no stack headers or allocation/I/O/clock |
 | `CanBusOwner.h/.cpp` / `api_owner` | Application fixed storage and sole RX boundary around the selected client |
-| `main.cpp` / `api_ownership` | Copied payload, read/write flow, retained results, urgent/fair scheduling, deadlines, cancellation, abort, event overflow and boot-up invalidation |
-| `fixtures_test.cpp` / `api_fixtures` | Core-only N5/EPOS4 contrasts, optional geometry, scales, capability gates and protocol-neutral binding |
+| `test/api_ownership_test.cpp` / `api_ownership` | Copied payload, read/write flow, retained results, urgent/fair scheduling, deadlines, cancellation, abort, event overflow and boot-up invalidation |
+| `test/multidrive_contract_test.cpp` / `api_fixtures` | Core-only N5/EPOS4 contrasts, optional geometry, scales, capability gates and protocol-neutral binding |
 | Reused `canopen_service_fit` test | Original selected-engine exchange/segmentation/failure proof |
 
 The measured Release host layout on x64 MinGW GCC 15.1 is `ServiceWork=112`,
@@ -33,8 +33,9 @@ The measured Release host layout on x64 MinGW GCC 15.1 is `ServiceWork=112`,
 peak stack, embedded RAM, timing or heap measurements. The core/owner no-allocation
 claim is source-inspected. Tests use standard output only for reporting.
 
-Keep test-only profiles and bridge dependencies out of installed headers in
-prompt 7. Production arithmetic remains prompts 9–10; complete services, real
+Prompt 7 moved the two test entry points to repository `test/` and the stable
+status/endpoint/frame functions into the native package. Synthetic profiles,
+prototype arithmetic and bridge dependencies remain outside installed headers. Production arithmetic remains prompts 9–10; complete services, real
 motion and controller qualification retain their assigned later stages. Read
 [owner lifetimes](../../docs/can_owner.md) and
 [service premises](../../docs/canopen_services.md) before reusing this proof.
