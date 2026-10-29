@@ -8,9 +8,9 @@ coverage. The real freshness check is active in local quick/full and their
 existing CI workflow. No semantic read, setting, action, workflow, raw-access
 route, default PDO template or operational drive profile is implemented here.
 
-Local quick/full verification and independent review pass. The stage is
-**In progress** pending commit/synchronization and exact milestone CI. Prompt 13
-is next after closure. Device/firmware qualification remains separate.
+The stage is **Complete**: local quick/full verification, independent review,
+package/header/Doxygen checks and exact implementation-commit Windows/GCC/Clang
+sanitizer CI passed. Prompt 13 is next. Device/firmware qualification remains separate.
 
 Started clean on `promptset/motorcontrol-can` at
 `1356cffc0e79d17fd78725ff8164078468a022b7`, configured upstream
@@ -142,8 +142,10 @@ the configured milestone CI supplies GCC 13/Clang 18 ASan/UBSan.
 Final quick PASS (22/22), retained under
 .build/p12-quick/20261029T143320627384Z-54356-ru9anmdw/.
 Original-byte HEAD integrity PASS (134 retained artifacts, all source/ledger
-accounting and 1629 links); working diff check PASS. Staged-byte integrity,
-committed-byte integrity and exact CI/sync results are recorded on closure. Required unavailable tools are not counted as
+accounting and 1629 links); working diff check PASS. Staged and committed original-byte integrity passed with INDEX and HEAD.
+All four staged/committed generated blobs were also independently compared to
+canonical generator bytes and matched. Exact CI/sync results follow below.
+Required unavailable tools are not counted as
 passing local sanitizer gates. No sibling suites or physical CAN tests ran.
 
 ## Handoff
@@ -152,3 +154,21 @@ Generated declarations are not implemented semantic functions or qualified
 support. Remaining model/firmware/read-effect/write/PDO gates stay visible in
 the ledger/generated coverage. Prompt 13 owns production SDO sessions; typed
 reads/settings/actions and physical qualification keep their assigned owners.
+
+## Commit, CI and synchronization
+
+Implementation checkpoint: 6e982ae9599af2028451db7b577982740093b335.
+Push and fresh fetch confirmed matching upstream HEAD, 0 ahead / 0 behind,
+with a clean worktree; committed-byte integrity/freshness passed afterward.
+
+[Required implementation CI run 40892982772](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40892982772)
+completed successfully on that full SHA: Quick GCC on Windows, Full GCC with
+ASan/UBSan and Full Clang with ASan/UBSan all passed. The existing workflow
+runs the active object freshness command and contracts through verify.py. Actual
+run/head SHA/job results were read via the GitHub CLI because the connected
+tool cannot inspect these push runs. No manual dispatch or trigger change.
+
+This closure changes reporting/status only; generator, ledger, generated
+products and executable source remain unchanged. Its exact final-commit CI and
+fresh upstream comparison are verified before handoff and reported with the
+resulting commit ID there.

@@ -1,6 +1,6 @@
 # Prompt execution progress
 
-This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. Prompts 2–4 completed intake, Lichuan documentary semantics and test-only drive contrasts. Prompt 5 selected CANopenNode through a native experiment. Prompt 6 completed concrete common API/ownership contracts and a checked native proof. Prompt 7 added the minimal native package, version metadata and registered proofs. Prompt 8 completed quick/full verification, strict Doxygen, Windows quick CI and Linux GCC/Clang sanitizer CI; prompt 9 completed production exact units/quantization and proof migration with local and sanitizer CI checks; prompt 10 completed pure axis/reference targets, offline preview and local/CI verification; prompt 11 completed pure frame/SDO checks, independent vectors and local/Windows/GCC/Clang sanitizer verification; prompt 12 has implemented reviewed object generation and active freshness, with integrated verification/CI in progress; prompts 13-50 remain Pending. No old status was transferred.
+This tracks **library implementation assignments**, including their source-audit foundation. Execution started 2026-10-28 with the user's pasted former Stage 00, recorded as current prompt 1 plus its requested original-reference checks. Prompts 2–4 completed intake, Lichuan documentary semantics and test-only drive contrasts. Prompt 5 selected CANopenNode through a native experiment. Prompt 6 completed concrete common API/ownership contracts and a checked native proof. Prompt 7 added the minimal native package, version metadata and registered proofs. Prompt 8 completed quick/full verification, strict Doxygen, Windows quick CI and Linux GCC/Clang sanitizer CI; prompt 9 completed production exact units/quantization and proof migration with local and sanitizer CI checks; prompt 10 completed pure axis/reference targets, offline preview and local/CI verification; prompt 11 completed pure frame/SDO checks, independent vectors and local/Windows/GCC/Clang sanitizer verification; prompt 12 completed reviewed object generation, active freshness and local/Windows/GCC/Clang sanitizer verification; prompts 13-50 remain Pending. No old status was transferred.
 
 Execution identity: promptset version 2; branch `promptset/motorcontrol-can`; inspected base `7878f7c` from updated `origin/main`; destination `origin/promptset/motorcontrol-can` (set on first push). Source-map inputs and exact base are in [prompt 1 inputs](../reports/prompt_1_inputs.json), and the current map is [source_map.md](../source_map.md). Reuse this branch across every prompt and resumed session. Reports use `docs/reports/prompt_N.md`; commit and sync each prompt and useful complete checkpoint.
 
@@ -24,7 +24,7 @@ documentation. Arithmetic and isolated package reviews found no functional
 defect. Prompts 7-9 retain Complete status. Prompt 10 completed production pure
 axis/reference APIs, offline preview and
 local plus Windows/GCC/Clang sanitizer CI; [its report](../reports/prompt_10.md)
-records sources, corrections, checks and synchronization. Prompt 11 is complete; [its report](../reports/prompt_11.md) records pure checks, source review, independent vectors and local/CI evidence. Prompt 12 is next.
+records sources, corrections, checks and synchronization. Prompt 11 is complete; [its report](../reports/prompt_11.md) records pure checks, source review, independent vectors and local/CI evidence. Prompt 13 is next.
 
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
@@ -49,7 +49,7 @@ Use numerical order among ready work within the assignment. Record the blocker a
 | 9 | [Status and exact units](9_status_units.md) | Complete | [Report](../reports/prompt_9.md) |
 | 10 | [Axis coordinates and references](10_axis_coordinates.md) | Complete | [Report](../reports/prompt_10.md) |
 | 11 | [Classical CAN and SDO codecs](11_can_sdo_codecs.md) | Complete | [Report](../reports/prompt_11.md) |
-| 12 | [Reviewed object generation](12_object_generation.md) | In progress | [Report](../reports/prompt_12.md) |
+| 12 | [Reviewed object generation](12_object_generation.md) | Complete | [Report](../reports/prompt_12.md) |
 | 13 | [Bounded SDO transfer lifecycle](13_sdo_lifecycle.md) | Pending | - |
 | 14 | [SDO ambiguity and reconciliation](14_sdo_reconciliation.md) | Pending | - |
 | 15 | [Passive network events and invalidation](15_network_events.md) | Pending | - |

@@ -9,7 +9,10 @@ promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
 [prompt 8](reports/prompt_8.md) and [prompt 9](reports/prompt_9.md) are complete.
 [Prompt 10](reports/prompt_10.md) is complete with pure axis targets, offline
 preview and passing local/Windows/GCC/Clang sanitizer CI.
-[Prompt 11](reports/prompt_11.md) is complete with pure frame/SDO checks and passing local full plus Windows/GCC/Clang sanitizer CI. The next numbered assignment is prompt 12;
+[Prompt 11](reports/prompt_11.md) is complete with pure frame/SDO checks and passing
+local full plus Windows/GCC/Clang sanitizer CI. [Prompt 12](reports/prompt_12.md)
+is complete with reviewed generation and passing local/Windows/GCC/Clang
+sanitizer CI. The next numbered assignment is prompt 13;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -26,7 +29,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Complete: minimal C++11 core with isolated source/install/export consumers, quick/full verification, strict Doxygen and passing Windows quick and Linux GCC/Clang sanitizer CI. Exact results are in the stage reports. |
 | 9-10 | Status, exact units and axis/reference conversions | 9 complete: production exact units/status and quantization with local/CI evidence. 10 complete: pure axis/reference conversions, offline preview and local/Windows/GCC/Clang sanitizer CI. No native RPM width, mandatory step geometry or guessed feedback scale. |
 | 11 | Classical CAN and checked SDO codec boundary | Complete: local full and exact-commit Windows/GCC/Clang sanitizer CI pass. One selected encoder, explicit channel/width correlation, full aborts and unchanged failure outputs. |
-| 12 | Reviewed generated object metadata and coverage | Implemented: 194 resolved descriptors, four withheld/four excluded and active freshness; final verification/CI pending. No semantic operation is implemented. |
+| 12 | Reviewed generated object metadata and coverage | Complete: 194 resolved descriptors, four withheld/four excluded and active freshness; local and exact-commit Windows/GCC/Clang sanitizer CI pass. No semantic operation is implemented. |
 | 13-14 | Bounded service/reconciliation | Pending; integrate pure checks with the selected engine, preserve publication/ownership and late identical-response uncertainty |
 | 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
@@ -42,8 +45,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 12](prompts/12_object_generation.md),
-reviewed object generation over the implemented pure SDO boundary,
+Next assignment is [prompt 13](prompts/13_sdo_lifecycle.md),
+bounded SDO transfer lifecycle over the implemented pure SDO boundary and
+[reviewed object metadata](reference/lichuan_generated.md),
 [axis](axis_contract.md) and [production units](units_status.md), under the established
 [verification gates](verification.md). The
 [reviewed Lichuan dictionary](reference/lichuan_objects.md) and
