@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added bounded CANopenNode SDO lifecycle with two unique physical channel slots, copied requests, immutable overall/queue/response cutoffs, explicit TX versus protocol evidence and retained results. Unconfirmed failures quarantine channels across release; no automatic retry or controller I/O.
+- Added expedited/segmented transfers through 32 bytes, checked unsized scalar normalization, full unsigned abort evidence and bounded unsupported-upload cleanup. Promoted the retained bridge into one optional application adapter; portable service values remain stack-free and independently packaged.
+
 - Added deterministic reviewed Lichuan object generation, 194 compact profile-scoped descriptors, optional descriptive metadata and complete generated source/semantic coverage. Four disputed signed types and four reserved entries remain withheld or excluded; all read effects and write qualifications retain their gates.
 - Activated exact object freshness in quick/full verification and CI, with malformed-ledger, deterministic, stale-byte and atomic-publication regressions. Added independent-header, installed/exported and catalogue-free consumers; generated metadata implements no typed operation or device support.
 

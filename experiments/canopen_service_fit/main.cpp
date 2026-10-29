@@ -22,9 +22,9 @@ static FitFrame reply(uint8_t command, uint16_t index = 0x2000) {
 }
 
 static RequestId begin(CanBusOwner& owner, bool download, const uint8_t* bytes = nullptr,
-                       size_t size = 0, uint16_t timeoutMs = 20) {
+                       size_t size = 0, uint16_t timeoutMs = 20, size_t expectedUploadSize = 4) {
     RequestId id = {};
-    CHECK(owner.admit(download, 0x2000, 0, bytes, size, 0, timeoutMs, id));
+    CHECK(owner.admit(download, 0x2000, 0, bytes, size, 0, timeoutMs, id, expectedUploadSize));
     CHECK(owner.result(id) == nullptr);
     return id;
 }
@@ -118,7 +118,7 @@ static void segmented() {
     CHECK(writer.result(writeId)->outcome == Outcome::Success);
 
     CanBusOwner reader;
-    const RequestId readId = begin(reader, false);
+    const RequestId readId = begin(reader, false, nullptr, 0, 20, 10);
     send(reader, 0, 0x40);
     FitFrame initial = reply(0x41);
     initial.data[4] = 10;
@@ -166,7 +166,7 @@ static void rejectionAndDeadline() {
     const size_t widths[] = {4, 2, 1};
     for (size_t i = 0; i < sizeof(goodResponses); ++i) {
         CanBusOwner read;
-        RequestId readId = begin(read, false);
+        RequestId readId = begin(read, false, nullptr, 0, 20, widths[i]);
         send(read, 0, 0x40);
         read.receive(reply(goodResponses[i]), 1);
         CHECK(read.result(readId)->outcome == Outcome::Success);

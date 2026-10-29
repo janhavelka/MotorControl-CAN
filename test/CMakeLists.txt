@@ -51,9 +51,8 @@ target_include_directories(proof_contract PUBLIC ../experiments/api_ownership)
 target_link_libraries(proof_contract PUBLIC MotorControlCAN::MotorControlCAN)
 strict_test(proof_contract)
 add_library(proof_owner OBJECT ../experiments/api_ownership/CanBusOwner.cpp
-    ../experiments/canopen_service_fit/fit_proof.cpp
-    ../experiments/canopen_service_fit/fake_controller.cpp)
-target_link_libraries(proof_owner PUBLIC proof_contract PRIVATE canopennode_sdo)
+    ../experiments/canopen_service_fit/fit_proof.cpp)
+target_link_libraries(proof_owner PUBLIC proof_contract MotorControlCAN::CanopenNode)
 target_include_directories(proof_owner PUBLIC ../experiments/canopen_service_fit
     ../experiments/canopen_service_fit/vendor/CANopenNode)
 strict_test(proof_owner)
@@ -71,6 +70,13 @@ add_executable(sdo_adapter_test sdo_adapter_test.cpp)
 target_link_libraries(sdo_adapter_test PRIVATE proof_owner)
 strict_test(sdo_adapter_test)
 add_test(NAME sdo_adapter COMMAND sdo_adapter_test)
+
+strict_test(MotorControlCANCanopenNode)
+add_executable(sdo_transfer_test sdo_transfer_test.cpp)
+target_link_libraries(sdo_transfer_test PRIVATE MotorControlCAN::CanopenNode)
+strict_test(sdo_transfer_test)
+add_test(NAME sdo_transfer COMMAND sdo_transfer_test)
+set_tests_properties(sdo_transfer PROPERTIES TIMEOUT 10)
 
 add_executable(objects_test objects_test.cpp)
 target_link_libraries(objects_test PRIVATE MotorControlCAN::MotorControlCAN)

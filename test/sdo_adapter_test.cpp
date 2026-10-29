@@ -70,7 +70,7 @@ void actualRequests() {
     for (uint8_t width = 1; width <= 4; ++width) {
         CanopenFit::CanBusOwner owner; CanopenFit::RequestId id = {};
         const C::SdoExpectation e = expected(false, width, width == 2 ? 0x6041 : 0x2000);
-        CHECK(owner.admit(false, e.index, 0, nullptr, 0, 0, 100, id)); owner.service(0);
+        CHECK(owner.admit(false, e.index, 0, nullptr, 0, 0, 100, id, width)); owner.service(0);
         const M::Frame request = frame(owner.controller().queued);
         const uint8_t literal[] = {0x40, uint8_t(width == 2 ? 0x41 : 0),
             uint8_t(width == 2 ? 0x60 : 0x20), 0, 0, 0, 0, 0};
@@ -82,7 +82,7 @@ void guardedReplies() {
     for (unsigned unsized = 0; unsized < 2; ++unsized) {
         CanopenFit::CanBusOwner owner; CanopenFit::RequestId id = {};
         const C::SdoExpectation e = expected(false, 2, 0x6041);
-        CHECK(owner.admit(false, e.index, 0, nullptr, 0, 0, 100, id)); CHECK(owner.handoff(0));
+        CHECK(owner.admit(false, e.index, 0, nullptr, 0, 0, 100, id, e.width)); CHECK(owner.handoff(0));
         M::Frame response; response.id = 0x581; response.dlc = response.payloadLength = 8;
         const uint8_t literal[] = {uint8_t(unsized ? 0x42 : 0x4b), 0x41, 0x60, 0, 0x34, 0x12, 0xa5, 0x5a};
         std::memcpy(response.data, literal, sizeof literal);
@@ -95,13 +95,13 @@ void guardedReplies() {
         CHECK(C::readWord(checked.data, checked.length, e.width, value) && value == 0x1234);
         const CanopenFit::Completion* result = owner.result(id);
         CHECK(result && result->outcome == CanopenFit::Outcome::Success);
-        // The untyped engine copies4 for unsized transfer; only the checked
-        // reviewed prefix is a typed scalar. Do not rewrite the raw frame.
-        CHECK(result->size == (unsized ? 4u : 2u));
+        // An unsized expedited reply consumes the explicit reviewed width;
+        // opaque padding never becomes additional object data.
+        CHECK(result->size == e.width);
     }
     CanopenFit::CanBusOwner owner; CanopenFit::RequestId id = {};
     const C::SdoExpectation e = expected(false, 2, 0x6041);
-    CHECK(owner.admit(false, e.index, 0, nullptr, 0, 0, 100, id)); CHECK(owner.handoff(0));
+    CHECK(owner.admit(false, e.index, 0, nullptr, 0, 0, 100, id, e.width)); CHECK(owner.handoff(0));
     M::Frame abort; abort.id = 0x581; abort.dlc = abort.payloadLength = 8;
     const uint8_t literal[] = {0x80, 0x41, 0x60, 0, 0x67, 0x45, 0x23, 0xf1};
     std::memcpy(abort.data, literal, sizeof literal); C::SdoReply reply;

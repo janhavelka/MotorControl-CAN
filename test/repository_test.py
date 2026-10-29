@@ -29,6 +29,10 @@ FILES = {
     "examples/units_preview/CMakeLists.txt", "examples/units_preview/main.cpp", "examples/units_preview/README.md",
     "include/MotorControlCAN/can/Frame.h", "src/Endpoint.cpp", "src/can/Frame.cpp",
     "include/MotorControlCAN/canopen/Sdo.h", "src/canopen/Sdo.cpp",
+    "include/MotorControlCAN/canopen/SdoTransfer.h", "test/sdo_transfer_test.cpp",
+    "adapters/canopennode/CMakeLists.txt", "adapters/canopennode/SdoClient.h",
+    "adapters/canopennode/SdoClient.cpp", "adapters/canopennode/CO_driver_target.h",
+    "adapters/canopennode/Driver.cpp",
     "test/frame_test.cpp", "test/sdo_codec_test.cpp", "test/sdo_adapter_test.cpp",
     "scripts/verify.py", "scripts/check_repository.py", "scripts/generate_version.py",
     "scripts/export_package.py", "scripts/check_promptset.py",
@@ -65,7 +69,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

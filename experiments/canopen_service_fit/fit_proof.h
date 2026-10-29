@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 /** @file
- * Provisional single-channel owner for the native service fit experiment.
+ * Compatibility facade over the production selected-stack adapter.
  */
 #ifndef MOTORCONTROL_CAN_FIT_PROOF_H
 #define MOTORCONTROL_CAN_FIT_PROOF_H
 
-#include "301/CO_SDOclient.h"
+#include "SdoClient.h"
+#include "CO_driver_target.h"
 
 /** Local experiment declarations, excluded from any installed library ABI. */
 namespace CanopenFit {
@@ -32,7 +33,7 @@ struct Completion {
     Outcome outcome; /**< Terminal cause; subsequent service calls cannot replace it. */
     CO_SDO_return_t stackReturn; /**< Native stack return, or owner timeout/cancel marker. */
     uint32_t abortCode; /**< Native abort code, zero when inapplicable. */
-    bool executionUnknown; /**< Download may have reached the peer without confirmation. */
+    bool executionUnknown; /**< A potentially changing request may have reached the peer without confirmation. */
     uint8_t data[32]; /**< Owned upload bytes; only data[0..size) is valid. */
     size_t size; /**< Uploaded bytes on success; zero on other outcomes. */
 };
@@ -45,7 +46,7 @@ struct Completion {
  */
 class CanBusOwner {
 public:
-    /** Set up the actual upstream SDO client using a local 0x1280 record. */
+    /** Configure a synthetic, externally qualified fresh route to fake node 1. */
     CanBusOwner();
     CanBusOwner(const CanBusOwner&) = delete;
     CanBusOwner& operator=(const CanBusOwner&) = delete;
@@ -60,10 +61,12 @@ public:
      * @param[in] nowUs Supplied monotonic microseconds, including valid zero.
      * @param[in] timeoutMs Explicit nonzero policy, not a drive timing guarantee.
      * @param[out] id Local handle, assigned on success only; no wire correlation.
+     * @param[in] expectedUploadSize Exact synthetic upload size 1..32; ignored for writes.
      * @return True if admitted; retained results block further admission.
      */
     bool admit(bool download, uint16_t index, uint8_t subIndex, const uint8_t* bytes,
-               size_t size, uint64_t nowUs, uint16_t timeoutMs, RequestId& id);
+               size_t size, uint64_t nowUs, uint16_t timeoutMs, RequestId& id,
+               size_t expectedUploadSize = 4);
 
     /** Advance at most one stack call, no RX/TX handoff loop.
      * @param[in] nowUs Supplied nondecreasing monotonic microseconds. The absolute
@@ -104,7 +107,7 @@ public:
     bool release(RequestId id);
 
     /** Read-only fake controller inspection, valid for owner lifetime. */
-    const CO_CANmodule_t& controller() const { return controller_; }
+    const CO_CANmodule_t& controller() const { return *client_.port(0); }
     /** Count of checked synthetic heartbeat events, independent of SDO results. */
     uint32_t heartbeats() const { return heartbeats_; }
     /** Count of copied synthetic EMCY events. */
@@ -114,23 +117,19 @@ public:
     /** Last copied asynchronous frame; valid when any event count is nonzero. */
     const FitFrame& lastEvent() const { return lastEvent_; }
     /** Inject deterministic controller send failure; not a production API. */
-    void refuseSend() { controller_.refuseSend = true; }
+    void refuseSend() { refuseSend_ = true; }
 
 private:
-    void finish(Outcome outcome, CO_SDO_return_t returned, uint32_t abortCode);
-    void retireQueued();
-    bool ready_;
-    CO_CANmodule_t controller_;
-    CO_SDOclient_t client_;
-    Completion completion_;
-    bool occupied_, terminal_, download_, interlocked_;
-    uint32_t id_;
-    uint16_t index_;
-    uint8_t subIndex_;
-    uint64_t deadlineUs_, lastUs_;
-    uint32_t handoffsAtAdmission_;
-    uint32_t heartbeats_, emergencies_, pdos_;
-    FitFrame lastEvent_;
+    void collect();
+    bool matches(RequestId id) const;
+    MotorControlCAN::CANOPEN::SdoClient client_;
+    MotorControlCAN::CANOPEN::SdoChannel channel_;
+    MotorControlCAN::CANOPEN::SdoRequestId request_;
+    Completion completion_ = {};
+    bool ready_ = false, completionReady_ = false, refuseSend_ = false;
+    uint64_t lastUs_ = 0;
+    uint32_t heartbeats_ = 0, emergencies_ = 0, pdos_ = 0;
+    FitFrame lastEvent_ = {};
 };
 } // namespace CanopenFit
 #endif

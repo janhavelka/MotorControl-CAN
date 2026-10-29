@@ -6,7 +6,7 @@ Execution has completed prompts 1-12, including the [native service fit experime
 | --- | --- |
 | [Status and exact units](units_status.md) | Implemented rational parsing, dimensional conversion, rounding, explicit radians/float quantization and unchanged failure outputs |
 | [Axis coordinates and references](axis_contract.md) | Production pure configuration, origins, generation/freshness, position/velocity targets and offline preview |
-| [CANopen services](canopen_services.md) | Installed pure SDO checks, channel/width correlation, signed words, abort/segmented evidence and worked vectors; selected engine remains application-side |
+| [CANopen services](canopen_services.md) | Installed pure SDO checks, channel/width correlation, signed words, abort/segmented evidence and worked vectors; bounded production lifecycle/quarantine through the optional application-side engine |
 | [Reviewed object generation](reference/lichuan_objects.md) and [generated coverage](reference/lichuan_generated.md) | Compact profile-scoped declarations, optional strings, withholding/exclusions, semantic coverage and reproducible freshness command |
 | [Live source map](source_map.md) | Actual declarations, implementations, callers, tests and deliberate CAN differences |
 | [Verification](verification.md), [contributing](../CONTRIBUTING.md), [security](../SECURITY.md) | Working commands, required tools, retained evidence, current versus planned checks and development reporting limits |

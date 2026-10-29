@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/MotorControlCAN.h>
+#include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <cstring>
 
 int main() {
     using namespace MotorControlCAN;
+    CANOPEN::SdoTransfer service;
+    CANOPEN::SdoCompletion terminal;
+    if (service.size != 0 || terminal.protocolAcknowledged || terminal.transmissionPossible) return 20;
     Binding binding;
     binding.logicalAxisId = 9;
     binding.endpoint.protocol = Protocol::PROPRIETARY;

@@ -38,6 +38,11 @@ if(MOTORCONTROLCAN_BUILD_EXAMPLES)
     add_subdirectory(examples/units_preview)
 endif()
 
+option(MOTORCONTROLCAN_BUILD_CANOPENNODE "Build the optional application-side CANopenNode adapter" OFF)
+if(MOTORCONTROLCAN_BUILD_CANOPENNODE)
+    add_subdirectory(adapters/canopennode)
+endif()
+
 # Source distributions omit repository tests and never need Python or the stack.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
     include(CTest)
@@ -60,7 +65,7 @@ install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
 install(FILES include/MotorControlCAN/can/Frame.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/can")
-install(FILES include/MotorControlCAN/canopen/Sdo.h
+install(FILES include/MotorControlCAN/canopen/Sdo.h include/MotorControlCAN/canopen/SdoTransfer.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/canopen")
 install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/Objects.h

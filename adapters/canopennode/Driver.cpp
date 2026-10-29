@@ -34,7 +34,7 @@ extern "C" CO_ReturnError_t CO_CANsend(CO_CANmodule_t* module, CO_CANtx_t* buffe
         module->sendFault = true;
         return CO_ERROR_TX_OVERFLOW;
     }
-    FitFrame candidate = {};
+    StackFrame candidate = {};
     candidate.ident = buffer->ident;
     candidate.DLC = buffer->DLC;
     candidate.rtr = buffer->rtr;
@@ -42,6 +42,6 @@ extern "C" CO_ReturnError_t CO_CANsend(CO_CANmodule_t* module, CO_CANtx_t* buffe
     module->queued = candidate;
     module->queueOccupied = true;
     buffer->bufferFull = true;
-    ++module->accepted;
+    if (module->accepted != UINT32_MAX) ++module->accepted;
     return CO_ERROR_NO;
 }

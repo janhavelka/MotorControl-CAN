@@ -9,8 +9,8 @@ add_library(api_contract STATIC Operations.cpp)
 target_link_libraries(api_contract PUBLIC MotorControlCAN::MotorControlCAN)
 target_include_directories(api_contract PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 add_library(api_owner OBJECT CanBusOwner.cpp
-    ../canopen_service_fit/fit_proof.cpp ../canopen_service_fit/fake_controller.cpp)
-target_link_libraries(api_owner PUBLIC api_contract PRIVATE canopennode_sdo)
+    ../canopen_service_fit/fit_proof.cpp)
+target_link_libraries(api_owner PUBLIC api_contract MotorControlCAN::CanopenNode)
 # The application owner intentionally exposes its local stack-backed storage.
 target_include_directories(api_owner PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../canopen_service_fit"
     "${CMAKE_CURRENT_SOURCE_DIR}/../canopen_service_fit/vendor/CANopenNode")

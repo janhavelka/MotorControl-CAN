@@ -7,9 +7,12 @@ provides a checked scalar SDO boundary in
 [`canopen/Sdo.h`](../include/MotorControlCAN/canopen/Sdo.h). It checks selected-stack
 requests and decodes initiation replies; CANopenNode owns encoding and transfer
 progression. The portable header has no stack dependency, session, transport,
-clock, allocation or retry. The actual stack bridge remains a private native
-proof, with its Apache-2.0 notices. No production controller adapter or device
-profile is advertised.
+clock, allocation or retry. Portable owned request/result contracts live in
+[`SdoTransfer.h`](../include/MotorControlCAN/canopen/SdoTransfer.h). The optional
+[`SdoClient`](../adapters/canopennode/SdoClient.h) application adapter implements
+the bounded lifecycle around that same selected engine. It performs no
+controller I/O and is not an installed-core dependency. CANopenNode retains its
+Apache-2.0 notices. No SDK adapter, drive profile or physical support is implied.
 
 The [owner contract](can_owner.md) owns storage and scheduling. The
 [profile contract](profile_contract.md) owns operation interpretation. A selected
@@ -115,68 +118,145 @@ request and `2B` download when the reviewed `609A` width is four.
 [scalar codec tests](../test/sdo_codec_test.cpp) and
 [selected-stack adapter tests](../test/sdo_adapter_test.cpp) exercise independent
 literal vectors, widths/signs, malformed commands, sizes, identities, capacities,
-overlap and unchanged outputs. These remain host evidence. Transfer sessions,
-bounded segmented draining and retained service settlement belong to prompt 13;
-event codecs and object generation retain their separately assigned stages.
+overlap and unchanged outputs. These remain host evidence. The lifecycle below
+now uses these checks; event codecs remain assigned to prompts 15/17.
 
-## Retained proof request and evidence
+## Bounded production SDO lifecycle
 
-[`ServiceWork`](../experiments/api_ownership/Contracts.h) carries a complete copied
-binding, operation/step tokens, exclusive absolute deadline and either an SDO
-index/subindex/payload or a raw frame. The proof owner admits only CANopen SDO
-work on its fixed route. `RAW_FRAME` expresses the future separate protocol
-boundary; it is rejected by this adapter before queuing. Uploads have no outgoing
-payload, downloads have 1–32 bytes. A read's `mayChange` is an explicit profile
-fact, never inferred from an upload or EDS access flag. The synthetic identity
-read alone is declared non-consuming.
+The optional adapter promotes the existing prompt-6 channel storage and
+CANopenNode engine. Its fixed table has two physical channels on one interface,
+one active or retained request per channel, one 32-byte native FIFO per client,
+one owned upload buffer and one retirable software TX slot per channel. The
+retained proof is now a compatibility facade over this implementation. There is
+no second protocol engine, runtime driver registry or controller receive loop.
 
-`ServiceEvidence` retains binding/tokens, owner qualification time, queue and
-possible-transmission facts, protocol acknowledgement, copied upload bytes and
-raw native failure data. The unsigned abort is independent of signed local
-`Status::detail`; `transportDetail` carries the stack return in this adapter.
+The application owns this stationary, noncopyable `SdoClient` and serializes all
+calls. Its single interface owner offers frames through `receive`; a false
+return leaves unrelated node/channel/heartbeat/PDO/EMCY traffic for ordinary
+owner dispatch. Network-event decoding remains prompt 15. The owner explicitly
+reports `reboot(node)` for every relevant node event and `busOff()` for the
+interface; these invalidate channels regardless of observation-ring capacity.
+The existing proof still demonstrates its four-slot raw event ring and boot-up
+handling; the lifecycle does not create a competing event registry.
 
-| Evidence kind | Qualification |
+### Route and admission
+
+`configure(slot, route, externallyConfirmed, freshSessionQualified)` requires
+explicit IDs and an external fresh-session/local-TX/RX premise for every route.
+Duplicate or crossing IDs reject even if logical axis, subaxis, profile or host
+epoch differs. All slots belong to one physical bus. Configuration cannot rebind
+or overwrite a quarantined slot. Multiple separate adapters must never own the
+same physical SDO route; constructing a new object does not retire old traffic.
+
+The EDS `1200:01/:02` defaults are the literal `$NODEID+0x600` and
+`$NODEID+0x580`; they establish source metadata, not live configuration. No IDs
+are derived, probed with writes or silently installed. `externallyConfirmed`
+means bounded, applicable, reviewed non-changing confirmation already occurred
+under the fresh-session premise. If false, only an explicitly reviewed
+non-changing upload can be admitted until one completes. Its success confirms
+the selected route but cannot establish freshness retrospectively. Current
+Lichuan read-effect gates remain unresolved; the synthetic host fixture's
+non-changing read is not manufacturer qualification.
+
+`admit` validates the complete candidate and reserves its result before copying
+all work. It records full target/binding/configuration generations, operation,
+request and step identities; these host fields never appear on ordinary SDO
+wire frames. Local rejection publishes neither a handle nor a terminal. Zero
+identities, invalid routes, size zero/above 32, unsupported direction, zero
+budgets, occupied/quarantined channels and expired/backward time reject before
+TX. The result reservation survives all service turns until explicit `release`.
+A released handle cannot affect a later admission; generations never wrap.
+
+Object access and effect permission belong to the reviewed profile caller.
+This service mechanism supplies no raw Lichuan operation, setter, retry or
+escape around unresolved typed policy. The optional adapter supports exact
+1-32-byte uploads/downloads. All 202 EDS scalar entries are 1-4 bytes; the larger
+bound preserves the retained segmented proof and is not another object
+catalogue or advertised device capability. Block transfer is disabled.
+
+### Transfer forms and dispatch bounds
+
+Sized expedited scalar replies must agree with the expected width. For legal
+unsized `42` replies, CANopenNode internally copies four bytes; the checked
+adapter publishes only the admitted 1-4-byte prefix and retains the entire raw
+frame. Every download waits for the matching native acknowledgement. Server
+aborts must match index/subindex before entering the upstream callback, and all
+32 bits remain unsigned. Native abort evidence is not a malformed frame and
+does not roll back earlier writes.
+
+A server may choose segmented upload for a small scalar. Segmented transfers
+use the actual selected engine's toggle/last-bit protocol. Declared size and
+final total must agree with the explicit request; capacity and command bits are
+checked. The adapter drains the FIFO after each progression call, so all sizes
+through 32 work without the proof's former 28-byte boundary. No progress loop
+runs inside a service call. `service` makes at most one initiation, two engine
+progression calls and one FIFO drain per channel. `receive` adds at most one
+callback, two progression calls and one drain for its selected channel. `nextTx`
+uses the same service bound and hands off at most one frame; zero application
+TX budget means the owner omits that entry.
+
+When `allowSegmentedUpload=false`, a valid segmented initiation terminates as
+`UNSUPPORTED`, preserving the sent initiation and possible effects. The selected
+engine stages a protocol abort. Malformed/size/toggle failures similarly retain
+local client-abort evidence. A cleanup abort can be handed off only within the
+original remaining queue/overall budget; otherwise it is retired. The immutable
+terminal states whether cleanup was staged, never that it reached the server.
+Cleanup can survive terminal result release; its later handoff never clears
+quarantine. No abort is automatically replayed.
+
+### Time and precedence
+
+All times are supplied nondecreasing, nonwrapping `uint64_t` microseconds;
+zero is valid. The absolute exclusive `deadlineUs` is copied at admission and
+never renewed. `queueTimeoutUs` and `responseTimeoutUs` are explicit nonzero
+host policies, not Lichuan timing guarantees. Each cutoff is computed from the
+remaining overall budget before addition, including near `UINT64_MAX`. Native
+per-step timers receive zero elapsed time: owner microsecond cutoffs govern all
+queue, transmission and response intervals instead of the stack resetting an
+overall lease after progress.
+
+| Boundary | Precedence and retained meaning |
 | --- | --- |
-| `ACKNOWLEDGED` | Matching service exchange completed; never inferred from queue acceptance or CAN ACK |
-| `PROTOCOL_REJECTED` | Checked matching server abort, with all unsigned abort bits |
-| `REPLY_ERROR` | Native client detected an invalid response; a local abort is not a server rejection |
-| `TRANSPORT_FAILURE` | Adapter failure or loss of qualified route; copied event provides reset evidence when applicable |
-| `CANCEL` | Local work ended; physical motion is not stopped |
-| `DEADLINE` | Immutable operation deadline reached, including time spent queued |
+| Service/RX/TX at overall cutoff | Expiry wins before callbacks or handoff, including equality |
+| Staged frame reaches queue cutoff | Retire software bytes and publish timeout; never transmit them later |
+| `nextTx` succeeds | Copies one frame and marks possible TX before returning, since controller acceptance may immediately transmit |
+| `confirmTx` | Records an actual controller TX/ACK report for the current frame token; cannot complete SDO or extend a cutoff |
+| Response cutoff after handoff | Clamped to overall deadline; CAN ACK/unrelated traffic/progress cannot extend the total budget |
+| Cancel | Expires first, then cancels without pumping unsent work; retires local staging and never means stop |
+| Bus-off/reboot | Expiry first; quarantine relevant channels and retire local staging; earlier immutable terminals remain unchanged |
 
-Any possibly transmitted unsuccessful transfer makes this proof's channel
-unresolved, including an upload that may have a delayed reply. A checked write
-abort preserves possible partial effects. The operation copies terminal service
-evidence into its own context before the owner slot is released.
+`receive` uses processing time conservatively. Evidence delivered after a cutoff
+cannot become timely because it was captured earlier; no controller timestamp is
+silently inferred. More detailed timestamp/retirement reconciliation belongs to
+prompt 14. Applications must not send previously copied TX after cancellation,
+expiry or generation invalidation. Once bytes cross `nextTx`, unproved controller
+retirement remains possible transmission even if no CAN ACK is later reported.
 
-## Bridge and physical boundary
+### Evidence, effects and quarantine
 
-The private prompt-5 bridge owns one actual SDO client, one fake retirable TX
-slot and a 32-byte FIFO. The outer owner is the sole public RX entry and holds
-the canonical retained-result table. It delivers only SDO frames to the bridge;
-heartbeat/EMCY/PDO frames go directly to the owner's raw observation ring, so
-there is no second asynchronous event registry. A bridge terminal is copied and
-released synchronously before another transfer starts.
+`SdoCompletion` is a non-consuming immutable view until `release`. It separately
+retains admission intent, local queueing, possible and confirmed TX, matching
+protocol success, raw server/client abort, cause, supplied terminal time, raw
+reply and owned upload value. `effectPossible` remains true for a transmitted
+download or unqualified upload, even on service success. `effectUncertain`
+retains possible changing effects on failure. Only source-reviewed non-changing
+uploads can have no changing effect; even their late replies can corrupt
+correlation and therefore quarantine the channel on uncertain failure.
 
-The outer deadline governs queue time, final controller handoff and RX. The
-bridge gets a non-earlier 65,535 ms timeout; this is proof host policy, not a
-Lichuan timing guarantee. Admission bounds and overflow headroom are in the
-owner contract. There is no retry. The upstream close call does not retract TX;
-the fake bridge retires its software slot separately. Real TWAI/controller
-acceptance can already make transmission possible and must preserve uncertainty
-when hardware retirement is unproved.
+Any unsuccessful possibly transmitted request makes the physical channel
+unresolved; transport failure, reboot and bus-off also invalidate it. Release,
+quiet time, host epochs, a matching client abort or construction do not requalify
+it. Other explicitly configured channels/nodes can continue. Safe reopening is
+not implemented: prompt 14 owns evidence-backed reconciliation. Success reuse
+still requires the external premise that a completed exchange will not later be
+duplicated; local request tokens cannot prove this CAN wire property.
 
-The fake route begins externally qualified, with no earlier pending/duplicated
-responses. On a successfully settled route, reuse assumes the controller/peer
-does not later duplicate an old completed exchange. Local tokens/generations
-cannot establish this premise or distinguish identical delayed SDO replies.
-Failure quarantine is demonstrated; safe real route reuse and recovery remain
-prompt 14/24/27 work, with actual queue/peer evidence. No quiet delay or fresh
-host epoch is accepted as proof.
+### Build and host evidence
 
-Prompt 5 demonstrates expedited and limited segmented exchanges. This bridge
-does not drain a full incoming FIFO: 1–28-byte uploads are evidenced; larger
-normal segmented uploads are not production-ready. Prompt 13 implements bounded
-draining and the required transfer forms. Network state/heartbeat policy,
-NMT/SYNC/PDO services, map qualification and bus-off recovery remain prompts
-15–18/24. The proof's raw copied events are not a completed network stack port.
+The full-checkout build automatically registers the selected adapter and
+[independent fake-controller/node tests](../test/sdo_transfer_test.cpp). The
+[adapter guide](../adapters/canopennode/README.md) gives optional-target commands.
+Installed/exported core consumers need no adapter, upstream source, SDK, ledger,
+Python or reference material; portable service value types compile independently.
+No CAN traffic, live drive acknowledgement, motion or hardware qualification is
+claimed by the native harness.

@@ -15,7 +15,7 @@ same table rather than adding an independent request/channel/result registry.
 
 | Storage | Capacity | Lifetime and authority |
 | --- | --- | --- |
-| Node/channel | One qualified fake node 1 / SDO channel 0 on bus 0 | One embedded prompt-5 bridge contains actual client, callbacks, 32-byte FIFO and retirable TX; fixed 0x601/0x581 route |
+| Node/channel | One configured fake node 1 / SDO channel 0 on bus 0 | The promoted SdoClient adapter has two fixed physical-channel slots; this retained proof binds only slot 0. Each slot owns its client/FIFO/retirable software TX; production routes are explicit |
 | Active transfer | One slot index plus bridge handle | Only this channel can advance that transfer; ordinary/urgent requests cannot overlap on it |
 | Axis reservations | Two | Copied binding, operation, fixed deadline, nonwrapping reservation generation and last admitted step |
 | Ordinary work | Two slots | Complete copied `ServiceWork`; admission reserves the corresponding terminal result |
@@ -29,6 +29,15 @@ This permits a later request to use the channel while older owner results remain
 readable. No caller borrows the bridge result or callback buffer. Native NMT,
 EMCY and PDO bytes stay observations rather than mandatory generic-axis fields.
 No unbounded node cache or opaque heap storage is introduced.
+
+Prompt 13 promotes the channel storage into the optional
+[production SDO adapter](../adapters/canopennode/SdoClient.h); the old bridge is
+a compatibility facade. Its two-channel table is tested directly, while this
+outer proof retains its original one-channel scheduling scope. Reconciliation,
+full owner integration and SDK retirement remain prompts 14/23/24/27. Current
+Windows x86-64 sizes are 1464 bytes for the two-channel adapter, 1624 for the
+compatibility facade and 2616 for this outer proof owner; these overlap and
+are not additive or measured embedded RAM/stack/timing budgets.
 
 ## Admission and lifetime
 

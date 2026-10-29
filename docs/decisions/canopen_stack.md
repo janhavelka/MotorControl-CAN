@@ -14,6 +14,13 @@ executes the actual upstream SDO client. The [independent stack review](../repor
 records exact source locations and adverse cases. The [sibling/controller review](../reports/prompt_5_source_review.md)
 records live conventions, real callers/tests and installed TWAI behavior.
 
+Prompt 13 now promotes this original fit into the optional
+[production SDO adapter](../../adapters/canopennode/README.md), retaining the
+same selected engine. Original fit measurements and open production duties
+below describe the prompt-5 revision; current implemented limits, closed FIFO
+boundary and remaining reconciliation/controller duties are in the
+[service guide](../canopen_services.md).
+
 ## Pinned inputs and reproducibility
 
 | Input | Revision and use |

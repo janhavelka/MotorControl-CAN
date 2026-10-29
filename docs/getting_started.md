@@ -141,6 +141,14 @@ installed consumers need no Python, ledger or original vendor material. The [ver
 documents the working quick/full verifier, CI and strict Doxygen gate. These
 developer tools are outside the core distribution.
 
+## Optional CANopenNode application adapter
+
+The separate [CANopenNode application adapter](../adapters/canopennode/README.md)
+can be built explicitly in a full checkout. Its selected stack/port is omitted
+from the exported/installed core. `<MotorControlCAN/canopen/SdoTransfer.h>`
+contains portable service values without either dependency. Native fake-node
+tests do not establish an SDK/controller port or firmware build.
+
 ## Optional ESP-IDF component boundary
 
 When ESP-IDF supplies `idf_component_register`, root CMake registers the same
