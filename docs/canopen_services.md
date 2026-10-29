@@ -362,6 +362,12 @@ the full host binding, nonzero event generation and actual standard CAN-IDs;
 neither source-node identity nor IDs are guessed from low identifier bits.
 An invalidated passive anchor cannot be used to qualify a new SDO alias.
 
+Attaching an anchor preserves initial usable SDO evidence with its original
+capture/processing times and external-versus-SDO origin. Attachment time is
+not confirmation time. Quarantined channels contribute no initial premise;
+their raw channel observations remain available separately. Initial SDO history
+and the strongest service proof are selected independently across channels.
+
 | Route | Required Classical frame shape | Checked payload |
 | --- | --- | --- |
 | Configured heartbeat ID | Standard data, DLC/length 1 | `00` boot-up; `04` Stopped; `05` Operational; `7F` Pre-operational |
@@ -402,6 +408,9 @@ Unknown capture cannot replace a known newer observation. After invalidation,
 unknown-capture heartbeat/EMCY are diagnostic only; known capture must be
 strictly after the processing boundary. An explicitly old route epoch always
 fails. This conservatively rejects already queued pre-boundary samples.
+The retained proof facade supplies processing time only and forwards unknown
+capture; it cannot refresh passive evidence after a reset by stamping delivery
+time as capture time.
 
 Boot-up is a reset observation, not a periodic heartbeat: it cannot start
 heartbeat monitoring. Unless capture/provenance proves it predates the current
@@ -542,6 +551,10 @@ freshness. Explicit external service confirmation is recorded separately in
 `serviceQualification` with `serviceFromSdo=false`; the last matching SDO time
 is not fabricated. Checked matching responses, including a valid rejection,
 update service evidence with SDO provenance while preserving channel quarantine.
+An older or unknown-capture response may update separate raw SDO history but
+cannot replace a newer known service proof. Configuring an externally confirmed
+SDO route uses the owner's last supplied processing time as a conservative
+confirmation bound; attaching passive routing later cannot renew that bound.
 
 Effective heartbeat disabled/unknown is independent of this table. With no
 current exact state or service fact, explicitly request a bounded, reviewed

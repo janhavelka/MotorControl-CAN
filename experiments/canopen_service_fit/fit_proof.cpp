@@ -111,7 +111,9 @@ void CanBusOwner::receive(const FitFrame& frame, uint64_t nowUs) {
     borrowed.extended = frame.extended; borrowed.rtr = frame.rtr;
     borrowed.dlc = frame.DLC; borrowed.payloadLength = frame.rtr ? 0 : frame.DLC;
     if (!frame.rtr) std::memcpy(borrowed.data, frame.data, frame.DLC);
-    const bool accepted = client_.receive(borrowed, nowUs, nowUs);
+    // This facade supplies processing time only. It cannot qualify buffered
+    // passive traffic against a reset boundary without an ingress timestamp.
+    const bool accepted = client_.receive(borrowed, nowUs);
     collect();
     if (frame.extended || frame.rtr) return;
     // Legacy counters observe copied traffic; the production owner decoded it once.

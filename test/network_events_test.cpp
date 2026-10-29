@@ -668,6 +668,69 @@ void checkedSdoTimeRejectsMalformedTrafficAndFaultsRemainIndependent() {
     CHECK(owner.node(0)->sdo.receivedUs == 3 && owner.node(0)->nmt == C::NmtState::OPERATIONAL);
 }
 
+void sdoHistoryCannotDowngradeNewerServiceProof() {
+    for (bool captureKnown : {false, true}) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, sdo(), true, true));
+        CHECK(owner.configureNetwork(0, network(), C::NetworkObserver(), 0));
+        const C::SdoRequestId request = admit(owner, transfer(), 0, 1);
+        handoff(owner, 0, 2);
+        CHECK(owner.service(100));
+        // A separate confirmed channel establishes a newer service premise for
+        // the same physical node while this channel's response is buffered.
+        CHECK(owner.configure(1, sdo(1, 1), true, true));
+        CHECK(owner.setServiceAge(0, 5, 100));
+        CHECK(owner.node(0)->serviceQualification.receivedUs == 100);
+        if (captureKnown) CHECK(owner.receive(uploadReply(), 3, 101));
+        else CHECK(owner.receive(uploadReply(), 101));
+        CHECK(owner.result(request) && owner.result(request)->outcome == C::SdoOutcome::SUCCESS);
+        CHECK(owner.node(0)->sdo.present && owner.node(0)->sdo.receivedTimeKnown == captureKnown);
+        CHECK(owner.node(0)->sdo.processedUs == 101);
+        if (captureKnown) CHECK(owner.node(0)->sdo.receivedUs == 3);
+        CHECK(owner.node(0)->serviceQualification.receivedTimeKnown);
+        CHECK(owner.node(0)->serviceQualification.receivedUs == 100 && !owner.node(0)->serviceFromSdo);
+        C::ServiceEligibility service;
+        CHECK(C::serviceEligibility(*owner.node(0), 101, service) && service.ordinarySdo);
+        CHECK(owner.release(request));
+        const C::SdoRequestId next = admit(owner, transfer(1, true), 0, 102);
+        CHECK(owner.cancel(next, 102));
+        CHECK(C::serviceEligibility(*owner.node(0), 106, service) && !service.ordinarySdo);
+    }
+}
+
+void networkAttachmentPreservesIndependentSdoHistory() {
+    for (unsigned scenario = 0; scenario < 3; ++scenario) {
+        C::SdoClient owner;
+        const uint8_t activeSlot = scenario == 1 ? 1 : 0;
+        const bool captureKnown = scenario != 2;
+        const uint64_t admittedUs = captureKnown ? 1 : 100;
+        const uint64_t handoffUs = captureKnown ? 2 : 100;
+        const uint64_t processedUs = captureKnown ? 3 : 101;
+        if (!captureKnown) CHECK(owner.service(100));
+        CHECK(owner.configure(activeSlot, sdo(1, activeSlot), true, true));
+        const C::SdoRequestId request = admit(owner, transfer(1, false, activeSlot), activeSlot, admittedUs);
+        handoff(owner, activeSlot, handoffUs, 0x601u + 0x20u * activeSlot);
+        M::Frame response = uploadReply(); response.id += 0x20u * activeSlot;
+        if (captureKnown) CHECK(owner.receive(response, 3, processedUs));
+        else CHECK(owner.receive(response, processedUs));
+        CHECK(owner.result(request) && owner.result(request)->outcome == C::SdoOutcome::SUCCESS);
+        if (captureKnown) {
+            CHECK(owner.service(100));
+            const uint8_t confirmedSlot = static_cast<uint8_t>(1 - activeSlot);
+            CHECK(owner.configure(confirmedSlot, sdo(1, confirmedSlot), true, true));
+        }
+        CHECK(owner.configureNetwork(0, network(), C::NetworkObserver(), 102));
+        const C::NodeSnapshot& node = *owner.node(0);
+        // Slot iteration must not couple the newest external service premise
+        // to the independent history of the last matching SDO response.
+        CHECK(node.serviceQualification.receivedTimeKnown && node.serviceQualification.receivedUs == 100);
+        CHECK(!node.serviceFromSdo);
+        CHECK(node.sdo.present && node.sdo.receivedTimeKnown == captureKnown);
+        CHECK(node.sdo.processedUs == processedUs);
+        if (captureKnown) CHECK(node.sdo.receivedUs == 3);
+    }
+}
+
 void directWithdrawalAndControllerScope() {
     C::SdoClient owner;
     DependentCache first, second(binding(2));
@@ -766,6 +829,8 @@ int main() {
     sameNodeChannelsShareFactsAndObserverDeduplication();
     epochExhaustionAndDelayedResetCannotRestoreCoordinates();
     checkedSdoTimeRejectsMalformedTrafficAndFaultsRemainIndependent();
+    sdoHistoryCannotDowngradeNewerServiceProof();
+    networkAttachmentPreservesIndependentSdoHistory();
     directWithdrawalAndControllerScope();
     passiveInvalidationCannotAdmitFirstSdoOrReuseOldEpoch();
     std::printf("network_events: %u checks passed\n", checks);

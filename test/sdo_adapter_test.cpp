@@ -111,5 +111,20 @@ void guardedReplies() {
     CHECK(owner.result(id) && owner.result(id)->outcome == CanopenFit::Outcome::ServerAbort);
     CHECK(owner.result(id)->abortCode == 0xf1234567u);
 }
+void processingTimeCannotQualifyPostResetHeartbeat() {
+    CanopenFit::CanBusOwner owner;
+    FitFrame heartbeat = {};
+    heartbeat.ident = 0x701; heartbeat.DLC = 1; heartbeat.data[0] = 5;
+    owner.receive(heartbeat, 1);
+    CHECK(owner.heartbeats() == 1);
+    FitFrame boot = heartbeat; boot.data[0] = 0;
+    owner.receive(boot, 2);
+    CHECK(owner.heartbeats() == 2 && owner.channelUnresolved());
+    // A queued pre-reset heartbeat has the same bytes. Processing it later
+    // supplies no evidence that capture occurred after the reset boundary.
+    owner.receive(heartbeat, 3);
+    CHECK(owner.heartbeats() == 2);
+    CHECK(owner.lastEvent().data[0] == 0 && owner.channelUnresolved());
+}
 } // namespace
-int main() { actualRequests(); guardedReplies(); return 0; }
+int main() { actualRequests(); guardedReplies(); processingTimeCannotQualifyPostResetHeartbeat(); return 0; }

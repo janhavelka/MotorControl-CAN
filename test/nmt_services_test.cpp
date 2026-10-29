@@ -565,6 +565,112 @@ void nmtCutoffsDoNotWrap() {
         CHECK(owner.node(0)->transitionExpired == (handed != 0));
     }
 }
+
+void networkAttachmentPreservesServiceProof() {
+    // An initial external premise works in either configure order; installing
+    // passive routing later must not renew its original evidence timestamp.
+    for (unsigned networkFirst = 0; networkFirst < 2; ++networkFirst) {
+        C::SdoClient owner;
+        if (networkFirst) CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 0));
+        CHECK(owner.configure(0, channel(), true, true));
+        if (!networkFirst) CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 0));
+        CHECK(owner.setServiceAge(0, 5, 0));
+        CHECK(eligibility(owner, 0).ordinarySdo);
+        CHECK(owner.node(0)->serviceQualification.receivedUs == 0);
+        CHECK(!owner.node(0)->serviceFromSdo && !owner.node(0)->sdo.present);
+    }
+    {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), true, true));
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 100));
+        CHECK(owner.setServiceAge(0, 5, 100));
+        CHECK(!eligibility(owner, 100).ordinarySdo);
+        CHECK(owner.node(0)->serviceQualification.receivedUs == 0);
+        CHECK(!owner.node(0)->serviceFromSdo);
+    }
+    for (unsigned known = 0; known < 2; ++known) for (unsigned delayed = 0; delayed < 2; ++delayed) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), false, true));
+        const auto probe = admitSdo(owner, transfer(), 1);
+        handoffSdo(owner, 2);
+        CHECK(known ? owner.receive(reply(), 3, 3) : owner.receive(reply(), 3));
+        CHECK(owner.result(probe)->outcome == C::SdoOutcome::SUCCESS);
+        CHECK(owner.release(probe));
+        const uint64_t now = delayed ? 100 : 4;
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), now));
+        CHECK(owner.setServiceAge(0, 5, now));
+        const auto e = eligibility(owner, now);
+        CHECK(e.ordinarySdo == (known && !delayed));
+        CHECK(!e.exactNmtKnown && !e.pdoTransmit && e.nonChangingProbe);
+        CHECK(owner.node(0)->serviceFromSdo);
+        CHECK(owner.node(0)->serviceQualification.receivedTimeKnown == (known != 0));
+        CHECK(owner.node(0)->serviceQualification.processedUs == 3);
+        if (known) CHECK(owner.node(0)->serviceQualification.receivedUs == 3);
+        auto write = transfer(true); write.deadlineUs = 200;
+        C::SdoRequestId admitted;
+        CHECK(owner.admit(0, write, now, admitted) == (known && !delayed));
+    }
+}
+
+void unknownCaptureCannotReplacePendingServiceProof() {
+    C::SdoClient owner;
+    CHECK(owner.configure(0, channel(), true, true));
+    const auto probe = admitSdo(owner, transfer(), 1);
+    handoffSdo(owner, 2);
+    CHECK(owner.receive(reply(), 3));
+    CHECK(owner.result(probe)->outcome == C::SdoOutcome::SUCCESS);
+    CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 4));
+    CHECK(owner.setServiceAge(0, 5, 4));
+    CHECK(eligibility(owner, 4).ordinarySdo);
+    CHECK(owner.node(0)->serviceQualification.receivedTimeKnown);
+    CHECK(owner.node(0)->serviceQualification.receivedUs == 0);
+    CHECK(!owner.node(0)->serviceFromSdo);
+    CHECK(!eligibility(owner, 6).ordinarySdo);
+}
+
+void checkedAbortQualifiesServiceWithoutReopeningChannel() {
+    C::SdoClient owner; setup(owner, true, false);
+    const auto probe = admitSdo(owner, transfer(), 1);
+    handoffSdo(owner, 2);
+    M::Frame abort = reply();
+    abort.data[0] = 0x80;
+    abort.data[4] = 0x00; abort.data[5] = 0x00; abort.data[6] = 0x02; abort.data[7] = 0x06;
+    CHECK(owner.receive(abort, 3, 3));
+    CHECK(owner.result(probe)->outcome == C::SdoOutcome::SERVER_ABORT);
+    CHECK(owner.unresolved(0));
+    CHECK(eligibility(owner, 3).ordinarySdo && !eligibility(owner, 3).exactNmtKnown);
+    CHECK(owner.node(0)->serviceFromSdo && owner.node(0)->serviceQualification.receivedUs == 3);
+    CHECK(owner.release(probe));
+    C::SdoRequestId rejected;
+    CHECK(!owner.admit(0, transfer(true), 4, rejected));
+}
+
+void networkAttachmentSelectsUsableChannelProof() {
+    for (unsigned quarantine = 0; quarantine < 2; ++quarantine) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), true, true));
+        CHECK(owner.service(10));
+        CHECK(owner.configure(1, channel(1, 1), true, true));
+        if (quarantine) CHECK(owner.invalidate(1, 11));
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 12));
+        CHECK(owner.setServiceAge(0, 5, 12));
+        CHECK(owner.node(0) == owner.node(1));
+        CHECK(owner.node(0)->serviceQualification.receivedUs == (quarantine ? 0u : 10u));
+        CHECK(eligibility(owner, 12).ordinarySdo == (quarantine == 0));
+        CHECK(!owner.node(0)->serviceFromSdo);
+    }
+    for (unsigned reset = 0; reset < 2; ++reset) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), true, true));
+        if (reset) CHECK(owner.reboot(1, 1));
+        else CHECK(owner.busOff(1));
+        CHECK(owner.reportController(C::ControllerState::AVAILABLE, 2));
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 3));
+        CHECK(!owner.node(0)->serviceQualification.present);
+        CHECK(!eligibility(owner, 3).ordinarySdo && eligibility(owner, 3).nonChangingProbe);
+        CHECK(owner.unresolved(0));
+    }
+}
 } // namespace
 int main() {
     codecAndOwnedVectors(); invalidAdmissionsAndFrozenMembership(); queueFailureAndDeadlines();
@@ -574,5 +680,8 @@ int main() {
     stoppedTransitionProbeDoesNotInventExactState(); preexistingTerminalsSurviveReset();
     invalidatedStartIntentCannotCompleteInNewEpoch(); resetObservationRequiresQualifiedWireEvidence();
     explicitStopRetiresQueuedAndPossibleSdo(); nmtCutoffsDoNotWrap();
+    networkAttachmentPreservesServiceProof(); unknownCaptureCannotReplacePendingServiceProof();
+    checkedAbortQualifiesServiceWithoutReopeningChannel();
+    networkAttachmentSelectsUsableChannelProof();
     std::printf("nmt_services: %u checks\n", checks);
 }

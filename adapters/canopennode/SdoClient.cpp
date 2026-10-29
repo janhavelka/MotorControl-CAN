@@ -87,12 +87,18 @@ bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed,
     c.configured = true;
     c.confirmed = confirmed;
     const int anchor = networkAnchor(slot);
-    if (anchor >= 0 && confirmed) {
-        NodeSnapshot& state = channels_[anchor].network;
-        state.serviceQualification.present = state.serviceQualification.receivedTimeKnown = true;
-        state.serviceQualification.receivedUs = state.serviceQualification.processedUs = lastUs_;
-        state.serviceQualification.generation = state.route.generation;
-        state.serviceFromSdo = false;
+    if (confirmed) {
+        ObservationTime evidence;
+        evidence.present = evidence.receivedTimeKnown = true;
+        evidence.receivedUs = evidence.processedUs = lastUs_;
+        if (anchor >= 0) {
+            NodeSnapshot& state = channels_[anchor].network;
+            evidence.generation = state.route.generation;
+            state.serviceQualification = evidence;
+            state.serviceFromSdo = false;
+        } else {
+            c.unanchoredService = evidence;
+        }
     }
     return true;
 }

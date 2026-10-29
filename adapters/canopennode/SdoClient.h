@@ -155,6 +155,8 @@ public:
      * @param[in] channel Source-backed route; copied after full validation.
      * @param[in] externallyConfirmed True only for an externally established fresh
      * route/session premise plus bounded reviewed non-changing confirmation.
+     * Its conservative timestamp is the owner's last supplied processing time;
+     * installing a network anchor later does not refresh that evidence.
      * False admits only a reviewed non-changing upload until one succeeds.
      * No current Lichuan read is thereby declared qualified.
      * @param[in] freshSessionQualified Required external premise that the local
@@ -176,6 +178,8 @@ public:
      * @param[in] route Explicit current binding, event epoch and actual identifiers.
      * @param[in] observer Borrowed stationary cache invalidator; no reentrancy/I/O.
      * @param[in] nowUs Nondecreasing monotonic microseconds; establishes the boundary.
+     * Existing usable SDO service evidence retains its original time and origin;
+     * unknown capture remains unknown and quarantined channels supply no premise.
      * @return False atomically for invalid/duplicate route, observer or time.
      */
     bool configureNetwork(uint8_t slot, const NetworkRoute& route, NetworkObserver observer, uint64_t nowUs);
@@ -386,6 +390,11 @@ private:
         Frame lastReply;
         bool replyValid = false;
         SdoRxObservation observation;
+        // Before passive routing exists, retain service provenance for initial attachment.
+        // It is consumed when a node anchor is installed, not a second current cache.
+        ObservationTime unanchoredService;
+        ObservationTime unanchoredSdo;
+        bool unanchoredServiceFromSdo = false;
         bool networkConfigured = false;
         NodeSnapshot network;
         NetworkObserver observer;

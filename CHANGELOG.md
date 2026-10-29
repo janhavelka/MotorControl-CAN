@@ -60,6 +60,13 @@ This repository contains planning/reference material and native service/API owne
 
 ### Changed
 
+- Corrected initial network attachment to preserve original SDO service-proof
+  time and origin, with independent matching-response history across channels.
+  Older or unknown-capture responses no longer erase a valid newer service proof.
+- The retained proof facade now forwards processing-only receive timestamps as
+  unknown capture; queued passive traffic cannot qualify after a reset through
+  a fabricated capture time.
+
 - Clarified that SDO freshness premises cover individual segments during a transfer. Added toggle-wrap ambiguity counterexamples and all segmented-upload cancellation boundaries; corrected a test's caller-time order. No runtime state or device permission changed.
 - Split the original 20 implementation stages into 50 complete prompts numbered 1–50, with smaller scopes, explicit prerequisites and focused completion checks. Preserved original obligations in a scope map and historical archive.
 - Moved owner/adapters before motion evidence, retained the early conditional experiment path, and separated CLI, runner and qualification work into bounded assignments.

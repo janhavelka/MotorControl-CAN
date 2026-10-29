@@ -26,6 +26,10 @@ with segmented-upload cancellation boundaries and a toggle-wrap counterexample.
 It also supplies current independent review evidence for R32. No runtime or
 hardware-support claim changed.
 
+The [fresh audit of prompts 15-17](reports/prompts_15_17_audit.md) adds regressions
+for initial service-proof age/origin, independent matching-response history and
+unknown-capture forwarding. R05/R11/R20/R32 retain host-only scope.
+
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
 build or hardware qualification has been delivered for that requirement. No CAN
 vendor driver exists yet. The small installed API does not implement motion; prototype evidence below does not change
@@ -56,7 +60,7 @@ that support claim. Reference/data verification is not driver testing.
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
-| R24 | All; architecture 5-6 | One selected stack and one documented fixed ownership table, no runtime selection or universal operation engine. Host owner with two node/SDO slots, one NMT result and eight PDO routes sizeof 10400 bytes on Windows x86-64; embedded sizing, timing and controller qualification pending. |
+| R24 | All; architecture 5-6 | One selected stack and one documented fixed ownership table, no runtime selection or universal operation engine. Host owner with two node/SDO slots, one NMT result and eight PDO routes sizeof 10528 bytes on Windows x86-64, including transient initial service/SDO times; embedded sizing, timing and controller qualification pending. |
 | R25 | 7-8, 49-50 | Prompt 7 delivers C++11 core, installed/exported consumers, independent headers, C++17/no-RTTI checks, exact distribution lists and MIT attribution. Prompt 8 adds working verifier/CI/strict docs; final delivery status remains in its report. |
 | R26 | 1-10, 45-46, 49-50 | Core-only N5 stepper/BLDC and EPOS4 fixtures pass with optional full-step geometry, independent scales and C11 capability/calibration gates. No additional installed driver or vendor sequence. |
 | R27 | 5-6, 9-18, 23-25, 45-46 | Generic proprietary address 500/subaxis 2 and servo-without-CANopen-state review attempts pass. Synthetic CANopen profile/owner reject unsupported protocol before admission. Separate real protocol implementation pending. |

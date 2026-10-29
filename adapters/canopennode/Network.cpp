@@ -78,11 +78,21 @@ bool SdoClient::configureNetwork(uint8_t slot, const NetworkRoute& route, Networ
     c.network.boundaryUs = now;
     c.networkConfigured = true;
     c.observer = observer;
-    for (const Channel& other : channels_) {
-        if (other.configured && other.confirmed && sameNode(other.route.binding, route.binding)) {
-            c.network.serviceQualification = timeOf(true, now, now);
-            c.network.serviceQualification.generation = route.generation;
+    for (Channel& other : channels_) {
+        if (!other.configured || !sameNode(other.route.binding, route.binding)) continue;
+        ObservationTime evidence = other.unanchoredService;
+        evidence.generation = route.generation;
+        if (!other.unresolved && evidence.present &&
+            !older(c.network.serviceQualification, evidence.receivedTimeKnown, evidence.receivedUs)) {
+            c.network.serviceQualification = evidence;
+            c.network.serviceFromSdo = other.unanchoredServiceFromSdo;
         }
+        ObservationTime sdo = other.unanchoredSdo;
+        sdo.generation = route.generation;
+        if (!other.unresolved && sdo.present && !older(c.network.sdo, sdo.receivedTimeKnown, sdo.receivedUs))
+            c.network.sdo = sdo;
+        other.unanchoredService = ObservationTime();
+        other.unanchoredSdo = ObservationTime();
     }
     lastUs_ = now;
     return true;
@@ -278,15 +288,25 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
 void SdoClient::recordSdo(Channel& channel, bool known, uint64_t received, uint64_t now) {
     const unsigned slot = static_cast<unsigned>(&channel - channels_);
     const int anchor = networkAnchor(static_cast<uint8_t>(slot));
-    if (anchor < 0) return;
+    if (anchor < 0) {
+        if (!older(channel.unanchoredSdo, known, received))
+            channel.unanchoredSdo = timeOf(known, received, now);
+        if (!older(channel.unanchoredService, known, received)) {
+            channel.unanchoredService = timeOf(known, received, now);
+            channel.unanchoredServiceFromSdo = true;
+        }
+        return;
+    }
     NodeSnapshot& state = channels_[anchor].network;
     if (state.exhausted || (known && (received < state.boundaryUs ||
         (state.strictBoundary && received == state.boundaryUs))) || (!known && state.strictBoundary) ||
         older(state.sdo, known, received)) return;
     state.sdo = timeOf(known, received, now);
     state.sdo.generation = state.route.generation;
-    state.serviceQualification = state.sdo;
-    state.serviceFromSdo = true;
+    if (!older(state.serviceQualification, known, received)) {
+        state.serviceQualification = state.sdo;
+        state.serviceFromSdo = true;
+    }
 }
 } // namespace CANOPEN
 } // namespace MotorControlCAN

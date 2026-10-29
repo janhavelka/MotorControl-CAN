@@ -48,6 +48,11 @@ freshness for individual segment exchanges and added upload cancellation and
 toggle-wrap ambiguity regressions. No runtime defect was reproduced; Prompt 14
 remains Complete with the strengthened coverage and unchanged device gates.
 
+A [fresh independent audit of prompts 15-17](../reports/prompts_15_17_audit.md)
+corrects initial SDO proof timestamps, independent history/proof ordering and
+processing-only receive provenance. Passive event, NMT and PDO scope remains
+Complete; no device permission or hardware qualification changed.
+
 Use numerical order among ready work within the assignment. Record the blocker and completed artifacts before progressing to independent work; return when evidence arrives. Prompts 18/20-22 may stay Partial while the independent owner/adapter path reaches the evidence harness in 29. Their typed features and owner integration remain owed to their original prompts. A partial predecessor or dependent chunk is never marked Complete merely to continue.
 
 | Prompt | Work | State | Report |
