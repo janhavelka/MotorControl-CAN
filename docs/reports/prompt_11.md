@@ -8,9 +8,9 @@ evidence and checked little-endian integer reads. The selected CANopenNode
 remains the single authoritative encoder/session engine; no duplicate encoder,
 production transfer session, event codec, object generator or profile was added.
 
-Local full verification and independent review pass. State is **In progress**
-until this API/package milestone's exact commit passes required remote CI.
-Prompt 12 is next after closure; sessions and ambiguity remain prompts 13/14.
+The stage is **Complete**: independent review, local full/package/Doxygen gates
+and exact implementation-commit Windows/GCC/Clang sanitizer CI passed.
+Prompt 12 is next; sessions and ambiguity remain prompts 13/14.
 No device I/O, startup action, hardware measurement or qualification occurred.
 
 ## Refreshed source audit
@@ -127,7 +127,9 @@ boundaries; focused tracked tests include all 256 command bytes in both phases.
 Reviews found no confirmed implementation defect. A confirmed coverage gap was
 fixed: actual VESC extended and ODrive RTR fixtures now demonstrate common-frame
 acceptance and service-specific rejection on those same frames. There is no
-parallel runtime encoder or general protocol framework to maintain.
+parallel runtime encoder or general protocol framework to maintain. Lead review
+also clarified inherited common-frame detail zero versus SDO-specific detail
+in public comments; no executable behavior changed.
 
 Tracked [codec tests](../../test/sdo_codec_test.cpp) cover signed/unsigned widths,
 capacity, prefix/full-span overlap, output sentinels, raw abort extremes, legal
@@ -157,15 +159,34 @@ Current-doc `doxygen Doxyfile` PASS with no warnings.
 `python scripts/check_promptset.py --check-git-ref HEAD` PASS: 134 original
 artifacts and committed blobs, 50 prompts, 35 requirements, all ledger accounting
 and 1597 local links. `git diff --check` PASS.
-Staged/committed-byte checks, exact implementation/final commit CI, and
-synchronization are recorded below when completed. The first full run preceded only the final
+Staged and committed original-byte checks passed with INDEX and HEAD, as did
+repository/version freshness checks. Exact implementation CI and synchronization
+are recorded below. The first full run preceded only the final
 small contrast assertions/formatting; those assertions were rebuilt and run.
 
 ## Handoff
 
-No unresolved prompt-11 implementation behavior remains. Pending milestone CI
+No unresolved prompt-11 implementation behavior remains. Completed milestone CI
 does not close later work. Prompt 12 owns reviewed generation; 13/14 own selected
 engine production lifecycle/FIFO/late-reply/abort/send-error integration. Original
 device contradictions, exact firmware/live node/COB-ID configuration and physical
 qualification remain explicit. No inferred permission or physical measurement
 was substituted for missing evidence. Original references/attributes unchanged.
+
+## Commit, CI and synchronization
+
+Implementation checkpoint: 85737a368baf4a7023123064aef9a0ddf25c6457.
+Push and fresh fetch confirmed the configured upstream at that exact commit,
+0 ahead / 0 behind. Original-byte HEAD integrity passed after commit.
+
+[Required implementation CI run 40874194079](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40874194079)
+completed successfully on that full SHA: Quick GCC on Windows, Full GCC with
+ASan/UBSan and Full Clang with ASan/UBSan all passed. Full jobs include package,
+independent headers, strict Doxygen and public API extraction. CI retains
+command/version/status logs and artifacts. The connected GitHub tool cannot
+inspect these push runs; the authenticated GitHub CLI supplied actual run,
+head SHA and per-job results. No manual dispatch or workflow change was needed.
+
+This closure updates documentation/status and one public comment; executable
+source is unchanged. Its own exact-commit CI and final upstream comparison are
+verified before handoff and reported with the resulting commit ID there.

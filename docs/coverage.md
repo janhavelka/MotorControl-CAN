@@ -47,7 +47,7 @@ that support claim. Reference/data verification is not driver testing.
 | R17 | 26-28, 40-42, 49-50 | Pending |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Pending |
-| R20 | 7-28, 30-46, 49-50 | Twenty-one explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 19; full runs 20 plus a retained package contract. Prompt-11 local full/package/Doxygen pass; milestone CI pending in [its report](reports/prompt_11.md). |
+| R20 | 7-28, 30-46, 49-50 | Twenty-one explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 19; full runs 20 plus a retained package contract. Prompt-11 local full/package/Doxygen and Windows/GCC/Clang sanitizer CI pass in [its report](reports/prompt_11.md). |
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
@@ -62,7 +62,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners retained; prompts 1-10 complete; prompt 11 implementation/local gates pass with milestone CI pending in its report. All later feature, integration and qualification obligations remain pending. |
+| R35 | 1-50 | Current owners retained; prompts 1-11 complete, with exact local/CI evidence in their reports. All later feature, integration and qualification obligations remain pending. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified

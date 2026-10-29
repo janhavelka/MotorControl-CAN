@@ -62,7 +62,7 @@ struct SdoReply {
 };
 /** Function-specific local detail; never a narrowed native abort. */
 enum class SdoError : int32_t {
-    NONE, ///< No error.
+    NONE, ///< No SDO-specific detail; common frame validation also retains detail zero.
     INVALID_CHANNEL, ///< Invalid binding/protocol/node/active CAN-IDs or identical direction IDs.
     INVALID_EXPECTATION, ///< Invalid direction or reviewed width.
     FRAME_KIND, ///< Valid Classical format outside this standard-data CANopen boundary.
@@ -91,7 +91,8 @@ Status validateSdoChannel(const SdoChannel& channel) noexcept;
  * @param[in] expected Bound channel, direction, object and reviewed width.
  * @return Local shape/expectation status, never transmission or protocol success.
  * Invalid expectation precedes frame validation; FD is UNSUPPORTED; unexpected
- * extended/RTR is UNSUPPORTED/FRAME_KIND; shape/object/command mismatches are
+ * extended/RTR is UNSUPPORTED/FRAME_KIND. Common shape failures retain
+ * validateFrame's status/detail; SDO length/object/command mismatches use
  * FRAME_ERROR with SdoError. A legal download size conflicting with reviewed
  * width is ILLEGAL_VALUE/WIDTH. No output or mutable session exists. */
 Status checkRequest(const Frame& frame, const SdoExpectation& expected) noexcept;
