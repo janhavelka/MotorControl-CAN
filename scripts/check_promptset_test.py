@@ -73,7 +73,7 @@ class PromptSequenceTests(unittest.TestCase):
         code, result = self.check_with()
         self.assertEqual(code, 0, result["errors"])
         self.assertEqual(result["counts"]["stages"], 50)
-        self.assertEqual(result["counts"]["hashed_artifacts"], 134)
+        self.assertEqual(result["counts"]["hashed_artifacts"], 137)
 
     def upstream_change(self, change):
         upstream = json.loads(UPSTREAM.read_text(encoding="utf-8"))
@@ -87,8 +87,9 @@ class PromptSequenceTests(unittest.TestCase):
         self.assertIn("CANopen fit upstream: missing file vendor/CANopenNode/LICENSE", result["errors"])
 
     def test_fit_license_cannot_be_removed_from_manifest(self):
-        changes = self.upstream_change(lambda data: data["files"].pop())
-        self.assert_rejected(changes, "complete 11-file inventory including LICENSE")
+        changes = self.upstream_change(lambda data: data.update(
+            files=[row for row in data["files"] if row["upstream_path"] != "LICENSE"]))
+        self.assert_rejected(changes, "complete 14-file inventory including LICENSE")
 
     def test_fit_altered_manifest_hash_is_rejected(self):
         changes = self.upstream_change(lambda data: data["files"][0].update(sha256="0" * 64))

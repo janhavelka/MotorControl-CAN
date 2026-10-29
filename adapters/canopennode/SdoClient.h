@@ -5,7 +5,9 @@
 #pragma once
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include "NetworkState.h"
+#include "Nmt.h"
 #include "301/CO_SDOclient.h"
+#include "301/CO_NMT_Heartbeat.h"
 
 namespace MotorControlCAN {
 namespace CANOPEN {
@@ -42,6 +44,64 @@ public:
     SdoClient() = default; ///< Initializes storage without configuring or transmitting a route.
     SdoClient(const SdoClient&) = delete; ///< Callback addresses and owner identities cannot be copied.
     SdoClient& operator=(const SdoClient&) = delete; ///< Assignment cannot transfer live ownership.
+
+    /** Admit one explicit manager request, without TX or remote state changes.
+     * @param[in] work Copied command, bus/target and immutable future budgets.
+     * Every local SDO binding must have an existing network anchor. Membership
+     * is frozen until release; no node-zero binding is created for broadcast.
+     * @param[in] nowUs Nondecreasing caller microseconds.
+     * @param[out] id Published on success only; no overlap with work or owner.
+     * @return False atomically on invalid target, occupied result, pending target,
+     * stale epoch, controller failure, invalid budget or generation exhaustion.
+     */
+    bool admitNmt(const NmtTransfer& work, uint64_t nowUs, NmtRequestId& id);
+    /** Yield the one native-producer frame, conservatively marking possible TX.
+     * @param[in] id Exact live admission.
+     * @param[in] nowUs Same clock; cutoffs win at equality.
+     * @param[out] frame Owned copy, unchanged on failure; no overlap with owner/id.
+     * @return True once only. Lifecycle effects execute before returning bytes.
+     * Serialize canTransmitNmt/enqueue with receive/lifecycle; never replay.
+     */
+    bool nextNmtTx(NmtRequestId id, uint64_t nowUs, Frame& frame);
+    /** Check an unconfirmed live NMT handoff without mutation or clock reads.
+     * @param[in] id Exact current handoff/admission.
+     * @param[in] nowUs Same clock, at least last mutation and before deadline.
+     * @return False after cancellation, deadline, TX confirmation or invalidation.
+     */
+    bool canTransmitNmt(NmtRequestId id, uint64_t nowUs) const;
+    /** Record actual TX and publish local TRANSMITTED terminal, never remote state.
+     * @param[in] id Exact live handed-off request.
+     * @param[in] nowUs Same clock; deadline priority applies.
+     * @return True only for first valid confirmation; result remains until release.
+     */
+    bool confirmNmtTx(NmtRequestId id, uint64_t nowUs);
+    /** Cancel local work without transmitting a network/motor stop.
+     * @param[in] id Exact nonterminal request.
+     * @param[in] nowUs Same supplied clock; expiration takes precedence.
+     * @return True if cancellation wins; possible earlier effects remain possible.
+     */
+    bool cancelNmt(NmtRequestId id, uint64_t nowUs);
+    /** Inspect immutable local terminal; borrowed until release/destruction.
+     * @param[in] id Exact retained admission.
+     * @return Null while pending or for stale/foreign IDs; no observation is consumed.
+     */
+    const NmtCompletion* nmtResult(NmtRequestId id) const;
+    /** Release only the retained local result; intent/evidence are independent.
+     * @param[in] id Exact terminal admission.
+     * @return False unchanged for invalid/pending IDs; never requalifies a node/channel.
+     */
+    bool releaseNmt(NmtRequestId id);
+    /** Inspect native producer staging for application diagnostics/preflight.
+     * @return Borrowed fixed port for owner lifetime; no RX callback is registered.
+     */
+    const CO_CANmodule_t* nmtPort() const { return &nmtPort_; }
+    /** Select explicit inclusive evidence age, independently of heartbeat producer timing.
+     * @param[in] slot Node anchor or its SDO slot.
+     * @param[in] maximumAgeUs Nonzero microseconds; UINT64_MAX selects lifecycle-only validity.
+     * @param[in] nowUs Same clock; this does not refresh observations.
+     * @return False atomically for invalid slot/age/time.
+     */
+    bool setServiceAge(uint8_t slot, uint64_t maximumAgeUs, uint64_t nowUs);
 
     /** Configure a previously unused slot, with no traffic or guessed default IDs.
      * Duplicate/crossing CAN-IDs or aliases of the same peer node/server channel
@@ -289,6 +349,19 @@ private:
     NetworkObservation networkHistory_[NETWORK_HISTORY];
     uint8_t networkHead_ = 0, networkCount_ = 0;
     uint32_t networkDropped_ = 0;
+    CO_NMT_t nmtEngine_ = {};
+    CO_CANmodule_t nmtPort_ = {};
+    NmtCompletion nmtCompletion_;
+    bool nmtOccupied_ = false, nmtTerminal_ = false;
+    uint32_t nmtGeneration_ = 0;
+    uint64_t nmtQueueCutoff_ = 0;
+    bool validNmt(NmtRequestId id) const;
+    void serviceNmt(uint64_t nowUs);
+    void expireNmt(uint64_t nowUs);
+    void finishNmt(NmtOutcome outcome, uint64_t nowUs);
+    void applyNmt(uint64_t nowUs);
+    void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
+    bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
     bool valid(SdoRequestId id) const;
     void expire(Channel& c, uint64_t nowUs);
     void pump(Channel& c, uint64_t nowUs);
@@ -301,7 +374,8 @@ private:
     void recordNetwork(const NetworkObservation& observation);
     bool dispatchNetwork(const Frame& frame, const NetworkRoute* source, bool timeKnown,
                          uint64_t receivedUs, uint64_t nowUs);
-    void invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t nowUs);
+    void invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t nowUs, bool resetObserved = false);
+    void stopSdo(unsigned anchor, uint64_t nowUs);
     void recordSdo(Channel& channel, bool timeKnown, uint64_t receivedUs, uint64_t nowUs);
 };
 } // namespace CANOPEN

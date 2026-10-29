@@ -58,7 +58,7 @@ int SdoClient::networkAnchor(uint8_t slot) const {
 }
 
 bool SdoClient::configureNetwork(uint8_t slot, const NetworkRoute& route, NetworkObserver observer, uint64_t now) {
-    if (slot >= CHANNELS || channels_[slot].networkConfigured || !validateNetworkRoute(route) ||
+    if (nmtOccupied_ || slot >= CHANNELS || channels_[slot].networkConfigured || !validateNetworkRoute(route) ||
         !validObserver(observer) || now < lastUs_ ||
         (channels_[slot].configured && !sameBinding(channels_[slot].route.binding, route.binding))) return false;
     for (const Channel& c : channels_) {
@@ -77,6 +77,12 @@ bool SdoClient::configureNetwork(uint8_t slot, const NetworkRoute& route, Networ
     c.network.boundaryUs = now;
     c.networkConfigured = true;
     c.observer = observer;
+    for (const Channel& other : channels_) {
+        if (other.configured && other.confirmed && sameNode(other.route.binding, route.binding)) {
+            c.network.serviceQualification = timeOf(true, now, now);
+            c.network.serviceQualification.generation = route.generation;
+        }
+    }
     lastUs_ = now;
     return true;
 }
@@ -116,16 +122,29 @@ bool SdoClient::takeNetworkObservation(NetworkObservation& output) {
     return true;
 }
 
-void SdoClient::invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t now) {
+void SdoClient::invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t now, bool resetObserved) {
+    expireNmt(now);
     NodeSnapshot& state = channels_[anchor].network;
+    if (cause != NetworkInvalidation::NMT_RESET && state.transitionPending) {
+        const bool expectedReset = resetObserved && cause == NetworkInvalidation::BOOTUP &&
+            (state.requestedCommand == NmtCommand::RESET_NODE || state.requestedCommand == NmtCommand::RESET_COMMUNICATION);
+        state.transitionPending = false;
+        state.transitionObserved = expectedReset;
+        state.transitionInvalidated = !expectedReset;
+    }
+    if (cause != NetworkInvalidation::NMT_RESET && nmtOccupied_ && !nmtTerminal_ &&
+        (nmtCompletion_.transfer.broadcast || sameNode(state.route.binding, nmtCompletion_.transfer.target.binding)))
+        finishNmt(NmtOutcome::INVALIDATED, now);
     NetworkInvalidationEvent notification;
     notification.previous = state.route;
     notification.cause = cause; notification.processedUs = now;
+    if (cause == NetworkInvalidation::NMT_RESET) notification.command = state.requestedCommand;
     if (state.route.generation == UINT32_MAX) state.exhausted = true;
     else ++state.route.generation;
     notification.generation = state.route.generation;
     state.boundaryUs = now; state.strictBoundary = true;
     state.heartbeat = state.nmtTime = state.sdo = ObservationTime();
+    state.serviceQualification = ObservationTime();
     state.producerKnown = false; // Old readback/defaults cannot establish a new effective interval.
     const SdoOutcome outcome = cause == NetworkInvalidation::BOOTUP ? SdoOutcome::REBOOT :
         cause == NetworkInvalidation::BUS_OFF ? SdoOutcome::BUS_OFF : SdoOutcome::BINDING_INVALIDATED;
@@ -165,6 +184,8 @@ bool SdoClient::reportController(ControllerState state, uint64_t now) {
     if (state > ControllerState::RECOVERING || now < lastUs_) return false;
     lastUs_ = now; controllerState_ = state;
     if (state != ControllerState::BUS_OFF && state != ControllerState::RECOVERING) return true;
+    expireNmt(now);
+    finishNmt(state == ControllerState::BUS_OFF ? NmtOutcome::BUS_OFF : NmtOutcome::INVALIDATED, now);
     const NetworkInvalidation cause = state == ControllerState::BUS_OFF ? NetworkInvalidation::BUS_OFF : NetworkInvalidation::RECOVERY;
     for (unsigned i = 0; i < CHANNELS; ++i)
         if (channels_[i].networkConfigured) invalidateNode(i, cause, now);
@@ -210,13 +231,14 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
             // A newer heartbeat cannot prove that older configuration survived this reset.
             const ObservationTime previous = state.nmtTime;
             const NmtState previousState = state.nmt;
-            invalidateNode(i, NetworkInvalidation::BOOTUP, now);
+            invalidateNode(i, NetworkInvalidation::BOOTUP, now, known && received > state.transitionUs);
             if (older(previous, known, received)) {
                 state.nmt = previousState; state.nmtTime = previous;
             } else {
                 state.nmt = NmtState::INITIALIZING; state.nmtTime = observation.time;
                 state.nmtTime.generation = state.route.generation;
             }
+            observeNmt(state, observation.time, NmtState::INITIALIZING);
         } else if (!known && state.strictBoundary) {
             observation.disposition = NetworkDisposition::UNQUALIFIED;
             recordNetwork(observation); return false;
@@ -228,6 +250,10 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
             state.heartbeat = observation.time;
             if (!older(state.nmtTime, known, received)) {
                 state.nmt = event.state; state.nmtTime = observation.time;
+                observeNmt(state, observation.time, event.state);
+                ServiceEligibility eligibility;
+                if (serviceEligibility(state, now, eligibility) && eligibility.exactNmtKnown &&
+                    eligibility.state == NmtState::STOPPED) stopSdo(i, now);
             }
         } else {
             if (state.emcyCount != UINT32_MAX) ++state.emcyCount;
@@ -255,6 +281,8 @@ void SdoClient::recordSdo(Channel& channel, bool known, uint64_t received, uint6
         older(state.sdo, known, received)) return;
     state.sdo = timeOf(known, received, now);
     state.sdo.generation = state.route.generation;
+    state.serviceQualification = state.sdo;
+    state.serviceFromSdo = true;
 }
 } // namespace CANOPEN
 } // namespace MotorControlCAN

@@ -22,7 +22,9 @@ enum class NetworkInvalidation : uint8_t {
     DIALECT, ///< Interpretation changed.
     CONFIGURATION, ///< Configuration/mapping/scale dependency changed.
     RECOVERY, ///< Controller/application recovery revokes old observations.
-    BUS_OFF ///< Interface failure revokes current evidence.
+    BUS_OFF, ///< Interface failure revokes current evidence.
+    NMT_TRANSITION, ///< Explicit nonreset transition may have transmitted; configuration/scale facts are not changed.
+    NMT_RESET ///< Explicit reset may have transmitted; no remote reset acknowledgement is implied.
 };
 /** Independent observation time; zero is valid and unknown capture is explicit. */
 struct ObservationTime {
@@ -38,12 +40,15 @@ struct NetworkInvalidationEvent {
     Generation generation = 0; ///< New epoch, or unchanged exhausted maximum.
     NetworkInvalidation cause = NetworkInvalidation::BOOTUP; ///< Actual revocation reason.
     uint64_t processedUs = 0; ///< Supplied processing boundary in monotonic microseconds.
+    NmtCommand command = NmtCommand::START; ///< Meaningful for NMT_TRANSITION/NMT_RESET; identifies the actual requested transition/reset.
 };
 /** Optional application cache invalidator. Both fields must be null or nonnull.
  * Context is borrowed for the stationary owner's lifetime. The callback must be
  * bounded, synchronous, nonreentrant and perform no I/O. It revokes actual cached
  * configuration/PDO/scale/reference/prepared evidence while preserving outcomes
- * and raw faults. Equal callback/context pairs are notified once per node event.
+ * and raw faults. NMT_TRANSITION revokes only dependent service/prepared
+ * eligibility, preserving unchanged configuration/map/scale/reference facts.
+ * Equal callback/context pairs are notified once per node event.
  */
 struct NetworkObserver {
     void* context = nullptr; ///< Caller-owned dependent cache/axis context.
@@ -62,8 +67,21 @@ struct NodeSnapshot {
     uint16_t producerTimeMs = 0; ///< Effective interval, zero disabled; never inferred from cadence/EDS.
     ObservationTime heartbeat; ///< Last valid periodic heartbeat; boot-up is excluded.
     ObservationTime nmtTime; ///< Independent native NMT observation time.
-    NmtState nmt = NmtState::INITIALIZING; ///< Current only if present, epoch matches and not exhausted; otherwise history.
+    NmtState nmt = NmtState::INITIALIZING; ///< Raw observed state/history; use serviceEligibility for epoch, transition and age qualification.
     ObservationTime sdo; ///< Last checked matching SDO evidence, including valid rejection.
+    ObservationTime serviceQualification; ///< Explicit external confirmation or checked SDO response; never exact NMT.
+    bool serviceFromSdo = false; ///< False identifies an explicit external route/service premise.
+    uint64_t maximumEvidenceAgeUs = UINT64_MAX; ///< Inclusive caller age policy; default explicitly uses lifecycle validity only.
+    bool intentPresent = false; ///< A possibly transmitted explicit NMT intent exists.
+    NmtCommand requestedCommand = NmtCommand::START; ///< Requested command, never the observed state.
+    uint32_t requestedId = 0; ///< Local application identity; absent from wire events.
+    uint64_t transitionUs = 0; ///< Possible-TX processing boundary; later evidence needs known capture strictly after it.
+    uint64_t transitionDeadlineUs = 0; ///< Immutable wait cutoff; expiration cannot promote state.
+    bool transitionPending = false; ///< Awaiting matching observation within its original budget.
+    bool transitionExpired = false; ///< Deadline expired without matching observation.
+    bool transitionConflict = false; ///< A qualified different state was observed; history retained.
+    bool transitionObserved = false; ///< Matching post-handoff observation, never inferred from elapsed time/TX.
+    bool transitionInvalidated = false; ///< An unrelated lifecycle boundary retired this wait; requested history survives.
     ObservationTime emcyTime; ///< Time of latest EMCY; history can outlive the current epoch.
     NetworkEvent emcy; ///< Latest owned raw EMCY; its route preserves the originating epoch.
     uint32_t emcyCount = 0; ///< Saturating accepted EMCYs, separate from health/fault policy.

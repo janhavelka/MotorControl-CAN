@@ -451,3 +451,133 @@ The original EDS documents producer `1017` U16/default zero and EMCY route
 not proof of unsupported firmware behavior, and none of these host observations
 establishes a Lichuan host-loss stop guarantee. No implicit NMT, heartbeat,
 drive or PDO configuration write is performed.
+
+## Explicit NMT manager requests
+
+Installed `makeNmtRequest` encodes only the five reviewed commands: Start `01`,
+Stop `02`, Pre-operational `80`, Reset node `81` and Reset communication `82`.
+The standard data frame has ID zero and exactly two bytes: command, target.
+Targets 1–127 address a node; target zero is a domain broadcast. NMT Stop is
+neither a physical motor stop nor a CiA402 quick stop. This codec is pure.
+
+The optional owner provides `admitNmt`, `nextNmtTx`, `canTransmitNmt`,
+`confirmNmtTx`, `cancelNmt`, `nmtResult` and `releaseNmt`. The application must
+explicitly act as network manager. One request/result slot bounds manager
+work independently of the two SDO slots. Every local SDO binding must have a
+network anchor before admitting NMT. An addressed request carries that exact
+route/epoch; a broadcast carries the physical bus and snapshots all local
+bindings, including passive-only nodes and additional SDO channels. It never
+creates an axis at node zero. Unbound remote nodes are affected by the actual
+broadcast too. Configure/rebind membership only after releasing the request.
+
+Admission copies intent without traffic. Service invokes the actual pinned
+`CO_NMT_sendCommand` producer once. Queue refusal or cancellation/expiry before
+handoff leaves prior observations and producer facts unchanged. `nextNmtTx`
+marks possible transmission before yielding a copy: do not replay it. As with
+SDO, serialize the pure `canTransmitNmt` check and actual enqueue with lifecycle
+events. After that conservative boundary, cancellation cannot prove no effect.
+`confirmNmtTx` records actual controller TX and publishes **TRANSMITTED**, a
+local result. NMT has no remote acknowledgement; neither CAN ACK nor a later
+heartbeat can manufacture one. Results remain immutable until release.
+
+Queue cutoff and overall deadline are immutable, exclusive caller microsecond
+budgets, including equality and `UINT64_MAX` arithmetic. Stalled staging,
+unconfirmed handoffs and pending observations expire without extending those
+budgets. Each service turn handles at most one NMT staging call plus two node
+wait expirations, in addition to the documented SDO bounds. Deadline expiry
+wins over lifecycle reports at the same time. No vendor boot delay is assumed.
+
+### Intent, observations and invalidation
+
+`NodeSnapshot` retains requested command/identity, handoff boundary, original
+deadline and independent pending/observed/conflict/expired/invalidated facts.
+The old observed state/time and SDO time stay history. After possible NMT TX,
+current qualification requires known capture **strictly after** that handoff,
+the current lifecycle epoch and the caller's age policy. Unknown capture,
+pre-handoff/equal timestamps and elapsed time cannot qualify the requested
+state. A conflicting current heartbeat records the actual state while retaining
+the conflict; it never gets rewritten to match intent. A match settles the
+observation wait independently of the local TX result. Unrelated reset/binding/
+controller invalidation retires that wait; later epochs cannot satisfy it.
+Only a qualified post-handoff boot-up can observe a pending reset request.
+
+Start and Pre-operational preserve active SDO deadlines. Stop handoff or a
+known-current Stopped heartbeat retires affected SDO staging/handoffs and
+finishes live work through the existing uncertainty rules. A proven unsent
+request does not become an uncertain write; a possibly transmitted write stays
+uncertain/quarantined. Nonreset transitions preserve configuration/map contents,
+scales and reference facts: `NMT_TRANSITION` callbacks revoke only dependent
+service/prepared eligibility, with the command and unchanged epoch. Applications
+must enforce that distinction. A requested reset uses `NMT_RESET`, advances
+the lifecycle epoch and revokes configuration/map/scale/reference evidence and
+all affected SDO sessions, as actual boot-up does. Neither later heartbeat,
+Start, host token nor local result release reopens an unresolved SDO channel.
+Broadcast applies these rules once per physical node and notifies each distinct
+dependent observer; affected binding/previous/new epochs remain in its result.
+
+### Service eligibility
+
+`serviceEligibility` is the maintained CANopen policy boundary. The following
+table describes eligibility only; reviewed object access/effect, drive
+prerequisites, channel qualification, deadlines and actual PDO map/provenance
+are additional requirements. SDO admission **and each frame handoff/enqueue
+check** apply it. A finite evidence-age policy can therefore end further
+ordinary TX during an admitted transfer; it never renews the overall deadline.
+
+| Qualified current evidence | Ordinary SDO | Reviewed non-changing probe | PDO transmit | Configured TPDO receive validation |
+| --- | --- | --- | --- | --- |
+| Pre-operational | Allowed | Allowed | Denied | Denied |
+| Operational | Allowed | Allowed | Allowed | Allowed |
+| Stopped / Initializing | Denied | Denied | Denied | Denied |
+| Exact state unknown, current SDO service evidence | Allowed | Allowed | Denied | Allowed to enter validation |
+| Exact state and serviceability unknown | Denied | Allowed explicitly | Denied | Allowed to enter validation |
+| Exhausted lifecycle provenance | Denied | Denied | Denied | Denied |
+
+`setServiceAge(slot, maximumAgeUs, nowUs)` selects a nonzero inclusive age cap
+for exact NMT and SDO service evidence; it does not refresh either fact. The
+documented default `UINT64_MAX` selects lifecycle validity without age expiry,
+not a guessed device timeout. Applications needing bounded observation age
+must choose their finite cap. Capture age, not processing time, determines
+freshness. Explicit external service confirmation is recorded separately in
+`serviceQualification` with `serviceFromSdo=false`; the last matching SDO time
+is not fabricated. Checked matching responses, including a valid rejection,
+update service evidence with SDO provenance while preserving channel quarantine.
+
+Effective heartbeat disabled/unknown is independent of this table. With no
+current exact state or service fact, explicitly request a bounded, reviewed
+non-changing upload on a qualified fresh channel. Once it succeeds, a reviewed
+producer-setting SDO write can be admitted without requiring heartbeat first.
+It still needs actual object/drive prerequisites and explicit caller intent;
+no current Lichuan read is newly declared non-changing here. A current Stopped
+observation blocks that probe. An explicit transition that may have transmitted
+makes prior Stopped historical, permitting the bounded probe while exact state
+remains unknown. No NMT Start or heartbeat write is issued automatically.
+
+Prompt 17 must offer a configured TPDO to its map/binding/capture validation
+while exact NMT is unknown; do not gate the first possible observation on
+`pdoTransmit`. This stage makes **no Operational inference** from TPDO. If a
+later profile chooses one, it must retain TPDO provenance and establish current
+route/map identity beyond a reused same-ID/same-length sample. The protocol
+rule is pinned `CO_PDO.c:1348–1359` (valid TPDO production requires Operational),
+not permission to trust arbitrary traffic. SDO success and NMT TX cannot infer
+Operational. Service/NMT state never substitutes for drive or application health.
+
+### Pinned producer boundary and evidence
+
+CANopenNode pin `9b8beed8367241e96ac03f916cd5a500bcb2cf23`,
+`301/CO_NMT_Heartbeat.h:40–56,81–87,272–281` defines the states, service
+availability, target zero and command bytes. Its C producer at lines 274–288
+only accesses `nodeId`, `internalCommand` and two producer pointers. The optional
+adapter initializes that restricted field set with a retirable ID-zero/DLC-two
+port and invokes only `CO_NMT_sendCommand`. It never calls full NMT init/process
+or registers NMT RX: full initialization requires a local OD/EM context, and
+processing emits local boot-up even with heartbeat disabled. The inert local
+broadcast `internalCommand` assignment is not a remote observation. No second
+NMT/EMCY/heartbeat engine is active. The 14-file offline subset retains upstream
+licenses and exact hashes; pure installed consumers depend on none of it.
+
+The original EDS lines 26–27 claim `SimpleBootUpMaster=0` and
+`SimpleBootUpSlave=1`. They establish neither a measured startup/reset timeline
+nor a fixed response deadline. Producer `1017` default zero is factory metadata;
+missing consumer/guarding entries establish no host-loss behavior. These are
+documented source claims, not measured firmware support or hardware qualification.

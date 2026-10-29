@@ -15,6 +15,8 @@
 #define CO_CONFIG_FIFO CO_CONFIG_FIFO_ENABLE
 #define CO_CONFIG_GLOBAL_FLAG_OD_DYNAMIC 0
 #define CO_CONFIG_SDO_SRV 0
+#define CO_CONFIG_NMT CO_CONFIG_NMT_MASTER
+#define CO_CONFIG_EM 0
 #if !defined(_WIN32) && (!defined(__BYTE_ORDER__) || __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__)
 #error "This selected CANopenNode port requires an explicitly supported little-endian target"
 #endif

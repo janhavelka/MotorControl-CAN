@@ -1,10 +1,29 @@
-# Optional CANopenNode SDO adapter
+# Optional CANopenNode service adapter
 
 `MotorControlCAN::CANOPEN::SdoClient` is a stationary cooperative application
 adapter around the selected CANopenNode client. It stages Classical frames;
 it never opens a controller or performs I/O. Read the
 [service contract](../../docs/canopen_services.md) for ownership, deadlines,
 effect uncertainty, initialization premises and permanent quarantine.
+
+Prompt 16 adds one bounded explicit NMT manager request/result slot using the
+actual selected native producer. `admitNmt` copies addressed or domain intent;
+`nextNmtTx` yields one frame, `canTransmitNmt` checks live enqueue eligibility,
+and `confirmNmtTx` records actual TX without claiming a remote acknowledgement.
+`nmtResult` retains the first local terminal until `releaseNmt`. No local NMT
+slave/heartbeat process is run. Configure all local network anchors before
+admission; membership stays frozen until release. Broadcast never creates a
+node-zero axis. See the single [service-eligibility table](../../docs/canopen_services.md#service-eligibility)
+and transition/reset dependency rules before using these operations.
+
+`setServiceAge` chooses an inclusive nonzero capture-age policy. The default
+`UINT64_MAX` uses lifecycle validity only; applications requiring finite age
+must select it. Exact observed NMT, SDO service evidence, producer timing,
+requested state and controller TX remain independent. A reviewed non-changing
+probe can establish SDO service while heartbeat is disabled, without starting
+NMT or writing producer configuration automatically. Native NMT support is
+generic CANopen behavior; Lichuan command-specific firmware behavior is not
+hardware-qualified here.
 
 The installed/exported core includes only portable service values and codecs.
 This optional adapter and CANopenNode are excluded from that core distribution.

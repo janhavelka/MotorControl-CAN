@@ -72,6 +72,24 @@
       "upstream_path": "LICENSE",
       "bytes": 11358,
       "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_NMT_Heartbeat.c",
+      "upstream_path": "301/CO_NMT_Heartbeat.c",
+      "bytes": 11192,
+      "sha256": "2ad2b2f92ea1198de0ca3b28465d50039a8de09f6f33587ee9735c7b63e2589d"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_NMT_Heartbeat.h",
+      "upstream_path": "301/CO_NMT_Heartbeat.h",
+      "bytes": 12484,
+      "sha256": "4da3d1e3bf82e616a47c59096b6a58a12c58454916af4765adcefda31f8ff9bb"
+    },
+    {
+      "path": "vendor/CANopenNode/301/CO_Emergency.h",
+      "upstream_path": "301/CO_Emergency.h",
+      "bytes": 26910,
+      "sha256": "ebfb8fb2d635f869bd89b25856adc82945a875754683c2b85d3b778acc437791"
     }
   ]
 }

@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added explicit typed CANopen NMT manager requests through the pinned native producer, with one retained local result, bounded deadlines and addressed/domain-broadcast invalidation. Queue/TX evidence remains separate from observed remote state; nothing starts or resets automatically.
+- Added NMT versus SDO service eligibility, heartbeat-disabled reviewed probing/configuration, caller evidence-age policy and separate configured-TPDO receive admission. Known Stopped retires ordinary SDO work while retaining uncertainty and terminals; NMT Stop is not a physical motor stop.
+
 - Added pure configured-route heartbeat/boot-up/EMCY codecs and a single passive projection in the existing optional owner's channel table. Independent capture/processing times, producer interval facts, NMT/SDO/error observations and four copied diagnostic records remain separate from drive state, outcomes and health.
 - Added synchronous cache/axis invalidation on reset, binding/dialect/configuration withdrawal and controller recovery, including full-history and generation-exhaustion behavior. No heartbeat configuration, NMT command, drive action or channel reopening is implicit. The passive HB/EM implementation decision now uses checked owner projection with pinned native-consumer parity.
 

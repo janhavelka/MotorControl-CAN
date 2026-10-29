@@ -178,3 +178,12 @@ evidence. Dispatch frames continuously, including after completion/release; copy
 the adapter's bounded latest SDO observation if the application needs history.
 The exact cutoff/terminal order and unsupported reopening paths are owned by
 [the service contract](canopen_services.md#time-and-precedence).
+
+Explicit NMT manager work now shares that owner and node table with one
+additional retained request/result slot. Addressed and broadcast targets,
+capture boundaries, reset versus nonreset dependencies and the authoritative
+[service-eligibility table](canopen_services.md#service-eligibility) are in the
+service guide. Keep TPDO receive validation independent of PDO transmit
+eligibility. Neither manager TX nor heartbeat can rewrite an SDO terminal or
+settle an earlier uncertain write. Applications remain the sole controller
+receiver and must serialize TX eligibility/enqueue with lifecycle dispatch.

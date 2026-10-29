@@ -128,6 +128,7 @@ def main():
         "301/CO_SDOclient.h", "301/CO_SDOserver.h", "301/CO_ODinterface.c",
         "301/CO_ODinterface.h", "301/CO_fifo.c", "301/CO_fifo.h",
         "301/crc16-ccitt.h", "LICENSE",
+        "301/CO_NMT_Heartbeat.c", "301/CO_NMT_Heartbeat.h", "301/CO_Emergency.h",
     }
     required_paths = {"vendor/CANopenNode/" + path for path in required_upstream}
     public_sources = read_json(refs / "public_code/SOURCES.json").get("sources", [])
@@ -150,8 +151,8 @@ def main():
         errors.append(label + ": files must be an array of objects")
         records = []
     listed_paths = [row.get("path") for row in records]
-    require(len(records) == 11 and set(listed_paths) == required_paths,
-            label + ": expected complete 11-file inventory including LICENSE")
+    require(len(records) == 14 and set(listed_paths) == required_paths,
+            label + ": expected complete 14-file inventory including LICENSE")
     for row in records:
         rel = row.get("path", "")
         origin = row.get("upstream_path", "")

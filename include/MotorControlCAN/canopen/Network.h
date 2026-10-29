@@ -1,5 +1,5 @@
 /** @file Network.h
- * @brief Pure checked CANopen boot-up, heartbeat and emergency envelopes.
+ * @brief Pure checked CANopen NMT requests, boot-up, heartbeat and emergency envelopes.
  * No I/O, clock access, allocation, retry or network configuration occurs here.
  * Inputs are borrowed during calls only; successful events own their bytes.
  * Independent calls share no mutable state; callers serialize shared outputs.
@@ -12,6 +12,33 @@
 
 namespace MotorControlCAN {
 namespace CANOPEN {
+
+/** Explicit NMT manager commands; independent of native drive state and motion. */
+enum class NmtCommand : uint8_t {
+    START = 1, ///< Request NMT Operational; does not establish drive enablement.
+    STOP = 2, ///< Request NMT Stopped; does not establish physical standstill.
+    PRE_OPERATIONAL = 0x80, ///< Request NMT Pre-operational.
+    RESET_NODE = 0x81, ///< Explicit request to reset the remote node.
+    RESET_COMMUNICATION = 0x82 ///< Explicit request to reset remote CANopen communication.
+};
+
+/** Encode one explicit NMT manager request without sending or admitting work.
+ * Produces standard Classical data CAN-ID zero, DLC and payload length two,
+ * with command then target bytes and zeroed unused storage. All format flags
+ * are false. No state, binding, queue, timing or remote evidence is changed.
+ * Independent calls share no mutable state; callers serialize shared outputs.
+ * @param[in] command One of the five supported explicit manager commands.
+ * @param[in] target Zero broadcasts to the CANopen network; 1..127 addresses
+ * one node. Broadcast zero is not an ordinary axis binding.
+ * @param[out] output Caller-owned encoded frame, unchanged on failure. No
+ * references are retained; successful output owns its bytes.
+ * @return OK for a complete request envelope, UNSUPPORTED for an unknown
+ * command, or INVALID_CONFIG for target above 127. Command validation precedes
+ * target validation. All detail values are zero. Success proves no controller
+ * acceptance, transmission, remote transition or motion completion; the caller
+ * owns NMT manager authority, explicit execution and observation policy.
+ */
+Status makeNmtRequest(NmtCommand command, uint8_t target, Frame& output) noexcept;
 
 /** Supported native NMT observations; these are separate from drive state. */
 enum class NmtState : uint8_t {

@@ -422,7 +422,9 @@ void eventsInterleaveWithTwoNormalSdoConsumers() {
     const C::SdoRequestId first = admit(owner, transfer(), 0, 1);
     const C::SdoRequestId second = admit(owner, transfer(2), 1, 1);
     handoff(owner, 0, 2); handoff(owner, 1, 2, 0x602);
-    CHECK(owner.receiveNetwork(heartbeat(b.heartbeatId, 4), b, 3, 4));
+    // Pre-operational preserves ordinary SDO service. Current Stopped now
+    // retires SDO work under the prompt-16 eligibility contract.
+    CHECK(owner.receiveNetwork(heartbeat(b.heartbeatId, 127), b, 3, 4));
     CHECK(owner.receiveNetwork(emergency(a.emcyId), a, 3, 5));
     CHECK(!owner.result(first) && !owner.result(second));
     CHECK(owner.receive(uploadReply(), 6, 7));
@@ -437,7 +439,7 @@ void eventsInterleaveWithTwoNormalSdoConsumers() {
     CHECK(success.unchanged(*owner.result(first)));
     CHECK(owner.node(0) != owner.node(1));
     CHECK(owner.node(0)->emcy.errorCode == 0x8123 && owner.node(1)->emcy.errorCode == 0x7301);
-    CHECK(owner.node(0)->nmt == C::NmtState::OPERATIONAL && owner.node(1)->nmt == C::NmtState::STOPPED);
+    CHECK(owner.node(0)->nmt == C::NmtState::OPERATIONAL && owner.node(1)->nmt == C::NmtState::PRE_OPERATIONAL);
     CHECK(owner.node(1)->sdo.present && owner.node(1)->sdo.receivedUs == 10);
     CHECK(owner.droppedNetworkObservations() == 0);
     const uint32_t identifiers[] = {b.heartbeatId, a.emcyId, a.heartbeatId, b.emcyId};

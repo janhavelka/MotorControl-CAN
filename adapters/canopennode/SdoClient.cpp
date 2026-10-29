@@ -46,7 +46,7 @@ SdoExpectation expectation(const SdoTransfer& work) {
 } // namespace
 
 bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed, bool fresh) {
-    if (slot >= CHANNELS || channels_[slot].configured || !fresh || !validateSdoChannel(route))
+    if (nmtOccupied_ || slot >= CHANNELS || channels_[slot].configured || !fresh || !validateSdoChannel(route))
         return false;
     if (channels_[slot].networkConfigured &&
         (!sameBinding(channels_[slot].network.route.binding, route.binding) ||
@@ -85,6 +85,14 @@ bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed,
     c.route = route;
     c.configured = true;
     c.confirmed = confirmed;
+    const int anchor = networkAnchor(slot);
+    if (anchor >= 0 && confirmed) {
+        NodeSnapshot& state = channels_[anchor].network;
+        state.serviceQualification.present = state.serviceQualification.receivedTimeKnown = true;
+        state.serviceQualification.receivedUs = state.serviceQualification.processedUs = lastUs_;
+        state.serviceQualification.generation = state.route.generation;
+        state.serviceFromSdo = false;
+    }
     return true;
 }
 
@@ -97,6 +105,7 @@ bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     if (slot >= CHANNELS || overlap(&id, sizeof id, this, sizeof *this) ||
         overlap(&id, sizeof id, &work, sizeof work) || now < lastUs_) return false;
     Channel& c = channels_[slot];
+    if (!eligibleSdo(slot, work, now)) return false;
     if (!c.configured || c.unresolved || c.occupied || c.cleanup || c.generation == UINT32_MAX ||
         !sameBinding(work.channel.binding, c.route.binding) ||
         work.channel.clientToServerId != c.route.clientToServerId ||
@@ -252,6 +261,7 @@ void SdoClient::pump(Channel& c, uint64_t now) {
 bool SdoClient::service(uint64_t now) {
     if (now < lastUs_) return false;
     lastUs_ = now;
+    serviceNmt(now);
     for (Channel& c : channels_) {
         expire(c, now);
         pump(c, now);
@@ -375,6 +385,9 @@ bool SdoClient::nextTx(uint8_t slot, uint64_t now, Frame& f, SdoTxId& id) {
     const bool cleanup = c.cleanup;
     const uint64_t cleanupCutoff = c.queueCutoff;
     if ((!c.occupied || c.terminal) && !cleanup) return false;
+    if (!cleanup && !eligibleSdo(slot, c.work, now)) {
+        retire(c); finish(c, SdoOutcome::BINDING_INVALIDATED, now); return false;
+    }
     const Frame candidate = wire(c.port.queued);
     if (!validateFrame(candidate) ||
         (c.frame == 0 && c.work.size <= 4 && !checkRequest(candidate, expectation(c.work)))) {
@@ -405,7 +418,8 @@ bool SdoClient::canTransmit(SdoTxId id, uint64_t now) const {
     const Channel& c = channels_[id.request.channel];
     return c.handoffLive && id.request.generation != 0 &&
            id.request.generation == c.generation && id.frame != 0 && id.frame == c.frame &&
-           now < c.handoffCutoff && now < c.work.deadlineUs;
+           now < c.handoffCutoff && now < c.work.deadlineUs &&
+           ((!c.occupied || c.terminal) || eligibleSdo(id.request.channel, c.work, now));
 }
 
 bool SdoClient::confirmTx(SdoTxId id, uint64_t now) {

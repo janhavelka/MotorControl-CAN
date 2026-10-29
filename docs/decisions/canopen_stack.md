@@ -50,10 +50,21 @@ boundary and remaining reconciliation/controller duties are in the
 
 ## Pinned inputs and reproducibility
 
+Prompt 16 implements the selected native NMT producer with restricted,
+pin-specific producer-field initialization and `CO_NMT_sendCommand` only.
+It never initializes/processes a local NMT slave, installs NMT RX or emits
+boot-up/heartbeat implicitly. Checked pure encoding remains stack-free; it is
+not a second active engine. Explicit intent, local TX evidence, observed state,
+broadcast effects and service eligibility live in the existing owner storage;
+see the [service contract](../canopen_services.md#explicit-nmt-manager-requests).
+Native command support is generic CANopen support, not measured Lichuan
+firmware behavior. EN86/ZH86 page 3 (printed 1) declares CiA301/CiA402 but
+provides no command-specific NMT procedure or startup/reset timeline.
+
 | Input | Revision and use |
 | --- | --- |
 | [CANopenNode](https://github.com/CANopenNode/CANopenNode/tree/9b8beed8367241e96ac03f916cd5a500bcb2cf23) | `9b8beed8367241e96ac03f916cd5a500bcb2cf23`; upstream HEAD independently checked with `git ls-remote` on this date and equal to the retained research pin. Full tree inspected, including driver/configuration, root allocation, services, README and blank native example. |
-| [Offline build subset](../../experiments/canopen_service_fit/UPSTREAM.json) | Eleven unmodified Git blobs, 313,512 bytes including LICENSE. Builds `CO_SDOclient.c`, `CO_ODinterface.c`, `CO_fifo.c`; the other retained files are their headers/license. No SDO server implementation is linked. |
+| [Offline build subset](../../experiments/canopen_service_fit/UPSTREAM.json) | Fourteen unmodified Git blobs including LICENSE. Prompt 16 adds `CO_NMT_Heartbeat.c/.h` and `CO_Emergency.h` to the original eleven-file subset. Builds the SDO client, OD/FIFO helpers and restricted NMT producer; no SDO server or active EMCY/heartbeat consumer is linked. Exact byte sizes/hashes are in the manifest. |
 | [canopen-python](https://github.com/canopen-python/canopen/tree/14b3336bc973023e82325426adf6d71046ebcf55) | `14b3336bc973023e82325426adf6d71046ebcf55`; source comparison only. Response waits, sleeps and retry settings are host policy. `MAX_RETRIES=1` means one total attempt, not an additional retry. |
 | [Public-code audit](../audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) | The retained SRT example is an anti-example, not implementation material: upload request must be `0x40`; `0x43/0x4B/0x4F` are legitimate response bytes. Shared uncorrelated status and arbitrary sleeps establish no device guarantee. No GPL example code was copied into the proof. |
 | [Reviewed dictionary](../reference/lichuan_review.md) and [contrasts](../reference/drive_contrasts.md) | Define required forms and limits without treating generic CiA402 behavior as Lichuan firmware evidence. This decision closes none of Q01-Q21. |

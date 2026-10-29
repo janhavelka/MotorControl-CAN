@@ -35,6 +35,7 @@ REQUIRED = {
     "test/sdo_reconciliation_test.cpp",
     "include/MotorControlCAN/canopen/Network.h", "src/canopen/Network.cpp", "test/network_codec_test.cpp", "test/network_events_test.cpp",
     "adapters/canopennode/NetworkState.h", "adapters/canopennode/Network.cpp",
+    "adapters/canopennode/Nmt.h", "adapters/canopennode/Nmt.cpp", "test/nmt_codec_test.cpp", "test/nmt_services_test.cpp",
     "adapters/canopennode/CMakeLists.txt", "adapters/canopennode/SdoClient.h",
     "adapters/canopennode/SdoClient.cpp", "adapters/canopennode/CO_driver_target.h",
     "adapters/canopennode/Driver.cpp",

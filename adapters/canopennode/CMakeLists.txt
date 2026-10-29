@@ -28,6 +28,7 @@ if(NOT TARGET canopennode_sdo)
     enable_language(C)
     add_library(canopennode_sdo STATIC
         "${MOTORCONTROLCAN_CANOPENNODE_DIR}/301/CO_SDOclient.c"
+        "${MOTORCONTROLCAN_CANOPENNODE_DIR}/301/CO_NMT_Heartbeat.c"
         "${MOTORCONTROLCAN_CANOPENNODE_DIR}/301/CO_ODinterface.c"
         "${MOTORCONTROLCAN_CANOPENNODE_DIR}/301/CO_fifo.c")
     target_include_directories(canopennode_sdo PUBLIC
@@ -38,7 +39,7 @@ endif()
 target_sources(canopennode_sdo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Driver.cpp")
 set_target_properties(canopennode_sdo PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
-add_library(MotorControlCANCanopenNode STATIC SdoClient.cpp Network.cpp)
+add_library(MotorControlCANCanopenNode STATIC SdoClient.cpp Network.cpp Nmt.cpp)
 add_library(MotorControlCAN::CanopenNode ALIAS MotorControlCANCanopenNode)
 target_include_directories(MotorControlCANCanopenNode PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(MotorControlCANCanopenNode PUBLIC MotorControlCAN::MotorControlCAN canopennode_sdo)

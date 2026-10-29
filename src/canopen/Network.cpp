@@ -13,6 +13,25 @@ bool overlaps(const void* a, size_t aSize, const void* b, size_t bSize) {
 }
 } // namespace
 
+Status makeNmtRequest(NmtCommand command, uint8_t target, Frame& output) noexcept {
+    switch (command) {
+    case NmtCommand::START:
+    case NmtCommand::STOP:
+    case NmtCommand::PRE_OPERATIONAL:
+    case NmtCommand::RESET_NODE:
+    case NmtCommand::RESET_COMMUNICATION: break;
+    default: return Status(Err::UNSUPPORTED, 0, "unsupported NMT command");
+    }
+    if (target > 127)
+        return Status(Err::INVALID_CONFIG, 0, "invalid NMT target");
+    Frame next;
+    next.dlc = next.payloadLength = 2;
+    next.data[0] = static_cast<uint8_t>(command);
+    next.data[1] = target;
+    output = next;
+    return Ok();
+}
+
 Status validateNetworkRoute(const NetworkRoute& route) noexcept {
     if (!validateBinding(route.binding) || route.binding.endpoint.protocol != Protocol::CANOPEN ||
         !route.binding.endpoint.address || route.binding.endpoint.address > 127 ||

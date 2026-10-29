@@ -25,6 +25,7 @@ enable_testing()
 set(upstream "${CMAKE_CURRENT_SOURCE_DIR}/vendor/CANopenNode")
 add_library(canopennode_sdo STATIC
     "${upstream}/301/CO_SDOclient.c"
+    "${upstream}/301/CO_NMT_Heartbeat.c"
     "${upstream}/301/CO_ODinterface.c"
     "${upstream}/301/CO_fifo.c")
 target_include_directories(canopennode_sdo PUBLIC "${upstream}" "${CMAKE_CURRENT_SOURCE_DIR}")
