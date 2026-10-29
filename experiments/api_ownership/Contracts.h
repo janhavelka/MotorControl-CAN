@@ -162,7 +162,7 @@ struct PositionRequest {
 /** Unconverted exact signed request; retains values such as +/-70000 intact. */
 struct VelocityRequest {
     Rational value; ///< Wide signed exact requested rate; no native narrowing here.
-    VelocityUnit unit; ///< Explicit spatial quantity per declared time unit.
+    VelocityUnit unit{PositionUnit::TURNS, TimeUnit::SECOND}; ///< Original proof default: motor turns/second.
     CoordinateFrame frame = CoordinateFrame::MOTOR; ///< Motor/load/native rate basis.
 };
 

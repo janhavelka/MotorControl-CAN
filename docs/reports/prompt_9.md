@@ -1,6 +1,6 @@
 # Prompt 9 status and exact units
 
-Date: 2026-10-29. Local implementation/checks complete; remote delivery verification pending.
+Date: 2026-10-29. Complete: local and exact-commit CI gates passed.
 Branch `promptset/motorcontrol-can`, upstream `origin/promptset/motorcontrol-can`.
 Started clean from `99355ad60d11a8d8876ae0a42ad0e0af0b4cbb1c`; fresh fetch showed
 0 ahead / 0 behind. Prerequisites 6 and 8 are complete. No hardware or sibling
@@ -83,6 +83,9 @@ optional facts, and motor-frame gearing overwritten before validation. The proof
 now validates original scale facts before frame adjustment. Regressions cover
 both bypasses, extreme origin overflow/cancellation, preserved contexts and exact
 numeric detail propagation. Missing optional scales remain legal.
+The proof velocity request also retains its original turns/second default
+explicitly, independent of the general Units constructor's command-increment
+default; its migration regression checks that interpretation.
 
 | Check | Result / retained evidence |
 | --- | --- |
@@ -98,8 +101,25 @@ numeric detail propagation. Missing optional scales remain legal.
 Local tools are Windows GCC 15.1, Python 3.12.10, CMake 4.0.1, Ninja 1.12.1 and
 Doxygen 1.13.2. Local Clang/sanitizer runtimes and clang-format remain unavailable;
 no passing local result is claimed for them. Existing Linux GCC/Clang ASan/UBSan
-CI must verify this exact implementation commit before stage closure. Automatic
-push triggers and pins are unchanged. Remote result will be recorded after sync.
+CI verified this implementation commit. Automatic push triggers and pins are
+unchanged. Exact delivery evidence follows.
+
+## Remote delivery evidence
+
+Commit `9880a815a8088c5cb0a792f926027d171590dfa0` passed
+[CI run 40860026735](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40860026735):
+
+| Required job | Result |
+| --- | --- |
+| Quick GCC on Windows | PASS: all 13 quick contracts |
+| Full GCC with ASan and UBSan | PASS: 14 contracts, isolated source/install/export consumers, strict docs/API extraction |
+| Full Clang with ASan and UBSan | PASS: same full scope and sanitizers |
+
+Jobs retained actual commands, tool versions, logs and package/docs artifacts.
+The closing checkpoint includes the focused, checked preservation of the proof's
+original velocity default described above. Its exact final commit/CI run and
+fresh upstream comparison are checked before the final handoff; this older green
+run is not substituted for verification of that new commit.
 
 ## Documentation, simplicity and remaining boundary
 
@@ -114,4 +134,4 @@ are new. Source/install consumers and maintained tests reuse ordinary public cal
 No prompt-9 semantic feature is deferred. Common axis/reference mutation is
 prompt 10; native widths, scaling qualification and device motion remain their
 existing later owners. There is no CAN hardware result, installed vendor profile
-or drive-specific write in this prompt. Prompt 10 is next after CI closure.
+or drive-specific write in this prompt. Prompt 10 is next.

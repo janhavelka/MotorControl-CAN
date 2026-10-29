@@ -1,4 +1,4 @@
-# Requirement coverage after verification foundation
+# Requirement coverage after exact units
 
 The [requirements matrix](requirements_matrix.md) owns the full acceptance criteria.
 This ledger tracks the actual milestone evidence and retains every requirement ID
@@ -37,7 +37,7 @@ that support claim. Reference/data verification is not driver testing.
 | R07 | 1-4 | Original bytes verified; every EDS entry and all 53 manual functions reviewed with exact sources. Four Lichuan model scopes and N5/EPOS4 documentary contrasts complete. |
 | R08 | 2-4, 19-22, 29-36, 47-48 | All 24 conflicting claim sets retain original alternatives and reviewed dispositions; 21 bounded feature gates remain open. No firmware winner invented. |
 | R09 | 9-10, 21-22, 32-36 | Production exact rational parsing/conversion, independent scales, integer rounding and bounded radians/binary32 quantization are host tested. Axis/reference policy remains 10; native scaling and drive actions retain later owners. |
-| R10 | 9-10, 13-25, 30-32 | Prototype preserves raw unsigned server/client abort separately from Status and raw events; acknowledged write explicitly retains completion NOT_OBSERVED. Real drive/health/state behavior pending. |
+| R10 | 9-10, 13-25, 30-32 | Production Status preserves selected call-result semantics/static labels. Proof preserves raw U32 aborts separately; acknowledged write retains completion NOT_OBSERVED. Real drive/health/state behavior remains pending. |
 | R11 | 11-18, 23-25 | Real expedited/two-segment SDO proof plus prompt-6 continuous raw event dispatch and boot-up invalidation even when the observation ring is full. Production service/network/PDO lifecycle remains pending. |
 | R12 | 13-14, 21-25, 30-39, 45-46 | Proof tests deadline, cancellation, fake retirement, retained uncertainty and no replay. Real SDK queues and channel reconciliation remain pending. |
 | R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Generation, typed features and their tests remain pending; restricted raw reads do not complete setters/actions. |
@@ -62,7 +62,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners retained; prompts 1–8 complete. All later feature, integration and qualification obligations remain pending. |
+| R35 | 1-50 | Current owners retained; prompts 1–9 complete. All later feature, integration and qualification obligations remain pending. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified

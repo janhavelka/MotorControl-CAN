@@ -154,6 +154,7 @@ void independentScalesAndWideIntent() {
 
     // C2: N5/EPOS4 60FF is I32; +/-70000 must not narrow to RS I16 RPM.
     M::VelocityRequest velocity;
+    CHECK(velocity.unit.position == M::PositionUnit::TURNS && velocity.unit.time == M::TimeUnit::SECOND);
     velocity.value = M::Rational(-70000);
     velocity.unit.position = M::PositionUnit::TURNS;
     velocity.unit.time = M::TimeUnit::MINUTE;
