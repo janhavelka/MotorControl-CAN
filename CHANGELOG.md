@@ -8,6 +8,7 @@ This repository contains planning/reference material and native service/API owne
 
 - Added quick/full verification with bounded commands, retained logs/artifacts, generated-version and actual CTest registration checks. Added Windows GCC quick and Ubuntu GCC/Clang sanitizer full CI with pinned actions and Doxygen source.
 - Added strict Doxygen 1.13.2 and installed API extraction checks, deliberate checker/documentation failure tests, contributor/security guidance, formatting policy and a maintained current/planned verification table.
+
 - Added the native C++11 `MotorControlCAN::MotorControlCAN` package with documented status, endpoint identity and Classical CAN validation; relocatable CMake installation, optional IDF registration and explicit source export. Development version 0.1.0 comes only from `library.json`, with checked-in deterministic `Version.h`.
 - Registered the retained API/owner and multi-drive proofs under `test/`, plus independent-header, C++11/C++17/no-RTTI source/install consumers, stale-version and missing-public-dependency checks. Synthetic profiles and stack dependencies remain outside installation.
 - Completed prompt 6 with concrete C++11 value/operation contracts and one fixed-capacity application owner around the selected CANopenNode client. Added copied read/target-write flows, retained results, deadline/retirement checks, urgent fairness and boot-up invalidation.
@@ -42,6 +43,8 @@ This repository contains planning/reference material and native service/API owne
 - Clarified branch creation: each new promptset execution starts a new dedicated branch, then reuses it across all stages and resumed sessions; maintenance audits do not start implementation.
 
 ### Fixed
+
+- Preserved arbitrary 32-bit SDO abort words at the experimental C/C++ bridge without an invalid enum load, found by the new GCC/Clang UBSan jobs. Added upload/download high-bit regressions.
 
 - Fresh independent prompt-6 audit clarified the fake owner's fixed per-call RX/TX/event budgets and zero-budget behavior. Additional core/owner probes and all maintained checks passed; no runtime correction was required.
 - Fresh independent audit of prompts 4-5 corrected EPOS4 unit configurability, retained N5's already-set-bit4 profile-position entry trigger, and added missing ramp-dimension and optional brake/calibration/missing-mode fixture specifications. The native stack experiment passed fresh ownership/failure/boundary review without a runtime change.

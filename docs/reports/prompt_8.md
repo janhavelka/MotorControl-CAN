@@ -107,6 +107,17 @@ Local snapshots record dirty paths because implementation was uncommitted when
 tested; delivery CI will verify the actual pushed commit. The exact remote run
 and terminal result will be recorded after synchronization, before handoff.
 
+The first exact-commit [CI run](https://github.com/janhavelka/MotorControl-CAN/actions/runs/40853693620)
+passed Windows quick but both Linux sanitizer jobs failed the ownership proof.
+UBSan identified an invalid C++ enum load of raw abort `0xDE345678` at
+`fit_proof.cpp:110–111`. The pinned C client accepts arbitrary raw wire codes
+through `CO_SDO_abortCode_t*` (CO_SDOclient.c lines 579/1034 and 1209/1755).
+The C++ bridge now copies that representation into U32 with a compile-time
+width check rather than evaluating an out-of-range enum. Six upload/download
+cases cover high-bit, vendor and all-one words. Upstream originals, sanitizer
+settings and existing assertions remain intact. Failed logs/artifacts are
+retained under `.build/p8-ci-gcc` and `.build/p8-ci-clang` and in that CI run.
+
 README/index, native/verification guides, contributor/security policy, source
 map, backlog, coverage, roadmap, progress and CHANGELOG accompany the tooling.
 No verified private reporting channel exists yet; SECURITY records that release

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #define OD_DEFINITION
 #include "fit_proof.h"
+#include <cstring>
 #include <limits>
 
 namespace CanopenFit {
@@ -102,13 +103,19 @@ void CanBusOwner::service(uint64_t nowUs) {
     const CO_SDO_return_t returned = download_
         ? CO_SDOclientDownload(&client_, elapsedUs, false, false, &abortCode, nullptr, nullptr)
         : CO_SDOclientUpload(&client_, elapsedUs, false, &abortCode, nullptr, nullptr, nullptr);
+    // The C API writes arbitrary wire abort bits through an enum pointer. A C++
+    // enum value load is undefined for vendor codes outside its enumerator range.
+    // Copy the representation instead; the retained result owns a raw U32 word.
+    uint32_t abortBits = 0;
+    static_assert(sizeof abortBits == sizeof abortCode, "SDO abort representation must be 32 bits");
+    std::memcpy(&abortBits, &abortCode, sizeof abortBits);
     if (controller_.sendFault) {
-        finish(Outcome::Transport, returned, abortCode);
+        finish(Outcome::Transport, returned, abortBits);
     } else if (returned == CO_SDO_RT_ok_communicationEnd) {
-        finish(Outcome::Success, returned, abortCode);
+        finish(Outcome::Success, returned, abortBits);
     } else if (returned < 0) {
         finish(returned == CO_SDO_RT_endedWithServerAbort ? Outcome::ServerAbort : Outcome::ClientAbort,
-               returned, abortCode);
+               returned, abortBits);
     }
 }
 

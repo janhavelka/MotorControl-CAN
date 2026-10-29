@@ -147,6 +147,26 @@ void cancellationAndDeadlines() {
     CHECK(!edge.admit(seq, work(binding(), 1, UINT64_MAX - 1), UINT64_MAX - 1000, id));
     CHECK(edge.admit(seq, work(binding(), 1, 100), 0, id)); // Failed admission did not mutate clock or step.
 }
+void rawAbortRepresentation() {
+    // These vendor bits are not C++ enum values. Exercise both C API outputs
+    // under UBSan without narrowing or interpreting the wire abort word.
+    const uint32_t codes[] = {0x80000000u, 0xDE345678u, 0xFFFFFFFFu};
+    for (unsigned mode = 0; mode < 2; ++mode) {
+        for (uint32_t code : codes) {
+            CanBusOwner owner; SequenceId sequence; RequestId request;
+            CHECK(owner.beginSequence(binding(), operation(), sequence));
+            ServiceWork item = work(binding());
+            if (mode) { item.kind = WorkKind::SDO_DOWNLOAD; item.mayChange = true; item.payload.length = 1; }
+            CHECK(owner.admit(sequence, item, 0, request) && owner.handoff(1));
+            Frame abort = response(IDENTITY_OBJECT, 0x80);
+            for (unsigned byte = 0; byte < 4; ++byte)
+                abort.data[4 + byte] = static_cast<uint8_t>(code >> (8 * byte));
+            CHECK(owner.receive(abort, 2));
+            CHECK(owner.result(request)->kind == EventKind::PROTOCOL_REJECTED);
+            CHECK(owner.result(request)->abortValid && owner.result(request)->abortCode == code);
+        }
+    }
+}
 void eventsAndRejection() {
     CanBusOwner owner; SequenceId seq; RequestId id;
     CHECK(owner.beginSequence(binding(), operation(), seq));
@@ -177,7 +197,7 @@ void eventsAndRejection() {
 }
 }
 int main() {
-    flows(); schedulingAndRetention(); cancellationAndDeadlines(); eventsAndRejection();
+    flows(); schedulingAndRetention(); cancellationAndDeadlines(); rawAbortRepresentation(); eventsAndRejection();
     std::printf("API ownership proof passed; sizeof(core work)=%zu, evidence=%zu, owner=%zu bytes\n",
                 sizeof(ServiceWork), sizeof(ServiceEvidence), sizeof(CanBusOwner));
 }
