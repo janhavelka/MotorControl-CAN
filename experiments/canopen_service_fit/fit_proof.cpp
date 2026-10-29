@@ -66,6 +66,8 @@ void CanBusOwner::collect() {
     case C::SdoOutcome::UNSUPPORTED: candidate.outcome = Outcome::ClientAbort; break;
     case C::SdoOutcome::BUS_OFF:
     case C::SdoOutcome::REBOOT:
+    case C::SdoOutcome::BINDING_INVALIDATED:
+    case C::SdoOutcome::CORRELATION_LOST:
     case C::SdoOutcome::TRANSPORT_ERROR: candidate.outcome = Outcome::Transport; break;
     }
     candidate.stackReturn = static_cast<CO_SDO_return_t>(source->stackReturn);

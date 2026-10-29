@@ -15,7 +15,7 @@ same table rather than adding an independent request/channel/result registry.
 
 | Storage | Capacity | Lifetime and authority |
 | --- | --- | --- |
-| Node/channel | One configured fake node 1 / SDO channel 0 on bus 0 | The promoted SdoClient adapter has two fixed physical-channel slots; this retained proof binds only slot 0. Each slot owns its client/FIFO/retirable software TX; production routes are explicit |
+| Node/channel | One configured fake node 1 / SDO channel 0 on bus 0 | The promoted SdoClient adapter has two fixed physical-channel slots; this retained proof binds only slot 0. Each slot owns its client/FIFO/retirable software TX and latest SDO observation; production routes are explicit |
 | Active transfer | One slot index plus bridge handle | Only this channel can advance that transfer; ordinary/urgent requests cannot overlap on it |
 | Axis reservations | Two | Copied binding, operation, fixed deadline, nonwrapping reservation generation and last admitted step |
 | Ordinary work | Two slots | Complete copied `ServiceWork`; admission reserves the corresponding terminal result |
@@ -33,11 +33,11 @@ No unbounded node cache or opaque heap storage is introduced.
 Prompt 13 promotes the channel storage into the optional
 [production SDO adapter](../adapters/canopennode/SdoClient.h); the old bridge is
 a compatibility facade. Its two-channel table is tested directly, while this
-outer proof retains its original one-channel scheduling scope. Reconciliation,
-full owner integration and SDK retirement remain prompts 14/23/24/27. Current
-Windows x86-64 sizes are 1464 bytes for the two-channel adapter, 1624 for the
-compatibility facade and 2616 for this outer proof owner; these overlap and
-are not additive or measured embedded RAM/stack/timing budgets.
+outer proof retains its original one-channel scheduling scope. Prompt 14 adds
+separate SDO observation storage and handoff eligibility to that same table.
+Full owner integration and SDK retirement remain prompts 23/24/27. The prompt-13
+Windows sizes are historical; current host measurements belong to the
+[prompt-14 report](reports/prompt_14.md), not an embedded RAM/stack/timing budget.
 
 ## Admission and lifetime
 
@@ -135,3 +135,29 @@ ambiguity are bounded premises in [canopen_services.md](canopen_services.md).
 The fake proof is not evidence that real hardware can retract an accepted frame.
 Health, caches, traces and persistence belong to the later application; they
 must not become implicit recovery/actuation policies in this owner.
+
+## Copied TX and receive-time responsibility
+
+The production adapter's `nextTx` is the conservative possible-transmission
+boundary. If application staging separates handoff from controller submission,
+retain the complete `SdoTxId` with the frame and check `canTransmit(id, nowUs)`
+immediately before a one-shot enqueue, serialized with lifecycle events. A false
+result discards that local copy; a true result never authorizes resending a frame
+already accepted by the controller. The pure check cannot revoke or inspect an
+external queue. Cancellation, expiry, boot-up, binding withdrawal or bus-off must
+also retire application/controller work under the actual SDK contract. Preserve
+possible side effects when that retirement cannot be proved.
+
+Do not substitute a new binding/generation on old cached bytes. `invalidate`
+withdraws a configured channel; it does not overwrite it. Urgent capacity cannot
+borrow that unresolved server to fit a stop. Only a separately proven channel
+can be used under its own capacity/ordering and device contract. The retained
+one-channel proof has no such alternate route.
+
+Capture timestamps are optional external evidence. Use the timestamp overload
+only when the capture origin, counter expansion and relation to processing time
+are established. An SDK structure without an ingress timestamp supplies no such
+evidence. Dispatch frames continuously, including after completion/release; copy
+the adapter's bounded latest SDO observation if the application needs history.
+The exact cutoff/terminal order and unsupported reopening paths are owned by
+[the service contract](canopen_services.md#time-and-precedence).

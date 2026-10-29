@@ -121,8 +121,13 @@ void cancellationAndDeadlines() {
         CHECK(!owner.handoff(4));
         CHECK(owner.release(id));
         CHECK(owner.admit(seq, work(binding(), 2, 100), 5, id) == (transmitted == 0));
-        CHECK(owner.receive(response(), 6)); // Failed read cannot be reopened by a late response.
-        CHECK(!owner.result(id));
+        CHECK(owner.receive(response(), 6)); // Unsolicited RX cannot restore session freshness.
+        if (transmitted) CHECK(!owner.result(id)); // Released old handle stays invalid.
+        else {
+            CHECK(owner.result(id) && owner.result(id)->kind == EventKind::TRANSPORT_FAILURE);
+            CHECK(!owner.result(id)->transmissionPossible); // New request was never handed off.
+        }
+        CHECK(owner.channelUnresolved() && !owner.handoff(7));
     }
     CanBusOwner owner; SequenceId a, b; RequestId first, pending;
     CHECK(owner.beginSequence(binding(1), operation(), a));

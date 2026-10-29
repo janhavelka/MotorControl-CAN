@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added SDO capture/processing precedence, separate retained raw observations, stale/unsolicited-response quarantine, explicit binding withdrawal and copied-TX eligibility checks. Unsupported reopening remains blocked without remote-session and local queue evidence; no reset/retry or device read permission is inferred.
+- Added independent adversarial reconciliation tests for duplicate replies, different-value writes, every segmented TX cancellation boundary, delayed processing, clock limits, controller caches, alternate qualified channels and partial effects. Updated retained proofs to fail closed on pre-handoff traffic.
+
 - Added bounded CANopenNode SDO lifecycle with two unique physical channel slots, copied requests, immutable overall/queue/response cutoffs, explicit TX versus protocol evidence and retained results. Unconfirmed failures quarantine channels across release; no automatic retry or controller I/O.
 - Added expedited/segmented transfers through 32 bytes, checked unsized scalar normalization, full unsigned abort evidence and bounded unsupported-upload cleanup. Promoted the retained bridge into one optional application adapter; portable service values remain stack-free and independently packaged.
 

@@ -42,7 +42,7 @@ The retained source is Apache-2.0 with its original notices; adapter/core code
 is MIT. Neither grants manufacturer capability or physical qualification.
 
 For registered offline tests, configure the ordinary repository build and run
-`ctest --test-dir <build> -R sdo_transfer --output-on-failure`. Its fake server
+`ctest --test-dir <build> -R 'sdo_transfer|sdo_reconciliation' --output-on-failure`. The fake server
 exercises the actual selected engine with independent literal vectors. One
 configured channel uses explicit route/source/fresh-session evidence; tests
 with `true` qualification flags are synthetic fixtures, never live defaults.
@@ -56,13 +56,24 @@ with `true` qualification flags are synthetic fixtures, never live defaults.
 3. Call bounded `service(nowUs)` and offer owner-received frames to `receive`.
    Continue dispatching frames it does not consume to other ordinary handlers.
 4. At the actual controller submission boundary, call `nextTx` and immediately
-   submit the returned owned frame. It already counts as possibly transmitted;
-   never cache/replay it after cancellation or expiry. Report actual TX/ACK with
+   submit the returned owned frame. If application staging delays submission,
+   preserve its token and recheck `canTransmit(id, nowUs)` immediately before a
+   one-shot enqueue serialized with cancellation/invalidation. This cannot recall
+   frames already accepted by a controller. The handoff already counts as possibly
+   transmitted; never replay it after cancellation or expiry. Report actual TX/ACK with
    its `SdoTxId` through `confirmTx`; this is separate from SDO success.
 5. Inspect the non-consuming terminal `result`, copy needed evidence and
    explicitly `release`. Continue servicing bounded cleanup if it was staged.
    Report bus-off/reboot independently; never clear quarantine through release,
    quiet time, client abort or replacing an object on the same physical route.
+
+The timestamp overload `receive(frame, receivedUs, nowUs)` accepts qualified
+capture time in the supplied processing clock domain. Processing-time expiry
+still wins over earlier capture; invalid/future capture rejects atomically.
+`observation(slot)` retains the latest copied raw frame and both times separately
+from the immutable terminal. It survives release; copy it for longer history.
+Observed idle/duplicate/pre-handoff responses quarantine the route. `invalidate`
+withdraws a binding without reopening or erasing earlier possible effects.
 
 Two slots mean two explicit physical channels, not simultaneous aliases for
 one reply ID. The application owns all scheduling, controller queues and RX.

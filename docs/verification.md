@@ -70,7 +70,7 @@ This table is the maintained inventory. Stage reports record individual results.
 | GCC/Clang comparison | Full runs with `--compiler gcc` and `--compiler clang` | Supported toolchains checked separately |
 | Whitespace | `git diff --check` | Required local handoff check |
 | Reviewed object freshness and generator failure contracts | `python scripts/generate_lichuan_objects.py --check` plus `objects_generated` / `objects_generator_contract` | Quick and full; exact bytes, original-source/schema/policy validation, deterministic generation and failure atomicity |
-| Bounded SDO lifecycle, per-channel uncertainty and fake-node vectors | `sdo_transfer` plus retained adapter/owner proofs | Quick and full; actual optional CANopenNode engine, no physical CAN or SDK |
+| Bounded SDO lifecycle, ambiguity settlement and fake-node vectors | `sdo_transfer`, `sdo_reconciliation` plus retained adapter/owner proofs | Quick and full; actual optional CANopenNode engine, separate capture/processing evidence, permanent unresolved-channel quarantine; no physical CAN or SDK |
 | Arduino / ESP-IDF firmware builds | Actual buildable adapters and examples | Planned prompts 27–28; component registration mock is not firmware |
 | Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Planned hardware prompts; no current physical result |
 

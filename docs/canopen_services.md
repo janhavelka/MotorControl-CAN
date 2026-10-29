@@ -227,14 +227,44 @@ overall lease after progress.
 | `confirmTx` | Records an actual controller TX/ACK report for the latest live frame token, even after a nonfinal reply; the next handoff supersedes that token. Cannot complete SDO, extend a cutoff or rewrite a terminal |
 | Response cutoff after handoff | Clamped to overall deadline; CAN ACK/unrelated traffic/progress cannot extend the total budget |
 | Cancel | Expires first, then cancels without pumping unsent work; retires local staging and never means stop |
-| Bus-off/reboot | Expiry first; quarantine relevant channels and retire local staging; earlier immutable terminals remain unchanged |
+| Bus-off/reboot/binding withdrawal | Expiry first; quarantine relevant channels and retire local staging; earlier immutable terminals remain unchanged |
+| Known capture after processing, or backward processing time | Reject without mutation, including observations; never infer a clock conversion |
+| Capture before a cutoff, processing at/after it | Processing expiry wins; retain capture and processing times separately without accepting the reply |
+| Capture at/after a cutoff | Cannot be timely confirmation: processing is at least as late as capture |
+| Valid response before handoff, while idle or after terminal | Quarantine as unsolicited/duplicate traffic; close live work as `CORRELATION_LOST`, leaving any existing terminal unchanged |
+| Known capture before the relevant handoff | Quarantine as provably stale, even when object/command match |
+| Cancel/failure processed before a queued earlier RX | First terminal wins; retain the later-dispatched raw observation without rollback |
+| Success published before cancel/failure | Keep success and its effects; a later bus-off/reboot/invalidation or duplicate still quarantines the route |
+| Events with equal processing timestamps | Cutoff expiry first; otherwise cooperative call order determines the first terminal |
 
-`receive` uses processing time conservatively. Evidence delivered after a cutoff
-cannot become timely because it was captured earlier; no controller timestamp is
-silently inferred. More detailed timestamp/retirement reconciliation belongs to
-prompt 14. Applications must not send previously copied TX after cancellation,
-expiry or generation invalidation. Once bytes cross `nextTx`, unproved controller
-retirement remains possible transmission even if no CAN ACK is later reported.
+`receive(frame, nowUs)` leaves capture time unknown. The three-argument overload
+accepts a source-qualified `receivedUs` in the same expanded monotonic domain as
+processing time. Neither form backdates processing or revives a terminal. Clock
+wrap must be expanded outside this adapter; raw counter wrap is rejected as
+backward time. Equal capture/handoff timestamps cannot establish finer ordering.
+The session premise still applies; timestamps and host tokens are not wire tags.
+This is deliberately more conservative than RS's captured-history settlement
+path; [the source refresh](reports/prompt_14_sources.md) records that difference.
+
+Every frame offered with a configured response identifier has one copied
+`SdoRxObservation`: route, raw bytes/flags, optional capture time, processing time
+and disposition. Unsupported format or a wrong object is `REJECTED`; a live
+response entering validation is `PROCESSED`, including one causing client abort;
+old/unsolicited traffic on a quarantined route is `UNRESOLVED`. The latest view
+survives result release and new admission, but is overwritten by the next frame
+with that identifier. It is not a history queue or attributed to a new local
+request. Applications copy it when a longer bounded history is needed. Unmatched
+identifiers still belong to the continuous physical owner dispatcher.
+
+An ordinary download acknowledgement echoes index/subindex, not written data.
+Changing a value, operation number, step, generation or delay cannot identify an
+old `60` response. During a live initial exchange the adapter checks the object;
+later segment command/toggle checks belong to the selected engine. Known stale
+capture or an unsolicited frame invalidates the premise even if its object is
+different. An indistinguishable duplicate arriving only after a new handoff
+cannot be detected without external evidence: success reuse therefore requires
+exclusive ownership and no later duplicate delivery of completed exchanges.
+Host fake tests demonstrate this limitation; they do not prove a real session.
 
 ### Evidence, effects and quarantine
 
@@ -249,16 +279,48 @@ correlation and therefore quarantine the channel on uncertain failure.
 
 Any unsuccessful possibly transmitted request makes the physical channel
 unresolved; transport failure, reboot and bus-off also invalidate it. Release,
-quiet time, host epochs, a matching client abort or construction do not requalify
-it. Other explicitly configured channels/nodes can continue. Safe reopening is
-not implemented: prompt 14 owns evidence-backed reconciliation. Success reuse
-still requires the external premise that a completed exchange will not later be
-duplicated; local request tokens cannot prove this CAN wire property.
+quiet time, host epochs, a client abort or construction do not requalify it.
+`invalidate(slot, nowUs)` withdraws exactly one binding without replacing its
+physical route, generations or retained possible effects. Reboot invalidates
+every channel of that node; bus-off invalidates the whole adapter. Other
+explicitly configured channels/nodes can continue under their own premises.
+Same-node alternate channels require actual independent server-channel evidence,
+distinct identifiers and a separate fixed slot. Relabeling the same peer channel
+with different IDs, logical axes or host generations is rejected. This is not a
+claim that CL86-C has a second server channel or an alternate stop route.
+
+All 202 reviewed Lichuan entries have unestablished read effects (Q20); all 194
+generated descriptors remain `UNQUALIFIED`. No read is asserted destructive,
+but no discovery/reconciliation upload is promoted to non-changing from access
+flags. Multi-write callers keep each prior success and later possible effect;
+a matching server abort on a later request does not undo an earlier write.
+
+### Unsupported reopening and required evidence
+
+Prompt 14 implements no reopening capability. Negative tests keep admission
+blocked for every unsupported path below, rather than supplying a success stub.
+The [source report](reports/prompt_14_sources.md) identifies the actual pinned
+stack, Lichuan documents and installed controller API inspected.
+
+| Proposed path | Why insufficient / evidence needed before implementation |
+| --- | --- |
+| Quiet interval, longer timeout or new host epoch | No established maximum server response/retransmission or local delivery delay; need all bounds plus an ordered drain/retirement boundary |
+| Client abort queued, handed off or CAN-ACKed | No server acknowledgement of abort or proof previous effects vanished; need applicable remote-session settlement and local queue disposition |
+| Heartbeat or boot-up alone | Proves only the observed network event; need matched firmware reset/session semantics and ordering against retained TX/RX and other clients |
+| Controller stop/recovery/start | Inspected TWAI queue clearing concerns local driver storage; need application/cache/active-frame retirement and independent remote-server settlement, not just queue acceptance |
+| Reconstruct adapter or rebind same server | Local tokens do not tag wire data; need externally established old-session exclusion before constructing any replacement |
+| Read to reconcile an uncertain write | Need Q20 effect permission, applicable value semantics and fresh correlation; equal readback does not prove which write happened |
+
+Q18 retains server/timing evidence, Q16 altered-route activation, Q01 selected
+model/firmware provenance, and Q20 read effects. These remain precise device
+qualification gates, not unfinished software reopening procedures. No reset,
+save, stop, retry or discovery write is added to obtain evidence.
 
 ### Build and host evidence
 
 The full-checkout build automatically registers the selected adapter and
-[independent fake-controller/node tests](../test/sdo_transfer_test.cpp). The
+[independent fake-controller/node tests](../test/sdo_transfer_test.cpp) and
+[adversarial settlement tests](../test/sdo_reconciliation_test.cpp). The
 [adapter guide](../adapters/canopennode/README.md) gives optional-target commands.
 Installed/exported core consumers need no adapter, upstream source, SDK, ledger,
 Python or reference material; portable service value types compile independently.

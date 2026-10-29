@@ -196,13 +196,14 @@ void expeditedTransfers() {
         CHECK(client.result(id)->effectPossible && !client.result(id)->effectUncertain);
         CHECK(client.result(id)->transfer.data[0] == 1);
     }
-    // A reply cannot qualify work that remains in retirable software staging.
+    // A reply before handoff disproves session freshness; staging cannot proceed.
     C::SdoClient client; CHECK(client.configure(0, route(), true, true));
     const C::SdoRequestId id = admit(client, work());
-    CHECK(!client.receive(reply(0x4b), 0)); CHECK(!client.result(id));
-    CHECK(client.port(0)->queueOccupied && client.port(0)->handedOff == 0);
-    CHECK(take(client, 1).data[0] == 0x40);
-    CHECK(client.receive(reply(0x4b), 2)); terminal(client, id, C::SdoOutcome::SUCCESS);
+    CHECK(!client.receive(reply(0x4b), 0)); terminal(client, id, C::SdoOutcome::CORRELATION_LOST);
+    CHECK(!client.port(0)->queueOccupied && client.port(0)->handedOff == 0);
+    CHECK(client.unresolved(0) && !client.result(id)->transmissionPossible);
+    M::Frame unsent; C::SdoTxId unsentId;
+    CHECK(!client.nextTx(0, 1, unsent, unsentId));
 }
 
 void segmentedUploads() {
@@ -323,8 +324,9 @@ void abortWhileStaged() {
     C::SdoClient client; CHECK(client.configure(0, route(), true, true));
     const C::SdoRequestId id = admit(client, work(8));
     CHECK(client.service(0)); CHECK(!client.receive(reply(0x80), 1));
-    CHECK(!client.result(id) && client.port(0)->queueOccupied);
-    CHECK(take(client, 2).data[0] == 0x40);
+    terminal(client, id, C::SdoOutcome::CORRELATION_LOST);
+    CHECK(!client.port(0)->queueOccupied && !client.result(id)->transmissionPossible);
+    CHECK(client.unresolved(0));
 }
 
 void confirmationAfterReply() {

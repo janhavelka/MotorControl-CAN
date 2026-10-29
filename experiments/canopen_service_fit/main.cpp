@@ -92,12 +92,21 @@ static void writeCopyAndBackpressure() {
     CHECK(owner.controller().queued.data[4] == 0x11 && owner.controller().queued.data[7] == 0x44);
     owner.service(100); // Buffer full waits; no second accepted frame or retry.
     CHECK(owner.controller().accepted == 1 && !owner.controller().sendFault);
-    owner.receive(reply(0x60), 100); // Unsent request cannot have a qualifying reply.
-    CHECK(owner.result(id) == nullptr);
     CHECK(owner.handoff(100));
     owner.receive(reply(0x60), 200);
     CHECK(owner.result(id)->outcome == Outcome::Success);
     CHECK(!owner.result(id)->executionUnknown && owner.controller().handedOff == 1);
+
+    CanBusOwner unsolicited;
+    const RequestId unsent = begin(unsolicited, true, payload, sizeof(payload));
+    unsolicited.service(0);
+    unsolicited.receive(reply(0x60), 100); // Pre-handoff traffic disproves session freshness.
+    CHECK(unsolicited.result(unsent)->outcome == Outcome::Transport);
+    CHECK(!unsolicited.result(unsent)->executionUnknown);
+    CHECK(!unsolicited.handoff(100) && !unsolicited.controller().queueOccupied);
+    CHECK(unsolicited.release(unsent));
+    RequestId blocked = {nullptr, 0};
+    CHECK(!unsolicited.admit(true, 0x2000, 0, payload, sizeof(payload), 200, 20, blocked));
 }
 
 static void segmented() {

@@ -23,6 +23,8 @@ enum class SdoOutcome : uint8_t {
     CANCELLED, ///< Local cancellation; never a motor stop.
     BUS_OFF, ///< Application reports loss of the physical interface.
     REBOOT, ///< Application reports server reboot and invalidates its channels.
+    BINDING_INVALIDATED, ///< Application withdraws this route/binding; earlier effects remain possible.
+    CORRELATION_LOST, ///< Observed unsolicited/stale response contradicts the qualified session premise.
     TRANSPORT_ERROR, ///< Application/controller or selected-stack boundary failure.
     UNSUPPORTED ///< Valid discovered transfer form exceeds admitted capability.
 };
@@ -62,6 +64,25 @@ struct SdoCompletion {
     Frame reply; ///< Last received matching frame, copied before callback; inspect only if replyValid.
     bool replyValid = false; ///< Raw response envelope exists; not a claim that it was well formed.
     bool clientAbortQueued = false; ///< Cleanup was staged at publication; never claims it was sent.
+};
+
+/** How a route observation was handled; never establishes a wire request identity. */
+enum class SdoRxDisposition : uint8_t {
+    PROCESSED, ///< Live expected response entered validation/engine, including a malformed-reply failure.
+    REJECTED, ///< Wrong object or unsupported frame shape; no protocol evidence was accepted.
+    UNRESOLVED ///< Already quarantined or unexpected/stale traffic invalidated this route.
+};
+/** Latest copied response-ID observation, independent of the immutable terminal.
+ * It identifies the configured route, not the request that produced the frame.
+ * Application-supplied capture time can exclude stale evidence but cannot prove
+ * freshness of an identical ordinary SDO reply. No wall clock is acquired. */
+struct SdoRxObservation {
+    SdoChannel channel; ///< Copied configured route; never attributes an old frame to a new host token.
+    Frame frame; ///< Owned raw frame; disposition determines whether it entered the protocol engine.
+    bool receivedTimeKnown = false; ///< True only for a supplied, qualified capture timestamp.
+    uint64_t receivedUs = 0; ///< Capture time in the processing clock domain; zero valid when known.
+    uint64_t processedUs = 0; ///< Supplied nondecreasing dispatch time; cutoffs are evaluated here.
+    SdoRxDisposition disposition = SdoRxDisposition::REJECTED; ///< No confirmation implied by default.
 };
 
 } // namespace CANOPEN

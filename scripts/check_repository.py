@@ -32,6 +32,7 @@ REQUIRED = {
     "include/MotorControlCAN/can/Frame.h", "src/Endpoint.cpp", "src/can/Frame.cpp",
     "include/MotorControlCAN/canopen/Sdo.h", "src/canopen/Sdo.cpp",
     "include/MotorControlCAN/canopen/SdoTransfer.h", "test/sdo_transfer_test.cpp",
+    "test/sdo_reconciliation_test.cpp",
     "adapters/canopennode/CMakeLists.txt", "adapters/canopennode/SdoClient.h",
     "adapters/canopennode/SdoClient.cpp", "adapters/canopennode/CO_driver_target.h",
     "adapters/canopennode/Driver.cpp",

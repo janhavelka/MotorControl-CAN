@@ -60,7 +60,7 @@ Use numerical order among ready work within the assignment. Record the blocker a
 | 11 | [Classical CAN and SDO codecs](11_can_sdo_codecs.md) | Complete | [Report](../reports/prompt_11.md) |
 | 12 | [Reviewed object generation](12_object_generation.md) | Complete | [Report](../reports/prompt_12.md) |
 | 13 | [Bounded SDO transfer lifecycle](13_sdo_lifecycle.md) | Complete | [Report](../reports/prompt_13.md) |
-| 14 | [SDO ambiguity and reconciliation](14_sdo_reconciliation.md) | Pending | - |
+| 14 | [SDO ambiguity and reconciliation](14_sdo_reconciliation.md) | In progress | [Report](../reports/prompt_14.md); implementation and local checks pass, delivery/CI pending |
 | 15 | [Passive network events and invalidation](15_network_events.md) | Pending | - |
 | 16 | [NMT requests and service eligibility](16_nmt_services.md) | Pending | - |
 | 17 | [Observed PDO maps and decoding](17_pdo_observations.md) | Pending | - |

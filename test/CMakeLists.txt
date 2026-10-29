@@ -78,6 +78,12 @@ strict_test(sdo_transfer_test)
 add_test(NAME sdo_transfer COMMAND sdo_transfer_test)
 set_tests_properties(sdo_transfer PROPERTIES TIMEOUT 10)
 
+add_executable(sdo_reconciliation_test sdo_reconciliation_test.cpp)
+target_link_libraries(sdo_reconciliation_test PRIVATE MotorControlCAN::CanopenNode)
+strict_test(sdo_reconciliation_test)
+add_test(NAME sdo_reconciliation COMMAND sdo_reconciliation_test)
+set_tests_properties(sdo_reconciliation PROPERTIES TIMEOUT 10)
+
 add_executable(objects_test objects_test.cpp)
 target_link_libraries(objects_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(objects_test)

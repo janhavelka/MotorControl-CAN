@@ -41,8 +41,9 @@ public:
     SdoClient& operator=(const SdoClient&) = delete; ///< Assignment cannot transfer live ownership.
 
     /** Configure a previously unused slot, with no traffic or guessed default IDs.
-     * Duplicate/crossing CAN-IDs on this interface reject, irrespective of logical
-     * axis/subaxis/host epochs. A configured slot cannot be rebound or reopened.
+     * Duplicate/crossing CAN-IDs or aliases of the same peer node/server channel
+     * reject, irrespective of logical axis/subaxis/host epochs. A configured slot
+     * cannot be rebound or reopened. Distinct server channels need device evidence.
      * @param[in] slot Fixed slot 0..CHANNELS-1.
      * @param[in] channel Source-backed route; copied after full validation.
      * @param[in] externallyConfirmed True only for an externally established fresh
@@ -52,6 +53,8 @@ public:
      * @param[in] freshSessionQualified Required external premise that the local
      * TX/RX queues and remote session contain no indistinguishable old work.
      * A fresh C++ object or successful probe cannot establish this premise.
+     * Also requires no later duplicated completed exchange and exclusive ownership
+     * of this peer's SDO server channel. A different host epoch is not a new server.
      * @return False atomically for invalid, duplicate or already configured route.
      */
     bool configure(uint8_t slot, const SdoChannel& channel, bool externallyConfirmed,
@@ -81,9 +84,23 @@ public:
      * A matching abort after possible TX retires even a not-yet-handed-off next segment.
      * @param[in] frame Borrowed frame; copied before any selected-engine callback.
      * @param[in] nowUs Processing time; deadline wins before callback at equality.
-     * @return True only if a live matching SDO route consumed the frame.
+     * Capture time is unknown in this overload, never inferred from processing time.
+     * @return True only if live protocol validation consumed the frame. False can
+     * still retain a raw observation or quarantine unsolicited/late route traffic.
      */
     bool receive(const Frame& frame, uint64_t nowUs);
+    /** Offer one frame with an externally qualified capture time in the same clock domain.
+     * Processing-time expiry still wins even if capture preceded the cutoff.
+     * Capture before the relevant handoff proves stale traffic and quarantines;
+     * equality cannot resolve ordering finer than the timestamp resolution.
+     * @param[in] frame Borrowed raw frame, copied before any mutation/callback.
+     * @param[in] receivedUs Nonwrapping capture microseconds; zero valid, at most nowUs.
+     * @param[in] nowUs Nondecreasing processing time; no cutoff can be backdated.
+     * @return True only for a live response consumed by protocol validation. Invalid
+     * time rejects without mutation; late/unexpected traffic may be retained and
+     * quarantine its route while returning false. Neither overload reopens a channel.
+     */
+    bool receive(const Frame& frame, uint64_t receivedUs, uint64_t nowUs);
     /** Hand off at most one staged request/cleanup frame, marking possible TX.
      * Caller must never transmit cached bytes after a failed call or replay them.
      * Queue acceptance/CAN ACK cannot produce protocol success. A pending cleanup
@@ -95,6 +112,17 @@ public:
      * @return False for invalid slot/time, no eligible TX, overlap or expired work.
      */
     bool nextTx(uint8_t slot, uint64_t nowUs, Frame& frame, SdoTxId& id);
+    /** Recheck copied TX eligibility immediately before an application/controller enqueue.
+     * Pure check: no progression, queue mutation, time acquisition or physical retirement.
+     * Caller serializes check/enqueue with lifecycle events and enqueues each handoff
+     * at most once. True is not permission to replay a previously accepted frame.
+     * @param[in] id Exact most recent live handoff, including bounded cleanup after release.
+     * @param[in] nowUs Same processing clock, before its cutoff; backward time rejects.
+     * @return False after reply, confirmation, cancellation, expiry, invalidation or
+     * superseding handoff. A controller's already accepted queue still needs actual
+     * retirement evidence; this function cannot recall bytes outside the adapter.
+     */
+    bool canTransmit(SdoTxId id, uint64_t nowUs) const;
     /** Record actual controller TX/ACK separately from protocol confirmation.
      * A report can follow a nonfinal reply until the next frame handoff supersedes
      * its token. Recording it neither renews a cutoff nor rewrites a terminal.
@@ -120,6 +148,13 @@ public:
      * @return False for invalid node/time; first terminal results remain stable.
      */
     bool reboot(uint8_t node, uint64_t nowUs);
+    /** Withdraw one binding without overwriting the route or clearing possible effects.
+     * @param[in] slot Configured fixed channel; other channels remain independent.
+     * @param[in] nowUs Same processing clock; expiry wins before invalidation.
+     * @return False atomically for invalid slot/time; true quarantines permanently,
+     * retires local staging and closes live work. Existing terminals stay immutable.
+     */
+    bool invalidate(uint8_t slot, uint64_t nowUs);
     /** Retain an adapter/controller failure without implicit retry or requalification.
      * @param[in] id Current nonterminal request.
      * @param[in] nowUs Same supplied time; timeouts take priority.
@@ -131,6 +166,14 @@ public:
      * @return Null for pending/stale/foreign; never changes time or storage.
      */
     const SdoCompletion* result(SdoRequestId id) const;
+    /** Inspect the latest raw observation for a configured response identifier.
+     * Storage is separate from terminal results and survives release/new admission.
+     * @param[in] slot Fixed channel slot.
+     * @return Null before any observation or for invalid/unconfigured slots; otherwise
+     * a borrowed view valid until the next observation on this route or destruction.
+     * Copy it for history. Reading performs no I/O, clock read or consumption.
+     */
+    const SdoRxObservation* observation(uint8_t slot) const;
     /** Release terminal result only; quarantine and bounded cleanup remain independent.
      * @param[in] id Exact current terminal handle.
      * @return False leaves storage unchanged; true invalidates its borrowed result view.
@@ -156,13 +199,16 @@ private:
         bool occupied = false, terminal = false, started = false, awaiting = false;
         bool queued = false, possible = false, txConfirmed = false, cleanup = false;
         bool unsizedExpedited = false;
+        bool handoffLive = false, observationValid = false;
         uint32_t generation = 0, frame = 0;
         uint64_t queueCutoff = 0, responseCutoff = 0;
+        uint64_t handoffUs = 0, handoffCutoff = 0;
         SdoTransfer work;
         SdoCompletion completion;
         uint8_t upload[32] = {}, uploaded = 0;
         Frame lastReply;
         bool replyValid = false;
+        SdoRxObservation observation;
     } channels_[CHANNELS];
     uint64_t lastUs_ = 0;
     bool valid(SdoRequestId id) const;
@@ -172,6 +218,7 @@ private:
                 bool abortValid = false, uint32_t abortCode = 0);
     void abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t nowUs);
     void retire(Channel& c);
+    bool receiveFrame(const Frame& frame, bool receivedTimeKnown, uint64_t receivedUs, uint64_t nowUs);
 };
 } // namespace CANOPEN
 } // namespace MotorControlCAN

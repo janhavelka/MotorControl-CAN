@@ -33,7 +33,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 11 | Classical CAN and checked SDO codec boundary | Complete: local full and exact-commit Windows/GCC/Clang sanitizer CI pass. One selected encoder, explicit channel/width correlation, full aborts and unchanged failure outputs. |
 | 12 | Reviewed generated object metadata and coverage | Complete: 194 resolved descriptors, four withheld/four excluded and active freshness; local and exact-commit Windows/GCC/Clang sanitizer CI pass. No semantic operation is implemented. |
 | 13 | Bounded SDO lifecycle | Complete: optional selected-stack adapter, two unique channels, copied intent, immutable cutoffs, retained terminals, 1-32-byte forms and persistent quarantine; [local/CI evidence](reports/prompt_13.md) |
-| 14 | SDO ambiguity/reconciliation | Next: adversarial retirement/correlation proof and only evidence-backed reopening; unresolved channels remain blocked |
+| 14 | SDO ambiguity/reconciliation | Implemented: processing/capture precedence, retained observations, invalidation and TX eligibility; permanent quarantine without proven reopening. Final verification tracked in [report](reports/prompt_14.md) |
 | 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
 | 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
