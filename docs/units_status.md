@@ -103,7 +103,18 @@ environment and do not change the rounding mode. Floating calculations may raise
 ordinary exception flags; they do not promise exact representation.
 Nonfinite/underflowing results or exceeded allowances reject.
 Bounds exclude uncertainty in caller scales. Approximation never supplies an
-origin, coordinate reference or angle-path choice; prompt 10 owns that policy.
+origin, coordinate reference or angle-path choice; the [axis API](axis_contract.md) owns that policy.
+
+## Large origins and mixed exact quantities
+
+`NativeQuantity` retains a whole I64 value plus a signed proper U64 fraction.
+`addNativeInteger` adds an origin/reference without forming `origin * denominator`.
+Mixed dimensional overloads cancel scale factors before checked U64 products;
+they can retain `INT64_MAX - 1/2` even though a single I64 rational numerator
+cannot. Canonical signs agree; zero fractions have denominator one.
+The integer and binary32 quantizers accept this same storage, compare exact
+error against the exact rational allowance, and publish atomically. Binary32
+quantization never treats a rounded binary64 origin as the exact input.
 
 ## Reuse, differences and verification
 
@@ -118,9 +129,9 @@ check both neighboring directions to establish the closest directed value.
 
 The [retained proof](../experiments/api_ownership/README.md) uses production
 types/conversion/quantization. Its old million-unit input and `10^18` product
-limits are removed. Proof-only I32 bounds, EXACT-only preparation and origin/frame
-rules remain until prompt 10. Its numeric errors use
-`MoveError::UNIT_ERROR_BASE + UnitError` without changing the underlying Err/msg.
+limits are removed. The proof now consumes production `preparePosition`; its synthetic I32 wire
+bounds and capability facts remain test-only. Production coordinate errors use
+`AxisError`, with `UNIT_ERROR_BASE + UnitError` preserving the underlying Err/msg.
 The old proof spellings `NATIVE_INCREMENTS`, `commandIncrementsPerMotorTurn` and
 `feedbackCountsPerMotorTurn` are replaced by `STEPS`,
 `commandStepsPerMotorTurn` and selected `encoder.countsPerUnit` respectively.

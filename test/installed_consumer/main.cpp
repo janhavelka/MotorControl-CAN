@@ -28,5 +28,15 @@ int main() {
         converted.numerator != -420000 || converted.denominator != 1) return 5;
     FloatQuantization native;
     if (!quantizeFloat(Rational(16777217), Rational(1), native) || native.absoluteErrorBound != 1) return 6;
+    AxisConfig config; config.binding = binding;
+    config.units.commandStepsPerMotorTurn = UnitScale(4096, 1, ScaleSource::ASSUMED);
+    config.units.motorTurnsPerLoadTurn = UnitScale(3, 2, ScaleSource::ASSUMED);
+    config.units.millimetresPerLoadTurn = UnitScale(20, 1, ScaleSource::ASSUMED);
+    config.originKnown = true; config.originSource = ScaleSource::ASSUMED;
+    PositionRequest request; request.configurationGeneration = 1;
+    request.value = Rational(5); request.unit = PositionUnit::MILLIMETRES; request.frame = CoordinateFrame::LOAD;
+    PreparedTarget target;
+    if (!preparePosition(request, config, nullptr, target) || target.endpointNative != 1536) return 7;
+    if (!validatePreparedTarget(target, config, nullptr, 0)) return 8;
     return 0;
 }

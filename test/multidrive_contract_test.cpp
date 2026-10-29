@@ -58,20 +58,21 @@ M::UnitScale scale(uint32_t numerator, uint32_t denominator = 1) {
     return value;
 }
 
-M::AxisConfig axis(M::MotorKind motor) {
-    M::AxisConfig value;
+M::ProofAxisConfig axis(M::MotorKind motor) {
+    M::ProofAxisConfig value;
     value.binding = binding();
     value.capabilities.motor = motor;
     value.capabilities.feedback = M::FeedbackKind::ENCODER;
     value.capabilities.position = true;
     value.capabilities.velocity = true;
     value.originKnown = true;
+    value.originSource = M::ScaleSource::ASSUMED;
     value.units.commandStepsPerMotorTurn = scale(3600);
     value.units.motorTurnsPerLoadTurn = scale(1);
     return value;
 }
 
-M::PositionRequest turns(const M::AxisConfig& configuration, int64_t numerator,
+M::PositionRequest turns(const M::ProofAxisConfig& configuration, int64_t numerator,
                          uint64_t denominator = 1) {
     M::PositionRequest request;
     request.value = M::Rational(numerator, denominator);
@@ -102,10 +103,10 @@ void motorKindsAndOptionalGeometry() {
     const M::MotorKind kinds[] = {M::MotorKind::STEPPER, M::MotorKind::BLDC};
     const uint32_t documentedMotorCodes[] = {0x08, 0x40};
     for (unsigned i = 0; i < 2; ++i) {
-        M::AxisConfig configuration = axis(kinds[i]);
+        M::ProofAxisConfig configuration = axis(kinds[i]);
         configuration.binding.endpoint.profile = documentedMotorCodes[i];
         CHECK(configuration.units.fullStepsPerMotorTurn.numerator == 0);
-        const Saved<M::AxisConfig> original(configuration);
+        const Saved<M::ProofAxisConfig> original(configuration);
         P::MoveContext context;
         CHECK(P::prepareMoveAbsolute(turns(configuration, 1), configuration,
                                      operation(), 0, 100, context));
@@ -120,7 +121,7 @@ void motorKindsAndOptionalGeometry() {
     // EPOS4 Firmware Specification rel13740 pp221,234: command and sensor
     // position representations need explicit interpretation, not step geometry.
     // This selected 8192 scale is abstract, not an EPOS4 factory default.
-    M::AxisConfig servo = axis(M::MotorKind::BRUSHED_DC);
+    M::ProofAxisConfig servo = axis(M::MotorKind::BRUSHED_DC);
     servo.binding.endpoint.profile = 23;
     servo.units.commandStepsPerMotorTurn = scale(8192);
     P::MoveContext context;
@@ -133,7 +134,7 @@ void motorKindsAndOptionalGeometry() {
 void independentScalesAndWideIntent() {
     // C1b is explicitly abstract: 1/2 load turn * 3/2 motor/load * 4096 = 3072.
     // The same mechanical displacement is 1536 feedback counts at 2048/turn.
-    M::AxisConfig configuration = axis(M::MotorKind::BLDC);
+    M::ProofAxisConfig configuration = axis(M::MotorKind::BLDC);
     configuration.units.commandStepsPerMotorTurn = scale(4096);
     configuration.units.motorTurnsPerLoadTurn = scale(3, 2);
     configuration.units.encoder.countsPerUnit = scale(2048);
@@ -154,7 +155,7 @@ void independentScalesAndWideIntent() {
 
     // C2: N5/EPOS4 60FF is I32; +/-70000 must not narrow to RS I16 RPM.
     M::VelocityRequest velocity;
-    CHECK(velocity.unit.position == M::PositionUnit::TURNS && velocity.unit.time == M::TimeUnit::SECOND);
+    CHECK(velocity.unit.position == M::PositionUnit::STEPS && velocity.unit.time == M::TimeUnit::SECOND);
     velocity.value = M::Rational(-70000);
     velocity.unit.position = M::PositionUnit::TURNS;
     velocity.unit.time = M::TimeUnit::MINUTE;
@@ -175,7 +176,7 @@ void independentScalesAndWideIntent() {
 }
 
 void productionNumericMigration() {
-    M::AxisConfig configuration = axis(M::MotorKind::BLDC);
+    M::ProofAxisConfig configuration = axis(M::MotorKind::BLDC);
     configuration.units.commandStepsPerMotorTurn = scale(1);
     P::MoveContext context;
     CHECK(P::prepareMoveAbsolute(turns(configuration, 71), configuration,
@@ -186,12 +187,12 @@ void productionNumericMigration() {
     configuration.originNative = 1;
     M::Status status = P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context);
     CHECK(status.code == M::Err::ILLEGAL_VALUE);
-    CHECK(status.detail == static_cast<int32_t>(M::MoveError::OUT_OF_RANGE));
+    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::ARITHMETIC_OVERFLOW));
     CHECK(original.unchanged(context));
     request.value = M::Rational(INT64_MIN); configuration.originNative = -1;
     status = P::prepareMoveAbsolute(request, configuration, operation(), 0, 100, context);
     CHECK(status.code == M::Err::ILLEGAL_VALUE);
-    CHECK(status.detail == static_cast<int32_t>(M::MoveError::OUT_OF_RANGE));
+    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::ARITHMETIC_OVERFLOW));
     CHECK(original.unchanged(context));
 
     // Origin addition is checked in int64 before the final I32 profile bound.
@@ -214,7 +215,7 @@ void productionNumericMigration() {
     native.value = M::Rational(1, 0);
     status = P::prepareMoveAbsolute(native, configuration, operation(), 0, 100, context);
     CHECK(status.code == M::Err::ILLEGAL_VALUE);
-    CHECK(status.detail == 100 + static_cast<int32_t>(M::UnitError::INVALID_ARGUMENT));
+    CHECK(status.detail == static_cast<int32_t>(M::AxisError::INVALID_ARGUMENT));
     CHECK(boundary.unchanged(context));
 
     // A native request still validates malformed supplied optional facts.
@@ -261,7 +262,7 @@ void protocolNeutralBindingAndFrames() {
     const Saved<P::ReadContext> originalRead(read);
     CHECK(!P::prepareIdentity(proprietary, operation(), 0, 100, read));
     CHECK(originalRead.unchanged(read));
-    M::AxisConfig configuration = axis(M::MotorKind::BLDC);
+    M::ProofAxisConfig configuration = axis(M::MotorKind::BLDC);
     configuration.binding = proprietary;
     P::MoveContext move;
     const Saved<P::MoveContext> originalMove(move);
@@ -298,13 +299,13 @@ void rampDimensionsAndCapabilityGuards() {
 
     // C11 variants are abstract. Brake/configuration distinctions are documented
     // by N5 p107 and EPOS4 rel13740 p193; these are not vendor capability tables.
-    M::AxisConfig variantA = axis(M::MotorKind::BLDC);
+    M::ProofAxisConfig variantA = axis(M::MotorKind::BLDC);
     const Saved<M::Capabilities> beforeA(variantA.capabilities);
     CHECK(M::requireCapability(variantA.capabilities, M::Capability::POSITION));
     CHECK(M::requireCapability(variantA.capabilities, M::Capability::TORQUE).code == M::Err::UNSUPPORTED);
     CHECK(M::requireCapability(variantA.capabilities, M::Capability::BRAKE).code == M::Err::UNSUPPORTED);
     CHECK(beforeA.unchanged(variantA.capabilities));
-    M::AxisConfig variantB = variantA;
+    M::ProofAxisConfig variantB = variantA;
     variantB.capabilities.position = false;
     variantB.capabilities.torque = true;
     variantB.capabilities.brake = true;
@@ -361,7 +362,7 @@ void atomicPublicationAndTerminalEvidence() {
     CHECK(!P::prepareIdentity(route, operation(9), 100, 100, read));
     CHECK(terminalRead.unchanged(read));
 
-    M::AxisConfig configuration = axis(M::MotorKind::BLDC);
+    M::ProofAxisConfig configuration = axis(M::MotorKind::BLDC);
     P::MoveContext move;
     CHECK(P::prepareMoveAbsolute(turns(configuration, 1), configuration, operation(), 0, 100, move));
     M::ServiceEvidence rejected = acknowledgement(route, move.operation, move.step);

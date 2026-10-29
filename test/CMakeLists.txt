@@ -18,6 +18,22 @@ target_link_libraries(units_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(units_test)
 add_test(NAME units COMMAND units_test)
 
+add_executable(axis_test axis_test.cpp)
+target_link_libraries(axis_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(axis_test)
+add_test(NAME axis COMMAND axis_test)
+
+# Compile and run the real offline example in quick/full verification too.
+if(NOT TARGET units_preview)
+    add_subdirectory(../examples/units_preview units_preview_example)
+endif()
+strict_test(units_preview)
+add_test(NAME units_preview COMMAND units_preview)
+add_executable(native_consumer installed_consumer/main.cpp)
+target_link_libraries(native_consumer PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(native_consumer)
+add_test(NAME native_consumer COMMAND native_consumer)
+
 # Synthetic profiles and application owner remain test support; numeric code is core.
 enable_language(C)
 add_subdirectory(../experiments/canopen_service_fit fit_stack)
@@ -54,7 +70,7 @@ add_test(NAME documentation_contract COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CU
 add_test(NAME planning_integrity COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset.py")
 add_test(NAME planning_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset_test.py")
 add_test(NAME ledger_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_lichuan_ledger_test.py")
-set_tests_properties(core units api_ownership multidrive_contract PROPERTIES TIMEOUT 10)
+set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
 set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
 set_tests_properties(package_contract PROPERTIES LABELS full)

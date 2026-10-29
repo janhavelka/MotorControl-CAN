@@ -6,6 +6,9 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Added production pure axis configuration, independent mechanical/encoder origins, exact position/rate preparation, wrapped-angle path primitives and reference-aware admission revalidation. Relative targets require their selected basis; observation age survives unchanged reconfiguration, and exhausted generations fail closed.
+- Added offline units preview, installed/native axis consumers and independent coordinate, time, overflow, limit and binary32 regressions. Replaced proof coordinate arithmetic with the production API; synthetic I32 capabilities remain test-only. No device command or motion operation is implemented.
+
 - Added production exact rational parsing/conversion, independent dimensional scales, all integer rounding policies and checked binary32 quantization with exact tolerance tests. Added explicit bounded radians approximation and installed C++11/C++17/no-RTTI consumer coverage.
 - Migrated retained proof arithmetic and numeric types to production Units, preserving test-only N5/EPOS4 contrasts and profile-specific coordinate policy.
 - Added quick/full verification with bounded commands, retained logs/artifacts, generated-version and actual CTest registration checks. Added Windows GCC quick and Ubuntu GCC/Clang sanitizer full CI with pinned actions and Doxygen source.

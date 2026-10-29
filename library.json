@@ -11,6 +11,6 @@
   "headers": ["MotorControlCAN/MotorControlCAN.h"],
   "build": {"includeDir": "include", "srcDir": "src"},
   "export": {
-    "include": ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md"]
+    "include": ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md"]
   }
 }

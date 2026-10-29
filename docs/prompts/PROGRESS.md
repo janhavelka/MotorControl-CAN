@@ -20,7 +20,8 @@ remains Complete, with no newly discovered runtime defect or scope blocker.
 A [fresh independent audit of prompts 7-9](../reports/prompts_7_9_audit.md)
 corrected verifier omission/empty-version reporting and package/numeric
 documentation. Arithmetic and isolated package reviews found no functional
-defect. Prompts 7-9 retain Complete status; prompt 10 remains next.
+defect. Prompts 7-9 retain Complete status. Prompt 10 now has implemented pure axis/reference
+APIs and passing local checks; its exact-commit CI is pending in [the report](../reports/prompt_10.md).
 
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
@@ -37,7 +38,7 @@ Use numerical order among ready work within the assignment. Record the blocker a
 | 7 | [Native build and package foundation](7_native_package.md) | Complete | [Report](../reports/prompt_7.md) |
 | 8 | [Verification CI and documentation gates](8_verification_docs.md) | Complete | [Report](../reports/prompt_8.md) |
 | 9 | [Status and exact units](9_status_units.md) | Complete | [Report](../reports/prompt_9.md) |
-| 10 | [Axis coordinates and references](10_axis_coordinates.md) | Pending | - |
+| 10 | [Axis coordinates and references](10_axis_coordinates.md) | In progress | [Report](../reports/prompt_10.md) |
 | 11 | [Classical CAN and SDO codecs](11_can_sdo_codecs.md) | Pending | - |
 | 12 | [Reviewed object generation](12_object_generation.md) | Pending | - |
 | 13 | [Bounded SDO transfer lifecycle](13_sdo_lifecycle.md) | Pending | - |

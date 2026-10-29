@@ -17,16 +17,18 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md",
 }
 REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
+    "include/MotorControlCAN/Axis.h", "src/Axis.cpp", "test/axis_test.cpp",
+    "examples/units_preview/CMakeLists.txt", "examples/units_preview/main.cpp", "examples/units_preview/README.md",
     "include/MotorControlCAN/can/Frame.h", "src/Endpoint.cpp", "src/can/Frame.cpp",
     "scripts/verify.py", "scripts/check_repository.py", "scripts/generate_version.py",
     "scripts/export_package.py", "scripts/check_promptset.py",

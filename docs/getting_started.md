@@ -1,7 +1,7 @@
 # Native package use
 
 The development package `MotorControl-CAN` currently implements local call
-status, exact numeric/unit conversion and quantization, copied logical endpoint/
+status, exact numeric/unit conversion and quantization, pure axis targets, copied logical endpoint/
 binding identity and Classical CAN frame validation. The C++ namespace, include
 directory, CMake package and target are
 `MotorControlCAN`, with imported target `MotorControlCAN::MotorControlCAN`.
@@ -25,9 +25,11 @@ target_link_libraries(my_app PRIVATE MotorControlCAN::MotorControlCAN)
 ```
 
 Include `<MotorControlCAN/MotorControlCAN.h>` for the small complete interface,
-or `<MotorControlCAN/Units.h>`, `<MotorControlCAN/Endpoint.h>` and
+or `<MotorControlCAN/Axis.h>`, `<MotorControlCAN/Units.h>`, `<MotorControlCAN/Endpoint.h>` and
 `<MotorControlCAN/can/Frame.h>` individually. The [units/status guide](units_status.md)
 documents exact inputs, scale dependencies, rounding and explicit approximation.
+The [axis guide](axis_contract.md) covers configuration, origins, references and
+checked position/velocity targets; these prepare values without transmitting motion.
 `validateBinding` checks common nonzero identities/generations, without probing
 a drive or imposing CANopen addressing. `validateFrame` checks Classical CAN
 shape and rejects an FD requirement. Their successful `Status` proves local
@@ -67,6 +69,23 @@ the public headers, static library, CMake config/target/version files and
 the software license. The consumer may request an exact metadata version with
 `find_package(MotorControlCAN 0.1.0 EXACT CONFIG REQUIRED)`.
 
+## Offline coordinate preview
+
+The repository example uses illustrative independent command/feedback scales,
+gearing and travel with no full-step geometry. It prints exact targets and
+binary32 quantization evidence, opens no controller, and is excluded from core
+source distributions. From PowerShell or Linux at the checkout:
+
+```text
+cmake -S . -B .build/preview -G Ninja -DBUILD_TESTING=OFF -DMOTORCONTROLCAN_BUILD_EXAMPLES=ON
+cmake --build .build/preview
+.build/preview/examples/units_preview/units_preview
+```
+
+On Windows the executable has the `.exe` suffix. Its
+[README](../examples/units_preview/README.md) also documents an installed-package build.
+Repository tests run the same example and a small native axis consumer.
+
 ## Repository tests and source export
 
 Developer tests need Python 3.10+, Ninja and C/C++ compilers. They register the
@@ -100,7 +119,7 @@ python scripts/export_package.py dist/MotorControl-CAN.zip
 Extract it with a ZIP tool, then use the native build/install commands above.
 The exported build needs neither Python nor network access. The archive contains
 only `include/`, `src/`, `cmake/`, root CMake/metadata/license/readme/changelog
-and the package and units/status guides. Vendor material, audits, test/experiment
+and the package, units/status and axis guides. Vendor material, audits, test/experiment
 sources and dependencies, examples and sibling snapshots are excluded. PlatformIO 6.1.19's equivalent
 developer packaging command is `pio pkg pack --output dist/MotorControl-CAN.tar.gz`;
 its platforms/frameworks are wildcard because the core has no SDK dependency.

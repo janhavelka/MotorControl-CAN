@@ -7,7 +7,8 @@ promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
 [prompt 4](reports/prompt_4.md), [prompt 5](reports/prompt_5.md) and
 [prompt 6](reports/prompt_6.md), [prompt 7](reports/prompt_7.md) and
 [prompt 8](reports/prompt_8.md) and [prompt 9](reports/prompt_9.md) are complete.
-The next work is prompt 10;
+Prompt 10 has completed its local implementation/checks; exact-commit CI is pending.
+The next numbered assignment after its closure is prompt 11;
 this handoff does not execute later prompts in this turn.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
@@ -20,9 +21,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | --- | --- | --- |
 | 1 | Current source map, live delta, tools, bench facts and backlog | Complete; evidence and checks in its report |
 | 2-4 | Full object/source intake, reviewed Lichuan semantics, N5/EPOS4 contrasts | Complete: 99 indexes / 202 entries and 53 manual functions reviewed; four Lichuan model scopes and 21 open feature gates. [Test-only contrast ledger](reference/drive_contrasts.md) covers N5 stepper/BLDC, EPOS4 and protocol boundary cases without claiming support. |
-| 5-6 | Buildable stack fit experiment and common API/ownership proof | Complete: one selected engine, concrete common contracts, one fixed owner table and checked read/write/contrast fixtures. Production package/units now exist under 7–9; axis/reference policy remains 10. |
+| 5-6 | Buildable stack fit experiment and common API/ownership proof | Complete: one selected engine, concrete common contracts, one fixed owner table and checked read/write/contrast fixtures. Production package/units now exist under 7–9; production axis/reference policy now exists under 10. |
 | 7-8 | Native package, source/install consumers, CI/verifier and Doxygen | Complete: minimal C++11 core with isolated source/install/export consumers, quick/full verification, strict Doxygen and passing Windows quick and Linux GCC/Clang sanitizer CI. Exact results are in the stage reports. |
-| 9-10 | Status, exact units and axis/reference conversions | 9 complete: production exact units/status and quantization with local/CI evidence. 10 pending: axis/reference conversions. No native RPM width, mandatory step geometry or guessed feedback scale. |
+| 9-10 | Status, exact units and axis/reference conversions | 9 complete: production exact units/status and quantization with local/CI evidence. 10 local implementation/checks passed: pure axis/reference conversions and offline preview; exact-commit CI pending. No native RPM width, mandatory step geometry or guessed feedback scale. |
 | 11-14 | CAN/SDO codecs, reviewed generated dictionary, bounded service/reconciliation | Pending; preserve full aborts, publication/ownership and late identical-response uncertainty |
 | 15-18 | Passive network events, explicit NMT, observed PDO maps and remapping | Pending; qualify sample provenance separately from map contents; 18 may require device evidence |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
@@ -38,8 +39,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-Next assignment is [prompt 10](prompts/10_axis_coordinates.md), implementing
-axis/reference policy over the [production units](units_status.md) under the established
+Next assignment after prompt 10 closes is [prompt 11](prompts/11_can_sdo_codecs.md),
+Classical CAN/SDO codec boundaries over the implemented [axis](axis_contract.md)
+and [production units](units_status.md), under the established
 [verification gates](verification.md). The
 [reviewed Lichuan dictionary](reference/lichuan_objects.md) and
 [contrast cases](reference/drive_contrasts.md) are documentary inputs;

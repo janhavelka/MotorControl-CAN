@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp)
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
@@ -33,6 +33,11 @@ else()
     target_compile_options(MotorControlCAN PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
+option(MOTORCONTROLCAN_BUILD_EXAMPLES "Build offline native examples" OFF)
+if(MOTORCONTROLCAN_BUILD_EXAMPLES)
+    add_subdirectory(examples/units_preview)
+endif()
+
 # Source distributions omit repository tests and never need Python or the stack.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")
     include(CTest)
@@ -50,7 +55,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/MotorControlCANCon
 install(TARGETS MotorControlCAN EXPORT MotorControlCANTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h
-    include/MotorControlCAN/Units.h
+    include/MotorControlCAN/Units.h include/MotorControlCAN/Axis.h
     include/MotorControlCAN/Endpoint.h include/MotorControlCAN/Version.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
 install(FILES include/MotorControlCAN/can/Frame.h

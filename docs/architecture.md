@@ -56,11 +56,13 @@ status/endpoint/frame declarations into public headers. Synthetic
 `ProofProfile`, fake controller, fixtures and optional stack dependencies stay out of
 installed public includes. Preserve these tests during later migration; do not install
 fake N5/EPOS4 profiles or freeze struct byte layout as a binary ABI.
-Keep the synthetic I32 native bounds/origin and the documentary ramp fixture
+Keep the synthetic I32 wire bounds/capabilities and the documentary ramp fixture
 dimensions profile-specific; they are not universal native representations.
 
 Prompt 9 replaces the duplicate numeric types and bounded arithmetic through
-production Units; prompt 10 owns axis/reference/frame policy. Prompts
+production Units; prompt 10 replaces proof coordinate arithmetic with the
+[production axis/reference API](axis_contract.md). `ProofAxisConfig` adds only
+test capabilities and I32 wire bounds to that real configuration. Prompts
 13/15/23 extend the same owner/service storage boundary for transfers, network
 observations and application scheduling; they must not add competing client
 engines or result tables. Prompt 14 establishes reconciliation evidence. Native

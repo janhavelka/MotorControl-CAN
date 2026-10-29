@@ -6,6 +6,7 @@
 
 #include <MotorControlCAN/Status.h>
 #include <MotorControlCAN/Units.h>
+#include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/Endpoint.h>
 #include <MotorControlCAN/can/Frame.h>
 #include <MotorControlCAN/Version.h>

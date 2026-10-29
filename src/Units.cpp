@@ -60,20 +60,21 @@ int compareRatio(uint64_t n, uint64_t d, double value) {
     return remainder ? 1 : 0;
 }
 // Quantization allowance proofs need wider products. Binary32 has denominator <=2^87,
-// error denominator <=151 bits, tolerance comparison <=215 bits. The 256-bit
+// error denominator <=151 bits. Mixed origins have up to 128-bit numerators;
+// tolerance comparisons need at most 279 bits. The 384-bit
 // stack value also accommodates the binary64 error-bound dyadic comparisons.
 // This is private unsigned storage, not a public arbitrary precision facility.
 struct Wide {
-    uint32_t words[8] = {};
+    uint32_t words[12] = {};
     explicit Wide(uint64_t n = 0) { words[0] = uint32_t(n); words[1] = uint32_t(n >> 32); }
     int compare(const Wide& b) const {
-        for (unsigned i = 8; i-- > 0; )
+        for (unsigned i = 12; i-- > 0; )
             if (words[i] != b.words[i]) return words[i] < b.words[i] ? -1 : 1;
         return 0;
     }
     bool add(const Wide& b) {
         uint64_t carry = 0;
-        for (unsigned i = 0; i < 8; ++i) {
+        for (unsigned i = 0; i < 12; ++i) {
             const uint64_t sum = uint64_t(words[i]) + b.words[i] + carry;
             words[i] = uint32_t(sum); carry = sum >> 32;
         }
@@ -81,7 +82,7 @@ struct Wide {
     }
     void subtract(const Wide& b) { // Caller establishes *this >= b.
         uint64_t borrow = 0;
-        for (unsigned i = 0; i < 8; ++i) {
+        for (unsigned i = 0; i < 12; ++i) {
             const uint64_t rhs = uint64_t(b.words[i]) + borrow;
             borrow = uint64_t(words[i]) < rhs;
             words[i] = uint32_t(uint64_t(words[i]) - rhs);
@@ -89,8 +90,8 @@ struct Wide {
     }
     bool shift(unsigned count) {
         for (unsigned bit = 0; bit < count; ++bit) {
-            if (words[7] & 0x80000000u) return false;
-            for (unsigned i = 7; i > 0; --i) words[i] = (words[i] << 1) | (words[i-1] >> 31);
+            if (words[11] & 0x80000000u) return false;
+            for (unsigned i = 11; i > 0; --i) words[i] = (words[i] << 1) | (words[i-1] >> 31);
             words[0] <<= 1;
         }
         return true;
@@ -107,7 +108,7 @@ struct Wide {
     }
     double approximate() const {
         double result = 0;
-        for (unsigned i = 8; i-- > 0; ) result = std::ldexp(result, 32) + words[i];
+        for (unsigned i = 12; i-- > 0; ) result = std::ldexp(result, 32) + words[i];
         return result;
     }
 };
@@ -199,22 +200,57 @@ Status addTime(TimeUnit from, TimeUnit to, Factors& f) {
     return f.add(n[unsigned(to)], d[unsigned(to)]) && f.add(d[unsigned(from)], n[unsigned(from)]) ? Ok() :
         fail(UnitError::ARITHMETIC_OVERFLOW, "factor capacity");
 }
-Status exact(const Rational& value, Factors f, Rational& output) {
+Status exactComponents(const Rational& value, Factors f, uint64_t& n, uint64_t& d, bool& negative) {
     if (!value.denominator) return fail(UnitError::INVALID_ARGUMENT, "zero denominator");
-    if (!value.numerator) { output = Rational(); return Ok(); }
+    negative = (value.numerator < 0) != (f.sign < 0);
+    if (!value.numerator) { n = 0; d = 1; return Ok(); }
     if (f.tauPower) return fail(UnitError::APPROXIMATION_REQUIRED, "radians need explicit approximation", Err::UNSUPPORTED);
     if (!f.add(magnitude(value.numerator), value.denominator)) return fail(UnitError::ARITHMETIC_OVERFLOW, "factor capacity");
     for (unsigned i = 0; i < f.count; ++i) for (unsigned j = 0; j < f.count; ++j) {
         const uint64_t common = gcd(f.n[i], f.d[j]);
         f.n[i] /= common; f.d[j] /= common;
     }
-    uint64_t n = 1, d = 1;
+    n = d = 1;
     for (unsigned i = 0; i < f.count; ++i) {
         if (n > UINT64_MAX / f.n[i] || d > UINT64_MAX / f.d[i])
             return fail(UnitError::ARITHMETIC_OVERFLOW, "reduced fraction exceeds fixed storage");
         n *= f.n[i]; d *= f.d[i];
     }
-    return fraction(n, d, (value.numerator < 0) != (f.sign < 0), output);
+    return Ok();
+}
+Status exact(const Rational& value, const Factors& f, Rational& output) {
+    uint64_t n, d; bool negative;
+    Status s = exactComponents(value, f, n, d, negative);
+    return s ? fraction(n, d, negative, output) : s;
+}
+Status mixed(uint64_t n, uint64_t d, bool negative, NativeQuantity& output) {
+    NativeQuantity next;
+    if (!signedMagnitude(n / d, negative, next.integral))
+        return fail(UnitError::ARITHMETIC_OVERFLOW, "mixed integral overflow");
+    next.numerator = n % d; next.denominator = d;
+    next.negative = negative && next.numerator;
+    output = next; return Ok();
+}
+Status canonical(const NativeQuantity& value, NativeQuantity& output) {
+    if (!value.denominator || value.numerator >= value.denominator)
+        return fail(UnitError::INVALID_ARGUMENT, "mixed fraction is not proper");
+    NativeQuantity q = value;
+    if (q.numerator) {
+        if (q.integral > 0 && q.negative) {
+            --q.integral; q.numerator = q.denominator - q.numerator; q.negative = false;
+        } else if (q.integral < 0 && !q.negative) {
+            ++q.integral; q.numerator = q.denominator - q.numerator; q.negative = true;
+        }
+    }
+    const uint64_t common = gcd(q.numerator, q.denominator);
+    q.numerator /= common; q.denominator /= common;
+    if (!q.numerator) q.negative = false;
+    output = q; return Ok();
+}
+Status exact(const Rational& value, const Factors& f, NativeQuantity& output) {
+    uint64_t n, d; bool negative;
+    Status s = exactComponents(value, f, n, d, negative);
+    return s ? mixed(n, d, negative, output) : s;
 }
 Status approximate(const Rational& value, const Factors& f, double allowance, UnitConversion& output) {
     if (!std::isfinite(allowance) || allowance <= 0)
@@ -340,21 +376,52 @@ Status convertAcceleration(const Rational& value, AccelerationUnit from, Acceler
     if (status) status = addTime(from.accelerationTime, to.accelerationTime, f);
     return status ? approximate(value, f, maximumError, output) : status;
 }
+Status toNativeQuantity(const Rational& value, NativeQuantity& output) {
+    if (!value.denominator) return fail(UnitError::INVALID_ARGUMENT, "zero denominator");
+    NativeQuantity next;
+    Status s = mixed(magnitude(value.numerator), value.denominator, value.numerator < 0, next);
+    return s ? canonical(next, output) : s;
+}
+Status addNativeInteger(const NativeQuantity& value, int64_t offset, NativeQuantity& output) {
+    NativeQuantity next; Status s = canonical(value, next); if (!s) return s;
+    if ((offset > 0 && next.integral > INT64_MAX - offset) ||
+        (offset < 0 && next.integral < INT64_MIN - offset))
+        return fail(UnitError::ARITHMETIC_OVERFLOW, "mixed addition overflow");
+    next.integral += offset;
+    return canonical(next, output);
+}
+Status convertDisplacement(const Rational& value, PositionUnit from, PositionUnit to,
+    const UnitConfig& config, NativeQuantity& output) {
+    Factors f; Status s = selectFactors(from, to, config, f);
+    return s ? exact(value, f, output) : s;
+}
+Status convertVelocity(const Rational& value, VelocityUnit from, VelocityUnit to,
+    const UnitConfig& config, NativeQuantity& output) {
+    Factors f; Status s = selectFactors(from.position, to.position, config, f);
+    if (s) s = addTime(from.time, to.time, f);
+    return s ? exact(value, f, output) : s;
+}
 Status quantizeInteger(const Rational& value, Rounding rounding, const Rational& maximumError, IntegerQuantization& output) {
-    if (!value.denominator || !maximumError.denominator || maximumError.numerator < 0)
-        return fail(UnitError::INVALID_ARGUMENT, "invalid quantity/allowance");
+    NativeQuantity q; Status s = toNativeQuantity(value, q);
+    return s ? quantizeInteger(q, rounding, maximumError, output) : s;
+}
+Status quantizeInteger(const NativeQuantity& value, Rounding rounding, const Rational& maximumError, IntegerQuantization& output) {
+    if (!maximumError.denominator || maximumError.numerator < 0)
+        return fail(UnitError::INVALID_ARGUMENT, "invalid allowance");
     if (rounding > Rounding::CEIL) return fail(UnitError::INVALID_UNIT, "invalid rounding policy");
-    const bool negative = value.numerator < 0;
-    const uint64_t n = magnitude(value.numerator), d = value.denominator;
-    uint64_t integral = n / d, remainder = n % d;
+    NativeQuantity q; Status s = canonical(value, q); if (!s) return s;
+    const bool negative = q.integral < 0 || q.negative;
+    const uint64_t remainder = q.numerator, d = q.denominator, other = d - remainder;
     if (remainder && rounding == Rounding::EXACT) return fail(UnitError::FRACTIONAL_TARGET, "not an exact integer");
-    const uint64_t other = d - remainder;
     const bool away = remainder && ((rounding == Rounding::FLOOR && negative) ||
         (rounding == Rounding::CEIL && !negative) || (rounding == Rounding::NEAREST &&
-        (remainder > other || (remainder == other && integral % 2))));
-    if (away) ++integral; // quotient <=2^63, and remainder prevents the extreme case.
-    IntegerQuantization candidate;
-    if (!signedMagnitude(integral, negative, candidate.value)) return fail(UnitError::ARITHMETIC_OVERFLOW, "rounded integer overflow");
+        (remainder > other || (remainder == other && magnitude(q.integral) % 2))));
+    IntegerQuantization candidate; candidate.value = q.integral;
+    if (away) {
+        if ((negative && candidate.value == INT64_MIN) || (!negative && candidate.value == INT64_MAX))
+            return fail(UnitError::ARITHMETIC_OVERFLOW, "rounded integer overflow");
+        candidate.value += negative ? -1 : 1;
+    }
     candidate.errorNumerator = remainder ? (away ? other : remainder) : 0;
     candidate.errorDenominator = d;
     const uint64_t common = gcd(candidate.errorNumerator, d);
@@ -367,19 +434,28 @@ Status quantizeInteger(const Rational& value, Rounding rounding, const Rational&
     output = candidate; return Ok();
 }
 Status quantizeFloat(const Rational& value, const Rational& maximumError, FloatQuantization& output) {
-    if (!value.denominator || !maximumError.denominator || maximumError.numerator < 0)
-        return fail(UnitError::INVALID_ARGUMENT, "invalid quantity/allowance");
-    double initial;
-    Status status = rationalToDouble(value, initial); if (!status) return status;
-    const uint64_t n = magnitude(value.numerator), d = value.denominator;
-    float candidate = static_cast<float>(std::fabs(initial));
-    bool established = n == 0;
+    NativeQuantity q; Status s = toNativeQuantity(value, q);
+    return s ? quantizeFloat(q, maximumError, output) : s;
+}
+Status quantizeFloat(const NativeQuantity& value, const Rational& maximumError, FloatQuantization& output) {
+    if (!maximumError.denominator || maximumError.numerator < 0)
+        return fail(UnitError::INVALID_ARGUMENT, "invalid allowance");
+    NativeQuantity q; Status status = canonical(value, q); if (!status) return status;
+    const uint64_t d = q.denominator;
+    Wide n(magnitude(q.integral));
+    if (!n.multiply(d) || !n.add(Wide(q.numerator)))
+        return fail(UnitError::ARITHMETIC_OVERFLOW, "mixed numerator overflow");
+    const double initial = n.approximate() / double(d);
+    float candidate = static_cast<float>(initial);
+    bool established = n.compare(Wide()) == 0;
     for (unsigned i = 0; !established && i < 4; ++i) {
         uint32_t bits; std::memcpy(&bits, &candidate, sizeof bits);
         const float below = std::nextafter(candidate, 0.0f);
         const float above = std::nextafter(candidate, std::numeric_limits<float>::infinity());
-        const int low = compareRatio(n, d, (double(candidate) + below) / 2);
-        const int high = compareRatio(n, d, (double(candidate) + above) / 2);
+        int low, high;
+        if (!compareWideDouble(n, Wide(d), (double(candidate) + below) / 2, low) ||
+            !compareWideDouble(n, Wide(d), (double(candidate) + above) / 2, high))
+            return fail(UnitError::PRECISION_LIMIT, "cannot compare binary32 rounding boundary");
         if (low < 0 || (low == 0 && (bits & 1u))) candidate = below;
         else if (high > 0 || (high == 0 && (bits & 1u))) candidate = above;
         else established = true;
@@ -393,14 +469,22 @@ Status quantizeFloat(const Rational& value, const Rational& maximumError, FloatQ
     if (exponent < 0 ? !floatD.shift(unsigned(-exponent)) : !floatN.shift(unsigned(exponent)))
         return fail(UnitError::ARITHMETIC_OVERFLOW, "float dyadic exceeds storage");
     Wide a = floatN, b = floatD, denominator = floatD;
-    if (!a.multiply(d) || !b.multiply(n) || !denominator.multiply(d)) return fail(UnitError::ARITHMETIC_OVERFLOW, "float error product overflow");
+    // Multiply wide values by each 32-bit limb of the mixed numerator.
+    Wide product;
+    for (unsigned i = 0; i < 4; ++i) {
+        Wide term = floatD;
+        if (!term.multiply(n.words[i]) || !term.shift(i * 32) || !product.add(term))
+            return fail(UnitError::ARITHMETIC_OVERFLOW, "float error product overflow");
+    }
+    b = product;
+    if (!a.multiply(d) || !denominator.multiply(d)) return fail(UnitError::ARITHMETIC_OVERFLOW, "float error product overflow");
     Wide error = a.compare(b) >= 0 ? a : b;
     error.subtract(a.compare(b) >= 0 ? b : a);
     Wide left = error, right = denominator;
     if (!left.multiply(maximumError.denominator) || !right.multiply(magnitude(maximumError.numerator)))
         return fail(UnitError::ARITHMETIC_OVERFLOW, "float allowance product overflow");
     if (left.compare(right) > 0) return fail(UnitError::QUANTIZATION_ERROR, "binary32 error exceeds allowance");
-    FloatQuantization result; result.value = value.numerator < 0 ? -candidate : candidate;
+    FloatQuantization result; result.value = q.integral < 0 || q.negative ? -candidate : candidate;
     status = errorBound(error, denominator, result.absoluteErrorBound); if (!status) return status;
     output = result; return Ok();
 }

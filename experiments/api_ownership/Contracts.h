@@ -5,7 +5,7 @@
 #pragma once
 
 #include <MotorControlCAN/Endpoint.h>
-#include <MotorControlCAN/Units.h>
+#include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/can/Frame.h>
 
 /** Portable proof values and concrete synthetic operations. */
@@ -128,42 +128,12 @@ enum class Capability : uint8_t {
  * MoveError::UNSUPPORTED_CAPABILITY or CALIBRATION_UNQUALIFIED. No state changes. */
 Status requireCapability(const Capabilities& facts, Capability requested) noexcept;
 
-/** Reference basis. Ordinary absolute targets preserve all turns without wrap. */
-enum class CoordinateFrame : uint8_t {
-    NATIVE, ///< Already in selected native command coordinates, without host-origin addition.
-    MOTOR,  ///< Mechanical motor coordinate relative to the supplied host origin.
-    LOAD    ///< Mechanical load coordinate using the supplied motor/load ratio and origin.
-};
-/** Caller-owned host interpretation; changing it causes no drive traffic.
- * Native bounds are inclusive; originNative is the established command zero for
- * MOTOR/LOAD coordinates. Default binding and scales are invalid for a move. */
-struct AxisConfig {
-    Binding binding; ///< Current route/identity/coordinate provenance; default invalid.
-    Capabilities capabilities; ///< Independently supplied selected configuration facts.
-    UnitConfig units; ///< Explicit scales; used values need positive components/provenance.
-    bool originKnown = false; ///< True qualifies originNative for motor/load conversion.
-    int32_t originNative = 0; ///< Native command position corresponding to host coordinate zero.
-    int32_t nativeMinimum = INT32_MIN; ///< Inclusive lower native command-increment bound.
-    int32_t nativeMaximum = INT32_MAX; ///< Inclusive upper native command-increment bound.
-};
-
-/** Exact absolute multi-turn target. configurationGeneration must match binding.
- * Quantization error is in native increments; prototype requires exactly zero.
- * Production units are reused; wrapping/relative/reference policy remains proof-only. */
-struct PositionRequest {
-    Rational value; ///< Requested exact absolute multi-turn coordinate.
-    PositionUnit unit = PositionUnit::STEPS; ///< Dimension of value.
-    CoordinateFrame frame = CoordinateFrame::NATIVE; ///< Coordinate basis of value.
-    Generation configurationGeneration = 0; ///< Must match the current binding; zero invalid.
-    Rounding rounding = Rounding::EXACT; ///< Explicit conversion intent; only EXACT is supported.
-    Rational maximumQuantizationError; ///< Allowed native-increment error; proof requires exact zero.
-};
-
-/** Unconverted exact signed request; retains values such as +/-70000 intact. */
-struct VelocityRequest {
-    Rational value; ///< Wide signed exact requested rate; no native narrowing here.
-    VelocityUnit unit{PositionUnit::TURNS, TimeUnit::SECOND}; ///< Original proof default: motor turns/second.
-    CoordinateFrame frame = CoordinateFrame::MOTOR; ///< Motor/load/native rate basis.
+/** Synthetic profile configuration only; production coordinates live in Axis.h.
+ * The proof adds capabilities and an I32 wire limit, never a production profile. */
+struct ProofAxisConfig : AxisConfig {
+    Capabilities capabilities; ///< Test-only declared capability facts.
+    /** Synthetic I32 target register bounds; unrelated to common axis width. */
+    ProofAxisConfig() { nativeMinimum = INT32_MIN; nativeMaximum = INT32_MAX; }
 };
 
 /** Fixture dimensions; identical object numbers do not equate these values. */

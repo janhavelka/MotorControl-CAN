@@ -59,7 +59,7 @@ struct MoveContext {
     OperationToken operation; ///< Local operation identity copied at preparation.
     StepToken step; ///< Current synthetic step identity, one after preparation.
     PositionRequest request; ///< Copied original exact requested coordinate/quantization intent.
-    AxisConfig configuration; ///< Copied immutable scales, origin, limits and capability facts.
+    ProofAxisConfig configuration; ///< Copied immutable scales, origin, limits and capability facts.
     int32_t nativeTarget = 0; ///< Exact converted target in native command increments.
     ActionState state = ActionState::EMPTY; ///< Concrete single-step operation phase.
     ActionOutcome outcome = ActionOutcome::NONE; ///< Retained operation outcome.
@@ -133,7 +133,7 @@ Status getIdentity(const ReadContext& context, const Binding& currentBinding,
  * work exists. Proprietary bindings reject before any SDO work is created.
  * Numeric detail is MoveError::UNIT_ERROR_BASE + UnitError; other detail uses MoveError.
  * No enabling, trigger, motor I/O, allocation or retry occurs. */
-Status prepareMoveAbsolute(const PositionRequest& request, const AxisConfig& configuration,
+Status prepareMoveAbsolute(const PositionRequest& request, const ProofAxisConfig& configuration,
                            OperationToken operation, uint64_t nowUs, uint64_t deadlineUs,
                            MoveContext& output) noexcept;
 

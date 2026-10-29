@@ -58,7 +58,7 @@ void flows() {
     CHECK(getIdentity(read, binding(), identity) && identity.value == 0x12345678);
     CHECK(owner.releaseSequence(sequence));
 
-    AxisConfig config; config.binding = binding(); config.capabilities.position = true; config.originKnown = true;
+    ProofAxisConfig config; config.binding = binding(); config.capabilities.position = true; config.originKnown = true; config.originSource = ScaleSource::ASSUMED;
     PositionRequest intent; intent.value = Rational(70000); intent.configurationGeneration = 1;
     MoveContext move;
     CHECK(prepareMoveAbsolute(intent, config, operation(2), 5, 10000, move));

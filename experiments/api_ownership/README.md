@@ -38,7 +38,9 @@ status/endpoint/frame functions into the native package. Synthetic profiles,
 coordinate policy and bridge dependencies remain outside installed headers.
 Prompt 9 migrates numeric types/conversion/quantization to production
 [Units](../../docs/units_status.md), removing duplicate bounded arithmetic;
-prompt 10 retains axis/reference policy. Complete services, real motion and
+prompt 10 migrates axis/reference policy to production Axis. The synthetic
+`ProofAxisConfig` adds only capability facts and I32 wire bounds; target arithmetic
+uses the real `preparePosition`. Complete services, real motion and
 controller qualification retain their assigned later stages. Read
 [owner lifetimes](../../docs/can_owner.md) and
 [service premises](../../docs/canopen_services.md) before reusing this proof.

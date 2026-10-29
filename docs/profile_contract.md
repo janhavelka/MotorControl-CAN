@@ -28,7 +28,7 @@ Status nextRead(const ReadContext& context, uint64_t nowUs,
 Status advanceRead(ReadContext& context, const ServiceEvidence& evidence) noexcept;
 Status getIdentity(const ReadContext& context, const Binding& currentBinding,
                    Identity& output) noexcept;
-Status prepareMoveAbsolute(const PositionRequest& request, const AxisConfig& configuration,
+Status prepareMoveAbsolute(const PositionRequest& request, const ProofAxisConfig& configuration,
                            OperationToken operation, uint64_t nowUs, uint64_t deadlineUs,
                            MoveContext& output) noexcept;
 Status nextMove(const MoveContext& context, uint64_t nowUs,
@@ -106,7 +106,7 @@ profile. N5/EPOS4 documentary fixtures remain excluded from support lists.
 | --- | --- | --- |
 | `read identity` | Typed prepare/next/advance/getter and copied result provenance | Reviewed device identity objects and real typed read coverage |
 | `move absolute`, `moveto` | Exact intent, synthetic target work and retained acknowledgement/uncertainty | Actual profile staging, trigger, readiness and completion evidence |
-| `axis config`, `axis origin`, `prepare` | Common configuration/value schema and bounded prototype conversion | Production exact arithmetic, configuration/reference mutation |
+| `axis config`, `axis origin`, `prepare` | [Production pure axis arithmetic/reference policy](axis_contract.md), consumed by the synthetic proof | Later CLI and profile/native conversion, permission and device operations |
 | `velocity`, `caps` | Wide signed intent and independent capability checks | Velocity sequence, native conversion and CLI routes |
 
 The installed/package migration belongs to prompt 7, strict documentation gates

@@ -139,6 +139,47 @@ struct FloatQuantization {
     double absoluteErrorBound = 0; ///< Upward bound on exact absolute error in native units.
 };
 
+/** Exact mixed native quantity: integral plus a signed proper fraction. Avoids
+ * multiplying a large origin by a denominator. Arithmetic canonicalizes signs
+ * so nonzero integral and fraction agree; denominator is positive. */
+struct NativeQuantity {
+    int64_t integral = 0; ///< Whole native units, without binary floating conversion.
+    uint64_t numerator = 0; ///< Proper fractional magnitude, strictly below denominator.
+    uint64_t denominator = 1; ///< Positive fractional denominator.
+    bool negative = false; ///< Sign of fraction only; zero fraction canonicalizes to false.
+};
+/** Convert to mixed storage. @param[in] value Exact input.
+ * @param[out] output Mixed value, unchanged on failure. @return Local status. */
+Status toNativeQuantity(const Rational& value, NativeQuantity& output);
+/** Checked origin/reference addition, without origin*denominator.
+ * @param[in] value Mixed input. @param[in] offset Signed whole-unit offset.
+ * @param[out] output Canonical mixed sum, unchanged on failure. @return Local status. */
+Status addNativeInteger(const NativeQuantity& value, int64_t offset, NativeQuantity& output);
+/** Mixed exact dimensional conversion, retaining a proper fraction even when
+ * the combined numerator exceeds int64. Reduced factor products must fit uint64.
+ * @param[in] value Input. @param[in] from Source. @param[in] to Destination.
+ * @param[in] config Facts. @param[out] output Mixed result, unchanged on failure.
+ * @return Local status. */
+Status convertDisplacement(const Rational& value, PositionUnit from, PositionUnit to,
+    const UnitConfig& config, NativeQuantity& output);
+/** Mixed exact rate conversion. @param[in] value Input. @param[in] from Source.
+ * @param[in] to Destination. @param[in] config Facts. @param[out] output Mixed
+ * result, unchanged on failure. @return Local status. */
+Status convertVelocity(const Rational& value, VelocityUnit from, VelocityUnit to,
+    const UnitConfig& config, NativeQuantity& output);
+/** Mixed integer quantization after origin addition. Same rounding/error policy
+ * as the Rational overload, including signed ties to even.
+ * @param[in] value Mixed request. @param[in] rounding Policy.
+ * @param[in] maximumError Exact allowance. @param[out] output Unchanged on failure.
+ * @return Local status. */
+Status quantizeInteger(const NativeQuantity& value, Rounding rounding,
+    const Rational& maximumError, IntegerQuantization& output);
+/** Mixed binary32 quantization without combining origin*denominator into int64.
+ * @param[in] value Mixed request. @param[in] maximumError Exact allowance.
+ * @param[out] output Unchanged on failure. @return Local status. */
+Status quantizeFloat(const NativeQuantity& value, const Rational& maximumError,
+    FloatQuantization& output);
+
 /** Reduce an exact fraction, canonicalizing zero. @param[in] value Input fraction.
  * @param[out] output Reduced result; unchanged on failure. @return Local status. */
 Status reduceRational(const Rational& value, Rational& output);
