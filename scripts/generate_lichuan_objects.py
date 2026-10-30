@@ -18,7 +18,8 @@ import tempfile
 
 from check_lichuan_ledger import (EXPRESSION, INTEGER, ROOT, TYPE_CODES,
                                   generation_disposition, load_json, pdo_observation_errors,
-                                  validate_ledger)
+                                  read_coverage_errors, read_descriptor_representation,
+                                  read_owner_errors, validate_ledger)
 
 
 LEDGER_PATH = "docs/reference/lichuan_objects.json"
@@ -125,6 +126,9 @@ def projected_rows(objects):
                 if entry.get("pdo_mapping_reviewed") is not False and not (
                         entry.get("pdo_mapping_reviewed") is None and entry.get("pdo_mapping_eds") == "1"):
                     raise ValueError(key + ": unqualified PDO policy")
+            read_errors = read_owner_errors(entry) + read_coverage_errors(entry)
+            if read_errors:
+                raise ValueError("; ".join(read_errors))
             rows.append(entry)
     return sorted(rows, key=lambda row: (row["scope_id"], row["index"], row["subindex"]))
 
@@ -178,6 +182,26 @@ enum class PdoPolicy : uint8_t {
 /** @brief Documentary applicability; no model or firmware identity is inferred. */
 enum class SourceScope : uint8_t {
     EDS_FAMILY_UNBOUND ///< LC_StepDriverCAN_V1.1.eds family; model and firmware unverified.
+};
+
+/** @brief Native read representation; raw bytes do not settle disputed signedness. */
+enum class ReadRepresentation : uint8_t {
+    UNSIGNED, ///< Source-confirmed unsigned native integer, without physical units.
+    SIGNED,   ///< Source-confirmed signed native integer, without physical units.
+    RAW       ///< Exact bytes only; signed interpretation remains unresolved.
+};
+
+/** @brief Bounded read shape, independent of live binding, interpretation and effects.
+ * Returned by readDescriptor for the reviewed Prompt 19 assignment only.
+ * Does not establish a non-changing probe or grant polling qualification.
+ */
+struct ReadDescriptor {
+    uint16_t index;                      ///< Native object index, 0 through 65535.
+    uint8_t subindex;                    ///< Native subindex, 0 through 255.
+    uint8_t widthBytes;                  ///< Exact scalar payload width, in bytes.
+    ReadRepresentation representation; ///< Raw or source-confirmed native integer representation.
+    ReadEffect readEffect;               ///< Read effects remain independent of access and width.
+    SourceScope scope;                   ///< Documentary family scope, not a live firmware binding.
 };
 
 /**
@@ -243,7 +267,43 @@ def objects_header(rows):
                   "    ReadEffect::UNQUALIFIED, WritePolicy::{}, PdoPolicy::{},\n".format(write, pdo),
                   "    {}, 0x{:08X}u, SourceScope::EDS_FAMILY_UNBOUND\n}};\n\n".format(
                     row["owner_prompt"], mask)]
+    lines.append(read_descriptor_function(rows))
     return "".join(lines) + CLOSE_NAMESPACE
+
+
+def read_descriptor_function(rows):
+    """Generate one bounded lookup from explicit read ownership, never EDS flags alone."""
+    selected = [row for row in rows if row.get("read_owner_prompt") == 19]
+    if len(selected) > 30:
+        raise ValueError("Prompt 19 read descriptor capacity exceeds 30")
+    lines = [r'''/** @brief Copy the reviewed shape of one Prompt 19 read.
+ * Contains only explicitly assigned readable source rows. Raw mode bytes retain
+ * disputed signedness; a match does not qualify read effects, polling, physical
+ * units, interpretation, firmware identity or a non-changing probe.
+ * Performs no I/O, time acquisition or allocation. Independent calls are reentrant;
+ * callers serialize writes to a shared output. No input storage is retained.
+ * @param[in] index Native object index, 0 through 65535.
+ * @param[in] subindex Native subindex, 0 through 255.
+ * @param[out] output Copied descriptor on success; unchanged when no row matches.
+ * @return True only for a reviewed read shape; false for absent, reserved,
+ * write-only or separately owned entries. Does not authorize a device effect.
+ */
+inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& output) noexcept {
+''']
+    if selected:
+        lines.append("    static const ReadDescriptor rows[] = {\n")
+        for row in selected:
+            lines.append("        {{0x{:04X}, 0x{:02X}, {}, ReadRepresentation::{}, "
+                         "ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND}},\n".format(
+                             row["index"], row["subindex"], row["type"]["width_bytes"],
+                             read_descriptor_representation(row)))
+        lines += ["    };\n", "    for (uint8_t i = 0; i < {}; ++i) {{\n".format(len(selected)),
+                  "        if (rows[i].index == index && rows[i].subindex == subindex) {\n",
+                  "            output = rows[i];\n            return true;\n        }\n    }\n"]
+    else:
+        lines.append("    (void)index;\n    (void)subindex;\n    (void)output;\n")
+    lines.append("    return false;\n}\n\n")
+    return "".join(lines)
 
 
 def cpp_string(value):
@@ -394,6 +454,8 @@ def coverage_text(coverage):
 
 def coverage_document(data, rows):
     counts = Counter(row["review"]["generation_type"] for row in rows)
+    read_rows = [row for row in rows if row.get("read_owner_prompt") == 19]
+    implemented_reads = sum(row.get("read_coverage", {}).get("implemented", False) for row in rows)
     lines = ["# Generated Lichuan native declarations and semantic coverage\n\n",
              "Generated from `" + LEDGER_PATH + "` by `" + COMMAND + "`. Do not edit.\n\n",
              "This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has no "
@@ -413,7 +475,8 @@ def coverage_document(data, rows):
              "| Withheld declarations | {} | Unresolved complete signed type, raw claims retained |\n".format(counts["withheld"]),
              "| Excluded reserved entries | {} | No descriptor or operation route |\n".format(counts["excluded"]),
              "| Manual-only semantic items | {} | Reviewed evidence, semantic functions pending |\n".format(len(data["manual_only"])),
-             "| Typed reads | 0 | Assigned semantic prompts remain pending |\n",
+             "| Read shape descriptors | {} | Prompt 19 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
+             "| Typed reads | {} | Implemented scalar read rows; see separate read coverage, not whole-object support |\n".format(implemented_reads),
              "| Typed settings | 0 | Assigned semantic prompts remain pending |\n",
              "| Actions | 0 | Assigned semantic prompts remain pending |\n",
              "| Workflows | 0 | Assigned semantic prompts remain pending |\n\n",
@@ -463,14 +526,19 @@ def coverage_document(data, rows):
               "not write permission, live configuration, sample provenance, physical units or motion "
               "completion. Mode bytes and target velocity retain raw representation while signedness "
               "conflicts remain unresolved; every live qualification gate stays open.\n\n",
-              "| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | D/I/H/Q |\n",
-              "| --- | --- | --- | --- | --- | --- | --- | --- |\n"]
+              "Read ownership is separate from whole-object ownership. Only Prompt 19 read rows "
+              "generate ReadDescriptor lookup entries; 6061 is a raw byte without an ObjectDescriptor. "
+              "Read coverage does not qualify non-changing effects or close the pending Q20 probe.\n\n",
+              "| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | Read owner | D/I/H/Q | Read D/I/H/Q |\n",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"]
     for row in rows:
-        lines.append("| {} | {} | {} / {} / {} | {} / {} | {} / {} | {} | {} | {} |\n".format(
+        lines.append("| {} | {} | {} / {} / {} | {} / {} | {} / {} | {} | {} | {} | {} | {} |\n".format(
             row["key"], row["role"], row["type"]["name"], row["type"]["width_bytes"],
             str(row["type"]["signed"]).lower(), row["access_eds"], text(row["access_reviewed"]),
             row["pdo_mapping_eds"], text(row["pdo_mapping_reviewed"]),
-            row["review"]["generation_type"], row["owner_prompt"], coverage_text(row["coverage"])))
+            row["review"]["generation_type"], row["owner_prompt"], text(row.get("read_owner_prompt")),
+            coverage_text(row["coverage"]),
+            coverage_text(row["read_coverage"]) if "read_coverage" in row else "not reported"))
     lines += ["\n## Entry evidence and pending semantics\n\n"]
     for row in rows:
         lines += ["### {}\n\n".format(row["key"]),
@@ -485,6 +553,9 @@ def coverage_document(data, rows):
                   ("Effect", row["effect"]), ("Prerequisites", row["prerequisites"]),
                   ("Edge behavior", row["edge_behavior"]), ("Documentary review", row["review"]),
                   ("Conflicts", row["conflict_ids"]), ("Owner prompt", row["owner_prompt"]),
+                  ("Read owner prompt", row.get("read_owner_prompt")),
+                  ("Read representation", read_descriptor_representation(row) if row.get("read_owner_prompt") == 19 else None),
+                  ("Read coverage D/I/H/Q", coverage_text(row["read_coverage"]) if "read_coverage" in row else "not reported"),
                   ("Semantic coverage D/I/H/Q", coverage_text(row["coverage"])),
                   ("Raw source claim", row["raw_fields"])]
         lines += ["| {} | {} |\n".format(label, text(value)) for label, value in fields]

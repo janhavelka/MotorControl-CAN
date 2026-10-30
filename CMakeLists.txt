@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/profiles/lichuan_c/Reads.cpp)
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
@@ -36,6 +36,7 @@ endif()
 option(MOTORCONTROLCAN_BUILD_EXAMPLES "Build offline native examples" OFF)
 if(MOTORCONTROLCAN_BUILD_EXAMPLES)
     add_subdirectory(examples/units_preview)
+    add_subdirectory(examples/reads_preview)
 endif()
 
 option(MOTORCONTROLCAN_BUILD_CANOPENNODE "Build the optional application-side CANopenNode adapter" OFF)
@@ -59,7 +60,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/MotorControlCANCon
     VERSION ${PROJECT_VERSION} COMPATIBILITY SameMinorVersion)
 install(TARGETS MotorControlCAN EXPORT MotorControlCANTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h
+install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h include/MotorControlCAN/ReadOperation.h
     include/MotorControlCAN/Units.h include/MotorControlCAN/Axis.h
     include/MotorControlCAN/Endpoint.h include/MotorControlCAN/Version.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
@@ -68,11 +69,13 @@ install(FILES include/MotorControlCAN/can/Frame.h
 install(FILES include/MotorControlCAN/canopen/Sdo.h include/MotorControlCAN/canopen/SdoTransfer.h
     include/MotorControlCAN/canopen/Network.h
     include/MotorControlCAN/canopen/Pdo.h
+    include/MotorControlCAN/canopen/PdoState.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/canopen")
 install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/Objects.h
     include/MotorControlCAN/profiles/lichuan_c/Catalogue.h
     include/MotorControlCAN/profiles/lichuan_c/Pdo.h
+    include/MotorControlCAN/profiles/lichuan_c/Reads.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/profiles/lichuan_c")
 install(EXPORT MotorControlCANTargets NAMESPACE MotorControlCAN::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MotorControlCAN")

@@ -1,5 +1,11 @@
 # MotorControl-CAN
 
+**Typed reads:** finite raw Lichuan identity, state and communication reads are
+implemented and host tested. See the [read guide](docs/reads.md) and
+[offline example](examples/reads_preview/README.md). Model matching, disputed
+state interpretation and physical scaling remain unqualified. Prompt 19 is
+Partial: Q20 still blocks a documented non-consuming probe.
+
 **PDO configuration status:** [Prompt 18](docs/reports/prompt_18.md) is blocked
 on Lichuan applicability of standard remapping and timing-setting semantics. Passive PDO
 layout/readback support is implemented; typed remap/settings APIs are not.

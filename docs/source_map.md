@@ -24,6 +24,13 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 | Physical owner/table | [CanBusOwner.h](../experiments/api_ownership/CanBusOwner.h), [CanBusOwner.cpp](../experiments/api_ownership/CanBusOwner.cpp) | Native main above | 13/15/23 extend the same table/client boundary; 27 qualifies controller |
 | Build/package | [Root CMake](../CMakeLists.txt), [manifest](../library.json), [version helper](../scripts/generate_version.py) | [Registered tests](../test/CMakeLists.txt), [package contract](../test/package_test.py), [version contract](../test/version_test.py) | 7 complete; [verifier](../scripts/verify.py), [checker](../scripts/check_repository.py), [workflow](../.github/workflows/verify.yml) and [Doxyfile](../Doxyfile) implement prompt 8 gates |
 
+## Typed raw reads (prompt 19)
+
+| Responsibility | Actual declaration/implementation | Actual caller/test | Boundary |
+| --- | --- | --- | --- |
+| Typed lifecycle and getters | [Common read phases](../include/MotorControlCAN/ReadOperation.h), [profile API](../include/MotorControlCAN/profiles/lichuan_c/Reads.h), [implementation](../src/profiles/lichuan_c/Reads.cpp) | [Independent fake-owner tests](../test/reads_test.cpp), [compiled preview](../examples/reads_preview/main.cpp), isolated installed consumer | 30 raw rows; unknown model/status/scale/effects preserved. Non-consuming probe remains Q20 gated. |
+| Shared PDO evidence | [Installed PdoState.h](../include/MotorControlCAN/canopen/PdoState.h), [route comparison/decoder](../src/canopen/Pdo.cpp) | Existing owner routing and read projection tests | Same bounded owner record forwarded by the adapter; no second node/map table or installed stack dependency. |
+
 ## RS naming, motion and application ownership
 
 | Responsibility | Current declaration | Implementation | Real caller | Focused test | Planned target / owner / deliberate CAN difference |

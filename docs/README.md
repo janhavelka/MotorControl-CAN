@@ -4,6 +4,7 @@ Execution has completed prompts 1-17, including the [native service fit experime
 
 | Material | Purpose |
 | --- | --- |
+| [Typed reads](reads.md) | Finite raw identity/state/configuration reads, checked getters, SDO/PDO provenance, time/skew and the unresolved non-consuming probe gate |
 | [Status and exact units](units_status.md) | Implemented rational parsing, dimensional conversion, rounding, explicit radians/float quantization and unchanged failure outputs |
 | [Axis coordinates and references](axis_contract.md) | Production pure configuration, origins, generation/freshness, position/velocity targets and offline preview |
 | [CANopen services](canopen_services.md) | Installed pure SDO checks, channel/width correlation, signed words, abort/segmented evidence and worked vectors; bounded production lifecycle, timestamped observations and ambiguity settlement, passive node events and synchronous cache invalidation in the optional application owner |

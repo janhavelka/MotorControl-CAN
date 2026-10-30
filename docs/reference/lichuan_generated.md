@@ -16,7 +16,8 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
-| Typed reads | 0 | Assigned semantic prompts remain pending |
+| Read shape descriptors | 30 | Prompt 19 source width/representation only; read effects remain unqualified |
+| Typed reads | 30 | Implemented scalar read rows; see separate read coverage, not whole-object support |
 | Typed settings | 0 | Assigned semantic prompts remain pending |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
@@ -191,210 +192,212 @@ Counts and reserved subentries retain their own explicit native types. A record'
 
 The independent native type/access/units columns describe source claims; only resolved rows generate declarations. Source PDOMapping=1 is never a write permission. The default RPDO1 source words 0x60400010, 0x60ff0020, 0x60600008 do not grant SDO reads of WO 6040/6060 or any ungated action. `Pdo.h` generates ten explicitly reviewed passive layout facts and all eight source templates. They support raw-layout validation, not write permission, live configuration, sample provenance, physical units or motion completion. Mode bytes and target velocity retain raw representation while signedness conflicts remain unresolved; every live qualification gate stays open.
 
-| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | D/I/H/Q |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 0x1000:00 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1001:00 | value | U8 / 1 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1003:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1003:01 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1003:02 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1003:03 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1003:04 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1005:00 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | yes/no/no/no |
-| 0x1009:00 | value | U16 / 2 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x100A:00 | value | U16 / 2 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1014:00 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | yes/no/no/no |
-| 0x1017:00 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 38 | yes/no/no/no |
-| 0x1018:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1018:01 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1018:02 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1018:03 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | yes/no/no/no |
-| 0x1200:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 13 | yes/no/no/no |
-| 0x1200:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | yes/no/no/no |
-| 0x1200:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | yes/no/no/no |
-| 0x1400:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1400:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1400:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1400:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1400:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1400:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1401:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1401:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1401:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1401:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1401:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1401:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1402:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1402:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1402:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1402:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1402:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1402:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1403:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1403:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1403:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1403:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1403:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1403:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1600:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1600:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1600:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1600:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1600:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1601:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1601:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1601:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1601:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1601:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1602:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1602:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1602:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1602:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1602:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1603:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1603:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1603:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1603:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1603:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1800:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1800:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1800:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1800:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1800:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1800:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1801:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1801:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1801:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1801:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1801:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1801:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1802:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1802:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1802:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1802:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1802:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1802:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1803:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | yes/no/no/no |
-| 0x1803:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1803:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1803:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1803:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1803:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A00:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A00:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A00:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A00:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A00:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A01:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A01:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A01:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A01:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A01:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A02:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A02:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A02:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A02:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A02:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A03:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A03:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A03:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A03:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x1A03:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | yes/no/no/no |
-| 0x2000:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x2001:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x2100:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x2101:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x2102:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x2200:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | yes/no/no/no |
-| 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | yes/no/no/no |
-| 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | yes/no/no/no |
-| 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | yes/no/no/no |
-| 0x2400:00 | count | U16 / 2 / false | RO / RO | 0 / false | resolved | 21 | yes/no/no/no |
-| 0x2400:01 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:02 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:03 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:04 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:05 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:06 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:07 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:08 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:09 | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | yes/no/no/no |
-| 0x2400:0A | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | yes/no/no/no |
-| 0x2400:0B | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | yes/no/no/no |
-| 0x2400:0C | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:0D | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:0E | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:0F | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2400:10 | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | yes/no/no/no |
-| 0x2401:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2402:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2403:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2404:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2405:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2406:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2407:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x2500:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2501:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2502:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2503:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2504:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2505:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2506:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2507:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2508:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2509:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x250A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x250B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x250C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x250D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x250E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x250F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2510:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2511:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2512:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2513:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2514:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2515:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2516:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2517:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2518:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2519:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x251A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x251B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x251C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x251D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x251E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x251F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x2520:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | yes/no/no/no |
-| 0x603F:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x6040:00 | value | U16 / 2 / false | WO / WO | 1 / `null` (not stated) | resolved | 30 | yes/no/no/no |
-| 0x6041:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x605D:00 | value | I16 / 2 / true | RW / RO | 0 / false | resolved | 31 | yes/no/no/no |
-| 0x6060:00 | value | U8 / 1 / false | WO / WO | 1 / `null` (not stated) | withheld | 20 | yes/no/no/no |
-| 0x6061:00 | value | U8 / 1 / false | RO / RO | 1 / `null` (not stated) | withheld | 19 | yes/no/no/no |
-| 0x6064:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x606C:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x607A:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 33 | yes/no/no/no |
-| 0x607C:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 32 | yes/no/no/no |
-| 0x607D:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 20 | yes/no/no/no |
-| 0x607D:01 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x607D:02 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x6081:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x6083:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x6084:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | yes/no/no/no |
-| 0x6098:00 | value | U8 / 1 / false | RW / RW | 1 / `null` (not stated) | withheld | 36 | yes/no/no/no |
-| 0x6099:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 36 | yes/no/no/no |
-| 0x6099:01 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | yes/no/no/no |
-| 0x6099:02 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | yes/no/no/no |
-| 0x609A:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | yes/no/no/no |
-| 0x60FD:00 | value | U32 / 4 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | yes/no/no/no |
-| 0x60FE:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 21 | yes/no/no/no |
-| 0x60FE:01 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x60FE:02 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | yes/no/no/no |
-| 0x60FF:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | withheld | 35 | yes/no/no/no |
+Read ownership is separate from whole-object ownership. Only Prompt 19 read rows generate ReadDescriptor lookup entries; 6061 is a raw byte without an ObjectDescriptor. Read coverage does not qualify non-changing effects or close the pending Q20 probe.
+
+| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | Read owner | D/I/H/Q | Read D/I/H/Q |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0x1000:00 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1001:00 | value | U8 / 1 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1003:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1003:01 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1003:02 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1003:03 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1003:04 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1005:00 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1009:00 | value | U16 / 2 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x100A:00 | value | U16 / 2 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1014:00 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1017:00 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1018:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1018:01 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1018:02 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1018:03 | value | U32 / 4 / false | RO / RO | 0 / false | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1200:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 13 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1200:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1200:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x1400:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1400:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1400:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1400:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1400:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1400:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1401:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1401:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1401:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1401:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1401:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1401:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1402:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1402:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1402:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1402:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1402:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1402:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1403:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1403:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1403:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1403:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1403:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1403:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1600:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1600:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1600:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1600:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1600:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1601:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1601:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1601:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1601:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1601:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1602:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1602:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1602:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1602:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1602:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1603:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1603:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1603:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1603:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1603:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1800:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1800:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1800:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1800:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1800:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1800:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1801:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1801:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1801:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1801:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1801:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1801:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1802:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1802:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1802:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1802:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1802:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1802:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1803:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
+| 0x1803:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1803:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1803:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1803:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1803:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A00:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A00:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A00:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A00:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A00:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A01:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A01:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A01:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A01:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A01:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A02:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A02:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A02:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A02:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A02:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A03:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A03:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A03:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A03:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1A03:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x2000:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x2001:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x2100:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x2101:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x2102:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x2200:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | 38 | yes/no/no/no | not reported |
+| 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 38 | yes/no/no/no | not reported |
+| 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
+| 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
+| 0x2400:00 | count | U16 / 2 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:01 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:02 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:03 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:04 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:05 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:06 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:07 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:08 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:09 | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
+| 0x2400:0A | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
+| 0x2400:0B | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
+| 0x2400:0C | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:0D | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:0E | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:0F | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:10 | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
+| 0x2401:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2402:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2403:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2404:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2405:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2406:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2407:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2500:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2501:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2502:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2503:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2504:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2505:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2506:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2507:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2508:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2509:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x250A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x250B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x250C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x250D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x250E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x250F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2510:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2511:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2512:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2513:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2514:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2515:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2516:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2517:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2518:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2519:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x251A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x251B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x251C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x251D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x251E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x251F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2520:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x603F:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x6040:00 | value | U16 / 2 / false | WO / WO | 1 / `null` (not stated) | resolved | 30 | `null` (not stated) | yes/no/no/no | not reported |
+| 0x6041:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x605D:00 | value | I16 / 2 / true | RW / RO | 0 / false | resolved | 31 | 38 | yes/no/no/no | not reported |
+| 0x6060:00 | value | U8 / 1 / false | WO / WO | 1 / `null` (not stated) | withheld | 20 | `null` (not stated) | yes/no/no/no | not reported |
+| 0x6061:00 | value | U8 / 1 / false | RO / RO | 1 / `null` (not stated) | withheld | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x6064:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x606C:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x607A:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 33 | 38 | yes/no/no/no | not reported |
+| 0x607C:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
+| 0x607D:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x607D:01 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x607D:02 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x6081:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x6083:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x6084:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x6098:00 | value | U8 / 1 / false | RW / RW | 1 / `null` (not stated) | withheld | 36 | 38 | yes/no/no/no | not reported |
+| 0x6099:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 36 | 38 | yes/no/no/no | not reported |
+| 0x6099:01 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
+| 0x6099:02 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
+| 0x609A:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
+| 0x60FD:00 | value | U32 / 4 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
+| 0x60FE:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x60FE:01 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x60FE:02 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x60FF:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | withheld | 35 | 38 | yes/no/no/no | not reported |
 
 ## Entry evidence and pending semantics
 
@@ -417,6 +420,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x40192", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Device Type"} |
 
@@ -439,6 +445,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "1003 count 0..4, default 0; four U32 entries exist. Preserve raw values, no invented history clear.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Error Register"} |
 
@@ -461,6 +470,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "1003 count 0..4, default 0; four U32 entries exist. Preserve raw values, no invented history clear.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -483,6 +495,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "1003 count 0..4, default 0; four U32 entries exist. Preserve raw values, no invented history clear.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub1"} |
 
@@ -505,6 +520,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "1003 count 0..4, default 0; four U32 entries exist. Preserve raw values, no invented history clear.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub2"} |
 
@@ -527,6 +545,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "1003 count 0..4, default 0; four U32 entries exist. Preserve raw values, no invented history clear.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub3"} |
 
@@ -549,6 +570,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "1003 count 0..4, default 0; four U32 entries exist. Preserve raw values, no invented history clear.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub4"} |
 
@@ -571,6 +595,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x80", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "SYNC COB ID"} |
 
@@ -593,6 +620,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0x2608", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "hardware version"} |
 
@@ -615,6 +645,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "software version"} |
 
@@ -637,6 +670,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x80", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Emergency COB ID"} |
 
@@ -659,6 +695,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; never infer an active heartbeat or watchdog.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Producer Heartbeat Time"} |
 
@@ -681,6 +720,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "3", "HighLimit": "4", "LowLimit": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "number of entries"} |
 
@@ -703,6 +745,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x00001000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Vendor ID"} |
 
@@ -725,6 +770,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x00000001", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Product code"} |
 
@@ -747,6 +795,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x00000000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Revision number"} |
 
@@ -769,6 +820,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Two children; default 2.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 13 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -791,6 +845,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x600", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB ID Client to Server"} |
 
@@ -813,6 +870,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x580", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB ID Server to Client"} |
 
@@ -835,6 +895,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -857,6 +920,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x200", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -879,6 +945,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -901,6 +970,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -923,6 +995,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -945,6 +1020,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -967,6 +1045,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -989,6 +1070,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x300", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -1011,6 +1095,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1033,6 +1120,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1055,6 +1145,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1077,6 +1170,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1099,6 +1195,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1121,6 +1220,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x400", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -1143,6 +1245,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1165,6 +1270,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1187,6 +1295,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1209,6 +1320,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1231,6 +1345,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1253,6 +1370,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x500", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -1275,6 +1395,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1297,6 +1420,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1319,6 +1445,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1341,6 +1470,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1363,6 +1495,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "3", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1385,6 +1520,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60400010", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub1"} |
 
@@ -1407,6 +1545,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60ff0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub2"} |
 
@@ -1429,6 +1570,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60600008", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub3"} |
 
@@ -1451,6 +1595,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub4"} |
 
@@ -1473,6 +1620,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "2", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1495,6 +1645,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x607a0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub1"} |
 
@@ -1517,6 +1670,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60810020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub2"} |
 
@@ -1539,6 +1695,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub3"} |
 
@@ -1561,6 +1720,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub4"} |
 
@@ -1583,6 +1745,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1605,6 +1770,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub1"} |
 
@@ -1627,6 +1795,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub2"} |
 
@@ -1649,6 +1820,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub3"} |
 
@@ -1671,6 +1845,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub4"} |
 
@@ -1693,6 +1870,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1715,6 +1895,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub1"} |
 
@@ -1737,6 +1920,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub2"} |
 
@@ -1759,6 +1945,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub3"} |
 
@@ -1781,6 +1970,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub4"} |
 
@@ -1803,6 +1995,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1825,6 +2020,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x180", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -1847,6 +2045,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1869,6 +2070,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1891,6 +2095,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1913,6 +2120,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1935,6 +2145,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1957,6 +2170,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x280", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -1979,6 +2195,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2001,6 +2220,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2023,6 +2245,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2045,6 +2270,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2067,6 +2295,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2089,6 +2320,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x380", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -2111,6 +2345,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2133,6 +2370,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2155,6 +2395,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2177,6 +2420,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2199,6 +2445,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2221,6 +2470,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x480", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -2243,6 +2495,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2265,6 +2520,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2287,6 +2545,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2309,6 +2570,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2331,6 +2595,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "3", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2353,6 +2620,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60410010", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub1"} |
 
@@ -2375,6 +2645,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60fd0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub2"} |
 
@@ -2397,6 +2670,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60610008", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub3"} |
 
@@ -2419,6 +2695,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub4"} |
 
@@ -2441,6 +2720,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "2", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2463,6 +2745,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60640020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub1"} |
 
@@ -2485,6 +2770,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x606c0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub2"} |
 
@@ -2507,6 +2795,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub3"} |
 
@@ -2529,6 +2820,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub4"} |
 
@@ -2551,6 +2845,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2573,6 +2870,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub1"} |
 
@@ -2595,6 +2895,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub2"} |
 
@@ -2617,6 +2920,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub3"} |
 
@@ -2639,6 +2945,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub4"} |
 
@@ -2661,6 +2970,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2683,6 +2995,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub1"} |
 
@@ -2705,6 +3020,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub2"} |
 
@@ -2727,6 +3045,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub3"} |
 
@@ -2749,6 +3070,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub4"} |
 
@@ -2757,7 +3081,7 @@ The independent native type/access/units columns describe source claims; only re
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.driverID |
-| Sources | EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 18 |
+| Sources | EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | supported_evidence |
@@ -2771,6 +3095,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.driverID"} |
 
@@ -2779,7 +3106,7 @@ The independent native type/access/units columns describe source claims; only re
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.softversion |
-| Sources | EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 18 |
+| Sources | EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 17 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | supported_evidence |
@@ -2793,6 +3120,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.softversion"} |
 
@@ -2815,6 +3145,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q02", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Bits 0 in-position, 1 homed, 2 running, 3 alarm, 4 released (0 enabled, 1 released), 5 positive and 6 negative software limit.", "write_policy": "not_writable"} |
 | Conflicts | ["C06"] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "8", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.MonitorWord"} |
 
@@ -2837,6 +3170,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Bits 0..6 logical DI0..6 active state; not physical voltage.", "write_policy": "not_writable"} |
 | Conflicts | ["C06"] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DiStatus"} |
 
@@ -2859,6 +3195,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Bits 0..2 logical DO0..2 active state; not 60FE bits16..18.", "write_policy": "not_writable"} |
 | Conflicts | ["C06"] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DoStatus"} |
 
@@ -2881,6 +3220,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; retain raw values until actual direction is qualified.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DefautDir"} |
 
@@ -2903,6 +3245,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero.", "write_policy": "qualification_required"} |
 | Conflicts | ["C12"] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.MicDivide"} |
 
@@ -2925,6 +3270,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 disabled / 1 effective after homing; EDS default 10 is not an accepted option.", "write_policy": "qualification_required"} |
 | Conflicts | ["C13"] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Soft_Limit"} |
 
@@ -2947,6 +3295,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0..127 includes zero; all-off DIP selects user parameter, not a unicast node zero.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.CAN_ID"} |
 
@@ -2969,6 +3320,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q15", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective; 1 factory reset; 2 save.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 39 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.FactoryPara"} |
 
@@ -2991,6 +3345,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q13", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective; 1 effective in EN86; ZH86 omits the entry.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 32 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClearAlm"} |
 
@@ -3013,6 +3370,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q14", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 to 1 clears current position; explicitly return to zero manually.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 32 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClearPos"} |
 
@@ -3035,6 +3395,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 16; explicitly U16 in EDS.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "16", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -3057,6 +3420,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 normal / 1 inverted for each bit; other bits unspecified.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Dilevel"} |
 
@@ -3079,6 +3445,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di0"} |
 
@@ -3101,6 +3470,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di1"} |
 
@@ -3123,6 +3495,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di2"} |
 
@@ -3145,6 +3520,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di3"} |
 
@@ -3167,6 +3545,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di4"} |
 
@@ -3189,6 +3570,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di5"} |
 
@@ -3211,6 +3595,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di6"} |
 
@@ -3233,6 +3620,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20"], "generation_type": "excluded", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "No typed public access; preserve raw source only.", "write_policy": "reserved"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | `null` (not stated) |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd1"} |
 
@@ -3255,6 +3645,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "excluded", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "No typed public access; preserve raw source only.", "write_policy": "reserved"} |
 | Conflicts | ["C15"] |
 | Owner prompt | 21 |
+| Read owner prompt | `null` (not stated) |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd2"} |
 
@@ -3277,6 +3670,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20"], "generation_type": "excluded", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "No typed public access; preserve raw source only.", "write_policy": "reserved"} |
 | Conflicts | ["C01"] |
 | Owner prompt | 21 |
+| Read owner prompt | `null` (not stated) |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd3"} |
 
@@ -3299,6 +3695,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20", "Q19"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02", "C14"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Dolevel"} |
 
@@ -3321,6 +3720,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20", "Q19"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02", "C14"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do0"} |
 
@@ -3343,6 +3745,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20", "Q19"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02", "C04"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do1"} |
 
@@ -3365,6 +3770,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do2"} |
 
@@ -3387,6 +3795,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20"], "generation_type": "excluded", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "No typed public access; preserve raw source only.", "write_policy": "reserved"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | `null` (not stated) |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd4"} |
 
@@ -3409,6 +3820,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "50", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di0Filtime"} |
 
@@ -3431,6 +3845,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "40", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di1Filtime"} |
 
@@ -3453,6 +3870,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di2Filtime"} |
 
@@ -3475,6 +3895,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "4000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di3Filtime"} |
 
@@ -3497,6 +3920,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di4Filtime"} |
 
@@ -3519,6 +3945,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di5Filtime"} |
 
@@ -3541,6 +3970,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "16", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di6Filtime"} |
 
@@ -3563,6 +3995,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective, 1 open loop, 2 closed loop; distinct from 6060 motion mode. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DrvMode"} |
 
@@ -3585,6 +4020,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Line/count/quadrature basis not specified. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Encoder"} |
 
@@ -3607,6 +4045,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Maximum peak current, mA, not RMS. Admissible range, activation and motor ratings are not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Maxcurrent"} |
 
@@ -3629,6 +4070,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Closed-loop maximum current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClMaxCper"} |
 
@@ -3651,6 +4095,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Closed-loop base current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClbasCper"} |
 
@@ -3673,6 +4120,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Open-loop maximum current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.OlMaxCper"} |
 
@@ -3695,6 +4145,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Standstill current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.suo_per"} |
 
@@ -3717,6 +4170,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Standstill-current timing; range and exact transition not established. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.suo_time"} |
 
@@ -3739,6 +4195,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Low-pass enable, factory parameter; no Boolean option set established. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Filtable"} |
 
@@ -3761,6 +4220,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Filter coefficient; equation not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Filtratio"} |
 
@@ -3783,6 +4245,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Position-deviation alarm threshold; scale/range not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.PosAlrm"} |
 
@@ -3805,6 +4270,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Position-completion threshold; scale/range not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.PosError"} |
 
@@ -3827,6 +4295,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Position-completion time; unit/range not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.PosinTime"} |
 
@@ -3849,6 +4320,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj..AvrFiltime"} |
 
@@ -3871,6 +4345,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.kpscale"} |
 
@@ -3893,6 +4370,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.kp"} |
 
@@ -3915,6 +4395,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ki"} |
 
@@ -3937,6 +4420,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.kc"} |
 
@@ -3959,6 +4445,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kp1"} |
 
@@ -3981,6 +4470,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kv1"} |
 
@@ -4003,6 +4495,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_spd1"} |
 
@@ -4025,6 +4520,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kp2"} |
 
@@ -4047,6 +4545,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kv2"} |
 
@@ -4069,6 +4570,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_spd2"} |
 
@@ -4091,6 +4595,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kvff"} |
 
@@ -4113,6 +4620,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_ki"} |
 
@@ -4135,6 +4645,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kp"} |
 
@@ -4157,6 +4670,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_ki"} |
 
@@ -4179,6 +4695,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kc"} |
 
@@ -4201,6 +4720,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kvfbd1"} |
 
@@ -4223,6 +4745,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kvfbd2"} |
 
@@ -4245,6 +4770,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kvff"} |
 
@@ -4267,6 +4795,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
+| Read owner prompt | 22 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kacff"} |
 
@@ -4289,6 +4820,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20", "Q13"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual FF00..FFFF, FF01 overcurrent, FF05 position deviation; EDS default0 remains metadata.", "write_policy": "not_writable"} |
 | Conflicts | ["C07"] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "DSP Error Code"} |
 
@@ -4311,6 +4845,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q12", "Q13", "Q03"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1840, "line_start": 1832, "section": "6040"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 15}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 12}, {"id": "ZH86", "page": 15}, {"id": "ZH86", "page": 17}, {"id": "OP86", "page": 9}, {"id": "OP86", "page": 10}, {"id": "OP86", "page": 13}, {"id": "EDS", "line_end": 612, "line_start": 604, "section": "1600sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "6,7,15 enable example;15-&gt;271 normal stop;15-&gt;11 emergency stop;15-&gt;128 reset. Never enable as stop/reset preamble.", "write_policy": "qualification_required"} |
 | Conflicts | ["C08", "C17"] |
 | Owner prompt | 30 |
+| Read owner prompt | `null` (not stated) |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "WO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "ControlWord"} |
 
@@ -4333,6 +4870,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q02", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["TPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1849, "line_start": 1841, "section": "6041"}, {"id": "EN86", "page": 12}, {"id": "ZH86", "page": 12}, {"id": "OP86", "page": 10}, {"id": "ZH57", "page": 12}, {"id": "OP57", "page": 10}, {"id": "EDS", "line_end": 1053, "line_start": 1045, "section": "1A00sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "See status decision table; preserve raw word and per-field validity.", "write_policy": "not_writable"} |
 | Conflicts | ["C05"] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "StatusWord"} |
 
@@ -4355,6 +4895,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q12", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default1; no usable option-value semantics. 605A/6085 absent.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 31 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0003", "DefaultValue": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Halt option code"} |
 
@@ -4377,6 +4920,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q10", "Q11"], "generation_type": "withheld", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "RAW", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1867, "line_start": 1859, "section": "6060"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 630, "line_start": 622, "section": "1600sub3"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain raw U8 byte; decode only documented positive codes shared by U8/I8. No negative-mode inference.", "value_policy": "Documented codes 0 undefined,1 position,3 velocity,6 homing; undefined0 is not an operating mode. No negative/other operating codes approved.", "write_policy": "qualification_required"} |
 | Conflicts | ["C08", "C10"] |
 | Owner prompt | 20 |
+| Read owner prompt | `null` (not stated) |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "WO", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Mode of operation"} |
 
@@ -4399,6 +4945,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q10", "Q20"], "generation_type": "withheld", "pdo_observation": {"directions": ["TPDO"], "live_qualification_required": true, "representation": "RAW", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1876, "line_start": 1868, "section": "6061"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 1071, "line_start": 1063, "section": "1A00sub3"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain raw U8 byte; decode only documented positive codes shared by U8/I8. No negative-mode inference.", "value_policy": "Documented codes 0 undefined,1 position,3 velocity,6 homing; undefined0 is not an operating mode. No negative/other operating codes approved.", "write_policy": "not_writable"} |
 | Conflicts | ["C09", "C10"] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | RAW |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Mode of operation display"} |
 
@@ -4421,6 +4970,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["TPDO"], "live_qualification_required": true, "representation": "SIGNED", "role": "ACTUAL", "source_refs": [{"id": "EDS", "line_end": 1885, "line_start": 1877, "section": "6064"}, {"id": "EN86", "page": 3}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 3}, {"id": "ZH86", "page": 17}, {"id": "ZH57", "page": 3}, {"id": "ZH57", "page": 17}, {"id": "EDS", "line_end": 1105, "line_start": 1097, "section": "1A01sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32 wire value; no physical conversion or accepted magnitude inferred.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | SIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0004", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "actual position"} |
 
@@ -4443,6 +4995,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["TPDO"], "live_qualification_required": true, "representation": "SIGNED", "role": "ACTUAL", "source_refs": [{"id": "EDS", "line_end": 1893, "line_start": 1886, "section": "606C"}, {"id": "EN86", "page": 3}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 3}, {"id": "ZH86", "page": 17}, {"id": "ZH57", "page": 3}, {"id": "ZH57", "page": 17}, {"id": "EDS", "line_end": 1114, "line_start": 1106, "section": "1A01sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32 wire value; no physical conversion or accepted magnitude inferred.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | SIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "actual speed"} |
 
@@ -4465,6 +5020,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q04", "Q11", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "SIGNED", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 1902, "line_start": 1894, "section": "607A"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 664, "line_start": 656, "section": "1601sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32.", "write_policy": "qualification_required"} |
 | Conflicts | ["C21"] |
 | Owner prompt | 33 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "DefaultValue": "5000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "target position"} |
 
@@ -4487,6 +5045,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q14", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32, documented -1000000..1000000; no arbitrary set-position effect.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 32 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "home offset"} |
 
@@ -4509,6 +5070,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count2.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -4531,6 +5095,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. Minimum/maximum ordering and enforcement require qualification.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Soft MIN Limit"} |
 
@@ -4553,6 +5120,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. Minimum/maximum ordering and enforcement require qualification.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Soft MAX Limit"} |
 
@@ -4575,6 +5145,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 1951, "line_start": 1943, "section": "6081"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 17}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 673, "line_start": 665, "section": "1601sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Documented 0..3000 rpm; zero-motion behavior is not established.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "60", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "posmode speed"} |
 
@@ -4597,6 +5170,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "accel time"} |
 
@@ -4619,6 +5195,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
+| Read owner prompt | 20 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "decel time"} |
 
@@ -4641,6 +5220,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q10", "Q21", "Q20"], "generation_type": "withheld", "read_effect": "not_established", "status": "complete", "type_policy": "Retain raw byte; positive codes17/18/24/29 are wire-identical in U8/I8. Do not infer negative methods.", "value_policy": "Documented 17 negative limit,18 positive limit,24 positive origin,29 negative origin. Default0 not a supported method.", "write_policy": "qualification_required"} |
 | Conflicts | ["C22"] |
 | Owner prompt | 36 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing method"} |
 
@@ -4663,6 +5245,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count2.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 36 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -4685,6 +5270,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Documented 0..3000 rpm; sub2 is creep speed (rpm/prose), not a time. Zero behavior requires evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 36 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "120", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing speed"} |
 
@@ -4707,6 +5295,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Documented 0..3000 rpm; sub2 is creep speed (rpm/prose), not a time. Zero behavior requires evidence.", "write_policy": "qualification_required"} |
 | Conflicts | ["C23"] |
 | Owner prompt | 36 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "60", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing search speed"} |
 
@@ -4729,6 +5320,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 36 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing accel/decel time"} |
 
@@ -4751,6 +5345,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["TPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 2028, "line_start": 2021, "section": "60FD"}, {"id": "EN86", "page": 17}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 1062, "line_start": 1054, "section": "1A00sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Retain raw U32. Bit-to-function/terminal layout is not established by the cited dictionary rows; do not copy 2101 layout.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 19 |
+| Read owner prompt | 19 |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Digital inputs"} |
 
@@ -4773,6 +5370,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count2.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -4795,6 +5395,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q07", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Sub1 physical outputs, sub2 bit mask; OP86 requires both corresponding bits1. ZH57 labels conflict (DO0/1/2 versus DO1/2/3).", "write_policy": "not_writable"} |
 | Conflicts | ["C03"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Physical outputs"} |
 
@@ -4817,6 +5420,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q07", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Sub1 physical outputs, sub2 bit mask; OP86 requires both corresponding bits1. ZH57 labels conflict (DO0/1/2 versus DO1/2/3).", "write_policy": "not_writable"} |
 | Conflicts | ["C03"] |
 | Owner prompt | 21 |
+| Read owner prompt | 21 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Bit Mask"} |
 
@@ -4839,6 +5445,9 @@ The independent native type/access/units columns describe source claims; only re
 | Documentary review | {"gate_ids": ["Q01", "Q03", "Q20"], "generation_type": "withheld", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "RAW", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 2068, "line_start": 2060, "section": "60FF"}, {"id": "EN86", "page": 13}, {"id": "EN86", "page": 17}, {"id": "ZH86", "page": 13}, {"id": "ZH86", "page": 17}, {"id": "OP86", "page": 11}, {"id": "EDS", "line_end": 621, "line_start": 613, "section": "1600sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Preserve EDS I32 and contradictory U32 claim. Decode raw wire data; no typed signed motion until binding resolves Q03.", "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified.", "write_policy": "qualification_required"} |
 | Conflicts | ["C11", "C17"] |
 | Owner prompt | 35 |
+| Read owner prompt | 38 |
+| Read representation | `null` (not stated) |
+| Read coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "DefaultValue": "120", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "velocity speed"} |
 

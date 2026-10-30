@@ -13,6 +13,14 @@
 namespace MotorControlCAN {
 namespace CANOPEN {
 
+/** Independent observation time; zero is valid and unknown capture is explicit. */
+struct ObservationTime {
+    bool present = false; ///< A checked observation exists.
+    bool receivedTimeKnown = false; ///< Source-qualified capture clock is available.
+    uint64_t receivedUs = 0; ///< Original capture microseconds, meaningful only when known.
+    uint64_t processedUs = 0; ///< Supplied owner processing microseconds, never substituted for capture.
+    Generation generation = 0; ///< Source event epoch; compare with current route before qualification.
+};
 /** Explicit NMT manager commands; independent of native drive state and motion. */
 enum class NmtCommand : uint8_t {
     START = 1, ///< Request NMT Operational; does not establish drive enablement.

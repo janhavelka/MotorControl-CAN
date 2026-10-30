@@ -79,6 +79,10 @@ mapping words. Edit the ledger/review/schema/generator together; do not hand-edi
 that output or promote an EDS template into live configuration. PDO map and
 sample evidence contracts are in the service guide.
 
+For typed raw reads, maintain the [read contract](docs/reads.md), separate read
+ownership/coverage in the canonical ledger, and the independent `reads` tests.
+An access flag does not qualify read effects; Q20 remains a probe gate.
+
 Document public declarations in their headers, including parameters, validity,
 units, ownership, failure output and evidence limits where applicable. Extend
 the maintained guide and CHANGELOG with public behavior changes. Run

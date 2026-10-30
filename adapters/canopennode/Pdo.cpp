@@ -4,10 +4,6 @@
 namespace MotorControlCAN {
 namespace CANOPEN {
 namespace {
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
 bool sameObject(const PdoObject& a, const PdoObject& b) {
     return a.index == b.index && a.subindex == b.subindex && a.widthBytes == b.widthBytes &&
         a.sign == b.sign && a.role == b.role && a.rpdo == b.rpdo && a.tpdo == b.tpdo;
@@ -21,10 +17,6 @@ bool sameLayout(const PdoLayout& a, const PdoLayout& b) {
             (i < a.mapping.count && !sameObject(a.fields[i], b.fields[i]))) return false;
     return true;
 }
-bool sameRoute(const PdoRoute& a, const PdoRoute& b) {
-    return sameBinding(a.binding, b.binding) && a.generation == b.generation &&
-        a.cobId == b.cobId && a.extended == b.extended && sameLayout(a.layout, b.layout);
-}
 bool validObserver(PdoObserver observer) {
     return observer.context ? observer.sample && observer.invalidate : !observer.sample && !observer.invalidate;
 }
@@ -35,23 +27,6 @@ bool validCommunication(const PdoMapEvidence& evidence) {
 }
 } // namespace
 
-bool pdoFreshness(const PdoRecord& record, uint64_t now, uint64_t age, PdoFreshness& output) {
-    if (!age || now < record.boundaryUs || (record.confirmed && now < record.map.observedUs) ||
-        (record.qualified && now < record.qualification.establishedUs) ||
-        (record.samplePresent && (now < record.observation.time.processedUs ||
-         (record.observation.time.receivedTimeKnown && now < record.observation.time.receivedUs))) ||
-        overlap(&record, sizeof record, &output, sizeof output)) return false;
-    PdoFreshness result;
-    if (!record.confirmed) result = PdoFreshness::NO_MAP;
-    else if (!record.qualified) result = PdoFreshness::UNQUALIFIED;
-    else if (!record.samplePresent || !record.observation.time.receivedTimeKnown ||
-        !sameRoute(record.observation.sample.route, record.map.route) ||
-        record.observation.evidenceId != record.qualification.evidenceId ||
-        record.observation.time.receivedUs <= record.qualification.establishedUs) result = PdoFreshness::NEVER_OBSERVED;
-    else result = now - record.observation.time.receivedUs <= age ? PdoFreshness::FRESH : PdoFreshness::EXPIRED;
-    output = result;
-    return true;
-}
 bool SdoClient::pdoIdentifier(uint32_t id, bool extended) const {
     for (const PdoSlot& slot : pdos_)
         if (slot.bound && slot.record.map.route.cobId == id && slot.record.map.route.extended == extended) return true;
@@ -126,7 +101,7 @@ bool SdoClient::qualifyPdo(uint8_t slot, const PdoQualification& input, uint64_t
     PdoSlot& target = pdos_[slot];
     const NodeSnapshot& node = channels_[target.anchor].network;
     if (!target.record.confirmed || target.record.qualified || node.exhausted || !evidence.evidenceId ||
-        !sameRoute(evidence.route, target.record.map.route) || evidence.nodeGeneration != node.route.generation ||
+        !samePdoRoute(evidence.route, target.record.map.route) || evidence.nodeGeneration != node.route.generation ||
         evidence.nodeGeneration != target.record.map.nodeGeneration ||
         (evidence.basis != PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED && evidence.basis != PdoSampleBasis::DISTINCT_VERIFIED_ROUTE) ||
         (target.reused && evidence.basis == PdoSampleBasis::DISTINCT_VERIFIED_ROUTE) ||

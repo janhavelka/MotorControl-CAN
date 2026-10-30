@@ -5,8 +5,10 @@ This mapping preserves current MotorControl-RS names where their meanings apply.
 Prompt 6 now demonstrates `prepareIdentity/nextRead/advanceRead/getIdentity`,
 `prepareMoveAbsolute/nextMove/advanceMove` and the owner admission/result lifecycle
 in an [experimental synthetic profile](profile_contract.md). That page maps
-proof declarations to route intent. No CLI route or installed vendor API exists
-yet; the inventory below retains its later implementation owners.
+proof declarations to route intent. Prompt 19 now installs the finite
+[Lichuan raw read lifecycle](reads.md), including checked identity/state/config
+getters and SDO/PDO evidence. No CLI route exists yet. The non-consuming probe
+remains Q20 gated; the inventory below retains later operation/CLI owners.
 
 [Prompt 18](reports/prompt_18.md) is blocked on the Lichuan PDO mutation contract
 (Q17). No typed remap/timing API or corresponding CLI route is implemented.

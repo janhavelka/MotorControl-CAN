@@ -6,6 +6,14 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Installed finite raw Lichuan identity, state and communication reads for 30
+  explicitly assigned rows, with checked getters, per-field SDO/PDO provenance,
+  conservative age/skew, retained aborts and an offline compiled preview.
+  Read effects, model matching and disputed state interpretation remain unknown;
+  Q20 still blocks a non-consuming probe, so prompt 19 is Partial.
+- Independent fake-owner read tests and isolated installed/exported consumers
+  cover every owned width/access rule, failure publication and invalidation.
+
 - Added pure checked PDO layouts/decoding, complete SDO map-readback evidence and eight passive routes in the existing owner. Actual map contents, wire-sample provenance and capture freshness remain independent; reused routes require explicit producer/ingress retirement evidence.
 - Generated the eight unverified EDS PDO templates and ten reviewed passive layout facts from the single ledger, retaining raw unresolved mode/velocity signedness and all existing SDO/write gates. No PDO configuration write, NMT inference, scaled position or completion is added.
 - SDO terminals now retain supplied admission time and node lifecycle epoch so mixed stale readback results cannot certify a newer map.
@@ -59,6 +67,12 @@ This repository contains planning/reference material and native service/API owne
 - An offline planning validator for prompt structure, requirements, links and reference hashes.
 
 ### Changed
+
+- Moved pure PDO evidence/time value types into installed headers, forwarded by
+  the existing adapter; shared bounded route comparison avoids duplicate policy.
+- Assigned all readable ledger rows separate read owners and read coverage;
+  corrected the `2000/2001` ZH86 source citation from PDF page 18 to page 17.
+  Whole-object/write coverage and unqualified read effects are unchanged.
 
 - Corrected the PDO blocker rationale: CiA documents the conditional remapping procedure. Q17 now separates Lichuan applicability, changed timing settings and sample qualification so an established narrow subset need not wait for unrelated facts.
 

@@ -1,5 +1,10 @@
 # Native package use
 
+The installed [typed read API](reads.md) needs only the core target. The
+[reads preview](../examples/reads_preview/README.md) compiles a finite identity
+read with synthetic evidence, without a controller. Read effects and model
+applicability remain unqualified; the non-consuming probe is evidence gated.
+
 The development package `MotorControl-CAN` currently implements local call
 status, exact numeric/unit conversion and quantization, pure axis targets, copied logical endpoint/
 binding identity, Classical CAN frame validation and pure checked CANopen SDO envelopes. The C++ namespace, include

@@ -20,8 +20,8 @@ SDO lifecycle with passing local and Windows/GCC/Clang sanitizer CI.
 [Prompt 17](reports/prompt_17.md) completes checked PDO map/sample observations.
 [Prompt 18](reports/prompt_18.md) is Blocked on the source-backed PDO mutation
 contract; its audit and precise Q17 evidence requirements are recorded.
-The next independently ready assignment is prompt 19; this handoff does not
-execute it or transfer unfinished remapping work to another prompt.
+[Prompt 19](reports/prompt_19.md) is Partial: all 30 assigned raw read rows are
+implemented; Q20 still blocks a documented non-consuming probe.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
 [PROGRESS](prompts/PROGRESS.md) owns stage status. This roadmap gives executable
@@ -44,7 +44,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 16 | Explicit NMT requests and service eligibility | Complete: native producer, intent/TX/observations, domain effects and heartbeat-disabled service evidence; [report](reports/prompt_16.md) |
 | 17 | Observed PDO maps and decoding | Complete: checked layouts, explicit actual-map acquisition, independent sample qualification and atomic passive routing; [report](reports/prompt_17.md) |
 | 18 | Explicit PDO remapping | Blocked: Lichuan applicability/state/activation of the standard remap remain unconfirmed; [audit and scoped Q17 gates](reports/prompt_18.md#fresh-independent-audit). Timing changes and sample qualification are separate obligations. |
-| 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
+| 19 | Typed raw identity/state/configuration reads | Partial: 30 rows, checked SDO/PDO evidence and getters implemented; close Q20 read-effect evidence before a non-consuming probe is usable. |
+| 20-22 | Motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
 | 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
 | 26-28 | Native example, TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |
 | 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |
@@ -57,7 +58,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
-The next independent assignment is [prompt 19](prompts/19_typed_reads.md).
+The assigned [prompt 19](prompts/19_typed_reads.md) retains its Q20 probe
+obligation; see the [read guide](reads.md). Later prompts require a new assignment.
 [Prompt 18](prompts/18_pdo_configuration.md) retains its blocked explicit
 PDO configuration work over the implemented
 [bounded SDO lifecycle](canopen_services.md) and
@@ -67,7 +69,7 @@ PDO configuration work over the implemented
 [reviewed Lichuan dictionary](reference/lichuan_objects.md) and
 [contrast cases](reference/drive_contrasts.md) are documentary inputs;
 [Lichuan qualification gates](reference/lichuan_review.md) remain open for the
-affected later features. No profile is implemented yet.
+affected later features. No operational drive profile or physical qualification is claimed.
 
 The former stage numbering is mapped in [SPLIT_MAP](prompts/SPLIT_MAP.md).
 Use current owners 11/12 for codecs/catalogue, 13/14 for services, 15-18 for

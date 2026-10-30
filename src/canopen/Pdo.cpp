@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-#include <MotorControlCAN/canopen/Pdo.h>
+#include <MotorControlCAN/canopen/PdoState.h>
 
 namespace MotorControlCAN {
 namespace CANOPEN {
@@ -140,6 +140,21 @@ Status validatePdoRoute(const PdoRoute& route) noexcept {
     return Ok();
 }
 
+bool samePdoRoute(const PdoRoute& a, const PdoRoute& b) noexcept {
+    if (!sameBinding(a.binding,b.binding) || a.generation != b.generation || a.cobId != b.cobId || a.extended != b.extended ||
+        a.layout.profile != b.layout.profile || a.layout.payloadLength != b.layout.payloadLength ||
+        a.layout.mapping.direction != b.layout.mapping.direction || a.layout.mapping.number != b.layout.mapping.number ||
+        a.layout.mapping.count != b.layout.mapping.count || a.layout.mapping.count > PDO_ENTRIES) return false;
+    for (unsigned i = 0; i < PDO_ENTRIES; ++i) {
+        if (a.layout.mapping.words[i] != b.layout.mapping.words[i]) return false;
+        if (i >= a.layout.mapping.count) continue;
+        const PdoObject& x = a.layout.fields[i]; const PdoObject& y = b.layout.fields[i];
+        if (x.index != y.index || x.subindex != y.subindex || x.widthBytes != y.widthBytes ||
+            x.sign != y.sign || x.role != y.role || x.rpdo != y.rpdo || x.tpdo != y.tpdo) return false;
+    }
+    return true;
+}
+
 Status decodePdo(const Frame& frame, const PdoRoute& route, PdoSample& output) noexcept {
     if (overlap(&frame, sizeof(frame), &output, sizeof(output)) ||
         overlap(&route, sizeof(route), &output, sizeof(output)))
@@ -232,6 +247,23 @@ Status pdoMapFromReadback(const SdoCompletion* results, size_t count, const PdoR
     candidate.communicationKnown = true;
     output = candidate;
     return Ok();
+}
+bool pdoFreshness(const PdoRecord& record, uint64_t now, uint64_t age, PdoFreshness& output) {
+    if (!age || now < record.boundaryUs || (record.confirmed && now < record.map.observedUs) ||
+        (record.qualified && now < record.qualification.establishedUs) ||
+        (record.samplePresent && (now < record.observation.time.processedUs ||
+         (record.observation.time.receivedTimeKnown && now < record.observation.time.receivedUs))) ||
+        overlap(&record, sizeof record, &output, sizeof output)) return false;
+    PdoFreshness result;
+    if (!record.confirmed) result = PdoFreshness::NO_MAP;
+    else if (!record.qualified) result = PdoFreshness::UNQUALIFIED;
+    else if (!record.samplePresent || !record.observation.time.receivedTimeKnown ||
+        !samePdoRoute(record.observation.sample.route, record.map.route) ||
+        record.observation.evidenceId != record.qualification.evidenceId ||
+        record.observation.time.receivedUs <= record.qualification.establishedUs) result = PdoFreshness::NEVER_OBSERVED;
+    else result = now - record.observation.time.receivedUs <= age ? PdoFreshness::FRESH : PdoFreshness::EXPIRED;
+    output = result;
+    return true;
 }
 } // namespace CANOPEN
 } // namespace MotorControlCAN

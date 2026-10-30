@@ -21,7 +21,7 @@ FILES = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
@@ -35,6 +35,9 @@ FILES = {
     "adapters/canopennode/NetworkState.h", "adapters/canopennode/Network.cpp",
     "adapters/canopennode/Nmt.h", "adapters/canopennode/Nmt.cpp", "test/nmt_codec_test.cpp", "test/nmt_services_test.cpp",
     "include/MotorControlCAN/canopen/Pdo.h", "src/canopen/Pdo.cpp",
+    "include/MotorControlCAN/canopen/PdoState.h", "include/MotorControlCAN/ReadOperation.h",
+    "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
+    "test/reads_test.cpp", "examples/reads_preview/main.cpp", "examples/reads_preview/CMakeLists.txt", "examples/reads_preview/README.md",
     "include/MotorControlCAN/profiles/lichuan_c/Pdo.h", "adapters/canopennode/PdoState.h",
     "adapters/canopennode/Pdo.cpp", "test/pdo_codec_test.cpp", "test/pdo_observations_test.cpp",
     "adapters/canopennode/CMakeLists.txt", "adapters/canopennode/SdoClient.h",
@@ -57,7 +60,7 @@ FILES = {
     "test/installed_consumer/main.cpp", "experiments/canopen_service_fit/CMakeLists.txt",
 }
 EXPORTS = ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md"]
+           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md"]
 
 
 class RepositoryTests(unittest.TestCase):
@@ -76,7 +79,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

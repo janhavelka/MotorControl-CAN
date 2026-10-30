@@ -46,6 +46,71 @@ def generation_disposition(entry):
     return "resolved"
 
 
+def read_descriptor_representation(entry):
+    """Return raw read representation without resolving interpretation or effects."""
+    if generation_disposition(entry) == "withheld":
+        return "RAW"
+    return "SIGNED" if entry["type"]["signed"] else "UNSIGNED"
+
+
+def read_owner_errors(entry):
+    """Validate separate read ownership; only Prompt 19 produces a read table."""
+    owner = entry.get("read_owner_prompt")
+    if owner is None:
+        return []
+    label = str(entry.get("key")) + ": read owner "
+    if type(owner) is not int or not 1 <= owner <= 50:
+        return [label + "must be an integer prompt in 1..50 or null"]
+    if (entry.get("role") == "reserved" or
+            entry.get("access_eds") not in ("RO", "RW") or
+            entry.get("access_reviewed") not in ("RO", "RW")):
+        return [label + "requires a nonreserved readable source entry"]
+    if owner != 19:
+        return []
+    index, subindex = entry.get("index"), entry.get("subindex")
+    # Preserve the bounded reviewed assignment independently of later groups.
+    scalar_indexes = {0x1000, 0x1001, 0x1005, 0x1009, 0x100A, 0x1014,
+                      0x1017, 0x2000, 0x2001, 0x2100, 0x2101, 0x2102,
+                      0x603F, 0x6041, 0x6061, 0x6064, 0x606C, 0x60FD}
+    allowed = (type(index) is int and type(subindex) is int and
+               ((index in scalar_indexes and subindex == 0) or
+                (index == 0x1003 and 0 <= subindex <= 4) or
+                (index == 0x1018 and 0 <= subindex <= 3) or
+                (index == 0x1200 and 0 <= subindex <= 2)))
+    if not allowed:
+        return [label + "outside the reviewed Prompt 19 read scope"]
+    disposition = generation_disposition(entry)
+    if disposition != "resolved":
+        if (entry.get("key") != "0x6061:00" or disposition != "withheld" or
+                entry.get("type") != {"eds_code": "0x0005", "name": "U8",
+                                      "width_bytes": 1, "signed": False}):
+            return [label + "unresolved read type is not the approved raw mode byte"]
+    return []
+
+
+def read_coverage_errors(entry):
+    """Check software read coverage separately from whole-object effect coverage."""
+    if "read_coverage" not in entry:
+        return []
+    label = str(entry.get("key")) + ": read coverage "
+    value = entry["read_coverage"]
+    fields = {"documented", "implemented", "host_tested", "hardware_qualified"}
+    if not isinstance(value, dict) or set(value) != fields:
+        return [label + "fields invalid"]
+    if any(type(v) is not bool for v in value.values()):
+        return [label + "must be boolean"]
+    errors = []
+    if entry.get("read_owner_prompt") != 19 or read_owner_errors(entry):
+        errors.append(label + "requires a reviewed Prompt 19 read")
+    if value["documented"] is not True:
+        errors.append(label + "must retain documented source evidence")
+    if value["host_tested"] and not value["implemented"]:
+        errors.append(label + "host tests require implemented read behavior")
+    if value["hardware_qualified"]:
+        errors.append(label + "cannot claim hardware qualification")
+    return errors
+
+
 def pdo_observation_errors(objects):
     """Check passive layout claims against the reviewed default mapping records.
 
@@ -665,6 +730,8 @@ def validate_ledger(data, root=ROOT):
             require(type(entry.get("owner_prompt")) is int and expected_owner is not None and
                     entry["owner_prompt"] == expected_owner,
                     elabel + ": owner prompt invalid")
+            errors.extend(read_owner_errors(entry))
+            errors.extend(read_coverage_errors(entry))
             require(all(isinstance(entry.get(field), str) and bool(entry[field].strip()) for field in
                     ("units", "scaling", "effect", "edge_behavior")) and
                     isinstance(entry.get("prerequisites"), list) and bool(entry["prerequisites"]) and

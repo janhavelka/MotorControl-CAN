@@ -32,6 +32,67 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(sum(len(obj["entries"]) for obj in LEDGER["objects"]), 202)
         self.assertEqual(len(LEDGER["manual_only"]), 53)
 
+    def test_read_ownership_is_optional_and_does_not_change_object_ownership(self):
+        data = self.changed()
+        row = entry(data, "0x1005:00")
+        self.assertEqual(row["owner_prompt"], 38)
+        self.assertEqual(row["read_owner_prompt"], 19)
+        row.pop("read_coverage", None)
+        row.pop("read_owner_prompt")
+        self.assertEqual(validate_ledger(data), [])
+        row["read_owner_prompt"] = None
+        self.assertEqual(validate_ledger(data), [])
+
+    def test_invalid_read_owners_and_forbidden_reads_are_rejected(self):
+        for value in (True, False, 0, 51, -1, "19", [], {}):
+            data = self.changed()
+            entry(data, "0x1000:00")["read_owner_prompt"] = value
+            self.reject(data, "read owner must be an integer")
+        for key in ("0x6040:00", "0x6060:00", "0x2400:09"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 19
+            self.reject(data, "read owner requires a nonreserved readable")
+        for key in ("0x2203:00", "0x6098:00", "0x60FF:00", "0x1600:00"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 19
+            self.reject(data, "read owner outside the reviewed Prompt 19")
+
+    def test_only_reviewed_raw_mode_byte_can_have_unresolved_read_type(self):
+        data = self.changed()
+        row = entry(data, "0x6061:00")
+        self.assertEqual(row["read_owner_prompt"], 19)
+        self.assertEqual(row["review"]["generation_type"], "withheld")
+        row["type"]["width_bytes"] = 2
+        self.reject(data, "read owner unresolved read type")
+
+    def test_separate_read_coverage_can_record_software_without_effect_qualification(self):
+        data = self.changed()
+        for key in ("0x1005:00", "0x6061:00"):
+            row = entry(data, key)
+            row["read_coverage"] = dict(documented=True, implemented=True,
+                                        host_tested=True, hardware_qualified=False)
+            self.assertEqual(row["review"]["read_effect"], "not_established")
+            self.assertFalse(row["coverage"]["implemented"])
+        self.assertEqual(validate_ledger(data), [])
+
+    def test_read_coverage_cannot_widen_scope_or_claim_hardware(self):
+        coverage = dict(documented=True, implemented=True, host_tested=True,
+                        hardware_qualified=False)
+        for key in ("0x6040:00", "0x2400:09", "0x1600:00", "0x2203:00"):
+            data = self.changed()
+            entry(data, key)["read_coverage"] = coverage.copy()
+            self.reject(data, "read coverage requires a reviewed Prompt 19")
+        cases = [(None, "fields invalid"), ({}, "fields invalid"),
+                 (dict(coverage, extra=False), "fields invalid"),
+                 (dict(coverage, implemented=1), "must be boolean"),
+                 (dict(coverage, documented=False), "must retain documented source"),
+                 (dict(coverage, implemented=False), "host tests require"),
+                 (dict(coverage, hardware_qualified=True), "cannot claim hardware")]
+        for value, message in cases:
+            data = self.changed()
+            entry(data, "0x1000:00")["read_coverage"] = value
+            self.reject(data, "read coverage " + message)
+
     def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
         facts = [value for obj in LEDGER["objects"] for value in obj["entries"]
                  if "pdo_observation" in value["review"]]

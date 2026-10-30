@@ -868,7 +868,7 @@ constexpr ObjectDescriptor OBJECT_1A03_04 = {
     18, 0x00090001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x2000:00 U16 value declaration; EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 18.
+/** @brief 0x2000:00 U16 value declaration; EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 17.
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2000_00 = {
     0x2000, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
@@ -876,7 +876,7 @@ constexpr ObjectDescriptor OBJECT_2000_00 = {
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x2001:00 U16 value declaration; EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 18.
+/** @brief 0x2001:00 U16 value declaration; EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 17.
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2001_00 = {
     0x2001, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
@@ -1563,6 +1563,60 @@ constexpr ObjectDescriptor OBJECT_60FE_02 = {
     ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     21, 0x00080061u, SourceScope::EDS_FAMILY_UNBOUND
 };
+
+/** @brief Copy the reviewed shape of one Prompt 19 read.
+ * Contains only explicitly assigned readable source rows. Raw mode bytes retain
+ * disputed signedness; a match does not qualify read effects, polling, physical
+ * units, interpretation, firmware identity or a non-changing probe.
+ * Performs no I/O, time acquisition or allocation. Independent calls are reentrant;
+ * callers serialize writes to a shared output. No input storage is retained.
+ * @param[in] index Native object index, 0 through 65535.
+ * @param[in] subindex Native subindex, 0 through 255.
+ * @param[out] output Copied descriptor on success; unchanged when no row matches.
+ * @return True only for a reviewed read shape; false for absent, reserved,
+ * write-only or separately owned entries. Does not authorize a device effect.
+ */
+inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& output) noexcept {
+    static const ReadDescriptor rows[] = {
+        {0x1000, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1001, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1003, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1003, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1003, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1003, 0x03, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1003, 0x04, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1005, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1009, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x100A, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1014, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1017, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x03, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1200, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1200, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1200, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2000, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2001, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2100, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2101, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2102, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x603F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6041, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6064, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x606C, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x60FD, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+    };
+    for (uint8_t i = 0; i < 30; ++i) {
+        if (rows[i].index == index && rows[i].subindex == subindex) {
+            output = rows[i];
+            return true;
+        }
+    }
+    return false;
+}
 
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

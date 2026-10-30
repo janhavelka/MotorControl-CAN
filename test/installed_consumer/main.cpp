@@ -4,6 +4,7 @@
 #include <MotorControlCAN/canopen/Network.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
+#include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <cstring>
 
 int main() {
@@ -80,5 +81,30 @@ int main() {
     CANOPEN::PdoSample pdoSample;
     if (!CANOPEN::decodePdo(pdoFrame, pdoRoute, pdoSample) ||
         pdoSample.values[0].native != -2 || pdoSample.values[1].native != INT32_MIN) return 24;
+    LICHUAN_C::ReadTarget readTarget;
+    readTarget.channel = sdo.channel; readTarget.nodeGeneration = 1;
+    LICHUAN_C::ReadOptions readOptions;
+    readOptions.queueTimeoutUs = readOptions.responseTimeoutUs = 20;
+    LICHUAN_C::ReadContext reads;
+    if (!LICHUAN_C::prepareConfig(reads,readTarget,1,0,100,readOptions)) return 25;
+    const uint32_t synthetic[] = {0x80,0x85,0,2,0x605,0x585};
+    for (unsigned i = 0; i < 6; ++i) {
+        LICHUAN_C::PreparedRead prepared;
+        if (!LICHUAN_C::nextRead(reads,i,prepared) || !prepared.ready ||
+            prepared.transfer.direction != CANOPEN::SdoDirection::UPLOAD ||
+            prepared.transfer.readEffect != CANOPEN::SdoReadEffect::UNQUALIFIED) return 26;
+        CANOPEN::SdoCompletion completed;
+        completed.transfer = prepared.transfer; completed.nodeGeneration = 1;
+        completed.admittedUs = completed.completedUs = i;
+        completed.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        completed.queued = completed.transmissionPossible = completed.protocolAcknowledged = completed.effectPossible = true;
+        completed.size = prepared.transfer.size;
+        for (unsigned j = 0; j < completed.size; ++j) completed.data[j] = uint8_t(synthetic[i] >> (8*j));
+        if (!LICHUAN_C::advanceRead(reads,completed,i)) return 27;
+    }
+    LICHUAN_C::ConfigObservation observedConfig;
+    if (!LICHUAN_C::getConfig(reads,readTarget,5,10,observedConfig) ||
+        observedConfig.producerTimeMs != 0 || observedConfig.clientToServer != 0x605 ||
+        observedConfig.window.skewUs != 5) return 28;
     return 0;
 }

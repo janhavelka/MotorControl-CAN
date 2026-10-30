@@ -4,6 +4,7 @@
 import copy
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -168,6 +169,40 @@ class ProjectionTests(unittest.TestCase):
         self.assertIn("ScalarType::U16, 2, false, SdoAccess::READ_ONLY", objects_header(rows))
         self.assertIn("WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN", objects_header(rows))
 
+    def test_read_projection_requires_explicit_ownership_and_preserves_effects(self):
+        entry = fixture_entry()
+        self.assertNotIn("static const ReadDescriptor rows[]", objects_header(projected_rows(fixture_objects(entry))))
+        entry["read_owner_prompt"] = 19
+        header = objects_header(projected_rows(fixture_objects(entry)))
+        self.assertIn("{0x1009, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED", header)
+        for owner in (True, "19", 0, 51):
+            entry["read_owner_prompt"] = owner
+            self.reject(entry, "read owner must be an integer")
+        entry["read_owner_prompt"] = 19
+        entry["access_eds"] = entry["access_reviewed"] = "WO"
+        entry["review"]["write_policy"] = "qualification_required"
+        self.reject(entry, "read owner requires a nonreserved readable")
+
+    def test_read_projection_rejects_reserved_and_unassigned_groups(self):
+        entry = fixture_entry(0x2400, 9)
+        entry.update(role="reserved", disposition="excluded", exclusion_reason="Reserved source slot",
+                     access_reviewed=None, read_owner_prompt=19)
+        entry["review"].update(generation_type="excluded", write_policy="reserved")
+        self.reject(entry, "read owner requires a nonreserved readable")
+        entry = fixture_entry(0x2203)
+        entry["read_owner_prompt"] = 19
+        self.reject(entry, "read owner outside the reviewed Prompt 19")
+
+    def test_raw_mode_byte_is_preserved_without_a_resolved_object_declaration(self):
+        entry = fixture_entry(0x6061)
+        entry["read_owner_prompt"] = 19
+        entry["review"]["generation_type"] = "withheld"
+        self.reject(entry, "unresolved read type")
+        entry["type"] = dict(eds_code="0x0005", name="U8", width_bytes=1, signed=False)
+        header = objects_header(projected_rows(fixture_objects(entry)))
+        self.assertIn("{0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED", header)
+        self.assertNotIn("OBJECT_6061_00", header)
+
 
 class GenerationTests(unittest.TestCase):
     @classmethod
@@ -203,6 +238,46 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(sum(row["review"]["generation_type"] == "withheld" for row in rows), 4)
         self.assertEqual(sum(row["review"]["generation_type"] == "excluded" for row in rows), 4)
         self.assertEqual(len(self.ledger["manual_only"]), 53)
+
+    def test_read_table_has_exact_reviewed_scope_widths_and_raw_representation(self):
+        rows = projected_rows(self.ledger["objects"])
+        header = objects_header(rows)
+        actual = re.findall(r"\{0x([0-9A-F]{4}), 0x([0-9A-F]{2}), ([124]), ReadRepresentation::(UNSIGNED|SIGNED|RAW), ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND\}", header)
+        expected = {(index, 0): (width, representation) for index, width, representation in (
+            (0x1000, 4, "UNSIGNED"), (0x1001, 1, "UNSIGNED"), (0x1005, 4, "UNSIGNED"),
+            (0x1009, 2, "UNSIGNED"), (0x100A, 2, "UNSIGNED"), (0x1014, 4, "UNSIGNED"),
+            (0x1017, 2, "UNSIGNED"), (0x2000, 2, "UNSIGNED"), (0x2001, 2, "UNSIGNED"),
+            (0x2100, 2, "UNSIGNED"), (0x2101, 2, "UNSIGNED"), (0x2102, 2, "UNSIGNED"),
+            (0x603F, 2, "UNSIGNED"), (0x6041, 2, "UNSIGNED"), (0x6061, 1, "RAW"),
+            (0x6064, 4, "SIGNED"), (0x606C, 4, "SIGNED"), (0x60FD, 4, "UNSIGNED"))}
+        for index, children in ((0x1003, 4), (0x1018, 3), (0x1200, 2)):
+            expected[(index, 0)] = (1, "UNSIGNED")
+            expected.update({(index, sub): (4, "UNSIGNED") for sub in range(1, children + 1)})
+        self.assertEqual(len(actual), 30)
+        self.assertEqual({(int(index, 16), int(sub, 16)): (int(width), sign)
+                          for index, sub, width, sign in actual}, expected)
+        self.assertIn("i < 30", header)
+        self.assertNotIn("Catalogue.h", header)
+        self.assertNotIn("OBJECT_6061_00", header)
+
+    def test_read_coverage_and_ownership_are_reported_without_whole_object_claims(self):
+        data = copy.deepcopy(self.ledger)
+        for obj in data["objects"]:
+            for row in obj["entries"]:
+                row.pop("read_coverage", None)
+        for row in (row for obj in data["objects"] for row in obj["entries"]
+                    if row["key"] in ("0x1005:00", "0x6061:00")):
+            row["read_coverage"] = dict(documented=True, implemented=True,
+                                        host_tested=True, hardware_qualified=False)
+        document = coverage_document(data, projected_rows(data["objects"]))
+        self.assertIn("| Read shape descriptors | 30 |", document)
+        self.assertIn("| Typed reads | 2 |", document)
+        self.assertIn("| Read owner prompt | 19 |", document)
+        self.assertIn("| Read owner prompt | 38 |", document)
+        self.assertIn("| Read representation | RAW |", document)
+        self.assertIn("| Read coverage D/I/H/Q | yes/yes/yes/no |", document)
+        self.assertIn("| Semantic coverage D/I/H/Q | yes/no/no/no |", document)
+        self.assertIn("pending Q20 probe", document)
 
     def test_stale_exact_bytes_fail_without_mutation(self):
         generate(ROOT / LEDGER_PATH, self.root)
@@ -339,6 +414,9 @@ class GenerationTests(unittest.TestCase):
 
     def test_coverage_preserves_model_specific_gates_and_family_binding(self):
         data = copy.deepcopy(self.ledger)
+        for obj in data["objects"]:
+            for row in obj["entries"]:
+                row.pop("read_coverage", None)
         data["semantic_review"]["binding_policy"] = "Unique explicit binding policy marker"
         data["semantic_review"]["families"][0]["limitations"] = "Unique family capability limit marker"
         data["semantic_review"]["gates"][0]["models"] = ["Unique gate model marker"]

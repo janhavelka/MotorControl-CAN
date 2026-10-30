@@ -51,6 +51,26 @@ enum class SourceScope : uint8_t {
     EDS_FAMILY_UNBOUND ///< LC_StepDriverCAN_V1.1.eds family; model and firmware unverified.
 };
 
+/** @brief Native read representation; raw bytes do not settle disputed signedness. */
+enum class ReadRepresentation : uint8_t {
+    UNSIGNED, ///< Source-confirmed unsigned native integer, without physical units.
+    SIGNED,   ///< Source-confirmed signed native integer, without physical units.
+    RAW       ///< Exact bytes only; signed interpretation remains unresolved.
+};
+
+/** @brief Bounded read shape, independent of live binding, interpretation and effects.
+ * Returned by readDescriptor for the reviewed Prompt 19 assignment only.
+ * Does not establish a non-changing probe or grant polling qualification.
+ */
+struct ReadDescriptor {
+    uint16_t index;                      ///< Native object index, 0 through 65535.
+    uint8_t subindex;                    ///< Native subindex, 0 through 255.
+    uint8_t widthBytes;                  ///< Exact scalar payload width, in bytes.
+    ReadRepresentation representation; ///< Raw or source-confirmed native integer representation.
+    ReadEffect readEffect;               ///< Read effects remain independent of access and width.
+    SourceScope scope;                   ///< Documentary family scope, not a live firmware binding.
+};
+
 /**
  * @brief Fixed native declaration in the Lichuan profile, never a service permission.
  * No I/O, strings, default values or runtime catalogue are required. A consumer

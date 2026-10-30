@@ -365,6 +365,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -458,6 +465,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -550,6 +564,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -618,6 +639,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -686,6 +714,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -754,6 +789,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -822,6 +864,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -915,6 +964,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1007,6 +1063,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1099,6 +1162,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1192,6 +1262,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1285,6 +1362,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1376,6 +1460,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -1444,6 +1535,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -1512,6 +1610,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -1580,6 +1685,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1669,6 +1781,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -1738,6 +1857,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -1807,6 +1933,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -1897,7 +2030,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1400:01",
@@ -1966,7 +2100,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1400:02",
@@ -2035,7 +2170,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1400:03",
@@ -2104,7 +2240,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1400:04",
@@ -2173,7 +2310,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1400:05",
@@ -2242,7 +2380,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -2332,7 +2471,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1401:01",
@@ -2401,7 +2541,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1401:02",
@@ -2470,7 +2611,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1401:03",
@@ -2539,7 +2681,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1401:04",
@@ -2608,7 +2751,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1401:05",
@@ -2677,7 +2821,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -2767,7 +2912,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1402:01",
@@ -2836,7 +2982,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1402:02",
@@ -2905,7 +3052,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1402:03",
@@ -2974,7 +3122,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1402:04",
@@ -3043,7 +3192,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1402:05",
@@ -3112,7 +3262,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -3202,7 +3353,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1403:01",
@@ -3271,7 +3423,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1403:02",
@@ -3340,7 +3493,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1403:03",
@@ -3409,7 +3563,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1403:04",
@@ -3478,7 +3633,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1403:05",
@@ -3547,7 +3703,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -3639,7 +3796,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1600:01",
@@ -3708,7 +3866,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1600:02",
@@ -3777,7 +3936,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1600:03",
@@ -3846,7 +4006,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1600:04",
@@ -3914,7 +4075,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -4006,7 +4168,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1601:01",
@@ -4075,7 +4238,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1601:02",
@@ -4144,7 +4308,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1601:03",
@@ -4212,7 +4377,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1601:04",
@@ -4280,7 +4446,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -4372,7 +4539,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1602:01",
@@ -4440,7 +4608,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1602:02",
@@ -4508,7 +4677,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1602:03",
@@ -4576,7 +4746,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1602:04",
@@ -4644,7 +4815,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -4736,7 +4908,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1603:01",
@@ -4804,7 +4977,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1603:02",
@@ -4872,7 +5046,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1603:03",
@@ -4940,7 +5115,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1603:04",
@@ -5008,7 +5184,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -5098,7 +5275,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1800:01",
@@ -5167,7 +5345,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1800:02",
@@ -5236,7 +5415,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1800:03",
@@ -5305,7 +5485,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1800:04",
@@ -5374,7 +5555,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1800:05",
@@ -5443,7 +5625,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -5533,7 +5716,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1801:01",
@@ -5602,7 +5786,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1801:02",
@@ -5671,7 +5856,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1801:03",
@@ -5740,7 +5926,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1801:04",
@@ -5809,7 +5996,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1801:05",
@@ -5878,7 +6066,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -5968,7 +6157,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1802:01",
@@ -6037,7 +6227,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1802:02",
@@ -6106,7 +6297,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1802:03",
@@ -6175,7 +6367,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1802:04",
@@ -6244,7 +6437,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1802:05",
@@ -6313,7 +6507,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -6403,7 +6598,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1803:01",
@@ -6472,7 +6668,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1803:02",
@@ -6541,7 +6738,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1803:03",
@@ -6610,7 +6808,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1803:04",
@@ -6679,7 +6878,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1803:05",
@@ -6748,7 +6948,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -6840,7 +7041,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A00:01",
@@ -6909,7 +7111,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A00:02",
@@ -6978,7 +7181,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A00:03",
@@ -7047,7 +7251,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A00:04",
@@ -7115,7 +7320,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -7207,7 +7413,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A01:01",
@@ -7276,7 +7483,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A01:02",
@@ -7345,7 +7553,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A01:03",
@@ -7413,7 +7622,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A01:04",
@@ -7481,7 +7691,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -7573,7 +7784,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A02:01",
@@ -7641,7 +7853,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A02:02",
@@ -7709,7 +7922,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A02:03",
@@ -7777,7 +7991,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A02:04",
@@ -7845,7 +8060,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -7937,7 +8153,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A03:01",
@@ -8005,7 +8222,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A03:02",
@@ -8073,7 +8291,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A03:03",
@@ -8141,7 +8360,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x1A03:04",
@@ -8209,7 +8429,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -8284,7 +8505,7 @@
             },
             {
               "id": "ZH86",
-              "page": 18
+              "page": 17
             }
           ],
           "confidence": "documented_metadata",
@@ -8309,6 +8530,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -8384,7 +8612,7 @@
             },
             {
               "id": "ZH86",
-              "page": 18
+              "page": 17
             }
           ],
           "confidence": "documented_metadata",
@@ -8409,6 +8637,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -8512,6 +8747,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -8614,6 +8856,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -8716,6 +8965,13 @@
               "Q20"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -8817,7 +9073,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -8924,7 +9181,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -9027,7 +9285,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -9128,7 +9387,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -9237,7 +9497,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -9334,7 +9595,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -9443,7 +9705,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -9532,7 +9795,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:01",
@@ -9617,7 +9881,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:02",
@@ -9704,7 +9969,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:03",
@@ -9791,7 +10057,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:04",
@@ -9878,7 +10145,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:05",
@@ -9963,7 +10231,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:06",
@@ -10048,7 +10317,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:07",
@@ -10133,7 +10403,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:08",
@@ -10218,7 +10489,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:09",
@@ -10287,7 +10559,8 @@
               "Q20"
             ],
             "generation_type": "excluded"
-          }
+          },
+          "read_owner_prompt": null
         },
         {
           "key": "0x2400:0A",
@@ -10374,7 +10647,8 @@
               "Q20"
             ],
             "generation_type": "excluded"
-          }
+          },
+          "read_owner_prompt": null
         },
         {
           "key": "0x2400:0B",
@@ -10461,7 +10735,8 @@
               "Q20"
             ],
             "generation_type": "excluded"
-          }
+          },
+          "read_owner_prompt": null
         },
         {
           "key": "0x2400:0C",
@@ -10551,7 +10826,8 @@
               "Q19"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:0D",
@@ -10641,7 +10917,8 @@
               "Q19"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:0E",
@@ -10731,7 +11008,8 @@
               "Q19"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:0F",
@@ -10819,7 +11097,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x2400:10",
@@ -10888,7 +11167,8 @@
               "Q20"
             ],
             "generation_type": "excluded"
-          }
+          },
+          "read_owner_prompt": null
         }
       ]
     },
@@ -10995,7 +11275,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11102,7 +11383,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11209,7 +11491,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11316,7 +11599,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11423,7 +11707,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11530,7 +11815,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11637,7 +11923,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -11736,7 +12023,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -11836,7 +12124,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -11935,7 +12224,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12034,7 +12324,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12133,7 +12424,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12232,7 +12524,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12331,7 +12624,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12430,7 +12724,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12529,7 +12824,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12628,7 +12924,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12728,7 +13025,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12828,7 +13126,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -12927,7 +13226,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13026,7 +13326,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13125,7 +13426,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13224,7 +13526,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13323,7 +13626,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13422,7 +13726,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13521,7 +13826,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13620,7 +13926,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13719,7 +14026,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13818,7 +14126,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -13917,7 +14226,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14016,7 +14326,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14115,7 +14426,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14214,7 +14526,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14305,7 +14618,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14396,7 +14710,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14487,7 +14802,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14578,7 +14894,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14669,7 +14986,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14760,7 +15078,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14851,7 +15170,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 22
         }
       ]
     },
@@ -14954,6 +15274,13 @@
               "Q13"
             ],
             "generation_type": "resolved"
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -15154,7 +15481,8 @@
               ],
               "live_qualification_required": true
             }
-          }
+          },
+          "read_owner_prompt": null
         }
       ]
     },
@@ -15311,6 +15639,13 @@
               ],
               "live_qualification_required": true
             }
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -15412,7 +15747,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -15570,7 +15906,8 @@
               ],
               "live_qualification_required": true
             }
-          }
+          },
+          "read_owner_prompt": null
         }
       ]
     },
@@ -15728,6 +16065,13 @@
               ],
               "live_qualification_required": true
             }
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -15891,6 +16235,13 @@
               ],
               "live_qualification_required": true
             }
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -16052,6 +16403,13 @@
               ],
               "live_qualification_required": true
             }
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -16202,7 +16560,8 @@
               ],
               "live_qualification_required": true
             }
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -16312,7 +16671,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -16401,7 +16761,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         },
         {
           "key": "0x607D:01",
@@ -16477,7 +16838,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         },
         {
           "key": "0x607D:02",
@@ -16553,7 +16915,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -16700,7 +17063,8 @@
               ],
               "live_qualification_required": true
             }
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -16809,7 +17173,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -16918,7 +17283,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 20
         }
       ]
     },
@@ -17038,7 +17404,8 @@
               "Q20"
             ],
             "generation_type": "withheld"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -17127,7 +17494,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x6099:01",
@@ -17220,7 +17588,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         },
         {
           "key": "0x6099:02",
@@ -17315,7 +17684,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -17433,7 +17803,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     },
@@ -17562,6 +17933,13 @@
               ],
               "live_qualification_required": true
             }
+          },
+          "read_owner_prompt": 19,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -17651,7 +18029,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x60FE:01",
@@ -17742,7 +18121,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         },
         {
           "key": "0x60FE:02",
@@ -17833,7 +18213,8 @@
               "Q20"
             ],
             "generation_type": "resolved"
-          }
+          },
+          "read_owner_prompt": 21
         }
       ]
     },
@@ -17991,7 +18372,8 @@
               ],
               "live_qualification_required": true
             }
-          }
+          },
+          "read_owner_prompt": 38
         }
       ]
     }

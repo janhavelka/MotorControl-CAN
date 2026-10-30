@@ -39,15 +39,15 @@ corrects the standard-versus-device evidence distinction and narrows Q17's
 dependencies; it grants no new runtime capability or hardware qualification.
 
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
-build or hardware qualification has been delivered for that requirement. No CAN
-vendor driver exists yet. The small installed API does not implement motion; prototype evidence below does not change
+build or hardware qualification has been delivered for that requirement. Finite raw Lichuan reads are implemented under 19; no operational drive
+profile or hardware qualification is claimed. The small installed API does not implement motion; prototype evidence below does not change
 that support claim. Reference/data verification is not driver testing.
 
 | Requirement | Prompt owners | Evidence now / remaining scope |
 | --- | --- | --- |
 | R01 | 1-2; recurring all | Prompt 14 refresh records current RS ownership, cancellation and retained-outcome implementations/tests; source map links current proof declarations. Recurring audits remain. |
 | R02 | All | Prompt 14 refresh inspects ADS1115/INA228 cancellation/effect/result seams and actual callers/tests; differences from CAN result/release retained. Recurring audits remain. |
-| R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; motion operations/CLI remain pending. |
+| R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; 19 adds installed typed raw read contexts/getters; motion operations/CLI remain pending. |
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | C++11 api_contract and fixtures build without stack/SDK/Python/siblings; optional owner uses the selected C99 client. Prompt 7 source/install/export consumers pass; the core excludes the optional owner/stack. |
 | R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table, lifetimes and per-call RX/TX/event budgets including zero-budget behavior. Native tests cover copied payload, single RX, reservations, urgent capacity, immutable operation deadlines and retained terminals. Prompt 13 promotes the selected-stack SDO lifecycle with persistent channel quarantine; 15 adds passive node facts and synchronous invalidation to that table; full-owner extensions remain 23. |
 | R06 | 2-4, 19-22, 29-36, 47-50 | Pending |
@@ -55,16 +55,16 @@ that support claim. Reference/data verification is not driver testing.
 | R08 | 2-4, 19-22, 29-36, 47-48 | All 24 conflicting claim sets retain original alternatives and reviewed dispositions; 21 bounded feature gates remain open. No firmware winner invented. |
 | R09 | 9-10, 21-22, 32-36 | Production exact rational parsing/conversion, independent scales, integer rounding and bounded radians/binary32 quantization are host tested. Pure axis/reference mutation, exact endpoints, freshness/epoch checks and offline preview are host tested under 10; native scaling and drive actions retain later owners. |
 | R10 | 9-10, 13-25, 30-32 | Production Status preserves selected call-result semantics/static labels. Production SDO checks and the proof preserve raw U32 aborts separately; acknowledged write retains completion NOT_OBSERVED. Real drive/health/state behavior remains pending. |
-| R11 | 11-18, 23-25 | Real expedited/two-segment SDO proof plus prompt-6 continuous raw event dispatch and boot-up invalidation even when the observation ring is full. Prompt 11 adds installed checked initiation envelopes, legal segmented/abort evidence and real selected-engine vectors. Prompt 13 implements the optional bounded SDO lifecycle and checked 1-32-byte forms; 15 adds pure network codecs, shared node facts and reset/cache invalidation; 16 adds explicit NMT and service eligibility; 17 adds checked actual maps, qualified raw PDO observations and per-route invalidation; remapping remains 18. |
+| R11 | 11-18, 23-25 | Real expedited/two-segment SDO proof plus prompt-6 continuous raw event dispatch and boot-up invalidation even when the observation ring is full. Prompt 11 adds installed checked initiation envelopes, legal segmented/abort evidence and real selected-engine vectors. Prompt 13 implements the optional bounded SDO lifecycle and checked 1-32-byte forms; 15 adds pure network codecs, shared node facts and reset/cache invalidation; 16 adds explicit NMT and service eligibility; 17 adds checked actual maps, qualified raw PDO observations and per-route invalidation; 19 adds checked raw SDO/PDO projection with per-field age/skew; remapping remains 18. |
 | R12 | 13-14, 21-25, 30-39, 45-46 | Production SDO tests cover copied intent/results, bounded queue/response/overall deadlines, per-route quarantine, abort cleanup and no replay. The [independent prompt-13 audit](reports/prompt_13_audit.md) adds abort-during-staging and reply-before-controller-confirmation regressions. Prompt 14 adds separate capture/processing observations, adversarial correlation, copied-TX eligibility, binding invalidation and permanent quarantine where reopening evidence is missing. Real SDK retirement remains pending; [source/evidence gates](reports/prompt_14_sources.md) stay explicit. |
-| R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Prompt 12 generates 194 compact descriptors and complete source/semantic coverage with active freshness checks; four conflicting types and four reserved entries are withheld/excluded. Typed features remain pending; descriptors do not complete reads, setters or actions. |
+| R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Prompt 12 generates 194 compact descriptors and complete source/semantic coverage with active freshness checks; four conflicting types and four reserved entries are withheld/excluded. 19 implements 30 raw read rows with separate read coverage; all remaining read rows have explicit owners 20-22/38. Q20 blocks the non-consuming probe. Descriptors do not complete setters or actions. |
 | R14 | 21-25, 29-36, 47-48 | Pending |
 | R15 | 21-22, 29, 32-36, 47-48 | Pending |
 | R16 | 37-39 | Pending |
 | R17 | 26-28, 40-42, 49-50 | Pending |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Pending |
-| R20 | 7-28, 30-46, 49-50 | Thirty-two explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 30; full runs 31 plus a retained package contract. Generator/object/header and lifecycle tests use the existing registration; current integrated evidence is in the [prompt-17 report](reports/prompt_17.md). |
+| R20 | 7-28, 30-46, 49-50 | Thirty-four explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 32; full runs 33 plus a retained package contract. Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current integrated evidence is in the [prompt-19 report](reports/prompt_19.md). |
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
@@ -79,7 +79,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners retained; prompts 1-14 complete, with exact local/CI evidence in their reports. All later feature, integration and qualification obligations remain pending. |
+| R35 | 1-50 | Current owners retained; prompts 1-17 complete; 18 Blocked and 19 Partial, with exact local/CI evidence in their reports. All later feature, integration and qualification obligations remain pending. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified

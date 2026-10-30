@@ -17,13 +17,13 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md",
 }
 REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
@@ -37,6 +37,9 @@ REQUIRED = {
     "adapters/canopennode/NetworkState.h", "adapters/canopennode/Network.cpp",
     "adapters/canopennode/Nmt.h", "adapters/canopennode/Nmt.cpp", "test/nmt_codec_test.cpp", "test/nmt_services_test.cpp",
     "include/MotorControlCAN/canopen/Pdo.h", "src/canopen/Pdo.cpp",
+    "include/MotorControlCAN/canopen/PdoState.h", "include/MotorControlCAN/ReadOperation.h",
+    "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
+    "test/reads_test.cpp", "examples/reads_preview/main.cpp", "examples/reads_preview/CMakeLists.txt", "examples/reads_preview/README.md",
     "include/MotorControlCAN/profiles/lichuan_c/Pdo.h", "adapters/canopennode/PdoState.h",
     "adapters/canopennode/Pdo.cpp", "test/pdo_codec_test.cpp", "test/pdo_observations_test.cpp",
     "adapters/canopennode/CMakeLists.txt", "adapters/canopennode/SdoClient.h",

@@ -26,14 +26,6 @@ enum class NetworkInvalidation : uint8_t {
     NMT_TRANSITION, ///< Explicit nonreset transition may have transmitted; configuration/scale facts are not changed.
     NMT_RESET ///< Explicit reset may have transmitted; no remote reset acknowledgement is implied.
 };
-/** Independent observation time; zero is valid and unknown capture is explicit. */
-struct ObservationTime {
-    bool present = false; ///< A checked observation exists.
-    bool receivedTimeKnown = false; ///< Source-qualified capture clock is available.
-    uint64_t receivedUs = 0; ///< Original capture microseconds, meaningful only when known.
-    uint64_t processedUs = 0; ///< Supplied owner processing microseconds, never substituted for capture.
-    Generation generation = 0; ///< Source event epoch; compare with current route before qualification.
-};
 /** Synchronous notification, copied before callbacks and never retained by them. */
 struct NetworkInvalidationEvent {
     NetworkRoute previous; ///< Frozen route/epoch whose dependencies are being revoked.

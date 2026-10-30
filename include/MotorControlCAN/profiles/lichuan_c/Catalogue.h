@@ -1965,7 +1965,7 @@ constexpr ObjectMetadata METADATA_1A03_04 = {
 constexpr ObjectMetadata METADATA_2000_00 = {
     OBJECT_2000_00,
     "Obj.driverID",
-    "EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 18",
+    "EDS [2000] lines 1229-1237; EN86 PDF page 17; ZH86 PDF page 17",
     "raw identity code",
     "No exact-model/firmware auto-detection from generic values.",
     "Observe identity metadata; not configuration selection.",
@@ -1983,7 +1983,7 @@ constexpr ObjectMetadata METADATA_2000_00 = {
 constexpr ObjectMetadata METADATA_2001_00 = {
     OBJECT_2001_00,
     "Obj.softversion",
-    "EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 18",
+    "EDS [2001] lines 1238-1246; EN86 PDF page 17; ZH86 PDF page 17",
     "raw identity code",
     "No exact-model/firmware auto-detection from generic values.",
     "Observe identity metadata; not configuration selection.",

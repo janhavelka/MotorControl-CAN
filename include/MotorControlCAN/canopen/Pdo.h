@@ -106,6 +106,15 @@ Status validatePdoMap(const PdoMap& map, const PdoProfile& profile, PdoLayout& o
  * @return OK proves representation only; INVALID_CONFIG otherwise, detail zero.
  */
 Status validatePdoRoute(const PdoRoute& route) noexcept;
+/** Compare complete route, binding, epochs and copied active layout facts.
+ * Performs no validation, I/O, clock access or allocation. Counts beyond the
+ * fixed mapping capacity compare unequal; other invalid equal fields can compare
+ * equal. Inputs are borrowed only during this bounded comparison.
+ * @param[in] a First complete route.
+ * @param[in] b Second complete route.
+ * @return True only for equal semantic route fields, ignoring inactive field storage.
+ */
+bool samePdoRoute(const PdoRoute& a, const PdoRoute& b) noexcept;
 /** Decode one complete byte-aligned native sample atomically.
  * @param[in] frame Borrowed Classical data frame, exact identifier/format/length.
  * @param[in] route Borrowed reviewed current candidate; sample qualification is owner policy.
