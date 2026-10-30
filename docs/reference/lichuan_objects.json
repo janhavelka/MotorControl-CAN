@@ -21852,7 +21852,7 @@
       {
         "id": "Q17",
         "feature": "PDO eligibility / remapping / freshness",
-        "required_evidence": "Read actual map counts and slots, verify direction/access, supported transmission modes and timing units. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker; map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples.",
+        "required_evidence": "Read actual map counts and slots and verify direction/access for the selected model/firmware. Before writes, establish permitted NMT/drive states, COB-ID disable/enable bit semantics, mapping-count reset and entry-write order, activation and complete readback conditions. Establish supported transmission modes, inhibit/event units, ranges, zero behavior and persistence effects separately for RPDO and TPDO; RW flags and raw defaults do not establish these contracts. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker; map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples.",
         "owner_prompts": [
           17,
           18

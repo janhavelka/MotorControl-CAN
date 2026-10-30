@@ -60,6 +60,8 @@ This repository contains planning/reference material and native service/API owne
 
 ### Changed
 
+- Recorded the Prompt 18 PDO configuration blocker and expanded the reviewed Q17 evidence requirement for edit order, allowed states, readback, timing and persistence. Existing passive PDO support is unchanged; no remap/settings API is claimed.
+
 - Corrected initial network attachment to preserve original SDO service-proof
   time and origin, with independent matching-response history across channels.
   Older or unknown-capture responses no longer erase a valid newer service proof.

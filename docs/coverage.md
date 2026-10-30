@@ -30,6 +30,11 @@ The [fresh audit of prompts 15-17](reports/prompts_15_17_audit.md) adds regressi
 for initial service-proof age/origin, independent matching-response history and
 unknown-capture forwarding. R05/R11/R20/R32 retain host-only scope.
 
+[Prompt 18](reports/prompt_18.md) completed its source and prerequisite review
+but remains **Blocked** on Q17 mutation semantics. No remapping/timing operation
+or failure-at-each-mutation-step test is delivered; R12/R13 retain that scope.
+Existing PDO layout/readback/provenance tests are prerequisite evidence only.
+
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
 build or hardware qualification has been delivered for that requirement. No CAN
 vendor driver exists yet. The small installed API does not implement motion; prototype evidence below does not change

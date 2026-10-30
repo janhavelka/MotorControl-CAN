@@ -707,3 +707,25 @@ later invalidation. Generations never wrap; maximum map epoch permits no
 replacement. No active SYNC scheduling or codec is needed by the reviewed
 asynchronous fixtures, and no trajectory guarantee is added here. Remapping
 and its explicit mutation/partial-effect sequences remain prompt 18.
+
+### Lichuan PDO mutation gate
+
+[Prompt 18's source review](reports/prompt_18.md) found no applicable remapping
+procedure in the retained Lichuan manuals or current manufacturer index. The
+typed remap and transmission/event/inhibit setters are not implemented. The
+existing `configurePdo` installs host evidence; it does not configure a drive.
+
+Q17 in the reviewed ledger requires the selected firmware's legal NMT/drive
+states, COB-ID flags/disable behavior, edit/count/enable order, activation and
+complete readback contract. Timer units, supported values, zero behavior and
+persistence also need evidence. EDS RW flags and raw defaults establish none of
+those effects. CANopenNode's documented server procedure and timer units describe
+that stack, not the unidentified Lichuan implementation.
+
+No configuration request should be assembled from these raw fields as a
+substitute for the missing typed operation. Once a subset is established, its
+operation must retain confirmed steps and possible partial effects through the
+existing SDO owner, without replay or rollback. Confirmed configuration and sample
+qualification remain separate under the contract above. The missing procedure
+also prevents meaningful failure-at-each-step acceptance tests; this is an open
+implementation obligation, not completed support behind a capability flag.

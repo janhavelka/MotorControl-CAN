@@ -179,6 +179,11 @@ These are raw source values; they do not prove a motor watchdog or all accepted
 transmission modes. No useful setter meaning is established for compatibility
 entries. Mapping records have four U32 slots and a U8 active count 0..4.
 
+[Prompt 18's original-source review](../reports/prompt_18.md) found no applicable
+disable/edit/enable procedure or timing-setting contract. Q17 now explicitly
+requires these facts before typed mutation; existing passive layouts and
+readback checks do not complete that feature.
+
 | Route | Default ID | Mapping record and active words | Derived payload |
 | --- | --- | --- | --- |
 | RPDO1 | node+0x200 | 1600:60400010,60FF0020,60600008 | 7 bytes |

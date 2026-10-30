@@ -8,6 +8,11 @@ in an [experimental synthetic profile](profile_contract.md). That page maps
 proof declarations to route intent. No CLI route or installed vendor API exists
 yet; the inventory below retains its later implementation owners.
 
+[Prompt 18](reports/prompt_18.md) is blocked on the Lichuan PDO mutation contract
+(Q17). No typed remap/timing API or corresponding CLI route is implemented.
+`configurePdo` installs host map evidence only; raw SDO access and EDS metadata
+do not substitute for those missing operations.
+
 The selected detailed vocabulary is centralized in [CONVENTIONS.md](prompts/CONVENTIONS.md), backed by the [fresh source audit](audit/CONVENTIONS_REAUDIT.md). Use that contract for exact status, context, owner and health names; this file maps them to user-facing intent and CLI routes.
 
 The [multi-drive decision](multidrive_decision.md) makes these common motion names apply to both stepper and servo drives. CANopen and Lichuan are the first concrete backend/profile, not mandatory public axis semantics. Future families have their own namespaces and typed contexts; test-only N5/EPOS4/proprietary contrasts must not appear as installed drivers.

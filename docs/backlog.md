@@ -27,6 +27,7 @@ device facts gate the smallest dependent feature, not all independent work.
 | D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware | Q01: 29/37 retain explicit model provenance; raw discovery may precede binding. Four model entries distinguish OL no-encoder hardware from unknown software capability. Prompt 4's N5/EPOS4 contrasts are documentary evidence, not installed profiles. |
 | D13 | Read consumption and complete 60FD bit layout are not established by source access flags | Q20/Q19: 19 qualifies affected polling/decoding; retain raw values meanwhile. Do not copy 2101 bits or infer a non-consuming read. |
 | D14 | No complete local/remote settlement boundary for reopening an unresolved Lichuan SDO channel; no proven second server channel | 14 implements permanent quarantine and explicit unsupported capabilities. Q18/Q16/Q20 plus model provenance gate any later reopening: prove old TX/RX retirement, server session bounds and permitted confirmation, not a quiet delay or host epoch. See [source evidence](reports/prompt_14_sources.md). |
+| D15 | No applicable Lichuan PDO disable/edit/enable order, permitted state, readback contract or timer/persistence semantics | Q17: [Prompt 18 is Blocked](reports/prompt_18.md). Obtain matched-model manufacturer clarification or separately authorized fixture evidence; then implement the typed sequence and every-step failure tests in 18. Existing passive templates/readback do not grant mutation permission. |
 
 The canonical [qualification checklist](reference/lichuan_review.md) and ledger
 give the exact required observations and selected-model scope for Q01-Q21.
@@ -48,6 +49,7 @@ resolve the above facts by themselves.
 | S07 | Shared examples and evidence harness | 26-29: real public path and thin adapters. Inspected TWAI queue clear cannot retire an active hardware frame; 27 must verify actual controller evidence and synchronization. Conditional acquisition remains 29. |
 | S08 | Common motion and native commissioning/persistence | 30-39: each assigned supported function with positive/negative tests, Doxygen and failure evidence |
 | S09 | Shared CLI and Python automation | 40-44: one inventory/schema, correlation, exact parser, finite campaigns and offline failures |
+| S10 | Resume typed PDO configuration after Q17 evidence | 18 owns preparation/progression, immutable deadlines, exact partial effects, reviewed settings and final readback publication. Reuse the existing SDO/PDO owner; integrate with the completed application owner if available on resumption. No always-rejecting stub or generic vendor sequence completes this item. |
 | I01 | Integrate delayed 18/20-22 work through completed owner | Original owning prompts plus 45: actual settings/remap traces, not only synthetic owner fixtures |
 | I02 | FieldCore-like consumer and multi-drive contrasts | 45-46: IDs/generations/effects without importing FieldCore types; one physical receiver and protocol-specific services |
 | I03 | Native package and support/documentation closure | 49-50: installed scope matches actual APIs/tests/firmware/qualification; no placeholder profile or invented release status |
