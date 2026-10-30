@@ -16,8 +16,8 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
-| Read shape descriptors | 30 | Prompt 19 source width/representation only; read effects remain unqualified |
-| Typed reads | 30 | Implemented scalar read rows; see separate read coverage, not whole-object support |
+| Read shape descriptors | 39 | Prompt 19/20 source width/representation only; read effects remain unqualified |
+| Typed reads | 39 | Implemented scalar read rows; see separate read coverage, not whole-object support |
 | Typed settings | 0 | Assigned semantic prompts remain pending |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
@@ -308,9 +308,9 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | 0x2100:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x2101:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x2102:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
-| 0x2200:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x2200:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | 38 | yes/no/no/no | not reported |
 | 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 38 | yes/no/no/no | not reported |
 | 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
@@ -382,12 +382,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | 0x606C:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x607A:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 33 | 38 | yes/no/no/no | not reported |
 | 0x607C:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
-| 0x607D:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x607D:01 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x607D:02 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x6081:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x6083:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
-| 0x6084:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | not reported |
+| 0x607D:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x607D:01 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x607D:02 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x6081:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x6083:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
+| 0x6084:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x6098:00 | value | U8 / 1 / false | RW / RW | 1 / `null` (not stated) | withheld | 36 | 38 | yes/no/no/no | not reported |
 | 0x6099:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 36 | 38 | yes/no/no/no | not reported |
 | 0x6099:01 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
@@ -3221,8 +3221,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DefautDir"} |
 
@@ -3246,8 +3246,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | ["C12"] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.MicDivide"} |
 
@@ -3271,8 +3271,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | ["C13"] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Soft_Limit"} |
 
@@ -5071,8 +5071,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -5096,8 +5096,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | SIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Soft MIN Limit"} |
 
@@ -5121,8 +5121,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | SIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Soft MAX Limit"} |
 
@@ -5146,8 +5146,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "60", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "posmode speed"} |
 
@@ -5171,8 +5171,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "accel time"} |
 
@@ -5196,8 +5196,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "decel time"} |
 

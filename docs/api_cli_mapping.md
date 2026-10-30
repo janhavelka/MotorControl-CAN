@@ -21,6 +21,10 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 20 implements `prepareDriverRead/nextDriver/advanceDriver/getDriver` for
+the [three native read groups](driver_settings.md). Settings write progression
+and its future typed CLI route remain unimplemented under their evidence gates.
+
 Use free `camelCase` functions/fields, `PascalCase` types, `CAPS_CASE` constants and enum values, namespace `MotorControlCAN`, and profile namespace `MotorControlCAN::LICHUAN_C`. Keep `Status { Err code; int32_t detail; const char* msg; }`, free `Ok()`, `Status::isOk()`, explicit bool and free `errToString()` returning static-lifetime labels. Preserve `OK`, `INVALID_CONFIG`, `ILLEGAL_VALUE`, `UNSUPPORTED` and `FRAME_ERROR`; select `PROTOCOL_ERROR` for a checked native service rejection. Do not retain `CRC_ERROR` or RTU `EXCEPTION`. A raw SDO abort needs a separate `uint32_t abortCode` with validity in protocol evidence; never truncate or silently sign-convert it into generic detail.
 
 I2C siblings differ in lifecycle, status helpers and health enum members. Carry over their single-owner, bounded job and cached diagnostics conventions. Do not invent a shared `begin()/update()/health()` interface. The stateless core has no lifecycle service. The example `CanBusOwner` uses actual RS `admit/admitUrgent/service/result/release/cancel` vocabulary, with adapter-specific signatures documented.

@@ -20,10 +20,13 @@ enum {
 };
 /** Concrete intent; these are raw reads, not model discovery or motion. */
 enum class ReadKind : uint8_t {
-    PROBE,    ///< Single candidate 1000 upload, requires reviewed non-changing effect.
-    IDENTITY, ///< Nine identity fields; no absent 1018:04.
-    STATE,    ///< Explicit selected state blocks.
-    CONFIG    ///< Six communication configuration fields, no mutations.
+    PROBE,              ///< Single candidate 1000 upload, requires reviewed non-changing effect.
+    IDENTITY,           ///< Nine identity fields; no absent 1018:04.
+    STATE,              ///< Explicit selected state blocks.
+    CONFIG,             ///< Six communication configuration fields, no mutations.
+    DRIVER,             ///< Two native driver fields; use DriverSettings.h wrappers.
+    DRIVER_SOFT_LIMITS, ///< Four raw limit fields, without frame/enforcement inference.
+    DRIVER_MOTION_PARAMETERS ///< Three native speed/ramp fields, no motion execution.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {

@@ -264,10 +264,17 @@ class GenerationTests(unittest.TestCase):
         for index, children in ((0x1003, 4), (0x1018, 3), (0x1200, 2)):
             expected[(index, 0)] = (1, "UNSIGNED")
             expected.update({(index, sub): (4, "UNSIGNED") for sub in range(1, children + 1)})
-        self.assertEqual(len(actual), 30)
+        for index in (0x2200, 0x2201, 0x2202):
+            expected[(index, 0)] = (2, "UNSIGNED")
+        expected[(0x607D, 0)] = (1, "UNSIGNED")
+        for sub in (1, 2):
+            expected[(0x607D, sub)] = (4, "SIGNED")
+        for index in (0x6081, 0x6083, 0x6084):
+            expected[(index, 0)] = (4, "UNSIGNED")
+        self.assertEqual(len(actual), 39)
         self.assertEqual({(int(index, 16), int(sub, 16)): (int(width), sign)
                           for index, sub, width, sign in actual}, expected)
-        self.assertIn("i < 30", header)
+        self.assertIn("i < 39", header)
         self.assertNotIn("Catalogue.h", header)
         self.assertNotIn("OBJECT_6061_00", header)
 
@@ -281,7 +288,7 @@ class GenerationTests(unittest.TestCase):
             row["read_coverage"] = dict(documented=True, implemented=True,
                                         host_tested=True, hardware_qualified=False)
         document = coverage_document(data, projected_rows(data["objects"]))
-        self.assertIn("| Read shape descriptors | 30 |", document)
+        self.assertIn("| Read shape descriptors | 39 |", document)
         self.assertIn("| Typed reads | 2 |", document)
         self.assertIn("| Read owner prompt | 19 |", document)
         self.assertIn("| Read owner prompt | 38 |", document)

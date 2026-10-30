@@ -5,6 +5,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
+#include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
 #include <cstring>
 
 int main() {
@@ -106,5 +107,27 @@ int main() {
     if (!LICHUAN_C::getConfig(reads,readTarget,5,10,observedConfig) ||
         observedConfig.producerTimeMs != 0 || observedConfig.clientToServer != 0x605 ||
         observedConfig.window.skewUs != 5) return 28;
+    LICHUAN_C::DriverContext driver;
+    if (!LICHUAN_C::prepareDriverRead(driver, readTarget, 2, 10, 100, readOptions,
+                                    LICHUAN_C::DriverGroup::SOFT_LIMITS)) return 29;
+    const uint32_t limitWords[] = {10, 2, 0x80000000u, 0x7fffffffu};
+    for (unsigned i = 0; i < 4; ++i) {
+        LICHUAN_C::PreparedRead prepared;
+        if (!LICHUAN_C::nextDriver(driver, 10+i, prepared) || !prepared.ready ||
+            prepared.transfer.direction != CANOPEN::SdoDirection::UPLOAD) return 30;
+        CANOPEN::SdoCompletion completed;
+        completed.transfer = prepared.transfer; completed.nodeGeneration = 1;
+        completed.admittedUs = completed.completedUs = 10+i;
+        completed.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        completed.queued = completed.transmissionPossible = completed.protocolAcknowledged = completed.effectPossible = true;
+        completed.size = prepared.transfer.size;
+        for (unsigned j = 0; j < 4 && j < completed.size; ++j)
+            completed.data[j] = uint8_t(limitWords[i] >> (8*j));
+        if (!LICHUAN_C::advanceDriver(driver, completed, 10+i)) return 31;
+    }
+    LICHUAN_C::DriverObservation observedDriver;
+    if (!LICHUAN_C::getDriver(driver, readTarget, 13, 20, observedDriver) ||
+        observedDriver.softLimitSelectorRaw != 10 || observedDriver.minimumNative != INT32_MIN ||
+        observedDriver.maximumNative != INT32_MAX || observedDriver.window.skewUs != 3) return 32;
     return 0;
 }

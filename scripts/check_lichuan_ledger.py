@@ -54,7 +54,7 @@ def read_descriptor_representation(entry):
 
 
 def read_owner_errors(entry):
-    """Validate separate read ownership; only Prompt 19 produces a read table."""
+    """Validate separate read ownership and implemented group scope."""
     owner = entry.get("read_owner_prompt")
     label = str(entry.get("key")) + ": read owner "
     readable = (entry.get("role") != "reserved" and
@@ -66,6 +66,15 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 20:
+        allowed = {(0x2200, 0), (0x2201, 0), (0x2202, 0), (0x607D, 0),
+                   (0x607D, 1), (0x607D, 2), (0x6081, 0), (0x6083, 0), (0x6084, 0)}
+        index, subindex = entry.get("index"), entry.get("subindex")
+        if type(index) is not int or type(subindex) is not int or (index, subindex) not in allowed:
+            return [label + "outside the reviewed Prompt 20 read scope"]
+        if generation_disposition(entry) != "resolved":
+            return [label + "requires a resolved native read type"]
+        return []
     if owner != 19:
         return []
     index, subindex = entry.get("index"), entry.get("subindex")
@@ -101,8 +110,8 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") != 19 or read_owner_errors(entry):
-        errors.append(label + "requires a reviewed Prompt 19 read")
+    if entry.get("read_owner_prompt") not in (19, 20) or read_owner_errors(entry):
+        errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")
     if value["host_tested"] and not value["implemented"]:

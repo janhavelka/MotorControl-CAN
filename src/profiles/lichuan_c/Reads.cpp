@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+#include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 
@@ -40,13 +41,43 @@ const Address state[] = {{0x1001, 0}, {0x603f, 0}, {0x1003, 0}, {0x1003, 1}, {0x
                          {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}, {0x60fd, 0}};
 const uint8_t starts[STATE_BLOCKS] = {0, 2, 7, 10, 12, 14};
 const uint8_t lengths[STATE_BLOCKS] = {2, 5, 3, 2, 2, 1};
+const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
+const Address softLimits[] = {{0x2202, 0}, {0x607d, 0}, {0x607d, 1}, {0x607d, 2}};
+const Address motionParameters[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
+
+const Address* driverPlan(ReadKind kind, unsigned& count) {
+    switch (kind) {
+    case ReadKind::DRIVER:
+        count = 2;
+        return driver;
+    case ReadKind::DRIVER_SOFT_LIMITS:
+        count = 4;
+        return softLimits;
+    case ReadKind::DRIVER_MOTION_PARAMETERS:
+        count = 3;
+        return motionParameters;
+    default:
+        count = 0;
+        return nullptr;
+    }
+}
+bool driverKind(ReadKind kind) {
+    unsigned count;
+    return driverPlan(kind, count) != nullptr;
+}
 
 bool add(ReadContext& c, Address address) {
     return c.count < READ_FIELDS &&
            readDescriptor(address.index, address.subindex, c.values[c.count++].object);
 }
 bool plan(ReadContext& c) {
-    if (c.kind == ReadKind::IDENTITY) {
+    unsigned driverCount;
+    const Address* driverFields = driverPlan(c.kind, driverCount);
+    if (driverFields) {
+        for (unsigned i = 0; i < driverCount; ++i)
+            if (!add(c, driverFields[i]))
+                return false;
+    } else if (c.kind == ReadKind::IDENTITY) {
         for (const Address& address : identity)
             if (!add(c, address))
                 return false;
@@ -103,8 +134,11 @@ bool shape(const ReadContext& c) {
         } else if (c.kind == ReadKind::PROBE) {
             addresses = identity;
             count = 1;
-        } else
-            return false;
+        } else {
+            addresses = driverPlan(c.kind, count);
+            if (!addresses)
+                return false;
+        }
         for (unsigned i = 0; i < count; ++i) {
             if (cursor >= c.count)
                 return false;
@@ -593,6 +627,84 @@ Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& t
     case StateBlock::INPUTS:
         candidate.digitalInputs = v[0].raw;
         break;
+    }
+    output = candidate;
+    return Ok();
+}
+Status prepareDriverRead(DriverContext& c, const ReadTarget& target, uint32_t operation,
+                         uint64_t now, uint64_t deadline, const ReadOptions& options,
+                         DriverGroup group) noexcept {
+    ReadKind kind;
+    switch (group) {
+    case DriverGroup::DRIVER:
+        kind = ReadKind::DRIVER;
+        break;
+    case DriverGroup::SOFT_LIMITS:
+        kind = ReadKind::DRIVER_SOFT_LIMITS;
+        break;
+    case DriverGroup::MOTION_PARAMETERS:
+        kind = ReadKind::DRIVER_MOTION_PARAMETERS;
+        break;
+    default:
+        return invalid(ReadError::ARGUMENT, "unknown native driver group");
+    }
+    return prepare(c.read, target, operation, now, deadline, options, kind, 0, nullptr);
+}
+Status nextDriver(const DriverContext& c, uint64_t now, PreparedRead& output) noexcept {
+    if (!driverKind(c.read.kind))
+        return invalid(ReadError::STATE, "not a driver context");
+    return nextRead(c.read, now, output);
+}
+Status advanceDriver(DriverContext& c, const CANOPEN::SdoCompletion& input, uint64_t now) noexcept {
+    if (!driverKind(c.read.kind))
+        return invalid(ReadError::STATE, "not a driver context");
+    return advanceRead(c.read, input, now);
+}
+Status advanceDriver(DriverContext& c, ReadOutcome reason, uint64_t now) noexcept {
+    if (!driverKind(c.read.kind))
+        return invalid(ReadError::STATE, "not a driver context");
+    return advanceRead(c.read, reason, now);
+}
+Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
+                 DriverObservation& output) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &target, sizeof target))
+        return invalid(ReadError::OVERLAP, "driver output overlaps input");
+    Status status = current(c.read, target, now, age);
+    if (!status)
+        return status;
+    if (!driverKind(c.read.kind) || c.read.state != ReadState::SUCCEEDED ||
+        c.read.source != ReadSource::SDO)
+        return invalid(ReadError::STATE, "driver group incomplete or wrong context");
+    DriverObservation candidate;
+    candidate.target = c.read.target;
+    status = fields(c.read, 0, c.read.count, now, age, candidate.window);
+    if (!status)
+        return status;
+    candidate.fieldCount = c.read.count;
+    for (unsigned i = 0; i < c.read.count; ++i)
+        candidate.fields[i] = c.read.values[i].provenance;
+    const ReadValue* v = c.read.values;
+    switch (c.read.kind) {
+    case ReadKind::DRIVER:
+        candidate.directionRaw = uint16_t(v[0].raw);
+        candidate.subdivisionRaw = uint16_t(v[1].raw);
+        break;
+    case ReadKind::DRIVER_SOFT_LIMITS:
+        candidate.group = DriverGroup::SOFT_LIMITS;
+        candidate.softLimitSelectorRaw = uint16_t(v[0].raw);
+        candidate.softLimitEntries = uint8_t(v[1].raw);
+        candidate.minimumNative = signed32(v[2].raw);
+        candidate.maximumNative = signed32(v[3].raw);
+        break;
+    case ReadKind::DRIVER_MOTION_PARAMETERS:
+        candidate.group = DriverGroup::MOTION_PARAMETERS;
+        candidate.positionSpeedRpm = v[0].raw;
+        candidate.rampUpTimeMs = v[1].raw;
+        candidate.rampDownTimeMs = v[2].raw;
+        break;
+    default:
+        return invalid(ReadError::STATE, "unknown driver observation");
     }
     output = candidate;
     return Ok();

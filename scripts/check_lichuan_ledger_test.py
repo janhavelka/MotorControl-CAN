@@ -94,13 +94,32 @@ class LedgerTests(unittest.TestCase):
             self.assertFalse(row["coverage"]["implemented"])
         self.assertEqual(validate_ledger(data), [])
 
+    def test_driver_read_scope_and_coverage_stay_separate_from_writes(self):
+        data = self.changed()
+        for key in ("0x2200:00", "0x2201:00", "0x2202:00", "0x607D:00",
+                    "0x607D:01", "0x607D:02", "0x6081:00", "0x6083:00", "0x6084:00"):
+            row = entry(data, key)
+            self.assertEqual(row["read_owner_prompt"], 20)
+            row["read_coverage"] = dict(documented=True, implemented=True,
+                                        host_tested=True, hardware_qualified=False)
+            self.assertFalse(row["coverage"]["implemented"])
+            self.assertEqual(row["review"]["read_effect"], "not_established")
+        self.assertEqual(validate_ledger(data), [])
+        for key in ("0x2502:00", "0x1000:00", "0x60FF:00", "0x607D:03"):
+            data = self.changed()
+            row = entry(data, key) if key != "0x607D:03" else entry(data, "0x607D:02")
+            row["read_owner_prompt"] = 20
+            if key == "0x607D:03":
+                row["subindex"] = 3
+            self.reject(data, "read owner outside the reviewed Prompt 20")
+
     def test_read_coverage_cannot_widen_scope_or_claim_hardware(self):
         coverage = dict(documented=True, implemented=True, host_tested=True,
                         hardware_qualified=False)
         for key in ("0x6040:00", "0x2400:09", "0x1600:00", "0x2203:00"):
             data = self.changed()
             entry(data, key)["read_coverage"] = coverage.copy()
-            self.reject(data, "read coverage requires a reviewed Prompt 19")
+            self.reject(data, "read coverage requires a reviewed implemented-group")
         cases = [(None, "fields invalid"), ({}, "fields invalid"),
                  (dict(coverage, extra=False), "fields invalid"),
                  (dict(coverage, implemented=1), "must be boolean"),

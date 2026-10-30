@@ -9074,7 +9074,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -9182,7 +9188,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -9286,7 +9298,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -16762,7 +16780,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x607D:01",
@@ -16839,7 +16863,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x607D:02",
@@ -16916,7 +16946,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -17064,7 +17100,13 @@
               "live_qualification_required": true
             }
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -17174,7 +17216,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -17284,7 +17332,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 20
+          "read_owner_prompt": 20,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },

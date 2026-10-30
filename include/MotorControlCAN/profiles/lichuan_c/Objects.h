@@ -1564,7 +1564,7 @@ constexpr ObjectDescriptor OBJECT_60FE_02 = {
     21, 0x00080061u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief Copy the reviewed shape of one Prompt 19 read.
+/** @brief Copy the reviewed shape of one implemented native read.
  * Contains only explicitly assigned readable source rows. Raw mode bytes retain
  * disputed signedness; a match does not qualify read effects, polling, physical
  * units, interpretation, firmware identity or a non-changing probe.
@@ -1602,14 +1602,23 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x2100, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2101, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2102, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2200, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2201, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2202, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x603F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6041, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6064, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x606C, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x607D, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x607D, 0x01, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x607D, 0x02, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6081, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6083, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6084, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FD, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
     };
-    for (uint8_t i = 0; i < 30; ++i) {
+    for (uint8_t i = 0; i < 39; ++i) {
         if (rows[i].index == index && rows[i].subindex == subindex) {
             output = rows[i];
             return true;

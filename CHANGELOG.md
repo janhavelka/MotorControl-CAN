@@ -6,6 +6,11 @@ This repository contains planning/reference material and native service/API owne
 
 ### Added
 
+- Three typed native Lichuan read groups covering nine direction/subdivision,
+  software-limit and speed/ramp rows, with checked `getDriver`, per-field age,
+  unknown raw values and an offline caller. They reuse the existing finite read
+  engine. Prompt 20 remains Partial: no write-state or scale permission is inferred.
+
 - Installed finite raw Lichuan identity, state and communication reads for 30
   explicitly assigned rows, with checked getters, per-field SDO/PDO provenance,
   conservative age/skew, retained aborts and an offline compiled preview.

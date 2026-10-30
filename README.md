@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+**Native settings reads:** [three typed driver groups](docs/driver_settings.md)
+now cover direction/subdivision, software limits and position speed/ramp times.
+Prompt 20 is Partial: write sequences and configuration effects remain gated by
+their specific state/scale evidence. No settings writes are advertised.
+
 **Typed reads:** finite raw Lichuan identity, state and communication reads are
 implemented and host tested. See the [read guide](docs/reads.md) and
 [offline example](examples/reads_preview/README.md). Model matching, disputed

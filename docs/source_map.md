@@ -26,6 +26,14 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 
 ## Typed raw reads (prompt 19)
 
+Prompt 20 adds [DriverSettings.h](../include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h)
+and three fixed plans in the same [read implementation](../src/profiles/lichuan_c/Reads.cpp).
+[Driver tests](../test/driver_settings_test.cpp), the
+[offline caller](../examples/driver_settings_preview/main.cpp) and isolated
+installed consumer use the actual public wrappers. Matching, deadlines, epochs
+and failed-output rules are shared with prompt 19; no second service engine is
+introduced. The [group guide](driver_settings.md) owns units and write gates.
+
 | Responsibility | Actual declaration/implementation | Actual caller/test | Boundary |
 | --- | --- | --- | --- |
 | Typed lifecycle and getters | [Common read phases](../include/MotorControlCAN/ReadOperation.h), [profile API](../include/MotorControlCAN/profiles/lichuan_c/Reads.h), [implementation](../src/profiles/lichuan_c/Reads.cpp) | [Independent fake-owner tests](../test/reads_test.cpp), [compiled preview](../examples/reads_preview/main.cpp), isolated installed consumer | 30 raw rows; unknown model/status/scale/effects preserved. Non-consuming probe remains Q20 gated. |
