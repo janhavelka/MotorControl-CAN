@@ -2,6 +2,10 @@
 
 ## Status and owned scope
 
+The [fresh independent audit](prompt_19_audit.md) closes a read-ownership
+validation gap and records new lifecycle/source/package checks. Runtime scope
+and the Q20 evidence blocker are unchanged.
+
 **Partial.** All 30 assigned raw read rows and their negative contracts are
 implemented and host tested. The documented non-consuming probe remains blocked
 by Q20: neither the original manuals nor EDS establishes non-consuming upload

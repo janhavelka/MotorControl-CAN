@@ -32,16 +32,35 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(sum(len(obj["entries"]) for obj in LEDGER["objects"]), 202)
         self.assertEqual(len(LEDGER["manual_only"]), 53)
 
-    def test_read_ownership_is_optional_and_does_not_change_object_ownership(self):
+    def test_read_ownership_does_not_change_object_ownership(self):
         data = self.changed()
         row = entry(data, "0x1005:00")
         self.assertEqual(row["owner_prompt"], 38)
         self.assertEqual(row["read_owner_prompt"], 19)
-        row.pop("read_coverage", None)
-        row.pop("read_owner_prompt")
         self.assertEqual(validate_ledger(data), [])
-        row["read_owner_prompt"] = None
-        self.assertEqual(validate_ledger(data), [])
+
+    def test_missing_or_null_read_owner_cannot_drop_a_readable_obligation(self):
+        # Cover each read owner, including history and deferred PDO records.
+        for key in ("0x1003:01", "0x1005:00", "0x2201:00", "0x2400:01",
+                    "0x2500:00", "0x1400:01"):
+            for missing in (True, False):
+                with self.subTest(key=key, missing=missing):
+                    data = self.changed()
+                    row = entry(data, key)
+                    row.pop("read_coverage", None)
+                    if missing:
+                        row.pop("read_owner_prompt")
+                    else:
+                        row["read_owner_prompt"] = None
+                    self.reject(data, "read owner required for a nonreserved readable")
+
+    def test_only_nonreadable_or_reserved_rows_may_have_no_read_owner(self):
+        for key in ("0x6040:00", "0x6060:00", "0x2400:09"):
+            data = self.changed()
+            row = entry(data, key)
+            self.assertIsNone(row["read_owner_prompt"])
+            row.pop("read_owner_prompt")
+            self.assertEqual(validate_ledger(data), [])
 
     def test_invalid_read_owners_and_forbidden_reads_are_rejected(self):
         for value in (True, False, 0, 51, -1, "19", [], {}):

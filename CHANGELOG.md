@@ -97,6 +97,10 @@ This repository contains planning/reference material and native service/API owne
 
 ### Fixed
 
+- Reject missing/null ownership for readable ledger entries, preventing history
+  and deferred communication/PDO read obligations from disappearing silently.
+  Independent prompt-19 review found no runtime defect; its Q20 probe gate remains.
+
 - Fixed matching server aborts being ignored while the next SDO segment was staged; pending TX is now retired before processing the abort. Delayed controller confirmation for the latest live handoff now remains valid after a nonfinal reply, until the next handoff supersedes its token. Independent upload/download regressions preserve quarantine, deadlines and immutable terminals.
 
 - Fixed object catalogue generation for supplementary Unicode and C++11 trigraph/escape boundaries; invalid UTF-8 surrogates fail before publication. Generated coverage now retains each documentary disposition and all three RPDO1 source mapping words.

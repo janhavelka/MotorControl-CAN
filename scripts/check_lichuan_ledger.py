@@ -56,14 +56,15 @@ def read_descriptor_representation(entry):
 def read_owner_errors(entry):
     """Validate separate read ownership; only Prompt 19 produces a read table."""
     owner = entry.get("read_owner_prompt")
-    if owner is None:
-        return []
     label = str(entry.get("key")) + ": read owner "
+    readable = (entry.get("role") != "reserved" and
+                entry.get("access_eds") in ("RO", "RW") and
+                entry.get("access_reviewed") in ("RO", "RW"))
+    if owner is None:
+        return [label + "required for a nonreserved readable source entry"] if readable else []
     if type(owner) is not int or not 1 <= owner <= 50:
         return [label + "must be an integer prompt in 1..50 or null"]
-    if (entry.get("role") == "reserved" or
-            entry.get("access_eds") not in ("RO", "RW") or
-            entry.get("access_reviewed") not in ("RO", "RW")):
+    if not readable:
         return [label + "requires a nonreserved readable source entry"]
     if owner != 19:
         return []

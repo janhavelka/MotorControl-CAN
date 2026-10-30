@@ -19,7 +19,7 @@ from generate_lichuan_objects import (LEDGER_PATH, OUTPUT_PATHS, catalogue_heade
 
 
 def fixture_entry(index=0x1009, subindex=0):
-    """A small documentary fixture, independent of the production dictionary."""
+    """A synthetic separately owned read; tests opt into Prompt 19 when needed."""
     return {
         "key": "0x{:04X}:{:02X}".format(index, subindex), "index": index, "subindex": subindex,
         "scope_id": "eds_family_unbound", "role": "value",
@@ -30,7 +30,8 @@ def fixture_entry(index=0x1009, subindex=0):
         "scaling": "unknown", "pdo_mapping_eds": "0", "pdo_mapping_reviewed": False,
         "effect": "unknown", "prerequisites": ["unbound fixture"], "edge_behavior": "unknown",
         "source_refs": [{"id": "EDS", "section": "1009", "line_start": 1, "line_end": 3}],
-        "owner_prompt": 19, "disposition": "supported_evidence", "exclusion_reason": None,
+        "owner_prompt": 19, "read_owner_prompt": 38,
+        "disposition": "supported_evidence", "exclusion_reason": None,
         "conflict_ids": [], "review": {"status": "complete", "generation_type": "resolved",
             "read_effect": "not_established", "write_policy": "not_writable",
             "gate_ids": ["Q01", "Q20"]}}
@@ -123,7 +124,7 @@ class ProjectionTests(unittest.TestCase):
     def test_reserved_entry_excluded_from_both_headers(self):
         entry = fixture_entry(0x2400, 9)
         entry.update(role="reserved", disposition="excluded", exclusion_reason="Reserved source slot",
-                     access_reviewed=None)
+                     access_reviewed=None, read_owner_prompt=None)
         entry["review"].update(generation_type="excluded", write_policy="reserved")
         rows = projected_rows(fixture_objects(entry))
         self.assertNotIn("OBJECT_2400_09", objects_header(rows))
@@ -182,6 +183,16 @@ class ProjectionTests(unittest.TestCase):
         entry["access_eds"] = entry["access_reviewed"] = "WO"
         entry["review"]["write_policy"] = "qualification_required"
         self.reject(entry, "read owner requires a nonreserved readable")
+
+    def test_read_projection_cannot_silently_drop_read_ownership(self):
+        for missing in (True, False):
+            with self.subTest(missing=missing):
+                entry = fixture_entry()
+                if missing:
+                    entry.pop("read_owner_prompt")
+                else:
+                    entry["read_owner_prompt"] = None
+                self.reject(entry, "read owner required for a nonreserved readable")
 
     def test_read_projection_rejects_reserved_and_unassigned_groups(self):
         entry = fixture_entry(0x2400, 9)
