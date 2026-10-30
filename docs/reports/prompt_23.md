@@ -128,3 +128,10 @@ Staged integrity, committed integrity, push, fresh ahead/behind and exact
 final-commit CI status are checked for the delivery handoff; its CI receipt is
 retained as `.build/p23-final-ci.json`. No hardware traffic, firmware build or
 physical qualification is claimed.
+
+## Fresh independent audit
+
+The subsequent [22/23 audit](prompts_22_23_audit.md) rechecks the original prompts,
+code and primary sources. It adds actual settings failure/retention scenarios
+through the owner and removes unused duplicate request storage. Its report
+records the current checks and unchanged evidence limits.

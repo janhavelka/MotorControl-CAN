@@ -129,5 +129,7 @@ using an earlier green run is not remote verification.
 Remaining work is precise: obtain admissible domain/scaling/effect evidence
 for the 32 withheld writes and qualify the selected model/firmware physically.
 Retain this prompt as Partial and return here when those facts arrive. Prompt
-23 owns the complete application scheduler; its actual settings integration is
-not claimed by the existing fake-service tests. No hardware traffic was issued.
+23 owns the complete application scheduler; its actual settings integration was
+not claimed by the original fake-service tests. The subsequent
+[fresh independent 22/23 audit](prompts_22_23_audit.md) adds real-owner settings
+failure/retention coverage. No hardware traffic was issued.

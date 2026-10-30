@@ -75,8 +75,12 @@ auto status = L::prepareTuningRead(read, target, operation, nowUs, deadlineUs,
 The compiled [standalone consumer](../test/installed_consumer/main.cpp) exercises
 control acquisition, an explicit loop candidate and withdrawal before admission.
 The independent [native suite](../test/tuning_test.cpp) drives all 33 literal
-objects and the loop write through the actual optional fake CANopen owner.
-Its illustrative words/model premises do not qualify a real drive.
+objects and the loop write through the selected service adapter. The
+[application-owner suite](../test/can_bus_owner_test.cpp) additionally drives
+actual control reads and loop settings through copied admission, scheduling,
+pre-TX notification and retained completion, including failed readback and
+uncertain downloads. Its illustrative words/model premises do not qualify a
+real drive.
 
 ## Explicit loop mutation and retained effects
 
@@ -113,6 +117,13 @@ uncertainty. No rollback, retry, enable, stop, save or reset is emitted.
 `INEFFECTIVE` is the vendor selector label. It is not advertised as motor
 disable, stop or release. Requested loop mode, read register value, actual
 physical activation and motion completion are separate facts.
+
+EN86/ZH86 PDF p19 document the selector's type, access and values without a
+drive-state precondition or activation interval. This API confirms the native
+register transaction only; it does not establish a qualified physical loop
+transition. The broader Q09 evidence gate remains open for unestablished tuning
+domains/effects and model/firmware qualification. No disabled-state rule or
+fixed activation delay is inferred from another profile.
 
 ## Other accounting and verification
 

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Added real application-owner loop-setting failure checks for uncertainty,
+  retained acknowledgements, readback failures and unrelated-node progress.
+  Removed an unused duplicate generation field from each owner request slot.
+
 ### Ordinary application CAN owner
 
 - Add copied admission, per-axis/physical-peer reservations, fair bounded

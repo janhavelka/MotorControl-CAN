@@ -201,7 +201,7 @@ class CanBusOwner {
     } sequences_[SEQUENCES];
     struct Slot {
         bool occupied = false, terminal = false, submitted = false, guarded = false;
-        uint32_t generation = 0, nodeGeneration = 0;
+        uint32_t generation = 0;
         uint64_t queueDeadlineUs = 0;
         BusRequest request;
         MotorControlCAN::CANOPEN::SdoRequestId native;

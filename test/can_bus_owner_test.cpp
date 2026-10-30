@@ -947,6 +947,207 @@ void publicReadAndConfirmedControlSetting() {
     CHECK(r.fake.guards == 1 && r.fake.sentCount == 7);
     CHECK(r.owner.releaseSequence(s));
 }
+
+E::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& settings) {
+    const auto sequence = r.sequence(1, 1, 11);
+    L::DriverContext prior;
+    CHECK(L::prepareControlRead(prior, target(), 11, r.now, 1000, options()));
+    for (unsigned i = 0; i < 2; ++i) {
+        L::PreparedRead work;
+        CHECK(L::nextDriver(prior, r.now, work) && work.ready);
+        const auto event = r.exchange(sequence, work.transfer, i ? 0xffff : 0);
+        CHECK(L::advanceDriver(prior, event, r.now));
+    }
+    const E::Sequence* live = r.owner.sequence(sequence);
+    CHECK(live);
+    r.fake.reservation.target = target();
+    r.fake.reservation.model = L::SettingsModel::CL86_C;
+    r.fake.reservation.owner = r.owner.identity();
+    r.fake.reservation.sequence = uint32_t(sequence.slot + 1);
+    r.fake.reservation.generation = sequence.generation;
+    r.fake.reservation.acquiredUs = live->acquiredUs;
+    CHECK(r.owner.beginOperation(sequence, 12, 1000, r.now));
+    L::ControlSettings candidate;
+    candidate.loopMode = L::LoopMode::CLOSED_LOOP;
+    CHECK(L::prepareControlSettings(settings, r.fake.reservation, prior, candidate, 12, r.now, 1000,
+                                    options(), 100));
+    r.fake.settings = &settings;
+    return sequence;
+}
+
+void checkFailedControlRetention(Rig& r, E::SequenceId sequence, E::RequestId failed,
+                                 L::DriverSettingsContext& settings, unsigned uploads) {
+    L::ReadTarget current = target();
+    current.channel.binding = r.fake.current;
+    L::ControlObservation output;
+    output.loopModeRaw = 0xa55a;
+    output.encoderResolutionRaw = 0x5aa5;
+    const Saved<L::ControlObservation> oldOutput(output);
+    CHECK(!L::getControl(settings, r.fake.reservation, current, r.now, 1000, output));
+    oldOutput.unchanged(output);
+    const Saved<L::DriverSettingsContext> oldSettings(settings);
+    const Saved<E::Completion> retained(r.done(failed));
+    CHECK(!r.owner.releaseSequence(sequence));
+    // A retained failure and quarantined node cannot starve a different node.
+    const auto other = r.sequence(2, 2, 21);
+    const auto read = r.admit(r.request(other));
+    r.turn(r.now);
+    r.respond(read, 2, 0x6041, 0x1234);
+    CHECK(r.owner.release(read) && r.owner.releaseSequence(other));
+    r.turn(r.now + 1);
+    retained.unchanged(r.done(failed));
+    oldSettings.unchanged(settings);
+    CHECK(!L::getControl(settings, r.fake.reservation, current, r.now, 1000, output));
+    oldOutput.unchanged(output);
+    CHECK(r.fake.current.configurationGeneration == 8 && r.fake.guards == 1);
+    unsigned downloads = 0, reads = 0;
+    for (unsigned i = 0; i < r.fake.sentCount; ++i) {
+        const M::Frame& sent = r.fake.sent[i];
+        if (sent.id != 0x601)
+            continue;
+        if (sent.data[0] == 0x80)
+            continue; // Native abort cleanup is neither a setting nor a replay.
+        CHECK(sent.data[2] == 0x25 && sent.data[1] <= 1 && sent.data[3] == 0);
+        if (sent.data[0] == 0x40)
+            ++reads;
+        else {
+            CHECK(sent.data[0] == 0x2b && sent.data[1] == 0 && sent.data[4] == 2 &&
+                  sent.data[5] == 0);
+            ++downloads;
+        }
+    }
+    CHECK(downloads == 1 && reads == uploads);
+    CHECK(r.owner.release(failed) && !r.owner.result(failed));
+    CHECK(r.owner.releaseSequence(sequence));
+}
+
+void actualControlUncertainDownloadAndFailedReadback() {
+    {
+        Rig r;
+        L::DriverSettingsContext settings;
+        const auto sequence = prepareOwnedControlSetting(r, settings);
+        L::PreparedRead work;
+        CHECK(L::nextDriver(settings, r.fake.reservation, r.fake.current, r.now, work) &&
+              work.ready);
+        const auto id = r.admit(sequence, work.transfer);
+        r.fake.rejectGuard = true;
+        r.turn(r.now);
+        const auto& terminal = r.done(id);
+        CHECK(terminal.reason == E::CompletionReason::PREFLIGHT_REJECTED &&
+              terminal.service.outcome == C::SdoOutcome::CANCELLED &&
+              !terminal.controllerAccepted && !terminal.service.transmissionPossible &&
+              !terminal.service.effectPossible && !terminal.service.effectUncertain);
+        CHECK(L::advanceDriver(settings, r.fake.reservation, r.fake.current, terminal.service,
+                               r.now));
+        CHECK(settings.state == L::SettingsState::FAILED &&
+              settings.outcome == M::ReadOutcome::CANCELLED && !settings.effectsPossible &&
+              !settings.uncertain && !settings.confirmed && !settings.acknowledgedUs[0]);
+        CHECK(r.fake.current.configurationGeneration == 7 && r.fake.sentCount == 2 &&
+              r.fake.guards == 1 && r.owner.sequence(sequence));
+        const Saved<E::Completion> retained(terminal);
+        const Saved<L::DriverSettingsContext> oldSettings(settings);
+        r.fake.settings = nullptr;
+        const auto other = r.sequence(2, 2, 21);
+        const auto read = r.admit(r.request(other));
+        r.turn(r.now);
+        r.respond(read, 2, 0x6041, 0x1234);
+        retained.unchanged(r.done(id));
+        oldSettings.unchanged(settings);
+        CHECK(r.fake.current.configurationGeneration == 7 && r.fake.guards == 1 &&
+              r.fake.sentCount == 3 && r.fake.sent[2].id == 0x602);
+        CHECK(r.owner.release(read) && r.owner.releaseSequence(other));
+        CHECK(r.owner.release(id) && r.owner.releaseSequence(sequence));
+    }
+    {
+        Rig r;
+        L::DriverSettingsContext settings;
+        const auto sequence = prepareOwnedControlSetting(r, settings);
+        L::PreparedRead work;
+        CHECK(L::nextDriver(settings, r.fake.reservation, r.fake.current, r.now, work) &&
+              work.ready);
+        const auto id = r.admit(sequence, work.transfer);
+        r.fake.autoConfirm = false;
+        r.turn(r.now);
+        CHECK(settings.effectsPossible && r.fake.current.configurationGeneration == 8);
+        r.turn(r.now + 100, E::ServiceBudget());
+        const auto& terminal = r.done(id);
+        CHECK(terminal.controllerAccepted && terminal.service.outcome == C::SdoOutcome::TIMEOUT &&
+              terminal.service.transmissionPossible && !terminal.service.transmissionConfirmed &&
+              !terminal.service.protocolAcknowledged && terminal.service.effectUncertain);
+        CHECK(L::advanceDriver(settings, r.fake.reservation, r.fake.current, terminal.service,
+                               r.now));
+        CHECK(settings.state == L::SettingsState::FAILED && settings.uncertain &&
+              settings.effectsPossible && !settings.confirmed && !settings.acknowledgedUs[0]);
+        r.fake.settings = nullptr;
+        r.fake.autoConfirm = true;
+        const Saved<E::Completion> retained(terminal);
+        r.fake.push(response(1, 0x2500, 2, 0, true), r.now + 1);
+        r.turn(r.now + 1, budget(1, 0, 0, 0));
+        retained.unchanged(r.done(id));
+        CHECK(r.services.unresolved(0) && !r.owner.sequence(sequence));
+        checkFailedControlRetention(r, sequence, id, settings, 2);
+    }
+    for (unsigned field = 0; field < 2; ++field)
+        for (unsigned failure = 0; failure < 3; ++failure) {
+            Rig r;
+            L::DriverSettingsContext settings;
+            const auto sequence = prepareOwnedControlSetting(r, settings);
+            L::PreparedRead work;
+            CHECK(L::nextDriver(settings, r.fake.reservation, r.fake.current, r.now, work) &&
+                  work.ready);
+            const auto write = r.admit(sequence, work.transfer);
+            r.turn(r.now);
+            r.respond(write, 1, 0x2500, 0, true);
+            const auto acknowledged = r.done(write).service;
+            CHECK(acknowledged.protocolAcknowledged);
+            CHECK(L::advanceDriver(settings, r.fake.reservation, r.fake.current, acknowledged,
+                                   r.now));
+            CHECK(!r.owner.advanceConfiguration(sequence, r.fake.current, r.now));
+            CHECK(r.owner.release(write));
+            CHECK(r.owner.advanceConfiguration(sequence, r.fake.current, r.now));
+            r.fake.settings = nullptr;
+            if (field) {
+                CHECK(L::nextDriver(settings, r.fake.reservation, r.fake.current, r.now, work) &&
+                      work.ready);
+                const auto first = r.exchange(sequence, work.transfer, 2);
+                CHECK(L::advanceDriver(settings, r.fake.reservation, r.fake.current, first, r.now));
+            }
+            CHECK(L::nextDriver(settings, r.fake.reservation, r.fake.current, r.now, work) &&
+                  work.ready && work.transfer.index == (field ? 0x2501 : 0x2500));
+            const auto id = r.admit(sequence, work.transfer);
+            r.turn(r.now);
+            if (failure == 0) {
+                M::Frame abort = response(1, work.transfer.index, 2);
+                abort.data[0] = 0x80;
+                abort.data[4] = 1;
+                abort.data[5] = 0;
+                abort.data[6] = 1;
+                abort.data[7] = 6; // Literal 0x06010001, independently supplied server abort.
+                r.fake.push(abort, r.now + 1);
+                r.turn(r.now + 1, budget(1, 0, 8, 0));
+            } else if (failure == 1)
+                r.turn(r.now + 100, E::ServiceBudget());
+            else
+                r.respond(id, 1, work.transfer.index, field ? 1234 : 1);
+            const auto& terminal = r.done(id);
+            CHECK(L::advanceDriver(settings, r.fake.reservation, r.fake.current, terminal.service,
+                                   r.now));
+            CHECK(settings.state == L::SettingsState::FAILED && settings.effectsPossible &&
+                  settings.confirmed == 1 &&
+                  settings.acknowledgedUs[0] == acknowledged.completedUs);
+            CHECK(settings.outcome == (failure == 0   ? M::ReadOutcome::PROTOCOL_REJECTED
+                                       : failure == 1 ? M::ReadOutcome::DEADLINE
+                                                      : M::ReadOutcome::REPLY_ERROR));
+            if (failure == 0)
+                CHECK(settings.evidence.abortValid && settings.evidence.abortCode == 0x06010001);
+            if (failure == 1)
+                CHECK(settings.uncertain && terminal.service.effectUncertain);
+            if (field)
+                CHECK(settings.readback.read.values[0].valid &&
+                      settings.readback.read.values[0].raw == 2);
+            checkFailedControlRetention(r, sequence, id, settings, 3 + field);
+        }
+}
 } // namespace
 int main() {
     copiedAdmissionAndRetainedPressure();
@@ -963,6 +1164,7 @@ int main() {
     alternateChannelUsesConfiguredBindingAndSharesExclusion();
     rejectedIngressRemainsDiagnosticOnly();
     publicReadAndConfirmedControlSetting();
+    actualControlUncertainDownloadAndFailedReadback();
     std::printf("can_bus_owner_test: %u checks; owner=%zu, completion=%zu bytes\n", checks,
                 sizeof(E::CanBusOwner), sizeof(E::Completion));
     return 0;

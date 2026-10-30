@@ -185,5 +185,8 @@ stay independent; no hidden save, reset, enable or retry occurs.
 
 Typed contexts stay outside the owner. Native tests trace a public state read
 and actual loop-setting ACK/readback through this path, keeping the original
-settings token unchanged. Future confirmed groups in 20–22 use this same boundary;
+settings token unchanged. They also retain an unconfirmed write and an
+acknowledged write followed by failed readback, without replay or loss of the
+confirmed prefix. Unrelated nodes continue while these results remain unread.
+Future confirmed groups in 20–22 use this same boundary;
 prompt 45 checks combined integration again.

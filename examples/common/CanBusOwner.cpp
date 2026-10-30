@@ -167,7 +167,6 @@ BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now,
     Slot candidate;
     candidate.occupied = true;
     candidate.generation = ++lastId_;
-    candidate.nodeGeneration = s->nodeGeneration;
     candidate.queueDeadlineUs =
         cutoff(now, request.transfer.deadlineUs, request.transfer.queueTimeoutUs);
     candidate.request = request;
