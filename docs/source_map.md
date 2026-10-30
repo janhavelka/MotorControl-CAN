@@ -240,3 +240,16 @@ for the service choice; the proposed production tree is still owned by prompt 6.
 | Reviewed template/layout facts | [Ledger](reference/lichuan_objects.json), [generator](../scripts/generate_lichuan_objects.py) / [generated profile Pdo.h](../include/MotorControlCAN/profiles/lichuan_c/Pdo.h) | Generator/checker negatives and generated-profile owner tests | Four Lichuan sets/slots are source facts; eight-set contrast is test-only; no live or write permission follows |
 | Actual map acquisition | `pdoMapFromReadback`, owned `PdoMapEvidence` and SDO completion admission epoch/time | [Normal bounded SDO acquisition and failure](../test/pdo_observations_test.cpp) | Communication/map records only, including WO payload targets without uploads; all results must share current node provenance and coherent configuration premise |
 | Shared routing and sample qualification | [PdoState.h](../adapters/canopennode/PdoState.h), [owner](../adapters/canopennode/SdoClient.h) / [projection](../adapters/canopennode/Pdo.cpp) | Same-ID/same-DLC swapped-map, source timing, reset/collision/capacity and copy-observer regressions | Eight permanently bound routes reference the existing node table; independent map/sample facts, no second receiver, NMT inference or implicit mutation |
+
+## Confirmed native settings (fresh 20/21 audit)
+
+[Settings.h](../include/MotorControlCAN/profiles/lichuan_c/Settings.h) and
+[Settings.cpp](../src/profiles/lichuan_c/Settings.cpp) provide explicit parameter
+and DI candidates, retained transaction contexts and typed matched readback.
+[Settings vectors](../test/settings_write_test.cpp), the extended offline I/O
+preview and isolated consumer exercise direct public calls. The existing SDO
+owner has a checked idle `advanceConfiguration` seam; its PDO regression proves
+old evidence cannot requalify and explicit new-map installation still requires
+independent sample provenance. [Driver](driver_settings.md) and [I/O](io_settings.md)
+guides own model/evidence/units/effect contracts. There is no extra receiver,
+node table or production motion context.

@@ -5,8 +5,10 @@ The installed `MotorControlCAN::LICHUAN_C` API in
 typed driver **read** groups. The same `DriverContext` and lifecycle also serve
 four [I/O groups](io_settings.md), published through checked `getIo` rather than
 `getDriver`. [Prompt 20](reports/prompt_20.md) remains Partial:
-device writes and their configuration effects are not implemented. There is no
-always-rejecting `prepareDriverSettings` stub or generic integer-write substitute.
+the confirmed position-parameter setting group is implemented, while direction,
+subdivision, soft limits and mode selection retain their source-specific gates.
+See [the fresh audit](reports/prompts_20_21_audit.md) for the correction to the
+earlier blanket write blocker. No generic integer-write substitute is provided.
 
 ## Frozen row ownership and read coverage
 
@@ -25,7 +27,7 @@ already usable channel, not a non-consuming bootstrap probe.
 | SOFT_LIMITS `607D:01/:02` | I32 `minimumNative/maximumNative` | EDS 1927–1942; EN86 p16/p17, ZH86 p17 | Q05: coordinate basis, operating range, activation and enforcement unresolved. |
 | MOTION_PARAMETERS `6081:00` | U32 `positionSpeedRpm` | EDS 1943–1951; EN86/ZH86 p11/p17 | Q11: document range 0–3000 rpm; compatible write state is not established. |
 | MOTION_PARAMETERS `6083:00` | U32 `rampUpTimeMs` | EDS 1952–1960; EN86/ZH86 p11/p13 | Q11: document range 0–2000 ms; state and zero behavior remain unqualified. |
-| MOTION_PARAMETERS `6084:00` | U32 `rampDownTimeMs` | EDS 1961–1969; EN86/ZH86 p11/p13 | Same gate; milliseconds are not an acceleration rate or stop guarantee. |
+| MOTION_PARAMETERS `6084:00` | U32 `rampDownTimeMs` | EDS 1961–1969; EN86/ZH86 p11/p13 | Same guarded setting path; milliseconds are not an acceleration rate or stop guarantee. |
 
 Mode request `6060:00` remains write-owned by 20 and effect-gated by Q10/Q11;
 the EDS is WO, so it is never uploaded. Current/holding rows `2502..2507`
@@ -66,26 +68,70 @@ exported consumers use the same public API without ledger, Python, vendor PDFs,
 catalogue strings or CANopenNode. Intended CLI ownership is the future typed
 device settings route in prompts 40–42; no CLI command exists here.
 
-## Narrow write prerequisite still owed to prompt 20
+## Explicit position-parameter settings
 
-EN86/ZH86 p12 documents selecting/observing position mode, illustrated enabling,
-writing parameters, then separately triggering with controlword bit 4. Thus
-positive `6081` 1–3000 rpm and `6083/6084` 1–2000 ms have documented native
-values and a write location. Missing velocity-start order, physical ramp formula
-or zero behavior does not invalidate that narrow documentary subset.
+`MotorControlCAN/profiles/lichuan_c/Settings.h` implements `DriverSettings`,
+`DriverSettingsContext` and `prepareDriverSettings`. The entire candidate and
+actual retained prerequisites are checked before yielding any work:
 
-The current raw state/read API does not establish the compatible pre-trigger
-control state, including the trigger level. Raw `6041` low bits, `6061=1`, a
-generic SDO acknowledgement or a new caller Boolean cannot prove it. No installed
-controlword-history/state contract currently supplies that evidence. Writes
-therefore remain pending on concrete retained state/control provenance or
-applicable manufacturer evidence, rather than a claim of absent numeric ranges.
-Preparation must never enable or change controlword merely to create a prerequisite.
+- An explicit caller-established CL86-C or OL86-C model; opaque profile IDs and
+  raw `2000` values do not establish that model or firmware qualification.
+- A continuous live `SettingsReservation` issued by the sole application owner
+  before acquisition. The owner excludes other control, mode, target, RPDO and
+  settings work, and revokes it on contradictory observations or lifecycle loss.
+  Pass the actual live token on every call, not a stale retained copy.
+- Actual matching acknowledged `6040:00=0x000F` U16 download evidence, followed
+  by fresh checked STATUS/MONITORS and native parameter reads on the same epochs.
+  Require mode 1, status low bits 7, and monitor running/alarm/disabled bits clear.
+  Only these independently agreed source bits are used; no full dialect is guessed.
+- Complete native bounds: 6081 0..3000 rpm, 6083/6084 0..2000 ms, service budgets, inclusive evidence age and
+  a new nonwrapping configuration generation. No SDK or hidden clock is involved.
 
-On resumption, implement whole-candidate validation, copied immutable writes,
-confirmed per-step effects, uncertain final writes, matching readback and
-configuration/reference invalidation. Preserve soft-limit coordinate basis;
-invalidate dependent scale/reference/prepared targets after confirmed or uncertain
-scale changes. Neither rollback, automatic retry nor implicit save/reset is
-permitted. Those obligations stay in 20, including later owner integration;
-raw read completion does not close them.
+EN86/ZH86 PDF p11 give native ranges; p12 separates these parameter writes
+from a later controlword bit-4 trigger. Missing retained-control plumbing was a
+software gap, not proof that all writes lacked manufacturer support. This API
+never emits `6040`, `6060`, a target/trigger, enabling preamble, save or reset.
+Zero is accepted as a documented register value. Speed zero is not a stop
+command; ramp zero promises no instantaneous acceleration or trajectory.
+Candidates default to invalid values until all fields are explicitly selected.
+
+Use overloaded `nextDriver` and `advanceDriver` with the current live reservation
+and actual binding. The sequence writes only changed fields in fixed source
+order, awaiting each matching acknowledgement before the next field. It retains
+`confirmed`, exact `requested` values, acknowledgement times and the last raw
+terminal/abort. Partial failure is not rollback. A no-change candidate succeeds
+from fresh prior evidence with no TX or generation change.
+
+After queue admission and application preflight, call `noteDriverTransmission`
+**before** `SdoClient::nextTx` or another possible controller handoff. It advances
+the actual application/axis binding configuration generation exactly once;
+old snapshots and prepared targets then fail their ordinary epoch checks. It
+must not alias context/token storage. Retire separately admitted work before
+local cancel/deadline/invalidation. Cancellation is not motor stop. Unknown
+write or unqualified read effects remain retained and never replay automatically.
+
+The exclusive transaction alone may finish its copied old-epoch downloads.
+After releasing all old results, the application explicitly calls
+`SdoClient::advanceConfiguration` to update the **idle, healthy same route** to
+the new configuration epoch. It cannot reopen quarantine, change identifiers,
+rebind a node or renew any timestamp. Cache observers and PDO qualification are
+withdrawn without inventing a reboot. Readback then uses the actual new epoch.
+Every returned native word must match the full candidate before `getDriver`
+publishes a current typed result. Wrong kind, incomplete/failing/mismatched,
+stale or revoked work leaves getter output unchanged.
+
+The real fake-controller caller in `test/settings_write_test.cpp` issues and
+revokes reservations around the existing SDO owner, acquires prerequisites,
+checks literal downloads, releases results, advances the configuration epoch
+and consumes matched readback. It also tests partial effects, uncertainty,
+late acknowledgement/deadline distinctions and old prepared-target rejection.
+This is native software evidence, not an installed enable/motion capability.
+
+## Remaining prompt-20 gates
+
+Direction/CAN effect, conflicting subdivision range/default/scale activation,
+soft-limit selector/bounds/frame/enforcement and mode transition effects remain
+unresolved as listed above. Current/holding remains solely prompt 22. Those
+fields still owe their typed write validation, effects, readback and dependency
+invalidation when their evidence arrives, including later real owner integration.
+No request writes a native setting merely because an EDS flag is RW.

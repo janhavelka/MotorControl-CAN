@@ -38,6 +38,7 @@ const PdoRecord* SdoClient::pdo(uint8_t slot) const {
 void SdoClient::revokePdo(unsigned slot, bool mapUncertain, uint64_t now) {
     PdoSlot& target = pdos_[slot];
     if (!target.bound) return;
+    target.configurationReplacementAllowed = false;
     target.record.qualified = false;
     if (mapUncertain) target.record.confirmed = false;
     target.record.boundaryUs = now;
@@ -50,6 +51,15 @@ void SdoClient::revokePdo(unsigned slot, bool mapUncertain, uint64_t now) {
 void SdoClient::revokeNodePdos(unsigned anchor, bool mapUncertain, uint64_t now) {
     for (unsigned i = 0; i < PDO_ROUTES; ++i)
         if (pdos_[i].bound && pdos_[i].anchor == anchor) revokePdo(i, mapUncertain, now);
+}
+bool SdoClient::currentPdoBinding(unsigned anchor, const Binding& binding) const {
+    if (sameBinding(channels_[anchor].network.route.binding, binding)) return true;
+    // Distinct logical/SDO bindings can share a physical node. Require the map's
+    // actual current binding, rather than retagging its retained historical epoch.
+    for (unsigned i = 0; i < CHANNELS; ++i)
+        if (channels_[i].configured && networkAnchor(static_cast<uint8_t>(i)) == static_cast<int>(anchor) &&
+            sameBinding(channels_[i].route.binding, binding)) return true;
+    return false;
 }
 bool SdoClient::configurePdo(uint8_t slot, uint8_t nodeSlot, const PdoMapEvidence& input,
                              const PdoProfile& profile, PdoObserver observer, uint64_t now) {
@@ -66,9 +76,22 @@ bool SdoClient::configurePdo(uint8_t slot, uint8_t nodeSlot, const PdoMapEvidenc
         evidence.observedUs > now || evidence.startedUs > evidence.observedUs || evidence.startedUs < node.boundaryUs ||
         (node.strictBoundary && evidence.startedUs == node.boundaryUs)) return false;
     PdoSlot& target = pdos_[slot];
+    bool sameConfiguration = !target.bound || sameBinding(target.record.map.route.binding, evidence.route.binding);
+    if (!sameConfiguration && target.configurationReplacementAllowed && !target.record.confirmed &&
+        !target.record.qualified && target.record.map.nodeGeneration == node.route.generation &&
+        evidence.route.binding.configurationGeneration > target.record.map.route.binding.configurationGeneration) {
+        Binding next = target.record.map.route.binding;
+        // Several completed settings transactions may precede fresh map evidence.
+        // Its binding must still equal the owner's actual current binding above.
+        next.configurationGeneration = evidence.route.binding.configurationGeneration;
+        sameConfiguration = sameBinding(next, evidence.route.binding);
+        for (unsigned i = 0; i < CHANNELS; ++i)
+            if (channels_[i].configured && networkAnchor(static_cast<uint8_t>(i)) == anchor &&
+                (channels_[i].unresolved || !channels_[i].confirmed)) sameConfiguration = false;
+    }
     if (target.bound && (target.anchor != anchor || target.record.map.route.cobId != evidence.route.cobId ||
         target.record.map.route.extended != evidence.route.extended ||
-        !sameBinding(target.record.map.route.binding, evidence.route.binding) ||
+        !sameConfiguration ||
         evidence.route.generation <= target.record.map.route.generation ||
         evidence.startedUs <= target.record.boundaryUs)) return false;
     for (unsigned i = 0; i < PDO_ROUTES; ++i) {
@@ -89,6 +112,7 @@ bool SdoClient::configurePdo(uint8_t slot, uint8_t nodeSlot, const PdoMapEvidenc
     // Copy candidates before callbacks: callers may supply one of our borrowed records.
     if (target.bound) revokePdo(slot, true, now);
     target.bound = true; target.anchor = static_cast<uint8_t>(anchor);
+    target.configurationReplacementAllowed = false;
     target.record.map = evidence; target.record.confirmed = true; target.record.qualified = false;
     target.record.boundaryUs = now; target.observer = observer;
     lastUs_ = now;
@@ -101,6 +125,7 @@ bool SdoClient::qualifyPdo(uint8_t slot, const PdoQualification& input, uint64_t
     PdoSlot& target = pdos_[slot];
     const NodeSnapshot& node = channels_[target.anchor].network;
     if (!target.record.confirmed || target.record.qualified || node.exhausted || !evidence.evidenceId ||
+        !currentPdoBinding(target.anchor, target.record.map.route.binding) ||
         !samePdoRoute(evidence.route, target.record.map.route) || evidence.nodeGeneration != node.route.generation ||
         evidence.nodeGeneration != target.record.map.nodeGeneration ||
         (evidence.basis != PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED && evidence.basis != PdoSampleBasis::DISTINCT_VERIFIED_ROUTE) ||
@@ -116,6 +141,7 @@ bool SdoClient::invalidatePdo(uint8_t slot, bool mapUncertain, uint64_t now) {
     if (slot >= PDO_ROUTES || !pdos_[slot].bound || now < lastUs_) return false;
     lastUs_ = now;
     revokePdo(slot, mapUncertain, now);
+    pdos_[slot].configurationReplacementAllowed = mapUncertain;
     return true;
 }
 bool SdoClient::dispatchPdo(const Frame& frame, bool known, uint64_t received, uint64_t now, bool& matched) {
@@ -135,6 +161,7 @@ bool SdoClient::dispatchPdo(const Frame& frame, bool known, uint64_t received, u
         ServiceEligibility service;
         if (!decodePdo(frame, record.map.route, candidate)) diagnostic.disposition = NetworkDisposition::REJECTED;
         else if (!record.confirmed || !record.qualified || node.exhausted ||
+            !currentPdoBinding(target.anchor, record.map.route.binding) ||
             controllerState_ == ControllerState::BUS_OFF || controllerState_ == ControllerState::RECOVERING ||
             record.map.nodeGeneration != node.route.generation || !known ||
             received <= record.qualification.establishedUs || received <= record.boundaryUs ||

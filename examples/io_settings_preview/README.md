@@ -20,7 +20,11 @@ these separate reads are not an atomic device snapshot.
 No function assignment establishes wiring, electrical level or homing/stop
 prerequisites. `wiringKnown`, `electricalLevelsKnown` and `outputMappingKnown`
 remain false. Upload effects remain unqualified even with synthetic successful
-terminals. The example sends no writes or output/motion actions.
+terminals. The example prepares an explicit DI2 function candidate, inspects its one changed
+download, then withdraws it before admission. Its model/reservation are clearly
+synthetic premises. No controller handoff or output/motion action occurs; no
+configuration epoch changes. The real fake-controller transaction and readback
+are exercised by `test/settings_write_test.cpp`.
 
 ## Build from the source tree
 

@@ -7,6 +7,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Settings.h>
 #include <cstring>
 
 int main() {
@@ -153,5 +154,38 @@ int main() {
         observedIo.outputEntries != 2 || observedIo.outputValueRaw != 0x80010000u ||
         observedIo.outputMaskRaw != 0xffff0000u || observedIo.window.skewUs != 2 ||
         observedIo.outputMappingKnown || observedIo.electricalLevelsKnown) return 36;
+    LICHUAN_C::DriverContext inputs;
+    if (!LICHUAN_C::prepareDriverRead(inputs, readTarget, 4, 30, 100, readOptions,
+                                    LICHUAN_C::DriverGroup::IO_INPUT_CONFIGURATION)) return 37;
+    for (unsigned i = 0; i < 9; ++i) {
+        LICHUAN_C::PreparedRead prepared;
+        if (!LICHUAN_C::nextDriver(inputs, 30+i, prepared) || !prepared.ready) return 38;
+        CANOPEN::SdoCompletion completed;
+        completed.transfer = prepared.transfer; completed.nodeGeneration = 1;
+        completed.admittedUs = completed.completedUs = 30+i;
+        completed.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        completed.queued = completed.transmissionPossible = completed.protocolAcknowledged = completed.effectPossible = true;
+        completed.size = prepared.transfer.size;
+        if (i == 0) completed.data[0] = 16;
+        if (!LICHUAN_C::advanceDriver(inputs, completed, 30+i)) return 39;
+    }
+    LICHUAN_C::SettingsReservation reservation;
+    reservation.target = readTarget; reservation.model = LICHUAN_C::SettingsModel::OL86_C;
+    reservation.owner = reservation.sequence = reservation.generation = 1;
+    reservation.acquiredUs = 30; // Synthetic model/exclusion premise, no controller in this consumer.
+    LICHUAN_C::IoSettings candidate;
+    candidate.invertedInputs = 0;
+    for (unsigned i = 0; i < 7; ++i) candidate.functions[i] = LICHUAN_C::InputFunction::UNDEFINED;
+    candidate.functions[0] = LICHUAN_C::InputFunction::USER0;
+    LICHUAN_C::DriverSettingsContext settings;
+    LICHUAN_C::PreparedRead prepared;
+    if (!LICHUAN_C::prepareIoSettings(settings, reservation, inputs, candidate, 5, 38, 100,
+                                     readOptions, 20) ||
+        !LICHUAN_C::nextDriver(settings, reservation, readTarget.channel.binding, 38, prepared) ||
+        !prepared.ready || prepared.transfer.direction != CANOPEN::SdoDirection::DOWNLOAD ||
+        prepared.transfer.index != 0x2400 || prepared.transfer.subindex != 2 ||
+        prepared.transfer.data[0] != 7) return 40;
+    if (!LICHUAN_C::advanceDriver(settings, ReadOutcome::CANCELLED, 38) ||
+        settings.effectsPossible || settings.uncertain) return 41;
     return 0;
 }

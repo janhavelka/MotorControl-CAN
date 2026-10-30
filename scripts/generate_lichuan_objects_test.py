@@ -295,6 +295,9 @@ class GenerationTests(unittest.TestCase):
                                         host_tested=True, hardware_qualified=False)
         document = coverage_document(data, projected_rows(data["objects"]))
         self.assertIn("| Read shape descriptors | 62 |", document)
+        self.assertIn("| Typed settings | 11 |", document)
+        self.assertIn("position_parameters_86c", document)
+        self.assertIn("explicit_di_configuration_86c", document)
         self.assertIn("| Typed reads | 2 |", document)
         self.assertIn("| Read owner prompt | 19 |", document)
         self.assertIn("| Read owner prompt | 38 |", document)
@@ -441,6 +444,7 @@ class GenerationTests(unittest.TestCase):
         for obj in data["objects"]:
             for row in obj["entries"]:
                 row.pop("read_coverage", None)
+                row.pop("setting_coverage", None)
         data["semantic_review"]["binding_policy"] = "Unique explicit binding policy marker"
         data["semantic_review"]["families"][0]["limitations"] = "Unique family capability limit marker"
         data["semantic_review"]["gates"][0]["models"] = ["Unique gate model marker"]

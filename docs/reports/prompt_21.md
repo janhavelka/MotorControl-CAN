@@ -1,5 +1,12 @@
 # Prompt 21: digital I/O
 
+**Current correction:** the [fresh independent 20/21 audit](prompts_20_21_audit.md)
+implements the confirmed native setting subsets and corrects this checkpoint's
+blanket blocker rationale. The original read-only checkpoint and its checks
+below remain historical evidence; current status is still Partial for the
+specific unresolved groups, not for the now-implemented settings.
+
+
 ## Scope and status
 
 **Partial.** All 23 assigned readable rows are implemented as four typed native

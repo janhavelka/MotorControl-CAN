@@ -1,7 +1,7 @@
 {
   "name": "MotorControl-CAN",
   "version": "0.1.0",
-  "description": "Portable C++11 exact units, axis targets, quantization, status, endpoint identity, Classical CAN validation, checked SDO envelopes reviewed Lichuan object metadata and finite raw identity/state/configuration and typed driver/I/O reads. Development package; no operational drive profile or controller adapter is implemented.",
+  "description": "Portable C++11 exact units, axis targets, quantization, status, endpoint identity, Classical CAN validation, checked SDO envelopes reviewed Lichuan object metadata and finite raw identity/state/configuration and typed driver/I/O reads plus conditional native settings. Development package; no operational drive profile or controller adapter is implemented.",
   "keywords": ["can", "canopen", "stepper", "servo", "motion"],
   "authors": [{"name": "Jan Havelka", "maintainer": true}],
   "repository": {"type": "git", "url": "https://github.com/janhavelka/MotorControl-CAN.git"},

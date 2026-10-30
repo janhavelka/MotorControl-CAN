@@ -9856,7 +9856,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -9913,6 +9914,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -9949,7 +9957,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10008,6 +10017,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -10044,7 +10060,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10103,6 +10120,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -10139,7 +10163,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10198,6 +10223,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -10234,7 +10266,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10291,6 +10324,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -10327,7 +10367,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10384,6 +10425,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -10420,7 +10468,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10477,6 +10526,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         },
         {
@@ -10513,7 +10569,8 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10566,6 +10623,13 @@
           },
           "read_owner_prompt": 21,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "explicit_di_configuration_86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
@@ -17150,7 +17214,9 @@
           "effect": "Sets position-profile speed.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "Native position subset: 6081 0..3000 rpm and 6083/6084 0..2000 ms; zero is a register value, not a stop/trajectory guarantee. Retain actual acknowledged 6040=0x000F and later checked mode1/status-low-bits7/monitor-not-running-no-alarm-enabled evidence under the same live reservation; no enabling preamble."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -17175,6 +17241,14 @@
             {
               "id": "ZH86",
               "page": 17
+            },
+            {
+              "id": "EN86",
+              "page": 12
+            },
+            {
+              "id": "ZH86",
+              "page": 12
             }
           ],
           "confidence": "documented_metadata",
@@ -17245,6 +17319,13 @@
             "implemented": true,
             "host_tested": true,
             "hardware_qualified": false
+          },
+          "setting_scope": "position_parameters_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
           }
         }
       ]
@@ -17304,7 +17385,9 @@
           "effect": "Changes acceleration/deceleration ramp time.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "Native position subset: 6081 0..3000 rpm and 6083/6084 0..2000 ms; zero is a register value, not a stop/trajectory guarantee. Retain actual acknowledged 6040=0x000F and later checked mode1/status-low-bits7/monitor-not-running-no-alarm-enabled evidence under the same live reservation; no enabling preamble."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -17329,6 +17412,14 @@
             {
               "id": "ZH86",
               "page": 17
+            },
+            {
+              "id": "EN86",
+              "page": 12
+            },
+            {
+              "id": "ZH86",
+              "page": 12
             }
           ],
           "confidence": "documented_metadata",
@@ -17357,6 +17448,13 @@
           },
           "read_owner_prompt": 20,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "position_parameters_86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
@@ -17420,7 +17518,9 @@
           "effect": "Changes acceleration/deceleration ramp time.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.",
+            "Native position subset: 6081 0..3000 rpm and 6083/6084 0..2000 ms; zero is a register value, not a stop/trajectory guarantee. Retain actual acknowledged 6040=0x000F and later checked mode1/status-low-bits7/monitor-not-running-no-alarm-enabled evidence under the same live reservation; no enabling preamble."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -17445,6 +17545,14 @@
             {
               "id": "ZH86",
               "page": 17
+            },
+            {
+              "id": "EN86",
+              "page": 12
+            },
+            {
+              "id": "ZH86",
+              "page": 12
             }
           ],
           "confidence": "documented_metadata",
@@ -17473,6 +17581,13 @@
           },
           "read_owner_prompt": 20,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "position_parameters_86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,

@@ -738,3 +738,18 @@ existing SDO owner, without replay or rollback. Confirmed configuration and samp
 qualification remain separate under the contract above. Device-sequence
 acceptance remains open; protocol-only fake tests cannot close it. This is an
 implementation obligation, not completed support behind a capability flag.
+
+## Local settings epoch transition
+
+`SdoClient::advanceConfiguration` accepts only the next configuration generation
+on an otherwise identical, idle, confirmed and resolved node/channel binding.
+It requires released terminals, retired staging/cleanup, no pending NMT and
+existing usable service evidence. It cannot reconcile an ambiguous channel or
+rebind identifiers. It preserves node generation, liveness/NMT/service times and
+historical diagnostics without renewing them. Cache observers run and PDO samples
+are revoked before publishing the new binding. See the
+[owner contract](can_owner.md#native-settings-exclusion-and-configuration-epochs).
+Explicit new-epoch map evidence requires withdrawal/reinstallation; delayed
+same-ID samples still need an independent qualification boundary. This is a
+local bookkeeping seam for confirmed settings, not PDO reconfiguration or a
+controller recovery operation.

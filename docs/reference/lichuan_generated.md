@@ -18,7 +18,7 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
 | Read shape descriptors | 62 | Prompt 19/20/21 source width/representation only; read effects remain unqualified |
 | Typed reads | 62 | Implemented scalar read rows; see separate read coverage, not whole-object support |
-| Typed settings | 0 | Assigned semantic prompts remain pending |
+| Typed settings | 11 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
 
@@ -423,6 +423,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x40192", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Device Type"} |
 
@@ -448,6 +450,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Error Register"} |
 
@@ -473,6 +477,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -498,6 +504,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub1"} |
 
@@ -523,6 +531,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub2"} |
 
@@ -548,6 +558,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub3"} |
 
@@ -573,6 +585,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Pre-defined Error Field_sub4"} |
 
@@ -598,6 +612,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x80", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "SYNC COB ID"} |
 
@@ -623,6 +639,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0x2608", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "hardware version"} |
 
@@ -648,6 +666,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "software version"} |
 
@@ -673,6 +693,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x80", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Emergency COB ID"} |
 
@@ -698,6 +720,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Producer Heartbeat Time"} |
 
@@ -723,6 +747,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "3", "HighLimit": "4", "LowLimit": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "number of entries"} |
 
@@ -748,6 +774,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x00001000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Vendor ID"} |
 
@@ -773,6 +801,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x00000001", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Product code"} |
 
@@ -798,6 +828,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "DefaultValue": "0x00000000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Revision number"} |
 
@@ -823,6 +855,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -848,6 +882,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x600", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB ID Client to Server"} |
 
@@ -873,6 +909,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x580", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB ID Server to Client"} |
 
@@ -898,6 +936,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -923,6 +963,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x200", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -948,6 +990,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -973,6 +1017,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -998,6 +1044,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1023,6 +1071,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1048,6 +1098,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1073,6 +1125,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x300", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -1098,6 +1152,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1123,6 +1179,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1148,6 +1206,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1173,6 +1233,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1198,6 +1260,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1223,6 +1287,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x400", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -1248,6 +1314,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1273,6 +1341,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1298,6 +1368,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1323,6 +1395,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1348,6 +1422,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1373,6 +1449,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x500", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by RPDO"} |
 
@@ -1398,6 +1476,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -1423,6 +1503,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -1448,6 +1530,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -1473,6 +1557,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "1000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -1498,6 +1584,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "3", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1523,6 +1611,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60400010", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub1"} |
 
@@ -1548,6 +1638,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60ff0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub2"} |
 
@@ -1573,6 +1665,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60600008", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub3"} |
 
@@ -1598,6 +1692,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1600_sub4"} |
 
@@ -1623,6 +1719,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "2", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1648,6 +1746,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x607a0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub1"} |
 
@@ -1673,6 +1773,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60810020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub2"} |
 
@@ -1698,6 +1800,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub3"} |
 
@@ -1723,6 +1827,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1601_sub4"} |
 
@@ -1748,6 +1854,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1773,6 +1881,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub1"} |
 
@@ -1798,6 +1908,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub2"} |
 
@@ -1823,6 +1935,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub3"} |
 
@@ -1848,6 +1962,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1602_sub4"} |
 
@@ -1873,6 +1989,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -1898,6 +2016,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub1"} |
 
@@ -1923,6 +2043,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub2"} |
 
@@ -1948,6 +2070,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub3"} |
 
@@ -1973,6 +2097,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1603_sub4"} |
 
@@ -1998,6 +2124,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2023,6 +2151,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x180", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -2048,6 +2178,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2073,6 +2205,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2098,6 +2232,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2123,6 +2259,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2148,6 +2286,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2173,6 +2313,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x280", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -2198,6 +2340,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2223,6 +2367,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2248,6 +2394,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2273,6 +2421,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2298,6 +2448,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2323,6 +2475,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x380", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -2348,6 +2502,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2373,6 +2529,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2398,6 +2556,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2423,6 +2583,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2448,6 +2610,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "5", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2473,6 +2637,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "$NODEID+0x480", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "COB-ID used by TPDO"} |
 
@@ -2498,6 +2664,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "255", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Transmission Type"} |
 
@@ -2523,6 +2691,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Inhibit Time"} |
 
@@ -2548,6 +2718,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Compatibility Entry"} |
 
@@ -2573,6 +2745,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Event Timer"} |
 
@@ -2598,6 +2772,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "3", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2623,6 +2799,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60410010", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub1"} |
 
@@ -2648,6 +2826,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60fd0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub2"} |
 
@@ -2673,6 +2853,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60610008", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub3"} |
 
@@ -2698,6 +2880,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A00_sub4"} |
 
@@ -2723,6 +2907,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "2", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2748,6 +2934,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x60640020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub1"} |
 
@@ -2773,6 +2961,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "0x606c0020", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub2"} |
 
@@ -2798,6 +2988,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub3"} |
 
@@ -2823,6 +3015,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A01_sub4"} |
 
@@ -2848,6 +3042,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2873,6 +3069,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub1"} |
 
@@ -2898,6 +3096,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub2"} |
 
@@ -2923,6 +3123,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub3"} |
 
@@ -2948,6 +3150,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A02_sub4"} |
 
@@ -2973,6 +3177,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "HighLimit": "4", "LowLimit": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -2998,6 +3204,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub1"} |
 
@@ -3023,6 +3231,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub2"} |
 
@@ -3048,6 +3258,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub3"} |
 
@@ -3073,6 +3285,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Object 1A03_sub4"} |
 
@@ -3098,6 +3312,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.driverID"} |
 
@@ -3123,6 +3339,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.softversion"} |
 
@@ -3148,6 +3366,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "8", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.MonitorWord"} |
 
@@ -3173,6 +3393,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DiStatus"} |
 
@@ -3198,6 +3420,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DoStatus"} |
 
@@ -3223,6 +3447,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DefautDir"} |
 
@@ -3248,6 +3474,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.MicDivide"} |
 
@@ -3273,6 +3501,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Soft_Limit"} |
 
@@ -3298,6 +3528,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.CAN_ID"} |
 
@@ -3323,6 +3555,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.FactoryPara"} |
 
@@ -3348,6 +3582,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClearAlm"} |
 
@@ -3373,6 +3609,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClearPos"} |
 
@@ -3398,6 +3636,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "16", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -3415,7 +3655,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Bits0..6 correspond to DI0..6. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Changes logical input polarity; protective signals may change meaning. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 normal / 1 inverted for each bit; other bits unspecified.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -3423,6 +3663,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Dilevel"} |
 
@@ -3440,7 +3682,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI0. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
@@ -3448,6 +3690,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di0"} |
 
@@ -3465,7 +3709,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI1. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
@@ -3473,6 +3717,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di1"} |
 
@@ -3490,7 +3736,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI2. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
@@ -3498,6 +3744,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di2"} |
 
@@ -3515,7 +3763,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI3. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -3523,6 +3771,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di3"} |
 
@@ -3540,7 +3790,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI4. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -3548,6 +3798,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di4"} |
 
@@ -3565,7 +3817,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI5. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -3573,6 +3825,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di5"} |
 
@@ -3590,7 +3844,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI6. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "EN86/ZH86 do not specify DI uniqueness, drive-state restriction, activation delay or write order. Explicit codes0..13 and bits0..6 may be configured with retained acknowledgement/readback; host order is not an electrically safe or atomic transition. Preserve unexplained polarity bits from current matched readback."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -3598,6 +3852,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_di_configuration_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di6"} |
 
@@ -3623,6 +3879,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | `null` (not stated) |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd1"} |
 
@@ -3648,6 +3906,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | `null` (not stated) |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd2"} |
 
@@ -3673,6 +3933,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | `null` (not stated) |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd3"} |
 
@@ -3698,6 +3960,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Dolevel"} |
 
@@ -3723,6 +3987,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do0"} |
 
@@ -3748,6 +4014,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do1"} |
 
@@ -3773,6 +4041,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do2"} |
 
@@ -3798,6 +4068,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | `null` (not stated) |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "rsvd4"} |
 
@@ -3823,6 +4095,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "50", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di0Filtime"} |
 
@@ -3848,6 +4122,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "40", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di1Filtime"} |
 
@@ -3873,6 +4149,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di2Filtime"} |
 
@@ -3898,6 +4176,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "4000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di3Filtime"} |
 
@@ -3923,6 +4203,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di4Filtime"} |
 
@@ -3948,6 +4230,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di5Filtime"} |
 
@@ -3973,6 +4257,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "16", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di6Filtime"} |
 
@@ -3998,6 +4284,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DrvMode"} |
 
@@ -4023,6 +4311,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Encoder"} |
 
@@ -4048,6 +4338,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Maxcurrent"} |
 
@@ -4073,6 +4365,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClMaxCper"} |
 
@@ -4098,6 +4392,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ClbasCper"} |
 
@@ -4123,6 +4419,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.OlMaxCper"} |
 
@@ -4148,6 +4446,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.suo_per"} |
 
@@ -4173,6 +4473,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.suo_time"} |
 
@@ -4198,6 +4500,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Filtable"} |
 
@@ -4223,6 +4527,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Filtratio"} |
 
@@ -4248,6 +4554,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.PosAlrm"} |
 
@@ -4273,6 +4581,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.PosError"} |
 
@@ -4298,6 +4608,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.PosinTime"} |
 
@@ -4323,6 +4635,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj..AvrFiltime"} |
 
@@ -4348,6 +4662,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.kpscale"} |
 
@@ -4373,6 +4689,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.kp"} |
 
@@ -4398,6 +4716,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.ki"} |
 
@@ -4423,6 +4743,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.kc"} |
 
@@ -4448,6 +4770,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kp1"} |
 
@@ -4473,6 +4797,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kv1"} |
 
@@ -4498,6 +4824,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_spd1"} |
 
@@ -4523,6 +4851,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kp2"} |
 
@@ -4548,6 +4878,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kv2"} |
 
@@ -4573,6 +4905,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_spd2"} |
 
@@ -4598,6 +4932,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_kvff"} |
 
@@ -4623,6 +4959,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.an_ki"} |
 
@@ -4648,6 +4986,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kp"} |
 
@@ -4673,6 +5013,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_ki"} |
 
@@ -4698,6 +5040,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kc"} |
 
@@ -4723,6 +5067,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kvfbd1"} |
 
@@ -4748,6 +5094,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kvfbd2"} |
 
@@ -4773,6 +5121,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kvff"} |
 
@@ -4798,6 +5148,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 22 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.v_kacff"} |
 
@@ -4823,6 +5175,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "DSP Error Code"} |
 
@@ -4848,6 +5202,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | `null` (not stated) |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "WO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "ControlWord"} |
 
@@ -4873,6 +5229,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "StatusWord"} |
 
@@ -4898,6 +5256,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0003", "DefaultValue": "1", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Halt option code"} |
 
@@ -4923,6 +5283,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | `null` (not stated) |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "WO", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Mode of operation"} |
 
@@ -4948,6 +5310,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | RAW |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Mode of operation display"} |
 
@@ -4973,6 +5337,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | SIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0004", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "actual position"} |
 
@@ -4998,6 +5364,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | SIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "actual speed"} |
 
@@ -5023,6 +5391,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "DefaultValue": "5000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "target position"} |
 
@@ -5048,6 +5418,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "home offset"} |
 
@@ -5073,6 +5445,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -5098,6 +5472,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | SIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Soft MIN Limit"} |
 
@@ -5123,6 +5499,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | SIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Soft MAX Limit"} |
 
@@ -5131,7 +5509,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | posmode speed |
-| Sources | EDS [6081] lines 1943-1951; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17 |
+| Sources | EDS [6081] lines 1943-1951; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17; EN86 PDF page 12; ZH86 PDF page 12 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -5140,7 +5518,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Profile-specific U32 command speed; not generic common-axis width. |
 | Original low / high / default | [null, null, "60"] |
 | Effect | Sets position-profile speed. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "Native position subset: 6081 0..3000 rpm and 6083/6084 0..2000 ms; zero is a register value, not a stop/trajectory guarantee. Retain actual acknowledged 6040=0x000F and later checked mode1/status-low-bits7/monitor-not-running-no-alarm-enabled evidence under the same live reservation; no enabling preamble."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 1951, "line_start": 1943, "section": "6081"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 17}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 673, "line_start": 665, "section": "1601sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Documented 0..3000 rpm; zero-motion behavior is not established.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -5148,6 +5526,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | position_parameters_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "60", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "posmode speed"} |
 
@@ -5156,7 +5536,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | accel time |
-| Sources | EDS [6083] lines 1952-1960; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17 |
+| Sources | EDS [6083] lines 1952-1960; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17; EN86 PDF page 12; ZH86 PDF page 12 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -5165,7 +5545,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Native ramp duration, not acceleration units. |
 | Original low / high / default | [null, null, "100"] |
 | Effect | Changes acceleration/deceleration ramp time. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "Native position subset: 6081 0..3000 rpm and 6083/6084 0..2000 ms; zero is a register value, not a stop/trajectory guarantee. Retain actual acknowledged 6040=0x000F and later checked mode1/status-low-bits7/monitor-not-running-no-alarm-enabled evidence under the same live reservation; no enabling preamble."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -5173,6 +5553,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | position_parameters_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "accel time"} |
 
@@ -5181,7 +5563,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | decel time |
-| Sources | EDS [6084] lines 1961-1969; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17 |
+| Sources | EDS [6084] lines 1961-1969; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17; EN86 PDF page 12; ZH86 PDF page 12 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -5190,7 +5572,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Native ramp duration, not acceleration units. |
 | Original low / high / default | [null, null, "100"] |
 | Effect | Changes acceleration/deceleration ramp time. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C/OL86-C model binding and continuous sole-owner reservation; validate the full candidate before TX, preserve confirmed/uncertain effects, withdraw configuration prerequisites before possible TX and require exact new-epoch readback. No physical activation or hardware qualification is inferred.", "Native position subset: 6081 0..3000 rpm and 6083/6084 0..2000 ms; zero is a register value, not a stop/trajectory guarantee. Retain actual acknowledged 6040=0x000F and later checked mode1/status-low-bits7/monitor-not-running-no-alarm-enabled evidence under the same live reservation; no enabling preamble."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
@@ -5198,6 +5580,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | position_parameters_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "decel time"} |
 
@@ -5223,6 +5607,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0005", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing method"} |
 
@@ -5248,6 +5634,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -5273,6 +5661,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "120", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing speed"} |
 
@@ -5298,6 +5688,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "60", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing search speed"} |
 
@@ -5323,6 +5715,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "homing accel/decel time"} |
 
@@ -5348,6 +5742,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Digital inputs"} |
 
@@ -5373,6 +5769,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -5398,6 +5796,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Physical outputs"} |
 
@@ -5423,6 +5823,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 21 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Bit Mask"} |
 
@@ -5448,6 +5850,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Read owner prompt | 38 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0004", "DefaultValue": "120", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "velocity speed"} |
 

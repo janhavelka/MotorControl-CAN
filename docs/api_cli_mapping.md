@@ -21,14 +21,21 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+The [fresh 20/21 audit](reports/prompts_20_21_audit.md) adds real native
+`prepareDriverSettings` and `prepareIoSettings`, overloaded
+`nextDriver/advanceDriver`, `noteDriverTransmission` and checked typed readback
+getters. Confirmed position parameters and DI settings are explicit bounded
+register transactions; no CLI, enable or output-action route is implied.
+
+
 Prompt 21 adds four [I/O read groups](io_settings.md) through the same
 `prepareDriverRead/nextDriver/advanceDriver` lifecycle with checked `getIo`.
-Output actions and reassignment remain explicitly gated; future CLI routes do
+Output actions and unresolved DO reassignment remain explicitly gated; future CLI routes do
 not supply missing firmware/terminal semantics.
 
 Prompt 20 implements `prepareDriverRead/nextDriver/advanceDriver/getDriver` for
-the [three native read groups](driver_settings.md). Settings write progression
-and its future typed CLI route remain unimplemented under their evidence gates.
+the [three native read groups](driver_settings.md). Confirmed settings progression is implemented; future CLI routes and unresolved
+setting groups retain their assigned owners.
 
 Use free `camelCase` functions/fields, `PascalCase` types, `CAPS_CASE` constants and enum values, namespace `MotorControlCAN`, and profile namespace `MotorControlCAN::LICHUAN_C`. Keep `Status { Err code; int32_t detail; const char* msg; }`, free `Ok()`, `Status::isOk()`, explicit bool and free `errToString()` returning static-lifetime labels. Preserve `OK`, `INVALID_CONFIG`, `ILLEGAL_VALUE`, `UNSUPPORTED` and `FRAME_ERROR`; select `PROTOCOL_ERROR` for a checked native service rejection. Do not retain `CRC_ERROR` or RTU `EXCEPTION`. A raw SDO abort needs a separate `uint32_t abortCode` with validity in protocol evidence; never truncate or silently sign-convert it into generic detail.
 

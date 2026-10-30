@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Settings.h>
 #include <cinttypes>
 #include <cstdio>
 
@@ -88,6 +89,30 @@ int main() {
     std::puts("Assignment and polarity establish neither wiring nor electrical levels or method "
               "prerequisites.");
     std::puts("This example performs no configuration writes, output actions, enabling or motion.");
+    // Explicit illustrative nameplate/exclusion premises, not identity detection.
+    L::SettingsReservation reservation;
+    reservation.target = target;
+    reservation.model = L::SettingsModel::CL86_C;
+    reservation.owner = reservation.sequence = reservation.generation = 1;
+    L::IoSettings candidate;
+    candidate.invertedInputs = observed.inputPolarityRaw & L::INPUT_POLARITY_BITS;
+    for (unsigned i = 0; i < 7; ++i)
+        candidate.functions[i] = observed.inputFunctions[i];
+    candidate.functions[2] = L::InputFunction::USER2; // Explicit replacement for raw unknown99.
+    L::DriverSettingsContext settings;
+    if (!checked(L::prepareIoSettings(settings, reservation, context, candidate, 2, now, now + 1000,
+                                      options, 1000),
+                 "prepareIoSettings") ||
+        !checked(L::nextDriver(settings, reservation, target.channel.binding, now, done),
+                 "settings nextDriver") ||
+        !done.ready || done.transfer.index != 0x2400 || done.transfer.subindex != 4 ||
+        done.transfer.direction != M::CANOPEN::SdoDirection::DOWNLOAD)
+        return 3;
+    std::puts("Preview only: explicit DI2 assignment prepared; withdrawal before admission leaves "
+              "configuration unchanged.");
+    if (!checked(L::advanceDriver(settings, M::ReadOutcome::CANCELLED, now), "withdraw settings") ||
+        settings.effectsPossible || settings.uncertain)
+        return 4;
     return context.read.state == M::ReadState::SUCCEEDED &&
                    observed.inputFunctions[0] == L::InputFunction::UNDEFINED &&
                    observed.inputFunctions[1] == L::InputFunction::ORIGIN &&

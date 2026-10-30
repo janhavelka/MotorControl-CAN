@@ -197,3 +197,31 @@ epochs without consuming normal delivery. See [PDO evidence and capacities](cano
 for acquisition, lifetime, invalidation and delayed-frame requirements. The
 complete scheduling owner and actual controller queue retirement remain later
 integration work; these are working passive routes, not remapping sequences.
+
+## Native settings exclusion and configuration epochs
+
+The [confirmed settings API](driver_settings.md#explicit-position-parameter-settings)
+uses the existing service work/result boundary. `SettingsReservation` is an
+application-issued continuous exclusive sequence, bound to a nameplate/model,
+route/node/configuration and control epoch. Its owner must reject competing
+control/mode/target/RPDO/settings admissions and revoke it on conflicting state
+or lifecycle loss. A copied host token provides no wire transaction identity.
+`test/settings_write_test.cpp` demonstrates actual exclusion around the one SDO
+client; the full scheduling owner remains prompt 23, not implemented by this token.
+
+`noteDriverTransmission` updates the actual application/axis binding before the
+possible-TX boundary, once per transaction. Only that exact reservation may
+finish its original-epoch downloads. Old general work and prerequisites are
+withdrawn immediately; failure never rolls the epoch back. Retain/release service
+terminals normally. Then `advanceConfiguration` updates the idle healthy local
+service/node binding for new-epoch readback; it does not reset, retry or reopen
+quarantine. Consumers must update the actual axis binding, not a disposable copy.
+
+Node/liveness/service timestamps are preserved, while cache observers and PDO
+qualification are withdrawn. Historical samples keep their original tags. An
+old map cannot requalify; explicit `invalidatePdo(true)` and fresh new-epoch map
+evidence permit replacement, with the original independent retirement/sample
+qualification contract still enforced. No same-ID delayed bytes become current
+through a host generation increment. The narrow epoch update adds no storage
+owner or new capacity. Real settings must pass prompt 23/45 integration when those
+owners resume; the fake-controller path proves the present contracts only.

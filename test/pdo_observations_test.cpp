@@ -408,11 +408,176 @@ void interleavedServiceTerminals() {
     CHECK(retained.unchanged(*owner.result(request))); CHECK(nmtTerminal.unchanged(*owner.nmtResult(nmt)));
     drain(owner); CHECK(consumer.samples == 4);
 }
+
+struct ConfigurationCache {
+    unsigned invalidations = 0;
+    C::NetworkInvalidationEvent event;
+    const C::NodeSnapshot* node = nullptr;
+    const Consumer* pdo = nullptr;
+    bool sawRevokedPdo = false;
+    M::Generation bindingDuringCallback = 0;
+    static void invalidate(void* context, const C::NetworkInvalidationEvent& value) {
+        ConfigurationCache& self = *static_cast<ConfigurationCache*>(context);
+        ++self.invalidations;
+        self.event = value;
+        // Borrowed passive facts are inspected directly, without reentering the owner.
+        self.bindingDuringCallback = self.node->route.binding.configurationGeneration;
+        self.sawRevokedPdo = !self.pdo->valid;
+    }
+    C::NetworkObserver observer() {
+        C::NetworkObserver out; out.context = this; out.invalidate = invalidate; return out;
+    }
+};
+
+void configurationEpochAndExplicitMapRestoration() {
+    C::SdoClient owner; Consumer consumer; ConfigurationCache cache;
+    CHECK(owner.configure(0, channel(), true, true));
+    CHECK(owner.configureNetwork(0, network(), cache.observer(), 0));
+    cache.node = owner.node(0); cache.pdo = &consumer;
+    CHECK(owner.setProducerInterval(0, network(), 25, 0));
+    C::PdoMapEvidence oldMap = mapping(); install(owner, oldMap, consumer);
+    CHECK(owner.qualifyPdo(0, proof(oldMap), 0));
+    CHECK(owner.receive(heartbeat(5), 1, 1));
+    M::Frame emergency = frame(0x81); emergency.data[0] = 1;
+    CHECK(owner.receive(emergency, 2, 2));
+    C::SdoTransfer work; work.channel = channel(); work.operation = 1; work.request = work.step = 1;
+    work.index = 0x1000; work.size = 4; work.deadlineUs = 100;
+    work.queueTimeoutUs = work.responseTimeoutUs = 20;
+    C::SdoRequestId id; CHECK(owner.admit(0, work, 3, id));
+    M::Frame request; C::SdoTxId tx; CHECK(owner.nextTx(0, 3, request, tx));
+    M::Frame response = frame(0x581); response.data[0] = 0x43; response.data[2] = 0x10;
+    CHECK(owner.receive(response, 4, 4)); CHECK(owner.result(id)); CHECK(owner.release(id));
+    CHECK(owner.receive(frame(0x281), 5, 5)); CHECK(consumer.valid);
+    const Saved<C::PdoMapEvidence> historicalMap(owner.pdo(0)->map);
+    const Saved<C::PdoObservation> historicalSample(owner.pdo(0)->observation);
+    const Saved<C::SdoRxObservation> historicalSdo(*owner.observation(0));
+    const M::Binding previous = binding(); M::Binding current = previous;
+    ++current.configurationGeneration;
+    const Saved<C::SdoClient> untouched(owner);
+    M::Binding wrong = current; ++wrong.configurationGeneration;
+    CHECK(!owner.advanceConfiguration(0, previous, wrong, 6)); CHECK(untouched.unchanged(owner));
+    wrong = current; ++wrong.endpoint.profile;
+    CHECK(!owner.advanceConfiguration(0, previous, wrong, 6)); CHECK(untouched.unchanged(owner));
+    CHECK(!owner.advanceConfiguration(0, previous, current, 4)); CHECK(untouched.unchanged(owner));
+    CHECK(!owner.advanceConfiguration(0, owner.node(0)->route.binding, current, 6));
+    CHECK(untouched.unchanged(owner) && cache.invalidations == 0 && consumer.invalidations == 0);
+    C::NodeSnapshot expected = *owner.node(0); expected.route.binding = current;
+    const Saved<C::NodeSnapshot> expectedNode(expected);
+    const uint32_t accepted = owner.port(0)->accepted;
+    CHECK(owner.advanceConfiguration(0, previous, current, 6));
+    CHECK(expectedNode.unchanged(*owner.node(0))); // Includes every liveness/service/EMCY/NMT timestamp.
+    CHECK(historicalSdo.unchanged(*owner.observation(0)));
+    CHECK(owner.port(0)->accepted == accepted && owner.nmtPort()->accepted == 0 && !owner.unresolved(0));
+    CHECK(cache.invalidations == 1 && cache.sawRevokedPdo);
+    CHECK(cache.bindingDuringCallback == previous.configurationGeneration);
+    CHECK(cache.event.cause == C::NetworkInvalidation::CONFIGURATION && cache.event.processedUs == 6);
+    CHECK(cache.event.generation == network().generation && M::sameBinding(cache.event.previous.binding, previous));
+    CHECK(consumer.invalidations == 1 && !consumer.valid);
+    CHECK(owner.pdo(0)->confirmed && !owner.pdo(0)->qualified);
+    CHECK(historicalMap.unchanged(owner.pdo(0)->map) && historicalSample.unchanged(owner.pdo(0)->observation));
+    CHECK(!owner.qualifyPdo(0, proof(oldMap, 7), 7));
+    CHECK(!owner.receive(frame(0x281), 7, 7)); CHECK(consumer.samples == 1);
+    CHECK(historicalSample.unchanged(owner.pdo(0)->observation));
+
+    C::PdoMapEvidence replacement = oldMap; replacement.route.binding = current;
+    replacement.route.generation = 2; replacement.startedUs = replacement.observedUs = 8;
+    replacement.source = C::PdoMapSource::SDO_READBACK; replacement.evidenceId = 101;
+    const Saved<C::PdoRecord> beforeWithdrawal(*owner.pdo(0));
+    CHECK(!owner.configurePdo(0, 0, replacement, L::pdoProfile(41), consumer.observer(), 8));
+    CHECK(beforeWithdrawal.unchanged(*owner.pdo(0)) && consumer.invalidations == 1);
+    CHECK(owner.invalidatePdo(0, true, 8));
+    const Saved<C::PdoRecord> withdrawn(*owner.pdo(0));
+    CHECK(!owner.configurePdo(0, 0, replacement, L::pdoProfile(41), consumer.observer(), 9));
+    CHECK(withdrawn.unchanged(*owner.pdo(0))); // Acquisition must follow explicit withdrawal.
+    replacement.startedUs = replacement.observedUs = 10;
+    C::PdoMapEvidence bad = replacement; bad.route.generation = 1;
+    CHECK(!owner.configurePdo(0, 0, bad, L::pdoProfile(41), consumer.observer(), 10));
+    bad = replacement; bad.route.cobId = bad.cobIdParameter = 0x381;
+    CHECK(!owner.configurePdo(0, 0, bad, L::pdoProfile(41), consumer.observer(), 10));
+    bad = replacement; ++bad.route.binding.logicalAxisId;
+    CHECK(!owner.configurePdo(0, 0, bad, L::pdoProfile(41), consumer.observer(), 10));
+    CHECK(withdrawn.unchanged(*owner.pdo(0)) && historicalSample.unchanged(owner.pdo(0)->observation));
+    install(owner, replacement, consumer, 0, 10);
+    CHECK(M::sameBinding(owner.pdo(0)->map.route.binding, current));
+    CHECK(owner.pdo(0)->confirmed && !owner.pdo(0)->qualified);
+    CHECK(historicalSample.unchanged(owner.pdo(0)->observation));
+    CHECK(!owner.receive(frame(0x281), 11, 11)); // New host/map epochs do not qualify delayed bytes.
+    C::PdoQualification qualified = proof(replacement, 12);
+    qualified.basis = C::PdoSampleBasis::DISTINCT_VERIFIED_ROUTE;
+    CHECK(!owner.qualifyPdo(0, qualified, 12));
+    qualified.basis = C::PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED;
+    CHECK(owner.qualifyPdo(0, qualified, 12));
+    CHECK(!owner.receive(frame(0x281), 12, 13));
+    CHECK(historicalSample.unchanged(owner.pdo(0)->observation));
+    CHECK(owner.receive(frame(0x281), 14, 14)); CHECK(consumer.samples == 2);
+    CHECK(M::sameBinding(consumer.copy.sample.route.binding, current));
+    CHECK(expectedNode.unchanged(*owner.node(0)) && cache.invalidations == 1);
+
+    // An earlier explicit withdrawal does not authorize a later configuration change.
+    CHECK(owner.invalidatePdo(0, true, 15));
+    M::Binding subsequent = current; ++subsequent.configurationGeneration;
+    CHECK(owner.advanceConfiguration(0, current, subsequent, 16));
+    replacement.route.binding = subsequent; replacement.route.generation = 3;
+    replacement.startedUs = replacement.observedUs = 17;
+    const Saved<C::PdoRecord> beforeFreshWithdrawal(*owner.pdo(0));
+    CHECK(!owner.configurePdo(0, 0, replacement, L::pdoProfile(41), consumer.observer(), 17));
+    CHECK(beforeFreshWithdrawal.unchanged(*owner.pdo(0)) && cache.invalidations == 2);
+    CHECK(owner.invalidatePdo(0, true, 18));
+    work.channel.binding = subsequent;
+    CHECK(owner.admit(0, work, 19, id)); CHECK(owner.transportFailure(id, 20)); CHECK(owner.release(id));
+    CHECK(owner.unresolved(0));
+    replacement.startedUs = replacement.observedUs = 21;
+    const Saved<C::PdoRecord> quarantined(*owner.pdo(0));
+    CHECK(!owner.configurePdo(0, 0, replacement, L::pdoProfile(41), consumer.observer(), 21));
+    CHECK(quarantined.unchanged(*owner.pdo(0)) && owner.unresolved(0));
+}
+
+void multipleSettingsBeforeMapRestoration() {
+    C::SdoClient owner; Consumer consumer;
+    CHECK(owner.configure(0, channel(), true, true)); setup(owner);
+    const C::PdoMapEvidence oldMap = mapping(); install(owner, oldMap, consumer);
+    CHECK(owner.qualifyPdo(0, proof(oldMap), 0)); CHECK(owner.receive(frame(0x281), 1, 1));
+    const Saved<C::PdoObservation> historical(owner.pdo(0)->observation);
+    const M::Binding first = binding(); M::Binding second = first; ++second.configurationGeneration;
+    M::Binding third = second; ++third.configurationGeneration;
+    CHECK(owner.advanceConfiguration(0, first, second, 2));
+    CHECK(owner.invalidatePdo(0, true, 3));
+    CHECK(owner.advanceConfiguration(0, second, third, 4));
+    CHECK(M::sameBinding(owner.pdo(0)->map.route.binding, first));
+    CHECK(historical.unchanged(owner.pdo(0)->observation));
+    C::PdoMapEvidence replacement = oldMap; replacement.route.binding = third;
+    replacement.route.generation = 2; replacement.startedUs = replacement.observedUs = 5;
+    replacement.evidenceId = 102; replacement.source = C::PdoMapSource::SDO_READBACK;
+    const Saved<C::PdoRecord> beforeWithdrawal(*owner.pdo(0));
+    CHECK(!owner.configurePdo(0, 0, replacement, L::pdoProfile(41), consumer.observer(), 5));
+    CHECK(beforeWithdrawal.unchanged(*owner.pdo(0))); // The second advance revokes the earlier permission.
+    CHECK(owner.invalidatePdo(0, true, 6));
+    replacement.startedUs = replacement.observedUs = 7;
+    C::PdoMapEvidence stale = replacement; stale.route.binding = second;
+    CHECK(!owner.configurePdo(0, 0, stale, L::pdoProfile(41), consumer.observer(), 7));
+    stale = replacement; ++stale.route.binding.configurationGeneration;
+    CHECK(!owner.configurePdo(0, 0, stale, L::pdoProfile(41), consumer.observer(), 7));
+    install(owner, replacement, consumer, 0, 7);
+    CHECK(M::sameBinding(owner.pdo(0)->map.route.binding, third) && !owner.pdo(0)->qualified);
+    CHECK(historical.unchanged(owner.pdo(0)->observation));
+    CHECK(!owner.receive(frame(0x281), 8, 8));
+    C::PdoQualification qualification = proof(replacement, 9);
+    qualification.basis = C::PdoSampleBasis::DISTINCT_VERIFIED_ROUTE;
+    CHECK(!owner.qualifyPdo(0, qualification, 9));
+    qualification.basis = C::PdoSampleBasis::PRODUCER_AND_INGRESS_RETIRED;
+    CHECK(owner.qualifyPdo(0, qualification, 9));
+    CHECK(!owner.receive(frame(0x281), 9, 10)); CHECK(historical.unchanged(owner.pdo(0)->observation));
+    CHECK(owner.receive(frame(0x281), 11, 11)); CHECK(consumer.samples == 2);
+    CHECK(M::sameBinding(consumer.copy.sample.route.binding, third));
+    CHECK(owner.node(0)->route.generation == network().generation && !owner.unresolved(0));
+}
 } // namespace
 int main() {
     actualMapAndAtomicSamples(); sameWireNewMapRequiresRetirement(); lifecycleAndFullHistory();
     controllerCannotBeBypassedByNewEvidence(); qualificationReplacementAndDistinctRoute();
     collisionsCapacityAndContrasts(); readbackFailureCannotCertify();
     readbackThroughNormalServices(); interleavedServiceTerminals();
+    configurationEpochAndExplicitMapRestoration();
+    multipleSettingsBeforeMapRestoration();
     std::printf("PDO owner observations: %u checks\n", checks); return 0;
 }

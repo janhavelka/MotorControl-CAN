@@ -1,14 +1,12 @@
 # MotorControl-CAN
 
-**Digital I/O reads:** [four typed I/O groups](docs/io_settings.md) cover all 23
-readable assigned rows, including raw output value/mask readback and documentary
-DI function decoding. Prompt 21 remains Partial: firmware/state, reassignment,
-filter and output-terminal semantics still gate writes and output actions.
-
-**Native settings reads:** [three typed driver groups](docs/driver_settings.md)
-now cover direction/subdivision, software limits and position speed/ramp times.
-Prompt 20 is Partial: write sequences and configuration effects remain gated by
-their specific state/scale evidence. No settings writes are advertised.
+**Native settings:** [driver parameters](docs/driver_settings.md) and
+[DI function/polarity](docs/io_settings.md) now have bounded typed write/readback
+paths for explicitly bound CL86-C/OL86-C models, with actual prerequisites,
+whole-candidate validation and retained partial/uncertain effects. The
+[fresh audit](docs/reports/prompts_20_21_audit.md) corrects the earlier blanket
+write blockers. Prompts 20/21 remain Partial: direction/scale/limits/mode and
+DO/filter/output-action gates remain explicit. No physical qualification is claimed.
 
 **Typed reads:** finite raw Lichuan identity, state and communication reads are
 implemented and host tested. See the [read guide](docs/reads.md) and

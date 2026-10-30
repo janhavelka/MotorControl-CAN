@@ -154,6 +154,29 @@ class LedgerTests(unittest.TestCase):
             if key == "0x60FE:03": row["subindex"] = 3
             self.reject(data, "read owner outside the reviewed Prompt 21")
 
+    def test_setting_subsets_keep_scope_policy_and_qualification_separate(self):
+        data = self.changed()
+        rows = [e for o in data["objects"] for e in o["entries"] if "setting_coverage" in e]
+        self.assertEqual(len(rows), 11)
+        self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 3)
+        for row in rows:
+            self.assertEqual(row["review"]["write_policy"], "qualification_required")
+            self.assertFalse(row["coverage"]["implemented"])
+        for field, value in (("setting_scope", "all_firmware_writable"),
+                             ("setting_coverage", dict(documented=True, implemented=False,
+                                                      host_tested=True, hardware_qualified=False)),
+                             ("setting_coverage", dict(documented=True, implemented=True,
+                                                      host_tested=True, hardware_qualified=True))):
+            data = self.changed()
+            entry(data, "0x6081:00")[field] = value
+            self.reject(data, "setting coverage")
+        data = self.changed()
+        e = entry(data, "0x60FE:01")
+        e["setting_scope"] = "explicit_di_configuration_86c"
+        e["setting_coverage"] = dict(documented=True, implemented=True,
+                                      host_tested=True, hardware_qualified=False)
+        self.reject(data, "setting coverage outside")
+
     def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
         facts = [value for obj in LEDGER["objects"] for value in obj["entries"]
                  if "pdo_observation" in value["review"]]

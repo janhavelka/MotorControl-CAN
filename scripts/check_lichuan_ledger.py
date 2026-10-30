@@ -132,6 +132,32 @@ def read_coverage_errors(entry):
     return errors
 
 
+def setting_coverage_errors(entry):
+    """Narrow typed setting subsets do not grant generic descriptor writes."""
+    if "setting_coverage" not in entry:
+        return []
+    label = str(entry.get("key")) + ": setting coverage "
+    value = entry["setting_coverage"]
+    fields = {"documented", "implemented", "host_tested", "hardware_qualified"}
+    if not isinstance(value, dict) or set(value) != fields or any(type(v) is not bool for v in value.values()):
+        return [label + "fields must be four booleans"]
+    index, sub = entry.get("index"), entry.get("subindex")
+    motion = index in (0x6081, 0x6083, 0x6084) and sub == 0
+    di = index == 0x2400 and type(sub) is int and 1 <= sub <= 8
+    review = entry.get("review", {})
+    if (not (motion or di) or entry.get("owner_prompt") != (20 if motion else 21) or
+            entry.get("access_reviewed") != "RW" or generation_disposition(entry) != "resolved" or
+            review.get("write_policy") != "qualification_required"):
+        return [label + "outside the reviewed conditional typed subset"]
+    expected_scope = "position_parameters_86c" if motion else "explicit_di_configuration_86c"
+    errors = []
+    if entry.get("setting_scope") != expected_scope:
+        errors.append(label + "requires exact model-bound subset scope")
+    if not value["documented"] or (value["host_tested"] and not value["implemented"]) or value["hardware_qualified"]:
+        errors.append(label + "invalid documentary/software/qualification claims")
+    return errors
+
+
 def pdo_observation_errors(objects):
     """Check passive layout claims against the reviewed default mapping records.
 
@@ -753,6 +779,7 @@ def validate_ledger(data, root=ROOT):
                     elabel + ": owner prompt invalid")
             errors.extend(read_owner_errors(entry))
             errors.extend(read_coverage_errors(entry))
+            errors.extend(setting_coverage_errors(entry))
             require(all(isinstance(entry.get(field), str) and bool(entry[field].strip()) for field in
                     ("units", "scaling", "effect", "edge_behavior")) and
                     isinstance(entry.get("prerequisites"), list) and bool(entry["prerequisites"]) and

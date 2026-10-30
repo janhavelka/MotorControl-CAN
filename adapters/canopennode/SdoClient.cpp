@@ -108,6 +108,73 @@ bool SdoClient::valid(SdoRequestId id) const {
            id.generation != 0 && channels_[id.channel].generation == id.generation;
 }
 
+bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
+                                      const Binding& current, uint64_t now) {
+    if (slot >= CHANNELS || now < lastUs_ || nmtOccupied_ ||
+        controllerState_ == ControllerState::BUS_OFF ||
+        controllerState_ == ControllerState::RECOVERING ||
+        overlap(&previous, sizeof previous, this, sizeof *this) ||
+        overlap(&current, sizeof current, this, sizeof *this) ||
+        !validateBinding(previous) || !validateBinding(current) ||
+        previous.configurationGeneration == UINT32_MAX)
+        return false;
+    Binding expected = previous;
+    ++expected.configurationGeneration;
+    if (!sameBinding(expected, current) || !channels_[slot].configured ||
+        !sameBinding(channels_[slot].route.binding, previous))
+        return false;
+    const int anchor = networkAnchor(slot);
+    if (anchor < 0) return false;
+    NodeSnapshot& state = channels_[anchor].network;
+    ServiceEligibility eligibility;
+    if (!sameBinding(state.route.binding, previous) || state.transitionPending ||
+        !serviceEligibility(state, now, eligibility) || !eligibility.ordinarySdo)
+        return false;
+    for (const Channel& channel : channels_) {
+        if (!channel.configured ||
+            channel.route.binding.endpoint.bus != previous.endpoint.bus ||
+            channel.route.binding.endpoint.address != previous.endpoint.address)
+            continue;
+        // A shared physical node with another logical/channel binding needs an
+        // explicit effect-scope policy; do not guess which interpretation changed.
+        if (!sameBinding(channel.route.binding, previous) || !channel.confirmed ||
+            channel.unresolved || channel.occupied || channel.cleanup ||
+            channel.awaiting || channel.handoffLive || channel.port.queueOccupied ||
+            channel.port.tx.bufferFull || channel.port.sendFault)
+            return false;
+    }
+
+    NetworkInvalidationEvent event;
+    event.previous = state.route;
+    event.generation = state.route.generation;
+    event.cause = NetworkInvalidation::CONFIGURATION;
+    event.processedUs = now;
+    lastUs_ = now;
+    revokeNodePdos(static_cast<unsigned>(anchor), false, now);
+    for (unsigned i = 0; i < CHANNELS; ++i) {
+        Channel& channel = channels_[i];
+        if ((!channel.configured && !channel.networkConfigured) || !channel.observer.invalidate)
+            continue;
+        const Binding& binding = channel.configured ? channel.route.binding : channel.network.route.binding;
+        if (!sameBinding(binding, previous)) continue;
+        bool duplicate = false;
+        for (unsigned j = 0; j < i; ++j) {
+            const Channel& earlier = channels_[j];
+            if (earlier.observer.context == channel.observer.context &&
+                earlier.observer.invalidate == channel.observer.invalidate &&
+                ((earlier.configured && sameBinding(earlier.route.binding, previous)) ||
+                 (earlier.networkConfigured && sameBinding(earlier.network.route.binding, previous))))
+                duplicate = true;
+        }
+        if (!duplicate) channel.observer.invalidate(channel.observer.context, event);
+    }
+    for (Channel& channel : channels_)
+        if (channel.configured && sameBinding(channel.route.binding, previous))
+            channel.route.binding = current;
+    state.route.binding = current;
+    return true;
+}
+
 bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRequestId& id) {
     if (slot >= CHANNELS || overlap(&id, sizeof id, this, sizeof *this) ||
         overlap(&id, sizeof id, &work, sizeof work) || now < lastUs_) return false;

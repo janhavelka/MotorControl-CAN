@@ -29,7 +29,7 @@ enum class NetworkInvalidation : uint8_t {
 /** Synchronous notification, copied before callbacks and never retained by them. */
 struct NetworkInvalidationEvent {
     NetworkRoute previous; ///< Frozen route/epoch whose dependencies are being revoked.
-    Generation generation = 0; ///< New epoch, or unchanged exhausted maximum.
+    Generation generation = 0; ///< Current node epoch; unchanged for local configuration advance or exhausted maximum.
     NetworkInvalidation cause = NetworkInvalidation::BOOTUP; ///< Actual revocation reason.
     uint64_t processedUs = 0; ///< Supplied processing boundary in monotonic microseconds.
     NmtCommand command = NmtCommand::START; ///< Meaningful for NMT_TRANSITION/NMT_RESET; identifies the actual requested transition/reset.

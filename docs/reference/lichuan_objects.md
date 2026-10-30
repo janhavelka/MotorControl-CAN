@@ -164,3 +164,18 @@ entries, 53 manual functions, 24 conflicts, gaps and anomaly A01. Descriptor
 presence is separate from typed reads/settings/actions/workflows and their
 documented, implemented, host-tested and hardware-qualified flags. All semantic
 implementation/test/qualification fields remain false at this stage.
+
+## Conditional setting coverage
+
+`setting_scope` and separate `setting_coverage` fields describe eleven implemented
+native setting rows: `position_parameters_86c` (6081/6083/6084) and
+`explicit_di_configuration_86c` (2400:01..08). Four booleans retain documentary,
+implementation, host-test and hardware-qualified states; hardware remains false.
+These scopes require explicit CL86-C/OL86-C binding, actual prerequisites,
+continuous owner reservation, partial-effect retention and matched readback.
+They do not change generic descriptor write policy or whole-object/other-mode
+coverage. The validator rejects unknown scopes, wrong owners/addresses/access,
+inconsistent tests and invented hardware qualification. Generated documentation
+reports these counts separately; generated declarations do not implement settings.
+See the [fresh audit](../reports/prompts_20_21_audit.md) for corrected source
+interpretation and the hand-written implementation. Vendor bytes remain immutable.

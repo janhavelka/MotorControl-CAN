@@ -72,3 +72,17 @@ The [source review](reports/prompt_6_source_review.md),
 [independent review](reports/prompt_6_review.md) and
 [execution report](reports/prompt_6.md) distinguish retained RS names, deliberate
 CAN differences, host tests and remaining physical qualification.
+
+## Confirmed native setting transactions
+
+The [fresh 20/21 audit](reports/prompts_20_21_audit.md) adds one finite
+`DriverSettingsContext` for the documented 86C parameter and DI candidates.
+It reuses the existing typed group readback and SDO work/result boundary; it
+adds no controller, clock, queue, node registry or motion executor. The sole
+application owner supplies continuous exclusion, actual control/state evidence
+where required, and current bindings. Configuration prerequisites are withdrawn
+before possible transmission; only the reserved old-epoch sequence may finish
+its copied downloads. Healthy idle service epoch advancement then enables
+new-epoch matched readback without reopening quarantine or renewing liveness.
+The [owner guide](can_owner.md#native-settings-exclusion-and-configuration-epochs)
+owns integration rules; hardware qualification remains separate.

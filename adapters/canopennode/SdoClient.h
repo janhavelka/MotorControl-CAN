@@ -110,6 +110,10 @@ public:
      * @param[in] evidence Owned actual-map candidate, complete communication facts and nonzero evidence identity.
      * Template provenance rejects. Replacement mapping epoch must strictly increase;
      * evidence time cannot predate the node/route boundary or lie in the future.
+     * After advanceConfiguration, explicit invalidatePdo(slot, true) permits
+     * fresh map evidence for a strictly newer current configuration epoch with all other
+     * binding fields unchanged. Old map/sample provenance is never retagged;
+     * independent producer/ingress retirement still gates new samples.
      * @param[in] profile Call-only reviewed layout facts; no pointer is retained.
      * @param[in] observer Borrowed stationary bounded cache consumer/invalidator.
      * @param[in] nowUs Supplied nondecreasing monotonic microseconds.
@@ -170,6 +174,27 @@ public:
      */
     bool configure(uint8_t slot, const SdoChannel& channel, bool externallyConfirmed,
                    bool freshSessionQualified);
+    /** Advance only a completed settings transaction's local configuration epoch.
+     * Requires a confirmed, usable SDO channel and existing passive node anchor.
+     * Every channel of the physical node must have exactly previous's binding and
+     * be idle, with terminals released and all staging/cleanup/handoffs retired.
+     * No occupied NMT result or pending node transition is allowed. This is not
+     * recovery, route rebinding, a device write or a fresh-session qualification.
+     * @param[in] slot Configured SDO channel whose exact binding is previous.
+     * @param[in] previous Original binding, borrowed only for this call; no owner overlap.
+     * @param[in] current Same binding with configurationGeneration increased by exactly one.
+     * The application already withdrew old configuration evidence before possible
+     * settings TX; this call synchronizes the idle adapter with that actual epoch.
+     * @param[in] nowUs Nondecreasing supplied microseconds; no observation is renewed.
+     * @return False atomically for invalid scope, time, busy/unqualified channels,
+     * stale generations or exhaustion. Success revokes PDO sample qualification
+     * and notifies distinct network observers with CONFIGURATION before publishing
+     * the new binding. Node generation, NMT/liveness/service times and historical
+     * evidence retain their original provenance. Cache callbacks must recognize
+     * the application's already advanced epoch rather than incrementing it again.
+     */
+    bool advanceConfiguration(uint8_t slot, const Binding& previous, const Binding& current,
+                              uint64_t nowUs);
     /** Configure passive routing in an existing unused network slot, without I/O.
      * A passive-only slot needs no SDO session premise. One route per physical
      * node; other SDO channels share that anchor. All identifiers must be unique
@@ -419,12 +444,16 @@ private:
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
     struct PdoSlot {
         bool bound = false, reused = false;
+        // Only an explicit map withdrawal permits checked replacement at the
+        // newer current configuration epoch; lifecycle revocation is not that request.
+        bool configurationReplacementAllowed = false;
         uint8_t anchor = 0;
         PdoRecord record;
         PdoObserver observer;
     } pdos_[PDO_ROUTES];
     void revokePdo(unsigned slot, bool mapUncertain, uint64_t nowUs);
     void revokeNodePdos(unsigned anchor, bool mapUncertain, uint64_t nowUs);
+    bool currentPdoBinding(unsigned anchor, const Binding& binding) const;
     bool dispatchPdo(const Frame& frame, bool timeKnown, uint64_t receivedUs, uint64_t nowUs, bool& matched);
     bool pdoIdentifier(uint32_t id, bool extended) const;
     bool valid(SdoRequestId id) const;

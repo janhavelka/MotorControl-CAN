@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Typed settings audit corrections
+
+- Implement explicit 86C DI function/polarity and position speed/ramp settings;
+  correct blanket blockers that confused absent software with missing device facts.
+- Validate full candidates, actual control/state evidence and continuous owner
+  reservation before work; retain per-write acknowledgements, unknown effects,
+  exact readback and unchanged getter outputs on failure.
+- Withdraw the actual configuration epoch before possible transmission; add a
+  checked idle owner epoch update and explicit PDO-map restoration with sample
+  qualification kept independent. No quarantine reopening or automatic commands.
+- Add independent real fake-controller write/failure tests, standalone consumers
+  and documentation. DO/filter/action and scale/limit/mode gates remain pending.
+
+
 ### Digital I/O reads
 
 - Add four finite I/O groups through `prepareDriverRead/nextDriver/advanceDriver`
@@ -9,7 +23,7 @@
 - Preserve reserved entries, unknown bits/codes, conflicting output addresses,
   terminal numbering and filter metadata; no electrical-level claim is inferred.
 - Add offline usage, 7,230 native checks, installed/exported consumer coverage and
-  explicit generated read ownership. Prompt 21 remains Partial: settings writes,
+  explicit generated read ownership. Prompt 21 remains Partial: DO/filter writes,
   output actions and their partial-effect/invalidation contracts stay gated by
   the specific source facts in the I/O guide.
 

@@ -1476,7 +1476,7 @@ constexpr ObjectDescriptor OBJECT_607D_02 = {
     20, 0x00080011u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x6081:00 U32 value declaration; EDS [6081] lines 1943-1951; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17.
+/** @brief 0x6081:00 U32 value declaration; EDS [6081] lines 1943-1951; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17; EN86 PDF page 12; ZH86 PDF page 12.
  * No operation is implemented or authorized; gates Q01, Q11, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_6081_00 = {
     0x6081, 0x00, ScalarType::U32, 4, false, SdoAccess::READ_WRITE,
@@ -1484,7 +1484,7 @@ constexpr ObjectDescriptor OBJECT_6081_00 = {
     20, 0x00080401u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x6083:00 U32 value declaration; EDS [6083] lines 1952-1960; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17.
+/** @brief 0x6083:00 U32 value declaration; EDS [6083] lines 1952-1960; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17; EN86 PDF page 12; ZH86 PDF page 12.
  * No operation is implemented or authorized; gates Q01, Q11, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_6083_00 = {
     0x6083, 0x00, ScalarType::U32, 4, false, SdoAccess::READ_WRITE,
@@ -1492,7 +1492,7 @@ constexpr ObjectDescriptor OBJECT_6083_00 = {
     20, 0x00080401u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x6084:00 U32 value declaration; EDS [6084] lines 1961-1969; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17.
+/** @brief 0x6084:00 U32 value declaration; EDS [6084] lines 1961-1969; EN86 PDF page 11; EN86 PDF page 17; ZH86 PDF page 11; ZH86 PDF page 17; EN86 PDF page 12; ZH86 PDF page 12.
  * No operation is implemented or authorized; gates Q01, Q11, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_6084_00 = {
     0x6084, 0x00, ScalarType::U32, 4, false, SdoAccess::READ_WRITE,

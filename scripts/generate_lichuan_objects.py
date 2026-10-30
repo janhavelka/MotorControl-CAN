@@ -18,7 +18,7 @@ import tempfile
 
 from check_lichuan_ledger import (EXPRESSION, INTEGER, ROOT, TYPE_CODES,
                                   generation_disposition, load_json, pdo_observation_errors,
-                                  read_coverage_errors, read_descriptor_representation,
+                                  read_coverage_errors, setting_coverage_errors, read_descriptor_representation,
                                   read_owner_errors, validate_ledger)
 
 
@@ -126,7 +126,7 @@ def projected_rows(objects):
                 if entry.get("pdo_mapping_reviewed") is not False and not (
                         entry.get("pdo_mapping_reviewed") is None and entry.get("pdo_mapping_eds") == "1"):
                     raise ValueError(key + ": unqualified PDO policy")
-            read_errors = read_owner_errors(entry) + read_coverage_errors(entry)
+            read_errors = read_owner_errors(entry) + read_coverage_errors(entry) + setting_coverage_errors(entry)
             if read_errors:
                 raise ValueError("; ".join(read_errors))
             rows.append(entry)
@@ -477,7 +477,8 @@ def coverage_document(data, rows):
              "| Manual-only semantic items | {} | Reviewed evidence, semantic functions pending |\n".format(len(data["manual_only"])),
              "| Read shape descriptors | {} | Prompt 19/20/21 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
              "| Typed reads | {} | Implemented scalar read rows; see separate read coverage, not whole-object support |\n".format(implemented_reads),
-             "| Typed settings | 0 | Assigned semantic prompts remain pending |\n",
+             "| Typed settings | {} | Conditional scalar setting rows, not complete object permission; model/state scope below |\n".format(
+                 sum(row.get("setting_coverage", {}).get("implemented", False) for row in rows)),
              "| Actions | 0 | Assigned semantic prompts remain pending |\n",
              "| Workflows | 0 | Assigned semantic prompts remain pending |\n\n",
              "Coverage `D/I/H/Q` means documented / semantic implementation / host-tested semantic "
@@ -556,6 +557,8 @@ def coverage_document(data, rows):
                   ("Read owner prompt", row.get("read_owner_prompt")),
                   ("Read representation", read_descriptor_representation(row) if row.get("read_owner_prompt") in (19, 20, 21) else None),
                   ("Read coverage D/I/H/Q", coverage_text(row["read_coverage"]) if "read_coverage" in row else "not reported"),
+                  ("Typed setting scope", row.get("setting_scope")),
+                  ("Setting coverage D/I/H/Q", coverage_text(row["setting_coverage"]) if "setting_coverage" in row else "not reported"),
                   ("Semantic coverage D/I/H/Q", coverage_text(row["coverage"])),
                   ("Raw source claim", row["raw_fields"])]
         lines += ["| {} | {} |\n".format(label, text(value)) for label, value in fields]
