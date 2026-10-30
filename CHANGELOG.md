@@ -60,6 +60,8 @@ This repository contains planning/reference material and native service/API owne
 
 ### Changed
 
+- Corrected the PDO blocker rationale: CiA documents the conditional remapping procedure. Q17 now separates Lichuan applicability, changed timing settings and sample qualification so an established narrow subset need not wait for unrelated facts.
+
 - Recorded the Prompt 18 PDO configuration blocker and expanded the reviewed Q17 evidence requirement for edit order, allowed states, readback, timing and persistence. Existing passive PDO support is unchanged; no remap/settings API is claimed.
 
 - Corrected initial network attachment to preserve original SDO service-proof

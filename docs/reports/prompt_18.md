@@ -2,7 +2,7 @@
 
 ## Status and delivered scope
 
-**Blocked: no reviewed Lichuan mutation sequence is established.** The source
+**Blocked: Lichuan applicability of the standard remap is unconfirmed.** The source
 audit, prerequisite review and precise evidence assessment are complete; the
 typed remapping/settings implementation and its acceptance tests are not.
 No remap context, always-rejecting API, hypothetical device sequence or extra
@@ -34,7 +34,7 @@ in [SOURCES.json](../reference/SOURCES.json). No downloaded file was replaced.
 | Fact | Reopened original evidence | Disposition |
 | --- | --- | --- |
 | Four receive and four transmit sets | EDS DeviceInfo; mapping records `1600..1603`, `1A00..1A03`; EN86/ZH86 pp15-16 | Documented Lichuan metadata, not a common-library maximum or observed firmware configuration. |
-| Counts U8 RW 0..4; four U32 RW slots | EDS lines 587-787 and 1028-1228; rendered EN86/ZH86 mapping tables | Documented representation/access. No edit order or count-zero activation behavior follows. |
+| Counts U8 RW 0..4; four U32 RW slots | EDS lines 587-787 and 1028-1228; rendered EN86/ZH86 mapping tables | Documented representation/access; variable/dynamic capability and device-specific activation remain unresolved. The conditional standard order is documented by CiA, as corrected below. |
 | Communication COB-ID U32, transmission U8, inhibit/event U16 | EDS lines 347-586 and 788-1027, records `1400+k/1800+k`, k=0..3 | Documented representation/access only. No complete flag mask, legal edit state or readback contract. |
 | Type default 255, inhibit 0, receive event 1000, transmit event 100 | Same EDS sections | Raw defaults only. No accepted type set, timing units/ranges/zero behavior or motor watchdog guarantee. |
 | PDO targets and direction | Original default words and WO `6040/6060`; current generated passive layouts | Default-layout evidence does not authorize arbitrary remapping or SDO uploads of WO targets. |
@@ -59,21 +59,23 @@ index/content recheck, not a byte-for-byte redownload comparison. No newer
 applicable procedure was found; this does not prove that none exists elsewhere.
 
 Pinned CANopenNode `9b8beed8367241e96ac03f916cd5a500bcb2cf23` does document
-**its own** sequence in `301/CO_PDO.h:89-103`: disable, zero count, entries,
+the standard sequence in `301/CO_PDO.h:89-103`: disable, zero count, entries,
 count, enable. `CO_PDO.c:247-252` checks its mapping edit state;
 `:999-1035` implements its type/timing behavior. A type write sets the stack's
 `sendRequest` flag; inhibit edits require disabled PDO, with 100-us units, and
 event fields use milliseconds in that implementation. These are source-confirmed
-stack mechanics, not source-confirmed Lichuan firmware effects. Copying this
-procedure or those units would be an unsupported inference. No physical claim
-was measured and no new manufacturer contradiction was resolved.
+stack mechanics, not source-confirmed Lichuan firmware effects. The original
+review overstated the uncertainty of the order itself: CiA independently
+documents it. The [fresh audit below](#fresh-independent-audit) corrects that
+claim while preserving the distinction between a standard procedure and its
+Lichuan applicability. No physical claim was measured.
 
 ## Original acceptance criteria
 
 | Item | Available prerequisite | Unfulfilled Prompt 18 work |
 | --- | --- | --- |
 | 1. Typed request/atomic admission | `validatePdoMap`, `validatePdoRoute`, owner identity/collision checks | Model/firmware mutation permissions, allowed states and remappable-target policy; then concrete typed request preparation. |
-| 2. Documented sequence | Existing bounded SDO service/channel | Establish exact disable/count/entry/enable/readback order, then implement it through the same service. No sequence is claimed tested. |
+| 2. Documented sequence | Existing bounded SDO service/channel and CiA's conditional standard remap procedure | Confirm selected-model applicability, device-specific conditions/activation and readback contract, then implement through the same service. No Lichuan sequence is claimed tested. |
 | 3. Deadline/progress/effects | SDO owns payload, identities, node epoch and retained terminal | Concrete operation context, immutable overall budget, last confirmed step and partial effects for that reviewed sequence. |
 | 4. Partial failure | `invalidatePdo(slot,true,now)` revokes only the affected map/qualification and retains history | Couple invalidation to the reviewed mutation's first possible-effect boundary; retain confirmed prefix and uncertainty. |
 | 5. Type/timing/SYNC | Raw source fields and defaults | Supported types, timing units/ranges/effects/persistence; required SYNC behavior if established. These setters are not independently supported. |
@@ -85,13 +87,15 @@ configuration orders, stale readback epochs/admission times, and old same-ID/DLC
 bytes with unrelated traffic kept current. Independent review found no defect
 requiring changes to those paths. Failure-at-every-mutation-step, rollback/replay
 absence and last-confirmed-step tests remain unperformed because their actual
-device sequence is not established. They remain owned by Prompt 18.
+device applicability is not established. They remain owned by Prompt 18.
 
-Resume with an applicable manufacturer procedure or narrowly scoped, separately
+Resume with applicable manufacturer clarification or narrowly scoped, separately
 authorized fixture evidence identifying model/firmware, legal NMT/drive state,
-allowed targets/flags, edit/activation order, readback meaning, timing settings
-and persistence. Q17 owns this gate; Q01 model binding, relevant Q16 routes,
-Q20 read effects and Q15 persistence remain distinct. A single qualified subset
+allowed targets/flags, application of the standard sequence, activation and
+readback meaning. Keep persistence effects explicit; require timer/SYNC facts
+only for operations that change or consume them. Q17 owns this gate; Q01 model
+binding, relevant Q16 routes, Q20 read effects and Q15 persistence remain distinct.
+A single qualified subset
 may proceed without resolving every model. If owner construction is complete by
 then, integrate through that owner before closing this stage. Prompt 45 checks
 combined paths; it does not inherit unfinished Prompt 18 implementation.
@@ -153,3 +157,86 @@ TX. Commit and sync these checked findings on the same execution branch; final
 commit/upstream comparison are verified at delivery. Prompt 18 stays Blocked.
 The next independently ready numbered work is Prompt 19 when assigned; it does
 not satisfy this stage's remaining requirements and is not executed here.
+
+## Fresh independent audit
+
+Re-read original Prompt 18 in full on 2026-10-30 and inspected the actual
+`c5253b8..7649ec1` diff and current implementation. Audit entry was
+`7649ec1b1c82ee80d0d585d6fd0b7f99534d0c92`, clean tree/index on the same branch
+and upstream, with a fresh fetch at 0 ahead / 0 behind. Three new fresh-context
+reviewers covered primary evidence (`gpt-6-astra`, high), code/edge cases and
+requirements/live sibling sources (`gpt-6.1-sol`, high). All remained read-only.
+
+**Correction:** the original rationale made the remapping order appear
+stack-specific or unknown. [CiA's PDO description](https://www.can-cia.org/can-knowledge/pdo-protocol/)
+documents the conditional procedure and distinguishes variable mapping in
+Pre-operational from dynamic mapping, which also permits Operational. Lichuan
+EN86/ZH86 p3 explicitly claims CiA301; RW mapping tables support conditional
+applicability but do not establish actual edit restrictions and activation.
+The lead checked the primary CiA page and retained source tables independently.
+A verbatim vendor restatement of the standard is not required. The remaining
+blocker is selected-model applicability, not the absence of a physical test or
+knowledge of the generic sequence.
+
+Q17 and maintained guidance now keep three obligations separate: the selected
+mutation contract, settings actually changed/consumed, and post-change sample
+qualification. A future established narrow remap may retain existing timing
+settings and leave samples unqualified. Unknown persistence must stay explicit;
+it does not justify an invented volatile-only guarantee or implicit save.
+No confirmed independently implementable mutation subset was found. Existing
+layout/readback/provenance code already covers the available passive subset;
+adding a hypothetical profile or generic sequencer would not complete this stage.
+
+Fresh downloads of all five retained PDFs and the EDS are byte-identical to
+their originals, verified by SHA-256 in
+`.build/p18-reaudit-evidence/download_comparison.json`. The current manufacturer
+index HTML differs but retains the same download links. Product-page retrieval
+failed local certificate verification and timed out through browsing; no fresh
+product-page conclusion is claimed. CiA's inspected HTML is retained in that
+ignored directory with SHA-256
+`45093e79d496711d9d0edc7cc06ad21927b02c038a7201a6f06fe924a7321276`.
+Original reference bytes/manifests and generated C++ remain unchanged.
+
+Live RS, ADS1115, INA228, MB85RC, RV3032-C7 and FieldCore revisions and clean
+states match the table above before/after inspection. Reviewers read current
+configuration implementations, actual owner callers, focused tests and verifier
+registration; no relevant behavior delta was found and no sibling suite rerun.
+No defect was reproduced in atomic PDO preparation, copied readback evidence,
+WO targets, count/width/route checks, lifecycle invalidation or reused-route
+qualification. All six original implementation obligations stay in Prompt 18.
+
+Fresh quick verification passed 30/30 tests in
+`.build/p18-reaudit-code/verification`, run
+`20261030T092921251637Z-31684-rxj82moi`. A separate 21-check adversarial harness
+passed: callback-time input mutation, wrong node/map epochs, false distinct-route
+claims on reused IDs, old captured bytes and retained observations after map
+withdrawal. Its source/binary remain under `.build/p18-reaudit-code/`.
+These checks validate existing software, not an implemented Lichuan remap.
+
+The first full audit run, `20261030T093438261915Z-83648-3rudsty5` under
+`.build/p18-reaudit-full/`, failed: `sdo_codec` and `api_ownership` exceeded
+their unchanged 10-second CTest limits without output; 29 other tests passed.
+The verifier stopped before package and Doxygen checks. The original logs were
+retained. Both exact binaries then passed in 0.01 seconds, and five repetitions
+each passed in 0.00-0.07 seconds. Their executable sections match the independently
+passing quick-build binaries byte-for-byte. Review found no test sleep/hardware
+wait or reproduced runtime defect. This does not explain or fix the initial
+timeouts; their cause remains unresolved. Reproduction logs and binary comparison
+are retained under `.build/p18-reaudit-code/`. No timeout or test was weakened.
+
+A fresh full run, `20261030T093839659292Z-7036-cnptp10d` under
+`.build/p18-reaudit-final/`, passed all 31 non-package CTests, separate package
+and relocated-consumer checks, generation freshness, strict Doxygen 1.13.2 and
+API extraction. Command:
+
+```text
+python scripts/verify.py --mode full --compiler gcc --build-dir .build/p18-reaudit-final
+```
+
+The passing rerun does not erase the unexplained initial failure. Promptset,
+generator and diff checks passed; staged and committed reference-byte checks
+accompany synchronization. No runtime source or public declaration changed.
+This documentation/ledger correction requires no manual remote CI dispatch;
+Linux sanitizers and hardware were not run locally. Final commit and fresh
+upstream comparison are reported at delivery. Prompt 18 remains Blocked on the
+scoped device evidence above, with all implementation obligations retained.

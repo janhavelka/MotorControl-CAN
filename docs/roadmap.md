@@ -43,7 +43,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 15 | Passive network events and invalidation | Complete: pure codecs, shared node anchors, captured-time/epoch facts, four copied diagnostics and synchronous cache invalidation; checks in [report](reports/prompt_15.md) |
 | 16 | Explicit NMT requests and service eligibility | Complete: native producer, intent/TX/observations, domain effects and heartbeat-disabled service evidence; [report](reports/prompt_16.md) |
 | 17 | Observed PDO maps and decoding | Complete: checked layouts, explicit actual-map acquisition, independent sample qualification and atomic passive routing; [report](reports/prompt_17.md) |
-| 18 | Explicit PDO remapping | Blocked: no applicable disable/edit/enable/readback procedure or timing-setting semantics; [report and exact Q17 evidence](reports/prompt_18.md). Resume this stage when evidence arrives. |
+| 18 | Explicit PDO remapping | Blocked: Lichuan applicability/state/activation of the standard remap remain unconfirmed; [audit and scoped Q17 gates](reports/prompt_18.md#fresh-independent-audit). Timing changes and sample qualification are separate obligations. |
 | 19-22 | Typed reads, motion/scale, I/O/output and tuning groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
 | 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
 | 26-28 | Native example, TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |

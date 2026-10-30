@@ -1,7 +1,7 @@
 # MotorControl-CAN
 
 **PDO configuration status:** [Prompt 18](docs/reports/prompt_18.md) is blocked
-on the Lichuan remapping procedure and timing-setting semantics. Passive PDO
+on Lichuan applicability of standard remapping and timing-setting semantics. Passive PDO
 layout/readback support is implemented; typed remap/settings APIs are not.
 
 This checkout contains the audit, reference material and implementation prompts for a framework-independent C++11 library for **CAN-controlled stepper and servo drives from multiple manufacturers**. **A minimal native package is implemented:** local status, exact units and quantization, pure axis/reference targets, endpoint identity, Classical CAN frame validation, checked CANopen SDO envelopes and passive heartbeat/boot-up/EMCY codecs. Reviewed Lichuan object metadata is installed separately; no operational drive

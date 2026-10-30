@@ -28,6 +28,12 @@ records sources, corrections, checks and synchronization. Prompt 11 is complete;
 
 Allowed states: Pending, In progress, Complete, Partial, Blocked. Complete means the prompt's entire owned scope and required checks passed. Feature evidence and physical qualification are separate coverage columns; missing hardware does not become Complete through a fake test. See [COMMON.md](COMMON.md) and [execution order](README.md).
 
+The [fresh Prompt 18 audit](../reports/prompt_18.md#fresh-independent-audit)
+corrected its blocker rationale: standard remapping is documented by CiA;
+selected-model applicability is unresolved. Q17 now separates mutation, timing
+changes and sample qualification. No runtime defect or additional supported
+Lichuan subset was found; Prompt 18 remains Blocked.
+
 A [fresh independent audit of prompts 10-11](../reports/prompts_10_11_audit.md)
 found no production defect or unfulfilled feature requirement. It corrected
 a retained-proof comment and an ADS1115 source citation; independent numeric,

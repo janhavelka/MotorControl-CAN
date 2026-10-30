@@ -34,6 +34,9 @@ unknown-capture forwarding. R05/R11/R20/R32 retain host-only scope.
 but remains **Blocked** on Q17 mutation semantics. No remapping/timing operation
 or failure-at-each-mutation-step test is delivered; R12/R13 retain that scope.
 Existing PDO layout/readback/provenance tests are prerequisite evidence only.
+The [fresh Prompt 18 audit](reports/prompt_18.md#fresh-independent-audit)
+corrects the standard-versus-device evidence distinction and narrows Q17's
+dependencies; it grants no new runtime capability or hardware qualification.
 
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
 build or hardware qualification has been delivered for that requirement. No CAN

@@ -179,10 +179,11 @@ These are raw source values; they do not prove a motor watchdog or all accepted
 transmission modes. No useful setter meaning is established for compatibility
 entries. Mapping records have four U32 slots and a U8 active count 0..4.
 
-[Prompt 18's original-source review](../reports/prompt_18.md) found no applicable
-disable/edit/enable procedure or timing-setting contract. Q17 now explicitly
-requires these facts before typed mutation; existing passive layouts and
-readback checks do not complete that feature.
+[Prompt 18's fresh audit](../reports/prompt_18.md#fresh-independent-audit)
+distinguishes CiA's documented variable/dynamic mapping procedure from its
+unconfirmed Lichuan applicability. Q17 gates model-specific conditions and
+activation/readback before typed mutation, with timing changes and sample
+qualification kept separate. Passive layout/readback checks do not complete it.
 
 | Route | Default ID | Mapping record and active words | Derived payload |
 | --- | --- | --- | --- |

@@ -710,22 +710,31 @@ and its explicit mutation/partial-effect sequences remain prompt 18.
 
 ### Lichuan PDO mutation gate
 
-[Prompt 18's source review](reports/prompt_18.md) found no applicable remapping
-procedure in the retained Lichuan manuals or current manufacturer index. The
-typed remap and transmission/event/inhibit setters are not implemented. The
-existing `configurePdo` installs host evidence; it does not configure a drive.
+[Prompt 18's review](reports/prompt_18.md#fresh-independent-audit) distinguishes
+the documented standard procedure from unresolved Lichuan applicability. The
+typed remap and transmission/event/inhibit setters are not implemented.
+`configurePdo` installs host evidence; it does not configure a drive.
 
-Q17 in the reviewed ledger requires the selected firmware's legal NMT/drive
-states, COB-ID flags/disable behavior, edit/count/enable order, activation and
-complete readback contract. Timer units, supported values, zero behavior and
-persistence also need evidence. EDS RW flags and raw defaults establish none of
-those effects. CANopenNode's documented server procedure and timer units describe
-that stack, not the unidentified Lichuan implementation.
+[CiA documents the procedure](https://www.can-cia.org/can-knowledge/pdo-protocol/)
+for variable/dynamic mapping: invalidate the PDO through COB-ID bit 31, clear the
+mapping count, write entries, restore the count, then revalidate the PDO.
+Variable mapping permits editing in Pre-operational; dynamic mapping also permits
+Operational. Lichuan's CiA301 claim and RW mapping fields support this conditional
+procedure. They do not settle model-specific edit restrictions or activation.
+Q17 requires evidence of that applicability and the selected subset's flags,
+drive conditions and readback contract, without requiring a verbatim vendor
+restatement of the standard.
 
-No configuration request should be assembled from these raw fields as a
-substitute for the missing typed operation. Once a subset is established, its
+Keep persistence effects explicit; do not assume volatile-only writes. Timing
+and SYNC facts gate only operations that change or consume those settings.
+Post-remap sample qualification is separate from map confirmation. A narrow
+supported remap may leave timing unchanged and samples unqualified. Missing
+physical qualification alone does not block software implementation.
+
+Raw SDO access does not complete the missing typed operation; separately
+authorized evidence acquisition follows Prompt 29. Once a subset is established, its
 operation must retain confirmed steps and possible partial effects through the
 existing SDO owner, without replay or rollback. Confirmed configuration and sample
-qualification remain separate under the contract above. The missing procedure
-also prevents meaningful failure-at-each-step acceptance tests; this is an open
+qualification remain separate under the contract above. Device-sequence
+acceptance remains open; protocol-only fake tests cannot close it. This is an
 implementation obligation, not completed support behind a capability flag.
