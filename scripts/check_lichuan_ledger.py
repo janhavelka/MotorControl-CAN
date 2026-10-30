@@ -66,6 +66,17 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 21:
+        index, subindex = entry.get("index"), entry.get("subindex")
+        allowed = (type(index) is int and type(subindex) is int and
+                   ((index == 0x2400 and (0 <= subindex <= 8 or 12 <= subindex <= 15)) or
+                    (0x2401 <= index <= 0x2407 and subindex == 0) or
+                    (index == 0x60FE and 0 <= subindex <= 2)))
+        if not allowed:
+            return [label + "outside the reviewed Prompt 21 read scope"]
+        if generation_disposition(entry) != "resolved":
+            return [label + "requires a resolved native read type"]
+        return []
     if owner == 20:
         allowed = {(0x2200, 0), (0x2201, 0), (0x2202, 0), (0x607D, 0),
                    (0x607D, 1), (0x607D, 2), (0x6081, 0), (0x6083, 0), (0x6084, 0)}
@@ -110,7 +121,7 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") not in (19, 20) or read_owner_errors(entry):
+    if entry.get("read_owner_prompt") not in (19, 20, 21) or read_owner_errors(entry):
         errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")

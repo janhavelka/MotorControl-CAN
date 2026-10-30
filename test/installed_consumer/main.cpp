@@ -6,6 +6,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <cstring>
 
 int main() {
@@ -129,5 +130,28 @@ int main() {
     if (!LICHUAN_C::getDriver(driver, readTarget, 13, 20, observedDriver) ||
         observedDriver.softLimitSelectorRaw != 10 || observedDriver.minimumNative != INT32_MIN ||
         observedDriver.maximumNative != INT32_MAX || observedDriver.window.skewUs != 3) return 32;
+    LICHUAN_C::DriverContext io;
+    if (!LICHUAN_C::prepareDriverRead(io, readTarget, 3, 20, 100, readOptions,
+                                    LICHUAN_C::DriverGroup::IO_OUTPUT_COMMAND)) return 33;
+    const uint32_t outputWords[] = {2, 0x80010000u, 0xffff0000u};
+    for (unsigned i = 0; i < 3; ++i) {
+        LICHUAN_C::PreparedRead prepared;
+        if (!LICHUAN_C::nextDriver(io, 20+i, prepared) || !prepared.ready ||
+            prepared.transfer.direction != CANOPEN::SdoDirection::UPLOAD) return 34;
+        CANOPEN::SdoCompletion completed;
+        completed.transfer = prepared.transfer; completed.nodeGeneration = 1;
+        completed.admittedUs = completed.completedUs = 20+i;
+        completed.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        completed.queued = completed.transmissionPossible = completed.protocolAcknowledged = completed.effectPossible = true;
+        completed.size = prepared.transfer.size;
+        for (unsigned j = 0; j < 4 && j < completed.size; ++j)
+            completed.data[j] = uint8_t(outputWords[i] >> (8*j));
+        if (!LICHUAN_C::advanceDriver(io, completed, 20+i)) return 35;
+    }
+    LICHUAN_C::IoObservation observedIo;
+    if (!LICHUAN_C::getIo(io, readTarget, 22, 20, observedIo) ||
+        observedIo.outputEntries != 2 || observedIo.outputValueRaw != 0x80010000u ||
+        observedIo.outputMaskRaw != 0xffff0000u || observedIo.window.skewUs != 2 ||
+        observedIo.outputMappingKnown || observedIo.electricalLevelsKnown) return 36;
     return 0;
 }

@@ -131,6 +131,29 @@ class LedgerTests(unittest.TestCase):
             entry(data, "0x1000:00")["read_coverage"] = value
             self.reject(data, "read coverage " + message)
 
+    def test_io_read_scope_retains_reserved_exclusions_and_write_gates(self):
+        data = self.changed()
+        reads = [e for o in data["objects"] for e in o["entries"]
+                 if e.get("read_owner_prompt") == 21]
+        self.assertEqual(len(reads), 23)
+        for row in reads:
+            row["read_coverage"] = dict(documented=True, implemented=True,
+                                        host_tested=True, hardware_qualified=False)
+            self.assertFalse(row["coverage"]["implemented"])
+            self.assertEqual(row["review"]["read_effect"], "not_established")
+            self.assertNotEqual(row["review"]["write_policy"], "approved")
+        self.assertEqual(validate_ledger(data), [])
+        for sub in (9, 10, 11, 16):
+            data = self.changed()
+            entry(data, "0x2400:{:02X}".format(sub))["read_owner_prompt"] = 21
+            self.reject(data, "read owner requires a nonreserved readable")
+        for key in ("0x2500:00", "0x2200:00", "0x1000:00", "0x60FE:03"):
+            data = self.changed()
+            row = entry(data, key) if key != "0x60FE:03" else entry(data, "0x60FE:02")
+            row["read_owner_prompt"] = 21
+            if key == "0x60FE:03": row["subindex"] = 3
+            self.reject(data, "read owner outside the reviewed Prompt 21")
+
     def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
         facts = [value for obj in LEDGER["objects"] for value in obj["entries"]
                  if "pdo_observation" in value["review"]]

@@ -38,6 +38,7 @@ if(MOTORCONTROLCAN_BUILD_EXAMPLES)
     add_subdirectory(examples/units_preview)
     add_subdirectory(examples/reads_preview)
     add_subdirectory(examples/driver_settings_preview)
+    add_subdirectory(examples/io_settings_preview)
 endif()
 
 option(MOTORCONTROLCAN_BUILD_CANOPENNODE "Build the optional application-side CANopenNode adapter" OFF)
@@ -78,6 +79,7 @@ install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/Pdo.h
     include/MotorControlCAN/profiles/lichuan_c/Reads.h
     include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h
+    include/MotorControlCAN/profiles/lichuan_c/IoSettings.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/profiles/lichuan_c")
 install(EXPORT MotorControlCANTargets NAMESPACE MotorControlCAN::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MotorControlCAN")

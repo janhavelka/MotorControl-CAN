@@ -46,7 +46,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 18 | Explicit PDO remapping | Blocked: Lichuan applicability/state/activation of the standard remap remain unconfirmed; [audit and scoped Q17 gates](reports/prompt_18.md#fresh-independent-audit). Timing changes and sample qualification are separate obligations. |
 | 19 | Typed raw identity/state/configuration reads | Partial: 30 rows, checked SDO/PDO evidence and getters implemented; close Q20 read-effect evidence before a non-consuming probe is usable. |
 | 20 | Native driver, limit and motion-parameter groups | Partial: nine typed raw read rows complete; source-specific state/scale prerequisites and write effects remain [owned here](reports/prompt_20.md). Current/holding remains solely 22. |
-| 21-22 | I/O/output and tuning/current groups | Pending; only evidenced fields become usable APIs; record partial effects and unresolved access/units |
+| 21 | I/O settings and output actions | Partial: all 23 typed I/O read rows implemented; reassignment, filter and output actions retain the precise [evidence gates](io_settings.md). Mutation/partial-effect/invalidation obligations remain here. |
+| 22 | Tuning/current groups | Pending; current/holding remains solely here; only evidenced fields become usable APIs. |
 | 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
 | 26-28 | Native example, TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |
 | 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |

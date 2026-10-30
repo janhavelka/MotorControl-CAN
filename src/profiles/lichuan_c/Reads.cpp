@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 
@@ -44,6 +45,12 @@ const uint8_t lengths[STATE_BLOCKS] = {2, 5, 3, 2, 2, 1};
 const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
 const Address softLimits[] = {{0x2202, 0}, {0x607d, 0}, {0x607d, 1}, {0x607d, 2}};
 const Address motionParameters[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
+const Address ioInputs[] = {{0x2400, 0}, {0x2400, 1}, {0x2400, 2}, {0x2400, 3}, {0x2400, 4},
+                            {0x2400, 5}, {0x2400, 6}, {0x2400, 7}, {0x2400, 8}};
+const Address ioOutputs[] = {{0x2400, 0x0c}, {0x2400, 0x0d}, {0x2400, 0x0e}, {0x2400, 0x0f}};
+const Address ioFilters[] = {{0x2401, 0}, {0x2402, 0}, {0x2403, 0}, {0x2404, 0},
+                             {0x2405, 0}, {0x2406, 0}, {0x2407, 0}};
+const Address ioCommand[] = {{0x60fe, 0}, {0x60fe, 1}, {0x60fe, 2}};
 
 const Address* driverPlan(ReadKind kind, unsigned& count) {
     switch (kind) {
@@ -56,6 +63,18 @@ const Address* driverPlan(ReadKind kind, unsigned& count) {
     case ReadKind::DRIVER_MOTION_PARAMETERS:
         count = 3;
         return motionParameters;
+    case ReadKind::IO_INPUT_CONFIGURATION:
+        count = 9;
+        return ioInputs;
+    case ReadKind::IO_OUTPUT_CONFIGURATION:
+        count = 4;
+        return ioOutputs;
+    case ReadKind::IO_INPUT_FILTERS:
+        count = 7;
+        return ioFilters;
+    case ReadKind::IO_OUTPUT_COMMAND:
+        count = 3;
+        return ioCommand;
     default:
         count = 0;
         return nullptr;
@@ -645,6 +664,18 @@ Status prepareDriverRead(DriverContext& c, const ReadTarget& target, uint32_t op
     case DriverGroup::MOTION_PARAMETERS:
         kind = ReadKind::DRIVER_MOTION_PARAMETERS;
         break;
+    case DriverGroup::IO_INPUT_CONFIGURATION:
+        kind = ReadKind::IO_INPUT_CONFIGURATION;
+        break;
+    case DriverGroup::IO_OUTPUT_CONFIGURATION:
+        kind = ReadKind::IO_OUTPUT_CONFIGURATION;
+        break;
+    case DriverGroup::IO_INPUT_FILTERS:
+        kind = ReadKind::IO_INPUT_FILTERS;
+        break;
+    case DriverGroup::IO_OUTPUT_COMMAND:
+        kind = ReadKind::IO_OUTPUT_COMMAND;
+        break;
     default:
         return invalid(ReadError::ARGUMENT, "unknown native driver group");
     }
@@ -673,8 +704,9 @@ Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now,
     Status status = current(c.read, target, now, age);
     if (!status)
         return status;
-    if (!driverKind(c.read.kind) || c.read.state != ReadState::SUCCEEDED ||
-        c.read.source != ReadSource::SDO)
+    if ((c.read.kind != ReadKind::DRIVER && c.read.kind != ReadKind::DRIVER_SOFT_LIMITS &&
+         c.read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) ||
+        c.read.state != ReadState::SUCCEEDED || c.read.source != ReadSource::SDO)
         return invalid(ReadError::STATE, "driver group incomplete or wrong context");
     DriverObservation candidate;
     candidate.target = c.read.target;
@@ -705,6 +737,75 @@ Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now,
         break;
     default:
         return invalid(ReadError::STATE, "unknown driver observation");
+    }
+    output = candidate;
+    return Ok();
+}
+Status getIo(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
+             IoObservation& output) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &target, sizeof target))
+        return invalid(ReadError::OVERLAP, "I/O output overlaps input");
+    Status status = current(c.read, target, now, age);
+    if (!status)
+        return status;
+    IoObservation candidate;
+    switch (c.read.kind) {
+    case ReadKind::IO_INPUT_CONFIGURATION:
+        candidate.group = DriverGroup::IO_INPUT_CONFIGURATION;
+        break;
+    case ReadKind::IO_OUTPUT_CONFIGURATION:
+        candidate.group = DriverGroup::IO_OUTPUT_CONFIGURATION;
+        break;
+    case ReadKind::IO_INPUT_FILTERS:
+        candidate.group = DriverGroup::IO_INPUT_FILTERS;
+        break;
+    case ReadKind::IO_OUTPUT_COMMAND:
+        candidate.group = DriverGroup::IO_OUTPUT_COMMAND;
+        break;
+    default:
+        return invalid(ReadError::STATE, "not an I/O context");
+    }
+    if (c.read.state != ReadState::SUCCEEDED || c.read.source != ReadSource::SDO)
+        return invalid(ReadError::STATE, "I/O group incomplete or wrong source");
+    status = fields(c.read, 0, c.read.count, now, age, candidate.window);
+    if (!status)
+        return status;
+    candidate.target = c.read.target;
+    candidate.fieldCount = c.read.count;
+    for (unsigned i = 0; i < c.read.count; ++i)
+        candidate.fields[i] = c.read.values[i].provenance;
+    const ReadValue* v = c.read.values;
+    switch (candidate.group) {
+    case DriverGroup::IO_INPUT_CONFIGURATION:
+        candidate.ioEntries = uint16_t(v[0].raw);
+        candidate.inputPolarityRaw = uint16_t(v[1].raw);
+        for (unsigned i = 0; i < 7; ++i) {
+            candidate.inputInverted[i] = (candidate.inputPolarityRaw & (1u << i)) != 0;
+            candidate.inputFunctionRaw[i] = uint16_t(v[i + 2].raw);
+            candidate.inputFunctions[i] =
+                candidate.inputFunctionRaw[i] <= 13
+                    ? static_cast<InputFunction>(candidate.inputFunctionRaw[i])
+                    : InputFunction::UNKNOWN;
+        }
+        break;
+    case DriverGroup::IO_OUTPUT_CONFIGURATION:
+        candidate.outputConfig0CRaw = uint16_t(v[0].raw);
+        candidate.outputConfig0DRaw = uint16_t(v[1].raw);
+        candidate.outputConfig0ERaw = uint16_t(v[2].raw);
+        candidate.outputConfig0FRaw = uint16_t(v[3].raw);
+        break;
+    case DriverGroup::IO_INPUT_FILTERS:
+        for (unsigned i = 0; i < 7; ++i)
+            candidate.inputFilterRaw[i] = uint16_t(v[i].raw);
+        break;
+    case DriverGroup::IO_OUTPUT_COMMAND:
+        candidate.outputEntries = uint8_t(v[0].raw);
+        candidate.outputValueRaw = v[1].raw;
+        candidate.outputMaskRaw = v[2].raw;
+        break;
+    default:
+        return invalid(ReadError::STATE, "unknown I/O observation");
     }
     output = candidate;
     return Ok();

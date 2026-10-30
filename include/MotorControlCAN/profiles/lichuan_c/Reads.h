@@ -26,7 +26,11 @@ enum class ReadKind : uint8_t {
     CONFIG,             ///< Six communication configuration fields, no mutations.
     DRIVER,             ///< Two native driver fields; use DriverSettings.h wrappers.
     DRIVER_SOFT_LIMITS, ///< Four raw limit fields, without frame/enforcement inference.
-    DRIVER_MOTION_PARAMETERS ///< Three native speed/ramp fields, no motion execution.
+    DRIVER_MOTION_PARAMETERS, ///< Three native speed/ramp fields, no motion execution.
+    IO_INPUT_CONFIGURATION,   ///< Nine input configuration fields, no reassignment.
+    IO_OUTPUT_CONFIGURATION,  ///< Four exact-address words, without a resolved output dialect.
+    IO_INPUT_FILTERS,         ///< Seven U16 coefficients, not milliseconds.
+    IO_OUTPUT_COMMAND         ///< Three 60FE readback fields, not electrical output evidence.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {

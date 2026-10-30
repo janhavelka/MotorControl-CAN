@@ -16,8 +16,8 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
-| Read shape descriptors | 39 | Prompt 19/20 source width/representation only; read effects remain unqualified |
-| Typed reads | 39 | Implemented scalar read rows; see separate read coverage, not whole-object support |
+| Read shape descriptors | 62 | Prompt 19/20/21 source width/representation only; read effects remain unqualified |
+| Typed reads | 62 | Implemented scalar read rows; see separate read coverage, not whole-object support |
 | Typed settings | 0 | Assigned semantic prompts remain pending |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
@@ -315,30 +315,30 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 38 | yes/no/no/no | not reported |
 | 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
 | 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
-| 0x2400:00 | count | U16 / 2 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:01 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:02 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:03 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:04 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:05 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:06 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:07 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:08 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:00 | count | U16 / 2 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:01 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:02 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:03 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:04 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:05 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:06 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:07 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:08 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2400:09 | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
 | 0x2400:0A | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
 | 0x2400:0B | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
-| 0x2400:0C | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:0D | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:0E | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2400:0F | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2400:0C | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:0D | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:0E | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2400:0F | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2400:10 | reserved | U16 / 2 / false | RW / `null` (not stated) | 1 / false | excluded | 21 | `null` (not stated) | yes/no/no/no | not reported |
-| 0x2401:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2402:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2403:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2404:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2405:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2406:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x2407:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x2401:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2402:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2403:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2404:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2405:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2406:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x2407:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2500:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
 | 0x2501:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
 | 0x2502:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
@@ -394,9 +394,9 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | 0x6099:02 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
 | 0x609A:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
 | 0x60FD:00 | value | U32 / 4 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
-| 0x60FE:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x60FE:01 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
-| 0x60FE:02 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | not reported |
+| 0x60FE:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x60FE:01 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
+| 0x60FE:02 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x60FF:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | withheld | 35 | 38 | yes/no/no/no | not reported |
 
 ## Entry evidence and pending semantics
@@ -3396,8 +3396,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0006", "DefaultValue": "16", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -3415,14 +3415,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Bits0..6 correspond to DI0..6. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Changes logical input polarity; protective signals may change meaning. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 normal / 1 inverted for each bit; other bits unspecified.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Dilevel"} |
 
@@ -3440,14 +3440,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI0. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di0"} |
 
@@ -3465,14 +3465,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI1. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di1"} |
 
@@ -3490,14 +3490,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI2. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | ["C14"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di2"} |
 
@@ -3515,14 +3515,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI3. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di3"} |
 
@@ -3540,14 +3540,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI4. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di4"} |
 
@@ -3565,14 +3565,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI5. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di5"} |
 
@@ -3590,14 +3590,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | One assignment for DI6. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | Reassigns a physical input function, possibly a limit/stop/enable input. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q19", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di6"} |
 
@@ -3690,14 +3690,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | 2400:0B..0F meanings conflict. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | May reassign output function/polarity, including brake output. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20", "Q19"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02", "C14"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Dolevel"} |
 
@@ -3715,14 +3715,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | 2400:0B..0F meanings conflict. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | May reassign output function/polarity, including brake output. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20", "Q19"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02", "C14"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do0"} |
 
@@ -3740,14 +3740,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | 2400:0B..0F meanings conflict. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | May reassign output function/polarity, including brake output. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20", "Q19"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02", "C04"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do1"} |
 
@@ -3765,14 +3765,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | 2400:0B..0F meanings conflict. |
 | Original low / high / default | [null, null, "0"] |
 | Effect | May reassign output function/polarity, including brake output. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Do not union addresses. Functions 0 undefined,1 alarm,4 in-position,5 brake release,9..11 user-defined0..2; 2/3 conflict,6..8 undocumented. Only bits0/1 of polarity are described despite three outputs.", "write_policy": "not_writable"} |
 | Conflicts | ["C01", "C02"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Do2"} |
 
@@ -3815,14 +3815,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "50"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "50", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di0Filtime"} |
 
@@ -3840,14 +3840,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "40"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "40", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di1Filtime"} |
 
@@ -3865,14 +3865,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "100"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "100", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di2Filtime"} |
 
@@ -3890,14 +3890,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "4000"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "4000", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di3Filtime"} |
 
@@ -3915,14 +3915,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "10"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di4Filtime"} |
 
@@ -3940,14 +3940,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "2"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di5Filtime"} |
 
@@ -3965,14 +3965,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | No time unit or equation established. |
 | Original low / high / default | [null, null, "16"] |
 | Effect | Changes input filtering, possibly protective-signal timing. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q08", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS defaults 50/40/100/4000/10/2/16 versus manual all2; no accepted range.", "write_policy": "not_writable"} |
 | Conflicts | ["C16"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "16", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Di6Filtime"} |
 
@@ -5371,8 +5371,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RO", "DataType": "0x0005", "DefaultValue": "2", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "HighestSubIndex"} |
 
@@ -5390,14 +5390,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Native bits16/17/18, physical labels model-specific. |
 | Original low / high / default | [null, null, null] |
 | Effect | Commands output levels or changes enabling mask, potentially including brake. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Output action requires selected-model physical terminal identity, assignment/polarity prerequisites and complete value/mask zero/clear/untouched-bit/sequential-update semantics; the documented both-bits-one condition alone is insufficient."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q07", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Sub1 physical outputs, sub2 bit mask; OP86 requires both corresponding bits1. ZH57 labels conflict (DO0/1/2 versus DO1/2/3).", "write_policy": "not_writable"} |
 | Conflicts | ["C03"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Physical outputs"} |
 
@@ -5415,14 +5415,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Scaling | Native bits16/17/18, physical labels model-specific. |
 | Original low / high / default | [null, null, null] |
 | Effect | Commands output levels or changes enabling mask, potentially including brake. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Output action requires selected-model physical terminal identity, assignment/polarity prerequisites and complete value/mask zero/clear/untouched-bit/sequential-update semantics; the documented both-bits-one condition alone is insufficient."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q06", "Q07", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Sub1 physical outputs, sub2 bit mask; OP86 requires both corresponding bits1. ZH57 labels conflict (DO0/1/2 versus DO1/2/3).", "write_policy": "not_writable"} |
 | Conflicts | ["C03"] |
 | Owner prompt | 21 |
 | Read owner prompt | 21 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0007", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Bit Mask"} |
 

@@ -9814,7 +9814,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:01",
@@ -9849,7 +9855,8 @@
           "effect": "Changes logical input polarity; protective signals may change meaning.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -9900,7 +9907,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:02",
@@ -9935,7 +9948,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -9988,7 +10002,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:03",
@@ -10023,7 +10043,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10076,7 +10097,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:04",
@@ -10111,7 +10138,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10164,7 +10192,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:05",
@@ -10199,7 +10233,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10250,7 +10285,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:06",
@@ -10285,7 +10326,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10336,7 +10378,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:07",
@@ -10371,7 +10419,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10422,7 +10471,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:08",
@@ -10457,7 +10512,8 @@
           "effect": "Reassigns a physical input function, possibly a limit/stop/enable input.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require applicable drive/NMT state, current assignment/level prerequisites, function-combination constraints and immediate/deferred reassignment effects; these are not established by the retained sources. Output-address conflicts do not block documentary DI decoding."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10508,7 +10564,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:09",
@@ -10789,7 +10851,8 @@
           "effect": "May reassign output function/polarity, including brake output.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10845,7 +10908,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:0D",
@@ -10880,7 +10949,8 @@
           "effect": "May reassign output function/polarity, including brake output.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -10936,7 +11006,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:0E",
@@ -10971,7 +11047,8 @@
           "effect": "May reassign output function/polarity, including brake output.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11027,7 +11104,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:0F",
@@ -11062,7 +11145,8 @@
           "effect": "May reassign output function/polarity, including brake output.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Mutation requires firmware-bound output address/function/polarity interpretation and applicable state/reassignment behavior; raw exact-address readback does not resolve either."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11116,7 +11200,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x2400:10",
@@ -11245,7 +11335,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11294,7 +11385,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -11353,7 +11450,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11402,7 +11500,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -11461,7 +11565,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11510,7 +11615,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -11569,7 +11680,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11618,7 +11730,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -11677,7 +11795,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11726,7 +11845,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -11785,7 +11910,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11834,7 +11960,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -11893,7 +12025,8 @@
           "effect": "Changes input filtering, possibly protective-signal timing.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Writes require accepted coefficient ranges, units/equation and applicable protective-input timing/state effects; source defaults are not a reset recipe."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -11942,7 +12075,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -18084,7 +18223,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x60FE:01",
@@ -18118,7 +18263,8 @@
           "effect": "Commands output levels or changes enabling mask, potentially including brake.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Output action requires selected-model physical terminal identity, assignment/polarity prerequisites and complete value/mask zero/clear/untouched-bit/sequential-update semantics; the documented both-bits-one condition alone is insufficient."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -18176,7 +18322,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x60FE:02",
@@ -18210,7 +18362,8 @@
           "effect": "Commands output levels or changes enabling mask, potentially including brake.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Output action requires selected-model physical terminal identity, assignment/polarity prerequisites and complete value/mask zero/clear/untouched-bit/sequential-update semantics; the documented both-bits-one condition alone is insufficient."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -18268,7 +18421,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 21
+          "read_owner_prompt": 21,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },

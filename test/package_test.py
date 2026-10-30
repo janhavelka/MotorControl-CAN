@@ -26,7 +26,7 @@ HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCA
            "MotorControlCAN/profiles/lichuan_c/Objects.h",
            "MotorControlCAN/profiles/lichuan_c/Catalogue.h", "MotorControlCAN/profiles/lichuan_c/Pdo.h",
            "MotorControlCAN/canopen/Pdo.h", "MotorControlCAN/canopen/PdoState.h",
-           "MotorControlCAN/ReadOperation.h", "MotorControlCAN/profiles/lichuan_c/Reads.h", "MotorControlCAN/profiles/lichuan_c/DriverSettings.h"}
+           "MotorControlCAN/ReadOperation.h", "MotorControlCAN/profiles/lichuan_c/Reads.h", "MotorControlCAN/profiles/lichuan_c/DriverSettings.h", "MotorControlCAN/profiles/lichuan_c/IoSettings.h"}
 
 
 def require(condition, evidence):
@@ -93,7 +93,7 @@ def check_package(args, work, summary):
     expected = {"include/" + h for h in HEADERS} | {
         "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
-        "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md"}
+        "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md"}
     with zipfile.ZipFile(archive) as package:
         require(len(package.namelist()) == len(expected) and set(package.namelist()) == expected,
                 package.namelist())

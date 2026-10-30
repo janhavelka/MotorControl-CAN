@@ -4,6 +4,7 @@ Execution has completed prompts 1-17, including the [native service fit experime
 
 | Material | Purpose |
 | --- | --- |
+| [Digital I/O](io_settings.md) | Four typed raw I/O read groups, documentary DI codes, pin/function/level distinctions and precise pending mutation gates |
 | [Native driver groups](driver_settings.md) | Typed raw driver, software-limit and motion-parameter reads; frozen ownership and precise pending write prerequisites |
 | [Typed reads](reads.md) | Finite raw identity/state/configuration reads, checked getters, SDO/PDO provenance, time/skew and the unresolved non-consuming probe gate |
 | [Status and exact units](units_status.md) | Implemented rational parsing, dimensional conversion, rounding, explicit radians/float quantization and unchanged failure outputs |

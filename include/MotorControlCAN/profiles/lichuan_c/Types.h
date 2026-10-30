@@ -59,7 +59,7 @@ enum class ReadRepresentation : uint8_t {
 };
 
 /** @brief Bounded read shape, independent of live binding, interpretation and effects.
- * Returned by readDescriptor for the reviewed Prompt 19/20 assignments only.
+ * Returned by readDescriptor for the reviewed Prompt 19/20/21 assignments only.
  * Does not establish a non-changing probe or grant polling qualification.
  */
 struct ReadDescriptor {

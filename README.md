@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+**Digital I/O reads:** [four typed I/O groups](docs/io_settings.md) cover all 23
+readable assigned rows, including raw output value/mask readback and documentary
+DI function decoding. Prompt 21 remains Partial: firmware/state, reassignment,
+filter and output-terminal semantics still gate writes and output actions.
+
 **Native settings reads:** [three typed driver groups](docs/driver_settings.md)
 now cover direction/subdivision, software limits and position speed/ramp times.
 Prompt 20 is Partial: write sequences and configuration effects remain gated by

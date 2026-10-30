@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Digital I/O reads
+
+- Add four finite I/O groups through `prepareDriverRead/nextDriver/advanceDriver`
+  and checked `getIo`, with all 23 raw read rows and documentary DI codes.
+- Preserve reserved entries, unknown bits/codes, conflicting output addresses,
+  terminal numbering and filter metadata; no electrical-level claim is inferred.
+- Add offline usage, 7,230 native checks, installed/exported consumer coverage and
+  explicit generated read ownership. Prompt 21 remains Partial: settings writes,
+  output actions and their partial-effect/invalidation contracts stay gated by
+  the specific source facts in the I/O guide.
+
+
 This repository contains planning/reference material and native service/API ownership proofs. No CAN library, firmware or hardware qualification is released.
 
 ### Added

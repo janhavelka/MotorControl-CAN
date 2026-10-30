@@ -12,9 +12,13 @@ namespace MotorControlCAN {
 namespace LICHUAN_C {
 /** Native groups; motor technology does not select common coordinate geometry. */
 enum class DriverGroup : uint8_t {
-    DRIVER,           ///< 2200 direction selector and 2201 subdivision, raw U16.
-    SOFT_LIMITS,      ///< 2202 selector and 607D count/signed native limits.
-    MOTION_PARAMETERS ///< 6081 U32 rpm and 6083/6084 U32 ramp times in ms.
+    DRIVER,                  ///< 2200 direction selector and 2201 subdivision, raw U16.
+    SOFT_LIMITS,             ///< 2202 selector and 607D count/signed native limits.
+    MOTION_PARAMETERS,       ///< 6081 U32 rpm and 6083/6084 U32 ramp times in ms.
+    IO_INPUT_CONFIGURATION,  ///< 2400 count, input polarity and seven input functions.
+    IO_OUTPUT_CONFIGURATION, ///< 2400:0C..0F raw words; output dialect unresolved.
+    IO_INPUT_FILTERS,        ///< 2401..2407 raw coefficients, no inferred time unit.
+    IO_OUTPUT_COMMAND        ///< 60FE count/value/mask readback, not electrical levels.
 };
 /** Concrete caller-owned group lifecycle; terminal history survives until reuse. */
 struct DriverContext {
@@ -48,7 +52,7 @@ struct DriverObservation {
  * @param[in] nowUs Nonwrapping monotonic microseconds, zero valid.
  * @param[in] deadlineUs Exclusive immutable cutoff, strictly after nowUs.
  * @param[in] options Nonzero queue/response budgets, clamped by the owner.
- * @param[in] group Declared group only; no 6060 upload or current/tuning sweep.
+ * @param[in] group Declared driver/I/O group only; no 6060 upload or current/tuning sweep.
  * @return OK prepares owned work only; errors preserve output with ReadError detail.
  */
 Status prepareDriverRead(DriverContext& output, const ReadTarget& target, uint32_t operation,
@@ -80,7 +84,7 @@ Status advanceDriver(DriverContext& context, const CANOPEN::SdoCompletion& evide
  */
 Status advanceDriver(DriverContext& context, ReadOutcome outcome, uint64_t nowUs) noexcept;
 /** Publish one complete current group atomically; partial fields stay historical.
- * @param[in] context Successful native group read.
+ * @param[in] context Successful non-I/O native group read; I/O groups use getIo.
  * @param[in] current Actual current target/epochs, not obsolete copied provenance.
  * @param[in] nowUs Supplied time at least all retained delivery times.
  * @param[in] maximumAgeUs Nonzero inclusive age cap for each earliest observation bound.

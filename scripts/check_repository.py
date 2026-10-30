@@ -17,13 +17,13 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md",
 }
 REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
@@ -39,7 +39,9 @@ REQUIRED = {
     "include/MotorControlCAN/canopen/Pdo.h", "src/canopen/Pdo.cpp",
     "include/MotorControlCAN/canopen/PdoState.h", "include/MotorControlCAN/ReadOperation.h",
     "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
-    "test/reads_test.cpp", "test/driver_settings_test.cpp",
+    "test/reads_test.cpp", "test/driver_settings_test.cpp", "test/io_settings_test.cpp",
+    "include/MotorControlCAN/profiles/lichuan_c/IoSettings.h",
+    "examples/io_settings_preview/main.cpp", "examples/io_settings_preview/CMakeLists.txt", "examples/io_settings_preview/README.md",
     "include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h",
     "examples/driver_settings_preview/main.cpp", "examples/driver_settings_preview/CMakeLists.txt", "examples/driver_settings_preview/README.md", "examples/reads_preview/main.cpp", "examples/reads_preview/CMakeLists.txt", "examples/reads_preview/README.md",
     "include/MotorControlCAN/profiles/lichuan_c/Pdo.h", "adapters/canopennode/PdoState.h",

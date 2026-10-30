@@ -21,6 +21,11 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 21 adds four [I/O read groups](io_settings.md) through the same
+`prepareDriverRead/nextDriver/advanceDriver` lifecycle with checked `getIo`.
+Output actions and reassignment remain explicitly gated; future CLI routes do
+not supply missing firmware/terminal semantics.
+
 Prompt 20 implements `prepareDriverRead/nextDriver/advanceDriver/getDriver` for
 the [three native read groups](driver_settings.md). Settings write progression
 and its future typed CLI route remain unimplemented under their evidence gates.

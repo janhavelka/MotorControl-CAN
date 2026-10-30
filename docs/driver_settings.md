@@ -2,7 +2,9 @@
 
 The installed `MotorControlCAN::LICHUAN_C` API in
 `MotorControlCAN/profiles/lichuan_c/DriverSettings.h` implements three finite
-typed **read** groups. [Prompt 20](reports/prompt_20.md) remains Partial:
+typed driver **read** groups. The same `DriverContext` and lifecycle also serve
+four [I/O groups](io_settings.md), published through checked `getIo` rather than
+`getDriver`. [Prompt 20](reports/prompt_20.md) remains Partial:
 device writes and their configuration effects are not implemented. There is no
 always-rejecting `prepareDriverSettings` stub or generic integer-write substitute.
 

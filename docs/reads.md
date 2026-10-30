@@ -71,8 +71,10 @@ installed supported model or firmware.
 
 There is no `1018:04` serial field in this EDS and no established actual
 following-error read. Driver, I/O configuration and tuning reads retain owners
-20–22. Prompt 20's nine native rows now use the same engine through the
-[typed driver group API](driver_settings.md). Other communication/PDO record reads have explicit owner 38 in the
+20–22. Prompt 20's nine native rows use the same engine through the
+[typed driver group API](driver_settings.md). Prompt 21 adds 23 finite
+[I/O read rows](io_settings.md), checked `getIo` and separate documentary DI
+labels without granting reassignment or output actions. Other communication/PDO record reads have explicit owner 38 in the
 [ledger](reference/lichuan_objects.md); their writable counterparts do not
 remove the read obligation. PDO mutation remains with 18/38.
 
