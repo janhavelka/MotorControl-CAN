@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Control and tuning groups
+
+- Add five finite typed groups covering all 33 U16 tuning/control reads, with
+  raw unknowns, per-field provenance, checked atomic getters and bounded work.
+- Add explicit model-bound loop-selector settings using the existing reserved
+  ACK/readback lifecycle; reject OL86-C closed loop and invalid candidates.
+- Harden settings descriptor/mask/cursor validation before yielding work.
+- Record exact evidence gates for other tuning writes, independent history/
+  communication ownership and 95 generated read descriptors. No new motion API.
+
 ### Typed settings audit corrections
 
 - Implement explicit 86C DI function/polarity and position speed/ramp settings;

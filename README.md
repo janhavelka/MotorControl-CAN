@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+**Control and tuning:** [five finite groups](docs/tuning.md) cover all 33 native
+`2500..2520` reads, with checked typed getters and explicit 86C loop selection.
+Other tuning writes retain field-specific evidence gates; prompt 22 is Partial.
+No torque/current motion API or hardware qualification is implied.
+
 **Native settings:** [driver parameters](docs/driver_settings.md) and
 [DI function/polarity](docs/io_settings.md) now have bounded typed write/readback
 paths for explicitly bound CL86-C/OL86-C models, with actual prerequisites,

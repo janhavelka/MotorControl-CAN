@@ -30,7 +30,12 @@ enum class ReadKind : uint8_t {
     IO_INPUT_CONFIGURATION,   ///< Nine input configuration fields, no reassignment.
     IO_OUTPUT_CONFIGURATION,  ///< Four exact-address words, without a resolved output dialect.
     IO_INPUT_FILTERS,         ///< Seven U16 coefficients, not milliseconds.
-    IO_OUTPUT_COMMAND         ///< Three 60FE readback fields, not electrical output evidence.
+    IO_OUTPUT_COMMAND,        ///< Three 60FE readback fields, not electrical output evidence.
+    CONTROL,                  ///< 2500 loop selector and 2501 raw encoder convention.
+    TUNING_CURRENT_HOLDING,   ///< 2502..2507 current/holding words, no inferred ranges.
+    TUNING_FILTER_POSITION,   ///< 2508..250D filter/position words, partly unknown units.
+    TUNING_LOOP_GAINS,        ///< 250E..2519 documented native loop words.
+    TUNING_EDS_GAINS          ///< 251A..2520 opaque EDS words, no semantic write permission.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {

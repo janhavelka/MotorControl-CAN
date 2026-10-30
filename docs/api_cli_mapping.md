@@ -21,6 +21,12 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 22 adds `prepareControlRead`, `prepareTuningRead`, `getControl` and
+`getTuning`, plus explicit `prepareControlSettings` through the existing
+`nextDriver/advanceDriver` lifecycle. [The tuning guide](tuning.md) lists exact
+rows, conditional mutation and missing evidence. Planned CLI owner is 41; no
+route or broad tuning-write capability is implemented.
+
 The [fresh 20/21 audit](reports/prompts_20_21_audit.md) adds real native
 `prepareDriverSettings` and `prepareIoSettings`, overloaded
 `nextDriver/advanceDriver`, `noteDriverTransmission` and checked typed readback

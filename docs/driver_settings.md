@@ -3,8 +3,9 @@
 The installed `MotorControlCAN::LICHUAN_C` API in
 `MotorControlCAN/profiles/lichuan_c/DriverSettings.h` implements three finite
 typed driver **read** groups. The same `DriverContext` and lifecycle also serve
-four [I/O groups](io_settings.md), published through checked `getIo` rather than
-`getDriver`. [Prompt 20](reports/prompt_20.md) remains Partial:
+four [I/O groups](io_settings.md) through checked `getIo` and five
+[control/tuning groups](tuning.md) through `getControl/getTuning`.
+[Prompt 20](reports/prompt_20.md) remains Partial:
 the confirmed position-parameter setting group is implemented, while direction,
 subdivision, soft limits and mode selection retain their source-specific gates.
 See [the fresh audit](reports/prompts_20_21_audit.md) for the correction to the
@@ -25,8 +26,8 @@ already usable channel, not a non-consuming bootstrap probe.
 | SOFT_LIMITS `2202:00` | U16 `softLimitSelectorRaw` | EDS 1292–1300; EN86/ZH86 p18 | Q05: preserve default 10 versus 0/1 and homing/enforcement prerequisites. |
 | SOFT_LIMITS `607D:00` | U8 `softLimitEntries` | EDS 1918–1926 | RO count, never a setter or discovery bound. |
 | SOFT_LIMITS `607D:01/:02` | I32 `minimumNative/maximumNative` | EDS 1927–1942; EN86 p16/p17, ZH86 p17 | Q05: coordinate basis, operating range, activation and enforcement unresolved. |
-| MOTION_PARAMETERS `6081:00` | U32 `positionSpeedRpm` | EDS 1943–1951; EN86/ZH86 p11/p17 | Q11: document range 0–3000 rpm; compatible write state is not established. |
-| MOTION_PARAMETERS `6083:00` | U32 `rampUpTimeMs` | EDS 1952–1960; EN86/ZH86 p11/p13 | Q11: document range 0–2000 ms; state and zero behavior remain unqualified. |
+| MOTION_PARAMETERS `6081:00` | U32 `positionSpeedRpm` | EDS 1943–1951; EN86/ZH86 p11/p17 | Explicit native 0..3000 rpm settings implemented under the reserved position-mode contract below; no speed-zero stop claim. |
+| MOTION_PARAMETERS `6083:00` | U32 `rampUpTimeMs` | EDS 1952–1960; EN86/ZH86 p11/p13 | Explicit native 0..2000 ms settings implemented under the contract below; physical zero behavior remains unqualified. |
 | MOTION_PARAMETERS `6084:00` | U32 `rampDownTimeMs` | EDS 1961–1969; EN86/ZH86 p11/p13 | Same guarded setting path; milliseconds are not an acceleration rate or stop guarantee. |
 
 Mode request `6060:00` remains write-owned by 20 and effect-gated by Q10/Q11;

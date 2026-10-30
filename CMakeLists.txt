@@ -81,6 +81,7 @@ install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h
     include/MotorControlCAN/profiles/lichuan_c/IoSettings.h
     include/MotorControlCAN/profiles/lichuan_c/Settings.h
+    include/MotorControlCAN/profiles/lichuan_c/Tuning.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN/profiles/lichuan_c")
 install(EXPORT MotorControlCANTargets NAMESPACE MotorControlCAN::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MotorControlCAN")

@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/MotorControlCAN.h>
-#include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/canopen/Network.h>
+#include <MotorControlCAN/canopen/SdoTransfer.h>
+#include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
-#include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
-#include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstring>
 
 int main() {
@@ -187,5 +188,54 @@ int main() {
         prepared.transfer.data[0] != 7) return 40;
     if (!LICHUAN_C::advanceDriver(settings, ReadOutcome::CANCELLED, 38) ||
         settings.effectsPossible || settings.uncertain) return 41;
+    // Synthetic host evidence exercises only the portable installed API.
+    LICHUAN_C::DriverContext control;
+    if (!LICHUAN_C::prepareControlRead(control, readTarget, 10, 50, 100, readOptions))
+        return 43;
+    for (unsigned i = 0; i < 2; ++i) {
+        LICHUAN_C::PreparedRead work;
+        if (!LICHUAN_C::nextDriver(control, 50 + i, work) || !work.ready ||
+            work.transfer.index != 0x2500 + i || work.transfer.size != 2)
+            return 44;
+        CANOPEN::SdoCompletion e;
+        e.transfer = work.transfer;
+        e.nodeGeneration = readTarget.nodeGeneration;
+        e.admittedUs = e.completedUs = 50 + i;
+        e.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        e.queued = e.transmissionPossible = e.protocolAcknowledged = e.effectPossible = true;
+        e.size = 2;
+        e.data[0] = i ? 0x34 : 1;
+        e.data[1] = i ? 0x12 : 0;
+        if (!LICHUAN_C::advanceDriver(control, e, 50 + i))
+            return 45;
+    }
+    LICHUAN_C::ControlObservation observedControl;
+    if (!LICHUAN_C::getControl(control, readTarget, 51, 10, observedControl) ||
+        observedControl.loopMode != LICHUAN_C::LoopMode::OPEN_LOOP ||
+        observedControl.encoderResolutionRaw != 0x1234)
+        return 46;
+    reservation.model = LICHUAN_C::SettingsModel::CL86_C;
+    LICHUAN_C::ControlSettings loop;
+    loop.loopMode = LICHUAN_C::LoopMode::CLOSED_LOOP;
+    LICHUAN_C::DriverSettingsContext controlWrite;
+    if (!LICHUAN_C::prepareControlSettings(controlWrite, reservation, control, loop, 11, 52, 100,
+                                           readOptions, 10))
+        return 47;
+    LICHUAN_C::PreparedRead loopWork;
+    if (!LICHUAN_C::nextDriver(controlWrite, reservation, readTarget.channel.binding, 52,
+                               loopWork) ||
+        !loopWork.ready || loopWork.transfer.index != 0x2500 || loopWork.transfer.subindex ||
+        loopWork.transfer.direction != CANOPEN::SdoDirection::DOWNLOAD ||
+        loopWork.transfer.size != 2 || loopWork.transfer.data[0] != 2)
+        return 48;
+    if (!LICHUAN_C::advanceDriver(controlWrite, ReadOutcome::CANCELLED, 52) ||
+        controlWrite.effectsPossible || controlWrite.uncertain)
+        return 49;
+    LICHUAN_C::DriverContext tuning;
+    if (!LICHUAN_C::prepareTuningRead(tuning, readTarget, 12, 52, 100, readOptions,
+                                      LICHUAN_C::TuningGroup::EDS_GAINS) ||
+        !LICHUAN_C::nextDriver(tuning, 52, loopWork) || loopWork.transfer.index != 0x251a ||
+        loopWork.transfer.direction != CANOPEN::SdoDirection::UPLOAD)
+        return 50;
     return 0;
 }

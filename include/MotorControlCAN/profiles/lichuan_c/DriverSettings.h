@@ -18,7 +18,12 @@ enum class DriverGroup : uint8_t {
     IO_INPUT_CONFIGURATION,  ///< 2400 count, input polarity and seven input functions.
     IO_OUTPUT_CONFIGURATION, ///< 2400:0C..0F raw words; output dialect unresolved.
     IO_INPUT_FILTERS,        ///< 2401..2407 raw coefficients, no inferred time unit.
-    IO_OUTPUT_COMMAND        ///< 60FE count/value/mask readback, not electrical levels.
+    IO_OUTPUT_COMMAND,       ///< 60FE count/value/mask readback, not electrical levels.
+    CONTROL,                 ///< 2500 loop selector and 2501 raw encoder word; getControl.
+    TUNING_CURRENT_HOLDING,  ///< 2502..2507; use Tuning.h and getTuning.
+    TUNING_FILTER_POSITION,  ///< 2508..250D; use Tuning.h and getTuning.
+    TUNING_LOOP_GAINS,       ///< 250E..2519; use Tuning.h and getTuning.
+    TUNING_EDS_GAINS         ///< 251A..2520 raw words; no interpreted gain contract.
 };
 /** Concrete caller-owned group lifecycle; terminal history survives until reuse. */
 struct DriverContext {
@@ -52,7 +57,7 @@ struct DriverObservation {
  * @param[in] nowUs Nonwrapping monotonic microseconds, zero valid.
  * @param[in] deadlineUs Exclusive immutable cutoff, strictly after nowUs.
  * @param[in] options Nonzero queue/response budgets, clamped by the owner.
- * @param[in] group Declared driver/I/O group only; no 6060 upload or current/tuning sweep.
+ * @param[in] group One declared finite native group; no 6060 upload or catalogue sweep.
  * @return OK prepares owned work only; errors preserve output with ReadError detail.
  */
 Status prepareDriverRead(DriverContext& output, const ReadTarget& target, uint32_t operation,

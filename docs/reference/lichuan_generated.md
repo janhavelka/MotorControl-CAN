@@ -16,9 +16,9 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
-| Read shape descriptors | 62 | Prompt 19/20/21 source width/representation only; read effects remain unqualified |
-| Typed reads | 62 | Implemented scalar read rows; see separate read coverage, not whole-object support |
-| Typed settings | 11 | Conditional scalar setting rows, not complete object permission; model/state scope below |
+| Read shape descriptors | 95 | Prompt 19/20/21/22 source width/representation only; read effects remain unqualified |
+| Typed reads | 95 | Implemented scalar read rows; see separate read coverage, not whole-object support |
+| Typed settings | 12 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
 
@@ -192,7 +192,7 @@ Counts and reserved subentries retain their own explicit native types. A record'
 
 The independent native type/access/units columns describe source claims; only resolved rows generate declarations. Source PDOMapping=1 is never a write permission. The default RPDO1 source words 0x60400010, 0x60ff0020, 0x60600008 do not grant SDO reads of WO 6040/6060 or any ungated action. `Pdo.h` generates ten explicitly reviewed passive layout facts and all eight source templates. They support raw-layout validation, not write permission, live configuration, sample provenance, physical units or motion completion. Mode bytes and target velocity retain raw representation while signedness conflicts remain unresolved; every live qualification gate stays open.
 
-Read ownership is separate from whole-object ownership. Only Prompt 19 read rows generate ReadDescriptor lookup entries; 6061 is a raw byte without an ObjectDescriptor. Read coverage does not qualify non-changing effects or close the pending Q20 probe.
+Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 read rows generate ReadDescriptor lookup entries; 6061 is a raw byte without an ObjectDescriptor. Read coverage does not qualify non-changing effects or close the pending Q20 probe.
 
 | Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | Read owner | D/I/H/Q | Read D/I/H/Q |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -339,39 +339,39 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | 0x2405:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2406:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2407:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
-| 0x2500:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2501:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2502:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2503:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2504:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2505:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2506:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2507:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2508:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2509:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x250A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x250B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x250C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x250D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x250E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x250F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2510:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2511:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2512:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2513:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2514:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2515:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2516:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2517:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2518:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2519:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x251A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x251B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x251C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x251D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x251E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x251F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
-| 0x2520:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | not reported |
+| 0x2500:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2501:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2502:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2503:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2504:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2505:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2506:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2507:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2508:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2509:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x250A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x250B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x250C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x250D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x250E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x250F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2510:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2511:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2512:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2513:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2514:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2515:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2516:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2517:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2518:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2519:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x251A:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x251B:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x251C:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x251D:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x251E:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x251F:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
+| 0x2520:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 22 | 22 | yes/no/no/no | yes/yes/yes/no |
 | 0x603F:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x6040:00 | value | U16 / 2 / false | WO / WO | 1 / `null` (not stated) | resolved | 30 | `null` (not stated) | yes/no/no/no | not reported |
 | 0x6041:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
@@ -4267,7 +4267,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.DrvMode |
-| Sources | EDS [2500] lines 1559-1566; EN86 PDF page 19; ZH86 PDF page 19 |
+| Sources | EDS [2500] lines 1559-1566; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -4275,17 +4275,17 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Units | loop selector |
 | Scaling | No unqualified conversion or range inferred. |
 | Original low / high / default | [null, null, null] |
-| Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Effect | Selects native drive loop behavior; not 6060 motion mode, a motor stop, enable or torque request. |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C or OL86-C model selection and continuous exclusive owner reservation acquired before the complete control read. Reject closed-loop selection for OL86-C. Write only a changed 2500 selector, withdraw configuration/reference prerequisites before possible TX, await matching ACK and exact new-epoch control readback; no enable/reset/save preamble."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective, 1 open loop, 2 closed loop; distinct from 6060 motion mode. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective, 1 open loop, 2 closed loop. CL86-C accepts this reviewed enum; OL86-C has no documented encoder and cannot select closed loop. No EDS default or numeric limits; no physical activation timing inferred.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
-| Typed setting scope | `null` (not stated) |
-| Setting coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | explicit_loop_mode_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DrvMode"} |
 
@@ -4309,8 +4309,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4336,8 +4336,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4363,8 +4363,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4390,8 +4390,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4417,8 +4417,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4444,8 +4444,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4471,8 +4471,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4498,8 +4498,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4525,8 +4525,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4552,8 +4552,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4579,8 +4579,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4606,8 +4606,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4633,8 +4633,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4660,8 +4660,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4687,8 +4687,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4714,8 +4714,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4741,8 +4741,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4768,8 +4768,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4795,8 +4795,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4822,8 +4822,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4849,8 +4849,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4876,8 +4876,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4903,8 +4903,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4930,8 +4930,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4957,8 +4957,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -4984,8 +4984,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -5011,8 +5011,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -5038,8 +5038,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -5065,8 +5065,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -5092,8 +5092,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -5119,8 +5119,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -5146,8 +5146,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19 read rows
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |

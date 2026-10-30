@@ -1124,11 +1124,11 @@ constexpr ObjectDescriptor OBJECT_2407_00 = {
     21, 0x00080081u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x2500:00 U16 value declaration; EDS [2500] lines 1559-1566; EN86 PDF page 19; ZH86 PDF page 19.
+/** @brief 0x2500:00 U16 value declaration; EDS [2500] lines 1559-1566; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3.
  * No operation is implemented or authorized; gates Q01, Q09, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2500_00 = {
-    0x2500, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    0x2500, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_WRITE,
+    ReadEffect::UNQUALIFIED, WritePolicy::QUALIFICATION_REQUIRED, PdoPolicy::UNQUALIFIED,
     22, 0x00080101u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -1625,6 +1625,39 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x2405, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2406, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2407, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2500, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2501, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2502, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2503, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2504, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2505, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2506, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2507, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2508, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2509, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x250A, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x250B, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x250C, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x250D, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x250E, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x250F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2510, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2511, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2512, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2513, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2514, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2515, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2516, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2517, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2518, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2519, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x251A, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x251B, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x251C, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x251D, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x251E, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x251F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2520, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x603F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6041, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
@@ -1641,7 +1674,7 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x60FE, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FE, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
     };
-    for (uint8_t i = 0; i < 62; ++i) {
+    for (uint8_t i = 0; i < 95; ++i) {
         if (rows[i].index == index && rows[i].subindex == subindex) {
             output = rows[i];
             return true;

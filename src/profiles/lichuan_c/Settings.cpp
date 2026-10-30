@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
@@ -33,17 +34,46 @@ Binding expectedBinding(const DriverSettingsContext& c) {
         ++binding.configurationGeneration;
     return binding;
 }
+bool settingsShape(const DriverSettingsContext& c) {
+    const ReadContext& read = c.readback.read;
+    const bool io = read.kind == ReadKind::IO_INPUT_CONFIGURATION;
+    const bool control = read.kind == ReadKind::CONTROL;
+    if ((!io && !control && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) ||
+        read.count != (io        ? 9
+                       : control ? 2
+                                 : 3))
+        return false;
+    const uint16_t allowed = io ? 0x1fe : control ? 1 : 7;
+    if ((c.changed & ~allowed) || (c.confirmed & ~c.changed) || c.cursor > read.count ||
+        (c.state == SettingsState::WRITING &&
+         (c.cursor >= read.count || !(c.changed & (1u << c.cursor)) ||
+          (c.confirmed & (1u << c.cursor)))))
+        return false;
+    if (control && (c.requested[0] > 2 ||
+                    (c.reservation.model == SettingsModel::OL86_C && c.requested[0] == 2)))
+        return false;
+    const uint16_t motion[] = {0x6081, 0x6083, 0x6084};
+    for (unsigned i = 0; i < read.count; ++i) {
+        const ReadDescriptor& actual = read.values[i].object;
+        ReadDescriptor expected;
+        const uint16_t index = io ? 0x2400 : control ? uint16_t(0x2500 + i) : motion[i];
+        if (!readDescriptor(index, io ? uint8_t(i) : 0, expected) ||
+            actual.index != expected.index || actual.subindex != expected.subindex ||
+            actual.widthBytes != expected.widthBytes ||
+            actual.representation != expected.representation ||
+            actual.readEffect != expected.readEffect || actual.scope != expected.scope)
+            return false;
+    }
+    return true;
+}
 Status current(const DriverSettingsContext& c, const SettingsReservation& live,
                const Binding& binding, uint64_t now) {
     if (!sameReservation(c.reservation, live) || !sameBinding(binding, expectedBinding(c)))
         return error(ReadError::TARGET, "settings reservation or configuration changed");
     if (c.state == SettingsState::EMPTY || c.state > SettingsState::FAILED ||
-        c.deadlineUs <= c.startedUs || now < c.servicedUs || c.cursor > 9 || !c.operation ||
+        c.deadlineUs <= c.startedUs || now < c.servicedUs || !c.operation ||
         c.reservation.target.channel.binding.configurationGeneration == UINT32_MAX ||
-        c.readback.read.count !=
-            (c.readback.read.kind == ReadKind::IO_INPUT_CONFIGURATION ? 9 : 3) ||
-        (c.readback.read.kind != ReadKind::DRIVER_MOTION_PARAMETERS &&
-         c.readback.read.kind != ReadKind::IO_INPUT_CONFIGURATION))
+        !settingsShape(c))
         return error(ReadError::STATE, "invalid settings context or time");
     return Ok();
 }
@@ -228,6 +258,33 @@ Status prepareIoSettings(DriverSettingsContext& output, const SettingsReservatio
     output = c;
     return Ok();
 }
+Status prepareControlSettings(DriverSettingsContext& output, const SettingsReservation& r,
+                              const DriverContext& prior, const ControlSettings& settings,
+                              uint32_t operation, uint64_t now, uint64_t deadline,
+                              const ReadOptions& options, uint64_t age) noexcept {
+    if (overlap(&output, sizeof output, &r, sizeof r) ||
+        overlap(&output, sizeof output, &prior, sizeof prior) ||
+        overlap(&output, sizeof output, &settings, sizeof settings) ||
+        overlap(&output, sizeof output, &options, sizeof options))
+        return error(ReadError::OVERLAP, "control settings preparation overlaps input");
+    DriverSettingsContext c;
+    Status s =
+        preparation(c, r, prior, DriverGroup::CONTROL, operation, now, deadline, options, age);
+    if (!s)
+        return s;
+    ControlObservation old;
+    if (!getControl(prior, r.target, now, age, old))
+        return error(ReadError::STATE, "fresh reserved complete control observation required");
+    const uint16_t mode = static_cast<uint16_t>(settings.loopMode);
+    if (mode > 2 ||
+        (r.model == SettingsModel::OL86_C && settings.loopMode == LoopMode::CLOSED_LOOP))
+        return error(ReadError::VALUE, "loop selector or model lacks reviewed applicability");
+    c.requested[0] = mode;
+    c.requested[1] = old.encoderResolutionRaw;
+    select(c, prior, 0);
+    output = c;
+    return Ok();
+}
 Status nextDriver(const DriverSettingsContext& c, const SettingsReservation& live,
                   const Binding& binding, uint64_t now, PreparedRead& output) noexcept {
     if (overlap(&output, sizeof output, &c, sizeof c) ||
@@ -355,6 +412,8 @@ Status advanceDriver(DriverSettingsContext& c, const SettingsReservation& live,
                 target.channel.binding = binding;
                 const DriverGroup group = c.readback.read.kind == ReadKind::IO_INPUT_CONFIGURATION
                                               ? DriverGroup::IO_INPUT_CONFIGURATION
+                                          : c.readback.read.kind == ReadKind::CONTROL
+                                              ? DriverGroup::CONTROL
                                               : DriverGroup::MOTION_PARAMETERS;
                 s = prepareDriverRead(candidate.readback, target, c.operation, now, c.deadlineUs,
                                       c.readback.read.options, group);
@@ -416,6 +475,20 @@ Status getIo(const DriverSettingsContext& c, const SettingsReservation& live,
     if (c.state != SettingsState::SUCCEEDED)
         return error(ReadError::STATE, "settings not complete and matched");
     return getIo(c.readback, target, now, age, output);
+}
+Status getControl(const DriverSettingsContext& c, const SettingsReservation& live,
+                  const ReadTarget& target, uint64_t now, uint64_t age,
+                  ControlObservation& output) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &live, sizeof live) ||
+        overlap(&output, sizeof output, &target, sizeof target))
+        return error(ReadError::OVERLAP, "control settings result overlaps input");
+    Status s = current(c, live, target.channel.binding, now);
+    if (!s)
+        return s;
+    if (c.state != SettingsState::SUCCEEDED)
+        return error(ReadError::STATE, "control settings not complete and matched");
+    return getControl(c.readback, target, now, age, output);
 }
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

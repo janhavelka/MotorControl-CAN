@@ -12191,7 +12191,7 @@
             "signed": false
           },
           "access_eds": "RW",
-          "access_reviewed": "RO",
+          "access_reviewed": "RW",
           "low_limit_eds": null,
           "high_limit_eds": null,
           "default_eds": null,
@@ -12199,10 +12199,11 @@
           "scaling": "No unqualified conversion or range inferred.",
           "pdo_mapping_eds": "1",
           "pdo_mapping_reviewed": null,
-          "effect": "Changes native loop/current/tuning behavior; not a generic torque or autotune command.",
+          "effect": "Selects native drive loop behavior; not 6060 motion mode, a motor stop, enable or torque request.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Explicit CL86-C or OL86-C model selection and continuous exclusive owner reservation acquired before the complete control read. Reject closed-loop selection for OL86-C. Write only a changed 2500 selector, withdraw configuration/reference prerequisites before possible TX, await matching ACK and exact new-epoch control readback; no enable/reset/save preamble."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -12219,6 +12220,14 @@
             {
               "id": "ZH86",
               "page": 19
+            },
+            {
+              "id": "EN86",
+              "page": 3
+            },
+            {
+              "id": "ZH86",
+              "page": 3
             }
           ],
           "confidence": "documented_metadata",
@@ -12235,9 +12244,9 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "0 ineffective, 1 open loop, 2 closed loop; distinct from 6060 motion mode. No EDS default or limits.",
+            "value_policy": "0 ineffective, 1 open loop, 2 closed loop. CL86-C accepts this reviewed enum; OL86-C has no documented encoder and cannot select closed loop. No EDS default or numeric limits; no physical activation timing inferred.",
             "read_effect": "not_established",
-            "write_policy": "not_writable",
+            "write_policy": "qualification_required",
             "gate_ids": [
               "Q01",
               "Q09",
@@ -12245,7 +12254,20 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "explicit_loop_mode_86c",
+          "setting_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12346,7 +12368,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12446,7 +12474,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12546,7 +12580,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12646,7 +12686,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12746,7 +12792,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12846,7 +12898,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -12946,7 +13004,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13046,7 +13110,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13146,7 +13216,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13247,7 +13323,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13348,7 +13430,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13448,7 +13536,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13548,7 +13642,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13648,7 +13748,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13748,7 +13854,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13848,7 +13960,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -13948,7 +14066,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14048,7 +14172,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14148,7 +14278,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14248,7 +14384,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14348,7 +14490,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14448,7 +14596,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14548,7 +14702,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14648,7 +14808,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14748,7 +14914,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14840,7 +15012,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -14932,7 +15110,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -15024,7 +15208,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -15116,7 +15306,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -15208,7 +15404,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -15300,7 +15502,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -15392,7 +15600,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 22
+          "read_owner_prompt": 22,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },

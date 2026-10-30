@@ -151,6 +151,12 @@ installed consumers need no Python, ledger or original vendor material. The [ver
 documents the working quick/full verifier, CI and strict Doxygen gate. These
 developer tools are outside the core distribution.
 
+Finite profile [control/tuning](tuning.md) APIs are installed in
+`<MotorControlCAN/profiles/lichuan_c/Tuning.h>`. They share the existing
+caller-owned read/settings contexts and need no catalogue, stack or SDK.
+The standalone consumer exercises synthetic reads and pre-admission withdrawal;
+real controller I/O and physical qualification remain application work.
+
 ## Optional CANopenNode application adapter
 
 The separate [CANopenNode application adapter](../adapters/canopennode/README.md)

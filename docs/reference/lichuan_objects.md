@@ -51,7 +51,7 @@ feedback scale does not block retention of a raw feedback value.
 | `review.pdo_observation` | Ten default-mapped targets have explicit source-backed passive directions, role, representation and source references. `live_qualification_required=true` is mandatory. Unresolved `6060/6061/60FF` representation stays RAW. These facts generate layout validation only; existing `PdoPolicy::UNQUALIFIED`, SDO permissions, action gates and semantic coverage are unchanged. |
 | `coverage` | Separate `documented`, `implemented`, `host_tested`, `hardware_qualified` booleans. `documented=true` means a source describes the row, not that the meaning or writable use is approved. The other three are false throughout this intake. |
 | `read_owner_prompt` | Required independent owner for each readable, non-reserved entry: 30 rows in 19, 101 communication/PDO rows in 38, 9 driver rows in 20, 23 I/O rows in 21 and 33 tuning rows in 22. Missing/null owners fail validation for readable entries; WO/reserved entries may remain unassigned. Write ownership is unchanged. |
-| `read_coverage` | The 30 prompt-19 and nine prompt-20 raw read rows separately record read implementation/testing and hardware-qualified false. Whole-object `coverage` above remains unchanged; no setter/action or read-effect permission follows. The validator checks each implemented group's exact owner scope, shape and implications. |
+| `read_coverage` | The 30 prompt-19, nine prompt-20, 23 prompt-21 and 33 prompt-22 raw read rows separately record read implementation/testing and hardware-qualified false. Whole-object `coverage` above remains unchanged; no setter/action or read-effect permission follows. The validator checks each implemented group's exact owner scope, shape and implications. Prompt 22 admits only the scalar `2500..2520:00` entries owned by 22 with their exact U16 source type. |
 | `manual_only[]` | All 53 functions retain model scope, original pages, related entries and independent coverage. `disposition=reviewed` and `review.decision` close documentary review. The owner, required gates and action obligation remain explicit even where corresponding entries are currently read-only. No raw accessor or unsupported stub completes these future functions. There are no additional CANopen object addresses in the five manuals. |
 | `conflicts[]` | All 24 original competing claim sets and references remain intact. `resolution=unresolved`, `decision=null` and `resolution_evidence=null` mean no firmware winner was selected. The separate `review.disposition` records the conservative decision or limited documentary normalization, with consequences and gates. This is not fabricated resolution evidence. |
 | `source_anomalies[]` | Non-resolution structural questions with unique IDs and explicit source scope. `A01` retains `1018:00` HighLimit 4/default 3 beside the actual declared `00..03` children; no `1018:04` is created. |
@@ -130,8 +130,10 @@ static_assert(MotorControlCAN::LICHUAN_C::OBJECT_1009_00.widthBytes == 2,
 ```
 
 The compact header has named profile-scoped constants and restrictive policy;
-it contains no strings, runtime dictionary, lookup route or write-admission
-helper. Descriptive strings and original limit/default spelling live in the
+it contains no strings, runtime object dictionary or write-admission helper.
+Its bounded `readDescriptor` lookup contains exactly 95 reviewed read shapes
+from prompts 19 through 22, without granting read-effect qualification.
+Descriptive strings and original limit/default spelling live in the
 separately included `Catalogue.h`. A missing catalogue does not prevent numeric
 consumption. Neither header is pulled into the common umbrella. Package tests
 compile all public headers independently and exercise relocated consumers with
@@ -162,20 +164,36 @@ its declaration disposition: a resolved type may still be pending qualification.
 It accounts separately for all 99 indexes, 202 typed source
 entries, 53 manual functions, 24 conflicts, gaps and anomaly A01. Descriptor
 presence is separate from typed reads/settings/actions/workflows and their
-documented, implemented, host-tested and hardware-qualified flags. All semantic
-implementation/test/qualification fields remain false at this stage.
+documented, implemented, host-tested and hardware-qualified flags. Whole-object
+semantic implementation/test/qualification fields remain false; separate raw-read
+and conditional-setting coverage records their narrower software behavior.
 
 ## Conditional setting coverage
 
-`setting_scope` and separate `setting_coverage` fields describe eleven implemented
+`setting_scope` and separate `setting_coverage` fields describe twelve implemented
 native setting rows: `position_parameters_86c` (6081/6083/6084) and
-`explicit_di_configuration_86c` (2400:01..08). Four booleans retain documentary,
+`explicit_di_configuration_86c` (2400:01..08), plus
+`explicit_loop_mode_86c` (2500:00 only, owned by prompt 22).
+No other tuning row may acquire that scope. Four booleans retain documentary,
 implementation, host-test and hardware-qualified states; hardware remains false.
 These scopes require explicit CL86-C/OL86-C binding, actual prerequisites,
 continuous owner reservation, partial-effect retention and matched readback.
+Loop-mode writes permit native codes 0..2 for CL86-C; OL86-C rejects closed-loop
+code 2 because its documented model has no encoder. This is a conditional native
+configuration setting, distinct from CiA402 motion mode 6060.
 They do not change generic descriptor write policy or whole-object/other-mode
 coverage. The validator rejects unknown scopes, wrong owners/addresses/access,
 inconsistent tests and invented hardware qualification. Generated documentation
 reports these counts separately; generated declarations do not implement settings.
-See the [fresh audit](../reports/prompts_20_21_audit.md) for corrected source
-interpretation and the hand-written implementation. Vendor bytes remain immutable.
+See the [fresh audit](../reports/prompts_20_21_audit.md) for corrected parameter/DI
+source interpretation and [the tuning guide](../tuning.md) for the explicit
+loop-selector implementation and remaining write gates. Vendor bytes remain immutable.
+
+Read ownership also accounts for deferred communication records. Error history
+`1003:00..04` remains owned/read by 19. `1005`, `1014`, `1017` and
+`1200:01..02` retain semantic ownership in 38 and raw-read ownership in 19;
+`1200:00` retains its service-record count owner 13 and read owner 19.
+All 88 PDO record entries retain read owner 38, separately from the eight
+communication-count declarations owned by 17 and the remaining 80 semantic
+entries owned by 18. None acquires prompt-22 read coverage. The complete deferred
+read-owner-38 inventory remains 101 rows.

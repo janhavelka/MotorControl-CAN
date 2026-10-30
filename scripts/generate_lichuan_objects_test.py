@@ -15,7 +15,7 @@ from unittest.mock import patch
 from check_lichuan_ledger import ROOT, load_json, validate_ledger
 from generate_lichuan_objects import (LEDGER_PATH, OUTPUT_PATHS, catalogue_header,
                                       coverage_document, cpp_string, generate, objects_header,
-                                      pdo_header, projected_rows, publish)
+                                      pdo_header, projected_rows, publish, read_descriptor_function)
 
 
 def fixture_entry(index=0x1009, subindex=0):
@@ -214,6 +214,43 @@ class ProjectionTests(unittest.TestCase):
         self.assertIn("{0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED", header)
         self.assertNotIn("OBJECT_6061_00", header)
 
+    def test_tuning_projection_rejects_owner_and_consistent_wrong_native_types(self):
+        entry = fixture_entry(0x2500)
+        entry.update(owner_prompt=22, read_owner_prompt=22)
+        for native in (dict(eds_code="0x0005", name="U8", width_bytes=1, signed=False),
+                       dict(eds_code="0x0003", name="I16", width_bytes=2, signed=True),
+                       dict(eds_code="0x0007", name="U32", width_bytes=4, signed=False)):
+            entry["type"] = native
+            self.reject(entry, "Prompt 22 U16 native read type")
+        entry = fixture_entry(0x2500)
+        entry["read_owner_prompt"] = 22
+        self.reject(entry, "Prompt 22 scalar read scope")
+        for index, sub in ((0x24FF, 0), (0x2521, 0), (0x2500, 1)):
+            entry = fixture_entry(index, sub)
+            entry.update(owner_prompt=22, read_owner_prompt=22)
+            self.reject(entry, "Prompt 22 scalar read scope")
+
+    def test_tuning_projection_keeps_descriptor_writes_and_read_effects_gated(self):
+        entry = fixture_entry(0x2500)
+        entry.update(owner_prompt=22, read_owner_prompt=22, access_eds="RW", access_reviewed="RW",
+                     setting_scope="explicit_loop_mode_86c",
+                     setting_coverage=dict(documented=True, implemented=True,
+                                           host_tested=True, hardware_qualified=False))
+        entry["review"]["write_policy"] = "qualification_required"
+        header = objects_header(projected_rows(fixture_objects(entry)))
+        self.assertIn("ReadEffect::UNQUALIFIED, WritePolicy::QUALIFICATION_REQUIRED", header)
+        self.assertIn("{0x2500, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED", header)
+        self.assertNotIn("canWrite", header)
+        entry["review"]["write_policy"] = "allowed"
+        self.reject(entry, "unqualified write policy")
+
+    def test_read_descriptor_capacity_rejects_a_96th_row(self):
+        # Exercise the independent renderer bound; projection rejects duplicate addresses earlier.
+        row = fixture_entry(0x2500)
+        row.update(owner_prompt=22, read_owner_prompt=22)
+        with self.assertRaisesRegex(ValueError, "capacity exceeds 95"):
+            read_descriptor_function([row] * 96)
+
 
 class GenerationTests(unittest.TestCase):
     @classmethod
@@ -254,33 +291,115 @@ class GenerationTests(unittest.TestCase):
         rows = projected_rows(self.ledger["objects"])
         header = objects_header(rows)
         actual = re.findall(r"\{0x([0-9A-F]{4}), 0x([0-9A-F]{2}), ([124]), ReadRepresentation::(UNSIGNED|SIGNED|RAW), ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND\}", header)
-        expected = {(index, 0): (width, representation) for index, width, representation in (
-            (0x1000, 4, "UNSIGNED"), (0x1001, 1, "UNSIGNED"), (0x1005, 4, "UNSIGNED"),
-            (0x1009, 2, "UNSIGNED"), (0x100A, 2, "UNSIGNED"), (0x1014, 4, "UNSIGNED"),
-            (0x1017, 2, "UNSIGNED"), (0x2000, 2, "UNSIGNED"), (0x2001, 2, "UNSIGNED"),
-            (0x2100, 2, "UNSIGNED"), (0x2101, 2, "UNSIGNED"), (0x2102, 2, "UNSIGNED"),
-            (0x603F, 2, "UNSIGNED"), (0x6041, 2, "UNSIGNED"), (0x6061, 1, "RAW"),
-            (0x6064, 4, "SIGNED"), (0x606C, 4, "SIGNED"), (0x60FD, 4, "UNSIGNED"))}
-        for index, children in ((0x1003, 4), (0x1018, 3), (0x1200, 2)):
-            expected[(index, 0)] = (1, "UNSIGNED")
-            expected.update({(index, sub): (4, "UNSIGNED") for sub in range(1, children + 1)})
-        for index in (0x2200, 0x2201, 0x2202):
-            expected[(index, 0)] = (2, "UNSIGNED")
-        expected[(0x607D, 0)] = (1, "UNSIGNED")
-        for sub in (1, 2):
-            expected[(0x607D, sub)] = (4, "SIGNED")
-        for index in (0x6081, 0x6083, 0x6084):
-            expected[(index, 0)] = (4, "UNSIGNED")
-        for sub in tuple(range(9)) + (12, 13, 14, 15):
-            expected[(0x2400, sub)] = (2, "UNSIGNED")
-        for index in range(0x2401, 0x2408):
-            expected[(index, 0)] = (2, "UNSIGNED")
-        expected[(0x60FE, 0)] = (1, "UNSIGNED")
-        expected[(0x60FE, 1)] = expected[(0x60FE, 2)] = (4, "UNSIGNED")
-        self.assertEqual(len(actual), 62)
+        # Literal address/shape oracle reviewed independently of the ledger and selection helpers.
+        source_shapes = """
+1000:00 4 UNSIGNED
+1001:00 1 UNSIGNED
+1003:00 1 UNSIGNED
+1003:01 4 UNSIGNED
+1003:02 4 UNSIGNED
+1003:03 4 UNSIGNED
+1003:04 4 UNSIGNED
+1005:00 4 UNSIGNED
+1009:00 2 UNSIGNED
+100A:00 2 UNSIGNED
+1014:00 4 UNSIGNED
+1017:00 2 UNSIGNED
+1018:00 1 UNSIGNED
+1018:01 4 UNSIGNED
+1018:02 4 UNSIGNED
+1018:03 4 UNSIGNED
+1200:00 1 UNSIGNED
+1200:01 4 UNSIGNED
+1200:02 4 UNSIGNED
+2000:00 2 UNSIGNED
+2001:00 2 UNSIGNED
+2100:00 2 UNSIGNED
+2101:00 2 UNSIGNED
+2102:00 2 UNSIGNED
+2200:00 2 UNSIGNED
+2201:00 2 UNSIGNED
+2202:00 2 UNSIGNED
+2400:00 2 UNSIGNED
+2400:01 2 UNSIGNED
+2400:02 2 UNSIGNED
+2400:03 2 UNSIGNED
+2400:04 2 UNSIGNED
+2400:05 2 UNSIGNED
+2400:06 2 UNSIGNED
+2400:07 2 UNSIGNED
+2400:08 2 UNSIGNED
+2400:0C 2 UNSIGNED
+2400:0D 2 UNSIGNED
+2400:0E 2 UNSIGNED
+2400:0F 2 UNSIGNED
+2401:00 2 UNSIGNED
+2402:00 2 UNSIGNED
+2403:00 2 UNSIGNED
+2404:00 2 UNSIGNED
+2405:00 2 UNSIGNED
+2406:00 2 UNSIGNED
+2407:00 2 UNSIGNED
+2500:00 2 UNSIGNED
+2501:00 2 UNSIGNED
+2502:00 2 UNSIGNED
+2503:00 2 UNSIGNED
+2504:00 2 UNSIGNED
+2505:00 2 UNSIGNED
+2506:00 2 UNSIGNED
+2507:00 2 UNSIGNED
+2508:00 2 UNSIGNED
+2509:00 2 UNSIGNED
+250A:00 2 UNSIGNED
+250B:00 2 UNSIGNED
+250C:00 2 UNSIGNED
+250D:00 2 UNSIGNED
+250E:00 2 UNSIGNED
+250F:00 2 UNSIGNED
+2510:00 2 UNSIGNED
+2511:00 2 UNSIGNED
+2512:00 2 UNSIGNED
+2513:00 2 UNSIGNED
+2514:00 2 UNSIGNED
+2515:00 2 UNSIGNED
+2516:00 2 UNSIGNED
+2517:00 2 UNSIGNED
+2518:00 2 UNSIGNED
+2519:00 2 UNSIGNED
+251A:00 2 UNSIGNED
+251B:00 2 UNSIGNED
+251C:00 2 UNSIGNED
+251D:00 2 UNSIGNED
+251E:00 2 UNSIGNED
+251F:00 2 UNSIGNED
+2520:00 2 UNSIGNED
+603F:00 2 UNSIGNED
+6041:00 2 UNSIGNED
+6061:00 1 RAW
+6064:00 4 SIGNED
+606C:00 4 SIGNED
+607D:00 1 UNSIGNED
+607D:01 4 SIGNED
+607D:02 4 SIGNED
+6081:00 4 UNSIGNED
+6083:00 4 UNSIGNED
+6084:00 4 UNSIGNED
+60FD:00 4 UNSIGNED
+60FE:00 1 UNSIGNED
+60FE:01 4 UNSIGNED
+60FE:02 4 UNSIGNED
+"""
+        expected = {}
+        for line in source_shapes.splitlines():
+            if line:
+                address, width, representation = line.split()
+                index, sub = address.split(":")
+                expected[(int(index, 16), int(sub, 16))] = (int(width), representation)
+        self.assertEqual(len(expected), 95)
+        self.assertEqual(len(actual), 95)
         self.assertEqual({(int(index, 16), int(sub, 16)): (int(width), sign)
                           for index, sub, width, sign in actual}, expected)
-        self.assertIn("i < 62", header)
+        self.assertIn("i < 95", header)
         self.assertNotIn("Catalogue.h", header)
         self.assertNotIn("OBJECT_6061_00", header)
 
@@ -294,10 +413,11 @@ class GenerationTests(unittest.TestCase):
             row["read_coverage"] = dict(documented=True, implemented=True,
                                         host_tested=True, hardware_qualified=False)
         document = coverage_document(data, projected_rows(data["objects"]))
-        self.assertIn("| Read shape descriptors | 62 |", document)
-        self.assertIn("| Typed settings | 11 |", document)
+        self.assertIn("| Read shape descriptors | 95 |", document)
+        self.assertIn("| Typed settings | 12 |", document)
         self.assertIn("position_parameters_86c", document)
         self.assertIn("explicit_di_configuration_86c", document)
+        self.assertIn("explicit_loop_mode_86c", document)
         self.assertIn("| Typed reads | 2 |", document)
         self.assertIn("| Read owner prompt | 19 |", document)
         self.assertIn("| Read owner prompt | 38 |", document)
@@ -305,6 +425,28 @@ class GenerationTests(unittest.TestCase):
         self.assertIn("| Read coverage D/I/H/Q | yes/yes/yes/no |", document)
         self.assertIn("| Semantic coverage D/I/H/Q | yes/no/no/no |", document)
         self.assertIn("pending Q20 probe", document)
+
+    def test_tuning_source_shapes_never_generate_generic_write_permission(self):
+        rows = projected_rows(self.ledger["objects"])
+        header = objects_header(rows)
+        for row in rows:
+            if not 0x2500 <= row["index"] <= 0x2520:
+                continue
+            self.assertEqual(row["raw_fields"]["ObjectType"], "7")
+            self.assertEqual(row["raw_fields"]["DataType"], "0x0006")
+            self.assertEqual(row["raw_fields"]["AccessType"], "RW")
+            self.assertEqual(row["raw_fields"]["PDOMapping"], "1")
+            for field in ("low_limit_eds", "high_limit_eds", "default_eds"):
+                self.assertIsNone(row[field])
+            declaration = re.search(r"constexpr ObjectDescriptor OBJECT_{:04X}_00 = \{{(.*?)\}};".format(
+                row["index"]), header, re.DOTALL).group(1)
+            self.assertIn("ScalarType::U16, 2, false", declaration)
+            self.assertIn("ReadEffect::UNQUALIFIED", declaration)
+            self.assertIn("WritePolicy::" + ("QUALIFICATION_REQUIRED" if row["index"] == 0x2500
+                                             else "FORBIDDEN"), declaration)
+            self.assertNotIn("WritePolicy::ALLOWED", declaration)
+            self.assertNotIn("WritePolicy::APPROVED", declaration)
+        self.assertNotIn("canWrite", header)
 
     def test_stale_exact_bytes_fail_without_mutation(self):
         generate(ROOT / LEDGER_PATH, self.root)

@@ -157,8 +157,10 @@ class LedgerTests(unittest.TestCase):
     def test_setting_subsets_keep_scope_policy_and_qualification_separate(self):
         data = self.changed()
         rows = [e for o in data["objects"] for e in o["entries"] if "setting_coverage" in e]
-        self.assertEqual(len(rows), 11)
+        self.assertEqual(len(rows), 12)
         self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 3)
+        self.assertEqual(sum(e["owner_prompt"] == 21 for e in rows), 8)
+        self.assertEqual(sum(e["owner_prompt"] == 22 for e in rows), 1)
         for row in rows:
             self.assertEqual(row["review"]["write_policy"], "qualification_required")
             self.assertFalse(row["coverage"]["implemented"])
@@ -176,6 +178,102 @@ class LedgerTests(unittest.TestCase):
         e["setting_coverage"] = dict(documented=True, implemented=True,
                                       host_tested=True, hardware_qualified=False)
         self.reject(data, "setting coverage outside")
+
+    def test_tuning_reads_cover_exact_scalars_without_qualifying_effects_or_writes(self):
+        data = self.changed()
+        rows = [e for o in data["objects"] for e in o["entries"]
+                if e.get("read_owner_prompt") == 22]
+        self.assertEqual({e["key"] for e in rows},
+                         {"0x{:04X}:00".format(index) for index in range(0x2500, 0x2521)})
+        for row in rows:
+            row["read_coverage"] = dict(documented=True, implemented=True,
+                                        host_tested=True, hardware_qualified=False)
+            self.assertEqual(row["owner_prompt"], 22)
+            self.assertEqual(row["type"], dict(eds_code="0x0006", name="U16",
+                                              width_bytes=2, signed=False))
+            self.assertEqual(row["review"]["read_effect"], "not_established")
+            self.assertFalse(row["coverage"]["implemented"])
+            self.assertNotEqual(row["review"]["write_policy"], "approved")
+        self.assertEqual(validate_ledger(data), [])
+
+    def test_tuning_read_coverage_rejects_reassigned_owner_keys_and_native_types(self):
+        for key in ("0x1000:00", "0x2200:00", "0x2400:01", "0x607D:01"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 22
+            self.reject(data, "Prompt 22 scalar read scope")
+        for field, value in (("owner_prompt", 38), ("role", "count"), ("subindex", 1),
+                             ("index", 0x2521), ("index", 0x24FF)):
+            data = self.changed()
+            entry(data, "0x2500:00")[field] = value
+            self.reject(data, "Prompt 22 scalar read scope")
+        for native in (dict(eds_code="0x0005", name="U8", width_bytes=1, signed=False),
+                       dict(eds_code="0x0003", name="I16", width_bytes=2, signed=True),
+                       dict(eds_code="0x0007", name="U32", width_bytes=4, signed=False)):
+            data = self.changed()
+            entry(data, "0x2500:00")["type"] = native
+            self.reject(data, "Prompt 22 U16 native read type")
+        for field, value, message in (("read_owner_prompt", 38, "requires a reviewed implemented-group read"),
+                                     ("read_coverage", dict(documented=True, implemented=True,
+                                                           host_tested=True, hardware_qualified=True),
+                                      "cannot claim hardware qualification")):
+            data = self.changed()
+            row = entry(data, "0x2500:00")
+            row["read_coverage"] = dict(documented=True, implemented=True,
+                                        host_tested=True, hardware_qualified=False)
+            row[field] = value
+            self.reject(data, "read coverage " + message)
+
+    def test_loop_mode_setting_coverage_cannot_escape_2500_or_qualification(self):
+        coverage = dict(documented=True, implemented=True, host_tested=True,
+                        hardware_qualified=False)
+        for key in ("0x2501:00", "0x2502:00", "0x2520:00", "0x2400:01"):
+            data = self.changed()
+            row = entry(data, key)
+            row.update(setting_scope="explicit_loop_mode_86c", setting_coverage=coverage.copy())
+            self.reject(data, "setting coverage")
+        for field, value in (("setting_scope", "all_tuning_86c"),
+                             ("read_owner_prompt", 38), ("owner_prompt", 21),
+                             ("access_reviewed", "RO")):
+            data = self.changed()
+            row = entry(data, "0x2500:00")
+            row.update(setting_scope="explicit_loop_mode_86c", setting_coverage=coverage.copy())
+            row[field] = value
+            self.reject(data, "setting coverage")
+        for policy in ("not_writable", "allowed"):
+            data = self.changed()
+            row = entry(data, "0x2500:00")
+            row.update(setting_scope="explicit_loop_mode_86c", setting_coverage=coverage.copy())
+            row["review"]["write_policy"] = policy
+            self.reject(data, "setting coverage outside")
+        for key in ("0x2500:00", "0x2501:00", "0x2520:00"):
+            data = self.changed()
+            row = entry(data, key)
+            row["access_reviewed"] = "RW"
+            row["review"]["write_policy"] = "qualification_required"
+            row.pop("setting_coverage", None)
+            self.reject(data, "conservative read-only policy required")
+
+    def test_history_communication_and_pdo_read_owners_remain_finite_and_named(self):
+        # Documentary/write ownership stays distinct from the implemented raw-read owner.
+        for sub in range(5):
+            row = entry(LEDGER, "0x1003:{:02X}".format(sub))
+            self.assertEqual((row["owner_prompt"], row["read_owner_prompt"]), (19, 19))
+        for key in ("0x1005:00", "0x1014:00", "0x1017:00", "0x1200:01", "0x1200:02"):
+            row = entry(LEDGER, key)
+            self.assertEqual((row["owner_prompt"], row["read_owner_prompt"]), (38, 19))
+        row = entry(LEDGER, "0x1200:00")
+        self.assertEqual((row["owner_prompt"], row["read_owner_prompt"]), (13, 19))
+        pdo = [e for o in LEDGER["objects"] for e in o["entries"]
+               if 0x1400 <= e["index"] <= 0x1A03]
+        self.assertEqual(len(pdo), 88)
+        for row in pdo:
+            communication_count = (0x1400 <= row["index"] <= 0x1403 or
+                                   0x1800 <= row["index"] <= 0x1803) and row["subindex"] == 0
+            self.assertEqual((row["owner_prompt"], row["read_owner_prompt"]),
+                             (17 if communication_count else 18, 38))
+            self.assertNotIn("read_coverage", row)
+        self.assertEqual(sum(e.get("read_owner_prompt") == 38
+                             for o in LEDGER["objects"] for e in o["entries"]), 101)
 
     def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
         facts = [value for obj in LEDGER["objects"] for value in obj["entries"]

@@ -3,6 +3,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
@@ -51,6 +52,16 @@ const Address ioOutputs[] = {{0x2400, 0x0c}, {0x2400, 0x0d}, {0x2400, 0x0e}, {0x
 const Address ioFilters[] = {{0x2401, 0}, {0x2402, 0}, {0x2403, 0}, {0x2404, 0},
                              {0x2405, 0}, {0x2406, 0}, {0x2407, 0}};
 const Address ioCommand[] = {{0x60fe, 0}, {0x60fe, 1}, {0x60fe, 2}};
+const Address control[] = {{0x2500, 0}, {0x2501, 0}};
+const Address currentHolding[] = {{0x2502, 0}, {0x2503, 0}, {0x2504, 0},
+                                  {0x2505, 0}, {0x2506, 0}, {0x2507, 0}};
+const Address filterPosition[] = {{0x2508, 0}, {0x2509, 0}, {0x250a, 0},
+                                  {0x250b, 0}, {0x250c, 0}, {0x250d, 0}};
+const Address loopGains[] = {{0x250e, 0}, {0x250f, 0}, {0x2510, 0}, {0x2511, 0},
+                             {0x2512, 0}, {0x2513, 0}, {0x2514, 0}, {0x2515, 0},
+                             {0x2516, 0}, {0x2517, 0}, {0x2518, 0}, {0x2519, 0}};
+const Address edsGains[] = {{0x251a, 0}, {0x251b, 0}, {0x251c, 0}, {0x251d, 0},
+                            {0x251e, 0}, {0x251f, 0}, {0x2520, 0}};
 
 const Address* driverPlan(ReadKind kind, unsigned& count) {
     switch (kind) {
@@ -75,6 +86,21 @@ const Address* driverPlan(ReadKind kind, unsigned& count) {
     case ReadKind::IO_OUTPUT_COMMAND:
         count = 3;
         return ioCommand;
+    case ReadKind::CONTROL:
+        count = 2;
+        return control;
+    case ReadKind::TUNING_CURRENT_HOLDING:
+        count = 6;
+        return currentHolding;
+    case ReadKind::TUNING_FILTER_POSITION:
+        count = 6;
+        return filterPosition;
+    case ReadKind::TUNING_LOOP_GAINS:
+        count = 12;
+        return loopGains;
+    case ReadKind::TUNING_EDS_GAINS:
+        count = 7;
+        return edsGains;
     default:
         count = 0;
         return nullptr;
@@ -676,6 +702,21 @@ Status prepareDriverRead(DriverContext& c, const ReadTarget& target, uint32_t op
     case DriverGroup::IO_OUTPUT_COMMAND:
         kind = ReadKind::IO_OUTPUT_COMMAND;
         break;
+    case DriverGroup::CONTROL:
+        kind = ReadKind::CONTROL;
+        break;
+    case DriverGroup::TUNING_CURRENT_HOLDING:
+        kind = ReadKind::TUNING_CURRENT_HOLDING;
+        break;
+    case DriverGroup::TUNING_FILTER_POSITION:
+        kind = ReadKind::TUNING_FILTER_POSITION;
+        break;
+    case DriverGroup::TUNING_LOOP_GAINS:
+        kind = ReadKind::TUNING_LOOP_GAINS;
+        break;
+    case DriverGroup::TUNING_EDS_GAINS:
+        kind = ReadKind::TUNING_EDS_GAINS;
+        break;
     default:
         return invalid(ReadError::ARGUMENT, "unknown native driver group");
     }
@@ -737,6 +778,132 @@ Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now,
         break;
     default:
         return invalid(ReadError::STATE, "unknown driver observation");
+    }
+    output = candidate;
+    return Ok();
+}
+Status prepareControlRead(DriverContext& output, const ReadTarget& target, uint32_t operation,
+                          uint64_t now, uint64_t deadline, const ReadOptions& options) noexcept {
+    return prepareDriverRead(output, target, operation, now, deadline, options,
+                             DriverGroup::CONTROL);
+}
+Status prepareTuningRead(DriverContext& output, const ReadTarget& target, uint32_t operation,
+                         uint64_t now, uint64_t deadline, const ReadOptions& options,
+                         TuningGroup group) noexcept {
+    DriverGroup native;
+    switch (group) {
+    case TuningGroup::CURRENT_HOLDING:
+        native = DriverGroup::TUNING_CURRENT_HOLDING;
+        break;
+    case TuningGroup::FILTER_POSITION:
+        native = DriverGroup::TUNING_FILTER_POSITION;
+        break;
+    case TuningGroup::LOOP_GAINS:
+        native = DriverGroup::TUNING_LOOP_GAINS;
+        break;
+    case TuningGroup::EDS_GAINS:
+        native = DriverGroup::TUNING_EDS_GAINS;
+        break;
+    default:
+        return invalid(ReadError::ARGUMENT, "unknown finite tuning group");
+    }
+    return prepareDriverRead(output, target, operation, now, deadline, options, native);
+}
+Status getControl(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
+                  ControlObservation& output) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &target, sizeof target))
+        return invalid(ReadError::OVERLAP, "control output overlaps input");
+    Status s = current(c.read, target, now, age);
+    if (!s)
+        return s;
+    if (c.read.kind != ReadKind::CONTROL || c.read.state != ReadState::SUCCEEDED ||
+        c.read.source != ReadSource::SDO)
+        return invalid(ReadError::STATE, "control read incomplete or wrong context");
+    ControlObservation candidate;
+    s = fields(c.read, 0, c.read.count, now, age, candidate.window);
+    if (!s)
+        return s;
+    candidate.target = c.read.target;
+    candidate.loopModeRaw = uint16_t(c.read.values[0].raw);
+    if (candidate.loopModeRaw <= 2)
+        candidate.loopMode = static_cast<LoopMode>(candidate.loopModeRaw);
+    candidate.encoderResolutionRaw = uint16_t(c.read.values[1].raw);
+    for (unsigned i = 0; i < 2; ++i)
+        candidate.fields[i] = c.read.values[i].provenance;
+    output = candidate;
+    return Ok();
+}
+Status getTuning(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
+                 TuningObservation& output) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &target, sizeof target))
+        return invalid(ReadError::OVERLAP, "tuning output overlaps input");
+    Status s = current(c.read, target, now, age);
+    if (!s)
+        return s;
+    if (c.read.state != ReadState::SUCCEEDED || c.read.source != ReadSource::SDO)
+        return invalid(ReadError::STATE, "tuning read incomplete or wrong source");
+    TuningObservation candidate;
+    switch (c.read.kind) {
+    case ReadKind::TUNING_CURRENT_HOLDING:
+        candidate.group = TuningGroup::CURRENT_HOLDING;
+        break;
+    case ReadKind::TUNING_FILTER_POSITION:
+        candidate.group = TuningGroup::FILTER_POSITION;
+        break;
+    case ReadKind::TUNING_LOOP_GAINS:
+        candidate.group = TuningGroup::LOOP_GAINS;
+        break;
+    case ReadKind::TUNING_EDS_GAINS:
+        candidate.group = TuningGroup::EDS_GAINS;
+        break;
+    default:
+        return invalid(ReadError::STATE, "not a finite tuning context");
+    }
+    s = fields(c.read, 0, c.read.count, now, age, candidate.window);
+    if (!s)
+        return s;
+    candidate.target = c.read.target;
+    candidate.fieldCount = c.read.count;
+    for (unsigned i = 0; i < c.read.count; ++i)
+        candidate.fields[i] = c.read.values[i].provenance;
+    const ReadValue* v = c.read.values;
+    switch (candidate.group) {
+    case TuningGroup::CURRENT_HOLDING:
+        candidate.maximumPeakCurrentMa = uint16_t(v[0].raw);
+        candidate.closedLoopMaximumPercent = uint16_t(v[1].raw);
+        candidate.closedLoopBasePercent = uint16_t(v[2].raw);
+        candidate.openLoopMaximumPercent = uint16_t(v[3].raw);
+        candidate.holdingCurrentPercent = uint16_t(v[4].raw);
+        candidate.holdingTimeMs = uint16_t(v[5].raw);
+        break;
+    case TuningGroup::FILTER_POSITION:
+        candidate.lowPassEnableRaw = uint16_t(v[0].raw);
+        candidate.lowPassCoefficientRaw = uint16_t(v[1].raw);
+        candidate.positionAlarmThresholdRaw = uint16_t(v[2].raw);
+        candidate.inPositionThresholdRaw = uint16_t(v[3].raw);
+        candidate.inPositionTimeRaw = uint16_t(v[4].raw);
+        candidate.averagingFilterRaw = uint16_t(v[5].raw);
+        break;
+    case TuningGroup::LOOP_GAINS:
+        candidate.currentProportionalFactorRaw = uint16_t(v[0].raw);
+        candidate.currentKpRaw = uint16_t(v[1].raw);
+        candidate.currentKiRaw = uint16_t(v[2].raw);
+        candidate.currentKcRaw = uint16_t(v[3].raw);
+        candidate.velocityKp1Raw = uint16_t(v[4].raw);
+        candidate.velocityKv1Raw = uint16_t(v[5].raw);
+        candidate.velocityNode1Raw = uint16_t(v[6].raw);
+        candidate.velocityKp2Raw = uint16_t(v[7].raw);
+        candidate.velocityKv2Raw = uint16_t(v[8].raw);
+        candidate.velocityNode2Raw = uint16_t(v[9].raw);
+        candidate.velocityFeedforwardRaw = uint16_t(v[10].raw);
+        candidate.positionKiRaw = uint16_t(v[11].raw);
+        break;
+    case TuningGroup::EDS_GAINS:
+        for (unsigned i = 0; i < 7; ++i)
+            candidate.edsGainsRaw[i] = uint16_t(v[i].raw);
+        break;
     }
     output = candidate;
     return Ok();

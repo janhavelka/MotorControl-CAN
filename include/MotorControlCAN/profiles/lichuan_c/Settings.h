@@ -54,7 +54,7 @@ enum class SettingsState : uint8_t {
     SUCCEEDED,    ///< Requested register image matched; no electrical/physical activation claim.
     FAILED        ///< Retained failure, partial acknowledgements and possible effects survive.
 };
-/** Caller-owned finite driver/DI transaction; do not edit fields while active.
+/** Caller-owned finite driver/DI/control transaction; do not edit fields while active.
  * Masks use the fixed read group's field positions. Confirmed values are in
  * requested[]; the last exact terminal/abort is in evidence. No heap/hidden retry.
  */

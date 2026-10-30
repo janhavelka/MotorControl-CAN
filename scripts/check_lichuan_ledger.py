@@ -66,6 +66,18 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 22:
+        index, subindex = entry.get("index"), entry.get("subindex")
+        if (type(index) is not int or type(subindex) is not int or
+                not 0x2500 <= index <= 0x2520 or subindex != 0 or
+                entry.get("key") != "0x{:04X}:00".format(index) or
+                entry.get("owner_prompt") != 22 or entry.get("role") != "value"):
+            return [label + "outside the reviewed Prompt 22 scalar read scope"]
+        if (generation_disposition(entry) != "resolved" or
+                entry.get("type") != {"eds_code": "0x0006", "name": "U16",
+                                      "width_bytes": 2, "signed": False}):
+            return [label + "requires the reviewed Prompt 22 U16 native read type"]
+        return []
     if owner == 21:
         index, subindex = entry.get("index"), entry.get("subindex")
         allowed = (type(index) is int and type(subindex) is int and
@@ -121,7 +133,7 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") not in (19, 20, 21) or read_owner_errors(entry):
+    if entry.get("read_owner_prompt") not in (19, 20, 21, 22) or read_owner_errors(entry):
         errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")
@@ -144,12 +156,16 @@ def setting_coverage_errors(entry):
     index, sub = entry.get("index"), entry.get("subindex")
     motion = index in (0x6081, 0x6083, 0x6084) and sub == 0
     di = index == 0x2400 and type(sub) is int and 1 <= sub <= 8
+    loop_mode = (index == 0x2500 and type(sub) is int and sub == 0 and
+                 entry.get("read_owner_prompt") == 22 and not read_owner_errors(entry))
     review = entry.get("review", {})
-    if (not (motion or di) or entry.get("owner_prompt") != (20 if motion else 21) or
+    if (not (motion or di or loop_mode) or
+            entry.get("owner_prompt") != (20 if motion else (21 if di else 22)) or
             entry.get("access_reviewed") != "RW" or generation_disposition(entry) != "resolved" or
             review.get("write_policy") != "qualification_required"):
         return [label + "outside the reviewed conditional typed subset"]
-    expected_scope = "position_parameters_86c" if motion else "explicit_di_configuration_86c"
+    expected_scope = ("position_parameters_86c" if motion else
+                      "explicit_di_configuration_86c" if di else "explicit_loop_mode_86c")
     errors = []
     if entry.get("setting_scope") != expected_scope:
         errors.append(label + "requires exact model-bound subset scope")
@@ -800,7 +816,11 @@ def validate_ledger(data, root=ROOT):
                 if (index in (0x2100, 0x2101, 0x2102, 0x603F, 0x605D) or
                         (index == 0x2400 and 12 <= sub <= 15) or
                         0x2401 <= index <= 0x2407 or 0x2500 <= index <= 0x2520):
-                    require(access == "RO", elabel + ": conservative read-only policy required")
+                    conditional_loop_mode = (index == 0x2500 and sub == 0 and
+                                             entry.get("setting_scope") == "explicit_loop_mode_86c" and
+                                             "setting_coverage" in entry and not setting_coverage_errors(entry))
+                    require(access == "RO" or conditional_loop_mode,
+                            elabel + ": conservative read-only policy required")
                 if entry.get("role") == "reserved":
                     require(access is None and entry.get("pdo_mapping_reviewed") is False and
                             policy.get("write_policy") == "reserved", elabel + ": reserved policy cannot grant access")
