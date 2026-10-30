@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.19)
+if(NOT TARGET MotorControlCANExampleOwner)
+    message(FATAL_ERROR "Build owner_preview from the repository root with examples and CANopenNode enabled")
+endif()
+add_executable(owner_preview main.cpp)
+target_link_libraries(owner_preview PRIVATE MotorControlCANExampleOwner)
+set_target_properties(owner_preview PROPERTIES
+    CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+if(MSVC)
+    target_compile_options(owner_preview PRIVATE /W4 /WX /permissive-)
+else()
+    target_compile_options(owner_preview PRIVATE -Wall -Wextra -Wpedantic -Werror -pedantic-errors)
+endif()

@@ -48,7 +48,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 20 | Native driver, limit and motion-parameter groups | Partial: nine typed raw read rows and position-parameter settings complete; direction/scale/limits/mode gates remain [owned here](reports/prompt_20.md). Current/holding remains solely 22. |
 | 21 | I/O settings and output actions | Partial: all 23 I/O reads and explicit DI settings implemented; DO, filter and output actions retain the precise [evidence gates](io_settings.md). Those remaining mutations retain their own partial-effect/invalidation obligations. |
 | 22 | Tuning/current groups | Partial: all 33 typed reads and explicit 86C loop selection implemented; other writes retain precise admissible-domain/scale/effect gates in the [tuning guide](tuning.md). Current/holding remains solely here. |
-| 23-25 | Owner dispatch/results, urgent/cancel/recovery, passive health/statistics | Pending; path depends on 17/19, not completed 18/20-22; synthetic owner fixtures do not implement drive settings |
+| 23 | Ordinary owner dispatch/results | Owned software implemented/tested, including actual typed read/loop-setting integration; Partial only on inherited 19/Q20. See [report](reports/prompt_23.md). |
+| 24-25 | Urgent/cancel/recovery, passive health/statistics | Pending; extend the same owner/service storage. No production readiness or motion/stop support is inferred. |
 | 26-28 | Native example, TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |
 | 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |
 | 30-32 | Enable/release, stop, fault/reference actions | Pending; use qualified current-state transitions, never enable as a stop/reset preamble |

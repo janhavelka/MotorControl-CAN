@@ -5,7 +5,8 @@ Prompt 6 freezes the minimum semantic contract in the
 declarations are buildable C++11. Prompt 7 moved stable status, endpoint/binding
 and Classical frame validation into the [native package](getting_started.md).
 Prompt 9 supplies production [exact units and quantization](units_status.md).
-Synthetic operations, coordinate policy and the owner remain test support.
+Synthetic operations remain test support; pure axis/reference policy is installed,
+and prompt 23 now supplies the ordinary application owner in examples/common.
 No installed driver, hardware support or complete motion implementation
 is claimed. The [architecture plan](architecture_plan.md) remains
 the target repository layout; this document governs the narrower proven boundary.
@@ -86,3 +87,16 @@ its copied downloads. Healthy idle service epoch advancement then enables
 new-epoch matched readback without reopening quarantine or renewing liveness.
 The [owner guide](can_owner.md#native-settings-exclusion-and-configuration-epochs)
 owns integration rules; hardware qualification remains separate.
+
+## Ordinary application scheduling
+
+[CanBusOwner](../examples/common/CanBusOwner.h) borrows the sole existing
+SdoClient and narrow synchronous controller callbacks. Six copied request/result
+slots and two reservations add scheduling without another node table or CAN
+receiver. Logical-axis/physical-peer exclusion spans multiple operations;
+cyclic producer selection and per-channel serialization permit other nodes and
+passive traffic to progress. [The owner guide](can_owner.md) owns budgets,
+lifetimes, actual TX reports and settings configuration epochs. The compiled
+[consumer](../examples/owner_preview/README.md) and direct typed read/loop-setting
+tests use this ordinary path. Urgent capacity, full cancellation and controller
+recovery remain prompt 24; no motion executor or future headers are introduced.

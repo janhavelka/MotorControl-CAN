@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Ordinary application CAN owner
+
+- Add copied admission, per-axis/physical-peer reservations, fair bounded
+  two-channel scheduling and immutable results with explicit release.
+- Route all ingress through existing passive/SDO storage before observer copies;
+  distinguish controller queue acceptance, actual TX and protocol confirmation.
+- Preserve initial queue age across dispatch and retire active/queued work on
+  peer invalidation; retain uncertainty and permanent SDO quarantine.
+- Integrate public reads and confirmed loop settings, including pre-TX
+  configuration withdrawal and checked new-epoch readback, plus a native example.
+- Keep the owner outside the core package; urgent/cancel/recovery remain 24.
+
 ### Control and tuning groups
 
 - Add five finite typed groups covering all 33 U16 tuning/control reads, with

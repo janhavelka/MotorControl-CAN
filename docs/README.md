@@ -4,6 +4,7 @@ Execution has completed prompts 1-17, including the [native service fit experime
 
 | Material | Purpose |
 | --- | --- |
+| [Application CAN owner](can_owner.md) | Ordinary fair scheduling, one receiver, retained results, capacities and typed read/settings integration |
 | [Control and tuning](tuning.md) | Five finite groups, all 33 raw read rows, explicit loop selection and precise remaining write gates |
 | [Digital I/O](io_settings.md) | Four typed I/O reads, explicit DI settings, pin/function/level distinctions and remaining DO/filter/action gates |
 | [Native driver groups](driver_settings.md) | Typed native reads and confirmed parameter writes; concrete prerequisites, partial effects/readback and remaining source gates |

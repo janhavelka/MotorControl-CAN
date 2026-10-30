@@ -5,7 +5,7 @@ OUTPUT_DIRECTORY       = .build/doxygen
 OUTPUT_LANGUAGE        = English
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        = .
-INPUT                  = include adapters/canopennode/SdoClient.h adapters/canopennode/NetworkState.h adapters/canopennode/Nmt.h adapters/canopennode/PdoState.h README.md docs/getting_started.md docs/verification.md docs/units_status.md docs/axis_contract.md docs/canopen_services.md docs/reads.md docs/driver_settings.md docs/io_settings.md docs/tuning.md
+INPUT                  = include examples/common/CanBusOwner.h docs/can_owner.md adapters/canopennode/SdoClient.h adapters/canopennode/NetworkState.h adapters/canopennode/Nmt.h adapters/canopennode/PdoState.h README.md docs/getting_started.md docs/verification.md docs/units_status.md docs/axis_contract.md docs/canopen_services.md docs/reads.md docs/driver_settings.md docs/io_settings.md docs/tuning.md
 FILE_PATTERNS          = *.h *.md
 FILTER_PATTERNS        = *.md="python scripts/doxygen_filter.py"
 RECURSIVE              = YES

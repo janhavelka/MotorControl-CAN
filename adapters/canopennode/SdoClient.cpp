@@ -175,22 +175,35 @@ bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
     return true;
 }
 
-bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRequestId& id) {
-    if (slot >= CHANNELS || overlap(&id, sizeof id, this, sizeof *this) ||
-        overlap(&id, sizeof id, &work, sizeof work) || now < lastUs_) return false;
-    Channel& c = channels_[slot];
-    if (!eligibleSdo(slot, work, now)) return false;
-    if (!c.configured || c.unresolved || c.occupied || c.cleanup || c.generation == UINT32_MAX ||
+const SdoChannel* SdoClient::channel(uint8_t slot) const {
+    return slot < CHANNELS && channels_[slot].configured ? &channels_[slot].route : nullptr;
+}
+bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
+    if (slot >= CHANNELS || now < lastUs_ || !eligibleSdo(slot, work, now))
+        return false;
+    const Channel& c = channels_[slot];
+    if (!c.configured || c.unresolved || c.generation == UINT32_MAX ||
         !sameBinding(work.channel.binding, c.route.binding) ||
         work.channel.clientToServerId != c.route.clientToServerId ||
-        work.channel.serverToClientId != c.route.serverToClientId ||
-        work.operation == 0 || work.request == 0 || work.step == 0 || work.size == 0 || work.size > 32 ||
+        work.channel.serverToClientId != c.route.serverToClientId || work.operation == 0 ||
+        work.request == 0 || work.step == 0 || work.size == 0 || work.size > 32 ||
         work.deadlineUs <= now || work.queueTimeoutUs == 0 || work.responseTimeoutUs == 0 ||
         (work.direction != SdoDirection::UPLOAD && work.direction != SdoDirection::DOWNLOAD) ||
         (work.readEffect != SdoReadEffect::UNQUALIFIED &&
          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING) ||
         (!c.confirmed && (work.direction != SdoDirection::UPLOAD ||
-                         work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING))) return false;
+                          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING)))
+        return false;
+    return true;
+}
+bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRequestId& id,
+                      uint64_t initialQueueDeadline) {
+    if (!checkAdmission(slot, work, now) || initialQueueDeadline <= now ||
+        overlap(&id, sizeof id, this, sizeof *this) || overlap(&id, sizeof id, &work, sizeof work))
+        return false;
+    Channel& c = channels_[slot];
+    if (c.occupied || c.cleanup)
+        return false;
     c.work = work;
     c.admittedUs = now;
     const int anchor = networkAnchor(slot);
@@ -202,6 +215,8 @@ bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     c.uploaded = 0;
     c.frame = 0;
     c.queueCutoff = cutoff(now, work.deadlineUs, work.queueTimeoutUs);
+    if (initialQueueDeadline < c.queueCutoff)
+        c.queueCutoff = initialQueueDeadline;
     c.responseCutoff = work.deadlineUs;
     c.completion = SdoCompletion();
     c.port.sendFault = false;

@@ -664,12 +664,47 @@ void channelsAndFailure() {
     CHECK(!reused.result(fresh));
     CHECK(reused.receive(reply(0x4b), 3)); terminal(reused, fresh, C::SdoOutcome::SUCCESS);
 }
+void outerQueueDeadline() {
+    C::SdoClient client;
+    CHECK(client.configure(0, route(), true, true));
+    const C::SdoTransfer transfer = work();
+    CHECK(client.channel(0) && !client.channel(1));
+    CHECK(client.checkAdmission(0, transfer, 0));
+    C::SdoRequestId id;
+    id.generation = 77;
+    CHECK(!client.admit(0, transfer, 0, id, 0) && id.generation == 77);
+    CHECK(client.admit(0, transfer, 0, id, 5));
+    CHECK(client.checkAdmission(0, transfer, 0)); // Policy check deliberately ignores occupancy.
+    C::SdoRequestId refused;
+    refused.generation = 99;
+    CHECK(!client.admit(0, transfer, 0, refused, 5) && refused.generation == 99);
+    CHECK(client.service(4) && !client.result(id));
+    CHECK(client.service(5));
+    const C::SdoCompletion* e = client.result(id);
+    CHECK(e && e->outcome == C::SdoOutcome::TIMEOUT && !e->transmissionPossible);
+    CHECK(e->admittedUs == 0 && e->completedUs == 5 && e->transfer.queueTimeoutUs == 1000 &&
+          e->transfer.deadlineUs == transfer.deadlineUs && !e->effectPossible);
+    CHECK(client.release(id) && !client.unresolved(0));
+    CHECK(client.checkAdmission(0, transfer, 5));
+    CHECK(!client.checkAdmission(0, transfer, 4));
+
+    // A looser outer cutoff cannot extend the native first-frame queue interval.
+    C::SdoClient native;
+    CHECK(native.configure(0, route(), true, true));
+    CHECK(native.admit(0, transfer, 0, id, 2000));
+    CHECK(native.service(1000));
+    CHECK(native.result(id) && native.result(id)->outcome == C::SdoOutcome::TIMEOUT &&
+          !native.result(id)->transmissionPossible);
+}
 } // namespace
 
 int main() {
     admissionAndRoutes(); expeditedTransfers(); segmentedUploads(); segmentedDownloads();
     abortWhileStaged(); confirmationAfterReply(); malformedAndAbort();
-    deadlinesAndCancellation(); unsupportedAndEffects(); channelsAndFailure();
+    deadlinesAndCancellation();
+    unsupportedAndEffects();
+    channelsAndFailure();
+    outerQueueDeadline();
     std::printf("SDO transfer vectors passed: %u checks\n", checks);
     return 0;
 }

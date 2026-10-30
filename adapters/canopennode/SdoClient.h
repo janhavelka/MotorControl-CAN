@@ -266,9 +266,27 @@ public:
      * Download data are copied before return. Block and larger forms reject.
      * @param[in] nowUs Nondecreasing supplied microseconds, including zero; never wraps.
      * @param[out] id Published only on success; no alias with input or adapter storage.
+     * @param[in] initialQueueDeadlineUs Optional exclusive outer-owner queue cutoff;
+     * clamps the first frame without rewriting the copied transfer/budgets. UINT64_MAX
+     * leaves the ordinary admission cutoff intact. Must be strictly after nowUs.
      * @return False leaves all storage/output unchanged, including admission refusal.
      */
-    bool admit(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs, SdoRequestId& id);
+    bool admit(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs, SdoRequestId& id,
+               uint64_t initialQueueDeadlineUs = UINT64_MAX);
+    /** Check route, service policy and complete request shape without reserving storage.
+     * @param[in] slot Existing configured channel; occupancy is deliberately ignored.
+     * @param[in] transfer Complete queued request candidate, borrowed for this call.
+     * @param[in] nowUs Nondecreasing supplied time before the overall deadline.
+     * @return True only for admissible policy/shape; actual admit additionally checks
+     * occupied terminal/active storage and cleanup. No state or output is changed.
+     */
+    bool checkAdmission(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs) const;
+    /** Inspect the authoritative configured channel, never a duplicate node registry.
+     * @param[in] slot Fixed channel slot.
+     * @return Borrowed immutable route until explicit configuration change/destruction;
+     * null for invalid/unconfigured slots. Copy retained provenance.
+     */
+    const SdoChannel* channel(uint8_t slot) const;
     /** At most one initiation, two engine progression calls and one FIFO drain per channel.
      * Overall expiry wins at equality, before queue/response work. All subcutoffs
      * use remaining-budget subtraction, so UINT64_MAX cannot overflow additions.

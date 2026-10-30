@@ -45,6 +45,10 @@ option(MOTORCONTROLCAN_BUILD_CANOPENNODE "Build the optional application-side CA
 if(MOTORCONTROLCAN_BUILD_CANOPENNODE)
     add_subdirectory(adapters/canopennode)
 endif()
+if(MOTORCONTROLCAN_BUILD_EXAMPLES AND MOTORCONTROLCAN_BUILD_CANOPENNODE)
+    add_subdirectory(examples/common)
+    add_subdirectory(examples/owner_preview)
+endif()
 
 # Source distributions omit repository tests and never need Python or the stack.
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test")

@@ -62,7 +62,7 @@ This table is the maintained inventory. Stage reports record individual results.
 | Structure, manifest, package files, explicit test registration | `python scripts/check_repository.py` | Quick and full |
 | Checked-in version freshness | `python scripts/generate_version.py check` | Quick and full |
 | Maintained links and retained reference/ledger integrity | `python scripts/check_promptset.py` | Quick and full |
-| Native core, exact units/axis targets, Classical frames, checked SDO/network envelopes, selected-engine vectors, passive node/axis-cache lifecycle, offline preview, native consumer, ownership proof and multidrive contracts | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full; C++11, strict private warnings |
+| Native core, exact units/axis targets, Classical frames, checked SDO/network envelopes, selected-engine vectors, passive node/axis-cache lifecycle, offline previews, native consumers, ordinary application owner, retained ownership proof and multidrive contracts | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full; C++11, strict private warnings |
 | Python version/checker/planning regressions | Explicit CMake/CTest registration in `test/CMakeLists.txt` | Quick and full |
 | Source, relocated install and exported-source consumers; missing dependency rejection | `test/package_test.py` / `package_contract` | Full; isolated paths, C++11 and C++17/no RTTI |
 | Doxygen output, API inventory and deliberate documentation failures | `doxygen Doxyfile`, verifier API check, `test/documentation_test.py` | Full; exact Doxygen 1.13.2 |

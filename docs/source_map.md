@@ -261,3 +261,11 @@ node table or production motion context.
 | Five finite native groups, exact typed raw output | [Tuning.h](../include/MotorControlCAN/profiles/lichuan_c/Tuning.h), [Reads.cpp](../src/profiles/lichuan_c/Reads.cpp) | [Installed consumer](../test/installed_consumer/main.cpp), [literal 33-row vectors](../test/tuning_test.cpp) | Native current/holding/filter/gain words retain unknown domains; no ESS ranges, torque inference or generic object accessor |
 | Explicit loop setting and matched readback | Same Tuning header, [Settings.cpp](../src/profiles/lichuan_c/Settings.cpp) | Same consumer and fake-owner tests, existing settings regression | Reuse concrete reservation, possible-TX generation withdrawal and retained ACK/uncertainty; no state-changing preamble, writes to encoder or opaque tail |
 | Reviewed read/setting scope and accounting | [Single ledger](reference/lichuan_objects.json), existing checker/generator | Python negative fixtures, exact 95-address oracle | Only 2500 conditional setting scope is added; all generic descriptor writes stay gated; PDO/history/communication owners remain separate |
+
+## Ordinary application owner (prompt 23)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
+| --- | --- | --- | --- |
+| Copied admission, reservations, fair dispatch and retained results | [CanBusOwner.h](../examples/common/CanBusOwner.h) / [CanBusOwner.cpp](../examples/common/CanBusOwner.cpp) | [Native consumer](../examples/owner_preview/main.cpp), [independent owner tests](../test/can_bus_owner_test.cpp) | Application-only; no UART, clocks, heap, motion executor or second node table |
+| Authoritative route/policy and initial queue cutoff | Existing SdoClient header/implementation, `channel/checkAdmission/admit` | Native SDO and owner queue-age cases | Keep complete transferred intent and actual admission time; outer waiting cannot restart first-frame budget |
+| Passive ingress, settings pre-TX and configuration sync | Owner Transport callbacks, existing adapter routing and `advanceConfiguration` | Two-node passive/PDO tests and actual loop write/readback with frozen token | Observers copy after normal dispatch; typed contexts advance outside owner; queue/TX/protocol/effect facts remain separate |

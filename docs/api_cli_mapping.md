@@ -21,6 +21,13 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 23 implements application `RequestId`, `SequenceId`, `BusAdmission`,
+`Completion` and `admit/service/result/release` in examples/common.
+`beginSequence/beginOperation` preserve exclusion across prerequisite and setting
+operations. [The owner contract](can_owner.md) defines the controller/event
+boundary; operation stepping stays outside the scheduler. Urgent/cancellation
+APIs are not advertised before 24.
+
 Prompt 22 adds `prepareControlRead`, `prepareTuningRead`, `getControl` and
 `getTuning`, plus explicit `prepareControlSettings` through the existing
 `nextDriver/advanceDriver` lifecycle. [The tuning guide](tuning.md) lists exact

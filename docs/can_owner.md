@@ -1,227 +1,189 @@
 # Application CAN owner contract
 
-[`MotorControlCANExample::CanBusOwner`](../experiments/api_ownership/CanBusOwner.h)
-is the sole application receiver for the fake physical interface. It uses the
-[selected service bridge](canopen_services.md) and accepts copied work from
-[concrete operations](profile_contract.md). It is stationary, noncopyable,
-cooperative and nonreentrant. Call it from one owner loop, never directly from
-concurrent ISR/tasks. Core code has no pointer back to this owner.
+The working ordinary application owner is
+[`MotorControlCANExample::CanBusOwner`](../examples/common/CanBusOwner.h),
+implemented in [CanBusOwner.cpp](../examples/common/CanBusOwner.cpp).
+It schedules copied CANopen SDO work from existing typed reads/settings, routes
+all ingress once and retains immutable results. It is application code, excluded
+from the installed/exported core. Prompt 24 owns urgent capacity, full owner
+cancellation and controller recovery; no motion context is imported here.
+
+The [offline consumer](../examples/owner_preview/README.md) needs no controller
+or SDK. The [independent tests](../test/can_bus_owner_test.cpp) exercise two nodes,
+multiple producers, passive events, public typed reads and an actual confirmed
+loop-setting sequence. Host fixtures do not qualify a drive. Prompt 23's owned
+software is delivered; its status remains Partial solely while prerequisite
+19's non-consuming probe evidence Q20 remains unresolved.
 
 ## One storage table
 
-Prompt 15 extends the production adapter's **existing** `Channel[2]` table with
-optional passive routing and node facts. One network anchor per physical node
-is shared by its SDO channels; a slot may be passive-only. One four-record
-network diagnostic FIFO drops newest on overflow, independently of current
-snapshot updates and synchronous invalidation callbacks. The older proof's
-four-record raw observer ring remains a copy consumer, with no node registry
-or separate receive loop. It forwards network frames into the production
-table once; its boot-up handling now consumes that table's quarantine result.
-See the [passive lifecycle contract](canopen_services.md#passive-network-events-and-node-lifecycle)
-for route collisions, capture/processing clocks, producer facts and cache epochs.
+An application resource container owns one stationary `SdoClient`, controller
+and `CanBusOwner`. The owner borrows that same idle adapter and copied `Transport`
+callback bundle for its lifetime. All admission, receive, TX and terminal
+progression passes through this owner. Do not independently drain controller RX
+or use the adapter's admission/TX methods as a parallel path. Configure native
+routes, map evidence and observers before scheduling, or in the same cooperative
+context while idle. There is no global registry, allocation or task.
 
-`CanBusOwner::OwnerStorage` owns every row below. These are proof capacities,
-not measured requirements for an embedded product. Prompts 13/15/23 extend this
-same table rather than adding an independent request/channel/result registry.
+The adapter's existing storage remains authoritative for every channel, node,
+NMT/liveness fact, EMCY record and PDO map/sample. Owner reservations copy the
+identity they exclude; they are not another current node table. `collect` copies
+the entire native terminal into the already reserved owner slot and immediately
+releases native result storage. An older unread owner completion therefore
+cannot monopolize a service channel.
 
-| Storage | Capacity | Lifetime and authority |
+| Storage | Capacity | Authority/lifetime |
 | --- | --- | --- |
-| Node/channel | One configured fake node 1 / SDO channel 0 on bus 0 | The promoted SdoClient adapter has two fixed physical-channel slots; this retained proof binds only slot 0. Each slot owns its client/FIFO/retirable software TX and latest SDO observation; production routes are explicit |
-| Active transfer | One slot index plus bridge handle | Only this channel can advance that transfer; ordinary/urgent requests cannot overlap on it |
-| Axis reservations | Two | Copied binding, operation, fixed deadline, nonwrapping reservation generation and last admitted step |
-| Ordinary work | Two slots | Complete copied `ServiceWork`; admission reserves the corresponding terminal result |
-| Urgent work | One distinct slot | Same lifetime; capacity is available independently of ordinary slots |
-| Retained results | One per occupied request slot, three total | First terminal immutable until explicit `release`; no separate dynamic result queue |
-| Asynchronous observations | Four copied raw frames/time values | FIFO consumed by `takeObservation`; overflow drops newest and saturates loss count |
+| Service channels / physical-node anchors | Existing adapter 2 slots | One active native request per actual channel; explicit routes and shared node anchors |
+| PDO wire routes / raw network history | Existing adapter 8 / 4 | Actual map/sample qualification and FIFO/drop policy remain [service contracts](canopen_services.md#one-owner-independent-sample-provenance) |
+| Logical-axis reservations | 2 | Span operations and service gaps; exclude the same logical axis or physical node across all its SDO channels |
+| Ordinary request/results | 6 total | Queued, active and unread terminals share slots; admission reserves result storage before TX |
+| Producer identities | 4, numbered 1..4 | Cyclic eligible-producer selection, independent of CAN node/subaxis or motor kind |
+| Active associations | 2 slot indexes/native handles | Refer to existing channels and canonical result slots; no second client or node state |
 
-The bridge's temporary terminal belongs to the active transfer. `collect` copies
-it into the already reserved owner slot and immediately releases bridge storage.
-This permits a later request to use the channel while older owner results remain
-readable. No caller borrows the bridge result or callback buffer. Native NMT,
-EMCY and PDO bytes stay observations rather than mandatory generic-axis fields.
-No unbounded node cache or opaque heap storage is introduced.
-
-Prompt 13 promotes the channel storage into the optional
-[production SDO adapter](../adapters/canopennode/SdoClient.h); the old bridge is
-a compatibility facade. Its two-channel table is tested directly, while this
-outer proof retains its original one-channel scheduling scope. Prompt 14 adds
-separate SDO observation storage and handoff eligibility to that same table.
-Full owner integration and SDK retirement remain prompts 23/24/27. The prompt-13
-Windows sizes are historical; current host measurements belong to the
-[prompt-14 report](reports/prompt_14.md), not an embedded RAM/stack/timing budget.
+Two channels for one physical peer are synthetic ownership contrasts, not a
+claim that Lichuan provides a second server. The retained
+[prompt-6 proof](../experiments/api_ownership/README.md) stays test-only; its
+one-channel bridge, three slots and urgent prototype are not this owner.
 
 ## Admission and lifetime
 
-`beginSequence` reserves one logical axis/endpoint with copied binding and
-operation identity. Duplicate logical axes or identical physical endpoints are
-refused. A reservation can outlive a request, its result and the wait between
-operation steps. `releaseSequence` refuses while any associated request/result
-is occupied; it is separate from `release(request)`.
+`beginSequence(binding, producer, nowUs, id)` reserves actual configured identity.
+It rejects aliases of the same logical axis or physical peer, stale node epochs
+and any quarantined peer channel. It never configures a drive or discovers nodes.
+The reservation survives waits, released requests and operation boundaries.
 
-`admit` and `admitUrgent` validate the full reservation/binding/operation and
-strictly increasing step before copying work. Refusal leaves output IDs, clock,
-reservation and slots unchanged. Foreign/stale handles fail. Each slot generation
-is nonwrapping; exhaustion makes that slot unavailable. The owner address is part
-of each host handle: handles must not outlive/refer to a reconstructed owner.
-The application owns nonzero operation/binding/configuration generation issuance.
+`beginOperation` selects a strictly increasing nonzero operation and fixed
+exclusive deadline. It requires all earlier requests/results in that reservation
+to be released. Continuous exclusion spans prerequisite reads and later settings
+while each operation can restart step numbering. `admit` validates exact route,
+epochs, current service eligibility, operation, deadline, size/direction and
+increasing step before copying all input. Rejection changes neither output ID
+nor queued work/reservation/time.
 
-The proof adapter accepts synthetic profile identity 1, bus 0, CANopen node 1,
-channel 0. Subaxis remains an identity field; the real profile must resolve its
-index/subindex semantics before yielding work. This is not a vendor subaxis
-addressing rule. Common bindings can describe other protocols/addresses; this
-owner rejects their service work.
+`RequestId` and `SequenceId` contain the stationary owner, fixed slot and a
+nonwrapping serial. One counter issues both; exhaustion rejects new issuance.
+Constructor `lastIssued` permits an explicit application serial seed, not wire
+freshness or reconstruction of old handles. Never use a handle after its owner
+is destroyed/reconstructed. Operation IDs remain caller supplied.
 
-`result` is a non-consuming const view, null before terminal and after release.
-Repeated service does not overwrite it. The caller advances its original typed
-context using that evidence, then explicitly releases the request slot. Context
-results survive slot reuse. Observation consumption has a separate copied-output
-API and does not consume SDO results.
+`result(id)` is non-consuming and null while pending or for foreign/stale IDs.
+The first terminal is immutable until `release(id)`. `releaseSequence` separately
+refuses while any associated request/result remains occupied. No unread result,
+including uncertainty, is evicted to admit another request.
+
+`Completion.admittedUs` is owner admission. `Completion.service.admittedUs`
+remains actual native admission. Full transfer bytes, native node epoch,
+unsigned abort, reply and effect evidence survive copying. Queued local failures
+produce consistent native failure evidence without claiming transmission.
 
 ## Scheduling and time
 
-`service` makes bounded scans of the fixed table and starts at most one eligible
-transfer per call. One channel serializes all SDO traffic. Ordinary starts rotate
-between eligible reserved axes. Urgent traffic wins at a settled boundary, with
-at most one urgent start before eligible ordinary work gets its turn. Earlier
-nonterminal steps of the same reservation stay ahead of later steps. Urgency
-does not preempt a transfer or imply a motor-stop sequence.
+All time is supplied nonwrapping, nondecreasing monotonic microseconds; zero is
+valid. No clock is acquired. Overall deadlines are immutable. Owner queue delay
+counts against the first-frame queue budget: dispatch passes its original cutoff
+to the adapter without modifying the copied transfer. Per-frame response/segment
+budgets stay clamped to the same overall deadline. No polling or unrelated
+traffic renews it.
 
-The proof uses fixed per-call budgets, rather than runtime budget arguments:
+| `ServiceBudget` | Per-turn maximum | Zero behavior |
+| --- | --- | --- |
+| `rx` | 8 receive callback calls, stop on empty | No controller receive calls |
+| `events` | 8 actual TX-report callback calls, stop on empty | No controller report calls |
+| `tx` | 2 one-shot controller enqueue attempts | No enqueue and no new dispatch |
+| `starts` | 2 new native admissions, also needs TX budget | No new native admission |
 
-| Entry | Supplied RX frames | Observation copies | New transfers started | Fake TX handoffs |
-| --- | --- | --- | --- | --- |
-| `service` | 0 | 0 | At most 1 | 0 |
-| `receive` | At most 1 | At most 1 | At most 1 through service | 0 |
-| `handoff` | 0 | 0 | At most 1 through service | At most 1 |
+Larger requests clamp to these bounds. With every budget zero, bounded native
+progression, deadline expiry, invalidation and result collection still execute.
+Passive events continue during active or unresolved SDO work whenever the
+application supplies RX budget. Diagnostics never acquire another receiver.
 
-`service` scans the fixed three request slots and can progress the active
-transfer before starting another. Conservative bounds on calls to the private
-bridge's `service` are two from `service`, four from `receive` and three from
-`handoff`. These are source-derived work bounds, not elapsed-time measurements.
-`takeObservation` consumes at most one already copied event.
+Each turn settles deadlines, takes controller reports, routes RX, then services
+staged frames and eligible new requests. Producer selection cycles 1..4, skipping
+busy/ineligible channels; earlier nonterminal steps in the same sequence retain
+FIFO order. Reservations do not block other nodes or passive delivery. Sequence
+order is not a success dependency: dependent work is admitted only after its
+caller has checked/advanced the prior result.
 
-A caller with zero RX or TX budget omits `receive` or `handoff` for that turn;
-zero event-consumption budget omits `takeObservation`. Calling `service` can
-still expire work or stage a frame in the single retirable fake TX slot, without
-transmitting it. Observation copying accompanies an accepted event frame and
-has no independent budget argument. This describes the fake interface boundary,
-not a production receive-starvation policy: deadlines keep advancing and the
-application must schedule subsequent receive service.
-
-Reservations enforce exclusion/order, **not success dependencies**. Callers must
-not preadmit a dependent next step before advancing the previous result. An
-independently authorized urgent stop may share a reservation without pretending
-that a failed earlier command succeeded. The proof tests scheduling with
-independent synthetic reads; its profile operations each yield one step.
-
-All time is supplied nondecreasing monotonic microseconds, including zero.
-Preparation fixes an exclusive deadline. First admission records that deadline
-in the reservation; later steps must use exactly the same value. Admission requires a future deadline
-no more than 65,535,000 us away and no later than `UINT64_MAX - 65,535,000` so the
-coarse bridge timer cannot overflow even after queued delay. Invalid input is
-rejected atomically. `service`, RX and final handoff expire work before accepting
-evidence at the deadline. No queue/transfer progress extends it. These bounds are
-prototype policy, not a drive timeout guarantee or the production clock design.
-
-## Cancellation, observations and channel uncertainty
-
-Successful queue admission does not prove transmission. In this fake controller,
-`handoff` is the first point at which external TX becomes possible; there is no
-CAN ACK simulation. `cancel` retires unsubmitted fake work and ends locally. It
-never sends a physical stop or automatically retries. A failed/cancelled/expired
-possibly transmitted request interlocks the channel even if it was a read.
-Queued unsent work then ends with transport failure; terminal slots stay intact.
-Releasing a result or reservation never resolves a channel.
-
-RX remains active without an SDO and while results are retained. The proof
-accepts node-1 heartbeat (0x701, one byte), EMCY (0x81, eight bytes) and raw TPDO1
-(0x181, 1–8 bytes). It does not infer a map, sample freshness, drive state or
-health from these frames. Boot-up heartbeat value zero invalidates route
-qualification, cancels active work, retires local TX and fails queued work, even
-if the observation ring is full. No reset/rebind/recovery shortcut is supplied.
-Previously retained results remain historical evidence with their old binding.
-
-Native source timing, real controller retirement and late identical-response
-ambiguity are bounded premises in [canopen_services.md](canopen_services.md).
-The fake proof is not evidence that real hardware can retract an accepted frame.
-Health, traces and persistence remain application policy. Actual configuration,
-map, scale, drive/mode and axis caches attach bounded synchronous invalidators
-or check the current event epoch before use. The production native test invokes
-the real axis/reference invalidator and revokes readback scale evidence; no
-placeholder production PDO/settings cache is introduced before its owning stage.
-These invalidators never perform recovery or actuation.
+All scans and callbacks have fixed bounds: six request slots, two reservations
+and four producers per selection. Selected-stack progression retains its
+existing bounded per-channel calls and 32-byte FIFO drain. These are source work
+bounds, not measured board service gaps.
 
 ## Copied TX and receive-time responsibility
 
-The production adapter's `nextTx` is the conservative possible-transmission
-boundary. If application staging separates handoff from controller submission,
-retain the complete `SdoTxId` with the frame and check `canTransmit(id, nowUs)`
-immediately before a one-shot enqueue, serialized with lifecycle events. Supply
-nondecreasing time even though this pure check does not advance the adapter's
-stored processing time. A false result discards that local copy; a true result
-never authorizes resending a frame
-already accepted by the controller. The pure check cannot revoke or inspect an
-external queue. Cancellation, expiry, boot-up, binding withdrawal or bus-off must
-also retire application/controller work under the actual SDK contract. Preserve
-possible side effects when that retirement cannot be proved.
+`Transport` callbacks borrow a stationary application/controller context and run
+synchronously without reentrancy. `receive` and `takeTxReport` publish complete
+copies. A valid ingress frame enters normal PDO/network/SDO routing once.
+Only afterward may `observe` inspect a call-only copy; it cannot consume a frame
+or release/admit owner work. Unknown identifiers stay diagnostic traffic.
+Rejected malformed/future-capture frames also reach this raw diagnostic callback;
+its copies are not qualified evidence and cannot publish typed cache observations.
 
-Do not substitute a new binding/generation on old cached bytes. `invalidate`
-withdraws a configured channel; it does not overwrite it. Urgent capacity cannot
-borrow that unresolved server to fit a stop. Only a separately proven channel
-can be used under its own capacity/ordering and device contract. The retained
-one-channel proof has no such alternate route.
+Capture time is present only when externally qualified. Unknown capture remains
+unknown; processing time is never substituted. Source-time, binding/map/epoch
+validation and same-ID/same-DLC PDO ambiguity rules remain in the
+[service contract](canopen_services.md#passive-network-events-and-node-lifecycle).
 
-Capture timestamps are optional external evidence. Use the timestamp overload
-only when the capture origin, counter expansion and relation to processing time
-are established. An SDK structure without an ingress timestamp supplies no such
-evidence. Dispatch frames continuously, including after completion/release; copy
-the adapter's bounded latest SDO observation if the application needs history.
-The exact cutoff/terminal order and unsupported reopening paths are owned by
-[the service contract](canopen_services.md#time-and-precedence).
+For a staged first download, optional `beforeTransmit` validates application
+prerequisites and notifies the actual settings context before possible TX.
+It runs once per download request, never for cleanup aborts. It performs no
+operation stepping, I/O or reentrant owner call. `nextTx`, exact-token
+`canTransmit` and one-shot `transmit` then run in the same cooperative turn
+without receive interleaving. Failed enqueue is not retried.
 
-Explicit NMT manager work now shares that owner and node table with one
-additional retained request/result slot. Addressed and broadcast targets,
-capture boundaries, reset versus nonreset dependencies and the authoritative
-[service-eligibility table](canopen_services.md#service-eligibility) are in the
-service guide. Keep TPDO receive validation independent of PDO transmit
-eligibility. Neither manager TX nor heartbeat can rewrite an SDO terminal or
-settle an earlier uncertain write. Applications remain the sole controller
-receiver and must serialize TX eligibility/enqueue with lifecycle dispatch.
+Controller acceptance is separate from actual transmission. `takeTxReport`
+supplies the exact native request/frame token; only an actual positive report
+calls `confirmTx`. A stale negative report cannot fail a newer segment. A
+protocol reply may settle service before a controller report; that late report
+never rewrites the retained first terminal. Queue acceptance, CAN ACK and SDO
+confirmation are not drive acceptance or motion completion. Actual SDK queue
+retirement/recovery remains prompt 24/27 work.
 
-Passive PDO routes now share that receive boundary and the existing node table.
-Eight permanently bound wire-route slots hold actual map evidence, independent
-sample qualification and one complete latest observation each. Old identifiers
-stay reserved; they cannot be recycled into a false distinct-route premise.
-The same four-record raw diagnostic FIFO carries copied PDO frames and map
-epochs without consuming normal delivery. See [PDO evidence and capacities](canopen_services.md#one-owner-independent-sample-provenance)
-for acquisition, lifetime, invalidation and delayed-frame requirements. The
-complete scheduling owner and actual controller queue retirement remain later
-integration work; these are working passive routes, not remapping sequences.
+## Cancellation, observations and channel uncertainty
+
+There is no ordinary-owner cancel/recovery/urgent success stub. Existing native
+cancellation/quarantine remains conservative; full owner cancellation and
+controller recovery belong to prompt 24. Local cancellation is not stop.
+
+Timeout after possible transmission preserves unknown effects and permanent
+channel quarantine. Owner release, quiet time, new host IDs or a new sequence
+cannot reopen it. Same-peer quarantine revokes reservation usability; queued
+work fails and active work is invalidated before later RX/TX can restore success
+or emit a segment. Already retained terminals stay unchanged; unrelated nodes
+continue normally. Boot-up uses existing synchronous node/cache invalidation,
+preserving interrupted outcomes and previous uncertain effects.
+
+The [reconciliation evidence contract](canopen_services.md#unsupported-reopening-and-required-evidence)
+still requires actual retirement/freshness evidence; local tokens cannot resolve
+identical delayed SDO replies. Q20 leaves current Lichuan uploads unqualified,
+including the standalone preview; reads are not automatically harmless.
 
 ## Native settings exclusion and configuration epochs
 
-The [confirmed settings API](driver_settings.md#explicit-position-parameter-settings)
-uses the existing service work/result boundary. `SettingsReservation` is an
-application-issued continuous exclusive sequence, bound to a nameplate/model,
-route/node/configuration and control epoch. Its owner must reject competing
-control/mode/target/RPDO/settings admissions and revoke it on conflicting state
-or lifecycle loss. A copied host token provides no wire transaction identity.
-`test/settings_write_test.cpp` demonstrates actual exclusion around the one SDO
-client; the full scheduling owner remains prompt 23, not implemented by this token.
+The [confirmed settings](driver_settings.md#explicit-position-parameter-settings)
+and [loop selection](tuning.md#explicit-loop-mutation-and-retained-effects)
+use ordinary copied work and retained completions. Acquire the reservation
+before prerequisite reads. Construct `SettingsReservation` from that actual
+owner identity/sequence generation/acquisition time and explicit model/target
+facts; consult `sequence(id)` for current exclusion validity. Do not refresh a
+revoked reservation from an obsolete copy.
 
-`noteDriverTransmission` updates the actual application/axis binding before the
-possible-TX boundary, once per transaction. Only that exact reservation may
-finish its original-epoch downloads. Old general work and prerequisites are
-withdrawn immediately; failure never rolls the epoch back. Retain/release service
-terminals normally. Then `advanceConfiguration` updates the idle healthy local
-service/node binding for new-epoch readback; it does not reset, retry or reopen
-quarantine. Consumers must update the actual axis binding, not a disposable copy.
+The application's `beforeTransmit` calls `noteDriverTransmission` with the actual
+settings context, live reservation and actual axis/configuration binding.
+Each changed download is notified; the configuration epoch increases only for
+the first possible effect of the transaction. Only that exclusive transaction
+finishes its original-epoch downloads. The fixed settings token retains its
+original target; it is not rewritten for readback.
 
-Node/liveness/service timestamps are preserved, while cache observers and PDO
-qualification are withdrawn. Historical samples keep their original tags. An
-old map cannot requalify; explicit `invalidatePdo(true)` and fresh new-epoch map
-evidence permit replacement, with the original independent retirement/sample
-qualification contract still enforced. No same-ID delayed bytes become current
-through a host generation increment. The narrow epoch update adds no storage
-owner or new capacity. Real settings must pass prompt 23/45 integration when those
-owners resume; the fake-controller path proves the present contracts only.
+After writes and service terminals are released, call the owner's checked
+`advanceConfiguration(sequence, actualBinding, nowUs)`. It delegates the native
+healthy-idle check, preserves exclusion/node history, and advances the reservation
+to the actual new configuration. New-epoch reads then use the same reservation
+and operation. Map/sample qualification, physical activation and motion completion
+stay independent; no hidden save, reset, enable or retry occurs.
+
+Typed contexts stay outside the owner. Native tests trace a public state read
+and actual loop-setting ACK/readback through this path, keeping the original
+settings token unchanged. Future confirmed groups in 20–22 use this same boundary;
+prompt 45 checks combined integration again.
