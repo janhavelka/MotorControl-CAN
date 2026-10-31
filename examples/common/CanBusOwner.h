@@ -30,20 +30,55 @@ struct BusRequest {
 };
 /** Local admission only; none indicates controller transmission or remote success. */
 enum class BusAdmission : uint8_t {
-    ACCEPTED,     ///< Complete input copied and terminal slot reserved.
-    INVALID,      ///< Invalid owner/route/operation/policy/shape or overlapping output.
-    EXPIRED,      ///< Overall or operation deadline already reached.
-    RESULTS_FULL, ///< Every request/result slot occupied; no unread terminal is evicted.
-    IDS_EXHAUSTED ///< Nonwrapping owner serial exhausted.
+    ACCEPTED,      ///< Complete input copied and terminal slot reserved.
+    INVALID,       ///< Invalid owner/route/operation/policy/shape or overlapping output.
+    EXPIRED,       ///< Overall or operation deadline already reached.
+    RESULTS_FULL,  ///< Every request/result slot occupied; no unread terminal is evicted.
+    IDS_EXHAUSTED, ///< Nonwrapping owner serial exhausted.
+    INHIBITED      ///< Controller recovery/retirement has not established safe local resumption.
 };
 /** Local owner closure, independent of the native service's outcome/effect fields. */
 enum class CompletionReason : uint8_t {
-    SERVICE,           ///< Actual adapter terminal, including abort/timeout/uncertain effects.
-    QUEUE_EXPIRED,     ///< Owner waiting consumed initial queue budget without transmission.
-    DEADLINE,          ///< Immutable overall deadline expired while waiting in the owner.
-    INVALIDATED,       ///< Current binding/node/session no longer matches queued input.
-    ADMISSION_FAILED,  ///< Adapter refused dispatch after owner admission; nothing replayed.
-    PREFLIGHT_REJECTED ///< Application pre-handoff guard withdrew work before handoff.
+    SERVICE,            ///< Actual adapter terminal, including abort/timeout/uncertain effects.
+    QUEUE_EXPIRED,      ///< Owner waiting consumed initial queue budget without transmission.
+    DEADLINE,           ///< Immutable overall deadline expired while waiting in the owner.
+    INVALIDATED,        ///< Current binding/node/session no longer matches queued input.
+    ADMISSION_FAILED,   ///< Adapter refused dispatch after owner admission; nothing replayed.
+    PREFLIGHT_REJECTED, ///< Application pre-handoff guard withdrew work before handoff.
+    CANCELLED, ///< Explicit local cancellation; possible remote effects remain native evidence.
+    RECOVERY   ///< Explicit host recovery interrupted work; not a device reset or motor stop.
+};
+/** Per-request cancellation disposition; no implicit group cancellation. */
+enum class Cancel : uint8_t {
+    CANCELLED,        ///< This call closed the request; external retirement may remain unproved.
+    ALREADY_TERMINAL, ///< Earlier service/deadline/terminal won and is unchanged.
+    INVALID           ///< Wrong handle, backward time or reentrant call; unchanged.
+};
+/** One retained host/controller recovery identity, independent of ordinary/urgent slots. */
+struct RecoveryId {
+    const CanBusOwner* owner = nullptr; ///< Stationary origin.
+    uint32_t generation = 0;            ///< Nonzero nonwrapping serial; never a wire identity.
+};
+/** Bounded controller callback progress; neither completion state qualifies a remote session. */
+enum class RecoveryProgress : uint8_t {
+    PENDING, ///< Local queue retirement/controller preparation has not finished.
+    RETIRED, ///< All older local TX/RX/reports are retired and controller can accept new work.
+    FAILED   ///< Retirement/readiness cannot be proved; transmission stays inhibited.
+};
+/** Immutable recovery closure, separate from interrupted operation results. */
+enum class RecoveryOutcome : uint8_t {
+    RETIRED, ///< Host/controller boundary established only; no SDO/PDO requalification.
+    FAILED,  ///< Adapter refused/failed; no safe resumption claimed.
+    TIMEOUT  ///< Exclusive budget expired; a late callback cannot change this result.
+};
+/** Retained copied recovery evidence until releaseRecovery; no device effect is certified. */
+struct RecoveryCompletion {
+    RecoveryId id;                ///< Canonical identity.
+    uint32_t controllerEpoch = 0; ///< Newly allocated local epoch; cannot tag remote wire replies.
+    uint64_t startedUs = 0;       ///< Supplied processing time; zero valid.
+    uint64_t deadlineUs = 0;      ///< Immutable exclusive absolute cutoff.
+    uint64_t completedUs = 0;     ///< First terminal processing time.
+    RecoveryOutcome outcome = RecoveryOutcome::FAILED; ///< No implicit success default.
 };
 /** Immutable first terminal, retained non-consumingly until explicit release. */
 struct Completion {
@@ -61,11 +96,14 @@ struct ReceivedFrame {
     Frame frame; ///< Complete owned frame, including standard/extended and data/RTR shape.
     bool receivedTimeKnown = false; ///< No invented capture timestamp when false.
     uint64_t receivedUs = 0;        ///< Qualified capture microseconds, zero valid, not future.
+    uint32_t controllerEpoch = 1;   ///< Stamp at adapter ingress, before queuing; never on dequeue.
 };
 /** Actual controller report, never inferred from enqueue acceptance. */
 struct TxReport {
     MotorControlCAN::CANOPEN::SdoTxId id; ///< Exact copied native handoff identity.
     bool transmitted = false; ///< True actual TX/ACK; false failure with uncertain effect.
+    uint32_t controllerEpoch =
+        1; ///< Original enqueue epoch. Both results prove no later TX of this frame.
 };
 /** Narrow synchronous application/controller boundary; no hidden receiver/task.
  * Callback contexts outlive the owner. Calls never reenter it or service storage.
@@ -74,8 +112,9 @@ struct TxReport {
 struct Transport {
     void* context = nullptr; ///< Borrowed stationary application/controller context.
     bool (*receive)(void*, ReceivedFrame&) = nullptr; ///< At most one frame per call; false empty.
-    bool (*transmit)(void*, const Frame&, MotorControlCAN::CANOPEN::SdoTxId) = nullptr;
+    bool (*transmit)(void*, const Frame&, MotorControlCAN::CANOPEN::SdoTxId, uint32_t) = nullptr;
     ///< One-shot enqueue, borrowing frame only during call; true is queue acceptance only.
+    ///< Final argument is controller epoch; false conservatively permits uncertain acceptance.
     bool (*takeTxReport)(void*, TxReport&) = nullptr; ///< One copied actual controller report.
     bool (*beforeTransmit)(void*, SequenceId, const MotorControlCAN::CANOPEN::SdoTransfer&,
                            uint64_t) = nullptr;
@@ -83,13 +122,29 @@ struct Transport {
     void (*observe)(void*, const ReceivedFrame&, uint64_t) = nullptr;
     ///< Optional raw copy after dispatch/rejection, including malformed/future diagnostics;
     ///< not qualified evidence and cannot consume authoritative input.
+    bool (*retire)(void*, MotorControlCAN::CANOPEN::SdoTxId, uint32_t) = nullptr;
+    ///< Bounded synchronous attempt: true proves this exact frame cannot leave any local
+    ///< SDK/controller queue later; earlier effects remain possible. False/missing blocks
+    ///< that channel until a matching final TX report or explicit successful recovery.
+    ///< Never sends a CAN frame or resets the drive.
+    bool (*beginRecovery)(void*, uint32_t) = nullptr;
+    ///< Start bounded host/controller work for the new epoch, no CAN frames/replay.
+    ///< False may have partial local effects; caller stays inhibited. Stop any older
+    ///< recovery attempt before starting this one; callbacks retain no borrowed pointers.
+    RecoveryProgress (*pollRecovery)(void*, uint32_t) = nullptr;
+    ///< One bounded poll. RETIRED proves all prior local TX/RX/report queues retired,
+    ///< including asynchronous callbacks, and controller readiness. New ingress must
+    ///< carry the new epoch. It proves nothing about remote pending TX or SDO sessions.
 };
 /** Explicit per-turn budgets; values above fixed limits clamp, zero invokes no corresponding callback. */
 struct ServiceBudget {
     uint8_t rx = 0;     ///< Max receive callbacks, clamped to RX_LIMIT; false stops draining.
     uint8_t tx = 0;     ///< Max one-shot enqueues, clamped to TX_LIMIT.
-    uint8_t events = 0; ///< Max controller report callbacks, clamped to EVENT_LIMIT.
+    uint8_t events = 0; ///< Max report callbacks, clamped to EVENT_LIMIT; nonzero also permits
+                        ///< at most CHANNELS one-shot retirement callbacks after invalidation.
     uint8_t starts = 0; ///< Max new adapter admissions, clamped to START_LIMIT; needs TX budget.
+    uint8_t recovery =
+        0; ///< Max one recovery poll per turn; zero does not poll, deadline still expires.
 };
 /** Read-only reservation facts, not a second current node/binding cache. */
 struct Sequence {
@@ -104,13 +159,15 @@ struct Sequence {
  * The borrowed adapter contains all node/channel/PDO/event storage and is used
  * exclusively through this owner for admit/receive/TX/result progression. Configure
  * routes/observers before use or in this same cooperative context while idle.
- * No second receiver, node table, heap, clocks, automatic retry, urgent API or
+ * No second receiver, node table, heap, clocks, automatic retry or
  * motion executor. Transport callbacks are synchronous and nonreentrant.
  */
 class CanBusOwner {
   public:
     enum {
-        REQUESTS = 6,    ///< Queued + active + unread terminal capacity, shared ordinary slots.
+        REQUESTS = 6,        ///< Queued + active + unread terminal capacity, shared ordinary slots.
+        URGENT_REQUESTS = 1, ///< Reserved urgent request/result slot, never used by ordinary work.
+        TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS, ///< All copied work/result storage.
         SEQUENCES = 2,   ///< Logical-axis reservations, independent of wire node numbering.
         PRODUCERS = 4,   ///< Cyclic eligible-producer fairness, FIFO within each sequence.
         RX_LIMIT = 8,    ///< Maximum receive callback calls per service turn.
@@ -124,9 +181,11 @@ class CanBusOwner {
      * @param[in] identity Nonzero application owner identity, suitable for settings reservations.
      * @param[in] lastIssued Last local serial; never wraps. Nonzero may preserve an application
      * serial domain, but never establishes wire freshness or revives prior handles.
+     * @param[in] controllerEpoch Nonzero local transport epoch; initial ingress uses it.
+     * UINT32_MAX allows current work but rejects any recovery needing a new epoch.
      */
     CanBusOwner(MotorControlCAN::CANOPEN::SdoClient& services, const Transport& transport,
-                uint32_t identity, uint32_t lastIssued = 0) noexcept;
+                uint32_t identity, uint32_t lastIssued = 0, uint32_t controllerEpoch = 1) noexcept;
     CanBusOwner(const CanBusOwner&) = delete;            ///< Stationary handles cannot be copied.
     CanBusOwner& operator=(const CanBusOwner&) = delete; ///< Cannot move live ownership.
     /** Reserve one actual logical binding, without a service or device action.
@@ -139,7 +198,8 @@ class CanBusOwner {
     bool beginSequence(const Binding& binding, uint8_t producer, uint64_t nowUs,
                        SequenceId& output) noexcept;
     /** Start the next operation while retaining axis exclusion across prerequisite/settings reads.
-     * @param[in] id Exact current non-invalidated reservation with no retained requests.
+     * @param[in] id Exact current non-invalidated reservation with no nonterminal requests.
+     * Old retained terminals do not prevent a new operation and remain unchanged.
      * @param[in] operation Strictly greater nonzero operation identity than its predecessor.
      * @param[in] deadlineUs Exclusive immutable absolute cutoff, strictly after nowUs.
      * @param[in] nowUs Supplied nondecreasing microseconds.
@@ -164,9 +224,69 @@ class CanBusOwner {
      * @return ACCEPTED is local only. Rejection changes neither queue nor reservation.
      */
     BusAdmission admit(const BusRequest& request, uint64_t nowUs, RequestId& output) noexcept;
+    /** Copy work into reserved urgent capacity; never preempts or stops existing work.
+     * @param[in] request Same validation as admit; reuse the axis's live reservation.
+     * FIFO within that reservation still applies. Explicitly cancel obsolete work
+     * before beginning a new urgent operation; quarantined routes remain unavailable.
+     * @param[in] nowUs Nondecreasing processing microseconds.
+     * @param[out] output Published only on acceptance, with admit's nonaliasing rules.
+     * @return Local admission only; ordinary pressure cannot consume this slot.
+     */
+    BusAdmission admitUrgent(const BusRequest& request, uint64_t nowUs, RequestId& output) noexcept;
+    /** Close one request without progressing unsent work or reading controller input.
+     * @param[in] id Exact request handle; other queued requests require explicit cancellation.
+     * @param[in] nowUs Same clock; already reached native/owner deadlines win first.
+     * @return First closure disposition. Up to CHANNELS bounded retire callbacks may
+     * settle invalid external handoffs. Failure blocks local reuse, not observations.
+     */
+    Cancel cancel(RequestId id, uint64_t nowUs) noexcept;
+    /** Revoke a reservation and cancel all its pending work, retaining every terminal.
+     * @param[in] id Exact reservation; no fresh channel/session is established.
+     * @param[in] nowUs Nondecreasing microseconds; no receive or new TX is performed.
+     * @return False unchanged for invalid/time/reentrancy; true local invalidation only.
+     */
+    bool invalidate(SequenceId id, uint64_t nowUs) noexcept;
+    /** Revoke all reservations of one application producer; no device-wide reset.
+     * @param[in] producer Explicit producer 1..PRODUCERS, independent of CAN node ID.
+     * @param[in] nowUs Nondecreasing microseconds; bounded by fixed requests/channels.
+     * @return False unchanged for invalid input; old results remain inspectable.
+     */
+    bool invalidateProducer(uint8_t producer, uint64_t nowUs) noexcept;
+    /** Begin explicit host/controller recovery, with independently retained result capacity.
+     * @param[in] nowUs Nondecreasing microseconds; no hidden time acquisition.
+     * @param[in] deadlineUs Exclusive absolute cutoff, strictly greater than nowUs.
+     * @param[out] output Published on acceptance only; may not overlap owner/adapter.
+     * @return True reserves a result, invalidates all reservations/node freshness and
+     * invokes at most one beginRecovery callback. Missing/failed callback closes FAILED.
+     * No wire command, SDO reopening, PDO qualification, replay or physical stop occurs.
+     */
+    bool recover(uint64_t nowUs, uint64_t deadlineUs, RecoveryId& output) noexcept;
+    /** @param[in] id Exact recovery identity.
+     * @return Immutable terminal view until release; null pending/stale/foreign.
+     */
+    const RecoveryCompletion* recoveryResult(RecoveryId id) const noexcept;
+    /** @param[in] id Exact terminal recovery identity.
+     * @return True releases only retained storage; a failure/timeout interlock survives.
+     */
+    bool releaseRecovery(RecoveryId id) noexcept;
+    /** Report bus-off, recovery or RX loss through the same serialized owner.
+     * @param[in] state Actual controller state, never inferred from a missing reply.
+     * @param[in] nowUs Nondecreasing supplied time. Non-AVAILABLE invalidates work;
+     * direct AVAILABLE cannot bypass an owner retirement/recovery interlock.
+     * @return False for invalid input. Bounded retirement callbacks may run;
+     * no CAN command, implicit reset or replay occurs.
+     */
+    bool reportController(MotorControlCAN::CANOPEN::ControllerState state, uint64_t nowUs) noexcept;
+    /** Report a dropped authoritative RX frame: revoke dependent trust and inhibit TX.
+     * @param[in] nowUs Nondecreasing processing microseconds.
+     * @return Same as reportController(RECOVERING); recovery requires explicit request.
+     */
+    bool receiveOverflow(uint64_t nowUs) noexcept;
+    /** @return Current local transport epoch, never proof of remote freshness. */
+    uint32_t controllerEpoch() const noexcept { return controllerEpoch_; }
     /** Run one bounded cooperative turn; deadlines progress even with all budgets zero.
      * @param[in] nowUs Nondecreasing nonwrapping caller microseconds, zero valid.
-     * @param[in] budget Clamped RX/TX/report/start budgets; zero prevents that work.
+     * @param[in] budget Clamped RX/TX/report/start/recovery budgets; zero prevents that work.
      * @return False without mutation for backward time/reentrancy/overlap. Accepted
      * frames enter normal adapter routing exactly once before observer copies.
      */
@@ -182,7 +302,8 @@ class CanBusOwner {
      */
     bool release(RequestId id) noexcept;
     /** Synchronize a completed exclusive settings transaction's configuration epoch.
-     * @param[in] id Live reservation; every owner request on this node must be released.
+     * @param[in] id Live reservation; every owner request on this node must be released,
+     * and every external handoff on the node must have proved local retirement.
      * @param[in] current Same binding with exactly next configuration epoch, already
      * withdrawn by the application's pre-TX settings notification.
      * @param[in] nowUs Same monotonic caller time.
@@ -195,7 +316,7 @@ class CanBusOwner {
 
   private:
     struct Reservation {
-        bool occupied = false;
+        bool occupied = false, invalidated = false;
         uint32_t generation = 0, lastStep = 0;
         Sequence value;
     } sequences_[SEQUENCES];
@@ -206,10 +327,18 @@ class CanBusOwner {
         BusRequest request;
         MotorControlCAN::CANOPEN::SdoRequestId native;
         Completion completion;
-    } slots_[REQUESTS];
+    } slots_[TOTAL_REQUESTS];
+    struct ExternalTx {
+        bool pending = false, blocked = false, retirementTried = false;
+        uint32_t epoch = 0;
+        MotorControlCAN::CANOPEN::SdoTxId id;
+    } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS];
     MotorControlCAN::CANOPEN::SdoClient& services_;
     Transport transport_;
     uint32_t identity_, lastId_;
+    uint32_t controllerEpoch_;
+    RecoveryCompletion recovery_;
+    bool recoveryOccupied_ = false, recoveryTerminal_ = false, inhibited_ = false;
     uint64_t lastUs_ = 0;
     uint8_t nextProducer_ = 1, nextChannel_ = 0;
     int active_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS] = {-1, -1};
@@ -219,10 +348,16 @@ class CanBusOwner {
     int channel(const Binding& binding) const noexcept;
     int channel(const MotorControlCAN::CANOPEN::SdoChannel& route) const noexcept;
     bool occupied(SequenceId id) const noexcept;
+    bool live(SequenceId id) const noexcept;
+    BusAdmission admit(const BusRequest&, uint64_t, RequestId&, bool urgent) noexcept;
     int select(uint64_t nowUs) const noexcept;
+    bool eligible(unsigned slot, uint64_t nowUs) const noexcept;
     void collect() noexcept;
     void expire(uint64_t nowUs) noexcept;
     void finish(unsigned slot, CompletionReason reason, uint64_t nowUs) noexcept;
     bool transmit(uint8_t channel, uint64_t nowUs) noexcept;
+    void cancelSlot(unsigned slot, CompletionReason reason, uint64_t nowUs) noexcept;
+    void settleExternal(uint64_t nowUs, bool allowCallback) noexcept;
+    void closeRecovery(RecoveryOutcome outcome, uint64_t nowUs) noexcept;
 };
 } // namespace MotorControlCANExample

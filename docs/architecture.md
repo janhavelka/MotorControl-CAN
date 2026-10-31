@@ -88,15 +88,17 @@ new-epoch matched readback without reopening quarantine or renewing liveness.
 The [owner guide](can_owner.md#native-settings-exclusion-and-configuration-epochs)
 owns integration rules; hardware qualification remains separate.
 
-## Ordinary application scheduling
+## Application scheduling and local recovery
 
 [CanBusOwner](../examples/common/CanBusOwner.h) borrows the sole existing
-SdoClient and narrow synchronous controller callbacks. Six copied request/result
-slots and two reservations add scheduling without another node table or CAN
+SdoClient and narrow synchronous controller callbacks. Six ordinary copied
+request/result slots, one urgent slot and two reservations add scheduling without another node table or CAN
 receiver. Logical-axis/physical-peer exclusion spans multiple operations;
 cyclic producer selection and per-channel serialization permit other nodes and
 passive traffic to progress. [The owner guide](can_owner.md) owns budgets,
 lifetimes, actual TX reports and settings configuration epochs. The compiled
 [consumer](../examples/owner_preview/README.md) and direct typed read/loop-setting
-tests use this ordinary path. Urgent capacity, full cancellation and controller
-recovery remain prompt 24; no motion executor or future headers are introduced.
+tests use this ordinary path. Prompt 24 adds cancellation/invalidation, exact
+external-frame retirement and independently retained finite controller recovery.
+Local retirement cannot establish remote SDO/PDO freshness. No motion executor
+or future motion headers are introduced.

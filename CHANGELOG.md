@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Owner cancellation and recovery
+
+- Added reserved urgent admission/results, per-request cancellation, reservation/producer
+  invalidation and independently retained finite controller recovery in the example owner.
+- Track each external frame through final TX reports or explicit retirement, including
+  cleanup frames and uncertain enqueue failures. Controller epochs reject old ingress;
+  unknown retirement inhibits reuse without discarding operation results.
+- Allow the next operation under the same axis reservation while old terminal results
+  remain retained. Live prior work still requires explicit cancellation; no stop or replay
+  is implied. The transport enqueue callback now receives the controller epoch.
+
 ### Fixed
 
 - Added real application-owner loop-setting failure checks for uncertainty,

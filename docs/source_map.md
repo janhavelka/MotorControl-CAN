@@ -269,3 +269,10 @@ node table or production motion context.
 | Copied admission, reservations, fair dispatch and retained results | [CanBusOwner.h](../examples/common/CanBusOwner.h) / [CanBusOwner.cpp](../examples/common/CanBusOwner.cpp) | [Native consumer](../examples/owner_preview/main.cpp), [independent owner tests](../test/can_bus_owner_test.cpp) | Application-only; no UART, clocks, heap, motion executor or second node table |
 | Authoritative route/policy and initial queue cutoff | Existing SdoClient header/implementation, `channel/checkAdmission/admit` | Native SDO and owner queue-age cases | Keep complete transferred intent and actual admission time; outer waiting cannot restart first-frame budget |
 | Passive ingress, settings pre-TX and configuration sync | Owner Transport callbacks, existing adapter routing and `advanceConfiguration` | Two-node passive/PDO tests and actual loop write/readback with frozen token | Observers copy after normal dispatch; typed contexts advance outside owner; queue/TX/protocol/effect facts remain separate |
+
+## Urgent work and controller recovery (prompt 24)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
+| --- | --- | --- | --- |
+| Reserved urgent work, cancellation and producer invalidation | Same CanBusOwner header/implementation | [Adversarial owner suite](../test/can_bus_recovery_test.cpp), existing native consumer | One extra request/result slot; same two axis reservations; no synthetic stop driver |
+| External TX retirement, ingress epochs and finite recovery | Owner Transport callbacks and retained RecoveryCompletion | Same suite's queued-controller fake and two-node timelines | Local retirement never proves remote SDO/PDO freshness; real adapter obligations remain 27 |

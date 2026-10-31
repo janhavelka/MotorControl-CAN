@@ -14,6 +14,9 @@ bool same(SequenceId a, SequenceId b) {
 bool same(C::SdoRequestId a, C::SdoRequestId b) {
     return a.owner == b.owner && a.channel == b.channel && a.generation == b.generation;
 }
+bool same(C::SdoTxId a, C::SdoTxId b) {
+    return same(a.request, b.request) && a.frame == b.frame;
+}
 bool peer(const Binding& a, const Binding& b) {
     return a.endpoint.protocol == b.endpoint.protocol && a.endpoint.bus == b.endpoint.bus &&
            a.endpoint.address == b.endpoint.address;
@@ -26,15 +29,16 @@ uint64_t cutoff(uint64_t now, uint64_t deadline, uint32_t interval) {
 }
 } // namespace
 CanBusOwner::CanBusOwner(C::SdoClient& services, const Transport& transport, uint32_t identity,
-                         uint32_t lastIssued) noexcept
-    : services_(services), transport_(transport), identity_(identity), lastId_(lastIssued) {}
+                         uint32_t lastIssued, uint32_t controllerEpoch) noexcept
+    : services_(services), transport_(transport), identity_(identity), lastId_(lastIssued),
+      controllerEpoch_(controllerEpoch), inhibited_(!controllerEpoch) {}
 bool CanBusOwner::valid(SequenceId id) const noexcept {
     return id.owner == this && id.slot < SEQUENCES && id.generation &&
            sequences_[id.slot].occupied && sequences_[id.slot].generation == id.generation;
 }
 bool CanBusOwner::valid(RequestId id) const noexcept {
-    return id.owner == this && id.slot < REQUESTS && id.generation && slots_[id.slot].occupied &&
-           slots_[id.slot].generation == id.generation;
+    return id.owner == this && id.slot < TOTAL_REQUESTS && id.generation &&
+           slots_[id.slot].occupied && slots_[id.slot].generation == id.generation;
 }
 int CanBusOwner::channel(const Binding& binding) const noexcept {
     for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
@@ -60,8 +64,14 @@ bool CanBusOwner::occupied(SequenceId id) const noexcept {
             return true;
     return false;
 }
+bool CanBusOwner::live(SequenceId id) const noexcept {
+    for (const Slot& slot : slots_)
+        if (slot.occupied && !slot.terminal && same(slot.request.sequence, id))
+            return true;
+    return false;
+}
 const Sequence* CanBusOwner::sequence(SequenceId id) const noexcept {
-    if (!valid(id))
+    if (!valid(id) || sequences_[id.slot].invalidated)
         return nullptr;
     const Sequence& s = sequences_[id.slot].value;
     const int c = channel(s.binding);
@@ -78,8 +88,9 @@ const Sequence* CanBusOwner::sequence(SequenceId id) const noexcept {
 }
 bool CanBusOwner::beginSequence(const Binding& binding, uint8_t producer, uint64_t now,
                                 SequenceId& output) noexcept {
-    if (entered_ || !identity_ || !producer || producer > PRODUCERS || now < lastUs_ ||
-        lastId_ == UINT32_MAX || overlap(&output, sizeof output, this, sizeof *this) ||
+    if (entered_ || inhibited_ || !identity_ || !producer || producer > PRODUCERS ||
+        now < lastUs_ || lastId_ == UINT32_MAX ||
+        overlap(&output, sizeof output, this, sizeof *this) ||
         overlap(&output, sizeof output, &services_, sizeof services_) ||
         overlap(&output, sizeof output, &binding, sizeof binding))
         return false;
@@ -119,8 +130,8 @@ bool CanBusOwner::beginSequence(const Binding& binding, uint8_t producer, uint64
 }
 bool CanBusOwner::beginOperation(SequenceId id, uint32_t operation, uint64_t deadline,
                                  uint64_t now) noexcept {
-    if (entered_ || now < lastUs_ || deadline <= now || !operation || !sequence(id) ||
-        occupied(id) || operation <= sequences_[id.slot].value.operation)
+    if (entered_ || now < lastUs_ || deadline <= now || !operation || !sequence(id) || live(id) ||
+        operation <= sequences_[id.slot].value.operation)
         return false;
     Reservation& s = sequences_[id.slot];
     s.value.operation = operation;
@@ -137,17 +148,29 @@ bool CanBusOwner::releaseSequence(SequenceId id) noexcept {
 }
 BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now,
                                 RequestId& output) noexcept {
+    return admit(request, now, output, false);
+}
+BusAdmission CanBusOwner::admitUrgent(const BusRequest& request, uint64_t now,
+                                      RequestId& output) noexcept {
+    return admit(request, now, output, true);
+}
+BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now, RequestId& output,
+                                bool urgent) noexcept {
     if (entered_ || !transport_.transmit || now < lastUs_ ||
         overlap(&output, sizeof output, this, sizeof *this) ||
         overlap(&output, sizeof output, &services_, sizeof services_) ||
         overlap(&output, sizeof output, &request, sizeof request))
         return BusAdmission::INVALID;
+    if (inhibited_)
+        return BusAdmission::INHIBITED;
     const Sequence* s = sequence(request.sequence);
     if (!s)
         return BusAdmission::INVALID;
     if (request.transfer.deadlineUs <= now || s->deadlineUs <= now)
         return BusAdmission::EXPIRED;
     const int c = channel(request.transfer.channel);
+    if (c >= 0 && external_[c].blocked)
+        return BusAdmission::INHIBITED;
     if (c < 0 || !MotorControlCAN::sameBinding(s->binding, request.transfer.channel.binding) ||
         request.transfer.operation != s->operation ||
         request.transfer.deadlineUs != s->deadlineUs ||
@@ -157,7 +180,7 @@ BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now,
     if (lastId_ == UINT32_MAX)
         return BusAdmission::IDS_EXHAUSTED;
     int free = -1;
-    for (unsigned i = 0; i < REQUESTS; ++i)
+    for (unsigned i = urgent ? REQUESTS : 0; i < (urgent ? TOTAL_REQUESTS : REQUESTS); ++i)
         if (!slots_[i].occupied) {
             free = int(i);
             break;
@@ -195,7 +218,8 @@ void CanBusOwner::finish(unsigned index, CompletionReason reason, uint64_t now) 
     e.completedUs = now;
     e.outcome = reason == CompletionReason::QUEUE_EXPIRED || reason == CompletionReason::DEADLINE
                     ? C::SdoOutcome::TIMEOUT
-                    : C::SdoOutcome::BINDING_INVALIDATED;
+                : reason == CompletionReason::CANCELLED ? C::SdoOutcome::CANCELLED
+                                                        : C::SdoOutcome::BINDING_INVALIDATED;
 }
 void CanBusOwner::collect() noexcept {
     for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
@@ -213,7 +237,7 @@ void CanBusOwner::collect() noexcept {
     }
 }
 void CanBusOwner::expire(uint64_t now) noexcept {
-    for (unsigned i = 0; i < REQUESTS; ++i) {
+    for (unsigned i = 0; i < TOTAL_REQUESTS; ++i) {
         const Slot& slot = slots_[i];
         if (!slot.occupied || slot.terminal)
             continue;
@@ -231,25 +255,33 @@ void CanBusOwner::expire(uint64_t now) noexcept {
             finish(i, CompletionReason::QUEUE_EXPIRED, now);
     }
 }
+bool CanBusOwner::eligible(unsigned index, uint64_t now) const noexcept {
+    const Slot& slot = slots_[index];
+    if (!slot.occupied || slot.terminal || slot.submitted || !sequence(slot.request.sequence))
+        return false;
+    const int c = channel(slot.request.transfer.channel);
+    if (c < 0 || active_[c] >= 0 || external_[c].pending || external_[c].blocked ||
+        !services_.checkAdmission(uint8_t(c), slot.request.transfer, now))
+        return false;
+    for (const Slot& other : slots_)
+        if (other.occupied && !other.terminal && other.generation < slot.generation &&
+            same(other.request.sequence, slot.request.sequence))
+            return false;
+    return true;
+}
 int CanBusOwner::select(uint64_t now) const noexcept {
+    // Priority changes scheduling between reservations, never same-axis intent order.
+    for (unsigned i = REQUESTS; i < TOTAL_REQUESTS; ++i)
+        if (eligible(i, now))
+            return int(i);
     for (unsigned p = 0; p < PRODUCERS; ++p) {
         const uint8_t producer = uint8_t((nextProducer_ - 1 + p) % PRODUCERS + 1);
         int first = -1;
         for (unsigned i = 0; i < REQUESTS; ++i) {
             const Slot& slot = slots_[i];
-            if (!slot.occupied || slot.terminal || slot.submitted ||
-                slot.completion.producer != producer || !sequence(slot.request.sequence))
+            if (slot.completion.producer != producer || !eligible(i, now))
                 continue;
-            const int c = channel(slot.request.transfer.channel);
-            if (c < 0 || active_[c] >= 0 ||
-                !services_.checkAdmission(uint8_t(c), slot.request.transfer, now))
-                continue;
-            bool earlier = false;
-            for (const Slot& other : slots_)
-                if (other.occupied && !other.terminal && other.generation < slot.generation &&
-                    same(other.request.sequence, slot.request.sequence))
-                    earlier = true;
-            if (!earlier && (first < 0 || slot.generation < slots_[first].generation))
+            if (first < 0 || slot.generation < slots_[first].generation)
                 first = int(i);
         }
         if (first >= 0)
@@ -258,7 +290,7 @@ int CanBusOwner::select(uint64_t now) const noexcept {
     return -1;
 }
 bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
-    if (!transport_.transmit)
+    if (inhibited_ || external_[c].pending || external_[c].blocked || !transport_.transmit)
         return false;
     expire(now);
     const auto* port = services_.port(c);
@@ -284,7 +316,11 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
     C::SdoTxId id;
     if (!services_.nextTx(c, now, frame, id) || !services_.canTransmit(id, now))
         return false;
-    const bool accepted = transport_.transmit(transport_.context, frame, id);
+    external_[c] = ExternalTx();
+    external_[c].pending = true;
+    external_[c].epoch = controllerEpoch_;
+    external_[c].id = id;
+    const bool accepted = transport_.transmit(transport_.context, frame, id, controllerEpoch_);
     if (index >= 0 && !slots_[index].terminal && same(slots_[index].native, id.request))
         slots_[index].completion.controllerAccepted |= accepted;
     if (!accepted)
@@ -304,11 +340,30 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
     lastUs_ = now;
     collect();
     expire(now);
+    if (recoveryOccupied_ && !recoveryTerminal_) {
+        if (now >= recovery_.deadlineUs)
+            closeRecovery(RecoveryOutcome::TIMEOUT, now);
+        else if (budget.recovery && transport_.pollRecovery) {
+            const RecoveryProgress progress =
+                transport_.pollRecovery(transport_.context, controllerEpoch_);
+            if (progress == RecoveryProgress::RETIRED)
+                closeRecovery(RecoveryOutcome::RETIRED, now);
+            else if (progress != RecoveryProgress::PENDING)
+                closeRecovery(RecoveryOutcome::FAILED, now);
+        }
+    }
     if (transport_.takeTxReport)
         for (unsigned i = 0; i < limit(budget.events, EVENT_LIMIT); ++i) {
             TxReport report;
             if (!transport_.takeTxReport(transport_.context, report))
                 break;
+            if (report.controllerEpoch != controllerEpoch_ ||
+                report.id.request.channel >= C::SdoClient::CHANNELS)
+                continue;
+            ExternalTx& tx = external_[report.id.request.channel];
+            if (!tx.pending || !same(tx.id, report.id))
+                continue;
+            tx = ExternalTx(); // A matching final report proves this exact local frame is retired.
             if (report.transmitted)
                 services_.confirmTx(report.id, now);
             else if (services_.canTransmit(report.id, now))
@@ -321,7 +376,8 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             ReceivedFrame frame;
             if (!transport_.receive(transport_.context, frame))
                 break;
-            if (MotorControlCAN::validateFrame(frame.frame) &&
+            if (frame.controllerEpoch == controllerEpoch_ &&
+                MotorControlCAN::validateFrame(frame.frame) &&
                 (!frame.receivedTimeKnown || frame.receivedUs <= now)) {
                 if (frame.receivedTimeKnown)
                     services_.receive(frame.frame, frame.receivedUs, now);
@@ -334,6 +390,7 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             expire(now);
         }
     expire(now);
+    settleExternal(now, budget.events != 0);
     const uint8_t tx = limit(budget.tx, TX_LIMIT);
     unsigned sent = 0, starts = 0;
     const uint8_t firstChannel = nextChannel_;
@@ -344,7 +401,7 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             nextChannel_ = uint8_t((c + 1) % C::SdoClient::CHANNELS);
         }
     }
-    while (sent < tx && starts < limit(budget.starts, START_LIMIT)) {
+    while (!inhibited_ && sent < tx && starts < limit(budget.starts, START_LIMIT)) {
         const int index = select(now);
         if (index < 0)
             break;
@@ -376,9 +433,171 @@ bool CanBusOwner::release(RequestId id) noexcept {
     slots_[id.slot].occupied = false;
     return true;
 }
+void CanBusOwner::settleExternal(uint64_t now, bool allowCallback) noexcept {
+    for (ExternalTx& tx : external_) {
+        if (!tx.pending || services_.canTransmit(tx.id, now))
+            continue;
+        tx.blocked = true;
+        if (!allowCallback || tx.retirementTried)
+            continue;
+        tx.retirementTried = true;
+        if (transport_.retire && transport_.retire(transport_.context, tx.id, tx.epoch)) {
+            tx.pending = false;
+            tx.blocked = false;
+        }
+    }
+}
+void CanBusOwner::cancelSlot(unsigned index, CompletionReason reason, uint64_t now) noexcept {
+    Slot& slot = slots_[index];
+    if (!slot.occupied || slot.terminal)
+        return;
+    if (slot.submitted) {
+        // cancel expires first without pumping an unsent request. Set the owner
+        // cause only if cancellation actually wins; an earlier native terminal survives.
+        if (services_.cancel(slot.native, now))
+            slot.completion.reason = reason;
+        collect();
+    } else if (now >= slot.request.transfer.deadlineUs)
+        finish(index, CompletionReason::DEADLINE, now);
+    else if (now >= slot.queueDeadlineUs)
+        finish(index, CompletionReason::QUEUE_EXPIRED, now);
+    else
+        finish(index, reason, now);
+}
+Cancel CanBusOwner::cancel(RequestId id, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || !valid(id))
+        return Cancel::INVALID;
+    entered_ = true;
+    lastUs_ = now;
+    collect();
+    const bool alreadyTerminal = slots_[id.slot].terminal;
+    cancelSlot(id.slot, CompletionReason::CANCELLED, now);
+    const Cancel disposition =
+        !alreadyTerminal && slots_[id.slot].completion.reason == CompletionReason::CANCELLED
+            ? Cancel::CANCELLED
+            : Cancel::ALREADY_TERMINAL;
+    settleExternal(now, true);
+    entered_ = false;
+    return disposition;
+}
+bool CanBusOwner::invalidate(SequenceId id, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || !valid(id))
+        return false;
+    entered_ = true;
+    lastUs_ = now;
+    collect();
+    for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
+        if (slots_[i].occupied && same(slots_[i].request.sequence, id))
+            cancelSlot(i, CompletionReason::INVALIDATED, now);
+    sequences_[id.slot].invalidated = true;
+    settleExternal(now, true);
+    entered_ = false;
+    return true;
+}
+bool CanBusOwner::invalidateProducer(uint8_t producer, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || !producer || producer > PRODUCERS)
+        return false;
+    entered_ = true;
+    lastUs_ = now;
+    collect();
+    for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
+        if (slots_[i].occupied && slots_[i].completion.producer == producer)
+            cancelSlot(i, CompletionReason::INVALIDATED, now);
+    for (Reservation& s : sequences_)
+        if (s.occupied && s.value.producer == producer)
+            s.invalidated = true;
+    settleExternal(now, true);
+    entered_ = false;
+    return true;
+}
+bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) noexcept {
+    if (entered_ || now < lastUs_ || deadline <= now || recoveryOccupied_ || !identity_ ||
+        lastId_ == UINT32_MAX || !controllerEpoch_ || controllerEpoch_ == UINT32_MAX ||
+        overlap(&output, sizeof output, this, sizeof *this) ||
+        overlap(&output, sizeof output, &services_, sizeof services_))
+        return false;
+    entered_ = true;
+    lastUs_ = now;
+    inhibited_ = true;
+    collect();
+    for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
+        cancelSlot(i, CompletionReason::RECOVERY, now);
+    for (Reservation& s : sequences_)
+        s.invalidated = true;
+    services_.reportController(C::ControllerState::RECOVERING, now);
+    collect();
+    recovery_ = RecoveryCompletion();
+    recovery_.id.owner = this;
+    recovery_.id.generation = ++lastId_;
+    recovery_.controllerEpoch = ++controllerEpoch_;
+    recovery_.startedUs = now;
+    recovery_.deadlineUs = deadline;
+    recoveryOccupied_ = true;
+    recoveryTerminal_ = false;
+    output = recovery_.id;
+    if (!transport_.beginRecovery || !transport_.pollRecovery ||
+        !transport_.beginRecovery(transport_.context, controllerEpoch_))
+        closeRecovery(RecoveryOutcome::FAILED, now);
+    entered_ = false;
+    return true;
+}
+void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept {
+    if (!recoveryOccupied_ || recoveryTerminal_)
+        return;
+    recovery_.outcome = outcome;
+    recovery_.completedUs = now;
+    recoveryTerminal_ = true;
+    if (outcome == RecoveryOutcome::RETIRED) {
+        for (ExternalTx& tx : external_)
+            tx = ExternalTx();
+        services_.reportController(C::ControllerState::AVAILABLE, now);
+        inhibited_ = false;
+    }
+}
+const RecoveryCompletion* CanBusOwner::recoveryResult(RecoveryId id) const noexcept {
+    return id.owner == this && recoveryOccupied_ && recoveryTerminal_ &&
+                   id.generation == recovery_.id.generation
+               ? &recovery_
+               : nullptr;
+}
+bool CanBusOwner::releaseRecovery(RecoveryId id) noexcept {
+    if (entered_ || !recoveryResult(id))
+        return false;
+    recoveryOccupied_ = false;
+    return true;
+}
+bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || state > C::ControllerState::RECOVERING ||
+        (state == C::ControllerState::AVAILABLE && inhibited_))
+        return false;
+    entered_ = true;
+    lastUs_ = now;
+    if (state != C::ControllerState::AVAILABLE) {
+        inhibited_ = true;
+        for (Reservation& s : sequences_)
+            s.invalidated = true;
+    }
+    // UNKNOWN also withdraws freshness; the native UNKNOWN report alone is only
+    // an observation and does not retire channels. Do that retirement explicitly.
+    services_.reportController(
+        state == C::ControllerState::UNKNOWN ? C::ControllerState::RECOVERING : state, now);
+    if (state == C::ControllerState::UNKNOWN)
+        services_.reportController(state, now);
+    collect();
+    expire(now);
+    settleExternal(now, true);
+    if (recoveryOccupied_ && !recoveryTerminal_ && state != C::ControllerState::RECOVERING)
+        closeRecovery(
+            now >= recovery_.deadlineUs ? RecoveryOutcome::TIMEOUT : RecoveryOutcome::FAILED, now);
+    entered_ = false;
+    return true;
+}
+bool CanBusOwner::receiveOverflow(uint64_t now) noexcept {
+    return reportController(C::ControllerState::RECOVERING, now);
+}
 bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
                                        uint64_t now) noexcept {
-    if (entered_ || now < lastUs_ || !sequence(id) || occupied(id))
+    if (entered_ || inhibited_ || now < lastUs_ || !sequence(id) || occupied(id))
         return false;
     Reservation& s = sequences_[id.slot];
     const Binding next = current;
@@ -386,6 +605,12 @@ bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
         if (slot.occupied && peer(slot.request.transfer.channel.binding, s.value.binding))
             return false;
     const int c = channel(s.value.binding);
+    for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
+        const auto* route = services_.channel(uint8_t(i));
+        if (route && peer(route->binding, s.value.binding) &&
+            (external_[i].pending || external_[i].blocked))
+            return false;
+    }
     entered_ = true;
     const bool changed = services_.advanceConfiguration(uint8_t(c), s.value.binding, next, now);
     entered_ = false;

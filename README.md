@@ -1,10 +1,13 @@
 # MotorControl-CAN
 
-**Application owner:** [ordinary dispatch and retained results](docs/can_owner.md)
+**Application owner:** [dispatch and retained results](docs/can_owner.md)
 now work over the existing CANopen adapter, with one receive path, bounded
 producer scheduling and typed read/settings integration. The
 [offline native consumer](examples/owner_preview/README.md) needs no hardware.
-Urgent capacity, full cancellation and controller recovery remain prompt 24.
+Reserved urgent capacity, explicit cancellation/invalidation and finite host
+recovery are implemented. Controller queue retirement needs positive adapter
+evidence; recovery never reopens uncertain SDO channels or qualifies PDO samples.
+No real controller adapter or motor stop is claimed.
 
 **Control and tuning:** [five finite groups](docs/tuning.md) cover all 33 native
 `2500..2520` reads, with checked typed getters and explicit 86C loop selection.

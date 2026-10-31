@@ -107,7 +107,7 @@ struct Fake {
         out = f.incoming[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, C::SdoTxId id) {
+    static bool transmit(void* p, const M::Frame& value, C::SdoTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.transmits;
         f.recursiveCall();
@@ -117,6 +117,7 @@ struct Fake {
         if (f.accept && f.autoConfirm) {
             CHECK(f.reportWrite < CAPACITY);
             f.reports[f.reportWrite].id = id;
+            f.reports[f.reportWrite].controllerEpoch = epoch;
             f.reports[f.reportWrite++].transmitted = true;
         }
         return f.accept;
@@ -316,7 +317,8 @@ void copiedAdmissionAndRetainedPressure() {
     }
     saved.unchanged(*retained);
     CHECK(r.owner.admit(r.request(sequence, 7), r.now, rejected) == E::BusAdmission::RESULTS_FULL);
-    CHECK(!r.owner.beginOperation(sequence, 2, 2000, r.now));
+    CHECK(r.owner.beginOperation(sequence, 2, 2000, r.now));
+    saved.unchanged(*retained); // A new intent can begin without discarding old evidence.
     E::RequestId foreign = ids[0];
     Rig other;
     foreign.owner = &other.owner;
@@ -783,8 +785,11 @@ void staleNegativeReportDoesNotFailNewSegment() {
     r.turn(0);
     CHECK(r.fake.sentCount == 1 && r.fake.sent[0].data[0] == 0x21);
     const C::SdoTxId initiation = r.fake.sentId[0];
+    r.fake.reports[0].id = initiation;
+    r.fake.reports[0].transmitted = true;
+    r.fake.reportWrite = 1;
     r.fake.push(response(1, 0x2500, 2, 0, true), 1);
-    r.turn(1, budget(1, 1, 0, 0));
+    r.turn(1, budget(1, 1, 1, 0));
     CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x00);
     const uint8_t segment[] = {0, 1, 2, 3, 4, 5, 6, 7};
     CHECK(!std::memcmp(r.fake.sent[1].data, segment, sizeof segment));
@@ -792,17 +797,17 @@ void staleNegativeReportDoesNotFailNewSegment() {
     CHECK(initiation.request.generation == current.request.generation && initiation.frame == 1 &&
           current.frame == 2);
     CHECK(r.services.canTransmit(current, r.now));
-    r.fake.reports[0].id = initiation;
-    r.fake.reports[0].transmitted = false;
-    r.fake.reportWrite = 1;
+    r.fake.reports[1].id = initiation;
+    r.fake.reports[1].transmitted = false;
+    r.fake.reportWrite = 2;
     r.turn(2, budget(0, 0, 1, 0));
     CHECK(!r.owner.result(id) && !r.services.unresolved(0));
     CHECK(r.services.canTransmit(current, r.now) && r.fake.sentCount == 2);
     // The request generation matches both frames. Only the exact current
     // per-frame handoff can fail this segment; a delayed report cannot do so.
-    r.fake.reports[1].id = current;
-    r.fake.reports[1].transmitted = false;
-    r.fake.reportWrite = 2;
+    r.fake.reports[2].id = current;
+    r.fake.reports[2].transmitted = false;
+    r.fake.reportWrite = 3;
     r.turn(3, budget(0, 0, 1, 0));
     const auto& terminal = r.done(id);
     CHECK(terminal.service.outcome == C::SdoOutcome::TRANSPORT_ERROR &&

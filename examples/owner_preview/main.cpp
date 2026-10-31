@@ -47,7 +47,7 @@ struct FakeTransport {
         --fake.reportCount;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& request, C::SdoTxId id) {
+    static bool transmit(void* context, const M::Frame& request, C::SdoTxId id, uint32_t epoch) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
         // This fixture implements only the two explicit expedited uploads below.
         if (request.id != 0x605 || request.payloadLength != 8 || request.data[0] != 0x40 ||
@@ -75,6 +75,7 @@ struct FakeTransport {
             return false;
         E::TxReport& report = fake.reports[(fake.reportHead + fake.reportCount) % CAPACITY];
         report.id = id;
+        report.controllerEpoch = epoch;
         report.transmitted = true; // Explicit fake actual-TX evidence, separate from return true.
         ++fake.reportCount;
         ++fake.transmitted;

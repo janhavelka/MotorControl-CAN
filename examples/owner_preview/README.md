@@ -28,6 +28,28 @@ duplicates, including between exchanges. Local request IDs cannot prove those
 facts. Uploads retain `UNQUALIFIED` read effects; this preview does not resolve Q20.
 All supplied microsecond budgets are application fixture policy.
 
+The fixture uses the current transmit callback signature
+`bool transmit(void*, const Frame&, SdoTxId, uint32_t controllerEpoch)` and copies
+the enqueue epoch into each exact-token `TxReport`. Its positive reports are
+explicit fake actual-TX evidence, separate from enqueue acceptance. Ingress uses
+the initial epoch 1 before queuing; a real adapter must stamp ingress at capture,
+never when dequeuing. The example performs no recovery or epoch change.
+
+The [shared owner](../../docs/can_owner.md) now has six ordinary request/result
+slots, one separate urgent slot and one independent retained recovery result.
+Urgent work reuses an existing axis reservation and obeys same-sequence FIFO;
+it performs no implicit preemption. `cancel` affects one request, while
+`invalidate` and `invalidateProducer` revoke groups. These mechanisms are covered
+by the owner tests, not exercised as drive stops by this read-only preview.
+
+This fake adapter supplies no `retire`, `beginRecovery` or `pollRecovery` hooks.
+Normal exact reports settle its two handoffs. If invalidation left an external
+frame without a final report, missing retirement support would block that channel.
+Explicit recovery with missing hooks would retain `FAILED` and keep TX inhibited.
+A physical adapter must prove local queue retirement and provide finite recovery
+progress; successful host recovery still cannot reopen SDO quarantine or qualify
+PDO reuse. This executable establishes no SDK retirement or hardware guarantee.
+
 ## Build and run
 
 From the repository root in PowerShell with CMake, Ninja and a C++11 compiler:

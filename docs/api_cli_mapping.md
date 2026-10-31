@@ -25,8 +25,11 @@ Prompt 23 implements application `RequestId`, `SequenceId`, `BusAdmission`,
 `Completion` and `admit/service/result/release` in examples/common.
 `beginSequence/beginOperation` preserve exclusion across prerequisite and setting
 operations. [The owner contract](can_owner.md) defines the controller/event
-boundary; operation stepping stays outside the scheduler. Urgent/cancellation
-APIs are not advertised before 24.
+boundary; operation stepping stays outside the scheduler. Prompt 24 adds
+`admitUrgent`, per-request `cancel`, `invalidate`, `invalidateProducer`, `recover`,
+`recoveryResult` and `releaseRecovery`, with independent urgent/recovery storage
+and explicit transport retirement. These are application APIs, not CLI routes
+or validated drive stops. The next operation may retain previous terminal results.
 
 Prompt 22 adds `prepareControlRead`, `prepareTuningRead`, `getControl` and
 `getTuning`, plus explicit `prepareControlSettings` through the existing

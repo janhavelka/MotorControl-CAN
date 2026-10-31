@@ -71,6 +71,7 @@ This table is the maintained inventory. Stage reports record individual results.
 | Whitespace | `git diff --check` | Required local handoff check |
 | Reviewed object freshness and generator failure contracts | `python scripts/generate_lichuan_objects.py --check` plus `objects_generated` / `objects_generator_contract` | Quick and full; exact bytes, original-source/schema/policy validation, deterministic generation and failure atomicity |
 | Bounded SDO lifecycle, ambiguity settlement and fake-node vectors | `sdo_transfer`, `sdo_reconciliation` plus retained adapter/owner proofs | Quick and full; actual optional CANopenNode engine, separate capture/processing evidence, permanent unresolved-channel quarantine; no physical CAN or SDK |
+| Urgent quotas, cancellation, controller queue retirement and recovery | `can_bus_recovery`, existing `can_bus_owner` and `owner_preview` | Quick/full; fake controller queues, stale epochs, first-terminal retention, two-node receive and finite recovery; no validated drive stop or physical retirement claim |
 | Arduino / ESP-IDF firmware builds | Actual buildable adapters and examples | Planned prompts 27–28; component registration mock is not firmware |
 | Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Planned hardware prompts; no current physical result |
 
