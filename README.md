@@ -9,6 +9,12 @@ recovery are implemented. Controller queue retirement needs positive adapter
 evidence; recovery never reopens uncertain SDO channels or qualifies PDO samples.
 No real controller adapter or motor stop is claimed.
 
+**Passive diagnostics:** the application owner now exposes checked cached
+`Health`/`DriverState`, saturating `Stats`, resource snapshots and eight bounded
+traffic/result history copies. [Health and counter rules](docs/can_owner.md#passive-communication-health)
+keep communication, faults and command uncertainty separate. No retry,
+automatic recovery or diagnostic-driven admission policy is added.
+
 **Control and tuning:** [five finite groups](docs/tuning.md) cover all 33 native
 `2500..2520` reads, with checked typed getters and explicit 86C loop selection.
 Other tuning writes retain field-specific evidence gates; prompt 22 is Partial.

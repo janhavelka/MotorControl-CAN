@@ -114,13 +114,26 @@ struct Fake {
         ++f.retireCalls;
         f.retired = id;
         f.retiredEpoch = epoch;
-        if (f.retirement)
+        if (f.retirement) {
             for (unsigned i = 0; i < f.sentCount; ++i)
                 if (f.epochs[i] == epoch && f.ids[i].request.owner == id.request.owner &&
                     f.ids[i].request.channel == id.request.channel &&
                     f.ids[i].request.generation == id.request.generation &&
                     f.ids[i].frame == id.frame)
                     f.pending[i] = false;
+            unsigned write = f.reportRead;
+            for (unsigned i = f.reportRead; i < f.reportWrite; ++i) {
+                const E::TxReport& report = f.reports[i];
+                if (report.controllerEpoch == epoch &&
+                    report.id.request.owner == id.request.owner &&
+                    report.id.request.channel == id.request.channel &&
+                    report.id.request.generation == id.request.generation &&
+                    report.id.frame == id.frame)
+                    continue;
+                f.reports[write++] = report;
+            }
+            f.reportWrite = write;
+        }
         return f.retirement;
     }
     static bool begin(void* p, uint32_t epoch) {

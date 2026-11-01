@@ -102,3 +102,9 @@ tests use this ordinary path. Prompt 24 adds cancellation/invalidation, exact
 external-frame retirement and independently retained finite controller recovery.
 Local retirement cannot establish remote SDO/PDO freshness. No motion executor
 or future motion headers are introduced.
+
+Prompt 25 adds derived binding-local Health, interface Stats and eight copied
+diagnostic records in this same application class. [The owner contract](can_owner.md#passive-communication-health)
+defines projection and reset rules. Existing node/PDO provenance remains the
+source of freshness; diagnostic copies neither create a receiver nor become
+current node storage. Core packages acquire no lifecycle, clock or health policy.

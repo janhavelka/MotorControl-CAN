@@ -50,6 +50,29 @@ A physical adapter must prove local queue retirement and provide finite recovery
 progress; successful host recovery still cannot reopen SDO quarantine or qualify
 PDO reuse. This executable establishes no SDK retirement or hardware guarantee.
 
+After the two uploads, the preview copies `health`, `driverState`, `stats` and
+`resources` without another service turn. It checks communication READY, two
+successful logical services, two separately confirmed TX frames and six RX
+frames. The two passive heartbeat/EMCY pairs affect liveness/history without
+adding successful services. READY makes no drive-fault or motion-readiness claim;
+this fixture never interprets the conflicting `6041` alarm-bit dialect.
+
+The owner's eight-record diagnostic ring fills during these exchanges and
+overwrites its oldest copies. The preview pulls only three records, then calls
+`clearStats`: interface totals and binding totals become zero, while health
+state, timestamps/known flags, failure history and the five remaining diagnostic
+copies survive. Fake receive, report and transmission callback counts prove
+these local diagnostic calls create no transport traffic. In a live application,
+drain copies under a separate bounded output budget while continuing owner
+service turns; the synchronous `Transport.observe` callback must not print or
+wait for output. See [counter/reset boundaries](../../docs/can_owner.md#statistics-boundaries-and-reset-lifetime).
+
+Ageing uses supplied time during owner progression, never cached getters. The
+host heartbeat monitor defaults disabled and the preview does not invent a live
+producer interval from EDS metadata. Unknown/zero producer timing alone is
+inconclusive. No health label introduces retries, replay, fault clearing or
+recovery automation.
+
 ## Build and run
 
 From the repository root in PowerShell with CMake, Ninja and a C++11 compiler:
@@ -73,4 +96,5 @@ the application owner and adapter.
 On Linux run `.build/owner-preview/examples/owner_preview/owner_preview`.
 In PowerShell run
 `& '.build/owner-preview/examples/owner_preview/owner_preview.exe'`.
-Success prints two retained uploads and two passive EMCYs, and exits zero.
+Success prints two retained uploads, two passive EMCYs, cached health/statistics
+and the local diagnostic/reset checks, and exits zero.

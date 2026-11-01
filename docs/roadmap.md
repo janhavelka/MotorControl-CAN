@@ -50,7 +50,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 22 | Tuning/current groups | Partial: all 33 typed reads and explicit 86C loop selection implemented; other writes retain precise admissible-domain/scale/effect gates in the [tuning guide](tuning.md). Current/holding remains solely here. |
 | 23 | Ordinary owner dispatch/results | Owned software implemented/tested, including actual typed read/loop-setting integration; Partial only on inherited 19/Q20. See [report](reports/prompt_23.md). |
 | 24 | Urgent/cancel/recovery | Owned mechanisms implemented/tested; Partial only on inherited 23/19/Q20. [Report](reports/prompt_24.md) retains real-adapter and remote-session limits. |
-| 25 | Passive health/statistics | Pending; extend the same owner/service storage. No production readiness or motion/stop support is inferred. |
+| 25 | Passive health/statistics | Owned software implemented/tested: cached projection, exact saturating counters/reset, eight copied diagnostics; Partial only on inherited 24/23/19/Q20. [Report](reports/prompt_25.md). No drive or machine-health policy is inferred. |
 | 26-28 | Native example, TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |
 | 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |
 | 30-32 | Enable/release, stop, fault/reference actions | Pending; use qualified current-state transitions, never enable as a stop/reset preamble |

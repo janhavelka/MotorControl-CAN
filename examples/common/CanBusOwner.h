@@ -11,6 +11,47 @@ namespace MotorControlCANExample {
 using MotorControlCAN::Binding;
 using MotorControlCAN::Frame;
 class CanBusOwner;
+/** Passive communication projection only; never drive readiness or an admission policy. */
+enum class DriverState : uint8_t {
+    UNINIT,   ///< No current qualified endpoint evidence.
+    READY,    ///< Current communication evidence, no live failed-service streak.
+    DEGRADED, ///< A failed attempted service has not been followed by a successful service.
+    OFFLINE   ///< Explicitly unavailable controller or expired evidenced heartbeat deadline.
+};
+/** Cached binding-local service history. Timestamp zero is valid when its flag is true. */
+struct Health {
+    uint32_t totalSuccess = 0;  ///< Saturating completed attempted logical services, not frames.
+    uint32_t totalFailures = 0; ///< Saturating failed attempted logical services.
+    uint8_t consecutiveFailures = 0; ///< Saturating streak; only successful service clears it.
+    uint64_t lastOkUs = 0;       ///< Supplied successful-service terminal processing microseconds.
+    uint64_t lastErrorUs = 0;    ///< Supplied failed-service terminal processing microseconds.
+    bool lastOkKnown = false;    ///< Makes lastOkUs meaningful, including zero.
+    bool lastErrorKnown = false; ///< Makes lastErrorUs meaningful, including zero.
+    MotorControlCAN::Status
+        lastError; ///< Last failed service; detail is SdoOutcome, full abort stays in history.
+    uint64_t lastSeenUs = 0;    ///< Latest checked endpoint delivery time, not wire capture time.
+    bool lastSeenKnown = false; ///< Makes lastSeenUs meaningful; does not qualify freshness alone.
+    DriverState state =
+        DriverState::UNINIT; ///< Passive projection at latest supplied health-refresh time.
+};
+/** Interface lifetime totals, saturating at UINT32_MAX; no duplicate service totals. */
+struct Stats {
+    uint32_t txFrames = 0; ///< Exact matching final reports confirming actual transmission.
+    uint32_t rxFrames = 0; ///< Frames returned by the receive callback, including rejected ingress.
+    uint32_t txRejected = 0; ///< Refused enqueue or negative final report, once per frame.
+    uint32_t rxDropped = 0;  ///< Invalid/stale/future ingress plus explicitly reported lost frames.
+    uint32_t unmatchedFrames = 0; ///< Valid ingress not accepted by normal protocol dispatch.
+    uint32_t queueRejected =
+        0; ///< Rejected ordinary/urgent admission attempts, including invalid input.
+    uint32_t resultsRejected = 0; ///< Subset of queueRejected refused for occupied result capacity.
+    uint32_t cancelled = 0; ///< Winning local request withdrawals, including group/recovery/guard.
+    uint32_t timeouts = 0; ///< Request or recovery timeout terminals, including local queue expiry.
+    uint32_t busOffEvents =
+        0;                   ///< Accepted transitions into reported BUS_OFF, not repeated reports.
+    uint32_t recoveries = 0; ///< Successfully retired explicit host/controller recoveries.
+    uint32_t traceOverwritten = 0; ///< Oldest diagnostic records replaced at fixed trace capacity.
+    uint64_t maxServiceGapUs = 0;  ///< Largest gap between accepted service turns; not a guarantee.
+};
 /** Local retained-result identity; absent from the wire, invalid after owner destruction. */
 struct RequestId {
     const CanBusOwner* owner = nullptr; ///< Stationary originating owner.
@@ -91,6 +132,40 @@ struct Completion {
     bool controllerAccepted = false; ///< At least one frame accepted by controller callback.
     MotorControlCAN::CANOPEN::SdoCompletion service; ///< Complete native evidence and owned bytes.
 };
+/** One owned passive diagnostic; completion is meaningful only for TERMINAL. */
+enum class DiagnosticKind : uint8_t {
+    RX,         ///< Raw ingress after normal dispatch or owner rejection.
+    TX,         ///< One enqueue attempt, not actual transmission evidence.
+    TX_REPORT,  ///< Matching final controller report; never a protocol acknowledgement.
+    TERMINAL,   ///< Complete copied request terminal, including raw abort and uncertainty.
+    CONTROLLER, ///< Explicit application controller report.
+    RECOVERY    ///< Explicit host recovery closure.
+};
+/** Bounded historical copy; no pointer into controller/stack buffers is retained. */
+struct Diagnostic {
+    DiagnosticKind kind = DiagnosticKind::RX; ///< Selects meaningful evidence fields.
+    uint64_t processedUs = 0;       ///< Supplied owner processing microseconds; zero valid.
+    uint32_t controllerEpoch = 0;   ///< Local ingress/handoff epoch, never a remote wire tag.
+    Frame frame;                    ///< RX/TX wire copy; RTR payload is not inspected.
+    bool receivedTimeKnown = false; ///< RX only; capture was explicitly supplied.
+    uint64_t receivedUs = 0; ///< RX capture microseconds, including stale/future diagnostics.
+    MotorControlCAN::CANOPEN::SdoTxId txId; ///< TX/TX_REPORT exact local frame identity.
+    bool accepted = false; ///< RX dispatch, TX queue acceptance or TX_REPORT actual TX, by kind.
+    Completion completion; ///< TERMINAL only; survives original result release.
+    MotorControlCAN::CANOPEN::ControllerState controller =
+        MotorControlCAN::CANOPEN::ControllerState::UNKNOWN; ///< CONTROLLER only.
+    RecoveryOutcome recovery = RecoveryOutcome::FAILED;     ///< RECOVERY only.
+};
+/** Cached resource usage, computed by fixed scans; no controller queries. */
+struct OwnerResources {
+    uint8_t queued = 0;           ///< Admitted requests not yet in the native service.
+    uint8_t active = 0;           ///< Native in-flight requests, at most CHANNELS.
+    uint8_t retained = 0;         ///< Unreleased request terminals, ordinary plus urgent.
+    uint8_t reservations = 0;     ///< Occupied logical sequence slots.
+    uint8_t traceUsed = 0;        ///< Retained diagnostic copies, at most TRACE_CAPACITY.
+    bool inhibited = false;       ///< Actual controller/recovery interlock, independent of Health.
+    bool recoveryPending = false; ///< Explicit recovery awaiting its terminal.
+};
 /** One ingress copy; processing time is supplied separately to service(). */
 struct ReceivedFrame {
     Frame frame; ///< Complete owned frame, including standard/extended and data/RTR shape.
@@ -124,7 +199,9 @@ struct Transport {
     ///< not qualified evidence and cannot consume authoritative input.
     bool (*retire)(void*, MotorControlCAN::CANOPEN::SdoTxId, uint32_t) = nullptr;
     ///< Bounded synchronous attempt: true proves this exact frame cannot leave any local
-    ///< SDK/controller queue later; earlier effects remain possible. False/missing blocks
+    ///< SDK/controller queue later, and retires all queued/future final reports for
+    ///< this exact id/epoch. Earlier effects remain possible and may be unconfirmed.
+    ///< If report retirement cannot be proved, return false. False/missing blocks
     ///< that channel until a matching final TX report or explicit successful recovery.
     ///< Never sends a CAN frame or resets the drive.
     bool (*beginRecovery)(void*, uint32_t) = nullptr;
@@ -168,12 +245,13 @@ class CanBusOwner {
         REQUESTS = 6,        ///< Queued + active + unread terminal capacity, shared ordinary slots.
         URGENT_REQUESTS = 1, ///< Reserved urgent request/result slot, never used by ordinary work.
         TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS, ///< All copied work/result storage.
-        SEQUENCES = 2,   ///< Logical-axis reservations, independent of wire node numbering.
-        PRODUCERS = 4,   ///< Cyclic eligible-producer fairness, FIFO within each sequence.
-        RX_LIMIT = 8,    ///< Maximum receive callback calls per service turn.
-        TX_LIMIT = 2,    ///< Maximum one-shot enqueue callbacks per turn.
-        EVENT_LIMIT = 8, ///< Maximum TX report callback calls per turn.
-        START_LIMIT = 2  ///< Maximum new native service admissions per turn.
+        SEQUENCES = 2,     ///< Logical-axis reservations, independent of wire node numbering.
+        PRODUCERS = 4,     ///< Cyclic eligible-producer fairness, FIFO within each sequence.
+        RX_LIMIT = 8,      ///< Maximum receive callback calls per service turn.
+        TX_LIMIT = 2,      ///< Maximum one-shot enqueue callbacks per turn.
+        EVENT_LIMIT = 8,   ///< Maximum TX report callback calls per turn.
+        START_LIMIT = 2,   ///< Maximum new native service admissions per turn.
+        TRACE_CAPACITY = 8 ///< Oldest-first diagnostic copies; full storage overwrites oldest.
     };
     /** Borrow stationary exclusive resources; construction performs no I/O.
      * @param[in] services Sole existing adapter, already configured or configured while idle.
@@ -279,9 +357,10 @@ class CanBusOwner {
     bool reportController(MotorControlCAN::CANOPEN::ControllerState state, uint64_t nowUs) noexcept;
     /** Report a dropped authoritative RX frame: revoke dependent trust and inhibit TX.
      * @param[in] nowUs Nondecreasing processing microseconds.
+     * @param[in] droppedFrames Nonzero reported minimum number lost; saturating addition.
      * @return Same as reportController(RECOVERING); recovery requires explicit request.
      */
-    bool receiveOverflow(uint64_t nowUs) noexcept;
+    bool receiveOverflow(uint64_t nowUs, uint32_t droppedFrames = 1) noexcept;
     /** @return Current local transport epoch, never proof of remote freshness. */
     uint32_t controllerEpoch() const noexcept { return controllerEpoch_; }
     /** Run one bounded cooperative turn; deadlines progress even with all budgets zero.
@@ -311,6 +390,46 @@ class CanBusOwner {
      * node history and quarantine. No device action, reference renewal or recovery.
      */
     bool advanceConfiguration(SequenceId id, const Binding& current, uint64_t nowUs) noexcept;
+    /** Copy cached communication health at the most recent supplied owner time.
+     * @param[in] binding Exact configured current binding, including configuration epoch.
+     * @param[out] output Owned copy, unchanged for unknown/stale binding or input overlap.
+     * @return True for a known binding, including UNINIT before any service turn.
+     * No I/O, clock, callback or statistics update occurs. Call service to age evidence.
+     */
+    bool health(const Binding& binding, Health& output) const noexcept;
+    /** Copy the cached communication projection; no alias named state().
+     * @param[in] binding Same exact binding contract as health().
+     * @param[out] output Unchanged on rejection; no overlap with owner/adapter/binding.
+     * @return True only for a known binding; no I/O or clock access.
+     */
+    bool driverState(const Binding& binding, DriverState& output) const noexcept;
+    /** @return Borrowed cached interface totals until mutation/destruction; copy to retain. */
+    const Stats& stats() const noexcept { return stats_; }
+    /** Clear interface totals/max gap and binding totalSuccess/totalFailures only.
+     * @return False unchanged during callback reentrancy; otherwise true. Preserves
+     * failure streak/error/times/state, history, active work, generations and interlocks.
+     * The previous service timestamp survives, so the next observed gap remains honest.
+     */
+    bool clearStats() noexcept;
+    /** Configure only a host heartbeat-age policy; never writes 1017 or obtains time.
+     * @param[in] binding Exact configured binding.
+     * @param[in] maximumAgeUs Inclusive age cap; zero disables this host monitor.
+     * Only an effective known nonzero producer and observed qualified heartbeat
+     * can expire; no startup timer or interval multiplier is invented.
+     * @param[in] nowUs Supplied nondecreasing microseconds; zero valid.
+     * @return False unchanged for unknown binding/time/reentrancy; otherwise refreshes
+     * cached projection only. It never affects service admission.
+     */
+    bool setHeartbeatMaximumAge(const Binding& binding, uint64_t maximumAgeUs,
+                                uint64_t nowUs) noexcept;
+    /** Copy and consume one diagnostic history record, never authoritative RX.
+     * @param[out] output Owned copy on success, unchanged if empty/overlapping storage.
+     * @return True for one oldest record; bounded no-I/O call. A slow consumer merely
+     * loses oldest copies, counted in traceOverwritten; normal routing never waits.
+     */
+    bool takeDiagnostic(Diagnostic& output) noexcept;
+    /** @return Fixed-scan resource copy; no I/O, clocks, callbacks or mutable view. */
+    OwnerResources resources() const noexcept;
     /** @return Explicit application owner identity, not a wire token. */
     uint32_t identity() const noexcept { return identity_; }
 
@@ -322,6 +441,7 @@ class CanBusOwner {
     } sequences_[SEQUENCES];
     struct Slot {
         bool occupied = false, terminal = false, submitted = false, guarded = false;
+        bool localCancellation = false;
         uint32_t generation = 0;
         uint64_t queueDeadlineUs = 0;
         BusRequest request;
@@ -329,7 +449,7 @@ class CanBusOwner {
         Completion completion;
     } slots_[TOTAL_REQUESTS];
     struct ExternalTx {
-        bool pending = false, blocked = false, retirementTried = false;
+        bool pending = false, blocked = false, retirementTried = false, rejected = false;
         uint32_t epoch = 0;
         MotorControlCAN::CANOPEN::SdoTxId id;
     } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS];
@@ -343,6 +463,17 @@ class CanBusOwner {
     uint8_t nextProducer_ = 1, nextChannel_ = 0;
     int active_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS] = {-1, -1};
     bool entered_ = false;
+    struct HealthRecord {
+        Binding binding;
+        Health value;
+        uint64_t heartbeatMaximumAgeUs = 0;
+        bool bound = false;
+    } health_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS];
+    Stats stats_;
+    Diagnostic trace_[TRACE_CAPACITY];
+    uint8_t traceHead_ = 0, traceCount_ = 0;
+    bool serviceTimeKnown_ = false;
+    uint64_t serviceTimeUs_ = 0;
     bool valid(SequenceId id) const noexcept;
     bool valid(RequestId id) const noexcept;
     int channel(const Binding& binding) const noexcept;
@@ -359,5 +490,9 @@ class CanBusOwner {
     void cancelSlot(unsigned slot, CompletionReason reason, uint64_t nowUs) noexcept;
     void settleExternal(uint64_t nowUs, bool allowCallback) noexcept;
     void closeRecovery(RecoveryOutcome outcome, uint64_t nowUs) noexcept;
+    void refreshHealth(uint64_t nowUs) noexcept;
+    void recordTerminal(const Slot& slot) noexcept;
+    void trace(const Diagnostic& record) noexcept;
+    int healthSlot(const Binding& binding) const noexcept;
 };
 } // namespace MotorControlCANExample

@@ -170,7 +170,7 @@ replays work, enables a drive or clears its fault. Local cancel is not stop.
 
 ## 5. Selected application health and metrics
 
-**All names in this section are proposed CAN example/application names.** RS
+**This is the CAN example/application contract implemented from prompt 25.** RS
 has no installed `Health`/`DriverState` lifecycle. Sensor diagnostics are useful
 precedents, not a shared binary interface or universal admission policy.
 

@@ -21,6 +21,12 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 25 implements application `Health`, `DriverState`, `Stats`, checked
+`health/driverState`, cached `stats/resources`, local `clearStats`, explicit
+host heartbeat-age policy and bounded `takeDiagnostic` copies. Their rules are
+in the [owner guide](can_owner.md#passive-communication-health). The future CLI
+must use those cached APIs; no health/stats CLI is implemented here.
+
 Prompt 23 implements application `RequestId`, `SequenceId`, `BusAdmission`,
 `Completion` and `admit/service/result/release` in examples/common.
 `beginSequence/beginOperation` preserve exclusion across prerequisite and setting

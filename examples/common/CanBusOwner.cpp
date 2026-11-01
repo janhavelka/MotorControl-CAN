@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "CanBusOwner.h"
+#include "OwnerCounters.h"
 
 namespace MotorControlCANExample {
 namespace C = MotorControlCAN::CANOPEN;
@@ -148,11 +149,23 @@ bool CanBusOwner::releaseSequence(SequenceId id) noexcept {
 }
 BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now,
                                 RequestId& output) noexcept {
-    return admit(request, now, output, false);
+    const BusAdmission result = admit(request, now, output, false);
+    if (!entered_ && result != BusAdmission::ACCEPTED) {
+        detail::add(stats_.queueRejected);
+        if (result == BusAdmission::RESULTS_FULL)
+            detail::add(stats_.resultsRejected);
+    }
+    return result;
 }
 BusAdmission CanBusOwner::admitUrgent(const BusRequest& request, uint64_t now,
                                       RequestId& output) noexcept {
-    return admit(request, now, output, true);
+    const BusAdmission result = admit(request, now, output, true);
+    if (!entered_ && result != BusAdmission::ACCEPTED) {
+        detail::add(stats_.queueRejected);
+        if (result == BusAdmission::RESULTS_FULL)
+            detail::add(stats_.resultsRejected);
+    }
+    return result;
 }
 BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now, RequestId& output,
                                 bool urgent) noexcept {
@@ -220,6 +233,7 @@ void CanBusOwner::finish(unsigned index, CompletionReason reason, uint64_t now) 
                     ? C::SdoOutcome::TIMEOUT
                 : reason == CompletionReason::CANCELLED ? C::SdoOutcome::CANCELLED
                                                         : C::SdoOutcome::BINDING_INVALIDATED;
+    recordTerminal(slot);
 }
 void CanBusOwner::collect() noexcept {
     for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
@@ -232,6 +246,7 @@ void CanBusOwner::collect() noexcept {
             continue;
         slot.completion.service = *e;
         slot.terminal = true;
+        recordTerminal(slot);
         services_.release(slot.native);
         active_[c] = -1;
     }
@@ -305,7 +320,8 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
                 !transport_.beforeTransmit(transport_.context, slot.request.sequence,
                                            slot.request.transfer, now)) {
                 slot.completion.reason = CompletionReason::PREFLIGHT_REJECTED;
-                services_.cancel(slot.native, now);
+                if (services_.cancel(slot.native, now))
+                    slot.localCancellation = true;
                 collect();
                 return false;
             }
@@ -321,6 +337,17 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
     external_[c].epoch = controllerEpoch_;
     external_[c].id = id;
     const bool accepted = transport_.transmit(transport_.context, frame, id, controllerEpoch_);
+    external_[c].rejected = !accepted;
+    if (!accepted)
+        detail::add(stats_.txRejected);
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::TX;
+    diagnostic.frame = frame;
+    diagnostic.txId = id;
+    diagnostic.accepted = accepted;
+    diagnostic.processedUs = now;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    trace(diagnostic);
     if (index >= 0 && !slots_[index].terminal && same(slots_[index].native, id.request))
         slots_[index].completion.controllerAccepted |= accepted;
     if (!accepted)
@@ -337,6 +364,10 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         entered_ = false;
         return false;
     }
+    if (serviceTimeKnown_ && now - serviceTimeUs_ > stats_.maxServiceGapUs)
+        stats_.maxServiceGapUs = now - serviceTimeUs_;
+    serviceTimeKnown_ = true;
+    serviceTimeUs_ = now;
     lastUs_ = now;
     collect();
     expire(now);
@@ -363,6 +394,17 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             ExternalTx& tx = external_[report.id.request.channel];
             if (!tx.pending || !same(tx.id, report.id))
                 continue;
+            if (report.transmitted)
+                detail::add(stats_.txFrames);
+            else if (!tx.rejected)
+                detail::add(stats_.txRejected);
+            Diagnostic diagnostic;
+            diagnostic.kind = DiagnosticKind::TX_REPORT;
+            diagnostic.txId = report.id;
+            diagnostic.accepted = report.transmitted;
+            diagnostic.processedUs = now;
+            diagnostic.controllerEpoch = report.controllerEpoch;
+            trace(diagnostic);
             tx = ExternalTx(); // A matching final report proves this exact local frame is retired.
             if (report.transmitted)
                 services_.confirmTx(report.id, now);
@@ -376,14 +418,29 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             ReceivedFrame frame;
             if (!transport_.receive(transport_.context, frame))
                 break;
+            detail::add(stats_.rxFrames);
+            bool accepted = false;
             if (frame.controllerEpoch == controllerEpoch_ &&
                 MotorControlCAN::validateFrame(frame.frame) &&
                 (!frame.receivedTimeKnown || frame.receivedUs <= now)) {
                 if (frame.receivedTimeKnown)
-                    services_.receive(frame.frame, frame.receivedUs, now);
+                    accepted = services_.receive(frame.frame, frame.receivedUs, now);
                 else
-                    services_.receive(frame.frame, now);
-            }
+                    accepted = services_.receive(frame.frame, now);
+                if (!accepted)
+                    detail::add(stats_.unmatchedFrames);
+            } else
+                detail::add(stats_.rxDropped);
+            refreshHealth(now);
+            Diagnostic diagnostic;
+            diagnostic.kind = DiagnosticKind::RX;
+            diagnostic.frame = frame.frame;
+            diagnostic.receivedTimeKnown = frame.receivedTimeKnown;
+            diagnostic.receivedUs = frame.receivedUs;
+            diagnostic.accepted = accepted;
+            diagnostic.processedUs = now;
+            diagnostic.controllerEpoch = frame.controllerEpoch;
+            trace(diagnostic);
             if (transport_.observe)
                 transport_.observe(transport_.context, frame, now);
             collect();
@@ -421,6 +478,7 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         if (transmit(uint8_t(c), now))
             ++sent;
     }
+    refreshHealth(now);
     entered_ = false;
     return true;
 }
@@ -442,8 +500,7 @@ void CanBusOwner::settleExternal(uint64_t now, bool allowCallback) noexcept {
             continue;
         tx.retirementTried = true;
         if (transport_.retire && transport_.retire(transport_.context, tx.id, tx.epoch)) {
-            tx.pending = false;
-            tx.blocked = false;
+            tx = ExternalTx(); // Exact local frame and all its final reports are retired.
         }
     }
 }
@@ -454,15 +511,19 @@ void CanBusOwner::cancelSlot(unsigned index, CompletionReason reason, uint64_t n
     if (slot.submitted) {
         // cancel expires first without pumping an unsent request. Set the owner
         // cause only if cancellation actually wins; an earlier native terminal survives.
-        if (services_.cancel(slot.native, now))
+        if (services_.cancel(slot.native, now)) {
             slot.completion.reason = reason;
+            slot.localCancellation = true;
+        }
         collect();
     } else if (now >= slot.request.transfer.deadlineUs)
         finish(index, CompletionReason::DEADLINE, now);
     else if (now >= slot.queueDeadlineUs)
         finish(index, CompletionReason::QUEUE_EXPIRED, now);
-    else
+    else {
+        slot.localCancellation = true;
         finish(index, reason, now);
+    }
 }
 Cancel CanBusOwner::cancel(RequestId id, uint64_t now) noexcept {
     if (entered_ || now < lastUs_ || !valid(id))
@@ -477,6 +538,7 @@ Cancel CanBusOwner::cancel(RequestId id, uint64_t now) noexcept {
             ? Cancel::CANCELLED
             : Cancel::ALREADY_TERMINAL;
     settleExternal(now, true);
+    refreshHealth(now);
     entered_ = false;
     return disposition;
 }
@@ -491,6 +553,7 @@ bool CanBusOwner::invalidate(SequenceId id, uint64_t now) noexcept {
             cancelSlot(i, CompletionReason::INVALIDATED, now);
     sequences_[id.slot].invalidated = true;
     settleExternal(now, true);
+    refreshHealth(now);
     entered_ = false;
     return true;
 }
@@ -507,6 +570,7 @@ bool CanBusOwner::invalidateProducer(uint8_t producer, uint64_t now) noexcept {
         if (s.occupied && s.value.producer == producer)
             s.invalidated = true;
     settleExternal(now, true);
+    refreshHealth(now);
     entered_ = false;
     return true;
 }
@@ -538,6 +602,7 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
     if (!transport_.beginRecovery || !transport_.pollRecovery ||
         !transport_.beginRecovery(transport_.context, controllerEpoch_))
         closeRecovery(RecoveryOutcome::FAILED, now);
+    refreshHealth(now);
     entered_ = false;
     return true;
 }
@@ -547,7 +612,16 @@ void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept 
     recovery_.outcome = outcome;
     recovery_.completedUs = now;
     recoveryTerminal_ = true;
+    if (outcome == RecoveryOutcome::TIMEOUT)
+        detail::add(stats_.timeouts);
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::RECOVERY;
+    diagnostic.processedUs = now;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    diagnostic.recovery = outcome;
+    trace(diagnostic);
     if (outcome == RecoveryOutcome::RETIRED) {
+        detail::add(stats_.recoveries);
         for (ExternalTx& tx : external_)
             tx = ExternalTx();
         services_.reportController(C::ControllerState::AVAILABLE, now);
@@ -572,6 +646,15 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
         return false;
     entered_ = true;
     lastUs_ = now;
+    if (state == C::ControllerState::BUS_OFF &&
+        services_.controllerState() != C::ControllerState::BUS_OFF)
+        detail::add(stats_.busOffEvents);
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::CONTROLLER;
+    diagnostic.controller = state;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    diagnostic.processedUs = now;
+    trace(diagnostic);
     if (state != C::ControllerState::AVAILABLE) {
         inhibited_ = true;
         for (Reservation& s : sequences_)
@@ -589,11 +672,15 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
     if (recoveryOccupied_ && !recoveryTerminal_ && state != C::ControllerState::RECOVERING)
         closeRecovery(
             now >= recovery_.deadlineUs ? RecoveryOutcome::TIMEOUT : RecoveryOutcome::FAILED, now);
+    refreshHealth(now);
     entered_ = false;
     return true;
 }
-bool CanBusOwner::receiveOverflow(uint64_t now) noexcept {
-    return reportController(C::ControllerState::RECOVERING, now);
+bool CanBusOwner::receiveOverflow(uint64_t now, uint32_t droppedFrames) noexcept {
+    if (!droppedFrames || !reportController(C::ControllerState::RECOVERING, now))
+        return false;
+    detail::add(stats_.rxDropped, droppedFrames);
+    return true;
 }
 bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
                                        uint64_t now) noexcept {
@@ -618,6 +705,7 @@ bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
         return false;
     s.value.binding = next;
     lastUs_ = now;
+    refreshHealth(now);
     return true;
 }
 } // namespace MotorControlCANExample

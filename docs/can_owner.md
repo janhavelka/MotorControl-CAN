@@ -7,6 +7,8 @@ It schedules copied CANopen SDO work from existing typed reads/settings, routes
 all ingress once and retains immutable results. It provides reserved urgent
 admission, explicit cancellation/invalidation and bounded host/controller
 recovery. It is application code, excluded from the installed/exported core.
+Cached communication health, statistics and bounded diagnostic copies are
+implemented in [CanBusDiagnostics.cpp](../examples/common/CanBusDiagnostics.cpp).
 Actual drive stop operations remain prompt 31 work; no motion context is imported.
 
 The [offline consumer](../examples/owner_preview/README.md) needs no controller
@@ -47,6 +49,8 @@ cannot monopolize a service channel.
 | External TX tracking | 1 frame per service channel | Exact handoff/epoch retained until final controller report, proven retirement or successful whole-controller recovery; includes cleanup aborts |
 | Producer identities | 4, numbered 1..4 | Cyclic eligible-producer selection, independent of CAN node/subaxis or motor kind |
 | Active associations | 2 slot indexes/native handles | Refer to existing channels and canonical result slots; no second client or node state |
+| Binding health | At most 2 channel-associated records | Cached logical-service totals, failure streak, timestamps and communication projection; protocol state stays in the adapter |
+| Owner diagnostic history | 8 complete copied records | Oldest-first pull; overflow replaces the oldest copy and increments `traceOverwritten`; independent of authoritative RX and retained results |
 
 Two channels for one physical peer are synthetic ownership contrasts, not a
 claim that Lichuan provides a second server. The retained
@@ -286,3 +290,178 @@ acknowledged write followed by failed readback, without replay or loss of the
 confirmed prefix. Unrelated nodes continue while these results remain unread.
 Future confirmed groups in 20–22 use this same boundary;
 prompt 45 checks combined integration again.
+
+## Passive communication health
+
+`health(binding, output)` and `driverState(binding, output)` copy cached evidence
+for an exact configured binding, including its current configuration generation.
+Unknown or stale bindings return false without changing output. A known binding
+can be `UNINIT`. The accessors, `stats()` and `resources()` perform no I/O,
+callbacks or clock reads. `stats()` borrows a view until the next owner mutation;
+copy it to retain a snapshot. `resources()` returns a fixed-scan value containing
+queued, active and retained request counts, reservation count, trace occupancy,
+TX inhibition and pending recovery.
+
+Health ageing occurs when an owner method refreshes it using supplied monotonic
+time, particularly `service(nowUs, budget)` and
+`setHeartbeatMaximumAge(binding, maximumAgeUs, nowUs)`. Repeated cached getters
+never advance time. Applications must keep scheduling service turns, including
+zero-budget turns when only local deadline/health progression is needed.
+
+The projection applies this precedence:
+
+| State | Cached condition |
+| --- | --- |
+| `OFFLINE` | Global owner TX interlock/controller unavailability, reported bus-off/recovery, or an expired configured and evidenced heartbeat deadline |
+| `DEGRADED` | A current failed attempted-service streak remains |
+| `READY` | Checked current-generation endpoint evidence meets the selected evidence-age policy |
+| `UNINIT` | No qualifying current endpoint evidence |
+
+`READY` describes communication. Controller state, NMT state, heartbeat
+freshness, statusword, mode, EMCY, drive fault, operation outcome and uncertain
+effects remain separate facts. A diagnostic state does not independently refuse
+an otherwise serviceable stop, read or reconciliation. Existing transport,
+channel, binding, capacity and operation prerequisites continue to apply.
+
+`setHeartbeatMaximumAge` changes host observation policy only; it never writes
+`1017`. Its age cap is inclusive: age equal to the cap is fresh; age greater
+than the cap expires. Zero disables this host monitor. Expiry requires a known
+effective nonzero producer interval and a qualified observed heartbeat in the
+current node generation. Unknown or disabled producer timing, unknown capture
+time and a never-observed heartbeat are inconclusive; there is no invented
+startup timer, heartbeat default or interval multiplier. The independent node
+evidence-age policy determines whether current checked evidence supports READY.
+An evidenced heartbeat expiry has priority even if other traffic is present.
+
+`Health` holds saturating `uint32_t totalSuccess` and `totalFailures`, saturating
+`uint8_t consecutiveFailures`, supplied `uint64_t lastOkUs`, `lastErrorUs` and
+`lastSeenUs`, their known flags, retained `Status lastError`, and `state`.
+Timestamp zero is valid when its known flag is true. Success/failure timestamps
+are terminal processing times. `lastSeenUs` is the latest checked endpoint
+delivery/processing time; it is not a substitute for qualified wire capture
+time. The adapter retains capture-time/generation facts separately.
+
+One completed attempted SDO upload/download counts once, including every
+segment. A multi-object read or motion operation adds no extra owner total.
+Owner collection of the native terminal is the authoritative counting boundary.
+An attempted service requires possible controller transmission. Successful
+services increment `totalSuccess`, clear the current failure streak and set
+`lastOkUs`; they preserve `lastError` and `lastErrorUs`. Failed attempted
+services increment `totalFailures` and the streak, and retain their failed
+status/time. `lastError.detail` contains `SdoOutcome`; the unsigned abort is never
+narrowed into that field. Server abort maps to PROTOCOL_ERROR, malformed client
+abort to FRAME_ERROR, and other failed services to INVALID_CONFIG with their
+native cause in detail. A valid server abort both fails that service and proves endpoint
+communication; its complete unsigned abort code stays in the retained terminal
+and copied terminal history. Checked malformed responses and attempted-service
+timeouts fail their service. Unrelated frames cannot create a service failure
+or extend its deadline.
+
+Local validation, unsupported capability, queue refusal, waiting, local
+cancellation and pre-handoff withdrawal do not change logical-service totals
+or the streak. Fire-and-forget TX is not endpoint confirmation. Explicit probes
+using a reviewed confirmed service count normally. Passive heartbeat, EMCY and
+qualified PDO observations update endpoint liveness without changing service
+totals, the streak or the prior error. A successful independent reconciliation
+service may clear the current streak; it cannot rewrite an earlier failed
+operation or settle its uncertain effects. Cleanup traffic never replaces the
+original failed service result.
+
+Controller recovery withdraws old node freshness. New qualified evidence can
+restore communication health while failed-operation evidence, drive faults and
+uncertainty remain. Changing logical binding identity or binding generation
+resets that binding's entire current Health and its host heartbeat-age setting.
+A configuration-only generation advance preserves communication history;
+accessors require the updated exact binding. Interface statistics survive
+rebinding. Historical diagnostic copies and old operation results retain the
+binding/generation recorded at their creation.
+
+The unresolved Lichuan statusword dialect remains unresolved here. EN86 PDF p12
+assigns alarm to bit 7; ZH86 PDF p12 assigns it to bit 3; OP86 PDF p10 combines
+bit 7 alarm with a different running-bit description. A fresh `6041` sample does
+not choose between those claims. Preserve raw/unknown interpretation until
+applicable model/firmware evidence establishes the dialect. The EDS `1017`
+default zero is factory metadata, not live heartbeat readback or proof of a
+drive-side host-loss stop. See the retained
+[motion conflicts](audit/LICHUAN_MOTION_FACTS.md#three-incompatible-status-descriptions) and
+[communication facts](audit/LICHUAN_OBJECT_FACTS.md).
+
+The cited OP86 page header actually names CL57-C/OL57-C despite its retained 86
+filename. Its bits do not establish an additional 86C dialect or model claim.
+
+## Statistics boundaries and reset lifetime
+
+All named counters saturate at `UINT32_MAX`; `maxServiceGapUs` is a `uint64_t`
+observed maximum. There are no duplicate binding-service totals in `Stats`.
+
+| Field | Single authoritative increment/update |
+| --- | --- |
+| `txFrames` | Exact pending frame's matching current-epoch final controller report says `transmitted=true`; includes cleanup frames and reports arriving after service closure. Enqueue acceptance does not increment it. |
+| `rxFrames` | One frame is returned by the owner receive callback, including ingress later rejected by owner or protocol validation. Empty receive calls do not count. |
+| `txRejected` | One enqueue callback refuses a frame, or that exact frame's matching final report is negative. A refusal followed by a negative report counts once; a later positive report can independently prove actual TX. |
+| `rxDropped` | Owner rejects invalid, old-controller-epoch or future-capture ingress; also adds the nonzero reported lost-frame minimum accepted by `receiveOverflow(nowUs, droppedFrames)`. These lost frames need not have reached the receive callback. |
+| `unmatchedFrames` | Structurally valid current-epoch ingress is not accepted by normal PDO/network/SDO dispatch. This includes unrelated frames and protocol-route rejects; use retained native dispositions to distinguish them. |
+| `queueRejected` | Each non-reentrant rejected `admit` or `admitUrgent` call, including local invalid input, expired input, inhibition and exhausted IDs. Reentrant rejection leaves all storage unchanged. Sequence/operation/recovery refusal is not a request admission. |
+| `resultsRejected` | Subset of `queueRejected` where admission returns `RESULTS_FULL`, including occupied urgent capacity. |
+| `cancelled` | Each newly terminal request whose winning cause is local withdrawal: explicit cancel, sequence/producer invalidation, recovery interruption or preflight guard. Earlier eligible terminals win; repeat cancellation does not count again. |
+| `timeouts` | Each request TIMEOUT terminal, including untransmitted owner queue/deadline expiry, and each recovery TIMEOUT terminal. This interface count does not imply an attempted-service health failure. |
+| `busOffEvents` | Accepted `reportController(BUS_OFF, nowUs)` changes the reported controller state into BUS_OFF. Repeated BUS_OFF reports do not increment it. |
+| `recoveries` | An explicit host/controller recovery first closes `RETIRED`; attempts, refusals, failed recovery and timeout do not count. |
+| `traceOverwritten` | A new owner diagnostic replaces the oldest copy when all eight history slots are occupied. Reading copies does not increment it. |
+| `maxServiceGapUs` | Maximum difference between consecutive accepted `service` timestamps; first accepted turn establishes the baseline. Other owner calls do not create service turns. |
+
+`clearStats()` returns false during callback reentrancy. Otherwise it zeros all
+interface totals/high-water marks and each binding's `totalSuccess` and
+`totalFailures`. It preserves the live failure streak, current state, timestamps
+and known flags, last error, heartbeat-age policy, configuration/binding/node
+generations, controller interlocks, drive faults, uncertain effects, active and
+queued work, retained completions and diagnostic history. It also preserves the
+previous accepted service timestamp: the next measured service gap still spans
+the actual interval. Resetting statistics does not perform recovery or clear
+operational evidence.
+
+Positive per-frame `Transport.retire` evidence now includes retiring every queued
+or future final report for that exact ID/epoch, alongside preventing later TX.
+If an adapter cannot establish report retirement, it returns false and waits for
+the ordinary matching report or explicit whole-controller recovery. This avoids
+unbounded retired-ID history and diagnostic-driven TX backpressure. `txFrames`
+counts positive reports delivered to this owner before explicit retirement;
+it is not an estimate of earlier unconfirmed physical transmissions. Retirement
+alone never upgrades a result or increments actual TX. Unrelated frame reports
+must survive exact-frame retirement.
+
+## Bounded diagnostic copies and output scheduling
+
+`takeDiagnostic(output)` copies and consumes one oldest owner-history record;
+it never receives from the controller or consumes normal dispatch input. An
+empty/reentrant/overlapping-output call returns false without changing output.
+`DiagnosticKind` selects raw RX, enqueue-attempt TX, matching final TX report,
+complete copied terminal, controller report or recovery closure. Records own
+their frame/terminal bytes, processing time, RX capture time/known flag,
+exact local TX identity, controller epoch and applicable acceptance/controller/
+recovery facts. A TX trace records enqueue acceptance; a TX_REPORT copy records
+the distinct actual transmission report. Native retained histories
+remain available independently through the adapter's documented bounded stores.
+
+The owner stores eight complete records without heap allocation. Full history
+overwrites the oldest copy and leaves ordinary/urgent work and receive dispatch
+running. Taking a diagnostic does not release the canonical terminal. Clearing
+statistics preserves buffered records; consuming records is the explicit owner
+history retirement policy. Exported copies are application-owned. Larger traces
+and console/output queues belong in application storage with their own bounds.
+
+One service turn still uses the RX/TX/event/start/recovery budgets above.
+Diagnostic publication adds fixed copied records and fixed scans over two
+channel-associated health records and up to eight PDO routes. Slow consumers
+lose copied history instead of blocking dispatch. Drain only a chosen number of
+copies per application output turn and schedule ordinary owner service and urgent
+admission independently. The synchronous legacy `Transport.observe` callback
+must remain bounded and perform no console/output I/O; queue a copy there if an
+application uses it. No arbitrary callback can provide a nonblocking guarantee
+if its implementation waits or prints.
+
+The native preview demonstrates cached health/statistics/resource access,
+bounded diagnostic pulls and a statistics reset without extra transport calls.
+Host type sizes and measured service gaps are separate observations; fixed work
+bounds do not claim board memory, SDK queue placement, PSRAM suitability or a
+hardware scheduling guarantee.

@@ -16,7 +16,7 @@ struct FakeTransport {
     E::ReceivedFrame incoming[CAPACITY];
     E::TxReport reports[CAPACITY];
     unsigned rxHead = 0, rxCount = 0, reportHead = 0, reportCount = 0;
-    unsigned transmitted = 0;
+    unsigned transmitted = 0, receiveCalls = 0, reportCalls = 0;
     uint64_t nowUs = 0;
 
     bool push(const M::Frame& frame) {
@@ -31,6 +31,7 @@ struct FakeTransport {
     }
     static bool receive(void* context, E::ReceivedFrame& output) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
+        ++fake.receiveCalls;
         if (!fake.rxCount)
             return false;
         output = fake.incoming[fake.rxHead];
@@ -40,6 +41,7 @@ struct FakeTransport {
     }
     static bool takeReport(void* context, E::TxReport& output) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
+        ++fake.reportCalls;
         if (!fake.reportCount)
             return false;
         output = fake.reports[fake.reportHead];
@@ -173,5 +175,46 @@ int main() {
                 static_cast<unsigned>(node->emcyCount));
     std::puts(
         "Raw readback is not physical activation, encoder scale or harmless-read qualification.");
+
+    // Cached diagnostics copy owner evidence without another service turn or callback.
+    const unsigned receiveCalls = fake.receiveCalls, reportCalls = fake.reportCalls;
+    E::Health health;
+    E::DriverState state = E::DriverState::UNINIT;
+    const E::Stats stats = owner.stats();
+    if (!owner.health(target.channel.binding, health) ||
+        !owner.driverState(target.channel.binding, state) || state != E::DriverState::READY ||
+        health.totalSuccess != 2 || health.totalFailures || health.consecutiveFailures ||
+        !health.lastOkKnown || !health.lastSeenKnown || stats.txFrames != 2 || stats.rxFrames != 6)
+        return 1;
+    std::printf("Cached communication=READY; services=%u/%u, confirmed TX=%u, RX=%u.\n",
+                static_cast<unsigned>(health.totalSuccess),
+                static_cast<unsigned>(health.totalFailures), static_cast<unsigned>(stats.txFrames),
+                static_cast<unsigned>(stats.rxFrames));
+    const E::OwnerResources before = owner.resources();
+    E::Diagnostic diagnostic;
+    unsigned copied = 0;
+    // A real console uses its own output budget and leaves transport service scheduled.
+    while (copied < 3 && owner.takeDiagnostic(diagnostic))
+        ++copied;
+    if (copied != 3 || before.traceUsed != E::CanBusOwner::TRACE_CAPACITY ||
+        owner.resources().traceUsed != before.traceUsed - copied || !stats.traceOverwritten ||
+        !owner.clearStats())
+        return 1;
+    E::Health after;
+    if (!owner.health(target.channel.binding, after) || after.totalSuccess || after.totalFailures ||
+        after.state != health.state || after.consecutiveFailures != health.consecutiveFailures ||
+        after.lastOkKnown != health.lastOkKnown || after.lastOkUs != health.lastOkUs ||
+        after.lastErrorKnown != health.lastErrorKnown || after.lastErrorUs != health.lastErrorUs ||
+        after.lastError.code != health.lastError.code ||
+        after.lastError.detail != health.lastError.detail ||
+        after.lastSeenKnown != health.lastSeenKnown || after.lastSeenUs != health.lastSeenUs ||
+        owner.stats().txFrames || owner.stats().rxFrames || owner.stats().traceOverwritten ||
+        owner.stats().maxServiceGapUs || owner.resources().traceUsed != before.traceUsed - copied ||
+        fake.receiveCalls != receiveCalls || fake.reportCalls != reportCalls ||
+        fake.transmitted != 2)
+        return 1;
+    std::printf(
+        "Copied %u diagnostics; stats reset preserves communication evidence and %u copies.\n",
+        copied, static_cast<unsigned>(owner.resources().traceUsed));
     return 0;
 }

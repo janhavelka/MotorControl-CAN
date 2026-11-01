@@ -276,3 +276,10 @@ node table or production motion context.
 | --- | --- | --- | --- |
 | Reserved urgent work, cancellation and producer invalidation | Same CanBusOwner header/implementation | [Adversarial owner suite](../test/can_bus_recovery_test.cpp), existing native consumer | One extra request/result slot; same two axis reservations; no synthetic stop driver |
 | External TX retirement, ingress epochs and finite recovery | Owner Transport callbacks and retained RecoveryCompletion | Same suite's queued-controller fake and two-node timelines | Local retirement never proves remote SDO/PDO freshness; real adapter obligations remain 27 |
+
+## Passive health and diagnostics (prompt 25)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
+| --- | --- | --- | --- |
+| Health projection, exact counters and reset lifetime | [Owner declarations](../examples/common/CanBusOwner.h), [diagnostics](../examples/common/CanBusDiagnostics.cpp), single routing hooks in CanBusOwner.cpp | [Native preview](../examples/owner_preview/main.cpp), [health suite](../test/can_bus_health_test.cpp) | Derived application facts only; no installed lifecycle, retry threshold or drive-state interpretation |
+| Saturation and bounded history/resource copies | Private OwnerCounters.h, owner trace/resources methods | Same suite's extremes, full history and urgent/ordinary interleaving | Current state remains in the existing backend; copies never consume RX or requalify old PDO samples |

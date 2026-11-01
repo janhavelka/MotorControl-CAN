@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Passive owner health and statistics
+
+- Add cached binding health with explicit timestamp validity, service totals,
+  retained prior errors and passive communication-state precedence.
+- Count actual controller TX separately from queue acceptance; saturate interface
+  counters and preserve live evidence/interlocks/history when clearing totals.
+- Add eight bounded copied diagnostics and resource snapshots; slow trace output
+  cannot consume normal RX. Keep map/sample provenance and heartbeat policy explicit.
+- Extend the offline native consumer and independent health/counter/trace tests.
+
 ### Owner cancellation and recovery
 
 - Added reserved urgent admission/results, per-request cancellation, reservation/producer
