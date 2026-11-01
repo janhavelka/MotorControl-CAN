@@ -176,9 +176,9 @@ Logs: `.build/p28-full/summary.json`, `.build/p28-quick/summary.json`,
 remains `.build/p28-firmware-final/summary.json`; its Arduino/standalone steps
 passed and component failed before the short-path correction, not after it.
 
-The implementation checkpoint is ready for commit/sync. Remote five-job CI
-(Windows quick, Linux GCC/Clang full sanitizers, Arduino and IDF/component) must
-be checked on the actual commit; adding YAML is not execution evidence.
+Implementation and portability checkpoints were committed and synchronized on
+the recorded branch. Remote results below were checked against their exact SHAs;
+no remote run was inferred from workflow YAML.
 
 ### First remote checkpoint and portability correction
 
@@ -191,3 +191,28 @@ short SDK path alias. The test now controls/restores its cwd and independently
 requires canonical SDK paths while preserving lexical virtualenv paths. All 19
 checks pass locally; no production behavior/check was weakened. Original
 failure/artifact retained under `.build/p28-ci/windows-first/`.
+
+### Verified integrated checkpoint
+
+`195788d986161c9187e2d59f08c486050bfbc4ba` is synchronized, with a fresh 0/0
+comparison. [CI run 41296131807](https://github.com/janhavelka/MotorControl-CAN/actions/runs/41296131807)
+completed successfully on that exact commit:
+
+| Required job | Result |
+| --- | --- |
+| Windows GCC quick, including corrected path/alias regressions | Passed |
+| Linux GCC full with ASan/UBSan, package and strict Doxygen | Passed |
+| Linux Clang full with ASan/UBSan, package and strict Doxygen | Passed |
+| Arduino 3.3.11 compile/link and actual shared-source inputs | Passed |
+| ESP-IDF 5.5.5 standalone firmware plus isolated core component | Passed |
+
+Machine-readable job evidence is retained in
+`.build/p28-ci/verified-195788d.json`; workflow artifacts retain command/version
+logs, summaries, compiler databases and firmware products. Initial failed Windows
+CI remains linked above. No failed check was skipped or weakened.
+
+This documentation checkpoint records the verified implementation. Its final
+automatically triggered CI and fresh upstream comparison are checked separately
+for handoff. Owned software/build scope is closed; the stage remains Partial only
+on inherited Q20. No task-owned changes or unperformed local build remain, and
+physical/console obligations retain their named later owners.
