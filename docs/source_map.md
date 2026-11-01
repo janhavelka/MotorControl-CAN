@@ -21,8 +21,19 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 | --- | --- | --- | --- |
 | Installed status/identity/frame | [Public headers](../include/MotorControlCAN/MotorControlCAN.h), [Endpoint.cpp](../src/Endpoint.cpp), [Frame.cpp](../src/can/Frame.cpp) | [core_test.cpp](../test/core_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | 7/9/11 complete the current pure status/frame boundary |
 | Prototype units and typed profile contexts | [Contracts.h](../experiments/api_ownership/Contracts.h), [Operations.h](../experiments/api_ownership/Operations.h), [Operations.cpp](../experiments/api_ownership/Operations.cpp) | [api_ownership_test.cpp](../test/api_ownership_test.cpp), [multidrive_contract_test.cpp](../test/multidrive_contract_test.cpp) | Synthetic profile stays test-only; 9/10 replaced prototype math with production Units/Axis; 19/33 implement real operations |
-| Physical owner/table | [CanBusOwner.h](../experiments/api_ownership/CanBusOwner.h), [CanBusOwner.cpp](../experiments/api_ownership/CanBusOwner.cpp) | Native main above | 13/15/23 extend the same table/client boundary; 27 qualifies controller |
+| Physical owner/table | [CanBusOwner.h](../experiments/api_ownership/CanBusOwner.h), [CanBusOwner.cpp](../experiments/api_ownership/CanBusOwner.cpp) | Native main above | 13/15/23 extend the same table/client boundary; 27 implements the checked controller boundary |
 | Build/package | [Root CMake](../CMakeLists.txt), [manifest](../library.json), [version helper](../scripts/generate_version.py) | [Registered tests](../test/CMakeLists.txt), [package contract](../test/package_test.py), [version contract](../test/version_test.py) | 7 complete; [verifier](../scripts/verify.py), [checker](../scripts/check_repository.py), [workflow](../.github/workflows/verify.yml) and [Doxyfile](../Doxyfile) implement prompt 8 gates |
+
+## TWAI transport (prompt 27)
+
+| Responsibility | Declaration / implementation | Caller and focused check | Deliberate boundary |
+| --- | --- | --- | --- |
+| Copied transport queue, TX evidence and explicit retirement | [TwaiAdapter.h](../adapters/twai/TwaiAdapter.h), [TwaiAdapter.cpp](../adapters/twai/TwaiAdapter.cpp) | [Real owner fake integration](../test/twai_adapter_test.cpp) | Two total TX slots; same service store, no second receiver; RX drained before promotion |
+| Pinned SDK callbacks, Classical framing and node destruction | [IdfTwaiDriver.h](../adapters/twai/IdfTwaiDriver.h), [IdfTwaiDriver.cpp](../adapters/twai/IdfTwaiDriver.cpp) | [Actual shim with SDK fakes](../test/twai_driver_test.cpp), [SDK compile target](../test/twai_sdk_compile/main/CMakeLists.txt), [compile command](../scripts/check_twai_sdk.py) | S3/IDF 5.5.5 only; one SDK active frame; ISR copies into internal RAM, no routing; old node never restarted |
+
+[SDK source hashes/evidence](adapters/twai_sdk.md) and [stage report](reports/prompt_27.md)
+record scope, sibling revisions and measured capacities. Firmware entry points
+remain prompt 28; hardware behavior remains unqualified.
 
 ## Typed raw reads (prompt 19)
 

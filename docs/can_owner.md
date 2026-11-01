@@ -473,3 +473,14 @@ bounded diagnostic pulls and a statistics reset without extra transport calls.
 Host type sizes and measured service gaps are separate observations; fixed work
 bounds do not claim board memory, SDK queue placement, PSRAM suitability or a
 hardware scheduling guarantee.
+
+## Pinned controller boundary
+
+The optional [TWAI adapter](../adapters/twai/README.md) supplies concrete S3/IDF
+5.5.5 enqueue, transmission and retirement evidence. Service the owner before
+adapter TX promotion with the same supplied time; unread RX defers promotion.
+SDK callbacks only copy into bounded internal-RAM storage. Explicit recovery
+destroys the old node before a fresh instance can accept work. See the
+[SDK evidence](adapters/twai_sdk.md) for bus-off deletion proof, unavailable
+hardware-overrun evidence and ISR latency limits. This does not reopen an
+ambiguous SDO session or qualify a reused PDO route.

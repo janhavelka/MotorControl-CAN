@@ -52,7 +52,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 24 | Urgent/cancel/recovery | Owned mechanisms implemented/tested; Partial only on inherited 23/19/Q20. [Report](reports/prompt_24.md) retains real-adapter and remote-session limits. |
 | 25 | Passive health/statistics | Owned software implemented/tested: cached projection, exact saturating counters/reset, eight copied diagnostics; Partial only on inherited 24/23/19/Q20. [Report](reports/prompt_25.md). No drive or machine-health policy is inferred. |
 | 26 | Shared native application and fake/offline examples | Owned software implemented/tested; Partial only on inherited 19/25/Q20. [Application contract](native_application.md), [report](reports/prompt_26.md). |
-| 27-28 | TWAI adapter, shared Arduino/ESP-IDF application | Pending; choose actual SDK/board configuration; compile without assuming a connected fixture |
+| 27 | Pinned TWAI adapter | Owned software and ESP-IDF 5.5.5 S3 compile delivered; Partial on inherited 24/26/Q20. [Report](reports/prompt_27.md). No physical qualification. |
+| 28 | Shared Arduino/ESP-IDF application | Pending; explicit board configuration, firmware startup/builds and separate component consumption |
 | 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |
 | 30-32 | Enable/release, stop, fault/reference actions | Pending; use qualified current-state transitions, never enable as a stop/reset preamble |
 | 33-36 | Position, angles, finite velocity and homing | Pending; explicit trigger/acceptance/completion, reference/scale and bounded deadlines |

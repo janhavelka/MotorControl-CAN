@@ -23,6 +23,14 @@ FILES = {
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
     "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
     "docs/native_application.md",
+    "adapters/twai/TwaiAdapter.h", "adapters/twai/TwaiAdapter.cpp",
+    "adapters/twai/IdfTwaiDriver.h", "adapters/twai/IdfTwaiDriver.cpp",
+    "adapters/twai/CMakeLists.txt", "adapters/twai/README.md",
+    "docs/adapters/twai_sdk.md", "docs/adapters/twai_sources.json", "scripts/check_twai_sdk.py",
+    "test/twai_adapter_test.cpp", "test/twai_driver_test.cpp",
+    "test/twai_sdk_compile/CMakeLists.txt", "test/twai_sdk_compile/main/CMakeLists.txt",
+    "test/twai_sdk_compile/sdkconfig.defaults",
+    "test/twai_sdk_compile/main/sizes.cpp",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
@@ -93,7 +101,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

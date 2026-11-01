@@ -108,3 +108,13 @@ diagnostic records in this same application class. [The owner contract](can_owne
 defines projection and reset rules. Existing node/PDO provenance remains the
 source of freshness; diagnostic copies neither create a receiver nor become
 current node storage. Core packages acquire no lifecycle, clock or health policy.
+
+## TWAI controller boundary
+
+The application-only [TWAI adapter](../adapters/twai/README.md) supplies the
+existing owner transport. The pinned S3 node driver owns one active SDK frame
+and bounded ISR copies; the owner alone routes ingress. RX precedes TX promotion,
+and explicit recovery deletes old controller storage before creating a new node.
+No SDK types enter installed headers; no node/service table or CANopen engine is
+duplicated. [Reviewed SDK limits](adapters/twai_sdk.md) remain distinct from
+firmware startup and physical qualification.

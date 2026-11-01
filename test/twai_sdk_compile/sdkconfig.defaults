@@ -1,0 +1,5 @@
+CONFIG_IDF_TARGET="esp32s3"
+# CONFIG_PM_ENABLE is not set
+# CONFIG_TWAI_ISR_CACHE_SAFE is not set
+# CONFIG_TWAI_ISR_IN_IRAM is not set
+# CONFIG_FREERTOS_SMP is not set

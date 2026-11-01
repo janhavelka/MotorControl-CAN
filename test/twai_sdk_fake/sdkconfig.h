@@ -1,0 +1,7 @@
+// SPDX-License-Identifier: MIT
+#pragma once
+#define CONFIG_IDF_TARGET_ESP32S3 1
+#define CONFIG_TWAI_ISR_CACHE_SAFE 0
+#define CONFIG_TWAI_ISR_IN_IRAM 0
+#define CONFIG_PM_ENABLE 0
+#define CONFIG_FREERTOS_SMP 0

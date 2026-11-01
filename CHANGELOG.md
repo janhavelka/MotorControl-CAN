@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Pinned TWAI transport
+
+- Add an application-only ESP32-S3 adapter for ESP-IDF 5.5.5's node API,
+  with two owned TX slots, configurable bounded RX storage and exact TX callbacks.
+- Retire the old controller before explicit recovery creates a fresh node;
+  cancellation and restart never replay queued work or settle unknown effects.
+- Keep queued RX ahead of TX promotion, preserve raw error flags and inhibit
+  on observable RX loss. Record SDK overflow/timing limitations and source hashes.
+- Register host policy and actual-shim callback tests plus a separate pinned SDK
+  compile command. No firmware startup, flashing or physical qualification is added.
+
 ### Corrected passive PDO delivery history
 
 - Retain checked delivery time for a qualified PDO whose capture is already

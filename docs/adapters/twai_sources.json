@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "reviewed_date": "2026-11-01",
+  "sdk": {
+    "repository": "https://github.com/espressif/esp-idf",
+    "tag": "v5.5.5",
+    "commit": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
+    "interface": "esp_twai.h and esp_twai_onchip.h",
+    "target": "ESP32-S3",
+    "license": "Apache-2.0"
+  },
+  "arduino": {
+    "version": "3.3.11",
+    "platform": "pioarduino 55.03.311",
+    "dependency_template_url": "https://github.com/espressif/arduino-esp32/blob/3.3.11/package/package_esp32_index.template.json",
+    "libs_identity": "idf-release_v5.5-b774170f-v1",
+    "installed_versions_evidence": "C:/p55s/packages/framework-arduinoespressif32-libs/versions.txt",
+    "installed_public_headers_match_sdk_bytes": true
+  },
+  "sources": [
+    {
+      "path": "components/esp_driver_twai/esp_twai_onchip.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/esp_twai_onchip.c",
+      "sha256": "16f1174d3a15f62cba7ddef28b756868b7a5ef36bbf0915c56dd3613799f05e0"
+    },
+    {
+      "path": "components/esp_driver_twai/esp_twai.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/esp_twai.c",
+      "sha256": "ad2e55efb58074b6baa1a8c66661f0c7b6b6cd9bccf71eb9505db463fd60ee17"
+    },
+    {
+      "path": "components/esp_driver_twai/include/esp_twai.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/include/esp_twai.h",
+      "sha256": "e308473a3fece274d7ffcf125501f5dcb797454c9526a935608230e435211316"
+    },
+    {
+      "path": "components/esp_driver_twai/include/esp_twai_onchip.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/include/esp_twai_onchip.h",
+      "sha256": "0d97efdc23822bdeef7df9f36dbd238a1b123defb10fa5b12c6bfe937a57370d"
+    },
+    {
+      "path": "components/esp_driver_twai/include/esp_twai_types.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/include/esp_twai_types.h",
+      "sha256": "8eda0442e3378a8fa93009c70051c3619b11add0fecfdc863bae883262252d26"
+    },
+    {
+      "path": "components/esp_driver_twai/Kconfig",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/Kconfig",
+      "sha256": "3c5db5ee354caf80ed233d3dde8d0e1a9cb4e81ed02b996105c35fa26e3e79f2"
+    },
+    {
+      "path": "components/esp_driver_twai/linker.lf",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/linker.lf",
+      "sha256": "dcfb3ab403f9202d66721312f368ba2aaa535af3bf58b64d5f0e7e2f7051d9aa"
+    },
+    {
+      "path": "components/esp_driver_twai/twai_private.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_twai/twai_private.h",
+      "sha256": "29132fc17f40b435eee499a205fd54d3e26656113a62e8c0f8cd726b5a6e2d31"
+    },
+    {
+      "path": "components/hal/twai_hal_v1.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/twai_hal_v1.c",
+      "sha256": "2ea3ddf64d7fc97bbae7f5f826994e95c01c7c63ea4ee881bcf39fbbb6d50734"
+    },
+    {
+      "path": "components/hal/esp32s3/include/hal/twai_ll.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/esp32s3/include/hal/twai_ll.h",
+      "sha256": "7ff7de0343fdc6844768618deeebc9d76ec9deeb9e8ec2fb6a462ec955ad71d4"
+    },
+    {
+      "path": "components/hal/include/hal/twai_hal.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/include/hal/twai_hal.h",
+      "sha256": "4cf0e8fb6cce99d53c6846215d58d877d1f28880481702002f751590e4ca3de5"
+    },
+    {
+      "path": "components/hal/include/hal/twai_types.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/include/hal/twai_types.h",
+      "sha256": "027ed41b930bcddb68e6b8aa6705be61761d2cae0b9b3bfa8f2a643f351da09a"
+    },
+    {
+      "path": "components/soc/esp32s3/include/soc/soc_caps.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s3/include/soc/soc_caps.h",
+      "sha256": "832796827709840fef9656bcb5711b952abd9d6923ffac729ec4526ae6cf4849"
+    },
+    {
+      "path": "components/esp_hw_support/port/esp32s3/esp_clk_tree.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_hw_support/port/esp32s3/esp_clk_tree.c",
+      "sha256": "498570cb6bf6b14a5202b25a19f164221e4bedd8f4afd8bf41a6c29dd8b23bd0"
+    },
+    {
+      "path": "components/driver/twai/twai.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/driver/twai/twai.c",
+      "sha256": "7680a0ef354cd67dc1add8c636675482f7f7c39123d13597f4a4ced3756d96bc"
+    },
+    {
+      "path": "components/hal/include/hal/twai_types_deprecated.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/include/hal/twai_types_deprecated.h",
+      "sha256": "e5b2a36a0829fde4ec9c1a27c0de8aea2edab014550a87d428416e569b5042be"
+    },
+    {
+      "path": "components/esp_hw_support/intr_alloc.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_hw_support/intr_alloc.c",
+      "sha256": "e591ea42b06ea56422d97efdcd4ac15f40e6fe1e8f25e2055f6b2a7eba49ef45"
+    },
+    {
+      "path": "components/esp_hw_support/include/esp_intr_alloc.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_hw_support/include/esp_intr_alloc.h",
+      "sha256": "749853317ef0cf342d49bccff37c61db69250c9d1dfd9ceaca74d1a61e5c2581"
+    }
+  ],
+  "documentation_urls": [
+    "https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32s3/api-reference/peripherals/twai.html",
+    "https://docs.espressif.com/projects/esp-idf/en/v5.5.5/esp32s3/api-reference/system/intr_alloc.html"
+  ],
+  "notes": [
+    "Hashes identify original upstream bytes fetched at the recorded commit. No SDK source copies are included in this repository.",
+    "Legacy twai.c and deprecated type definitions are retained as source references for the rejected receive wrapper; the adapter uses only the node API.",
+    "Installed paths record this local audit, not a portable build requirement."
+  ]
+}

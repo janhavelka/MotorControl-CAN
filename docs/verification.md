@@ -74,7 +74,9 @@ This table is the maintained inventory. Stage reports record individual results.
 | Urgent quotas, cancellation, controller queue retirement and recovery | `can_bus_recovery`, existing `can_bus_owner` and `owner_preview` | Quick/full; fake controller queues, stale epochs, first-terminal retention, two-node receive and finite recovery; no validated drive stop or physical retirement claim |
 | Passive communication health, exact saturating counters/reset and bounded diagnostics | `can_bus_health`, existing owner/recovery suites and native preview | Quick/full; logical-service counting, independent TX evidence, current PDO provenance, cached getters, heartbeat policy and full trace under ordinary/urgent work; no retry or drive-state policy |
 | Shared native application and bounded platform I/O | `probe_app`, `native_probe --fake`, existing `units_preview`; isolated copied applications in `package_contract` | Quick/full for native paths; full adds relocated installed-core builds without checkout includes, siblings, SDKs, Python or network. Fake wire values are not hardware qualification. |
-| Arduino / ESP-IDF firmware builds | Actual buildable adapters and examples | Planned prompts 27–28; component registration mock is not firmware |
+| Pinned TWAI policy and actual SDK shim with host fakes | `twai_adapter`, `twai_driver` | Quick/full; one RX owner, queued boot-up, exact TX evidence, deadlines, retirement, loss and SDK failure paths; fake only |
+| TWAI SDK interface / target ABI | `python scripts/check_twai_sdk.py --idf-path "path to esp-idf" --idf-python "path to IDF Python"` | Explicit SDK gate; exact IDF 5.5.5 source hashes, S3 C++11 static archive and retained logs; no firmware linked |
+| Arduino / ESP-IDF firmware builds | Shared startup, standalone firmware and component consumer | Planned prompt 28; a TWAI static-archive compile is not firmware |
 | Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Planned hardware prompts; no current physical result |
 
 ## Documentation gate

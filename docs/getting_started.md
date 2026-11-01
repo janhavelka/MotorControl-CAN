@@ -172,3 +172,10 @@ portable sources and public include directory with a C++11 floor. The applicatio
 owns the SDK, controller, bus configuration and all I/O. Native builds never
 load ESP-IDF. Actual board adapters and firmware examples are later milestones;
 the current component contract does not imply a tested firmware target.
+
+## Optional TWAI transport
+
+The [ESP32-S3 TWAI adapter](../adapters/twai/README.md) uses the same owner with
+explicit configuration and pinned IDF 5.5.5. Host callback fakes and its separate
+SDK static-archive compile do not require CAN hardware. It is excluded from the
+installed core; shared firmware startup/build integration remains prompt 28.
