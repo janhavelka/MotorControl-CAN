@@ -179,3 +179,15 @@ passed and component failed before the short-path correction, not after it.
 The implementation checkpoint is ready for commit/sync. Remote five-job CI
 (Windows quick, Linux GCC/Clang full sanitizers, Arduino and IDF/component) must
 be checked on the actual commit; adding YAML is not execution evidence.
+
+### First remote checkpoint and portability correction
+
+Implementation `b76e129e5ec0e13990db01f522de2999d1db6cb8` was committed and
+pushed; fresh fetch showed 0/0. [CI run 41295844931](https://github.com/janhavelka/MotorControl-CAN/actions/runs/41295844931)
+passed the real Arduino and IDF/isolated-component jobs. Windows compiled all
+native tests and passed firmware/owner tests, but the new checker test failed:
+temporary files were on C: while checkout was on D:, and Windows normalized a
+short SDK path alias. The test now controls/restores its cwd and independently
+requires canonical SDK paths while preserving lexical virtualenv paths. All 19
+checks pass locally; no production behavior/check was weakened. Original
+failure/artifact retained under `.build/p28-ci/windows-first/`.

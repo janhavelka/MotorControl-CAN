@@ -132,8 +132,15 @@ class FirmwareBuildTests(unittest.TestCase):
 
     def test_relative_database_filename_is_supported(self):
         self.write_database(self.entries())
-        relative_database = Path(os.path.relpath(self.database, Path.cwd()))
-        self.assertEqual(checker.check_inputs(relative_database, self.expected()), len(SHARED_SOURCES))
+        previous_directory = Path.cwd()
+        try:
+            # The temporary directory and checkout can be on different Windows
+            # drives. A relative database belongs to its caller's working dir.
+            os.chdir(self.database.parent)
+            self.assertEqual(checker.check_inputs(Path(self.database.name), self.expected()),
+                             len(SHARED_SOURCES))
+        finally:
+            os.chdir(previous_directory)
 
     def test_success_log_and_linked_artifacts_cannot_hide_an_omitted_source(self):
         (self.database.parent / "build.log").write_text("Build complete: SUCCESS\n", encoding="utf-8")
@@ -205,6 +212,9 @@ class FirmwareBuildTests(unittest.TestCase):
 
     def test_sdk_preserves_selected_virtualenv_interpreter_and_environment(self):
         args, runner = self.sdk_fixture()
+        resolved_sdk = args.idf_path.resolve()
+        sdk_alias = self.base / "SDK path alias"
+        args.idf_path = sdk_alias
         lexical_interpreter = args.idf_python
         base_interpreter = self.base / "system Python/bin/python"
         original_resolve = Path.resolve
@@ -214,15 +224,19 @@ class FirmwareBuildTests(unittest.TestCase):
             # symlink permissions. Resolving it would silently select the base.
             if path == lexical_interpreter:
                 return base_interpreter
+            # SDK roots are intentionally canonicalized, unlike venv Python.
+            # Model Windows short paths or directory aliases on every OS.
+            if path == sdk_alias:
+                return resolved_sdk
             return original_resolve(path, *args, **kwargs)
 
         with mock.patch.object(checker, "ROOT", self.root), \
              mock.patch.dict(os.environ, {}, clear=True), \
              mock.patch.object(Path, "resolve", autospec=True, side_effect=resolve):
             command, env = checker.sdk_environment(args, runner)
-        self.assertEqual(command, [lexical_interpreter, args.idf_path / "tools/idf.py"])
+        self.assertEqual(command, [lexical_interpreter, resolved_sdk / "tools/idf.py"])
         self.assertEqual(env["IDF_PYTHON_ENV_PATH"], str(lexical_interpreter.parent.parent))
-        self.assertEqual(env["IDF_PATH"], str(args.idf_path))
+        self.assertEqual(env["IDF_PATH"], str(resolved_sdk))
         self.assertEqual(runner.summary["sdk_python"], str(lexical_interpreter))
         version_call = runner.run.call_args_list[0]
         self.assertEqual(version_call.args[1][0], lexical_interpreter)
