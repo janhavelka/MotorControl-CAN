@@ -216,3 +216,12 @@ automatically triggered CI and fresh upstream comparison are checked separately
 for handoff. Owned software/build scope is closed; the stage remains Partial only
 on inherited Q20. No task-owned changes or unperformed local build remain, and
 physical/console obligations retain their named later owners.
+
+## Fresh independent audit of prompts 27 and 28
+
+The [combined audit](prompts_27_28_audit.md) rechecks the original prompts,
+implementation/diff, exact SDK and current sibling sources. It corrects captured
+RX versus SDK handoff ordering, oversized GPIO validation, shared SDK checker
+validation and failed-build diagnostic retention. Independent regressions fail
+before the fixes and pass afterward. Stage scope and inherited Q20 Partial
+status remain unchanged; no physical qualification is claimed.

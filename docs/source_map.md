@@ -35,6 +35,10 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 record scope, sibling revisions and measured capacities. Firmware entry points
 are now integrated below; hardware behavior remains unqualified.
 
+The [fresh 27/28 audit](reports/prompts_27_28_audit.md) traces the final captured-RX
+handoff, GPIO bounds, owner-time invalidation and shared SDK checker corrections
+to the same driver/adapter and focused tests above.
+
 ## Shared firmware (prompt 28)
 
 | Responsibility | Declaration / implementation | Caller / focused check | Boundary |

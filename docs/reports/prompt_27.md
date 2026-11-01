@@ -137,3 +137,12 @@ Board, transceiver, drive/motor/firmware, wiring/termination, node/bitrate and
 physical authorization remain explicit prerequisites. Prompt 28 is the next
 independent software task: real shared Arduino/IDF startup/build integration and
 separate component consumption. Existing drive/probe evidence gates remain pending.
+
+## Fresh independent audit of prompts 27 and 28
+
+The [combined audit](prompts_27_28_audit.md) rechecks the original prompts,
+implementation/diff, exact SDK and current sibling sources. It corrects captured
+RX versus SDK handoff ordering, oversized GPIO validation, shared SDK checker
+validation and failed-build diagnostic retention. Independent regressions fail
+before the fixes and pass afterward. Stage scope and inherited Q20 Partial
+status remain unchanged; no physical qualification is claimed.

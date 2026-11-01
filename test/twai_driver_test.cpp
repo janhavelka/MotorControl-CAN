@@ -2,6 +2,7 @@
 // Compile the actual SDK shim against narrow host fakes. No SDK build or CAN I/O.
 #include "IdfTwaiDriver.h"
 #include "esp_twai_onchip.h"
+#include <climits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -22,9 +23,12 @@ enum class Call { CREATE, REGISTER, FILTER, ENABLE, INFO, DISABLE, DELETE, SUBMI
 struct FakeSdk {
     Call calls[128] = {};
     unsigned count = 0, transmissions = 0, receives = 0;
+    unsigned criticalDepth = 0, bootAfterTransmissions = 0;
     Call fail = Call::RECEIVE;
     bool failEnabled = false, memoryInternal = true, live = false;
     bool immediate = false, rxFail = false;
+    bool bootOnExit = false, deferredDone = false, deferredSuccess = false;
+    const twai_frame_t* deferredPointer = nullptr;
     int currentCore = 1, taskCore = 1;
     TaskHandle_t task = reinterpret_cast<TaskHandle_t>(1);
     twai_error_state_t state = TWAI_ERROR_BUS_OFF;
@@ -43,8 +47,28 @@ struct FakeSdk {
     }
     void done(bool ok = true, const twai_frame_t* pointer = nullptr) {
         CHECK(live && callbacks.on_tx_done);
+        if (criticalDepth) {
+            CHECK(!deferredDone);
+            deferredDone = true;
+            deferredSuccess = ok;
+            deferredPointer = pointer;
+            return;
+        }
         twai_tx_done_event_data_t event = {ok, pointer ? pointer : pending};
         CHECK(!callbacks.on_tx_done(node(), &event, context));
+    }
+    void receiveCallback() {
+        CHECK(live && callbacks.on_rx_done && criticalDepth == 0);
+        twai_rx_done_event_data_t event = {};
+        CHECK(!callbacks.on_rx_done(node(), &event, context));
+    }
+    void boot() {
+        bootAfterTransmissions = transmissions;
+        rxHeader = twai_frame_header_t();
+        rxHeader.id = 0x701;
+        rxHeader.dlc = 1;
+        rxBytes[0] = 0;
+        receiveCallback();
     }
     void receive(uint32_t id, uint16_t dlc, bool extended = false, bool remote = false,
                  bool fd = false, bool brs = false, bool esi = false) {
@@ -60,8 +84,7 @@ struct FakeSdk {
         rxHeader.timestamp = 987654; // Driver must not promote this to qualified arrival.
         for (unsigned i = 0; i < 8; ++i)
             rxBytes[i] = uint8_t(i + 1);
-        twai_rx_done_event_data_t event;
-        CHECK(!callbacks.on_rx_done(node(), &event, context));
+        receiveCallback();
     }
     void busOff() {
         CHECK(live && callbacks.on_state_change);
@@ -95,6 +118,7 @@ M::Frame frame() {
     return value;
 }
 void reset() {
+    CHECK(sdk.criticalDepth == 0 && !sdk.deferredDone && !sdk.bootOnExit);
     sdk = FakeSdk();
 }
 void stop(E::TwaiDriver& driver) {
@@ -102,6 +126,24 @@ void stop(E::TwaiDriver& driver) {
     CHECK(!sdk.live);
 }
 } // namespace
+
+void fakeEnterCritical(portMUX_TYPE* mux) {
+    CHECK(mux);
+    ++sdk.criticalDepth;
+}
+void fakeExitCritical(portMUX_TYPE* mux) {
+    CHECK(mux && sdk.criticalDepth);
+    if (--sdk.criticalDepth)
+        return;
+    if (sdk.bootOnExit) {
+        sdk.bootOnExit = false;
+        sdk.boot();
+    }
+    if (sdk.deferredDone) {
+        sdk.deferredDone = false;
+        sdk.done(sdk.deferredSuccess, sdk.deferredPointer);
+    }
+}
 
 TaskHandle_t xTaskGetCurrentTaskHandle() {
     return sdk.task;
@@ -180,12 +222,19 @@ esp_err_t twai_node_get_info(twai_node_handle_t node, twai_node_status_t* status
 }
 esp_err_t twai_node_transmit(twai_node_handle_t node, const twai_frame_t* frame, int timeout) {
     CHECK(node == sdk.node() && sdk.live && timeout == 0);
-    if (sdk.record(Call::SUBMIT))
+    // The reviewed direct SDK handoff masks interrupts internally too. Its exit
+    // must not deliver an ISR while the driver's outer section still holds.
+    portMUX_TYPE sdkMux = portMUX_INITIALIZER_UNLOCKED;
+    portENTER_CRITICAL(&sdkMux);
+    if (sdk.record(Call::SUBMIT)) {
+        portEXIT_CRITICAL(&sdkMux);
         return ESP_FAIL;
+    }
     ++sdk.transmissions;
     sdk.pending = frame;
     if (sdk.immediate)
         sdk.done();
+    portEXIT_CRITICAL(&sdkMux);
     return ESP_OK;
 }
 esp_err_t twai_node_receive_from_isr(twai_node_handle_t node, twai_frame_t* output) {
@@ -229,6 +278,40 @@ void initializationAndConfiguration() {
     CHECK(!driver.start(driver.context, config(), 8));
     CHECK(sdk.transmissions == 0);
     stop(driver);
+}
+
+void gpioValidationMatchesPinnedS3() {
+    const int invalidPins[] = {-1, -64, 22, 23, 24, 25, 49, 64, 128, INT_MAX};
+    for (int pin : invalidPins) {
+        for (unsigned tx = 0; tx < 2; ++tx) {
+            reset();
+            E::IdfTwaiDriver instance;
+            auto driver = instance.driver();
+            auto value = config();
+            if (tx)
+                value.txPin = pin;
+            else
+                value.rxPin = pin;
+            CHECK(!driver.start(driver.context, value, 1));
+            CHECK(sdk.count == 0 && !sdk.live && sdk.transmissions == 0);
+        }
+    }
+    const int validPins[] = {0, 21, 26, 46, 48};
+    for (int pin : validPins) {
+        for (unsigned tx = 0; tx < 2; ++tx) {
+            reset();
+            E::IdfTwaiDriver instance;
+            auto driver = instance.driver();
+            auto value = config();
+            if (tx)
+                value.txPin = pin;
+            else
+                value.rxPin = pin;
+            CHECK(driver.start(driver.context, value, 1));
+            CHECK((tx ? sdk.config.io_cfg.tx : sdk.config.io_cfg.rx) == pin);
+            stop(driver);
+        }
+    }
 }
 
 void actualReceiveCallbacksValidateBeforePublishing() {
@@ -329,9 +412,13 @@ void submissionFailureAndBusOffRemainExplicit() {
     value.fd = false;
     sdk.fail = Call::SUBMIT;
     sdk.failEnabled = true;
+    sdk.immediate = true; // Rejected SDK handoffs must never schedule completion.
     CHECK(!driver.submit(driver.context, value, 1) && sdk.pending == nullptr);
     CHECK(instance.lastError() == ESP_FAIL);
+    const auto rejected = driver.events(driver.context);
+    CHECK(!rejected.txDone && !rejected.fault && !sdk.deferredDone);
     sdk.failEnabled = false;
+    sdk.immediate = false;
     CHECK(driver.submit(driver.context, value, 2));
     sdk.error(0x02);
     sdk.error();
@@ -358,10 +445,12 @@ void unreadRxAndLostEvidenceBlockTheSdkHandoff() {
     E::IdfTwaiDriver instance;
     auto driver = instance.driver();
     CHECK(driver.start(driver.context, config(), 1));
-    sdk.receive(0x123, 1);
+    sdk.boot();
     CHECK(driver.events(driver.context).rxPending);
     CHECK(driver.events(driver.context).rxPending); // Snapshot cannot consume RX.
+    const unsigned beforeSubmit = sdk.count;
     CHECK(!driver.submit(driver.context, frame(), 1) && sdk.transmissions == 0);
+    CHECK(sdk.count == beforeSubmit); // No rejected or accepted SDK handoff occurred.
     E::ReceivedFrame received;
     CHECK(driver.receive(driver.context, received));
     CHECK(!driver.events(driver.context).rxPending);
@@ -373,6 +462,27 @@ void unreadRxAndLostEvidenceBlockTheSdkHandoff() {
     sdk.done(); // Pending is already false; fault itself must gate next submission.
     CHECK(!driver.submit(driver.context, frame(), 3) && sdk.transmissions == 1);
     CHECK(driver.events(driver.context).fault);
+    stop(driver);
+}
+
+void guardedHandoffPrecedesNewRxCallbacks() {
+    reset();
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    CHECK(driver.start(driver.context, config(), 1));
+    // Fire the real RX callback at the first point interrupts become unmasked.
+    // An exit between the final ingress guard and the SDK call delivers this
+    // boot-up before handing off the frame, invalidating the guarded premise.
+    sdk.bootOnExit = true;
+    CHECK(driver.submit(driver.context, frame(), 1));
+    CHECK(sdk.bootAfterTransmissions == 1 && sdk.transmissions == 1);
+    CHECK(!sdk.bootOnExit && sdk.criticalDepth == 0);
+    CHECK(driver.events(driver.context).rxPending);
+    E::ReceivedFrame boot;
+    CHECK(driver.receive(driver.context, boot));
+    CHECK(boot.frame.id == 0x701 && boot.frame.payloadLength == 1 && boot.frame.data[0] == 0);
+    sdk.done();
+    CHECK(driver.events(driver.context).txDone);
     stop(driver);
 }
 
@@ -432,10 +542,12 @@ void lifecycleFailuresPreserveOwnershipAndTask() {
 
 int main() {
     initializationAndConfiguration();
+    gpioValidationMatchesPinnedS3();
     actualReceiveCallbacksValidateBeforePublishing();
     actualTxCallbacksOwnAndCorrelate();
     submissionFailureAndBusOffRemainExplicit();
     unreadRxAndLostEvidenceBlockTheSdkHandoff();
+    guardedHandoffPrecedesNewRxCallbacks();
     lifecycleFailuresPreserveOwnershipAndTask();
     std::printf("TWAI SDK shim host simulation: %u checks; host sizeof(IdfTwaiDriver)=%zu\n",
                 checks, sizeof(E::IdfTwaiDriver));

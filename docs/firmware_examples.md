@@ -89,7 +89,11 @@ compilation inputs. ELF/BIN outputs and matching shared input files are required
 missing tools and failed builds return nonzero. SDK compilation uses short
 external temporary roots to avoid the Windows compiler's dependency-file path
 limit. Images, maps, SDK logs and compiler databases are retained in the requested
-run directory before temporary sources/build caches are released. Dependencies are provisioned
+run directory before temporary sources/build caches are released. Failed SDK
+builds also retain resolved configuration, SDK logs and available CMake configure
+diagnostics without requiring an ELF. An evidence-copy failure cannot replace
+the original build failure; if the build otherwise succeeded, the copy failure
+fails the gate. Dependencies are provisioned
 explicitly, and no build command opens a serial/CAN interface. Retained log paths
 and actual measured build sizes belong in the stage report. SDK-free native
 quick/full gates remain in [the verification table](verification.md).

@@ -114,7 +114,18 @@ Unread authoritative RX postpones submission, including when the owner RX budget
 is exhausted. Repeated zero RX budgets can consume a request's deadline; they do
 not authorize dropping boot-up evidence to make TX progress. Platform time can
 come from 64-bit `esp_timer_get_time()`; validate its nonnegative value before
-conversion to `uint64_t`. No adapter clock or wrap extension exists.
+conversion to `uint64_t`. No adapter clock or wrap extension exists. Backward
+adapter time inhibits transport and invalidates at the owner's last accepted
+time, including explicit owner calls between service turns. Active TX remains
+uncertain until checked completion or retirement.
+
+The final copied-ingress/fault check and zero-wait SDK handoff use one critical
+section, so an already captured boot-up cannot overtake the guard. Physical
+arrivals while interrupts are masked remain unknown. The
+[pinned SDK proof](../../docs/adapters/twai_sdk.md#final-handoff-and-gpio-validation)
+depends on one outstanding frame and the same pinned task/core. GPIO values are
+bounded before the SDK's shifting validity macros; those checks do not establish
+board wiring or transceiver suitability.
 
 The owner alone consumes RX/report copies. Exact queued IDs can be retired;
 an active SDK transaction remains unretired until final evidence or destruction.

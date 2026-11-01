@@ -72,6 +72,28 @@ require freeing external interrupts on their allocation core. This is especially
 relevant because `_node_destroy` ignores the return value of `esp_intr_free`.
 Do not treat a cross-core teardown attempt as evidence of retirement.
 
+### Final handoff and GPIO validation
+
+The final copied-RX/fault check and `twai_node_transmit(..., 0)` share one driver
+critical section. This prevents a captured boot-up callback from entering between
+the guard and SDK admission. Physical arrivals while interrupts are masked are
+still unobserved; this lock provides no new remote freshness guarantee.
+
+This relies on the reviewed single-outstanding-frame, same-pinned-core contract.
+`onchip:283-301` calls TX completion before clearing `hw_busy`, but the owner task
+cannot resume until that ISR finishes. The next submission therefore takes the
+idle direct path at `onchip:591-595`. Its `xEventGroupClearBits` only nests a
+critical section (`components/freertos/FreeRTOS-Kernel/event_groups.c:488-513`),
+then the SDK mounts the frame and calls HAL without a queue wait or synchronous
+callback. Xtensa `portable/xtensa/port.c` restores interrupts only at the outermost
+critical exit. A different SDK, scheduler or submission policy needs a fresh review.
+
+`components/esp_driver_gpio/include/driver/gpio.h:25-29` shifts `1ULL` by the pin
+after checking only the lower bound. The driver checks `< GPIO_NUM_MAX` before
+using those macros. The pinned S3 mask excludes GPIO22-25 and permits GPIO46;
+board/transceiver suitability remains an independent application requirement.
+The manifest now includes the GPIO and FreeRTOS sources supporting these facts.
+
 ## Selected bounds and failure behavior
 
 The adapter has two TX slots in total, including waiting work, the single SDK

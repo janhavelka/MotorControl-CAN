@@ -2,6 +2,7 @@
 """Reject incomplete firmware build evidence without invoking an SDK or hardware."""
 
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import check_firmware as checker
+import check_twai_sdk as twai_checker
 
 
 # Independent minimum: fixtures must not shrink when the production list changes.
@@ -257,6 +259,90 @@ class FirmwareBuildTests(unittest.TestCase):
                 runner.run.assert_not_called()
                 runner.tool.assert_not_called()
 
+    def run_twai_cli(self, args, runner, environment=None):
+        runner.directory = self.base / "TWAI build output"
+
+        def tool_output(name, *args, **kwargs):
+            if name == "idf_version":
+                return "ESP-IDF v5.5.5"
+            if name == "layout":
+                return ("00000 256 B motorcontrolcan_twai_driver_bytes\n"
+                        "00000 128 B motorcontrolcan_twai_adapter_bytes\n")
+            return "synthetic tool success"
+
+        runner.run.side_effect = tool_output
+        argv = ["check_twai_sdk.py", "--idf-path", str(args.idf_path),
+                "--idf-python", str(args.idf_python), "--build-dir", str(runner.directory)]
+        with mock.patch.object(checker, "ROOT", self.root), \
+             mock.patch.object(twai_checker, "ROOT", self.root), \
+             mock.patch.object(twai_checker, "Runner", return_value=runner), \
+             mock.patch.object(sys, "argv", argv), \
+             mock.patch.dict(os.environ, environment or {}, clear=True), \
+             mock.patch("sys.stdout", new_callable=io.StringIO), \
+             mock.patch("sys.stderr", new_callable=io.StringIO):
+            return twai_checker.main()
+
+    def test_twai_cli_preserves_venv_interpreter_and_checks_only_its_sdk_sources(self):
+        args, runner = self.sdk_fixture()
+        resolved_sdk = args.idf_path.resolve()
+        sdk_alias = self.base / "TWAI SDK path alias"
+        args.idf_path = sdk_alias
+        lexical_interpreter = args.idf_python
+        base_interpreter = self.base / "system Python/bin/python"
+        original_resolve = Path.resolve
+        # The transport-only SDK gate does not consume the USB/time platform.
+        (self.root / "docs/adapters/esp_platform_sources.json").unlink()
+
+        def resolve(path, *args, **kwargs):
+            if path == lexical_interpreter:
+                return base_interpreter
+            if path == sdk_alias:
+                return resolved_sdk
+            return original_resolve(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "resolve", autospec=True, side_effect=resolve):
+            self.assertEqual(self.run_twai_cli(args, runner), 0)
+        self.assertEqual(runner.summary["status"], "passed")
+        invocations = {call.args[0]: call for call in runner.run.call_args_list}
+        for name in ("idf_version", "configure"):
+            with self.subTest(invocation=name):
+                call = invocations[name]
+                self.assertEqual(call.args[1][:2],
+                                 [lexical_interpreter, resolved_sdk / "tools/idf.py"])
+                self.assertEqual(call.kwargs["env"]["IDF_PATH"], str(resolved_sdk))
+                self.assertEqual(call.kwargs["env"]["IDF_PYTHON_ENV_PATH"],
+                                 str(lexical_interpreter.parent.parent))
+        self.assertEqual(runner.summary["sdk_python"], str(lexical_interpreter))
+        self.assertEqual(runner.summary["source_hashes_verified"], 1)
+        self.assertEqual(runner.summary["sdk"],
+                         {"tag": "v5.5.5", "commit": "synthetic fixture"})
+        self.assertEqual(runner.summary["object_bytes"], {"driver": 256, "adapter": 128})
+        self.assertEqual(invocations["sdk_python_version"].args[1][0], lexical_interpreter)
+        self.assertEqual(runner.tool.call_args_list.count(
+            mock.call("xtensa", "xtensa-esp32s3-elf-g++")), 1)
+
+    def test_twai_cli_rejects_all_disabled_constraint_spellings_before_tools(self):
+        args, runner = self.sdk_fixture()
+        for disabled in ("0", "n", "N", "no", "NO", "No", "nO"):
+            with self.subTest(disabled=disabled):
+                runner.reset_mock()
+                runner.summary = {}
+                self.assertEqual(self.run_twai_cli(
+                    args, runner, {"IDF_PYTHON_CHECK_CONSTRAINTS": disabled}), 1)
+                self.assertEqual(runner.summary["status"], "failed")
+                self.assertIn("dependency", runner.summary["error"])
+                runner.run.assert_not_called()
+                runner.tool.assert_not_called()
+
+    def test_twai_cli_rejects_changed_sdk_source_before_tools(self):
+        args, runner = self.sdk_fixture()
+        (args.idf_path / "transport/header.h").write_text("changed SDK bytes", encoding="utf-8")
+        self.assertEqual(self.run_twai_cli(args, runner), 1)
+        self.assertEqual(runner.summary["status"], "failed")
+        self.assertIn("transport/header.h", runner.summary["error"].replace("\\", "/"))
+        runner.run.assert_not_called()
+        runner.tool.assert_not_called()
+
     def test_idf_products_and_diagnostics_survive_disposable_build_without_sdk_cache(self):
         runner = checker.Runner(self.base / "retained evidence", "firmware-idf")
         products = {
@@ -296,6 +382,87 @@ class FirmwareBuildTests(unittest.TestCase):
         retained_elf = output / "MotorControlCANProbe.elf"
         self.assertEqual(summary["firmware_artifacts"]["idf"], str(retained_elf))
         self.assertTrue(Path(summary["firmware_artifacts"]["idf"]).is_file())
+
+    def test_idf_failed_build_retains_partial_sdk_diagnostics_after_temporary_cleanup(self):
+        runner = checker.Runner(self.base / "failed build evidence", "firmware-idf")
+        failure = checker.VerificationFailure("SDK compilation failed at original source")
+        products = {
+            "sdkconfig": b"CONFIG_IDF_TARGET_ESP32S3=y\n",
+            "log/idf_py_stderr_output_2": b"original SDK compiler error\n",
+            "CMakeCache.txt": b"retained configuration after failure\n",
+            "CMakeFiles/CMakeConfigureLog.yaml": b"configuration diagnosis\n",
+            "CMakeFiles/CMakeError.log": b"configure compiler error\n",
+        }
+        with tempfile.TemporaryDirectory(prefix="mccan-idf-failure-") as temporary:
+            build = Path(temporary) / "build"
+
+            def fail_build(*args, **kwargs):
+                for name, content in products.items():
+                    path = build / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(content)
+                raise failure
+
+            with mock.patch.object(runner, "run", side_effect=fail_build):
+                with self.assertRaises(checker.VerificationFailure) as caught:
+                    checker.idf_build(runner, ["synthetic-python", "idf.py"], {},
+                                      "idf", self.root, build)
+            self.assertIs(caught.exception, failure)
+        self.assertFalse(build.exists())
+        output = runner.directory / "idf"
+        for name, content in products.items():
+            with self.subTest(product=name):
+                self.assertEqual((output / name).read_bytes(), content)
+        self.assertEqual(runner.summary["sdk_build_evidence"]["idf"], str(output))
+        self.assertNotIn("idf", runner.summary.get("firmware_artifacts", {}))
+        self.assertFalse(list(output.glob("*.elf")))
+
+    def test_idf_missing_linked_image_retains_configuration_and_available_elf(self):
+        runner = checker.Runner(self.base / "invalid image evidence", "firmware-component")
+        with tempfile.TemporaryDirectory(prefix="mccan-idf-incomplete-") as temporary:
+            build = Path(temporary) / "build"
+            build.mkdir()
+            (build / "MotorControlCANConsumer.elf").write_bytes(b"synthetic linked ELF")
+            (build / "sdkconfig").write_text("CONFIG_IDF_TARGET_ESP32S3=y\n", encoding="utf-8")
+            with mock.patch.object(runner, "run", return_value="SDK build reported success"):
+                with self.assertRaisesRegex(checker.VerificationFailure, "ELF/BIN outputs"):
+                    checker.idf_build(runner, ["synthetic-python", "idf.py"], {},
+                                      "component", self.root, build)
+        output = runner.directory / "component"
+        self.assertEqual((output / "MotorControlCANConsumer.elf").read_bytes(), b"synthetic linked ELF")
+        self.assertTrue((output / "sdkconfig").is_file())
+        self.assertFalse((output / "MotorControlCANConsumer.bin").exists())
+        self.assertEqual(runner.summary["sdk_build_evidence"]["component"], str(output))
+
+    def test_idf_retention_failure_preserves_original_build_error(self):
+        runner = checker.Runner(self.base / "retention failure evidence", "firmware-idf")
+        failure = checker.VerificationFailure("original SDK build failure")
+        with tempfile.TemporaryDirectory(prefix="mccan-idf-retention-") as temporary:
+            build = Path(temporary) / "build"
+            build.mkdir()
+            (build / "sdkconfig").write_text("partial SDK configuration", encoding="utf-8")
+            with mock.patch.object(runner, "run", side_effect=failure), \
+                 mock.patch.object(checker.shutil, "copy2", side_effect=OSError("evidence disk full")):
+                with self.assertRaises(checker.VerificationFailure) as caught:
+                    checker.idf_build(runner, ["synthetic-python", "idf.py"], {},
+                                      "idf", self.root, build)
+            self.assertIs(caught.exception, failure)
+        self.assertIn("evidence disk full", runner.summary["evidence_errors"]["idf"])
+
+    def test_idf_retention_failure_after_success_is_a_failed_gate(self):
+        runner = checker.Runner(self.base / "successful build lost evidence", "firmware-idf")
+        failure = OSError("cannot retain firmware evidence")
+        with tempfile.TemporaryDirectory(prefix="mccan-idf-success-") as temporary:
+            build = Path(temporary) / "build"
+            build.mkdir()
+            (build / "Probe.elf").write_bytes(b"synthetic linked ELF")
+            (build / "Probe.bin").write_bytes(b"synthetic firmware BIN")
+            with mock.patch.object(runner, "run", return_value="SDK build success"), \
+                 mock.patch.object(checker.shutil, "copy2", side_effect=failure):
+                with self.assertRaises(OSError) as caught:
+                    checker.idf_build(runner, ["synthetic-python", "idf.py"], {},
+                                      "idf", self.root, build)
+            self.assertIs(caught.exception, failure)
 
 
 if __name__ == "__main__":

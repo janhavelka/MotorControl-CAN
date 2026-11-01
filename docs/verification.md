@@ -125,3 +125,9 @@ are independent and required for firmware changes. A successful host fake or
 TWAI archive build cannot replace any of the three real compile/link gates.
 The checker inspects actual compilation databases to prove shared sources were
 compiled. No gate flashes, monitors or opens a controller/serial port.
+
+Both SDK commands share source/version/virtualenv validation. The TWAI-only gate
+checks its own source manifest; firmware additionally checks the USB/time/task
+manifest. The selected virtualenv executable keeps its lexical path, and SDK
+constraint checks cannot be disabled. `firmware_build_contract` exercises both
+command boundaries and failed-build evidence retention without installing an SDK.

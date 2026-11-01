@@ -1,5 +1,11 @@
 # Requirement coverage after pure CAN/SDO checks
 
+The [independent 27/28 audit](reports/prompts_27_28_audit.md) strengthens R12/R17/R20/R28:
+captured ingress cannot overtake SDK handoff, invalid GPIOs fail before SDK calls,
+SDK command validation is shared, and failed IDF builds retain diagnostic
+evidence. These are host/compile corrections, with no new drive permission or
+physical qualification.
+
 The [fresh 25/26 audit](reports/prompts_25_26_audit.md) strengthens passive health
 history coverage: qualified expired PDO deliveries retain processing time while
 remaining insufficient for READY. Native application, retention and isolated

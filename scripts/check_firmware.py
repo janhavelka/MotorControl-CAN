@@ -62,7 +62,8 @@ def check_inputs(database, expected):
     return len(entries)
 
 
-def sdk_environment(args, runner):
+def sdk_environment(args, runner, manifests=("twai_sources.json", "esp_platform_sources.json")):
+    """Check the selected SDK scope without resolving away its Python virtualenv."""
     if not args.idf_path:
         raise VerificationFailure("Export IDF_PATH or supply --idf-path", "unavailable")
     sdk = args.idf_path.resolve()
@@ -74,15 +75,19 @@ def sdk_environment(args, runner):
         raise VerificationFailure("SDK dependency checks must remain enabled")
     env["IDF_PATH"] = str(sdk)
     env["IDF_PYTHON_ENV_PATH"] = str(python.parent.parent)
-    for manifest in ("twai_sources.json", "esp_platform_sources.json"):
+    verified = 0
+    for number, manifest in enumerate(manifests):
         pin = json.loads((ROOT / "docs/adapters" / manifest).read_text(encoding="utf-8"))
+        if number == 0:
+            runner.summary["sdk"] = pin["sdk"]
         for item in pin["sources"]:
             if hashlib.sha256((sdk / item["path"]).read_bytes()).hexdigest() != item["sha256"]:
                 raise VerificationFailure("SDK differs from reviewed source: " + item["path"])
+            verified += 1
     version = runner.run("idf_version", [python, sdk / "tools/idf.py", "--version"], timeout=60, env=env)
     if "ESP-IDF v5.5.5" not in version:
         raise VerificationFailure("Firmware requires ESP-IDF v5.5.5")
-    runner.summary["sdk"] = pin["sdk"]
+    runner.summary["source_hashes_verified"] = verified
     runner.summary["sdk_python"] = str(python)
     runner.run("sdk_python_version", [python, "--version"], timeout=20)
     runner.tool("xtensa", "xtensa-esp32s3-elf-g++")
@@ -90,20 +95,32 @@ def sdk_environment(args, runner):
 
 
 def idf_build(runner, command, env, name, project, build, options=()):
-    runner.run(name, [*command, "-C", project, "-B", build,
-                     "-DSDKCONFIG=" + (build / "sdkconfig").as_posix(), "-DIDF_TARGET=esp32s3",
-                     *options, "build"], timeout=600, env=env)
-    images = list(build.glob("*.elf"))
-    if len(images) != 1 or not (build / (images[0].stem + ".bin")).is_file():
-        raise VerificationFailure(name + " did not link real ELF/BIN outputs")
-    runner.summary.setdefault("firmware_artifacts", {})[name] = str(images[0])
-    runner.save()
+    failure = None
+    try:
+        runner.run(name, [*command, "-C", project, "-B", build,
+                         "-DSDKCONFIG=" + (build / "sdkconfig").as_posix(), "-DIDF_TARGET=esp32s3",
+                         *options, "build"], timeout=600, env=env)
+        images = list(build.glob("*.elf"))
+        if len(images) != 1 or not (build / (images[0].stem + ".bin")).is_file():
+            raise VerificationFailure(name + " did not link real ELF/BIN outputs")
+    except Exception as error:
+        failure = error
+        raise
+    finally:
+        # Preserve resolved configuration and SDK diagnostics before the short
+        # temporary build is removed, including when no image was produced.
+        try:
+            retain_idf(runner, name, build, failed=failure is not None)
+        except OSError as error:
+            if failure is None:
+                raise
+            runner.summary.setdefault("evidence_errors", {})[name] = str(error)
 
 
-def retain_idf(runner, name, build):
+def retain_idf(runner, name, build, failed=False):
     """Retain linked products/evidence, without keeping a machine-local SDK cache."""
     output = runner.directory / name
-    output.mkdir()
+    output.mkdir(exist_ok=True)
     for pattern in ("*.elf", "*.bin", "*.map", "compile_commands.json", "project_description.json", "sdkconfig"):
         for path in build.glob(pattern):
             shutil.copy2(path, output / path.name)
@@ -114,7 +131,17 @@ def retain_idf(runner, name, build):
             shutil.copy2(path, target)
     if (build / "log").is_dir():
         shutil.copytree(build / "log", output / "log")
-    runner.summary["firmware_artifacts"][name] = str(output / next(build.glob("*.elf")).name)
+    if failed:
+        for relative in ("CMakeCache.txt", "CMakeFiles/CMakeConfigureLog.yaml", "CMakeFiles/CMakeError.log"):
+            path = build / relative
+            if path.is_file():
+                target = output / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
+    runner.summary.setdefault("sdk_build_evidence", {})[name] = str(output)
+    images = list(output.glob("*.elf"))
+    if len(images) == 1:
+        runner.summary.setdefault("firmware_artifacts", {})[name] = str(images[0])
     runner.save()
 
 
@@ -159,7 +186,6 @@ def main():
                     build = Path(temporary) / "build"
                     idf_build(runner, command, env, "idf", ROOT / "examples/probe_idf", build)
                     runner.summary["idf_compile_entries"] = check_inputs(build / "compile_commands.json", common + core)
-                    retain_idf(runner, "idf", build)
             if args.target in ("component", "all"):
                 # Source directories live outside the checkout. Only the staged
                 # core and consumer are visible; SDK is the intentional dependency.
@@ -179,7 +205,6 @@ def main():
                     expected = list((component / "src").rglob("*.cpp")) + [consumer / "main/main.cpp"]
                     runner.summary["component_compile_entries"] = check_inputs(build / "compile_commands.json", expected)
                     runner.summary["component_inputs"] = [str(path.relative_to(isolated)) for path in expected]
-                    retain_idf(runner, "component", build)
         runner.summary["status"] = "passed"
         print("Firmware compile/link gates passed; no flashing, ports or physical traffic.")
     except (OSError, ValueError, KeyError, VerificationFailure) as error:

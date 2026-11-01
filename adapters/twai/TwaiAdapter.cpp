@@ -101,7 +101,10 @@ bool TwaiAdapter::retire(MotorControlCAN::CANOPEN::SdoTxId id, uint32_t epoch) n
 void TwaiAdapter::service(CanBusOwner& owner, uint64_t now) noexcept {
     if (haveTime_ && now < now_) {
         diagnostics_.inhibited = true;
-        owner.reportController(MotorControlCAN::CANOPEN::ControllerState::RECOVERING, now_);
+        // Explicit owner calls can advance time between adapter turns. A clock
+        // fault must invalidate at that authority, never a rejected older time.
+        owner.reportController(MotorControlCAN::CANOPEN::ControllerState::RECOVERING,
+                               owner.lastTimeUs());
         return;
     }
     now_ = now;

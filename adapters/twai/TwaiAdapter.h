@@ -88,7 +88,9 @@ class TwaiAdapter {
     bool shutdown() noexcept;
     /** @return Copied callbacks borrowing this stationary adapter for owner lifetime. */
     Transport transport() noexcept;
-    /** Bounded cooperative progression, supplied time only; backward time inhibits.
+    /** Bounded cooperative progression, supplied time only; backward time inhibits
+     * and invalidates owner evidence at its last accepted supplied time. It cannot
+     * retire an active SDK frame or settle that frame's remote effect.
      * @param owner Sole owner using transport() and the same service storage.
      * @param nowUs Nondecreasing monotonic microseconds, zero valid.
      */

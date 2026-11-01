@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Independent TWAI and firmware audit
+
+- Keep the final captured-RX/fault guard and SDK submission in one critical
+  section; a captured boot-up cannot enter between validation and handoff.
+- Invalidate backward adapter time using the owner's last accepted timestamp,
+  retaining uncertain active effects.
+- Bound GPIO numbers before the SDK's shifting macros and match host fixtures
+  to the pinned ESP32-S3 pin mask.
+- Share SDK virtualenv/source checks between compile gates, reject disabled
+  dependency checks, and retain partial IDF diagnostics on failure without
+  masking the original error. Add independent interleaving and failure regressions.
+
 ### Shared Arduino and ESP-IDF examples
 
 - Add thin ESP32-S3 Arduino and native-IDF startup around the existing application,
@@ -204,7 +216,7 @@ This repository contains planning/reference material and native service/API owne
   a fabricated capture time.
 
 - Clarified that SDO freshness premises cover individual segments during a transfer. Added toggle-wrap ambiguity counterexamples and all segmented-upload cancellation boundaries; corrected a test's caller-time order. No runtime state or device permission changed.
-- Split the original 20 implementation stages into 50 complete prompts numbered 1–50, with smaller scopes, explicit prerequisites and focused completion checks. Preserved original obligations in a scope map and historical archive.
+- Split the original 20 implementation stages into 50 complete prompts numbered 1â€“50, with smaller scopes, explicit prerequisites and focused completion checks. Preserved original obligations in a scope map and historical archive.
 - Moved owner/adapters before motion evidence, retained the early conditional experiment path, and separated CLI, runner and qualification work into bounded assignments.
 - Added targeted shared-contract reading, single-prompt/range execution instructions, a checked sequence manifest and regression checks for numbering, prerequisites, scope ownership and commit/sync closure.
 - Expanded every stage with concrete file/API contracts, failure cases, documentation duties and work splits.
@@ -225,7 +237,7 @@ This repository contains planning/reference material and native service/API owne
 
 - Fresh independent prompts 10-11 audit corrected a stale retained-proof unit/rounding comment and an ADS1115 source citation. Axis/reference arithmetic, CAN/SDO checks and isolated package consumption passed new independent probes and integrated verification; no executable change was needed.
 
-- Independent prompts 7–9 audit made quick-mode omissions explicit in verifier summaries, added a useful failure for empty tool-version output, and corrected stale package inventory and floating-environment documentation. Arithmetic and package consumption passed independent review.
+- Independent prompts 7â€“9 audit made quick-mode omissions explicit in verifier summaries, added a useful failure for empty tool-version output, and corrected stale package inventory and floating-environment documentation. Arithmetic and package consumption passed independent review.
 - Corrected the adapted directed binary64 conversion to check both neighboring directions; rare rounded-operand underestimates now return the closest toward-zero value, with independent regression vectors.
 - Allocated retained verifier directories atomically so equal Windows clock readings cannot collide; the retention regression now fixes the clock deliberately.
 - Preserved arbitrary 32-bit SDO abort words at the experimental C/C++ bridge without an invalid enum load, found by the new GCC/Clang UBSan jobs. Added upload/download high-bit regressions.

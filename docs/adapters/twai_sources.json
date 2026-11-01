@@ -107,6 +107,36 @@
       "path": "components/esp_hw_support/include/esp_intr_alloc.h",
       "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_hw_support/include/esp_intr_alloc.h",
       "sha256": "749853317ef0cf342d49bccff37c61db69250c9d1dfd9ceaca74d1a61e5c2581"
+    },
+    {
+      "path": "components/esp_driver_gpio/include/driver/gpio.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_gpio/include/driver/gpio.h",
+      "sha256": "41bc6adb2301355c5b40639ef57fdc5593a37637fdd06e59ddd648b40903a444"
+    },
+    {
+      "path": "components/soc/esp32s3/include/soc/gpio_num.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s3/include/soc/gpio_num.h",
+      "sha256": "269f36e5f61f82f88c447d9c7477b6dd4be3c9e5817ec671f3f929b91f11f4f7"
+    },
+    {
+      "path": "components/freertos/FreeRTOS-Kernel/event_groups.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/FreeRTOS-Kernel/event_groups.c",
+      "sha256": "5e1d21a871cc23a0fa493a9aa0d50dfd43abd67b06b9bcf87d8a6904b5c03f85"
+    },
+    {
+      "path": "components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c",
+      "sha256": "f7cfbbfe924f53c2c40801550d5a57867f58f76c68432efca97ae18fcec89ef8"
+    },
+    {
+      "path": "components/freertos/FreeRTOS-Kernel/portable/xtensa/include/freertos/portmacro.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/FreeRTOS-Kernel/portable/xtensa/include/freertos/portmacro.h",
+      "sha256": "80ff24959d8a900b7896d4fd3991344a2e100f3b8aacfbc787fe31df7bef8f77"
+    },
+    {
+      "path": "components/freertos/FreeRTOS-Kernel/include/freertos/task.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/FreeRTOS-Kernel/include/freertos/task.h",
+      "sha256": "8b908b964d2c87377838762478253eec04312b985e6bb680bacd3f03ab253897"
     }
   ],
   "documentation_urls": [

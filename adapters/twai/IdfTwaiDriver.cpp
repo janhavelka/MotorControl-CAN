@@ -44,8 +44,10 @@ bool IdfTwaiDriver::taskValid() const noexcept {
            xPortGetCoreID() == core_;
 }
 bool IdfTwaiDriver::start(const TwaiConfig& config, uint32_t epoch) noexcept {
+    // SDK GPIO validity macros shift by the pin; bound it before evaluating them.
     if (node_ || !epoch || !esp_ptr_internal(this) ||
         !esp_ptr_internal(reinterpret_cast<const uint8_t*>(this) + sizeof(*this) - 1) ||
+        config.txPin >= GPIO_NUM_MAX || config.rxPin >= GPIO_NUM_MAX ||
         !GPIO_IS_VALID_OUTPUT_GPIO(config.txPin) || !GPIO_IS_VALID_GPIO(config.rxPin) ||
         config.txPin == config.rxPin || !config.bitrate || config.sdkTxQueueDepth != 1 ||
         config.samplePointPermill >= 1000 || !config.rxQueueDepth ||
@@ -136,8 +138,9 @@ bool IdfTwaiDriver::submit(const MotorControlCAN::Frame& frame, uint32_t serial)
         portEXIT_CRITICAL(&mux_);
         return false;
     }
-    // Publish all fields borrowed by the ISR before allowing submission. The
-    // same critical section also makes ISR-owned flags visible to this task.
+    // Keep the final captured-RX/fault guard and SDK handoff indivisible to this
+    // core's ISR. The pinned SDK's single-outstanding path only nests its event
+    // lock and starts HAL TX; it does not wait or call callbacks synchronously.
     tx_ = twai_frame_t();
     tx_.header.id = frame.id;
     tx_.header.dlc = frame.dlc;
@@ -149,13 +152,10 @@ bool IdfTwaiDriver::submit(const MotorControlCAN::Frame& frame, uint32_t serial)
         txBytes_[i] = frame.data[i];
     serial_ = serial;
     pending_ = true;
-    portEXIT_CRITICAL(&mux_);
     lastError_ = twai_node_transmit(node_, &tx_, 0);
-    if (lastError_ != ESP_OK) {
-        portENTER_CRITICAL(&mux_);
+    if (lastError_ != ESP_OK)
         pending_ = false;
-        portEXIT_CRITICAL(&mux_);
-    }
+    portEXIT_CRITICAL(&mux_);
     return lastError_ == ESP_OK;
 }
 TwaiEvents IdfTwaiDriver::events() noexcept {

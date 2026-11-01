@@ -545,6 +545,45 @@ void rawErrorsRemainDiagnosticAndSaturate() {
     CHECK(r.adapter.diagnostics().busErrors == UINT32_MAX && r.sdk.submits == 0);
 }
 
+void backwardClockInvalidatesAtLatestOwnerTime() {
+    Rig r;
+    M::Frame heartbeat = frame(0x701, 1);
+    heartbeat.data[0] = 5;
+    r.sdk.push(heartbeat);
+    r.turn(100);
+    const auto request = r.request(1, true, 1000, 1000);
+    r.turn(101);
+    CHECK(r.sdk.submits == 1 && r.sdk.active);
+    // A public owner action can accept a later time between adapter turns.
+    CHECK(r.owner.reportController(C::ControllerState::AVAILABLE, 200));
+    CHECK(r.services.node(0)->heartbeat.present);
+    const uint32_t generation = r.services.node(0)->route.generation;
+    r.adapter.service(r.owner, 99);
+    CHECK(r.adapter.diagnostics().inhibited && r.owner.resources().inhibited);
+    CHECK(r.services.controllerState() == C::ControllerState::RECOVERING);
+    CHECK(r.owner.lastTimeUs() == 200 && r.services.node(0)->boundaryUs == 200);
+    CHECK(r.services.node(0)->route.generation > generation);
+    CHECK(!r.services.node(0)->heartbeat.present);
+    const E::Completion* terminal = r.owner.result(request);
+    CHECK(terminal && terminal->service.outcome == C::SdoOutcome::BINDING_INVALIDATED);
+    CHECK(terminal->service.completedUs == 200 && terminal->service.transfer.deadlineUs == 1000);
+    CHECK(terminal->service.transmissionPossible && terminal->service.effectPossible &&
+          terminal->service.effectUncertain && !terminal->service.protocolAcknowledged);
+    // Local inhibition cannot prove an already submitted write was retired.
+    CHECK(r.sdk.active && r.sdk.live && r.sdk.stops == 0 && r.sdk.starts == 1);
+    uint8_t retained[sizeof(E::Completion)];
+    std::memcpy(retained, terminal, sizeof retained);
+    const unsigned events = r.sdk.eventCalls;
+    for (uint64_t bad = 98; bad > 95; --bad) {
+        r.adapter.service(r.owner, bad);
+        CHECK(r.owner.result(request) == terminal);
+        CHECK(!std::memcmp(retained, terminal, sizeof retained));
+        CHECK(r.owner.lastTimeUs() == 200 && r.services.node(0)->boundaryUs == 200);
+        CHECK(r.sdk.active && r.sdk.submits == 1 && r.sdk.stops == 0 && r.sdk.starts == 1);
+        CHECK(r.sdk.eventCalls == events);
+    }
+}
+
 struct BlockedConsole {
     unsigned reads = 0, writes = 0;
     static bool read(void* p, uint8_t& out) {
@@ -602,6 +641,7 @@ int main() {
     frameShapesAndBoundedReceive();
     unreadBootupPreventsAnOldHandoffFromTransmitting();
     rawErrorsRemainDiagnosticAndSaturate();
+    backwardClockInvalidatesAtLatestOwnerTime();
     sharedApplicationKeepsServingUnderPressure();
     std::printf("TWAI adapter: %u checks; host sizeof(TwaiAdapter)=%zu\n", checks,
                 sizeof(E::TwaiAdapter));

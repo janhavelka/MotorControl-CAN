@@ -6,14 +6,13 @@ from SDK-free quick/full host verification; it never downloads dependencies.
 """
 
 import argparse
-import hashlib
-import json
 import os
 import re
 from pathlib import Path
 import sys
 
 from verify import ROOT, Runner, VerificationFailure
+from check_firmware import sdk_environment
 
 
 def main():
@@ -24,32 +23,10 @@ def main():
     args = parser.parse_args()
     runner = Runner(args.build_dir, "twai-sdk-compile")
     try:
-        if not args.idf_path:
-            raise VerificationFailure("Export IDF_PATH or supply --idf-path", "unavailable")
-        sdk = args.idf_path.resolve()
-        python = args.idf_python.resolve()
-        env = os.environ.copy()
-        if env.get("IDF_PYTHON_CHECK_CONSTRAINTS", "yes") == "no":
-            raise VerificationFailure("SDK dependency constraint checking must remain enabled")
-        env["IDF_PATH"] = str(sdk)
-        env["IDF_PYTHON_ENV_PATH"] = str(python.parent.parent)
-        manifest = json.loads((ROOT / "docs/adapters/twai_sources.json").read_text(encoding="utf-8"))
-        for source in manifest["sources"]:
-            path = sdk / source["path"]
-            if hashlib.sha256(path.read_bytes()).hexdigest() != source["sha256"]:
-                raise VerificationFailure("SDK source differs from reviewed pin: " + str(path))
-        runner.summary["sdk"] = manifest["sdk"]
-        runner.summary["source_hashes_verified"] = len(manifest["sources"])
-        runner.save()
-        runner.run("python_version", [python, "--version"], timeout=20, env=env)
-        version = runner.run("idf_version", [python, sdk / "tools/idf.py", "--version"],
-                             timeout=60, env=env)
-        if "ESP-IDF v5.5.5" not in version:
-            raise VerificationFailure("Expected ESP-IDF v5.5.5")
+        command, env = sdk_environment(args, runner, manifests=("twai_sources.json",))
         runner.tool("cmake", "cmake")
-        runner.tool("xtensa", "xtensa-esp32s3-elf-g++")
         build = runner.directory / "build"
-        runner.run("configure", [python, sdk / "tools/idf.py", "-C", ROOT / "test/twai_sdk_compile",
+        runner.run("configure", [*command, "-C", ROOT / "test/twai_sdk_compile",
                                  "-B", build, "-DSDKCONFIG=" + (build / "sdkconfig").as_posix(),
                                  "-DIDF_TARGET=esp32s3", "reconfigure"], timeout=180, env=env)
         runner.run("compile", ["cmake", "--build", build, "--target", "__idf_main", "--parallel", "2"],
