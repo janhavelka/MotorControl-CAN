@@ -29,7 +29,7 @@ struct Health {
     bool lastErrorKnown = false; ///< Makes lastErrorUs meaningful, including zero.
     MotorControlCAN::Status
         lastError; ///< Last failed service; detail is SdoOutcome, full abort stays in history.
-    uint64_t lastSeenUs = 0;    ///< Latest checked endpoint delivery time, not wire capture time.
+    uint64_t lastSeenUs = 0;    ///< Checked delivery us, including qualified expired PDOs.
     bool lastSeenKnown = false; ///< Makes lastSeenUs meaningful; does not qualify freshness alone.
     DriverState state =
         DriverState::UNINIT; ///< Passive projection at latest supplied health-refresh time.

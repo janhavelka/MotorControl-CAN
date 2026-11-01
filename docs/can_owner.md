@@ -344,7 +344,10 @@ An evidenced heartbeat expiry has priority even if other traffic is present.
 Timestamp zero is valid when its known flag is true. Success/failure timestamps
 are terminal processing times. `lastSeenUs` is the latest checked endpoint
 delivery/processing time; it is not a substitute for qualified wire capture
-time. The adapter retains capture-time/generation facts separately.
+time. The adapter retains capture-time/generation facts separately. A checked,
+currently qualified PDO delivered after its capture-age limit still updates
+`lastSeenUs`; it cannot establish READY. Unqualified, revoked-map, malformed and
+unknown-capture PDO samples cannot update that delivery history.
 
 One completed attempted SDO upload/download counts once, including every
 segment. A multi-object read or motion operation adds no extra owner total.

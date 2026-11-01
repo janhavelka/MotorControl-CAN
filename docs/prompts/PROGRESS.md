@@ -1,5 +1,10 @@
 # Prompt execution progress
 
+A [fresh independent prompts 25/26 audit](../reports/prompts_25_26_audit.md)
+corrects lost delivery history for qualified expired PDO samples. Capture age
+still gates READY; service counters, uncertainty and stage blockers are unchanged.
+Application/retention/package review found no additional confirmed defect.
+
 Prompt 24 implements its [urgent/cancel/recovery owner mechanisms](../reports/prompt_24.md)
 over the existing single service store. Its status remains Partial only because
 23 inherits 19/Q20's non-consuming probe gate. That gate does not defer any

@@ -772,6 +772,29 @@ void requalifiedPdoDoesNotPromoteRetainedSample() {
     CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 4);
     CHECK(r.services.pdo(0)->observation.evidenceId == 102);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
+
+    // A checked current-qualified sample can arrive too late for READY. Its
+    // delivery remains historical evidence, independently of capture freshness.
+    CHECK(r.services.setServiceAge(0, 5, 4));
+    r.fake.push(frame(0x281), 5);
+    r.turn(11, budget(1, 0, 0, 0));
+    CHECK(r.services.pdo(0)->observation.time.receivedUs == 5 &&
+          r.services.pdo(0)->observation.time.processedUs == 11);
+    CHECK(r.health().lastSeenKnown && r.health().lastSeenUs == 11);
+    CHECK(r.health().state == E::DriverState::UNINIT && r.health().totalSuccess == 0 &&
+          r.health().totalFailures == 0);
+    const uint32_t unmatched = r.owner.stats().unmatchedFrames;
+    r.fake.push(frame(0x281, 7), 12); // Wrong mapped payload length.
+    r.turn(12, budget(1, 0, 0, 0));
+    r.fake.push(frame(0x281), 13, false); // Capture time cannot qualify this PDO.
+    r.turn(13, budget(1, 0, 0, 0));
+    CHECK(r.owner.stats().unmatchedFrames == unmatched + 2);
+    CHECK(r.health().lastSeenKnown && r.health().lastSeenUs == 11 &&
+          r.health().state == E::DriverState::UNINIT);
+    r.fake.push(frame(0x281), 14);
+    r.turn(14, budget(1, 0, 0, 0));
+    CHECK(r.health().lastSeenUs == 14 && r.health().state == E::DriverState::READY);
+    CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
 }
 
 void recoveryTimeoutAndCounterSaturation() {

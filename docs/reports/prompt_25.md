@@ -1,5 +1,9 @@
 # Prompt 25 - passive health, statistics and diagnostics
 
+The [fresh independent 25/26 audit](prompts_25_26_audit.md) fixes qualified expired
+PDO delivery history while preserving capture freshness and uncertainty rules.
+Its new regression and integrated verification supplement this original record.
+
 Date: 2026-11-01. Promptset v2 continues on `promptset/motorcontrol-can`, upstream
 `origin/promptset/motorcontrol-can`, original base `7878f7c`. Entry
 `3172483` had a clean worktree/index; fresh fetch showed 0 ahead/0 behind.

@@ -91,8 +91,10 @@ void CanBusOwner::refreshHealth(uint64_t now) noexcept {
                     continue;
                 C::PdoFreshness freshness;
                 if (!C::pdoFreshness(*value, now, node->maximumEvidenceAgeUs, freshness) ||
-                    freshness != C::PdoFreshness::FRESH)
+                    (freshness != C::PdoFreshness::FRESH && freshness != C::PdoFreshness::EXPIRED))
                     continue;
+                // A qualified late delivery is history; observe() checks capture age
+                // separately before it can establish current communication evidence.
                 C::ObservationTime time = value->observation.time;
                 // PDO time's generation is its mapping epoch, already checked by the store.
                 time.generation = node->route.generation;

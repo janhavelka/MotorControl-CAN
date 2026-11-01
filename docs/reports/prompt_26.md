@@ -1,5 +1,9 @@
 # Prompt 26 - native examples and shared application
 
+The [fresh independent 25/26 audit](prompts_25_26_audit.md) rechecks actual native,
+application, package and lifetime behavior. It fixes an owner health-history gap;
+no additional application defect or support claim was found.
+
 Date: 2026-11-01. Same promptset v2, original base `7878f7c`, branch
 `promptset/motorcontrol-can`, upstream `origin/promptset/motorcontrol-can`.
 Entry `fce1a25` had clean worktree/index; fresh fetch showed 0 ahead/0 behind.

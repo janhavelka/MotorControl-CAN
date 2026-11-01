@@ -1,5 +1,10 @@
 # Requirement coverage after pure CAN/SDO checks
 
+The [fresh 25/26 audit](reports/prompts_25_26_audit.md) strengthens passive health
+history coverage: qualified expired PDO deliveries retain processing time while
+remaining insufficient for READY. Native application, retention and isolated
+consumer checks were repeated; no hardware or new profile support is claimed.
+
 The [requirements matrix](requirements_matrix.md) owns the full acceptance criteria.
 This ledger tracks the actual milestone evidence and retains every requirement ID
 and its current prompt owners. The [source map](source_map.md) and

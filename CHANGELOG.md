@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Corrected passive PDO delivery history
+
+- Retain checked delivery time for a qualified PDO whose capture is already
+  expired. Its stale capture cannot establish READY or change service counters;
+  revoked mapping samples and malformed input remain excluded.
+
 ### Native application examples
 
 - Shared example-only ProbeApp/ProbePlatform now connect explicit typed reads,
