@@ -26,6 +26,19 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 
 ## Typed raw reads (prompt 19)
 
+Prompt 26 layers the [shared native application](native_application.md) over these
+public reads. The [ProbeApp declaration](../examples/common/ProbeApp.h) and
+[implementation](../examples/common/ProbeApp.cpp) own selection and explicit
+typed stepping. [ProbePlatform](../examples/common/ProbePlatform.h) and its
+[implementation](../examples/common/ProbePlatform.cpp) own bounded byte/time
+facilities without a CAN receiver. The [native caller](../examples/native_probe/main.cpp)
+and [focused integration suite](../test/probe_app_test.cpp) use the existing owner;
+[FakeTransport](../examples/native_probe/FakeTransport.cpp) only supplies synthetic
+frames. The existing [units preview](../examples/units_preview/main.cpp) remains
+the offline exact-target caller. The [package contract](../test/package_test.py)
+copies these applications outside the checkout and compiles against installed
+public headers/library only; no sibling/SDK/private core dependency is introduced.
+
 Prompt 20 adds [DriverSettings.h](../include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h)
 and three fixed plans in the same [read implementation](../src/profiles/lichuan_c/Reads.cpp).
 [Driver tests](../test/driver_settings_test.cpp), the

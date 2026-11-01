@@ -61,7 +61,7 @@ that support claim. Reference/data verification is not driver testing.
 | R14 | 21-25, 29-36, 47-48 | Prompt 21 decodes documentary DI function/polarity separately from raw output registers and logical monitor levels. Wiring/electrical knowledge and method prerequisites remain independent; explicit DI reassignment is implemented with partial-effect/readback/invalidation tests; no output action is implemented. |
 | R15 | 21-22, 29, 32-36, 47-48 | Pending |
 | R16 | 37-39 | Pending |
-| R17 | 26-28, 40-42, 49-50 | Pending |
+| R17 | 26-28, 40-42, 49-50 | Prompt 26 implements framework-free offline units and fake native read examples plus bounded shared ProbeApp/ProbePlatform. Real controller/firmware and CLI remain later work; fake results are not physical qualification. |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Pending |
 | R20 | 7-28, 30-46, 49-50 | Forty-four explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 42; full runs 43 plus a retained package contract. Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current owner integration is in [prompt 23](reports/prompt_23.md), tuning/control is in [prompt 22](reports/prompt_22.md), and preceding settings evidence in the [fresh settings audit](reports/prompts_20_21_audit.md). |

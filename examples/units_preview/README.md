@@ -12,10 +12,21 @@ unknown and unused. A 5 mm load target is exactly 1536 command increments; its
 illustrative feedback displacement is 768 encoder counts. The route uses address
 500 and subaxis 256 independently of logical axis 9.
 
-The preview also shows the exact native request `1/10` quantized to binary32 with
-an explicit error allowance, rejects zero allowance for that inexact value, and
-prepares native signed velocity `-70000` command increments/second. These are
-arithmetic results, not drive permission or completion evidence.
+The preview rejects a request bearing configuration generation 2 against the
+supplied generation 1, checks `AxisError::STALE_GENERATION`, and verifies that
+the output's `effectiveNative` sentinel remains `-123456789`. This demonstrates
+failure handling without changing the successful target.
+
+It also shows the exact native request `1/10` quantized to binary32 with an
+explicit error allowance, rejects zero allowance for that inexact value while
+retaining the prior prepared float and allowance, and prepares native signed
+velocity `-70000` command increments/second. These are arithmetic results, not
+drive permission or completion evidence. The process returns zero only when
+the expected success, rejection and retained-output checks pass.
+
+Expected output includes `1536` command increments, `768/1` encoder counts,
+the unchanged sentinel, a binary32 value near `0.100000001`, a zero-allowance
+rejection, and velocity `-70000`. No supplied configuration is a CL86-C default.
 
 ## Build from the source tree
 

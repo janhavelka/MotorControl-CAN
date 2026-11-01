@@ -7,9 +7,10 @@ using namespace MotorControlCAN;
 
 namespace {
 bool checked(Status status, const char* operation) {
-    if (status) return true;
-    std::fprintf(stderr, "%s failed: %s (%" PRId32 "): %s\n", operation,
-        errToString(status.code), status.detail, status.msg);
+    if (status)
+        return true;
+    std::fprintf(stderr, "%s failed: %s (%" PRId32 "): %s\n", operation, errToString(status.code),
+                 status.detail, status.msg);
     return false;
 }
 
@@ -24,6 +25,7 @@ AxisConfig illustrativeAxis() {
     axis.units.commandStepsPerMotorTurn = UnitScale(4096, 1, ScaleSource::ASSUMED);
     axis.units.motorTurnsPerLoadTurn = UnitScale(3, 2, ScaleSource::ASSUMED);
     axis.units.encoder.countsPerUnit = UnitScale(2048, 1, ScaleSource::ASSUMED);
+    axis.units.encoder.basis = EncoderBasis::MOTOR_TURN;
     axis.units.encoder.sourceId = 7;
     axis.units.millimetresPerLoadTurn = UnitScale(20, 1, ScaleSource::ASSUMED);
     axis.originKnown = true;
@@ -34,11 +36,12 @@ AxisConfig illustrativeAxis() {
 
 int main() {
     const AxisConfig axis = illustrativeAxis();
-    if (!checked(validateAxisConfig(axis), "illustrative configuration")) return 1;
+    if (!checked(validateAxisConfig(axis), "illustrative configuration"))
+        return 1;
     std::puts("Offline illustrative arithmetic; no drive or controller is opened.");
     std::printf("Logical axis %" PRIu32 ": illustrative endpoint %" PRIu32 ", subaxis %u\n",
-        axis.binding.logicalAxisId, axis.binding.endpoint.address,
-        static_cast<unsigned>(axis.binding.endpoint.subaxis));
+                axis.binding.logicalAxisId, axis.binding.endpoint.address,
+                static_cast<unsigned>(axis.binding.endpoint.subaxis));
 
     PositionRequest position;
     position.value = Rational(5);
@@ -46,19 +49,37 @@ int main() {
     position.frame = CoordinateFrame::LOAD;
     position.configurationGeneration = axis.binding.configurationGeneration;
     PreparedTarget target;
-    if (!checked(preparePosition(position, axis, nullptr, target), "load position")) return 1;
+    if (!checked(preparePosition(position, axis, nullptr, target), "load position"))
+        return 1;
     std::printf("Load 5 mm -> exact command endpoint %" PRId64 " + %" PRIu64 "/%" PRIu64
                 "; effective integer %" PRId64 "\n",
-        target.requestedNative.integral, target.requestedNative.numerator,
-        target.requestedNative.denominator, target.effectiveNative);
-    if (target.effectiveNative != 1536) return 2;
+                target.requestedNative.integral, target.requestedNative.numerator,
+                target.requestedNative.denominator, target.effectiveNative);
+    if (target.effectiveNative != 1536)
+        return 2;
 
     Rational feedback;
     if (!checked(convertDisplacement(Rational(5), PositionUnit::MILLIMETRES,
-            PositionUnit::ENCODER_COUNTS, axis.units, feedback), "independent feedback scale")) return 1;
+                                     PositionUnit::ENCODER_COUNTS, axis.units, feedback),
+                 "independent feedback scale"))
+        return 1;
     std::printf("Same illustrative displacement -> %" PRId64 "/%" PRIu64 " encoder counts\n",
-        feedback.numerator, feedback.denominator);
-    if (feedback.numerator != 768 || feedback.denominator != 1) return 2;
+                feedback.numerator, feedback.denominator);
+    if (feedback.numerator != 768 || feedback.denominator != 1)
+        return 2;
+
+    PositionRequest stalePosition = position;
+    stalePosition.configurationGeneration = 2;
+    PreparedTarget sentinel;
+    sentinel.effectiveNative = -123456789;
+    const Status stale = preparePosition(stalePosition, axis, nullptr, sentinel);
+    if (stale.code != Err::INVALID_CONFIG ||
+        stale.detail != static_cast<int32_t>(AxisError::STALE_GENERATION) ||
+        sentinel.effectiveNative != -123456789)
+        return 2;
+    std::printf("Stale configuration rejected: %s (%" PRId32 "); output sentinel %" PRId64
+                " unchanged\n",
+                errToString(stale.code), stale.detail, sentinel.effectiveNative);
 
     AxisConfig floatAxis = illustrativeAxis();
     floatAxis.positionRepresentation = NativeRepresentation::BINARY32;
@@ -66,21 +87,27 @@ int main() {
     position.unit = PositionUnit::STEPS;
     position.frame = CoordinateFrame::NATIVE;
     position.maximumQuantizationError = Rational(1, 100000000);
-    if (!checked(preparePosition(position, floatAxis, nullptr, target), "binary32 position")) return 1;
+    if (!checked(preparePosition(position, floatAxis, nullptr, target), "binary32 position"))
+        return 1;
     std::printf("Native exact 1/10 -> binary32 %.9g; absolute error bound %.17g"
                 " (allowance 1/100000000)\n",
-        static_cast<double>(target.effectiveFloat), target.absoluteErrorBound);
+                static_cast<double>(target.effectiveFloat), target.absoluteErrorBound);
     position.maximumQuantizationError = Rational(0);
+    const float retainedFloat = target.effectiveFloat;
     const Status rejected = preparePosition(position, floatAxis, nullptr, target);
-    if (rejected) return 2;
+    if (rejected || target.effectiveFloat != retainedFloat ||
+        target.requested.maximumQuantizationError.numerator != 1 ||
+        target.requested.maximumQuantizationError.denominator != 100000000)
+        return 2;
     std::printf("Zero binary32 error allowance rejects 1/10: %s (%" PRId32 ")\n",
-        errToString(rejected.code), rejected.detail);
+                errToString(rejected.code), rejected.detail);
 
     VelocityRequest velocity;
     velocity.value = Rational(-70000);
     velocity.configurationGeneration = axis.binding.configurationGeneration;
     PreparedVelocityTarget rate;
-    if (!checked(prepareVelocityTarget(velocity, axis, rate), "wide signed velocity")) return 1;
+    if (!checked(prepareVelocityTarget(velocity, axis, rate), "wide signed velocity"))
+        return 1;
     std::printf("Native velocity %" PRId64 " command increments/second\n", rate.effectiveNative);
     return rate.effectiveNative == -70000 ? 0 : 2;
 }

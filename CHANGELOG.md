@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Native application examples
+
+- Shared example-only ProbeApp/ProbePlatform now connect explicit typed reads,
+  bounded input/output and retained owner completions. Native fake mode exercises
+  the ordinary receive path with interleaved passive traffic and supplied time.
+- The existing offline units preview demonstrates a rejected stale target and
+  unchanged output. Isolated installed-core consumers build both examples;
+  no SDK, sibling checkout or hardware is required. No motion or CLI is added.
+
 ### Passive owner health and statistics
 
 - Add cached binding health with explicit timestamp validity, service totals,

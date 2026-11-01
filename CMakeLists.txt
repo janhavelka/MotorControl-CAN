@@ -48,6 +48,7 @@ endif()
 if(MOTORCONTROLCAN_BUILD_EXAMPLES AND MOTORCONTROLCAN_BUILD_CANOPENNODE)
     add_subdirectory(examples/common)
     add_subdirectory(examples/owner_preview)
+    add_subdirectory(examples/native_probe)
 endif()
 
 # Source distributions omit repository tests and never need Python or the stack.

@@ -143,6 +143,61 @@ def check_package(args, work, summary):
                "-DMOTORCONTROLCAN_EXPECTED_VERSION=" + version,
                "-DMOTORCONTROLCAN_HEADERS_DIR=" + str(relocated / "sdk/include"))
     consumer(work / "installed consumer", *options)
+    # Copy only the application/adapter fixture and its pinned stack. Portable
+    # headers/library must come from the relocated install, never the checkout.
+    probe = work / "native probe consumer"
+    copied = {
+        "common": ("examples/common", ["CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp",
+                    "OwnerCounters.h", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp"]),
+        "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
+        "units": ("examples/units_preview", ["main.cpp"]),
+        "adapter": ("adapters/canopennode", ["SdoClient.h", "SdoClient.cpp", "NetworkState.h", "Network.cpp",
+                     "Nmt.h", "Nmt.cpp", "PdoState.h", "Pdo.cpp", "CO_driver_target.h", "Driver.cpp"]),
+    }
+    for destination, (relative, names) in copied.items():
+        (probe / destination).mkdir(parents=True)
+        for name in names:
+            shutil.copyfile(ROOT / relative / name, probe / destination / name)
+    shutil.copytree(ROOT / "experiments/canopen_service_fit/vendor/CANopenNode", probe / "stack")
+    (probe / "CMakeLists.txt").write_text('''cmake_minimum_required(VERSION 3.19)
+project(IsolatedProbe LANGUAGES C CXX)
+find_package(MotorControlCAN CONFIG REQUIRED)
+add_library(stack STATIC stack/301/CO_SDOclient.c stack/301/CO_NMT_Heartbeat.c
+    stack/301/CO_ODinterface.c stack/301/CO_fifo.c adapter/Driver.cpp)
+target_include_directories(stack PUBLIC stack adapter)
+add_library(adapter STATIC adapter/SdoClient.cpp adapter/Network.cpp adapter/Nmt.cpp adapter/Pdo.cpp)
+target_include_directories(adapter PUBLIC adapter)
+target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
+add_library(app STATIC common/CanBusOwner.cpp common/CanBusDiagnostics.cpp common/ProbeApp.cpp common/ProbePlatform.cpp)
+target_include_directories(app PUBLIC common)
+target_link_libraries(app PUBLIC adapter)
+add_executable(native_probe native/main.cpp native/FakeTransport.cpp)
+target_link_libraries(native_probe PRIVATE app)
+add_executable(units_preview units/main.cpp)
+target_link_libraries(units_preview PRIVATE MotorControlCAN::MotorControlCAN)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp" "#include <ProbeApp.h>\\n")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePlatform.h>\\n")
+add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
+    "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
+target_link_libraries(probe_headers PRIVATE app)
+foreach(target stack adapter app native_probe units_preview probe_headers)
+    set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4;/WX>)
+    else()
+        target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-Wpedantic;-Werror;-pedantic-errors>)
+    endif()
+endforeach()
+enable_testing()
+add_test(NAME native_probe COMMAND native_probe --fake)
+add_test(NAME units_preview COMMAND units_preview)
+set_tests_properties(native_probe units_preview PROPERTIES TIMEOUT 10)
+''', encoding="utf-8")
+    probe_build = work / "native probe build"
+    run(*base, "-S", str(probe), "-B", str(probe_build), "-DCMAKE_PREFIX_PATH=" + str(relocated))
+    run(cmake, "--build", str(probe_build))
+    run(str(Path(cmake).with_name("ctest.exe" if os.name == "nt" else "ctest")),
+        "--test-dir", str(probe_build), "--output-on-failure", "--no-tests=error")
     # Profile numeric metadata has no required descriptive catalogue dependency.
     catalogue = relocated / "sdk/include/MotorControlCAN/profiles/lichuan_c/Catalogue.h"
     original_catalogue = catalogue.read_bytes()
@@ -173,7 +228,8 @@ def check_package(args, work, summary):
         'add_subdirectory("' + source.as_posix() + '" core)\n', encoding="utf-8")
     run(*base, "-S", str(component), "-B", str(work / "idf build"))
     run(cmake, "--build", str(work / "idf build"))
-    print("PASS: exported source, independent headers, C++11/C++17/no-RTTI, relocated install, missing dependency, IDF CMake boundary")
+    print("PASS: exported source, independent headers, C++11/C++17/no-RTTI, relocated install, "
+          "isolated native applications, missing dependency, IDF CMake boundary")
 
 
 def main():

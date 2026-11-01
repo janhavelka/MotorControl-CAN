@@ -1,5 +1,10 @@
 # MotorControl-CAN documentation
 
+For native callers, start with the [shared application](native_application.md),
+[offline units preview](../examples/units_preview/README.md) and
+[fake native probe](../examples/native_probe/README.md). They exercise current
+public APIs without a framework, command parser or physical controller.
+
 Execution has completed prompts 1-17, including the [native service fit experiment](reports/prompt_5.md) and [common API/ownership proof](reports/prompt_6.md), on the recorded execution branch. The [minimal native package](getting_started.md) provides status, exact units/quantization, pure axis/reference targets, endpoint, Classical frame validation and pure checked CANopen SDO/network envelopes. Reviewed Lichuan descriptors are available as metadata; no operational drive profile exists yet. The [verification guide](verification.md) documents working local/CI gates; gate results are recorded in the [prompt 8 report](reports/prompt_8.md), with production API results in the [prompt 9 report](reports/prompt_9.md), [axis report](reports/prompt_10.md) and [CAN/SDO report](reports/prompt_11.md). Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its source audit and original-byte checks are recorded in prompt 1.
 
 | Material | Purpose |

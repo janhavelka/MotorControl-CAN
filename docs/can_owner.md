@@ -1,5 +1,10 @@
 # Application CAN owner contract
 
+The [shared native application](native_application.md) now layers explicit typed
+reads and bounded platform I/O over this same owner. It leaves terminal service
+results available for inspection until explicit advancement/release and provides
+no additional CAN receive path.
+
 The working application owner is
 [`MotorControlCANExample::CanBusOwner`](../examples/common/CanBusOwner.h),
 implemented in [CanBusOwner.cpp](../examples/common/CanBusOwner.cpp).

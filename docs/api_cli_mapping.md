@@ -21,6 +21,13 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 26 adds example `ProbeApp` selection, explicit `requestIdentity` and
+`requestConfig`, `service`, `advanceRead`, checked `getIdentity/getConfig`,
+concrete `readContext` inspection and explicit `releaseRead`. It uses the
+existing owner `result/release` lifecycle. [The shared application](native_application.md)
+contains no command parser or live startup procedure; future CLI routes must
+invoke these public paths instead of adding a second receiver.
+
 Prompt 25 implements application `Health`, `DriverState`, `Stats`, checked
 `health/driverState`, cached `stats/resources`, local `clearStats`, explicit
 host heartbeat-age policy and bounded `takeDiagnostic` copies. Their rules are

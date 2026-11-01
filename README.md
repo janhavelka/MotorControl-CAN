@@ -1,5 +1,12 @@
 # MotorControl-CAN
 
+**Native application:** the [fake native probe](examples/native_probe/README.md)
+uses shared ProbeApp/ProbePlatform code, ordinary owner dispatch, explicit typed
+identity/configuration reads and retained results. The [units preview](examples/units_preview/README.md)
+shows exact offline targets, rejection and preserved output. See the
+[application boundary](docs/native_application.md) for bounded I/O and ownership.
+No framework, CLI or hardware is required; fake values qualify no device.
+
 **Application owner:** [dispatch and retained results](docs/can_owner.md)
 now work over the existing CANopen adapter, with one receive path, bounded
 producer scheduling and typed read/settings integration. The

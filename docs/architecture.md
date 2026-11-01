@@ -17,7 +17,7 @@ the target repository layout; this document governs the narrower proven boundary
 | Concrete profile operations | Typed native reads, checked conversion, explicit prepare/next/advance sequences and context terminal evidence | Common values and protocol work/evidence values |
 | Protocol service adapter | Wire correlation, selected client lifecycle, raw protocol errors | Common descriptors and optional CANopenNode, outside the installed pure core |
 | Application CAN owner | One RX dispatcher, time, reservations, queues, controller handoff, retained results and raw observations | Core plus selected protocol/controller adapters |
-| Shared probe application | CLI, policy, health, persistence, board configuration and runners | Public operations and application owner |
+| Shared probe application | Explicit selection and typed read stepping; bounded platform I/O. CLI, persistence and board startup remain later work. | Public operations and the existing application owner |
 
 The application passes values between these layers; the core never calls upward
 into an owner, framework or SDK. There are no virtual profile bases, callbacks
