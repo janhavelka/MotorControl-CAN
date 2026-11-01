@@ -76,7 +76,10 @@ This table is the maintained inventory. Stage reports record individual results.
 | Shared native application and bounded platform I/O | `probe_app`, `native_probe --fake`, existing `units_preview`; isolated copied applications in `package_contract` | Quick/full for native paths; full adds relocated installed-core builds without checkout includes, siblings, SDKs, Python or network. Fake wire values are not hardware qualification. |
 | Pinned TWAI policy and actual SDK shim with host fakes | `twai_adapter`, `twai_driver` | Quick/full; one RX owner, queued boot-up, exact TX evidence, deadlines, retirement, loss and SDK failure paths; fake only |
 | TWAI SDK interface / target ABI | `python scripts/check_twai_sdk.py --idf-path "path to esp-idf" --idf-python "path to IDF Python"` | Explicit SDK gate; exact IDF 5.5.5 source hashes, S3 C++11 static archive and retained logs; no firmware linked |
-| Arduino / ESP-IDF firmware builds | Shared startup, standalone firmware and component consumer | Planned prompt 28; a TWAI static-archive compile is not firmware |
+| Shared firmware startup / USB platform contracts and build-checker failures | `firmware_probe`, `esp_probe_platform`, `firmware_build_contract` | Quick/full; clock boundaries/faults, zero startup traffic, bounded pressure, routing and retirement using host fakes |
+| Arduino firmware compile | `python scripts/check_firmware.py --target arduino` | Explicit SDK gate and Arduino CI job; PlatformIO 6.1.19, pioarduino 55.03.311 / Arduino 3.3.11 / IDF 5.5.5; ELF/BIN and shared compiler-input proof |
+| Native-IDF standalone firmware | `python scripts/check_firmware.py --target idf` | Explicit SDK gate and IDF CI job; original source hashes, exact IDF 5.5.5, S3 ELF/BIN and shared compiler-input proof |
+| Isolated portable IDF component | `python scripts/check_firmware.py --target component` | Separate explicit SDK/CI gate; only staged core and consumer outside checkout, real link, no owner/stack/reference dependencies |
 | Physical CAN/motion qualification | Applicable fixture, firmware and authorized bench procedure | Planned hardware prompts; no current physical result |
 
 ## Documentation gate
@@ -111,3 +114,14 @@ documented and visible in the API inventory. Follow
 [CONTRIBUTING](../CONTRIBUTING.md) for test registration and focused formatting.
 Quick mode omits package and documentation gates; its success is scoped to the
 quick checks listed above. Full success still establishes host evidence only.
+
+## Firmware compile gates
+
+[The firmware guide](firmware_examples.md) documents provisioning and commands.
+`scripts/check_firmware.py` reuses the verifier's retained-log runner, structured
+arguments, bounded subprocesses and nonzero unavailable/failure results. Native
+quick/full remain SDK-free; the explicit firmware gates and their two CI jobs
+are independent and required for firmware changes. A successful host fake or
+TWAI archive build cannot replace any of the three real compile/link gates.
+The checker inspects actual compilation databases to prove shared sources were
+compiled. No gate flashes, monitors or opens a controller/serial port.

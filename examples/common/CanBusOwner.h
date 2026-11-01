@@ -363,6 +363,11 @@ class CanBusOwner {
     bool receiveOverflow(uint64_t nowUs, uint32_t droppedFrames = 1) noexcept;
     /** @return Current local transport epoch, never proof of remote freshness. */
     uint32_t controllerEpoch() const noexcept { return controllerEpoch_; }
+    /** @return Latest accepted supplied monotonic microseconds, initially zero.
+     * Cached only, never a clock read. Includes explicit application calls between
+     * service turns; use this authority when a platform clock itself fails.
+     */
+    uint64_t lastTimeUs() const noexcept { return lastUs_; }
     /** Run one bounded cooperative turn; deadlines progress even with all budgets zero.
      * @param[in] nowUs Nondecreasing nonwrapping caller microseconds, zero valid.
      * @param[in] budget Clamped RX/TX/report/start/recovery budgets; zero prevents that work.

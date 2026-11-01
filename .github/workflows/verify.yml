@@ -1,4 +1,4 @@
-name: Verify portable core
+name: Verify core and compile-only firmware
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
@@ -62,5 +62,73 @@ jobs:
             .build/verification/**/*.zip
             .build/doxygen/html
             .build/doxygen/xml
+          include-hidden-files: true
+          if-no-files-found: warn
+  arduino:
+    name: Arduino 3.3.11 compile fixture
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned PlatformIO and resolved Arduino framework
+        run: |
+          python -m pip install platformio==6.1.19
+          pio pkg install -e probe_cli_compile
+      - name: Compile and inspect actual shared inputs
+        run: python scripts/check_firmware.py --target arduino --build-dir .build/firmware
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: firmware-arduino
+          path: |
+            .build/firmware/**/*.log
+            .build/firmware/**/*.json
+            .build/firmware/**/*.elf
+            .build/firmware/**/*.bin
+          include-hidden-files: true
+          if-no-files-found: warn
+  idf:
+    name: ESP-IDF 5.5.5 firmware and isolated component
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      IDF_TOOLS_PATH: ${{ github.workspace }}/.build/idf-tools
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install reviewed ESP-IDF revision and its pinned toolchain
+        shell: bash
+        run: |
+          git init .build/esp-idf
+          git -C .build/esp-idf remote add origin https://github.com/espressif/esp-idf.git
+          git -C .build/esp-idf fetch --depth 1 origin b774170ff46c393eeb5e495ea37936038d3f4f4f
+          git -C .build/esp-idf checkout --detach FETCH_HEAD
+          test "$(git -C .build/esp-idf rev-parse HEAD)" = b774170ff46c393eeb5e495ea37936038d3f4f4f
+          git -C .build/esp-idf submodule update --init --recursive --depth 1
+          .build/esp-idf/install.sh esp32s3
+      - name: Build standalone firmware and separate portable component
+        shell: bash
+        run: |
+          . .build/esp-idf/export.sh
+          python scripts/check_firmware.py --target idf --build-dir .build/firmware-idf
+          python scripts/check_firmware.py --target component --build-dir .build/firmware-component
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: firmware-idf
+          path: |
+            .build/firmware-idf/**/*.log
+            .build/firmware-idf/**/*.json
+            .build/firmware-idf/**/*.elf
+            .build/firmware-idf/**/*.bin
+            .build/firmware-component/**/*.log
+            .build/firmware-component/**/*.json
+            .build/firmware-component/**/*.elf
+            .build/firmware-component/**/*.bin
           include-hidden-files: true
           if-no-files-found: warn

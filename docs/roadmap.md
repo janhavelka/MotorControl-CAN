@@ -53,7 +53,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 25 | Passive health/statistics | Owned software implemented/tested: cached projection, exact saturating counters/reset, eight copied diagnostics; Partial only on inherited 24/23/19/Q20. [Report](reports/prompt_25.md). No drive or machine-health policy is inferred. |
 | 26 | Shared native application and fake/offline examples | Owned software implemented/tested; Partial only on inherited 19/25/Q20. [Application contract](native_application.md), [report](reports/prompt_26.md). |
 | 27 | Pinned TWAI adapter | Owned software and ESP-IDF 5.5.5 S3 compile delivered; Partial on inherited 24/26/Q20. [Report](reports/prompt_27.md). No physical qualification. |
-| 28 | Shared Arduino/ESP-IDF application | Pending; explicit board configuration, firmware startup/builds and separate component consumption |
+| 28 | Shared Arduino/ESP-IDF application | Owned software and three real compile/link gates delivered; Partial only on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). Board configuration stays explicit; no physical qualification. |
 | 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |
 | 30-32 | Enable/release, stop, fault/reference actions | Pending; use qualified current-state transitions, never enable as a stop/reset preamble |
 | 33-36 | Position, angles, finite velocity and homing | Pending; explicit trigger/acceptance/completion, reference/scale and bounded deadlines |

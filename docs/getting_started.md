@@ -170,12 +170,18 @@ tests do not establish an SDK/controller port or firmware build.
 When ESP-IDF supplies `idf_component_register`, root CMake registers the same
 portable sources and public include directory with a C++11 floor. The application
 owns the SDK, controller, bus configuration and all I/O. Native builds never
-load ESP-IDF. Actual board adapters and firmware examples are later milestones;
-the current component contract does not imply a tested firmware target.
+load ESP-IDF. The [isolated IDF consumer](../test/idf_consumer/README.md)
+now builds and links this portable component with the pinned real SDK. It copies
+only the required core files outside the checkout. This gate is separate from
+[standalone firmware](firmware_examples.md), which also builds the owner,
+selected stack, TWAI and USB platform.
 
 ## Optional TWAI transport
 
 The [ESP32-S3 TWAI adapter](../adapters/twai/README.md) uses the same owner with
 explicit configuration and pinned IDF 5.5.5. Host callback fakes and its separate
 SDK static-archive compile do not require CAN hardware. It is excluded from the
-installed core; shared firmware startup/build integration remains prompt 28.
+installed core. [Shared Arduino and native-IDF examples](firmware_examples.md)
+provide pinned compile-only builds and require explicit board/controller facts.
+Default fixtures keep CAN disabled; startup makes no drive selection/request.
+No firmware was flashed and no physical controller or motor was tested.

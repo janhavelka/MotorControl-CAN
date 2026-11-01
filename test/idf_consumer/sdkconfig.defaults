@@ -1,0 +1,3 @@
+# Core compile/link fixture; no external RAM or motor peripheral is required.
+CONFIG_COMPILER_CXX_EXCEPTIONS=n
+CONFIG_COMPILER_CXX_RTTI=n

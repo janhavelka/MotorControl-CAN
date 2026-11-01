@@ -1,0 +1,24 @@
+menu "MotorControl-CAN example"
+config MOTORCONTROLCAN_COMPILE_FIXTURE
+    bool "Compile-only fixture: keep CAN disabled"
+    default y
+    help
+        This build fixture establishes no actual board, transceiver or bus.
+        Disabling it requires explicit verified controller configuration below.
+config MOTORCONTROLCAN_CAN_TX_PIN
+    int "CAN TX GPIO (-1 unknown)"
+    default -1
+    range -1 48
+config MOTORCONTROLCAN_CAN_RX_PIN
+    int "CAN RX GPIO (-1 unknown)"
+    default -1
+    range -1 48
+config MOTORCONTROLCAN_CAN_BITRATE
+    int "CAN bitrate (0 unknown)"
+    default 0
+    range 0 1000000
+config MOTORCONTROLCAN_CAN_RX_DEPTH
+    int "Copied controller RX capacity"
+    default 16
+    range 1 16
+endmenu

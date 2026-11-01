@@ -9,6 +9,7 @@ Execution has completed prompts 1-17, including the [native service fit experime
 
 | Material | Purpose |
 | --- | --- |
+| [Firmware examples](firmware_examples.md) | Shared Arduino/IDF startup, explicit configuration, bounded USB/time and three real compile gates |
 | [TWAI adapter](../adapters/twai/README.md) and [SDK evidence](adapters/twai_sdk.md) | Pinned S3 controller boundary, capacities, completion/retirement evidence and compile-only checks |
 | [Application CAN owner](can_owner.md) | Ordinary/urgent scheduling, one receiver, retained results, explicit local recovery, cached health/statistics and bounded diagnostic copies |
 | [Control and tuning](tuning.md) | Five finite groups, all 33 raw read rows, explicit loop selection and precise remaining write gates |

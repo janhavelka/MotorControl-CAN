@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Shared Arduino and ESP-IDF examples
+
+- Add thin ESP32-S3 Arduino and native-IDF startup around the existing application,
+  owner and pinned TWAI adapter. No selection or device request occurs at startup.
+- Require explicit controller facts; default compile fixtures leave CAN disabled.
+  Add a pinned internal owner task, bounded USB byte I/O and signed 64-bit time.
+- Latch clock faults, invalidate using authoritative owner time and attempt local
+  retirement once. Preserve uncertainty and retained results on failure.
+- Add actual firmware and isolated portable-component build gates, compiler-input
+  checks, host pressure/fault tests and CI. Core consumers remain SDK-free.
+  Compilation and fake evidence do not qualify a physical board or drive.
+
 ### Pinned TWAI transport
 
 - Add an application-only ESP32-S3 adapter for ESP-IDF 5.5.5's node API,

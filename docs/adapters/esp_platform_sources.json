@@ -1,0 +1,39 @@
+{
+  "sdk": "ESP-IDF 5.5.5",
+  "commit": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
+  "target": "ESP32-S3",
+  "license": "Apache-2.0",
+  "sources": [
+    {
+      "path": "components/esp_driver_usb_serial_jtag/src/usb_serial_jtag.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_usb_serial_jtag/src/usb_serial_jtag.c",
+      "sha256": "fa671482d75c98f8ef694b816e1b5b8719f49d98696aecbcdafae93a859071da"
+    },
+    {
+      "path": "components/esp_driver_usb_serial_jtag/include/driver/usb_serial_jtag.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_usb_serial_jtag/include/driver/usb_serial_jtag.h",
+      "sha256": "88e03e1650895708da6844ab0c1409bc717ac3c0e775cef2e3e3531e67558b50"
+    },
+    {
+      "path": "components/hal/esp32s3/include/hal/usb_serial_jtag_ll.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/esp32s3/include/hal/usb_serial_jtag_ll.h",
+      "sha256": "53497c2b5a580e80173859d0fab6dfaf96bd7fd93186d46d8f58079421a5e984"
+    },
+    {
+      "path": "components/esp_timer/include/esp_timer.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_timer/include/esp_timer.h",
+      "sha256": "9ef47843590090f5ffccdc956c924e650cfb479ad4d7b2553bf0453ffac492fd"
+    },
+    {
+      "path": "components/esp_timer/src/esp_timer.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_timer/src/esp_timer.c",
+      "sha256": "31715c3ff0931d6957df398efdc5e58a052a17cf88091752648192941d466c0b"
+    },
+    {
+      "path": "components/freertos/esp_additions/include/freertos/idf_additions.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/esp_additions/include/freertos/idf_additions.h",
+      "sha256": "a89df54c936b87c3d77a380516e32fc8aadbb354b1982259e5afd0aef0cafbf2"
+    }
+  ],
+  "scope": "USB byte acceptance, silent RX overflow, interrupt ownership, signed 64-bit time and static task stack byte units. No source copies bundled."
+}

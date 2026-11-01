@@ -4,7 +4,10 @@
 uses pinned ESP-IDF 5.5.5, copied bounded queues and identifiable TX callbacks.
 Host fakes and an SDK compile check cover explicit retirement/recovery without
 replaying queued work. It is application code, excluded from the installed core.
-Firmware startup integration and physical qualification remain separate work.
+The [Arduino and native-IDF examples](docs/firmware_examples.md) now compile the
+same application and owner, with explicit configuration, bounded USB I/O and
+a separate isolated IDF component consumer. Compile fixtures leave CAN disabled;
+no firmware was flashed and physical qualification remains pending.
 
 **Native application:** the [fake native probe](examples/native_probe/README.md)
 uses shared ProbeApp/ProbePlatform code, ordinary owner dispatch, explicit typed

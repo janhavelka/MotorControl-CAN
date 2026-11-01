@@ -33,7 +33,20 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 
 [SDK source hashes/evidence](adapters/twai_sdk.md) and [stage report](reports/prompt_27.md)
 record scope, sibling revisions and measured capacities. Firmware entry points
-remain prompt 28; hardware behavior remains unqualified.
+are now integrated below; hardware behavior remains unqualified.
+
+## Shared firmware (prompt 28)
+
+| Responsibility | Declaration / implementation | Caller / focused check | Boundary |
+| --- | --- | --- | --- |
+| Shared controller/application assembly | [FirmwareProbe.h](../examples/common/FirmwareProbe.h), [implementation](../examples/common/FirmwareProbe.cpp) | [Firmware fake integration](../test/firmware_probe_test.cpp), common owner task | Borrows sole service store; explicit configuration, owner-first service and clock-fault retirement |
+| USB/time callbacks | [EspProbePlatform.h](../examples/common/EspProbePlatform.h), [implementation](../examples/common/EspProbePlatform.cpp) | [SDK platform fake tests](../test/esp_probe_platform_test.cpp) | Same-task/core single-byte zero-tick I/O; signed 64-bit time, retained errors |
+| Pinned startup / board configuration | [EspProbeMain.h](../examples/common/EspProbeMain.h), [implementation](../examples/common/EspProbeMain.cpp), [FirmwareBoard.h](../examples/common/FirmwareBoard.h) | [Arduino entry](../examples/probe_cli/main.cpp), [IDF entry](../examples/probe_idf/main/main.cpp) | One internal task; compile fixture CAN disabled, no target/request |
+| Actual source/link proof | [Shared source inventory](../examples/common/firmware_sources.json), [build checker](../scripts/check_firmware.py) | [Negative build-checker tests](../test/firmware_build_test.py), [CI](../.github/workflows/verify.yml) | Three separate real builds; actual compiler inputs required |
+| Portable IDF component | [Root component registration](../CMakeLists.txt) | [Isolated consumer](../test/idf_consumer/README.md) | Staged core only; no shared app/SDK headers in core includes |
+
+[The firmware guide](firmware_examples.md) owns configuration, capacity and timing
+semantics; [report 28](reports/prompt_28.md) records actual builds and limitations.
 
 ## Typed raw reads (prompt 19)
 

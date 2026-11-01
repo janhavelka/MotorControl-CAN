@@ -1,0 +1,28 @@
+cmake_minimum_required(VERSION 3.19)
+
+# The isolated stage makes accidental SDK/example/stack dependencies visible.
+if(NOT MOTORCONTROLCAN_COMPONENT_PATH)
+    message(FATAL_ERROR "Set MOTORCONTROLCAN_COMPONENT_PATH to the staged MotorControlCAN directory")
+endif()
+get_filename_component(MOTORCONTROLCAN_COMPONENT_PATH "${MOTORCONTROLCAN_COMPONENT_PATH}" ABSOLUTE)
+get_filename_component(component_name "${MOTORCONTROLCAN_COMPONENT_PATH}" NAME)
+if(NOT component_name STREQUAL "MotorControlCAN")
+    message(FATAL_ERROR "The staged component directory must be named MotorControlCAN")
+endif()
+foreach(required CMakeLists.txt include/MotorControlCAN src library.json)
+    if(NOT EXISTS "${MOTORCONTROLCAN_COMPONENT_PATH}/${required}")
+        message(FATAL_ERROR "The staged core is missing ${required}")
+    endif()
+endforeach()
+file(GLOB staged_entries RELATIVE "${MOTORCONTROLCAN_COMPONENT_PATH}"
+    "${MOTORCONTROLCAN_COMPONENT_PATH}/*")
+foreach(entry IN LISTS staged_entries)
+    if(NOT entry MATCHES "^(CMakeLists\\.txt|include|src|library\\.json)$")
+        message(FATAL_ERROR "Unexpected staged core entry: ${entry}")
+    endif()
+endforeach()
+
+set(EXTRA_COMPONENT_DIRS "${MOTORCONTROLCAN_COMPONENT_PATH}")
+set(COMPONENTS main)
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(MotorControlCANConsumer)

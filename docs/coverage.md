@@ -66,10 +66,10 @@ that support claim. Reference/data verification is not driver testing.
 | R14 | 21-25, 29-36, 47-48 | Prompt 21 decodes documentary DI function/polarity separately from raw output registers and logical monitor levels. Wiring/electrical knowledge and method prerequisites remain independent; explicit DI reassignment is implemented with partial-effect/readback/invalidation tests; no output action is implemented. |
 | R15 | 21-22, 29, 32-36, 47-48 | Pending |
 | R16 | 37-39 | Pending |
-| R17 | 26-28, 40-42, 49-50 | Prompt 26 implements framework-free offline units and fake native read examples plus bounded shared ProbeApp/ProbePlatform. Real controller/firmware and CLI remain later work; fake results are not physical qualification. |
+| R17 | 26-28, 40-42, 49-50 | Prompt 26 implements framework-free offline units and fake native read examples plus bounded shared ProbeApp/ProbePlatform. Prompt 27 adds the controller adapter; 28 builds shared Arduino/IDF firmware and an isolated core component. CLI remains later work; fake/compile results are not physical qualification. |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Pending |
-| R20 | 7-28, 30-46, 49-50 | Forty-four explicit CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs 42; full runs 43 plus a retained package contract. Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current owner integration is in [prompt 23](reports/prompt_23.md), tuning/control is in [prompt 22](reports/prompt_22.md), and preceding settings evidence in the [fresh settings audit](reports/prompts_20_21_audit.md). |
+| R20 | 7-28, 30-46, 49-50 | The explicitly registered CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs registered non-full tests; full adds documentation and a separately retained package contract. Prompt 28 adds firmware/platform and build-checker regressions; actual counts are recorded in its report. Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current owner integration is in [prompt 23](reports/prompt_23.md), tuning/control is in [prompt 22](reports/prompt_22.md), and preceding settings evidence in the [fresh settings audit](reports/prompts_20_21_audit.md). |
 | R21 | 1-2, 5-6, 23-25, 45-46 | Prompt-6 read-only FieldCore refresh plus common identity/configuration generations and exact-intent fixtures. Actual FieldCore-like integration remains 45–46; no framework types imported. |
 | R22 | All | Execution branch/base recorded; this prompt uses checked commit/sync delivery; recurring duty. |
 | R23 | All; final 49-50 | Current audit, roadmap, backlog, bench and support limits documented; release scope pending. |
@@ -97,3 +97,10 @@ engine. R09/R13/R20 retain separate write/scale prerequisites and host-only
 qualification. The fresh 20/21 audit implements documented native parameter
 ranges (including zero) with concrete pre-trigger evidence, write/readback and
 partial-effect tests. Remaining source-gated groups retain their original owners.
+
+[Prompt 28](reports/prompt_28.md) adds firmware-built evidence to R04/R17/R20/R25:
+Arduino and native-IDF ELF/BIN builds consume the same application/owner sources;
+a separate isolated IDF consumer uses only staged portable core files. Host fakes
+cover clock failure, pressure, routing and recovery. Installed headers acquire no
+SDK dependency, no device command occurs at startup, and hardware qualification
+remains absent. Command/schema parity is still assigned to 40-42.

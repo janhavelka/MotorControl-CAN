@@ -112,3 +112,14 @@ report and current handoff. Run required CI on the final commit for a build,
 workflow or integration milestone when the service is available. Documentation
 wording changes need local checks; they do not require a manual CI dispatch per
 push. Host verification does not authorize hardware use or qualify a motor.
+
+## Firmware examples
+
+The [firmware guide](docs/firmware_examples.md) owns SDK pins, configuration,
+capacities and the three explicit `scripts/check_firmware.py` compile gates.
+Native quick/full stay independent of SDK installation. Keep both thin entries
+on `examples/common/firmware_sources.json`, register host tests in CTest and
+run the separate firmware CI jobs for changes to that integration. Inspect the
+actual compiler inputs, not only a successful build message. Update the reviewed
+SDK hash manifest when an explicitly reviewed SDK upgrade changes source bytes.
+Compile fixtures keep CAN disabled; no build check may flash or open a port.

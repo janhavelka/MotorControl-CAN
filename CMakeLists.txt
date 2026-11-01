@@ -4,7 +4,9 @@ set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
-    idf_component_register(SRCS ${MOTORCONTROLCAN_SOURCES} INCLUDE_DIRS include)
+    list(TRANSFORM MOTORCONTROLCAN_SOURCES PREPEND "${CMAKE_CURRENT_LIST_DIR}/")
+    idf_component_register(SRCS ${MOTORCONTROLCAN_SOURCES}
+        INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/include")
     target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_11)
     set_target_properties(${COMPONENT_LIB} PROPERTIES
         CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)

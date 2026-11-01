@@ -118,3 +118,12 @@ and explicit recovery deletes old controller storage before creating a new node.
 No SDK types enter installed headers; no node/service table or CANopen engine is
 duplicated. [Reviewed SDK limits](adapters/twai_sdk.md) remain distinct from
 firmware startup and physical qualification.
+
+## Shared firmware composition
+
+[The firmware assembly](firmware_examples.md) borrows the same service store and
+constructs the existing owner, application and transport exactly once. Both SDK
+entry points create the same pinned internal task. Clock acquisition, USB byte
+callbacks and scheduling remain application code; the installed core is unchanged.
+A failed clock invalidates at the owner's last accepted time before attempting
+local retirement. No startup selection, request or automatic recovery exists.

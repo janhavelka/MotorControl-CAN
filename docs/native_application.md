@@ -69,9 +69,9 @@ only the documented input/diagnostic copies, never authoritative owner RX or
 retained service results. Callbacks must meet their bounded nonblocking contract;
 these budgets are work counts, not a wall-time or embedded scheduling guarantee.
 Native sizes and checks are recorded in the [stage report](reports/prompt_26.md).
-Firmware startup and platform clock acquisition belong to prompt 28; command
-parsing belongs to prompt 40.
+[Shared firmware startup and platform time](firmware_examples.md) now reuse this
+application unchanged. Command parsing remains prompt 40.
 
 The optional [TWAI transport](../adapters/twai/README.md) now supplies the
-pinned S3 controller boundary. Firmware startup/platform code remains prompt 28;
-the adapter uses explicit 64-bit time without an owned wrap extension.
+pinned S3 controller boundary. The Arduino/IDF assembly uses checked 64-bit
+ESP timer microseconds, with no 32-bit wrap extension or hidden core clock.
