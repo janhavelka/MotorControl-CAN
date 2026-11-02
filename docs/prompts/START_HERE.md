@@ -10,8 +10,8 @@ Replace N with the next prompt number and give the agent this text together with
 
 ```text
 Execute prompt N from docs/prompts/README.md in this repository. Read root
-AGENTS.md, docs/prompts/COMMON.md and that prompt first. Verify its listed
-prerequisites and current source evidence. Complete all its deliverables,
+AGENTS.md, docs/prompts/COMMON.md and that prompt first. Verify that the artifacts
+it consumes are usable and check current source evidence. Complete all its deliverables,
 focused tests, affected documentation/Doxygen and its report. Use subagents
 and available model/effort choices where useful, with disjoint ownership and
 lead integration. Do not execute later prompts in this assignment.
@@ -31,10 +31,12 @@ Implement MotorControl-CAN by executing prompts 1 through 50 from
  docs/prompts/README.md in numerical order, applying COMMON and root AGENTS.
 For a requested range, execute only that range after checking its prerequisites.
 Finish, test, document, commit and sync each ready prompt before proceeding.
-If blocked, retain its Partial/Blocked status and exact remaining work, commit
-and sync completed chunks, then continue the next independent ready work within
-the assignment under COMMON. Return to earlier work when its evidence arrives.
-Never mark unmet prerequisites satisfied or unfinished work Complete.
+A prerequisite is usable when the specific artifact consumed exists and its
+checks passed, regardless of that prompt's state; name it in the report. If
+blocked, retain Partial/Blocked and the exact remaining work, commit and sync
+completed chunks, then continue the next independent ready work within the
+assignment under COMMON. Return to earlier work when its evidence arrives.
+Record predecessor gates as inherited gates. Never mark unfinished work Complete.
 Keep one newly created execution branch throughout all prompts and resumed
 sessions. Continue already-authorized independent work without routine
 confirmation; retain blocked work and qualification gaps explicitly.

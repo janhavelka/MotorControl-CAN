@@ -29,7 +29,7 @@ Test every documented happy sequence and failure at every write/readback step: q
 
 Interleave old/new PDO payloads and unrelated async events while remapping, including raw old bytes first arriving after the new generation on the same ID/DLC. Check default RPDO1's WO targets without invented SDO read permission. Prove no automatic rollback/replay and distinguish confirmed map from unqualified samples. Run focused native tests, stronger sequence review, Doxygen/verifier, integrity and diff checks. Device behavior remains a separate qualification claim.
 
-Exit with complete tested typed remapping for the reviewed supported subset and precise gates for unresolved features. If resumed after owner construction, integrate confirmed remapping through that owner before closing this scope; prompt 45 checks combined paths. Record `docs/reports/prompt_18.md`, update PROGRESS, coverage and backlog, then commit and sync this branch. Checkpoint complete groups earlier; never call an uncertain remap successful.
+Exit with complete tested typed remapping for the reviewed supported subset and precise gates for unresolved features. If resumed after owner construction, integrate confirmed remapping through that owner and prompt 38's workflow, and move prompt 41's gated `pdo` route to implemented, before closing this scope; prompt 45 checks combined paths. Record `docs/reports/prompt_18.md`, update PROGRESS, coverage and backlog, then commit and sync this branch. Checkpoint complete groups earlier; never call an uncertain remap successful.
 
 ## Documentation and delegation
 

@@ -123,7 +123,8 @@ request and `2B` download when the reviewed `609A` width is four.
 [selected-stack adapter tests](../test/sdo_adapter_test.cpp) exercise independent
 literal vectors, widths/signs, malformed commands, sizes, identities, capacities,
 overlap and unchanged outputs. These remain host evidence. The lifecycle below
-now uses these checks; event codecs remain assigned to prompts 15/17.
+uses these checks; the [network event section](#passive-network-events-and-node-lifecycle)
+covers the event codecs.
 
 ## Bounded production SDO lifecycle
 
@@ -135,13 +136,17 @@ retained proof is now a compatibility facade over this implementation. There is
 no second protocol engine, runtime driver registry or controller receive loop.
 
 The application owns this stationary, noncopyable `SdoClient` and serializes all
-calls. Its single interface owner offers frames through `receive`; a false
-return leaves unrelated node/channel/heartbeat/PDO/EMCY traffic for ordinary
-owner dispatch. Network-event decoding remains prompt 15. The owner explicitly
-reports `reboot(node)` for every relevant node event and `busOff()` for the
-interface; these invalidate channels regardless of observation-ring capacity.
-The existing proof still demonstrates its four-slot raw event ring and boot-up
-handling; the lifecycle does not create a competing event registry.
+calls. Its single interface owner offers every frame through `receive`, which
+routes configured PDO, heartbeat, boot-up and EMCY identifiers itself before SDO
+matching. A false return means live protocol validation did not consume the
+frame. The frame may still have been recorded or have quarantined a route; the
+owner counts it in `Stats.unmatchedFrames` and does not route it further. A valid
+boot-up invalidates that node's channels, and the owner's `reportController`
+invalidates all channels on bus-off or recovery, regardless of observation-ring
+capacity. `reboot(node)` and `busOff()` remain adapter entries for a caller
+holding such evidence outside the frame path. Network observations enter a
+four-slot history read through `takeNetworkObservation`; the lifecycle does not
+create a competing event registry.
 
 ### Route and admission
 

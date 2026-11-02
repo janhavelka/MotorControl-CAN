@@ -1,6 +1,6 @@
 # MotorControl-CAN architecture plan
 
-This is the proposed repository layout, based on the source audits and [multi-drive decision](multidrive_decision.md). Prompt 6's [architecture contract](architecture.md) now governs the concrete semantic boundary and its experimental declarations. The production tree below remains planned; prompt 7 migrates the checked proof into the package without installing synthetic profiles or stack dependencies in the pure core.
+This is the target repository layout, based on the source audits and [multi-drive decision](multidrive_decision.md). Prompt 6's [architecture contract](architecture.md) governs the concrete semantic boundary and its experimental declarations. Part of the tree below exists and part remains planned; the [source map](source_map.md) records the current files. Synthetic profiles and stack dependencies stay out of the pure core.
 
 Apply the concrete [conventions](prompts/CONVENTIONS.md), [documentation](prompts/DOCUMENTATION.md), [maintainability](prompts/MAINTAINABILITY.md) and [delegation](prompts/DELEGATION.md) contracts. They refine this layout with exact names, selected example health/counter rules, per-stage Doxygen and model-aware work allocation.
 
@@ -35,15 +35,17 @@ MotorControl-CAN/
     Units.cpp  Axis.cpp  Discovery.cpp  Traffic.cpp
     can/  canopen/                              # framing separate from first protocol
     profiles/lichuan_c/
+  adapters/                                     # optional, outside the installed core
+    canopennode/  twai/                         # selected stack and controller adapters
+    owner/CanBusOwner.*                         # planned target for the owner (DEC-5)
   examples/
-    common/CanBusOwner.*  CanTransport.h  LichuanCanValidator.*
-    common/Esp32Twai.*  BoardPins.h              # framework-specific boundary
-    common/                                     # optional stack adapter, caller-owned
+    common/ProbeApp.*  ProbeConsole.*  ProbePlatform.*  # shared app/CLI, thin startup
+    common/FirmwareProbe.*  EspProbeMain.*  EspProbePlatform.*  FirmwareBoard.h
     units_preview/main.cpp                      # offline, sends nothing
-    native_probe/                               # fake transport and optional SocketCAN
-    probe_cli/ProbeApp.*  ProbeConsole.*  ProbePlatform.h
-    probe_cli/ArduinoPlatform.cpp               # shared app/CLI, thin startup
-    probe_idf/CMakeLists.txt  main/IdfPlatform.cpp
+    native_probe/                               # native entry: fake transport and optional SocketCAN
+    probe_cli/main.cpp                          # Arduino entry only
+    probe_idf/CMakeLists.txt  main/main.cpp     # ESP-IDF entry only
+    s2_bench/                                   # ESP32-S2 board evidence harness
   test/
     fakes/  installed_consumer/                  # RS-equivalent consumer checks
     units_test.cpp  axis_test.cpp  can_codec_test.cpp
@@ -53,7 +55,8 @@ MotorControl-CAN/
     bench_*_test.py                              # registered; no hardware by default
   scripts/
     verify.py  check_repository.py  generate_version.py
-    generate_lichuan_objects.py  check_lichuan_operations.py
+    generate_lichuan_objects.py
+    check_lichuan_operations.py                  # prompt 46 creates; prompts 49-50 run
     prepare_references.py  requirements-verification.txt
     bench_probe.py  bench_motion.py  bench_repeat.py
     bench_scenarios.py  bench_session.py  _bench_evidence.py
@@ -62,12 +65,12 @@ MotorControl-CAN/
     README.md  getting_started.md  source_map.md  architecture.md
     axis_contract.md  profile_contract.md  cli_contract.md
     can_owner.md  canopen_services.md  fieldcore_handoff.md
-    verification.md  bench_scenarios.md  hardware_bench.md
-    lichuan_api_cli_coverage.md  backlog.md  roadmap.md
+    verification.md  runners.md  bench_scenarios.md  hardware_bench.md
+    commissioning.md  coverage.md  api_cli_mapping.md  backlog.md  roadmap.md
     audit/  baseline/  reference/  prompts/  reports/  releases/
 ```
 
-Mirror responsibilities and established names; omit unused empty abstractions. Final filenames may consolidate small cohesive types. Never create a placeholder header just to match this tree. A later real drive adds `profiles/<family>/`; a different protocol adds its independently implemented service boundary, without another physical receive owner. Contrast fixtures remain under `test/` and are not advertised drivers. Reference snapshots and vendor files are excluded from core builds/install/export. Catalogue generation is deterministic and checked in; core consumers do not need Python or network access.
+Objects are recorded in `reference/lichuan_generated.md`, API/CLI routes in `api_cli_mapping.md` and requirements in `coverage.md`. Mirror responsibilities and established names; omit unused empty abstractions. Final filenames may consolidate small cohesive types. Never create a placeholder header just to match this tree. A later real drive adds `profiles/<family>/`; a different protocol adds its independently implemented service boundary, without another physical receive owner. Contrast fixtures remain under `test/` and are not advertised drivers. Reference snapshots and vendor files are excluded from core builds/install/export. Catalogue generation is deterministic and checked in; core consumers do not need Python or network access.
 
 ## Ownership and dependency direction
 

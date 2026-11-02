@@ -67,5 +67,5 @@ PlatformIO upload/monitor commands require explicitly selected ports; this stage
 only compiles and does not flash or open a port.
 
 See the [shared platform and capacity guide](../../docs/firmware_examples.md)
-for the 8192-byte static owner stack, queues, service budgets, clock semantics,
+for the static owner stack (`FIRMWARE_STACK_BYTES` in `examples/common/EspProbeMain.h`), queues, service budgets, clock semantics,
 USB backpressure and separate host versus physical evidence.

@@ -28,7 +28,7 @@ The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
 complete fixed-map readback. No motor action, start/reset, save or restore was
 sent. One physical power cycle subsequently reverted node1 producer/map to
 0/map3 without save/restore; both nodes completed26 baseline plus30 readiness
-uploads. Nonzero retained targets, mode0 and configured DI functions require
+uploads. Reads of 607A/60FF equal to EDS defaults, origin unknown, mode0 and configured DI functions require
 further motion-admission evidence. Timer/SYNC, broader persistence, sample
 qualification and executable finite motion remain pending.
 

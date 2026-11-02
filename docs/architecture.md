@@ -32,8 +32,10 @@ Distinct contracts own distinct facts:
 - [CANopen services](canopen_services.md): one selected engine, wire evidence and adapter limits.
 - [CAN owner](can_owner.md): the single capacity table, scheduling, lifetimes and retirement.
 
-The root `MotorControlCAN` target contains only the installed common core.
-The test-only `proof_contract` target contains `Contracts.h`, `Operations.h` and
+The root `MotorControlCAN` target contains the installed common core and the
+Lichuan C profile, always built together. No selected-profile option exists; its
+only options select examples and the optional CANopenNode adapter. A core-only
+consumer means one that includes only core headers. The test-only `proof_contract` target contains `Contracts.h`, `Operations.h` and
 `Operations.cpp` and links that core. Neither includes nor links CANopenNode. Their source contains
 no allocation, clock acquisition, I/O, logging, retry, persistence or framework
 types. `api_fixtures` links only this target. Application storage and the optional

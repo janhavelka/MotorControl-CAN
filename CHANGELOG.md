@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Promptset repair (audit W1)
+
+- Remove prompt 18 from prompt 38's prerequisites, make prompt 43 depend on 40, 44 on 42 and 43, and 47 on 29, 44 and 45, so prompts 49-50 can close as a scoped software candidate. New checker guards keep 18 out of 49's ancestors and 41/42 in the ancestors of 44, 45, 47 and 48, and reject mis-decoded UTF-8.
+- Adopt the usable-prerequisite rule and an Inherited gates column. Move progress narrative to `docs/reports/progress_history.md`; prompts 23, 25 and 26 become Complete with their gates listed, and no gate closes.
+- Reassign 12 read rows from prompt 38 to the prompts that write them, leaving 89 with 38. `607C` moves to prompt 36 for both read and write ownership. The generated `Objects.h` descriptor changes its owner number only.
+- Correct the reading of `607A=5000` and `60FF=120`: they equal the EDS defaults, and no retained record shows they were written, so "retained intent" was unsupported. Device conflicts and coverage now carry the November 2 measurements.
+- Replace "exclusive" and "inclusive" deadline wording with `now >= deadlineUs` expires. Behavior is unchanged.
+
 ### External coder continuation
 
 - Add 22 paste-ready handoff packets for prompts19–22 and29–33, including the
@@ -330,7 +338,7 @@ This repository contains planning/reference material and native service/API owne
   a fabricated capture time.
 
 - Clarified that SDO freshness premises cover individual segments during a transfer. Added toggle-wrap ambiguity counterexamples and all segmented-upload cancellation boundaries; corrected a test's caller-time order. No runtime state or device permission changed.
-- Split the original 20 implementation stages into 50 complete prompts numbered 1â€“50, with smaller scopes, explicit prerequisites and focused completion checks. Preserved original obligations in a scope map and historical archive.
+- Split the original 20 implementation stages into 50 complete prompts numbered 1–50, with smaller scopes, explicit prerequisites and focused completion checks. Preserved original obligations in a scope map and historical archive.
 - Moved owner/adapters before motion evidence, retained the early conditional experiment path, and separated CLI, runner and qualification work into bounded assignments.
 - Added targeted shared-contract reading, single-prompt/range execution instructions, a checked sequence manifest and regression checks for numbering, prerequisites, scope ownership and commit/sync closure.
 - Expanded every stage with concrete file/API contracts, failure cases, documentation duties and work splits.
@@ -351,7 +359,7 @@ This repository contains planning/reference material and native service/API owne
 
 - Fresh independent prompts 10-11 audit corrected a stale retained-proof unit/rounding comment and an ADS1115 source citation. Axis/reference arithmetic, CAN/SDO checks and isolated package consumption passed new independent probes and integrated verification; no executable change was needed.
 
-- Independent prompts 7â€“9 audit made quick-mode omissions explicit in verifier summaries, added a useful failure for empty tool-version output, and corrected stale package inventory and floating-environment documentation. Arithmetic and package consumption passed independent review.
+- Independent prompts 7–9 audit made quick-mode omissions explicit in verifier summaries, added a useful failure for empty tool-version output, and corrected stale package inventory and floating-environment documentation. Arithmetic and package consumption passed independent review.
 - Corrected the adapted directed binary64 conversion to check both neighboring directions; rare rounded-operand underestimates now return the closest toward-zero value, with independent regression vectors.
 - Allocated retained verifier directories atomically so equal Windows clock readings cannot collide; the retention regression now fixes the clock deliberately.
 - Preserved arbitrary 32-bit SDO abort words at the experimental C/C++ bridge without an invalid enum load, found by the new GCC/Clang UBSan jobs. Added upload/download high-bit regressions.

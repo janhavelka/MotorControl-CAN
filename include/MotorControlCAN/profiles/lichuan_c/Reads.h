@@ -102,7 +102,7 @@ struct ReadContext {
     ReadOutcome outcome = ReadOutcome::NONE; ///< Retained terminal result.
     Status status;           ///< Last operation/step result, distinct from advance call status.
     uint64_t startedUs = 0;  ///< Supplied preparation microseconds, zero valid.
-    uint64_t deadlineUs = 0; ///< Exclusive immutable overall cutoff.
+    uint64_t deadlineUs = 0; ///< Immutable overall processing-time cutoff; `now >= deadlineUs` expires.
     uint64_t servicedUs = 0; ///< Last mutation/step preparation time.
     ReadOptions options;     ///< Copied service budgets.
     uint8_t count = 0;       ///< Selected bounded field slots, at most READ_FIELDS.
@@ -186,7 +186,7 @@ struct ConfigObservation {
  * @param[in] target Valid explicit CANopen channel and nonzero node epoch.
  * @param[in] operation Nonzero local identity, not a wire transaction identifier.
  * @param[in] nowUs Nonwrapping monotonic preparation microseconds, zero valid.
- * @param[in] deadlineUs Exclusive immutable cutoff, strictly after nowUs.
+ * @param[in] deadlineUs Immutable cutoff, strictly after nowUs; `now >= deadlineUs` expires.
  * @param[in] options Nonzero caller queue/response budgets.
  * @return Current Q20 yields UNSUPPORTED/READ_EFFECT without work; this is an
  * explicit evidence blocker, not completed probe support or permission to poll.
@@ -198,7 +198,7 @@ Status prepareProbe(ReadContext& output, const ReadTarget& target, uint32_t oper
  * @param[in] target Explicit usable channel/binding/node epoch, not validated model identity.
  * @param[in] operation Nonzero caller identity.
  * @param[in] nowUs Supplied monotonic microseconds, zero valid.
- * @param[in] deadlineUs Immutable exclusive future cutoff for the whole operation.
+ * @param[in] deadlineUs Immutable future cutoff for the whole operation; `now >= deadlineUs` expires.
  * @param[in] options Nonzero queue/response policy; no retries or bootstrap probe.
  * @return OK prepares finite reads only. Invalid input uses ReadError details;
  * no device access, enabling or configuration occurs.
@@ -210,7 +210,7 @@ Status prepareIdentity(ReadContext& output, const ReadTarget& target, uint32_t o
  * @param[in] target Explicit current channel/binding/node epoch.
  * @param[in] operation Nonzero caller identity.
  * @param[in] nowUs Supplied nonwrapping preparation time.
- * @param[in] deadlineUs Exclusive overall cutoff, greater than nowUs.
+ * @param[in] deadlineUs Overall cutoff, greater than nowUs; `now >= deadlineUs` expires.
  * @param[in] options Nonzero service budgets even for a passive context.
  * @param[in] blockMask Nonzero bits 0..5 corresponding to StateBlock.
  * @param[in] pdoRoute Null selects SDO. Otherwise a borrowed reviewed TPDO
@@ -226,7 +226,7 @@ Status prepareState(ReadContext& output, const ReadTarget& target, uint32_t oper
  * @param[in] target Explicit usable channel and current epochs.
  * @param[in] operation Nonzero caller identity.
  * @param[in] nowUs Supplied monotonic preparation microseconds.
- * @param[in] deadlineUs Immutable exclusive future cutoff.
+ * @param[in] deadlineUs Immutable future cutoff; `now >= deadlineUs` expires.
  * @param[in] options Nonzero caller queue/response budgets.
  * @return OK prepares finite raw reads. PDO communication/maps are explicitly
  * read-owned by prompt 38; settings reads remain with prompts 20-22.

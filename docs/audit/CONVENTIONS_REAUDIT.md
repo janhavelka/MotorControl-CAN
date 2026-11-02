@@ -1,5 +1,9 @@
 # Fresh naming, health and ownership re-audit
 
+**Historical snapshot; superseded by [COMMON.md](../prompts/COMMON.md).** The
+revisions below record this audit's state and are not kept current. Stage numbers
+02-17 belong to the earlier 20-stage sequence, not to the current prompts 1-50.
+
 Audit date: 2026-10-23, Europe/Prague. Scope: current local source names,
 application ownership, diagnostics, tests/runners and configured checks needed
 to write [the selected CAN conventions](../prompts/CONVENTIONS.md). This is

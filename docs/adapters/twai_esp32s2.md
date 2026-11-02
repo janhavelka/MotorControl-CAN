@@ -52,8 +52,8 @@ continues to use core 1.
 
 The shared HAL reports no physical receive timestamp (`HAL:382-389`). Hardware
 FIFO loss and service latency still require measurement. This target review does
-not establish Arduino-on-S2 support, S2 CI coverage, electrical qualification,
-bus-off recovery measurements or a live motor result. Record actual build and
+not establish Arduino-on-S2 support, electrical qualification,
+bus-off recovery measurements or a live motor result. The IDF job in `.github/workflows/verify.yml` builds the S2 target. Record actual
 bench outcomes in the active stage/bench report.
 
 The later [receive-time extension](twai_receive_time.md) retains exact capture as

@@ -6,7 +6,7 @@ Apply the exact [conventions](CONVENTIONS.md), continuous [documentation/Doxygen
 
 ## Audit and choose the scope
 
-1. Refresh MotorControl-RS, ADS1115/INA228, relevant I2C source/CLI/runners/tests and current FieldCore consumer boundaries. Inspect the existing CAN library code and exact current profile implementation; preserve common names and behavior.
+1. Refresh MotorControl-RS and read its code for this seam; check only the siblings this work names, and current FieldCore consumer boundaries read-only. Inspect the existing CAN library code and exact current profile implementation; preserve common names and behavior.
 2. Identify manufacturer/product/interface suffix/firmware and motor/feedback configuration. Establish actual protocol: CANopen/CiA402, CANSimple, VESC, TMCL, multiplex/FD or another documented format. CAN connectors or a marketing claim are insufficient.
 3. Download primary manuals, EDS/DCF or protocol/DBC/register descriptions and applicable release notes. Record immutable URLs/revisions, hashes, rights and retrieval failures. Build a complete native-function/side-effect ledger; explicitly separate confirmed, disputed and absent features.
 4. Declare the implemented subset and intended full-profile scope. Use Nanotec N5 as the recommended next CANopen profile, with EPOS4 as the independent servo contrast. Exact CANopen suffixes matter for every vendor. Do not silently switch to an EtherCAT, pulse-input or serial model.

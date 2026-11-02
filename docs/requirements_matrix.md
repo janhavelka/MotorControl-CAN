@@ -19,7 +19,7 @@ These are obligations for the future implementation, not current feature claims.
 | R13 | All confirmed native functions have typed access | 2-4, 19-22, 30-39, 49-50 | Ledger -> typed API -> implementation -> test; raw SDO alone insufficient |
 | R14 | Common enable/release/fault/stop behavior | 21-25, 29-36, 47-48 | Observed state and uncertainty; stop priority, no NMT/host-cancel equivalence |
 | R15 | Drive-generated position/velocity/homing | 21-22, 29, 32-36, 47-48 | Trigger/acceptance/new completion evidence, finite deadlines and exact physical scope |
-| R16 | Non-changing discovery and explicit commissioning | 37-39 | Bounded reads, uncertain identity, no network writes hidden in discovery |
+| R16 | Discovery with no hidden writes and explicit commissioning | 37-39 | Bounded reads, uncertain identity, no network writes hidden in discovery |
 | R17 | Native plus shared Arduino/ESP-IDF examples | 26-28, 40-42, 49-50 | Common app/CLI/public APIs, compiled adapters with explicit pins/SDK and fake transport |
 | R18 | Consistent CLI and machine protocol | 40-44 | One inventory/help, strict parser, request/operation IDs, schema/version tests, no private motion path |
 | R19 | Python finite runners and retained evidence | 29, 43-44, 47-48 | Offline parser/campaign failures/no replay, explicit connection/setup, logs and summaries |

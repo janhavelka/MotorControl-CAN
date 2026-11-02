@@ -67,8 +67,8 @@ are host policies, not Lichuan timing guarantees. All uploads retain their
 reviewed `UNQUALIFIED` read-effect classification. This path neither proves
 non-consuming reads nor reopens an unresolved SDO session.
 
-Time is nonwrapping monotonic microseconds. Inclusive processing-time expiry
-wins even if an earlier captured reply is processed after the deadline. Later
+Time is nonwrapping monotonic microseconds. Processing-time expiry at
+`now >= deadlineUs` wins even if an earlier captured reply is processed after the deadline. Later
 observations cannot rewrite a terminal. Acknowledged command evidence survives
 observation failure, fault, cancellation and timeout. Unknown execution remains
 unknown after a missing reply; no command is retried. Poll-step and timestamp

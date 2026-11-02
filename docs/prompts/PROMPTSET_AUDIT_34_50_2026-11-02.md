@@ -26,6 +26,7 @@ acting on an affected item, check it against the current code and these reports:
 - **Owner, SDO client and TWAI code changed.** Recheck G-04, W3, W4, W5 and W6, and every line
   number in `CanBusOwner`, `SdoClient` and `IdfTwaiDriver`. For example, `fail_retry_cnt=0` is
   still set, but now at `IdfTwaiDriver.cpp:84`, so DEC-4 still needs applying.
+- **Later corrections, packet 1.** `607A=5000` and `60FF=120` equal their EDS defaults, so "retained" below is unsupported ([corrected reading](../device_conflicts.md#corrected-reading-of-the-november-2-inventory)). The firmware task stack is now 12,288 bytes, so A-11's "exceeds the stack alone" no longer holds numerically; its worst chain of 12,352 was not re-measured, and W7's 6,144-byte budget is a project limit, not a quarter of the current stack. G-04's "acquisition cannot run on the real board" no longer holds. Retained hashed artifacts now number 140, not 137.
 - **A small motion experiment is planned** in the motion report, under prompt 29's rule for
   isolated experiments. Rule 1 below holds production lifecycles; it neither authorizes nor blocks
   that experiment. Until C-16 and A-11 are rechecked, do not count on the library's stop in it.

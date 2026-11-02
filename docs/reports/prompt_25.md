@@ -11,6 +11,8 @@ The implementation uses the actual Prompt 24 owner and existing selected stack.
 
 ## Status and owned scope
 
+*Packet 1 re-evaluated this stage as Complete with inherited gates, under the usable-prerequisite rule. See [PROGRESS](../prompts/PROGRESS.md).*
+
 **Owned software delivered; stage Partial solely on inherited 24/23/19/Q20.**
 The missing non-consuming bootstrap read evidence remains Prompt 19's obligation.
 No health projection, counter, diagnostic or native test is deferred to it.

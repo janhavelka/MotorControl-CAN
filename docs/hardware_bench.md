@@ -7,8 +7,8 @@ with exact readback. At mutation completion node1 had map2 and producer1000; no 
 start/reset or motor action was sent. A later user power cycle produced both
 boot-up frames and withdrew cached producer confidence. Fresh readback found
 node1 back at producer0/map3 without a save or restore command, for this one
-cycle only. Both nodes then completed 30 readiness uploads; nonzero retained
-targets607A=5000/60FF=120 and mode0 leave enable/motion readiness unresolved. Firmware starts
+cycle only. Both nodes then completed 30 readiness uploads; reads
+607A=5000/60FF=120 equal the EDS defaults, and with mode0 they leave enable/motion readiness unresolved. Firmware starts
 with CAN disabled; explicit controls own each experiment. The earlier
 [connection checkpoint](reports/2026-11-02_s2_live_connection.md) remains historical.
 
@@ -41,7 +41,7 @@ builds, acquisition and physical qualification remain separate facts.
 | Power | User reports both probe selectors and PCB jumpers at 5 V, measured rails 4.75 V and 3.25 V on probe/PCB; green VPROG LED blinks. Design supplies MCU through U14; U3 uses separate VCC/VIO | These are user measurements, not captured rail traces. Green activity indication alone is not a power diagnosis; transient behavior, EN and other attached supplies remain unconfirmed |
 | External I/O | Post-cycle both nodes report 2400:01=0, :02/:03/:04=1/2/3, :05..08=0; raw2101/60FD=0. Terminals reportedly unconnected | Configured origin/positive-limit/negative-limit functions remain present; confirm electrical levels and active semantics needed by the operation. No function was disabled or reassigned |
 | Mechanics | User reconfirmed free shafts, motors bolted to table and independent drive-power cutoff available | Actual ratings, finite motion bounds and independent observation for any motion experiment |
-| Authorization | User explicitly authorizes starting board testing; no repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
+| Authorization | User explicitly authorizes starting board testing and, on 2 November 2026, physical tests generally for this promptset: bench ready, two drives in series, free shafts, motors fixed to the table. No repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
 | Evidence | First image: heartbeat/NMT/fixed TPDO1; 197RX/80TX, stackFree9452. Second image: post-cycle26 plus readiness30 uploads/node; 112RX/112TX, stackFree9580. Both stats report zero errors/drops | Global network history separately reports49 then351 dropped entries. One-cycle reversion is observed; broader persistence, firmware, electrical, sample and motor qualification remain pending |
 
 An unconnected input does not mean its protective or enabling function is
@@ -70,7 +70,7 @@ one-based PDF pages. The independent page review is recorded in
 | EN86 p3 | CL encoder specification 1000 lines; OL entry N/A | Does not establish actual-position units, quadrature conversion or command-pulse scale |
 | OP86 pp3/10 | Cover says 86C; internal headers say 57C and p3 pin table says RS485 despite CAN labels | Preserve source inconsistency; do not substitute its labels for an inspected fixture |
 
-The supply disagreement within EN86 (p3 versus pp6-7) is an unresolved Q19
+The three-way supply disagreement inside each manual is an unresolved Q19
 fixture prerequisite. No voltage is selected from those conflicting ranges.
 Use the actual nameplate and applicable manufacturer evidence.
 

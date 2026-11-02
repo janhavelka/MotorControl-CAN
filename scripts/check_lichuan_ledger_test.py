@@ -273,7 +273,15 @@ class LedgerTests(unittest.TestCase):
                              (17 if communication_count else 18, 38))
             self.assertNotIn("read_coverage", row)
         self.assertEqual(sum(e.get("read_owner_prompt") == 38
-                             for o in LEDGER["objects"] for e in o["entries"]), 101)
+                             for o in LEDGER["objects"] for e in o["entries"]), 89)
+        self.assertEqual(entry(LEDGER, "0x2203:00")["read_owner_prompt"], 38)
+        # Each operation that writes one of these objects owns its readback (G-07).
+        for key, owner in (("0x605D:00", 31), ("0x2301:00", 32), ("0x2302:00", 32),
+                           ("0x607A:00", 33), ("0x60FF:00", 35), ("0x607C:00", 36),
+                           ("0x6098:00", 36), ("0x6099:00", 36), ("0x6099:01", 36),
+                           ("0x6099:02", 36), ("0x609A:00", 36), ("0x2300:00", 39)):
+            self.assertEqual(entry(LEDGER, key)["read_owner_prompt"], owner, key)
+            self.assertEqual(entry(LEDGER, key)["owner_prompt"], owner, key)
 
     def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
         facts = [value for obj in LEDGER["objects"] for value in obj["entries"]

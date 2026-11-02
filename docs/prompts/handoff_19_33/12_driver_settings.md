@@ -18,7 +18,7 @@ Render EN86/ZH86 p11–13 and p16–18 and inspect EDS `2200..2202`, `6060`, `60
 
 Open gates are `2200` CAN/physical direction meaning; `2201` default 0 versus detailed 400..51200 range and scale/activation; `2202` default 10 versus 0/1 and homing/enforcement; `607D` coordinate/range/enforcement; and `6060` transition/retained-target effects. Do not derive one object's limits or units from another. Current/holding `2502..2507` remain exclusively packet 14/original 22.
 
-Both recorded CL86-C specimens report `2201=1000`, `2202=0`, `607D` signed extremes, `607A=5000`, `60FF=120` and mode 0. These are observations, not defaults or known-safe prerequisites. An actual-position zero does not establish a usable reference or small absolute travel. The accepted-read policy from packet 4 does not automatically cover configuration objects; use its explicit reviewed acquisition route where required.
+Both recorded CL86-C specimens report `2201=1000`, `2202=0`, `607D` signed extremes, `607A=5000`, `60FF=120` and mode 0. These are observations, not known-safe prerequisites; the `607A` and `60FF` values equal the EDS defaults, which does not establish where they came from ([correction](../../device_conflicts.md#corrected-reading-of-the-november-2-inventory)). An actual-position zero does not establish a usable reference or small absolute travel. The accepted-read policy from packet 4 does not automatically cover configuration objects; use its explicit reviewed acquisition route where required.
 
 ## Implement and integrate
 

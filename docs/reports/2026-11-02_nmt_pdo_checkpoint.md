@@ -1,5 +1,7 @@
 # S2 NMT, heartbeat and fixed TPDO1 checkpoint
 
+**Correction, packet 1.** This report calls `607A=5000` and `60FF=120` retained targets or stale intent. Both equal their EDS defaults and no retained record shows a write or a pre-cycle read, so that reading is unsupported. See the [corrected reading](../device_conflicts.md#corrected-reading-of-the-november-2-inventory). The measurements below are unchanged.
+
 ## Scope and retained image
 
 On 2026-11-02 the explicitly authorized experiment acquired both nodes, enabled

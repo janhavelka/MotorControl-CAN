@@ -11,6 +11,8 @@ Prerequisite reports 10, 19 and 25 and actual code/checks were read.
 
 ## Owned scope and status
 
+*Packet 1 re-evaluated this stage as Complete with inherited gates, under the usable-prerequisite rule. See [PROGRESS](../prompts/PROGRESS.md).*
+
 **Owned software delivered; stage Partial solely on inherited 19/25/Q20.**
 The missing source-backed non-consuming bootstrap probe remains Prompt 19's
 obligation; native fake mode explicitly supplies its fresh/usable-session premise.

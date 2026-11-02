@@ -156,6 +156,34 @@ class PromptSequenceTests(unittest.TestCase):
                     lambda entries: entries[22]["depends_on"].append(gated_stage))
                 self.assert_rejected(changes, "Evidence harness 29 must not depend")
 
+    def test_release_candidate_cannot_descend_from_remapping(self):
+        # Prompt 38 was the only dependent of 18; any later edge would again make
+        # prompts 49-50 unreachable while Q17 keeps remapping Partial.
+        for prompt_id, descendant in ((38, 49), (39, 49), (49, 49), (47, 48)):
+            with self.subTest(prompt_id=prompt_id):
+                changes = self.sequence_change(
+                    lambda entries: entries[prompt_id - 1]["depends_on"].append(18))
+                self.assert_rejected(
+                    changes, "Prompt {} must not descend from firmware-gated remapping 18".format(descendant))
+
+    def test_campaigns_keep_cli_route_ancestors(self):
+        def shortcut(entries):
+            entries[43]["depends_on"] = [40]
+            entries[44]["depends_on"] = [36, 39]
+            entries[46]["depends_on"] = [29]
+
+        for prompt_id in (44, 45, 47, 48):
+            with self.subTest(prompt_id=prompt_id):
+                self.assert_rejected(self.sequence_change(shortcut),
+                                     "Prompt {} must keep CLI routes 41 and 42 as ancestors".format(prompt_id))
+
+    def test_misdecoded_utf8_is_rejected(self):
+        path = ROOT / "docs/prompts/START_HERE.md"
+        for sequence in ("Ã¢", "â€"):
+            with self.subTest(sequence=sequence):
+                text = path.read_text(encoding="utf-8") + sequence
+                self.assert_rejected({path: text}, "mis-decoded UTF-8 text")
+
     def test_index_dependency_drift_is_rejected(self):
         path = ROOT / "docs/prompts/README.md"
         text = re.sub(r"^(\| 23 \| [^|]+ \| )[^|]+( \|)$", r"\g<1>6, 14, 18, 19\2",

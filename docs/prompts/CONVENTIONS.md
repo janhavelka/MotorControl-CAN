@@ -1,6 +1,8 @@
 # Concrete ecosystem conventions for MotorControl-CAN
 
-This is a **selected implementation contract**, not implemented code. Apply it with
+This is the **selected implementation contract**. Part of it is implemented and
+part is pending: [PROGRESS.md](PROGRESS.md) gives each prompt's state, and section 3
+says which operation families exist. Apply it with
 [COMMON.md](COMMON.md), the active stage and the [multi-drive decision](../multidrive_decision.md).
 The fresh source inventory and differences are recorded in
 [CONVENTIONS_REAUDIT.md](../audit/CONVENTIONS_REAUDIT.md). Recheck the live sources
@@ -17,7 +19,7 @@ record why in the stage report. Do not create competing synonyms quietly.
 | --- | --- | --- |
 | Package | `MotorControl-CAN` | Agreed project identity |
 | Namespace, include directory, CMake identity | `MotorControlCAN`; imported target `MotorControlCAN::MotorControlCAN` | Match the RS distinction between package spelling and C++ identity |
-| First profile namespace | `MotorControlCAN::LICHUAN_C` | Proposed; follows RS `MotorControlRS::ESS_RS` style |
+| First profile namespace | `MotorControlCAN::LICHUAN_C` | Follows RS `MotorControlRS::ESS_RS` style |
 | Public code | `include/MotorControlCAN/`, `src/`, profile subdirectories | RS structure; install/export only portable code and required generated headers |
 | Types and functions | `PascalCase` types; `camelCase` functions/fields; uppercase enum values | Actual RS public API; do not import FieldCore's PascalCase enum values |
 | Tests and tooling | `test/`, `scripts/`, `.github/workflows/verify.yml` | Actual RS names; do not introduce parallel `tests/` and `tools/` trees by copying a sensor template |
@@ -41,7 +43,7 @@ vendor reference files are not part of the core's software license or package.
 Copy the **RS shape and spellings**, not the I2C static factory convention:
 
 ```cpp
-// Selected MotorControlCAN surface; not implemented here.
+// Shape implemented in include/MotorControlCAN/Status.h.
 struct Status {
     Err code;
     int32_t detail;
@@ -60,7 +62,7 @@ classes. `nextMove()` returning `Ok()` means that call validly produced work,
 waiting or a terminal view; it does not mean the motor completed a move.
 
 The selected initial `Err` vocabulary is `OK`, `INVALID_CONFIG`, `ILLEGAL_VALUE`,
-`UNSUPPORTED`, `FRAME_ERROR`, plus the proposed CAN addition `PROTOCOL_ERROR`.
+`UNSUPPORTED`, `FRAME_ERROR`, plus the CAN addition `PROTOCOL_ERROR`.
 The first five preserve matching RS meanings. `PROTOCOL_ERROR` means a checked
 native service rejection, such as an SDO abort. It does not mean a malformed
 frame, controller bus-off or a drive fault. Do not copy `CRC_ERROR` or RTU
@@ -97,9 +99,17 @@ Reuse these exact RS operation families where their meanings apply:
 | Homing | `prepareHome`, `nextHome`, `advanceHome`, `getHomeReference` | Concrete `HomeContext`; checked reference publication |
 | Typed native settings | `prepareDriverRead`, `prepareDriverSettings`, `nextDriver`, `advanceDriver`, `getDriver`, `getIo` where the reviewed Lichuan groups fit | Concrete settings context and typed observations; documented native group additions |
 | Host units/coordinates | `parseExactNumber`, `convertDisplacement`, `convertVelocity`, `convertAcceleration`, `preparePosition`, `prepareVelocityTarget`, `validateAxisConfig`, `configureAxis`, `setAxisOrigin`, `invalidateAxisReference` | Pure checked outputs; no device I/O |
+| Explicit drive communication change | `prepareCommunication`, `prepareCommunicationConfirmation`, `nextCommunication`, `advanceCommunication` | Concrete `CommunicationContext` members |
+| Explicit save and factory restore | `prepareSave`, `prepareFactoryRestore`, `nextPersistence`, `advancePersistence`, `verifyPersistence` | Concrete `PersistenceContext` members; verification never replaces the write outcome. RS has no reset API, and RS multi-write restoration is the application `motion-profile restore` |
 
-These names are observed in RS; their CAN implementations and signatures are
-planned. Retain `state`, `outcome`, `status`, `execution`, `completion`,
+These names are observed in RS. In CAN, the read, native settings, unit and axis
+families exist, and `prepareStop` and `prepareClearAlarm` exist with conditional
+scope; [PROGRESS.md](PROGRESS.md) gives what remains in each. `prepareEnable`,
+`prepareRelease` and the move, velocity, homing, communication and persistence
+families are pending, and their CAN signatures are fixed when they are implemented.
+Finite move, velocity and homing lifecycles wait for W1 to W8 of the
+[repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md).
+Retain `state`, `outcome`, `status`, `execution`, `completion`,
 `uncertain` and operation-specific evidence in the concrete contexts where
 applicable. Do not invent `getMoveResult`, `getActionResult`, `getResult`,
 `advanceOperation` or a universal `OperationContext`. Checked read getters reject
@@ -112,11 +122,16 @@ Preserve `ReadState` and `ActionState` values `EMPTY`, `ACTIVE`, `SUCCEEDED`,
 ACKNOWLEDGED,REJECTED,UNKNOWN}` and `ActionCompletion::{NOT_OBSERVED,OBSERVED}`.
 Keep operation-specific `ReadOutcome` and `ActionOutcome`; use their existing
 `REPLY_ERROR`, `TRANSPORT_ERROR`, `CANCELLED`, `DEADLINE` and observation outcomes
-where applicable. Add proposed `PROTOCOL_REJECTED` to distinguish a checked SDO
-abort from `REPLY_ERROR`. `ACKNOWLEDGED` needs the profile's actual service
+where applicable. `PROTOCOL_REJECTED` distinguishes a checked SDO abort from
+`REPLY_ERROR`. `ACKNOWLEDGED` needs the profile's actual service
 confirmation; controller TX success or CAN ACK alone cannot establish it.
 `OBSERVED` means the documented controller evidence was observed, not an
 independent physical measurement of standstill or electrical safety.
+
+**Deadline cutoff.** Every operation applies one processing-time cutoff:
+`now >= deadlineUs` expires, even if the frame was received earlier. The deadline
+instant itself has expired, and evidence with `completedUs >= deadlineUs` also
+expires. Reads, settings and actions already apply this rule; prompts 33-36 reuse it.
 
 The names share intent across stepper and servo drives. Common axis identity is
 logical, separate from protocol endpoint/channel/subaxis. Do not copy RS
@@ -279,8 +294,9 @@ cached observations/results. Explicit reads alone refresh device evidence.
 `release ID` frees a result; `motor-release` changes drive state.
 
 The exact RS console removed `?`, `ver`, `ping`, bare `reset`, `health check`
-and `profile ess_rs`; sensor examples still having such aliases do not authorize
-reintroducing them. Keep CANopen `nmt`/`pdo`/`heartbeat`/`network` groups scoped
+and `profile ess_rs`, and its tests also reject `help advanced`, `profile ess_rs enable`
+and `stop direct`; `motor ...` is never-implemented grammar, not a removed alias.
+Sensor examples still having such aliases do not authorize reintroducing them. Keep CANopen `nmt`/`pdo`/`heartbeat`/`network` groups scoped
 to CANopen. Distinguish host selection/configuration from explicit drive
 node/bitrate/persistence changes. Discovery never broadcasts mutating commands
 to identify a drive. Default one protocol domain per physical interface.
@@ -315,18 +331,17 @@ object/function has original document/EDS/model/firmware evidence in its ledger.
 Choose a strict Doxygen build for the new library. RS supplies Doxygen-style
 comments but has no root Doxyfile in the inspected checkout; strict generation
 is an intentional addition based on the I2C and FieldCore documentation gates.
-Prompt 8 establishes the configuration and local/CI command; later stages keep
-warnings and broken links at zero. Do not report this future gate as present.
+Prompt 8 established the root `Doxyfile` and its verifier command; later stages keep
+warnings and broken links at zero.
 Keep architecture/user guides, API/CLI coverage and the stage report current,
 with documented/implemented/host-tested/hardware-qualified columns distinct.
 
 Use the RS CMake/CTest pattern: explicitly register `test/*_test.cpp` suites,
 keep assertions enabled in Release, compile source and installed consumers in
 C++11, and run actual Python tests through the host verifier. Preserve focused
-fault fixtures; do not test only helper internals. Prompt 8 adapts current
-`python scripts/verify.py --mode quick --build-dir build/verification` and
-full Arduino/IDF modes into the new repository, with CAN's real gates and pinned
-SDKs. Those commands are RS precedents, not working CAN commands today.
+fault fixtures; do not test only helper internals. The CAN verifier is
+`python scripts/verify.py --mode quick|full --compiler gcc --build-dir .build/<name>`;
+[verification.md](../verification.md) gives its modes and pinned SDKs.
 
 At minimum cover atomic failure output; wrong target/generation/request/step;
 typed getters before completion; retained result pressure; zero budgets; exact
@@ -334,7 +349,9 @@ deadline boundaries; late identical SDO ambiguity; continuous passive events
 during a service; controller queue invalidation; checked abort versus malformed
 reply; abort high-bit preservation; unconfirmed writes; stop capacity under
 pressure; health counter scope/saturation/reset; known timestamp zero; disabled
-heartbeat; no replay after bus-off; and source/install/profile-subset consumers.
+heartbeat; no replay after bus-off; and source/install consumers, including one
+that includes only core headers. Lichuan is always built in the one library, and
+no selected-profile option exists.
 Use N5 stepper/BLDC, EPOS4 and non-CANopen contrast fixtures to catch native
 width/unit/identity assumptions. A fixture is not hardware qualification.
 

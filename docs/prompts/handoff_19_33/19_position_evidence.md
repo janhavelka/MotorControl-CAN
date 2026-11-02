@@ -35,8 +35,8 @@ acceptance delay and falling-bit4 behavior are not established by those words.
    executionReady flag. Add only this named sequence and its tests.
 2. Record current starting command/actual counters, origin/reference validity,
    mode/state/target history, scale hypotheses, configured inputs, settings,
-   time/movement bounds and operator observations. Reuse retained target 5000/
-   velocity120 as historical warnings, never current intent. Independent shaft
+   time/movement bounds and operator observations. Reuse the old reads 5000/
+   120, equal to EDS defaults, as historical warnings, never current intent. Independent shaft
    marking must distinguish direction and approximate rotation. If the paper
    mark cannot supply the needed observation, request that concrete improvement.
 3. Review one absolute candidate first. Native coordinate16,1 rpm,1000 ms ramps

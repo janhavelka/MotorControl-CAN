@@ -15,8 +15,8 @@ heartbeat acquisition. Broader PDO/timers/SYNC, persistence and sample retiremen
 remain Q17 work. Identity width conflicts and Q20 read effects remain open;
 no motion was executed. One user power cycle reverted node1 producer/map to
 0/map3 without save/restore; this is not a general persistence guarantee.
-Both nodes retain nonzero607A=5000/60FF=120, mode0 and configured DI functions;
-resolve retained-target effects, dialect, relative base and post-trigger stop
+Both nodes read 607A=5000/60FF=120, equal to EDS defaults with origin unknown, plus mode0 and configured DI functions;
+resolve the effect of those values, dialect, relative base and post-trigger stop
 before motion admission. Prompt18 is Partial, and prompt33 remains Partial.
 
 Prompt 24 implements the owner urgent/cancel/recovery mechanisms and their
@@ -78,7 +78,7 @@ resolve the above facts by themselves.
 | T02 | Local Clang/MSVC and GCC sanitizer runtimes absent; SDK requires explicit environment | GCC/Clang sanitizer gates passed in Linux CI. Local requests for unavailable tools fail honestly; IDF 5.5.5 builds cover Arduino/S3 IDF/S2 bench and the isolated component. Bounded S2 connectivity is observed separately; broader physical qualification remains pending. MSVC is not a current gate. |
 | T03 | Strict Doxygen 1.13.2 selected and tested on Windows and Linux | 8 complete: exact release/source pin and real documentation failures checked; maintain the pin and warning policy with future public APIs |
 | H01 | Bounded S2/two-drive connection observed; electrical and remote-session qualification remain separate | [Live evidence](reports/2026-11-02_s2_live_connection.md) records COM15 upload/console and two 20-upload raw plans at 1 Mbit/s. Retain cable/reference, termination resistance, transient-power and applicable session facts for further work. Unknown read effects and raw identity do not grant another experiment or motor operation. |
-| T04 | Requested S2/S3/P4 platform coverage | S2 UART/core-0/TWAI port and explicit silent-start bench image implemented with registered build/tests; S3 retains USB/core-1. Core/component compile/link passes for P4, but its TWAI retirement, silicon/USB configuration and full firmware build remain pending. No platform has complete physical qualification. |
+| T04 | Requested S2/S3/P4 platform coverage; reopened 27/28 assignment (audit W9, G-04) | S2 UART/core-0/TWAI port and explicit silent-start bench image implemented with registered build/tests. Still open for the S2 assignment: GPIO18 silent control exists only in the bench application, with no firmware route for a silent capture, and there is no shared S2 CLI or Arduino S2 build; S3 retains USB/core-1. Core/component compile/link passes for P4, but its TWAI retirement, silicon/USB configuration and full firmware build remain pending. No platform has complete physical qualification. |
 | H02 | No motor/load or sustained qualification; short S2 raw exchanges have service-gap/stack observations | 47-48 retain finite/stress campaigns and exact fixture/model/firmware requirements. Observed 9852-byte remaining stack and zero errors/drops do not bound future action paths or sustained load. |
 
 Close an item only with its named evidence. Update a newly affected prompt to
