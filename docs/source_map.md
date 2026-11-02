@@ -1,5 +1,10 @@
 # Live source and responsibility map
 
+For the connected custom board, [the intake report](reports/2026-11-02_s2_bench_intake.md)
+maps actual EasyEDA schematic/PCB nets, USB identity and S2/P4 core compile
+evidence to the [firmware boundary](firmware_examples.md). These are fixture and
+platform facts, not installed drive operations or motion qualification.
+
 Audited 2026-10-28 for [prompt 1](reports/prompt_1.md). This is navigation to
 current declarations, implementation, real callers and focused tests, not a
 directory dump. The original sibling audit remains below; production additions

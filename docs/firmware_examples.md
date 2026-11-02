@@ -1,5 +1,17 @@
 # Shared Arduino and ESP-IDF firmware
 
+The requested target set is ESP32-S2, S3 and P4. Current evidence differs by layer:
+
+| Target | Portable core/component | Complete example/adapter | Physical qualification |
+| --- | --- | --- | --- |
+| S3 | Compiled and linked | Arduino/IDF builds and host tests pass | Pending |
+| S2 | Isolated IDF compile/link passed | UART console, single-core startup, silent/listen-only control and target lifecycle review pending | Pending |
+| P4 | Isolated IDF compile/link passed | Target lifecycle/USB routing, silicon selection and build registration pending | Pending |
+
+The [board intake](reports/2026-11-02_s2_bench_intake.md) records actual S2/P4
+compiler evidence and precise remaining work. Do not flash the S3 example onto
+the connected S2 or treat core compilation as a functioning hardware adapter.
+
 Both firmware systems compile the same [source inventory](../examples/common/firmware_sources.json),
 `ProbeApp`, `DeviceEvidence`, `CanBusOwner`, TWAI node driver and USB platform. The installed core
 remains SDK-free C++11. These examples have no command parser or motion operations;

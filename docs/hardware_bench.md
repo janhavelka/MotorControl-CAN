@@ -1,30 +1,32 @@
 # CAN bench facts and evidence gaps
 
-As of 2026-11-02, prompt 29 has no established live CAN fixture and has performed
-no CAN traffic, firmware flashing, port access or motor activity. The selected
-initial product is the Lichuan CL86-C finished drive. Its installed firmware,
-motor and internal IC are not identified. The RS bench, COM port and motion
-authorization do not transfer to this project. Host evidence readiness,
-firmware compilation, acquisition and physical qualification are separate facts.
+As of 2026-11-02, the user reports an attached ESP-Prog2, an ESP32-S2 PCB and two
+CL86 drives with free-shaft motors bolted to a table, and authorizes board testing.
+Windows USB enumeration and read-only EasyEDA schematic/PCB net inspection are
+recorded in [the board intake](reports/2026-11-02_s2_bench_intake.md). Target power,
+physical cabling and termination still need confirmation. No target UART/JTAG
+session, flash, CAN acquisition or motor action has been performed. The installed
+drive firmware and exact motor ratings remain unknown. Host readiness, firmware
+builds, acquisition and physical qualification remain separate facts.
 
 ## Actual fixture record
 
 | Item | Established fact | Evidence needed before dependent live work |
 | --- | --- | --- |
-| Drive | CL86-C is the requested target; no physical specimen identified | Exact label/model, serial if available, firmware and raw identity; selected manual/dialect |
-| Motor and feedback | Unknown | Motor ratings, wiring, load, encoder configuration and command/feedback scale |
+| Drive | User reports two CL86 drives with different DIP addresses | Confirm exact CL86-C labels, specimen/firmware/raw identity and applicable dialect |
+| Motor and feedback | Two attached motors, user reports free shafts | Motor ratings, wiring, encoder configuration and command/feedback scale |
 | PC interface | User reports PCAN-USB opto IPEH-002022 available; not inspected or exercised | Exact connected interface, driver/version, timestamp and queue behavior, wiring and applicable authorization; availability is not adapter integration or qualification |
-| Embedded controller and SDK | User reports ESP32-S2 PCB; existing compile example targets ESP32-S3 with ESP-IDF 5.5.5 | Actual S2 board revision, SDK/build configuration and compiled pin/driver compatibility; S3 compilation does not validate the S2 PCB |
+| Embedded controller and SDK | EasyEDA OPTAK_FGI_2025 / FirstPrototype specifies U13 ESP32-S2-MINI-2-N4; existing firmware targets S3 / IDF 5.5.5 | Confirm assembled module and physical revision; S2 firmware needs single-core, UART and target-specific TWAI support. Requested P4 support is also separate from current S3 builds |
 | Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
 | Interface and pins | User confirms CAN RX GPIO16, TX GPIO17, silent GPIO18; no physical signal verification | Pin orientation and actual board/firmware routing, CAN_H/CAN_L/reference wiring; no inferred RS COM port |
-| Debug/programming | User reports ESP-Prog/2 JTAG and UART with EN/BOOT | Exact connector wiring, target voltage, reset/boot behavior and separately authorized flashing/debugging; no port was opened |
-| Bus topology | Unknown | Cable, connectors, reference/ground arrangement, termination at physical ends and other nodes |
-| Node and bitrate | Unknown | Actual DIP positions and effective configuration; no trial writes or guessed default |
-| Power | Unknown | Actual drive/motor supply, rating and fixture controls |
+| Debug/programming | Windows identifies ESP-Prog-2 303A:1002; CDC advertises COM15, JTAG uses WinUSB. Both cables attached per user; inspected design pin nets match official mapping | Resolve duplicate active COM15 assignment; verify actual cable orientation/continuity, stable power and reset/boot levels before target access |
+| Bus topology | User reports PCB to drive to drive daisy chain; CN2 pin1 L, pin2 H in both design netlists | Physical cable/reference continuity and endpoint termination. Drive RJ45 pin1 is H, pin2 L, pin3 GND; CN2 is only two pins |
+| Node and bitrate | User reports drive A SW2 ON only; drive B SW1 ON only. EN86 pp9-10 map these to nodes 2/1 at 1 Mbit/s, both internal terminators OFF | Confirm label/orientation and effective on-wire settings; PCB JP1 and external termination remain unverified |
+| Power | User reports both ESP-Prog2 selectors and PCB power jumpers at 5 V. Design routes these to U14 LDO input, with 3.3 V output to MCU; U3 needs 5 V VCC and 3.3 V VIO | Identify flickering LED, measure 5V/3V_SENSE/EN, confirm all other attached supplies. Design correctness does not prove rail stability or assembly |
 | External I/O | Unknown; it may be unused | Actual assignments, electrical levels and connected limits/home/stop inputs needed by the chosen operation |
-| Mechanics | Unknown | Load, permitted travel/direction/speed, mounting and independent observation/stop provisions |
-| Authorization | Host software/evidence-readiness work authorized; no live CAN/motion procedure established | Applicable authorization for one specific finite acquisition or experiment and its bounds |
-| Evidence | Documentary review and host software checks; no acquired device record | Fixture ID, exact software revision, request/response traffic, timestamps, failed/uncertain outcomes and independent observations |
+| Mechanics | User reports free shafts, motors bolted to table and safe to test | Actual ratings, permitted finite motion bounds and independent observation/control for the chosen experiment |
+| Authorization | User explicitly authorizes starting board testing; no repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
+| Evidence | Documentary/host checks plus USB enumeration and matching schematic/PCB pad nets; no acquired drive record | Physical measurements, target identity, raw CAN traffic and independently observed behavior |
 
 An unconnected input does not mean its protective or enabling function is
 disabled. An SDO acknowledgement does not prove physical standstill, a valid

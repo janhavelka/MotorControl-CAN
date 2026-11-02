@@ -1,5 +1,11 @@
 # Requirement coverage after pure CAN/SDO checks
 
+The [connected-board intake](reports/2026-11-02_s2_bench_intake.md) adds actual
+USB/design facts to R19 and S2/P4 isolated core compile/link evidence to R04/R20.
+It does not establish target communication, complete S2/P4 firmware support or
+physical qualification; [platform coverage](firmware_examples.md) keeps these
+separate.
+
 [Prompt 29](reports/prompt_29.md) delivers its offline evidence-readiness scope:
 one typed application/owner path, retained finite acquisitions, loss/failure
 tests and native/firmware builds. Physical acquisition and qualification remain

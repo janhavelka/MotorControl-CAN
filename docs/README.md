@@ -1,5 +1,10 @@
 # MotorControl-CAN documentation
 
+For the connected OPTAK_FGI_2025 board, see the
+[ESP-Prog2/S2 intake](reports/2026-11-02_s2_bench_intake.md) and current
+[bench facts](hardware_bench.md). These distinguish inspected USB/design data,
+S2/P4 portable-core builds and the remaining physical/firmware checks.
+
 For native callers, start with the [shared application](native_application.md),
 [offline units preview](../examples/units_preview/README.md) and
 [fake native probe](../examples/native_probe/README.md). The

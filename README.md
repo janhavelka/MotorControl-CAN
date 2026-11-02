@@ -6,9 +6,14 @@ examples. It retains exact requests/replies, failures, controller events and
 capture-loss diagnostics. Startup and cached inspection remain passive. The
 [conflict table](docs/device_conflicts.md) specifies measurements for every open
 Lichuan gate; ordinary live acquisition remains blocked by unqualified read
-effects (Q20). Host fakes and firmware builds pass; no drive was connected or
-qualified. [Prompt 29's report](docs/reports/prompt_29.md) separates delivered
+effects (Q20). Host fakes and firmware builds pass; physical qualification remains
+pending. [Prompt 29's report](docs/reports/prompt_29.md) separates delivered
 software from conditional acquisition.
+
+**Connected board intake:** the [ESP-Prog2/S2 inspection](docs/reports/2026-11-02_s2_bench_intake.md)
+records actual USB identity, duplicate COM15 names, matching design pin nets and
+remaining power/cable checks. The isolated core also compiles for S2 and P4;
+complete S2/P4 firmware adapters and physical tests remain pending.
 
 **TWAI transport:** the optional [ESP32-S3 adapter](adapters/twai/README.md)
 uses pinned ESP-IDF 5.5.5, copied bounded queues and identifiable TX callbacks.

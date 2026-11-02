@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Connected S2 board intake
+
+- Record ESP-Prog2 USB identity, duplicate COM15 assignments, inspected board
+  power/debug/CAN net mappings and the user's reported DIP settings.
+- Verify isolated portable-core builds for S2 and P4; retain the separate
+  firmware-adapter, electrical and hardware qualification obligations.
+
 ### Finite device evidence readiness
 
 - Add a bounded acquisition collector around the ordinary typed application and

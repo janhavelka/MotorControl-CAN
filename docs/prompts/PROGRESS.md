@@ -1,5 +1,12 @@
 # Prompt execution progress
 
+The [2026-11-02 connected-board intake](../reports/2026-11-02_s2_bench_intake.md)
+records the user's board-test authorization, EasyEDA power/debug/CAN net review,
+ESP-Prog2 COM15 conflict and reported drive DIP settings. Portable-core S2/P4
+compile/link experiments pass; complete S2/P4 adapter support and physical tests
+remain pending. This advances prompt 29's fixture intake without closing Q20 or
+changing motion-stage status.
+
 Prompt 29 delivers [finite device evidence readiness](../reports/prompt_29.md):
 typed native/firmware acquisition through the same owner, exact retained plans,
 raw traffic/failures and a complete conflict-to-measurement table. Local full,
