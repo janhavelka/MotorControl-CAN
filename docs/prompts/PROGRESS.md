@@ -1,5 +1,7 @@
 # Prompt execution progress
 
+The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) is now in the promptset and active under [COMMON.md](COMMON.md) item 5. None of its work packets has started. Its findings were verified at `c329c7e`, before the S2 commits `7764c89` and `c643af8`; its note on changes since the baseline lists what to recheck.
+
 The [NMT/TPDO checkpoint](../reports/2026-11-02_nmt_pdo_checkpoint.md)
 adds 26 successful uploads per node, node1 heartbeat read/write/read, qualified
 bounded receive observations, addressed owner NMT and the successful fixed

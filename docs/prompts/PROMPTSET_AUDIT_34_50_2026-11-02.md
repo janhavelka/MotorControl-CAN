@@ -8,9 +8,27 @@ hardware.
 **Baseline.** MotorControl-CAN `c329c7e` on `promptset/motorcontrol-can`; MotorControl-RS
 `513251d`, clean. Prompt and code line numbers refer to that state unless a finding says
 otherwise. Refresh them before relying on a line number, because other sessions commit here.
-While this file was verified, another session had uncommitted S2 bench work in the tree: S2
-platform and TWAI sources, `examples/s2_bench/`, and `SdoClient::authorizeUploadExperiment`.
-None of it is counted here. When it lands, recheck G-04, W4, W5 and W9 against it.
+
+**Changes since the baseline.** `7764c89` and `c643af8` landed after this file was verified. This
+file now sits in the promptset, but its findings were not re-verified against those commits. Before
+acting on an affected item, check it against the current code and these reports:
+[connection](../reports/2026-11-02_s2_live_connection.md),
+[NMT and TPDO checkpoint](../reports/2026-11-02_nmt_pdo_checkpoint.md),
+[TPDO and motion plan](../reports/2026-11-02_pdo_motion_plan.md).
+
+- **Bus evidence now exists.** Two user-labelled CL86-C specimens answered on nodes 1 and 2 at 1 Mbit/s through
+  an ESP32-S2. Some W11 measurements may already be recorded, such as retained `607A=5000` and
+  `60FF=120` on one specimen. Read the records before repeating one. They cover that firmware
+  and cycle only.
+- **Prompt 18 is Partial,** with fixed TPDO1 implemented and observed on one specimen. Recheck
+  G-01 and G-02, which were written while it was Blocked.
+- **The S2 firmware work landed.** Check it against the W9 list and do only what is missing.
+- **Owner, SDO client and TWAI code changed.** Recheck G-04, W3, W4, W5 and W6, and every line
+  number in `CanBusOwner`, `SdoClient` and `IdfTwaiDriver`. For example, `fail_retry_cnt=0` is
+  still set, but now at `IdfTwaiDriver.cpp:84`, so DEC-4 still needs applying.
+- **A small motion experiment is planned** in the motion report, under prompt 29's rule for
+  isolated experiments. Rule 1 below holds production lifecycles; it neither authorizes nor blocks
+  that experiment. Until C-16 and A-11 are rechecked, do not count on the library's stop in it.
 
 **Verification.** Every finding was re-checked individually by an independent reviewer trying
 to refute it, against the code, running probes and original PDF pages. Section 16 records each
@@ -62,8 +80,9 @@ examples, a passive status decoder, and conditional stop, alarm-clear and counte
 actions (prompts 31 and 32, both Partial).
 
 Not implemented: enable, release, finite move, velocity, homing, discovery, commissioning,
-persistence, CLI or Python runner. Prompts 34-50 are Pending, 18 is Blocked, 19-32 are
-Partial, and 33 is Partial with pure preparation only. No drive has been observed on the bus.
+persistence, CLI or Python runner. At the baseline, prompts 34-50 were Pending, 18 was Blocked,
+19-32 were Partial, 33 was Partial with pure preparation only, and no drive had been observed on the
+bus. The note on changes since the baseline and [PROGRESS.md](PROGRESS.md) give the later state.
 
 Check results:
 
@@ -281,8 +300,8 @@ and record why. Update `CHANGELOG.md`, the stage report,
 **Findings:** G-01 to G-14, section 10's audit rule, N-01 to N-05, the per-prompt table in section
 12, DEC-7. **G-05 is already resolved.**
 
-1. Add one paragraph to `docs/prompts/COMMON.md` linking this file as active until every prompt is
-   repaired.
+1. Done: `COMMON.md` item 5 links this file as active. Remove that item, and the matching
+   paragraphs in `README.md` and `START_HERE.md`, once every prompt is repaired and W1 to W8 are done.
 2. Apply G-01 and G-02 first: remove 18 from 38 in its three places, replace the start rule, add the
    Inherited gates column, and add the checker guard that 18 is not an ancestor of 49. Apply the
    dependency edits of G-02 and G-03 together with `44` depending on `[42, 43]`; alone they would drop
@@ -521,8 +540,8 @@ high-water mark during a stop (W11).
 **Finding:** G-04. Record it as a reopened 27/28 assignment and name it in 29's resume conditions.
 
 Deliver single-core operation, a UART console, S2 TWAI retirement evidence, GPIO18 silent control and an S2 compile
-fixture. Flash and memory facts are in the bench record: 4 MB flash, no PSRAM. P4 stays in backlog T04. Another session
-has uncommitted S2 work in the tree; build on it once it lands rather than redoing it, and check it against this list.
+fixture. Flash and memory facts are in the bench record: 4 MB flash, no PSRAM. P4 stays in backlog T04. The S2 work
+landed in `7764c89` and `c643af8`; build on it rather than redoing it, and check it against this list.
 
 **Done when:** an S2 firmware build passes in CI. No live traffic is part of this packet.
 
@@ -1013,7 +1032,7 @@ mentions S2, and acquisition cannot run on the real board.
 
 **Fix:** record backlog T04 as an explicit reopened 27/28 assignment, named in 29's
 resume conditions and at `47:3` without a Markdown link there, because linking 27 fails the checker's prerequisite rule.
-Another session's uncommitted S2 work overlaps this; recheck when it lands. It covers single-core operation, UART console, S2 TWAI
+The S2 work in `7764c89` and `c643af8` overlaps this; recheck it. The assignment covers single-core operation, UART console, S2 TWAI
 retirement evidence, silent control and an S2 compile fixture. Flash and memory facts
 are in the bench record (4 MB flash, no PSRAM).
 
