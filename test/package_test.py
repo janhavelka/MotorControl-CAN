@@ -19,6 +19,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
+           "MotorControlCAN/ActionOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h",
            "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN/canopen/Network.h", "MotorControlCAN/Version.h",
            "MotorControlCAN/MotorControlCAN.h",
@@ -91,7 +92,7 @@ def check_package(args, work, summary):
     run(sys.executable, str(ROOT / "scripts/export_package.py"), str(archive))
     source = work / "exported source"
     expected = {"include/" + h for h in HEADERS} | {
-        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "CMakeLists.txt", "library.json",
+        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
         "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
     with zipfile.ZipFile(archive) as package:

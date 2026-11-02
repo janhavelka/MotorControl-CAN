@@ -1,5 +1,8 @@
 # MotorControl-CAN documentation
 
+The [conditional stop guide](stop_actions.md) specifies exact native commands,
+controller-report completion, owner handoff and remaining firmware gates.
+
 For the connected OPTAK_FGI_2025 board, see the
 [ESP-Prog2/S2 intake](reports/2026-11-02_s2_bench_intake.md) and current
 [bench facts](hardware_bench.md). These distinguish inspected USB/design data,

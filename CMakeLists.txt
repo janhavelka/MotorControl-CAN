@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp)
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
@@ -71,6 +71,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/MotorControlCANCon
 install(TARGETS MotorControlCAN EXPORT MotorControlCANTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h include/MotorControlCAN/ReadOperation.h
+    include/MotorControlCAN/ActionOperation.h
     include/MotorControlCAN/Units.h include/MotorControlCAN/Axis.h
     include/MotorControlCAN/Endpoint.h include/MotorControlCAN/Version.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
@@ -87,6 +88,7 @@ install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/Pdo.h
     include/MotorControlCAN/profiles/lichuan_c/Reads.h
     include/MotorControlCAN/profiles/lichuan_c/State.h
+    include/MotorControlCAN/profiles/lichuan_c/Actions.h
     include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h
     include/MotorControlCAN/profiles/lichuan_c/IoSettings.h
     include/MotorControlCAN/profiles/lichuan_c/Settings.h

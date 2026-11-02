@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Conditional Lichuan stops
+
+- Add finite `prepareStop/nextAction/advanceAction` for the documented position-mode
+  `000F -> 010F/000B` transitions, with no enabling preamble or automatic replay.
+- Retain command acknowledgement separately from fresh not-running reports,
+  interrupted request results and uncertainty after cancellation or failure.
+- Exercise real urgent owner admission, old-operation fencing, queue retirement,
+  capacity, asynchronous events and channel quarantine with native fakes.
+- Keep unsupported predecessor states, braking/torque/queue consequences and
+  hardware qualification explicit in the stop guide and prompt 31 report.
+
 ### Documentary drive-state interpretation
 
 - Strengthen checked-publication tests for output/current overlap and real

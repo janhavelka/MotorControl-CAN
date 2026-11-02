@@ -86,6 +86,8 @@ REQUIRED = {
     "include/MotorControlCAN/canopen/PdoState.h", "include/MotorControlCAN/ReadOperation.h",
     "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/State.h", "src/profiles/lichuan_c/State.cpp", "test/drive_state_test.cpp",
+    "include/MotorControlCAN/ActionOperation.h", "include/MotorControlCAN/profiles/lichuan_c/Actions.h",
+    "src/profiles/lichuan_c/Actions.cpp", "test/stop_action_test.cpp", "docs/stop_actions.md",
     "examples/common/CanBusOwner.h", "examples/common/CanBusOwner.cpp", "examples/common/CMakeLists.txt",
     "examples/common/CanBusDiagnostics.cpp", "examples/common/OwnerCounters.h", "test/can_bus_health_test.cpp",
     "examples/common/DeviceEvidence.h", "examples/common/DeviceEvidence.cpp",
