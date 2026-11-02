@@ -544,6 +544,38 @@ void wrappedRadianIntervals() {
     CHECK(saved.unchanged(out)); // Approximate orientation crosses the full-turn boundary.
 }
 
+// Binary32 spacing is 4 near 2^25, so a small positive wrapped move can round
+// below its witness. Exact and approximate preparation share this rejection.
+void wrappedFloatRoundingReversal() {
+    M::AxisConfig c = config();
+    c.positionRepresentation = M::NativeRepresentation::BINARY32;
+    c.units.commandStepsPerMotorTurn = scale(1000);
+    c.originKnown = true; c.originSource = M::ScaleSource::QUALIFIED;
+    const M::AxisReference ref = reference(c, 33554433); // 433 steps into its turn.
+    M::PositionRequest r = position(c, 4332, 10000); // Turn 0.4332 is 0.2 steps ahead.
+    r.frame = M::CoordinateFrame::MOTOR; r.unit = M::PositionUnit::TURNS;
+    r.wrapped = true; r.path = M::AnglePath::POSITIVE; r.maximumQuantizationError = M::Rational(2);
+    M::PreparedTarget out;
+    const Saved<M::PreparedTarget> saved(out);
+    M::Status status = M::preparePosition(r, c, &ref, out);
+    CHECK(!status && status.detail == static_cast<int32_t>(M::AxisError::AMBIGUOUS));
+    CHECK(saved.unchanged(out));
+    r.value = M::Rational(4360, 10000); // Three steps ahead lands exactly on a binary32 value.
+    CHECK(M::preparePosition(r, c, &ref, out));
+    CHECK(out.effectiveFloat == 33554436.0f && out.endpointFloat == 33554436.0);
+
+    M::PreparedTarget approximate;
+    const Saved<M::PreparedTarget> untouched(approximate);
+    r.unit = M::PositionUnit::RADIANS; r.approximate = true; r.maximumApproximationError = 1e-6;
+    r.value = M::Rational(INT64_C(2721875875), UINT64_C(1000000000)); // Same 0.2-step move.
+    status = M::preparePosition(r, c, &ref, approximate);
+    CHECK(!status && status.detail == static_cast<int32_t>(M::AxisError::AMBIGUOUS));
+    CHECK(untouched.unchanged(approximate));
+    r.value = M::Rational(INT64_C(2739468793), UINT64_C(1000000000)); // Turn 0.436 again.
+    CHECK(M::preparePosition(r, c, &ref, approximate));
+    CHECK(approximate.effectiveFloat == 33554436.0f && !approximate.exactArithmetic);
+}
+
 void signedWideVelocity() {
     M::AxisConfig c = config(); c.nativeMinimum = 0; c.nativeMaximum = 1;
     M::VelocityRequest r; r.configurationGeneration = c.binding.configurationGeneration;
@@ -592,6 +624,7 @@ int main() {
     wrappedAngles();
     floatingAndApproximateBoundaries();
     wrappedRadianIntervals();
+    wrappedFloatRoundingReversal();
     signedWideVelocity();
     std::puts("pure axis coordinate/reference contracts passed");
 }

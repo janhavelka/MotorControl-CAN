@@ -86,15 +86,19 @@ Status conversionConfig(CoordinateFrame frame, PositionUnit unit, const AxisConf
         out.motorTurnsPerLoadTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
     return Ok();
 }
-Status displacement(const Rational& value, PositionUnit unit, CoordinateFrame frame,
-    const AxisConfig& c, NativeQuantity& out) {
-    UnitConfig units; Status s = conversionConfig(frame, unit, c, units); if (!s) return s;
-    // Mechanical increments follow command polarity, unlike native increments.
+// Mechanical increments follow command polarity, unlike native increments. A
+// STEPS-to-STEPS conversion applies no factors, so route the sign through turns.
+void mechanicalUnits(CoordinateFrame frame, PositionUnit& unit, UnitConfig& units) {
     if (unit == PositionUnit::STEPS && frame != CoordinateFrame::NATIVE && units.commandPolarity < 0) {
         units.commandStepsPerMotorTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
         units.motorTurnsPerLoadTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
         unit = PositionUnit::TURNS;
     }
+}
+Status displacement(const Rational& value, PositionUnit unit, CoordinateFrame frame,
+    const AxisConfig& c, NativeQuantity& out) {
+    UnitConfig units; Status s = conversionConfig(frame, unit, c, units); if (!s) return s;
+    mechanicalUnits(frame, unit, units);
     return unitStatus(convertDisplacement(value, unit, PositionUnit::STEPS, units, out));
 }
 double errorDouble(const IntegerQuantization& q) {
@@ -213,6 +217,28 @@ Status wrapped(const PositionRequest& r, const AxisConfig& c, const AxisReferenc
     delta.negative = !nativePositive && delta.numerator;
     return add(delta, ref.nativePosition, endpoint);
 }
+// Derive the quantized endpoint in the caller's candidate, check it against the
+// limits and confirm that rounding kept the selected wrapped direction.
+Status finishPrepared(const PositionRequest& r, const AxisConfig& c, const AxisReference* ref,
+    bool nativePositive, PreparedTarget& next) {
+    Status s;
+    if (c.positionRepresentation == NativeRepresentation::INTEGER) {
+        NativeQuantity effective; effective.integral = next.effectiveNative;
+        if (r.relative) { s = add(effective, ref->nativePosition, effective); if (!s) return s; }
+        next.endpointNative = effective.integral;
+        s = bounds(effective, c); if (!s) return s;
+        if (r.wrapped && ((next.endpointNative > ref->nativePosition && !nativePositive) ||
+            (next.endpointNative < ref->nativePosition && nativePositive)))
+            return fail(AxisError::AMBIGUOUS, "rounding reverses wrapped direction");
+    } else {
+        s = floatBounds(next.effectiveFloat, r.relative ? ref->nativePosition : 0, c); if (!s) return s;
+        next.endpointFloat = double(next.effectiveFloat) + (r.relative ? double(ref->nativePosition) : 0);
+        if (r.wrapped && ((compareFloatInteger(next.effectiveFloat, ref->nativePosition) > 0 && !nativePositive) ||
+            (compareFloatInteger(next.effectiveFloat, ref->nativePosition) < 0 && nativePositive)))
+            return fail(AxisError::AMBIGUOUS, "float rounding reverses wrapped direction");
+    }
+    return Ok();
+}
 // Approximate decisions use outward intervals within binary64's exact-integer
 // range. A midpoint never substitutes for the retained exact request.
 struct Interval { double value = 0, error = 0; };
@@ -314,21 +340,7 @@ Status approximatePosition(const PositionRequest& r, const AxisConfig& c, const 
     s = intervalBounds(endpoint, c); if (!s) return s;
     s = quantizeInterval(q, c.positionRepresentation, r.rounding, r.maximumQuantizationError,
         next.effectiveNative, next.effectiveFloat, next.absoluteErrorBound); if (!s) return s;
-    if (c.positionRepresentation == NativeRepresentation::INTEGER) {
-        NativeQuantity n; n.integral = next.effectiveNative;
-        if (r.relative) { s = add(n, ref->nativePosition, n); if (!s) return s; }
-        next.endpointNative = n.integral;
-        s = bounds(n, c); if (!s) return s;
-        if (r.wrapped && ((next.endpointNative > ref->nativePosition && !nativePositive) ||
-            (next.endpointNative < ref->nativePosition && nativePositive)))
-            return fail(AxisError::AMBIGUOUS, "rounding reverses wrapped path");
-    } else {
-        s = floatBounds(next.effectiveFloat, r.relative ? ref->nativePosition : 0, c); if (!s) return s;
-        next.endpointFloat = double(next.effectiveFloat) + (r.relative ? double(ref->nativePosition) : 0);
-        if (r.wrapped && ((compareFloatInteger(next.effectiveFloat, ref->nativePosition) > 0 && !nativePositive) ||
-            (compareFloatInteger(next.effectiveFloat, ref->nativePosition) < 0 && nativePositive)))
-            return fail(AxisError::AMBIGUOUS, "float rounding reverses wrapped path");
-    }
+    s = finishPrepared(r, c, ref, nativePositive, next); if (!s) return s;
     next.exactArithmetic = false; next.approximateRequestedNative = endpoint.value;
     next.approximationErrorBound = endpoint.error; return Ok();
 }
@@ -457,21 +469,7 @@ Status preparePosition(const PositionRequest& r, const AxisConfig& c, const Axis
     next.requestedNative = endpoint;
     s = quantize(quantity, c.positionRepresentation, r.rounding, r.maximumQuantizationError,
         next.effectiveNative, next.effectiveFloat, next.quantization, next.absoluteErrorBound); if (!s) return s;
-    if (c.positionRepresentation == NativeRepresentation::INTEGER) {
-        NativeQuantity effective; effective.integral = next.effectiveNative;
-        if (r.relative) { s = add(effective, ref->nativePosition, effective); if (!s) return s; }
-        next.endpointNative = effective.integral;
-        s = bounds(effective, c); if (!s) return s;
-        if (r.wrapped && ((next.endpointNative > ref->nativePosition && !nativePositive) ||
-            (next.endpointNative < ref->nativePosition && nativePositive)))
-            return fail(AxisError::AMBIGUOUS, "rounding reverses wrapped direction");
-    } else {
-        s = floatBounds(next.effectiveFloat, r.relative ? ref->nativePosition : 0, c); if (!s) return s;
-        next.endpointFloat = double(next.effectiveFloat) + (r.relative ? double(ref->nativePosition) : 0);
-        if (r.wrapped && ((compareFloatInteger(next.effectiveFloat, ref->nativePosition) > 0 && !nativePositive) ||
-            (compareFloatInteger(next.effectiveFloat, ref->nativePosition) < 0 && nativePositive)))
-            return fail(AxisError::AMBIGUOUS, "float rounding reverses wrapped direction");
-    }
+    s = finishPrepared(r, c, ref, nativePositive, next); if (!s) return s;
     output = next; return Ok();
 }
 Status validatePreparedTarget(const PreparedTarget& p, const AxisConfig& c, const AxisReference* ref, uint64_t nowUs) {
@@ -506,10 +504,7 @@ Status prepareVelocityTarget(const VelocityRequest& r, const AxisConfig& c, Prep
     if (r.frame == CoordinateFrame::NATIVE && r.unit.time != c.nativeVelocityTime)
         return fail(AxisError::INVALID_ARGUMENT, "native rate time dimension differs");
     PositionUnit from = r.unit.position;
-    if (from == PositionUnit::STEPS && r.frame != CoordinateFrame::NATIVE && units.commandPolarity < 0) {
-        units.commandStepsPerMotorTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
-        units.motorTurnsPerLoadTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED); from = PositionUnit::TURNS;
-    }
+    mechanicalUnits(r.frame, from, units);
     PreparedVelocityTarget next; next.requested = r; next.binding = c.binding; next.representation = c.velocityRepresentation;
     const VelocityUnit destination(PositionUnit::STEPS, c.nativeVelocityTime);
     if (r.unit.position == PositionUnit::RADIANS && r.value.numerator) {
