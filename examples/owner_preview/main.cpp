@@ -49,7 +49,7 @@ struct FakeTransport {
         --fake.reportCount;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& request, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& request, E::TransportTxId id, uint32_t epoch) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
         // This fixture implements only the two explicit expedited uploads below.
         if (request.id != 0x605 || request.payloadLength != 8 || request.data[0] != 0x40 ||

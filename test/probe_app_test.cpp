@@ -334,16 +334,16 @@ void fakeBoundsAndAtomicRefusals() {
     C::SdoTxId id;
     // Malformed/unknown uploads and all writes are refused before queue mutation.
     request.data[0] = 0x2b;
-    CHECK(!callbacks.transmit(&fake, request, id, 1));
+    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
     CHECK(!fake.ingressUsed() && !fake.reportsUsed() && !fake.transmitted());
     request.data[0] = 0x40;
     request.data[1] = 0xff;
-    CHECK(!callbacks.transmit(&fake, request, id, 1));
+    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
     request.data[1] = 0;
     for (unsigned i = 0; i < E::FakeTransport::INGRESS_CAPACITY - 3; ++i)
         CHECK(fake.push(heartbeat(5)));
     const unsigned ingress = fake.ingressUsed();
-    CHECK(!callbacks.transmit(&fake, request, id, 1));
+    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
     CHECK(fake.ingressUsed() == ingress && !fake.reportsUsed() && !fake.transmitted());
     while (fake.ingressUsed()) {
         E::ReceivedFrame value;
@@ -355,12 +355,12 @@ void fakeBoundsAndAtomicRefusals() {
     kept.unchanged(empty);
     // Fill report storage while explicitly draining only synthetic ingress.
     for (unsigned i = 0; i < E::FakeTransport::REPORT_CAPACITY; ++i) {
-        CHECK(callbacks.transmit(&fake, request, id, 1));
+        CHECK(callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
         E::ReceivedFrame value;
         while (fake.ingressUsed())
             CHECK(callbacks.receive(&fake, value));
     }
-    CHECK(!callbacks.transmit(&fake, request, id, 1));
+    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
     CHECK(!fake.ingressUsed() && fake.reportsUsed() == E::FakeTransport::REPORT_CAPACITY);
     for (unsigned i = 0; i < E::FakeTransport::REPORT_CAPACITY; ++i) {
         E::TxReport report;

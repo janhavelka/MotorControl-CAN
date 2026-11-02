@@ -9,12 +9,15 @@ what is actually evidenced. A [synthetic API/owner proof](reports/prompt_6.md) n
 exists; finite [raw Lichuan reads](reads.md) are now implemented. Missing
 device facts gate the smallest dependent feature, not all independent work.
 
-The [two-node S2 connection checkpoint](reports/2026-11-02_s2_live_connection.md)
-now retains 20 successful bounded raw uploads per node and zero reported CAN
-errors/drops. It establishes the connection and initial raw TPDO1 readback,
-without closing Q01/Q17/Q20 or completing Prompt 18. Both `1009` and `100A`
-returned one byte rather than the EDS U16; reconcile applicability before typed
-metadata changes. No PDO mutation or motor action has been performed.
+The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) implements
+and observes the fixed TPDO1 map3-to-map2 subset on node1 after explicit NMT and
+heartbeat acquisition. Broader PDO/timers/SYNC, persistence and sample retirement
+remain Q17 work. Identity width conflicts and Q20 read effects remain open;
+no motion was executed. One user power cycle reverted node1 producer/map to
+0/map3 without save/restore; this is not a general persistence guarantee.
+Both nodes retain nonzero607A=5000/60FF=120, mode0 and configured DI functions;
+resolve retained-target effects, dialect, relative base and post-trigger stop
+before motion admission. Prompt18 is Partial, and prompt33 remains Partial.
 
 Prompt 24 implements the owner urgent/cancel/recovery mechanisms and their
 adversarial host checks. Prompt 27 implements checked SDK node destruction and fake retirement; physical retirement qualification remains pending;
@@ -40,7 +43,7 @@ stage Partial; no owned owner mechanism is deferred. See [report](reports/prompt
 | D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware; both connected specimens return one byte for EDS-U16 `1009/100A` | Q01: reconcile retained raw `0x0C/0x20` with applicable manufacturer firmware/type evidence; preserve original EDS and typed widths. 29/37 retain explicit model provenance; no human version string is inferred. N5/EPOS4 contrasts remain documentary, not installed profiles. |
 | D13 | Read consumption and complete 60FD bit layout are not established by source access flags | Q20/Q19: 19 implements raw values with unknown effects. Its non-consuming probe remains open until applicable read-effect evidence exists. Do not copy 2101 bits or infer a non-consuming read. |
 | D14 | No complete local/remote settlement boundary for reopening an unresolved Lichuan SDO channel; no proven second server channel | 14 implements permanent quarantine and explicit unsupported capabilities. Q18/Q16/Q20 plus model provenance gate any later reopening: prove old TX/RX retirement, server session bounds and permitted confirmation, not a quiet delay or host epoch. See [source evidence](reports/prompt_14_sources.md). |
-| D15 | Lichuan applicability of standard variable/dynamic remapping, device restrictions and activation/readback remain unconfirmed | Q17: [Prompt 18 is Blocked](reports/prompt_18.md#fresh-independent-audit). Confirm the selected subset, then implement its typed sequence and every-step failures in 18. Timer/SYNC facts gate only dependent settings; sample qualification stays separate. Keep persistence effects explicit. |
+| D15 | Fixed TPDO1 contents confirmed on node1; broader maps, firmware scope, timers/SYNC, persistence and sample provenance remain unresolved | Q17: [checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md). Qualify only the next selected subset; confirmed map contents do not qualify samples. |
 
 The canonical [qualification checklist](reference/lichuan_review.md) and ledger
 give the exact required observations and selected-model scope for Q01-Q21.
@@ -62,7 +65,7 @@ resolve the above facts by themselves.
 | S07 | Shared examples and evidence harness | 26 implements shared ProbeApp/ProbePlatform, fake typed reads through the owner and isolated installed-core consumers; [contract](native_application.md). 27 delivers the pinned S3/IDF 5.5.5 TWAI adapter; 28 delivers Arduino/IDF integration and a separate component consumer; 29 delivers finite typed acquisition, retained failure/raw evidence and fake/firmware tests. Successful node destruction retires local TX under the reviewed same-core contract; physical behavior remains unqualified. Conditional acquisition and exact isolated experiment support remain 29 when external prerequisites arrive; [measurement gates](device_conflicts.md). |
 | S08 | Common motion and native commissioning/persistence | 30 implements checked documentary state interpretation only. Its [action gates](drive_actions.md) need concrete initial/no-pending-motion provenance for enable and a sourced release command/effect pair before finite lifecycle/owner tests. 31 adds the conditional 000F halt/quick-stop path and real-owner tests; broader predecessor transitions, velocity/homing modes and option/queue/reference effects remain its precise obligations in [the stop guide](stop_actions.md). 32 adds the conditional FF05 clear and zero-only counter path with reference invalidation; its separate controlword reset and firmware/counter relationship gates remain in [the action guide](fault_reference_actions.md). 33 adds pure checked native position parameters; its [finite lifecycle and post-trigger stop gates](position_parameters.md) remain owned by 33/31. 34-39 retain each assigned function and its checks. |
 | S09 | Shared CLI and Python automation | 40-44: one inventory/schema, correlation, exact parser, finite campaigns and offline failures |
-| S10 | Resume typed PDO configuration after Q17 evidence | 18 owns preparation/progression, immutable deadlines, exact partial effects, reviewed settings and final readback publication. Reuse the existing SDO/PDO owner; integrate with the completed application owner if available on resumption. No always-rejecting stub or generic vendor sequence completes this item. |
+| S10 | Extend the delivered fixed TPDO1 configuration only with applicable evidence | 18 retains broader routes/settings, timer/SYNC semantics and persistence; sample retirement/provenance remains separate. Reuse the installed lifecycle and existing owner, preserve per-step uncertainty. |
 | I01 | Integrate delayed 18/20-22 work through completed owner | Original owning prompts plus 45: actual settings/remap traces, not only synthetic owner fixtures |
 | I02 | FieldCore-like consumer and multi-drive contrasts | 45-46: IDs/generations/effects without importing FieldCore types; one physical receiver and protocol-specific services |
 | I03 | Native package and support/documentation closure | 49-50: installed scope matches actual APIs/tests/firmware/qualification; no placeholder profile or invented release status |

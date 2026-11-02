@@ -38,15 +38,28 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `c` / `start` | One local CAN initialization attempt; lower S18 on success, no device request |
 | `s` / `stats` | Cached controller/owner counters and task stack high-water mark |
 | `1`, `2` / `identity1`, `identity2` | Strict typed nine-field identity plan; retained EDS widths apply |
-| `3`, `4` / `raw1`, `raw2` | Upload-only raw experiment on node 1/2, with the fixed 20-field inventory below |
+| `3`, `4` / `raw1`, `raw2` | Upload-only raw experiment on node 1/2, with the fixed 26-field inventory below |
+| `v`, `b` / `motion-readiness1`, `motion-readiness2` | Separate finite 30-field upload-only readiness inventory on node 1/2; no motion command |
+| `h`, `j` / `heartbeat1`, `heartbeat2` | Separate exact1017 experiment: require zero, write1000ms, read back; one attempt per node |
+| `q`, `w` / `preop1`, `preop2` | Explicit addressed NMT Pre-operational through the same owner/TWAI result path |
+| `n` / `network` | Two cached node snapshots and at most eight copied network events; no traffic |
+| `m` / `tpdo1` | Node1 only: wait for qualified Pre-operational, nine exact baseline reads, six fixed mapping writes, nine exact final reads |
 | `d` / `dump` | Reprint the retained record, without another upload |
 | `r` / `release` | Release after output and local TX/cleanup retirement; never reopen or retry |
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
 `2000:00`, `2001:00`, `1800:01/:02/:03/:05`, `1A00:00..04`, `6041:00`
-and `6061:00`. Each upload has four-byte capacity, server-indicated actual size
+`6061:00`, `1017:00`, `2100:00`, `603F:00`, `6064:00`, `2201:00` and `606C:00`. Each inventory upload has four-byte capacity, server-indicated actual size
 and unknown read effects. There is no arbitrary object selector or write sender.
-Queue/response budgets are 250 ms and the overall deadline is 3 seconds, all
+The separate readiness inventory is `1001`, `603F`, `6041`, `6061`, `2100`,
+`2101`, `6064`, `606C`, `607A`, `6081`, `6083`, `6084`, `605D`, `60FF`,
+`2200`, `2201`, `2202`, `607D:01/:02`, `2500`, `2501`, `2400:01..08` and
+`60FD`. It retains exact server-indicated bytes and unknown read effects;
+it does not establish a safe enable predecessor, motion scale or physical
+input state. It has its own one-attempt latch per node, so it may follow a
+released baseline inventory without repeating it.
+
+Queue/response budgets are 250 ms and the inventory/heartbeat deadline is 5 seconds; the PDO deadline is 8 seconds, all
 host policies. The fixture requires exclusive ownership and an externally
 established fresh SDO server session. Restarting the MCU does not establish a
 fresh remote session after an uncertain transfer.
@@ -55,9 +68,10 @@ The raw collector uses the ordinary owner with one exact one-use adapter grant
 per field. The typed collector uses `DeviceEvidence::requestExperiment`; both
 retain external review references and unknown read effects. Neither changes
 the generated read policy or establishes production service qualification.
-One accepted plan consumes the node's session latch even on failure, shared
-between its typed and raw controls. Release does not remove uncertainty,
-reopen an SDO channel or permit another acquisition on that session.
+One accepted inventory consumes the node's inventory latch even on failure, shared
+between its typed and raw controls. Heartbeat and PDO experiments have separate
+one-attempt latches and increasing exact grant/operation identities. Release does not remove uncertainty,
+reopen an SDO channel or permit repetition of that experiment.
 
 The finite serial runner verifies the ESP-Prog2 USB identity, sets neither EN
 nor BOOT, sends one byte and saves raw output plus request metadata:
@@ -83,8 +97,8 @@ must be new. Capturing bytes is not an assertion that the firmware accepted the
 request. Compare the reported ELF hash with the build record. The Git revision
 is the build's base commit; retained source hashes identify any working changes.
 
-Output is bounded and does not delay CAN service. Raw history holds 20 terminals,
-96 traffic copies and a separate 16-entry post-terminal tail. The collector waits
+Output is bounded and does not delay CAN service. Raw history holds 26 terminals,
+112 traffic copies and a separate 16-entry post-terminal tail. The collector waits
 for each preceding accepted TX's final report before granting another field;
 the deadline stays fixed and no refused grant is replayed. Its first terminal
 facts remain frozen while the tail can retain later reports/cleanup. The earlier
@@ -96,7 +110,8 @@ call chain. Preflight now uses owned record scratch, and the task has 12288 byte
 The [live report](../../docs/reports/2026-11-02_s2_live_connection.md) retains the
 failed reset, compiler stack facts, pacing defect and corrected runs separately.
 
-The [node-1](../../docs/bench/20261102-s2-raw-fixed-node1/rx.txt) and
+The earlier connection checkpoint
+[node-1](../../docs/bench/20261102-s2-raw-fixed-node1/rx.txt) and
 [node-2](../../docs/bench/20261102-s2-raw-fixed-node2/rx.txt) records each contain
 20 successful raw uploads. Both indicate one byte for `1009=0x0C` and
 `100A=0x20`, versus the retained EDS U16 widths. The strict typed identity path
@@ -106,5 +121,42 @@ operation-mode meaning nor physical standstill.
 The [post-run counters](../../docs/bench/20261102-s2-raw-fixed-stats/rx.txt)
 report 40 RX/40 TX, zero errors/drops and 9852 bytes minimum remaining stack.
 These runs establish the computer/probe/UART/CAN/two-drive connection, with
-unknown read effects. No PDO write or motor action was sent; Prompt 18 and
-broader motor/electrical/sustained qualification remain pending.
+unknown read effects. No PDO write or motor action was sent in that earlier
+checkpoint. The later [NMT/TPDO checkpoint](../../docs/reports/2026-11-02_nmt_pdo_checkpoint.md)
+records heartbeat acquisition, addressed Pre-operational and the fixed TPDO1
+map change with complete readback. Prompt18 is Partial; broader PDO and
+motor/electrical/sustained qualification remain pending.
+
+The later user physical power cycle and fresh readback found node1 back at
+producer0/map3 without save/restore, for that one cycle only. Both nodes then
+completed 30 readiness uploads. Nonzero retained `607A=5000`/`60FF=120`, mode0
+and configured DI functions remain admission questions; no motion command or
+blind enable sequence is implemented. No input assignment was changed.
+
+The heartbeat experiment has three exact U16 services and stops if the baseline
+is not zero. Its one download changes producer timing; this does not configure
+a drive host-loss response. The effective producer fact becomes unknown before
+possible TX and is published only after matching final readback. No automatic
+restore or save occurs. The 1000ms value is an explicit experimental choice.
+
+NMT uses a tagged owner transport identity and retains its own result. TX
+confirmation does not confirm the remote transition. Release the result with
+`r` after retaining it, then inspect `n`; a fresh post-handoff heartbeat is
+required. No NMT reset/start/stop is hidden in any command.
+
+The fixed PDO experiment is documented in
+[the reviewed procedure](../../docs/reports/2026-11-02_pdo_motion_plan.md).
+Its scope remains `ISOLATED_EXPERIMENT`. It preserves COB-ID, type255, raw
+inhibit100, event0 and inactive slots, changes the active map from status/mode/
+position to status/position, and stops at the first failure. Every queued
+service carries a Pre-operational prerequisite rechecked through SDK submission.
+Partial or uncertain changes are retained without rollback. Complete readback
+confirms contents only; samples remain unqualified. No motion is implemented
+by this harness.
+
+The S2 reports exact capture as unknown and retains separate conservative
+ingress bounds. See [the timing proof](../../docs/adapters/twai_receive_time.md).
+A processing timestamp is never relabeled as arrival. A boot-up is recorded
+only when an actual matching `00` event is received; absence of such an event
+is not proof of a fresh server session. Network history and serial output are
+bounded, with loss/truncation reported explicitly.

@@ -2,6 +2,7 @@
 // Compile the actual SDK shim against narrow host fakes. No SDK build or CAN I/O.
 #include "IdfTwaiDriver.h"
 #include "esp_twai_onchip.h"
+#include "hal/twai_ll.h"
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -24,6 +25,9 @@ struct FakeSdk {
     Call calls[128] = {};
     unsigned count = 0, transmissions = 0, receives = 0;
     unsigned criticalDepth = 0, bootAfterTransmissions = 0;
+    int64_t nowUs = 0;
+    uint32_t hardwareRxCount = 0;
+    bool frameDuringClockSample = false, frameAfterEmptyCheck = false;
     Call fail = Call::RECEIVE;
     bool failEnabled = false, memoryInternal = true, live = false;
     bool immediate = false, rxFail = false;
@@ -126,6 +130,26 @@ void stop(E::TwaiDriver& driver) {
     CHECK(!sdk.live);
 }
 } // namespace
+
+twai_dev_t fakeTwaiHardware;
+int64_t esp_timer_get_time() {
+    if (sdk.frameDuringClockSample) {
+        CHECK(sdk.criticalDepth != 0);
+        sdk.frameDuringClockSample = false;
+        sdk.hardwareRxCount = 1;
+    }
+    return sdk.nowUs;
+}
+uint32_t twai_ll_get_rx_msg_count(twai_dev_t* hardware) {
+    CHECK(hardware == &fakeTwaiHardware && sdk.live && sdk.criticalDepth != 0);
+    const uint32_t count = sdk.hardwareRxCount;
+    if (sdk.frameAfterEmptyCheck) {
+        CHECK(!count);
+        sdk.frameAfterEmptyCheck = false;
+        sdk.bootOnExit = true;
+    }
+    return count;
+}
 
 void fakeEnterCritical(portMUX_TYPE* mux) {
     CHECK(mux);
@@ -330,7 +354,7 @@ void actualReceiveCallbacksValidateBeforePublishing() {
     sdk.rxFail = false;
     E::ReceivedFrame result;
     result.frame.id = 777;
-    CHECK(!driver.receive(driver.context, result) && result.frame.id == 777);
+    CHECK(!driver.receive(driver.context, result, UINT64_MAX) && result.frame.id == 777);
     auto events = driver.events(driver.context);
     CHECK(events.rxDropped == 12 && !events.txDone);
     CHECK(driver.events(driver.context).rxDropped == 0);
@@ -338,18 +362,93 @@ void actualReceiveCallbacksValidateBeforePublishing() {
     sdk.receive(0x123, 8);
     sdk.receive(0x456, 1); // Configured capacity two, despite sixteen physical slots.
     CHECK(driver.events(driver.context).rxDropped == 1);
-    CHECK(driver.receive(driver.context, result));
+    CHECK(driver.receive(driver.context, result, UINT64_MAX));
     CHECK(result.controllerEpoch == 7 && result.frame.id == 0x1fffffff);
     CHECK(result.frame.extended && result.frame.rtr && result.frame.dlc == 8);
     CHECK(result.frame.payloadLength == 0 && !result.receivedTimeKnown && result.receivedUs == 0);
-    CHECK(driver.receive(driver.context, result));
+    CHECK(driver.receive(driver.context, result, UINT64_MAX));
     CHECK(result.frame.id == 0x123 && result.frame.payloadLength == 8 && result.frame.data[7] == 8);
-    CHECK(!driver.receive(driver.context, result));
+    CHECK(!driver.receive(driver.context, result, UINT64_MAX));
     for (unsigned i = 0; i < 20; ++i) {
         sdk.receive(0x100 + i, 1);
-        CHECK(driver.receive(driver.context, result) && result.frame.id == 0x100 + i);
+        CHECK(driver.receive(driver.context, result, UINT64_MAX) && result.frame.id == 0x100 + i);
     }
     stop(driver);
+}
+
+void receiveIntervalsUseOnlyProvenEmptyIngress() {
+    reset();
+    sdk.nowUs = 10;
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    CHECK(driver.start(driver.context, config(), 1));
+    sdk.nowUs = 40; // Arbitrarily delayed ISR: no inferred latency bound.
+    sdk.receive(0x701, 1);
+    E::ReceivedFrame copied;
+    copied.frame.id = 777;
+    CHECK(!driver.receive(driver.context, copied, 39) && copied.frame.id == 777);
+    CHECK(driver.events(driver.context).rxPending);
+    CHECK(driver.receive(driver.context, copied, 40));
+    CHECK(copied.receiveBoundsKnown && !copied.receivedTimeKnown);
+    CHECK(copied.receivedUs == 0 && copied.receivedEarliestUs == 10 && copied.receivedLatestUs == 40);
+
+    // Empty software queue is not evidence that the hardware FIFO is empty.
+    sdk.nowUs = 50; sdk.hardwareRxCount = 1;
+    CHECK(!driver.receive(driver.context, copied, 50));
+    sdk.hardwareRxCount = 0; sdk.nowUs = 60;
+    sdk.receive(0x701, 1);
+    CHECK(driver.receive(driver.context, copied, 60));
+    CHECK(copied.receivedEarliestUs == 10 && copied.receivedLatestUs == 60);
+
+    // A frame completing between the clock sample and register read must prevent
+    // a new boundary, even though no callback has populated the software ring.
+    sdk.nowUs = 70; sdk.frameDuringClockSample = true;
+    CHECK(!driver.receive(driver.context, copied, 70));
+    sdk.hardwareRxCount = 0; sdk.nowUs = 80;
+    sdk.receive(0x701, 1);
+    CHECK(driver.receive(driver.context, copied, 80));
+    CHECK(copied.receivedEarliestUs == 10 && copied.receivedLatestUs == 80);
+
+    sdk.nowUs = 90;
+    CHECK(!driver.events(driver.context).rxPending);
+    sdk.nowUs = 100; sdk.frameAfterEmptyCheck = true;
+    driver.events(driver.context); // Callback is deferred until critical exit.
+    CHECK(!driver.receive(driver.context, copied, 99));
+    CHECK(driver.receive(driver.context, copied, 100));
+    CHECK(copied.receiveBoundsKnown && copied.receivedEarliestUs == 100 && copied.receivedLatestUs == 100);
+    CHECK(copied.frame.id == 0x701 && copied.frame.data[0] == 0);
+
+    // A restarted controller cannot inherit the old empty-boundary certificate.
+    stop(driver);
+    sdk.nowUs = 200; sdk.hardwareRxCount = 1;
+    CHECK(driver.start(driver.context, config(), 2));
+    sdk.hardwareRxCount = 0; sdk.nowUs = 210;
+    sdk.receive(0x701, 1);
+    CHECK(driver.receive(driver.context, copied, 210));
+    CHECK(!copied.receiveBoundsKnown && !copied.receivedTimeKnown && copied.controllerEpoch == 2);
+    stop(driver);
+}
+
+void receiveClockFailureInhibitsQualification() {
+    for (unsigned caseNumber = 0; caseNumber < 3; ++caseNumber) {
+        reset(); sdk.nowUs = 10;
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        if (caseNumber == 2) {
+            sdk.nowUs = 30;
+            sdk.receive(0x701, 1);
+            E::ReceivedFrame first;
+            CHECK(driver.receive(driver.context, first, 30));
+        }
+        sdk.nowUs = caseNumber == 0 ? -1 : caseNumber == 1 ? 9 : 20;
+        sdk.receive(0x701, 1);
+        E::ReceivedFrame copied;
+        CHECK(!driver.receive(driver.context, copied, 100));
+        const auto events = driver.events(driver.context);
+        CHECK(events.fault && events.rxDropped == 1);
+        stop(driver);
+    }
 }
 
 void actualTxCallbacksOwnAndCorrelate() {
@@ -433,10 +532,10 @@ void submissionFailureAndBusOffRemainExplicit() {
     CHECK(sdk.pending == nullptr && sdk.transmissions == 1);
     CHECK(driver.start(driver.context, config(), 2));
     E::ReceivedFrame copied;
-    CHECK(!driver.receive(driver.context, copied));
+    CHECK(!driver.receive(driver.context, copied, UINT64_MAX));
     CHECK(!driver.events(driver.context).txDone && sdk.transmissions == 1);
     sdk.receive(0x123, 1);
-    CHECK(driver.receive(driver.context, copied) && copied.controllerEpoch == 2);
+    CHECK(driver.receive(driver.context, copied, UINT64_MAX) && copied.controllerEpoch == 2);
     stop(driver);
 }
 
@@ -452,7 +551,7 @@ void unreadRxAndLostEvidenceBlockTheSdkHandoff() {
     CHECK(!driver.submit(driver.context, frame(), 1) && sdk.transmissions == 0);
     CHECK(sdk.count == beforeSubmit); // No rejected or accepted SDK handoff occurred.
     E::ReceivedFrame received;
-    CHECK(driver.receive(driver.context, received));
+    CHECK(driver.receive(driver.context, received, UINT64_MAX));
     CHECK(!driver.events(driver.context).rxPending);
     sdk.receive(0x123, 15);
     CHECK(!driver.submit(driver.context, frame(), 1) && sdk.transmissions == 0);
@@ -479,7 +578,7 @@ void guardedHandoffPrecedesNewRxCallbacks() {
     CHECK(!sdk.bootOnExit && sdk.criticalDepth == 0);
     CHECK(driver.events(driver.context).rxPending);
     E::ReceivedFrame boot;
-    CHECK(driver.receive(driver.context, boot));
+    CHECK(driver.receive(driver.context, boot, UINT64_MAX));
     CHECK(boot.frame.id == 0x701 && boot.frame.payloadLength == 1 && boot.frame.data[0] == 0);
     sdk.done();
     CHECK(driver.events(driver.context).txDone);
@@ -519,7 +618,7 @@ void lifecycleFailuresPreserveOwnershipAndTask() {
         CHECK(sdk.pending == nullptr);
         CHECK(driver.start(driver.context, config(), 2));
         E::ReceivedFrame copied;
-        CHECK(!driver.receive(driver.context, copied));
+        CHECK(!driver.receive(driver.context, copied, UINT64_MAX));
         CHECK(!driver.events(driver.context).txDone && sdk.transmissions == 1);
         stop(driver);
     }
@@ -544,6 +643,8 @@ int main() {
     initializationAndConfiguration();
     gpioValidationMatchesPinnedS3();
     actualReceiveCallbacksValidateBeforePublishing();
+    receiveIntervalsUseOnlyProvenEmptyIngress();
+    receiveClockFailureInhibitsQualification();
     actualTxCallbacksOwnAndCorrelate();
     submissionFailureAndBusOffRemainExplicit();
     unreadRxAndLostEvidenceBlockTheSdkHandoff();

@@ -182,10 +182,10 @@ void dump(const E::AcquisitionRecord& r) {
             static_cast<unsigned long long>(t.receivedUs), unsigned(t.receivedTimeKnown),
             unsigned(t.accepted));
         if (t.kind == E::DiagnosticKind::TX || t.kind == E::DiagnosticKind::TX_REPORT)
-            std::printf("requestChannel=%u requestGeneration=%lu frameToken=%lu ",
-                        unsigned(t.txId.request.channel),
-                        static_cast<unsigned long>(t.txId.request.generation),
-                        static_cast<unsigned long>(t.txId.frame));
+            std::printf("transportKind=%u requestChannel=%u requestGeneration=%lu frameToken=%lu ",
+                        unsigned(t.txId.kind), unsigned(t.txId.sdo.request.channel),
+                        static_cast<unsigned long>(t.txId.sdo.request.generation),
+                        static_cast<unsigned long>(t.txId.sdo.frame));
         if (t.kind == E::DiagnosticKind::RX || t.kind == E::DiagnosticKind::TX)
             frame(t.frame);
         else if (t.kind == E::DiagnosticKind::CONTROLLER)

@@ -59,11 +59,14 @@ struct EvidenceTraffic {
     DiagnosticKind kind =
         DiagnosticKind::RX;       ///< Wire/controller/recovery event; terminals stored separately.
     MotorControlCAN::Frame frame; ///< Exact RX/TX envelope; meaningful for those two kinds.
-    MotorControlCAN::CANOPEN::SdoTxId txId; ///< Local TX/report correlation, absent from CAN wire.
+    TransportTxId txId; ///< Local TX/report correlation, absent from CAN wire.
     uint32_t controllerEpoch = 0;           ///< Original ingress/handoff epoch.
     uint64_t processedUs = 0;               ///< Supplied owner processing microseconds.
     uint64_t receivedUs = 0;                ///< RX capture only when receivedTimeKnown.
     bool receivedTimeKnown = false;         ///< No inferred hardware timestamp.
+    bool receiveBoundsKnown = false;        ///< Conservative completed-ingress interval, not exact capture.
+    uint64_t receivedEarliestUs = 0;         ///< Last certified empty ingress boundary.
+    uint64_t receivedLatestUs = 0;           ///< ISR observation upper bound.
     bool accepted = false; ///< Owner dispatch, enqueue or actual TX according to kind.
     MotorControlCAN::CANOPEN::ControllerState controller =
         MotorControlCAN::CANOPEN::ControllerState::UNKNOWN; ///< CONTROLLER only, not drive state.

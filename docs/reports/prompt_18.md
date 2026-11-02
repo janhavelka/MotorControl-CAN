@@ -1,6 +1,23 @@
 # Prompt 18: PDO configuration evidence gate
 
-## Status and delivered scope
+## Current checkpoint: 2026-11-02 fixed subset implemented and observed
+
+**Partial.** The [NMT/TPDO checkpoint](2026-11-02_nmt_pdo_checkpoint.md)
+implements the fixed TPDO1 map3-to-map2 lifecycle and records node1's successful
+six-write/nine-final-read experiment after fresh addressed Pre-operational.
+Exact baseline, deadlines, partial effects, epoch withdrawal and complete
+readback have host coverage. A later physical cycle and fresh readback observed
+node1 return to producer0/map3 without save/restore, for that one cycle only.
+Broader maps/settings, timer/SYNC semantics,
+persistence, model/firmware scope and fresh PDO sample qualification remain
+separate Q17 obligations. Prompt33 is not completed by this experiment.
+
+The following status/delivery sections describe the **earlier audit and
+connection checkpoint**, before this implementation and live mutation; their
+historical statements are preserved. Current scope and verification are owned
+by the new checkpoint above.
+
+## Historical status and delivered scope
 
 The 2026-11-02 [S2 connection checkpoint](2026-11-02_s2_live_connection.md)
 now supplies both CL86-C labels, raw version fields, TPDO1 readback and working

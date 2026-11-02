@@ -8,7 +8,9 @@ import time
 
 COMMANDS = {"ping": b"p", "start": b"c", "stats": b"s",
             "identity1": b"1", "identity2": b"2", "raw1": b"3", "raw2": b"4",
-            "dump": b"d", "release": b"r"}
+            "dump": b"d", "release": b"r", "network": b"n",
+            "heartbeat1": b"h", "heartbeat2": b"j", "preop1": b"q", "preop2": b"w", "tpdo1": b"m",
+            "motion-readiness1": b"v", "motion-readiness2": b"b"}
 
 
 def main():
@@ -55,7 +57,7 @@ def main():
         raise
     finally:
         (args.output / "rx.bin").write_bytes(data)
-        (args.output / "rx.txt").write_text(data.decode("utf8", errors="replace"), encoding="utf8")
+        (args.output / "rx.txt").write_bytes(data.decode("utf8", errors="replace").encode("utf8"))
         (args.output / "request.json").write_text(json.dumps(meta, indent=2) + "\n", encoding="utf8")
     print(data.decode("utf8", errors="replace"), end="")
     print("\nEvidence:", args.output)

@@ -70,7 +70,7 @@ struct Wire {
         wire.hasIncoming = false;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& value, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
         Wire& wire = *static_cast<Wire*>(context);
         CHECK(!wire.hasReport && epoch == 1);
         CHECK(value.id == 0x605 && value.payloadLength == 8 && value.data[0] == 0x40);

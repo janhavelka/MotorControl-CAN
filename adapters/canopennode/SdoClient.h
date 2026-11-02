@@ -77,6 +77,12 @@ public:
      * @return True only for first valid confirmation; result remains until release.
      */
     bool confirmNmtTx(NmtRequestId id, uint64_t nowUs);
+    /** Record failed/uncertain external handoff without inventing nontransmission.
+     * @param id Exact live handed-off admission.
+     * @param nowUs Same supplied clock; expiration takes precedence.
+     * @return True only for first terminal; possible effects remain in retained result.
+     */
+    bool transportFailureNmt(NmtRequestId id, uint64_t nowUs);
     /** Cancel local work without transmitting a network/motor stop.
      * @param[in] id Exact nonterminal request.
      * @param[in] nowUs Same supplied clock; expiration takes precedence.
@@ -195,13 +201,32 @@ public:
     bool authorizeUploadExperiment(uint8_t slot, const SdoTransfer& exactUpload,
                                    Generation nodeGeneration, uint32_t authorizationId,
                                    uint64_t nowUs);
+    /** Authorize one reviewed experimental scalar download, never a production capability.
+     * The application retains the independently reviewed exact action, source basis,
+     * fixture, bounds, authorization and independent control/reconciliation plan.
+     * Same one-use identity, ownership, time, fresh-session and quarantine rules as
+     * authorizeUploadExperiment; payload bytes are copied and matched before admission.
+     * @param slot Configured exclusive channel; known STOP/INITIALIZING inhibits work.
+     * @param exactDownload Exact DOWNLOAD, size1..4, EXACT policy and UNQUALIFIED effect.
+     * This narrow service gate does not validate a drive action: callers must use its
+     * checked typed sequence. It never enables hidden retry or future ordinary writes.
+     * @param nodeGeneration Current nonzero node lifecycle epoch.
+     * @param authorizationId Strictly increasing one-use review serial.
+     * @param nowUs Nondecreasing caller microseconds before the immutable deadline.
+     * @return False atomically for invalid, busy, unresolved or inhibited input.
+     */
+    bool authorizeDownloadExperiment(uint8_t slot, const SdoTransfer& exactDownload,
+                                     Generation nodeGeneration, uint32_t authorizationId,
+                                     uint64_t nowUs);
     /** Withdraw an unused experimental grant; no I/O, recovery or admitted-work cancellation.
      * @param[in] slot Channel slot; invalid slots are ignored. The owner must separately
      * cancel any admitted request before ending an experiment. A consumed ID cannot be reused.
      */
     void clearUploadExperiment(uint8_t slot);
     /** Advance only a completed settings transaction's local configuration epoch.
-     * Requires a confirmed, usable SDO channel and existing passive node anchor.
+     * Requires a usable SDO channel and current ordinary-service evidence (for
+     * example a fresh Pre-operational heartbeat). An experimentally used channel
+     * remains unconfirmed; this local epoch change never promotes its permissions.
      * Every channel of the physical node must have exactly previous's binding and
      * be idle, with terminals released and all staging/cleanup/handoffs retired.
      * No occupied NMT result or pending node transition is allowed. This is not
@@ -261,6 +286,17 @@ public:
      * @return False atomically for stale/invalid input; heartbeat facts are not renewed.
      */
     bool setProducerInterval(uint8_t slot, const NetworkRoute& source, uint16_t milliseconds, uint64_t nowUs);
+    /** Withdraw effective producer timing before an explicit change can transmit.
+     * No I/O, retry, generation advance or channel quarantine occurs. The old raw
+     * interval and received events remain history; fresh readback can establish
+     * a new interval with setProducerInterval.
+     * @param slot Configured node or associated SDO channel slot.
+     * @param source Current complete network route; borrowed during this call.
+     * @param nowUs Nondecreasing owner microseconds, zero valid.
+     * @return True after withdrawing producerKnown. Invalid route/slot/epoch/time
+     * returns false without mutation.
+     */
+    bool invalidateProducerInterval(uint8_t slot, const NetworkRoute& source, uint64_t nowUs);
     /** Revoke node-dependent evidence and all its SDO channels, with no reopening.
      * Synchronous callbacks run before later TX and regardless of history capacity.
      * @param[in] slot Node anchor or matching SDO slot.
@@ -345,6 +381,19 @@ public:
      * quarantine its route while returning false. Neither overload reopens a channel.
      */
     bool receive(const Frame& frame, uint64_t receivedUs, uint64_t nowUs);
+    /** Offer one frame with conservative completed-frame ingress bounds.
+     * Bounds may qualify passive network evidence without claiming exact capture.
+     * SDO still requires its existing external correlation premise and processing
+     * deadlines; a definitely pre-handoff interval quarantines the channel. PDO
+     * capture/route qualification is unchanged and receives unknown capture.
+     * @param frame Borrowed frame, copied before mutation or callbacks.
+     * @param earliestUs Inclusive lower receive bound in the owner clock domain.
+     * @param latestUs Inclusive upper bound, at least earliestUs and at most nowUs.
+     * @param nowUs Nondecreasing processing time; deadlines win at equality.
+     * @return True only if consumed. Invalid bounds/time change nothing; a valid
+     * but unqualified frame can retain diagnostics or invalidate dependent work.
+     */
+    bool receive(const Frame& frame, uint64_t earliestUs, uint64_t latestUs, uint64_t nowUs);
     /** Hand off at most one staged request/cleanup frame, marking possible TX.
      * Caller must never transmit cached bytes after a failed call or replay them.
      * Queue acceptance/CAN ACK cannot produce protocol success. A pending cleanup
@@ -490,6 +539,8 @@ private:
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
+    bool authorizeExperiment(uint8_t slot, const SdoTransfer& work, Generation nodeGeneration,
+                             uint32_t authorizationId, uint64_t nowUs);
     bool experimentMatches(uint8_t slot, const SdoTransfer& work, uint64_t nowUs,
                            bool admitted) const;
     struct PdoSlot {
@@ -513,11 +564,13 @@ private:
                 bool abortValid = false, uint32_t abortCode = 0);
     void abort(Channel& c, SdoOutcome outcome, uint32_t code, uint64_t nowUs);
     void retire(Channel& c);
-    bool receiveFrame(const Frame& frame, bool receivedTimeKnown, uint64_t receivedUs, uint64_t nowUs);
+    bool receiveFrame(const Frame& frame, bool receivedTimeKnown, uint64_t receivedUs, uint64_t nowUs,
+                      bool boundsKnown = false, uint64_t earliestUs = 0, uint64_t latestUs = 0);
     int networkAnchor(uint8_t slot) const;
     void recordNetwork(const NetworkObservation& observation);
     bool dispatchNetwork(const Frame& frame, const NetworkRoute* source, bool timeKnown,
-                         uint64_t receivedUs, uint64_t nowUs);
+                         uint64_t receivedUs, uint64_t nowUs, bool boundsKnown = false,
+                         uint64_t earliestUs = 0, uint64_t latestUs = 0);
     void invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t nowUs, bool resetObserved = false);
     void stopSdo(unsigned anchor, uint64_t nowUs);
     void recordSdo(Channel& channel, bool timeKnown, uint64_t receivedUs, uint64_t nowUs);

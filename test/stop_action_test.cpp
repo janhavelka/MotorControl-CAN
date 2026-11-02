@@ -69,10 +69,9 @@ M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = fal
             value.data[4 + i] = uint8_t(raw >> (8 * i));
     return value;
 }
-bool same(C::SdoTxId a, C::SdoTxId b) {
-    return a.request.owner == b.request.owner && a.request.channel == b.request.channel &&
-           a.request.generation == b.request.generation && a.frame == b.frame;
-}
+bool same(E::TransportTxId a, E::TransportTxId b) {
+        return E::sameTransportTxId(a, b);
+    }
 E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
     E::ServiceBudget value;
     value.rx = rx;
@@ -86,7 +85,7 @@ struct Wire {
     E::ReceivedFrame incoming[CAPACITY];
     E::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    C::SdoTxId ids[CAPACITY];
+    E::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool pending[CAPACITY] = {};
     unsigned rxRead = 0, rxWrite = 0, reportRead = 0, reportWrite = 0;
@@ -116,7 +115,7 @@ struct Wire {
         output = w.incoming[w.rxRead++];
         return true;
     }
-    static bool transmit(void* context, const M::Frame& value, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(context);
         CHECK(w.sentCount < CAPACITY);
         const unsigned i = w.sentCount++;
@@ -135,7 +134,7 @@ struct Wire {
         output = w.reports[w.reportRead++];
         return true;
     }
-    static bool retire(void* context, C::SdoTxId id, uint32_t epoch) {
+    static bool retire(void* context, E::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(context);
         ++w.retireCalls;
         if (!w.retirement)

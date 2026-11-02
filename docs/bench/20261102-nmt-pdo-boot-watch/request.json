@@ -1,0 +1,12 @@
+{
+  "started_utc": "2026-11-02T17:16:54.229803+00:00",
+  "seconds": 90,
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "commands": "local n inspection once per second; no device command",
+  "reset": false,
+  "retry": false,
+  "transmissions": 90,
+  "status": "captured"
+}

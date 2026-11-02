@@ -2,7 +2,23 @@
 
 ## Unreleased
 
-### S2 connection and bounded raw evidence
+### Fixed TPDO1, explicit NMT and honest receive bounds
+
+- Add the fixed reviewed TPDO1 configuration lifecycle, retained per-step effects,
+  exact complete readback and same-owner experimental caller; no retry/rollback.
+- Add tagged NMT transport and conservative S2/S3 receive intervals without
+  claiming exact arrival timestamps or weakening SDO/PDO deadlines.
+- Retain node1 heartbeat1000/readback, fresh addressed Pre-operational and all
+  24 fixed-map services. Final map2 is confirmed; broader firmware and sample
+  qualification remain open. See the [checkpoint](docs/reports/2026-11-02_nmt_pdo_checkpoint.md).
+- Retain both boot-up frames after a user power cycle and fresh readback of
+  node1 producer0/map3. This is one-cycle reversion, not a persistence guarantee.
+  Add finite 30-field readiness uploads per node, preserving nonzero retained
+  targets, mode0 and configured input functions without motion or reassignment.
+- Keep prompt18 Partial and prompt33 unfinished. No motion/start/reset/save or
+  restore was performed. Final integration verification is recorded separately.
+
+### Earlier S2 connection and bounded raw evidence
 
 - Add the pinned IDF 5.5.5 S2 UART/core-0/TWAI port and a separate OPTAK bench
   image with silent startup, explicit controller start and one finite upload-only
@@ -17,7 +33,7 @@
   failed attempts and the separate bounded post-terminal traffic tail.
 - Add S2 compile/input checks and CI coverage. The [connection report](docs/reports/2026-11-02_s2_live_connection.md)
   separates observations from firmware meaning and qualification; no PDO mutation
-  or motor action was performed and Prompt 18 remains pending.
+  or motor action was performed at that earlier checkpoint; Prompt18 subsequently gains the subset above.
 
 ### Native position preparation
 

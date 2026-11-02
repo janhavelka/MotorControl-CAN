@@ -129,10 +129,11 @@ struct Driver {
         d.pending = E::TwaiEvents();
         return copy;
     }
-    static bool receive(void* context, E::ReceivedFrame& output) {
+    static bool receive(void* context, E::ReceivedFrame& output, uint64_t cutoffUs) {
         Driver& d = *static_cast<Driver*>(context);
         ++d.receives;
-        if (!d.count)
+        if (!d.count || (d.incoming[d.head].receiveBoundsKnown &&
+                         d.incoming[d.head].receivedLatestUs > cutoffUs))
             return false;
         output = d.incoming[d.head];
         d.head = (d.head + 1) % 16;

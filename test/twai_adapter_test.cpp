@@ -110,7 +110,7 @@ struct FakeDriver {
         f.pending = E::TwaiEvents();
         return copy;
     }
-    static bool receive(void* p, E::ReceivedFrame& output) {
+    static bool receive(void* p, E::ReceivedFrame& output, uint64_t) {
         FakeDriver& f = *static_cast<FakeDriver*>(p);
         ++f.receiveCalls;
         if (f.rxRead == f.rxWrite || f.pending.busOff || f.pending.fault || f.pending.rxDropped)
@@ -174,7 +174,7 @@ struct Rig {
         adapter.service(owner, now);
     }
     E::RequestId request(unsigned node = 1, bool download = false, uint64_t deadline = 1000,
-                         uint32_t queueUs = 100) {
+                         uint32_t queueUs = 100, bool requirePreOperational = false) {
         E::SequenceId sequence;
         CHECK(owner.beginSequence(route(node).binding, 1, now, sequence));
         CHECK(owner.beginOperation(sequence, 1, deadline, now));
@@ -186,6 +186,7 @@ struct Rig {
         work.transfer.size = 2;
         work.transfer.direction = download ? C::SdoDirection::DOWNLOAD : C::SdoDirection::UPLOAD;
         work.transfer.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING;
+        work.transfer.requirePreOperational = requirePreOperational;
         work.transfer.queueTimeoutUs = queueUs;
         work.transfer.responseTimeoutUs = 100;
         work.transfer.deadlineUs = deadline;
@@ -201,12 +202,12 @@ struct Rig {
         return *result;
     }
 };
-C::SdoTxId arbitraryId(C::SdoClient& services, uint32_t number) {
+E::TransportTxId arbitraryId(C::SdoClient& services, uint32_t number) {
     C::SdoTxId id;
     id.request.owner = &services;
     id.request.generation = number;
     id.frame = 1;
-    return id;
+    return E::TransportTxId::fromSdo(id);
 }
 
 void startupValidationAndOwnedCapacity() {
@@ -235,7 +236,7 @@ void startupValidationAndOwnedCapacity() {
     CHECK(!t.transmit(t.context, original, arbitraryId(r.services, 3), 1));
     E::TxReport report;
     CHECK(t.takeTxReport(t.context, report) && !report.transmitted);
-    CHECK(report.id.request.generation == 1);
+    CHECK(report.id.sdo.request.generation == 1);
     CHECK(t.transmit(t.context, original, arbitraryId(r.services, 3), 1));
     CHECK(r.sdk.submits == 0);
     CHECK(r.adapter.shutdown());
@@ -314,7 +315,7 @@ void copiedPayloadAndWireFormatsReachTheDriver() {
         }
         const M::Frame expected = wire;
         E::Transport transport = r.adapter.transport();
-        CHECK(transport.transmit(transport.context, wire, id, 1));
+        CHECK(transport.transmit(transport.context, wire, E::TransportTxId::fromSdo(id), 1));
         wire.id = 0;
         std::memset(wire.data, 0xff, sizeof wire.data);
         std::memset(work.data, 0xee, sizeof work.data);
@@ -629,6 +630,117 @@ void sharedApplicationKeepsServingUnderPressure() {
     CHECK(r.services.node(0)->nmt == C::NmtState::OPERATIONAL);
     CHECK(platform.stats().outputUsed == 7 && console.writes > 0);
 }
+void requiredPreOperationalIsRecheckedBeforeSdkSubmit() {
+    Rig r;
+    M::Frame heartbeat = frame(0x701, 1);
+    heartbeat.data[0] = 0x7f;
+    r.sdk.push(heartbeat, true, 0);
+    r.turn(0);
+    const auto id = r.request(1, true, 1000, 100, true);
+    CHECK(r.owner.service(1, budget())); // Copied into TWAI queue, not submitted to SDK.
+    CHECK(r.sdk.submits == 0);
+    heartbeat.data[0] = 5;
+    r.sdk.push(heartbeat, true, 2);
+    r.adapter.service(r.owner, 1); // Captured unread RX defers the SDK boundary.
+    CHECK(r.sdk.submits == 0);
+    r.turn(2); // Sole owner now observes Operational; native handoff becomes ineligible.
+    CHECK(r.services.node(0)->nmt == C::NmtState::OPERATIONAL && r.sdk.submits == 0);
+    r.turn(3);
+    CHECK(r.sdk.submits == 0);
+    r.turn(101); // Original response deadline remains finite; no replay/requalification.
+    CHECK(r.owner.result(id) && r.owner.result(id)->service.outcome == C::SdoOutcome::TIMEOUT);
+    CHECK(r.owner.result(id)->service.effectUncertain && r.sdk.submits == 0);
+}
+void requiredPreOperationalAgeIsRecheckedBeforeSdkSubmit() {
+    Rig r;
+    CHECK(r.services.setServiceAge(0, 10, 0));
+    M::Frame heartbeat = frame(0x701, 1);
+    heartbeat.data[0] = 0x7f;
+    r.sdk.push(heartbeat, true, 0);
+    r.turn(0);
+    const auto id = r.request(1, true, 1000, 100, true);
+    CHECK(r.owner.service(9, budget())); // Current at handoff, just inside inclusive age cap.
+    CHECK(r.sdk.submits == 0);
+    r.adapter.service(r.owner, 11); // SDK boundary is later; stored NMT premise has expired.
+    CHECK(r.sdk.submits == 0);
+    r.turn(12);
+    CHECK(r.sdk.submits == 0);
+    r.turn(109);
+    CHECK(r.owner.result(id) && r.owner.result(id)->service.outcome == C::SdoOutcome::TIMEOUT);
+    CHECK(r.owner.result(id)->service.effectUncertain && r.sdk.submits == 0);
+}
+C::NmtTransfer nmtWork(Rig& r, C::NmtCommand command = C::NmtCommand::START,
+                         uint64_t deadline = 100) {
+    C::NmtTransfer work;
+    work.command = command;
+    work.target = r.services.node(0)->route;
+    work.request = 99;
+    work.deadlineUs = deadline;
+    work.queueTimeoutUs = 20;
+    return work;
+}
+void explicitNmtUsesTheSameTransportRetirement() {
+    {
+        Rig r;
+        C::NmtRequestId id;
+        CHECK(r.owner.admitNmt(nmtWork(r), 0, id));
+        CHECK(r.owner.service(1, budget())); // Adapter copied, SDK has not borrowed it.
+        CHECK(r.sdk.submits == 0 && r.owner.cancelNmt(id, 2));
+        r.adapter.service(r.owner, 2);
+        CHECK(r.sdk.submits == 0 && r.owner.nmtResult(id)->outcome == C::NmtOutcome::CANCELLED);
+        CHECK(r.owner.releaseNmt(id));
+        r.turn(3);
+        CHECK(r.sdk.submits == 0);
+    }
+    {
+        Rig r;
+        C::NmtRequestId id;
+        CHECK(r.owner.admitNmt(nmtWork(r), 0, id));
+        r.turn(1);
+        CHECK(r.sdk.submits == 1 && r.sdk.sent[0].id == 0 && r.sdk.sent[0].data[1] == 1);
+        CHECK(!r.owner.nmtResult(id) && r.owner.stats().txFrames == 0);
+        CHECK(r.owner.cancelNmt(id, 2)); // Active SDK storage cannot yet be retired.
+        CHECK(r.owner.nmtResult(id)->transmissionPossible && r.owner.releaseNmt(id));
+        C::NmtRequestId next;
+        CHECK(!r.owner.admitNmt(nmtWork(r), 3, next));
+        r.sdk.complete(true);
+        r.turn(3);
+        r.turn(4); // Exact old report retires transport; it never revives a released result.
+        CHECK(r.sdk.submits == 1 && r.owner.stats().txFrames == 1);
+        CHECK(!r.owner.nmtResult(id));
+    }
+    {
+        Rig r;
+        r.sdk.submitOk = false;
+        C::NmtRequestId id;
+        CHECK(r.owner.admitNmt(nmtWork(r), 0, id));
+        r.turn(1);
+        CHECK(!r.owner.nmtResult(id));
+        r.turn(2);
+        CHECK(r.owner.nmtResult(id)->outcome == C::NmtOutcome::TRANSPORT_ERROR &&
+              r.owner.nmtResult(id)->transmissionPossible);
+        CHECK(r.sdk.submits == 0 && r.owner.stats().txRejected == 1);
+        r.turn(3);
+        CHECK(r.sdk.submits == 0); // Failed submit is never replayed.
+    }
+    {
+        Rig r;
+        C::NmtRequestId id;
+        CHECK(r.owner.admitNmt(nmtWork(r, C::NmtCommand::RESET_NODE), 0, id));
+        r.turn(1);
+        E::RecoveryId recovery;
+        CHECK(r.owner.recover(2, 20, recovery));
+        CHECK(r.owner.nmtResult(id)->outcome == C::NmtOutcome::INVALIDATED &&
+              r.owner.nmtResult(id)->transmissionPossible);
+        r.turn(3, budget(8, 2, 8, 2, 1));
+        r.turn(4, budget(8, 2, 8, 2, 1));
+        CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::RETIRED);
+        CHECK(r.sdk.stops == 1 && r.sdk.starts == 2 && r.sdk.submits == 1);
+        CHECK(r.owner.nmtResult(id)->outcome == C::NmtOutcome::INVALIDATED);
+        r.turn(5);
+        CHECK(r.sdk.submits == 1 && r.services.node(0)->route.generation > 11);
+    }
+}
 } // namespace
 
 int main() {
@@ -643,6 +755,9 @@ int main() {
     rawErrorsRemainDiagnosticAndSaturate();
     backwardClockInvalidatesAtLatestOwnerTime();
     sharedApplicationKeepsServingUnderPressure();
+    explicitNmtUsesTheSameTransportRetirement();
+    requiredPreOperationalIsRecheckedBeforeSdkSubmit();
+    requiredPreOperationalAgeIsRecheckedBeforeSdkSubmit();
     std::printf("TWAI adapter: %u checks; host sizeof(TwaiAdapter)=%zu\n", checks,
                 sizeof(E::TwaiAdapter));
 }

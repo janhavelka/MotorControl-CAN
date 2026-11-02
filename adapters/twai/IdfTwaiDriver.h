@@ -12,7 +12,8 @@ namespace MotorControlCANExample {
 /** Stationary internal-RAM driver; construct on a pinned task's internal stack or
  * in static internal RAM. Construction has no I/O; explicit start occurs through
  * TwaiAdapter. The same pinned task owns all cooperative calls and destruction.
- * ISR callbacks copy bounded data only. No callback invokes the CAN owner.
+ * ISR callbacks copy bounded data and sample the ESP timer for an upper receive
+ * bound. No callback invokes the CAN owner; no hard ISR-duration bound is claimed.
  * Call shutdown successfully before destroying this object; failure requires
  * keeping its storage alive. SDK allocations are local controller resources.
  * Cache-safe ISR and dynamic power management are unsupported in this first shim.
@@ -37,6 +38,10 @@ class IdfTwaiDriver {
     int core_ = -1, lastError_ = 0;
     uint32_t epoch_ = 0, serial_ = 0;
     bool enabled_ = false, retiring_ = false, pending_ = false, busOff_ = false;
+    bool receiveBoundaryKnown_ = false;
+    uint64_t receiveBoundaryUs_ = 0;
+    bool clockKnown_ = false;
+    uint64_t lastClockUs_ = 0;
     twai_frame_t tx_ = {};
     uint8_t txBytes_[8] = {};
     ReceivedFrame rx_[RX_CAPACITY];
@@ -48,7 +53,8 @@ class IdfTwaiDriver {
     bool stop() noexcept;
     bool submit(const MotorControlCAN::Frame&, uint32_t) noexcept;
     TwaiEvents events() noexcept;
-    bool receive(ReceivedFrame&) noexcept;
+    bool receive(ReceivedFrame&, uint64_t cutoffUs) noexcept;
+    void refreshReceiveBoundary() noexcept; // Caller holds mux_; reads time before empty FIFO proof.
     static bool txDone(twai_node_handle_t, const twai_tx_done_event_data_t*, void*);
     static bool rxDone(twai_node_handle_t, const twai_rx_done_event_data_t*, void*);
     static bool stateChanged(twai_node_handle_t, const twai_state_change_event_data_t*, void*);

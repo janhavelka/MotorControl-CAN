@@ -16,13 +16,18 @@ bool reset(NmtCommand command) {
     return command == NmtCommand::RESET_NODE || command == NmtCommand::RESET_COMMUNICATION;
 }
 bool current(const NodeSnapshot& node, const ObservationTime& time, uint64_t now) {
-    return !node.exhausted && time.present && time.receivedTimeKnown &&
-        time.generation == node.route.generation && time.receivedUs <= now &&
-        now - time.receivedUs <= node.maximumEvidenceAgeUs &&
-        (!node.intentPresent || time.receivedUs > node.transitionUs);
+    uint64_t earliest = 0, latest = 0;
+    return !node.exhausted && time.present && observationTimeBounds(time, earliest, latest) &&
+        time.generation == node.route.generation && latest <= now &&
+        now - earliest <= node.maximumEvidenceAgeUs &&
+        (!node.intentPresent || earliest > node.transitionUs);
 }
 bool future(const ObservationTime& time, uint64_t now) {
-    return time.present && (time.processedUs > now || (time.receivedTimeKnown && time.receivedUs > now));
+    uint64_t earliest = 0, latest = 0;
+    return time.present && (time.processedUs > now ||
+        (time.receivedTimeKnown && time.receivedUs > now) ||
+        (time.receiveBoundsKnown &&
+         (!observationTimeBounds(time, earliest, latest) || latest > now)));
 }
 } // namespace
 
@@ -31,7 +36,7 @@ bool serviceEligibility(const NodeSnapshot& node, uint64_t now, ServiceEligibili
         (node.intentPresent && now < node.transitionUs) || future(node.nmtTime, now) ||
         future(node.serviceQualification, now) || overlap(&node, sizeof node, &output, sizeof output)) return false;
     ServiceEligibility result;
-    result.exactNmtKnown = current(node, node.nmtTime, now);
+    result.exactNmtKnown = !node.nmtOrderingUncertain && current(node, node.nmtTime, now);
     result.state = node.nmt;
     const bool inhibited = node.exhausted || (result.exactNmtKnown &&
         (node.nmt == NmtState::STOPPED || node.nmt == NmtState::INITIALIZING));
@@ -58,11 +63,13 @@ bool SdoClient::setServiceAge(uint8_t slot, uint64_t age, uint64_t now) {
 bool SdoClient::eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
     if (controllerState_ == ControllerState::BUS_OFF || controllerState_ == ControllerState::RECOVERING) return false;
     const int anchor = networkAnchor(slot);
-    if (anchor < 0) return true; // Explicit external service premise for SDO-only consumers.
+    if (anchor < 0) return !work.requirePreOperational; // No exact NMT premise for SDO-only consumers.
     ServiceEligibility eligibility;
     return serviceEligibility(channels_[anchor].network, now, eligibility) &&
-        (eligibility.ordinarySdo || (eligibility.nonChangingProbe && work.direction == SdoDirection::UPLOAD &&
-            (work.readEffect == SdoReadEffect::REVIEWED_NON_CHANGING ||
+        (!work.requirePreOperational || (eligibility.exactNmtKnown &&
+            eligibility.state == NmtState::PRE_OPERATIONAL)) &&
+        (eligibility.ordinarySdo || (eligibility.nonChangingProbe &&
+            ((work.direction == SdoDirection::UPLOAD && work.readEffect == SdoReadEffect::REVIEWED_NON_CHANGING) ||
              experimentMatches(slot, work, now, false) || experimentMatches(slot, work, now, true))));
 }
 
@@ -220,6 +227,13 @@ bool SdoClient::confirmNmtTx(NmtRequestId id, uint64_t now) {
     finishNmt(NmtOutcome::TRANSMITTED, now);
     return true;
 }
+bool SdoClient::transportFailureNmt(NmtRequestId id, uint64_t now) {
+    if (!validNmt(id) || now < lastUs_) return false;
+    service(now);
+    if (nmtTerminal_ || !nmtCompletion_.transmissionPossible) return false;
+    finishNmt(NmtOutcome::TRANSPORT_ERROR, now);
+    return true;
+}
 bool SdoClient::cancelNmt(NmtRequestId id, uint64_t now) {
     if (!validNmt(id) || now < lastUs_) return false;
     service(now);
@@ -236,8 +250,9 @@ bool SdoClient::releaseNmt(NmtRequestId id) {
     return true;
 }
 void SdoClient::observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed) {
-    if (!state.intentPresent || !time.receivedTimeKnown || time.receivedUs <= state.transitionUs ||
-        !state.transitionPending) return;
+    uint64_t earliest = 0, latest = 0;
+    if (!state.intentPresent || !observationTimeBounds(time, earliest, latest) ||
+        earliest <= state.transitionUs || !state.transitionPending) return;
     const bool matches = reset(state.requestedCommand) ? observed == NmtState::INITIALIZING :
         state.requestedCommand == NmtCommand::START ? observed == NmtState::OPERATIONAL :
         state.requestedCommand == NmtCommand::STOP ? observed == NmtState::STOPPED : observed == NmtState::PRE_OPERATIONAL;

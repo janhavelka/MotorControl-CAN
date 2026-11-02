@@ -1,0 +1,2 @@
+NMT Pre-operational admitted; no drive-stop claim
+NMT request=4 target=1 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=150655962; retained; network observation separate

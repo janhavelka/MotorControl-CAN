@@ -20,6 +20,9 @@ struct ObservationTime {
     uint64_t receivedUs = 0; ///< Original capture microseconds, meaningful only when known.
     uint64_t processedUs = 0; ///< Supplied owner processing microseconds, never substituted for capture.
     Generation generation = 0; ///< Source event epoch; compare with current route before qualification.
+    bool receiveBoundsKnown = false; ///< Conservative completed-frame ingress interval; mutually exclusive with exact capture.
+    uint64_t receivedEarliestUs = 0; ///< Inclusive lower bound, meaningful only when receiveBoundsKnown.
+    uint64_t receivedLatestUs = 0; ///< Inclusive upper bound, at most processedUs; never an exact capture claim.
 };
 /** Explicit NMT manager commands; independent of native drive state and motion. */
 enum class NmtCommand : uint8_t {

@@ -85,7 +85,7 @@ bool FakeTransport::takeReport(void* context, TxReport& output) noexcept {
 void FakeTransport::observe(void* context, const ReceivedFrame&, uint64_t) noexcept {
     ++static_cast<FakeTransport*>(context)->observed_;
 }
-bool FakeTransport::transmit(void* context, const M::Frame& request, C::SdoTxId id,
+bool FakeTransport::transmit(void* context, const M::Frame& request, TransportTxId id,
                              uint32_t epoch) noexcept {
     FakeTransport& fake = *static_cast<FakeTransport*>(context);
     ++fake.transmitCalls_;

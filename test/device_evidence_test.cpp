@@ -87,7 +87,7 @@ struct Wire {
         --wire.rxCount;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& request, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& request, E::TransportTxId id, uint32_t epoch) {
         Wire& wire = *static_cast<Wire*>(context);
         CHECK(epoch == 1 && request.id == 0x605 && !request.extended && !request.rtr);
         CHECK(request.payloadLength == 8 && request.data[0] == 0x40);

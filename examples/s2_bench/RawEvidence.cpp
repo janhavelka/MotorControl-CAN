@@ -9,10 +9,21 @@ struct Field {
     uint16_t index;
     uint8_t subindex;
 };
-const Field fields[RAW_EVIDENCE_FIELDS] = {
+const Field fields[] = {
     {0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, {0x1018, 1}, {0x1018, 2}, {0x1018, 3},
     {0x2000, 0}, {0x2001, 0}, {0x1800, 1}, {0x1800, 2}, {0x1800, 3}, {0x1800, 5}, {0x1a00, 0},
-    {0x1a00, 1}, {0x1a00, 2}, {0x1a00, 3}, {0x1a00, 4}, {0x6041, 0}, {0x6061, 0}};
+    {0x1a00, 1}, {0x1a00, 2}, {0x1a00, 3}, {0x1a00, 4}, {0x6041, 0}, {0x6061, 0}, {0x1017, 0},
+    {0x2100, 0}, {0x603f, 0}, {0x6064, 0}, {0x2201, 0}, {0x606c, 0}};
+// Original EDS sections and EN86 pp11/16-19 establish these exact readable
+// addresses/widths. Uploads retain actual indicated sizes; Q20 effects stay unknown.
+const RawEvidenceField motionReadiness[] = {
+    {0x1001, 0, 1}, {0x603f, 0, 2}, {0x6041, 0, 2}, {0x6061, 0, 1}, {0x2100, 0, 2}, {0x2101, 0, 2},
+    {0x6064, 0, 4}, {0x606c, 0, 4}, {0x607a, 0, 4}, {0x6081, 0, 4}, {0x6083, 0, 4}, {0x6084, 0, 4},
+    {0x605d, 0, 2}, {0x60ff, 0, 4}, {0x2200, 0, 2}, {0x2201, 0, 2}, {0x2202, 0, 2}, {0x607d, 1, 4},
+    {0x607d, 2, 4}, {0x2500, 0, 2}, {0x2501, 0, 2}, {0x2400, 1, 2}, {0x2400, 2, 2}, {0x2400, 3, 2},
+    {0x2400, 4, 2}, {0x2400, 5, 2}, {0x2400, 6, 2}, {0x2400, 7, 2}, {0x2400, 8, 2}, {0x60fd, 0, 4}};
+static_assert(sizeof(motionReadiness) / sizeof(motionReadiness[0]) == RAW_EVIDENCE_FIELDS,
+              "Motion readiness is exactly thirty uploads");
 template <size_t N> bool text(const char (&s)[N]) {
     if (!s[0])
         return false;
@@ -46,11 +57,20 @@ void copyTraffic(EvidenceTraffic& out, const Diagnostic& in) {
     out.processedUs = in.processedUs;
     out.receivedUs = in.receivedUs;
     out.receivedTimeKnown = in.receivedTimeKnown;
+    out.receiveBoundsKnown = in.receiveBoundsKnown;
+    out.receivedEarliestUs = in.receivedEarliestUs;
+    out.receivedLatestUs = in.receivedLatestUs;
     out.accepted = in.accepted;
     out.controller = in.controller;
     out.recovery = in.recovery;
 }
 } // namespace
+bool motionReadinessField(size_t ordinal, RawEvidenceField& output) noexcept {
+    if (ordinal >= sizeof(motionReadiness) / sizeof(motionReadiness[0]))
+        return false;
+    output = motionReadiness[ordinal];
+    return true;
+}
 RawEvidence::RawEvidence(CanBusOwner& owner, C::SdoClient& services) noexcept
     : owner_(owner), services_(services) {}
 bool RawEvidence::current() const noexcept {
@@ -66,10 +86,19 @@ EvidenceAdmission RawEvidence::begin(const RawEvidencePlan& p, uint64_t now) noe
         return EvidenceAdmission::BUSY;
     const auto& r = p.review;
     const auto& a = r.plan;
-    const unsigned count = p.includeState ? 20 : 18;
+    const bool motion = p.inventory == RawEvidenceInventory::MOTION_READINESS;
+    const unsigned count = motion              ? 30
+                           : p.enableHeartbeat ? 3
+                           : p.includeNetwork  ? 26
+                           : p.includeState    ? 20
+                                               : 18;
     const auto* route = services_.channel(p.slot);
     const auto* node = services_.node(p.slot);
-    if (overlap(&p, sizeof p, this, sizeof *this) || now < lastUs_ || now < owner_.lastTimeUs() ||
+    if (p.inventory > RawEvidenceInventory::MOTION_READINESS ||
+        (motion && (p.includeState || p.includeNetwork || p.enableHeartbeat)) ||
+        (p.includeNetwork && !p.includeState) ||
+        (p.enableHeartbeat && (p.includeNetwork || p.includeState)) ||
+        overlap(&p, sizeof p, this, sizeof *this) || now < lastUs_ || now < owner_.lastTimeUs() ||
         !a.id || a.id <= lastOperation_ || a.deadlineUs <= now || !p.firstAuthorizationId ||
         p.firstAuthorizationId > UINT32_MAX - (count - 1) || a.options.queueTimeoutUs != 250000 ||
         a.options.responseTimeoutUs != 250000 || a.kind != L::ReadKind::IDENTITY || a.stateMask ||
@@ -185,8 +214,10 @@ bool RawEvidence::service(uint64_t now) noexcept {
             same(t.channel, expected_.channel) && t.operation == expected_.operation &&
             t.request == expected_.request && t.step == expected_.step &&
             t.index == expected_.index && t.subindex == expected_.subindex &&
-            t.direction == C::SdoDirection::UPLOAD && t.size == 4 &&
-            t.uploadSize == C::SdoUploadSize::SERVER_INDICATED &&
+            t.direction == expected_.direction && t.size == expected_.size &&
+            t.uploadSize == expected_.uploadSize &&
+            (t.direction != C::SdoDirection::DOWNLOAD ||
+             (t.data[0] == expected_.data[0] && t.data[1] == expected_.data[1])) &&
             t.readEffect == C::SdoReadEffect::UNQUALIFIED &&
             done->service.nodeGeneration == record_.plan.review.plan.target.nodeGeneration;
         record_.terminals[record_.terminalCount++] = *done;
@@ -200,6 +231,27 @@ bool RawEvidence::service(uint64_t now) noexcept {
         if (!owner_.release(pending_))
             return false;
         pendingValid_ = false;
+        if (record_.plan.enableHeartbeat &&
+            record_.terminals[record_.terminalCount - 1].service.transfer.direction ==
+                C::SdoDirection::UPLOAD) {
+            // Readback confirms only the object bytes. Never infer motor state,
+            // remote persistence or a host-loss response from this register.
+            const C::SdoCompletion& result = record_.terminals[record_.terminalCount - 1].service;
+            const unsigned wanted = record_.terminalCount == 1 ? 0 : 1000;
+            if (result.size != 2 ||
+                unsigned(result.data[0] | unsigned(result.data[1]) << 8) != wanted) {
+                finish(RawEvidenceFailure::READBACK, now);
+                return true;
+            }
+            if (record_.terminalCount == 3) {
+                const auto* node = services_.node(record_.plan.slot);
+                if (!current() || !node ||
+                    !services_.setProducerInterval(record_.plan.slot, node->route, 1000, now)) {
+                    finish(RawEvidenceFailure::INVALIDATED, now);
+                    return true;
+                }
+            }
+        }
     }
     if (record_.evidenceLost) {
         finish(RawEvidenceFailure::EVIDENCE_LOSS, now);
@@ -228,17 +280,33 @@ bool RawEvidence::service(uint64_t now) noexcept {
     work.channel = plan.target.channel;
     work.operation = plan.id;
     work.request = work.step = uint32_t(field + 1);
-    work.index = fields[field].index;
-    work.subindex = fields[field].subindex;
-    work.size = 4;
-    work.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+    const bool motion = record_.plan.inventory == RawEvidenceInventory::MOTION_READINESS;
+    work.index = record_.plan.enableHeartbeat ? 0x1017
+                 : motion                     ? motionReadiness[field].index
+                                              : fields[field].index;
+    work.subindex = record_.plan.enableHeartbeat ? 0
+                    : motion                     ? motionReadiness[field].subindex
+                                                 : fields[field].subindex;
+    work.size = record_.plan.enableHeartbeat ? 2 : 4;
+    work.uploadSize =
+        record_.plan.enableHeartbeat ? C::SdoUploadSize::EXACT : C::SdoUploadSize::SERVER_INDICATED;
+    if (record_.plan.enableHeartbeat && field == 1) {
+        work.direction = C::SdoDirection::DOWNLOAD;
+        work.data[0] = 0xe8;
+        work.data[1] = 0x03;
+    }
     work.readEffect = C::SdoReadEffect::UNQUALIFIED;
     work.deadlineUs = plan.deadlineUs;
     work.queueTimeoutUs = plan.options.queueTimeoutUs;
     work.responseTimeoutUs = plan.options.responseTimeoutUs;
-    if (!services_.authorizeUploadExperiment(record_.plan.slot, work, plan.target.nodeGeneration,
-                                             record_.plan.firstAuthorizationId + uint32_t(field),
-                                             now)) {
+    const uint32_t authorization = record_.plan.firstAuthorizationId + uint32_t(field);
+    const bool granted =
+        work.direction == C::SdoDirection::DOWNLOAD
+            ? services_.authorizeDownloadExperiment(record_.plan.slot, work,
+                                                    plan.target.nodeGeneration, authorization, now)
+            : services_.authorizeUploadExperiment(record_.plan.slot, work,
+                                                  plan.target.nodeGeneration, authorization, now);
+    if (!granted) {
         finish(RawEvidenceFailure::AUTHORIZATION, now);
         return true;
     }
@@ -252,6 +320,14 @@ bool RawEvidence::service(uint64_t now) noexcept {
     }
     expected_ = work;
     pendingValid_ = true;
+    if (work.direction == C::SdoDirection::DOWNLOAD) {
+        const auto* node = services_.node(record_.plan.slot);
+        // Conservative first-possible boundary: accepted local work may leave at
+        // the next owner turn. No existing producer fact may survive uncertainty.
+        if (!node || !services_.invalidateProducerInterval(record_.plan.slot, node->route, now)) {
+            owner_.cancel(pending_, now);
+        }
+    }
     return true;
 }
 bool RawEvidence::release() noexcept {

@@ -1,11 +1,14 @@
 # Requirement coverage after pure CAN/SDO checks
 
-The [live S2 checkpoint](reports/2026-11-02_s2_live_connection.md) adds complete
-S2 UART/TWAI firmware and physical two-node upload evidence to R04/R12/R17/R19/R20.
-One-use exact grants, server-indicated bounded raw lengths and authoritative TX
-retirement have host regressions. Version-width and actual PDO-layout conflicts
-remain explicit; no remap, NMT-state, motor or general firmware qualification
-follows. Prompt 18 remains blocked with its implementation obligations retained.
+The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) adds fixed
+TPDO1 configuration and addressed owner NMT to R11/R12/R13/R17/R20. Native
+adversarial checks cover per-step failures and interval freshness; one node1
+specimen completed the exact24-service experiment. Broader PDO/timers/SYNC,
+broader persistence, sample provenance and Q20 remain open; prompt18 is Partial.
+A user power cycle supplied both boot-up frames and subsequent26-field readback;
+node1 reverted to producer0/map3 in that one cycle. Each node also completed a
+30-field read-only readiness inventory; retained nonzero targets and mode0 do
+not close motion-admission or completion requirements.
 
 [Prompt 33](reports/prompt_33.md) adds checked native position-parameter arithmetic and owned target/axis/settings snapshots to R06/R13/R20. This produces no service work and does not implement finite absolute/relative moves. Acceptance/completion, relative wire semantics and a supported post-trigger stop remain gated in the [guide](position_parameters.md).
 
@@ -85,10 +88,10 @@ The [fresh audit of prompts 15-17](reports/prompts_15_17_audit.md) adds regressi
 for initial service-proof age/origin, independent matching-response history and
 unknown-capture forwarding. R05/R11/R20/R32 retain host-only scope.
 
-[Prompt 18](reports/prompt_18.md) completed its source and prerequisite review
-but remains **Blocked** on Q17 mutation semantics. No remapping/timing operation
-or failure-at-each-mutation-step test is delivered; R12/R13 retain that scope.
-Existing PDO layout/readback/provenance tests are prerequisite evidence only.
+[Prompt 18](reports/prompt_18.md) is **Partial**: the fixed TPDO1 sequence,
+exact readback and every-step failure handling are implemented and host-tested;
+node1 supplied the narrow live result. Broader remapping/timing, persistence
+and sample-provenance qualification retain their separate Q17 scope.
 The [fresh Prompt 18 audit](reports/prompt_18.md#fresh-independent-audit)
 corrects the standard-versus-device evidence distinction and narrows Q17's
 dependencies; it grants no new runtime capability or hardware qualification.
@@ -110,7 +113,7 @@ that support claim. Reference/data verification is not driver testing.
 | R08 | 2-4, 19-22, 29-36, 47-48 | All 24 conflicting claim sets retain original alternatives and reviewed dispositions; 21 bounded feature gates remain open. Prompt 29 rechecked original pages/EDS and supplies a [measurement table](device_conflicts.md) separating documentary, host and physical evidence. No firmware winner invented. |
 | R09 | 9-10, 21-22, 32-36 | Production exact rational parsing/conversion, independent scales, integer rounding and bounded radians/binary32 quantization are host tested. Pure axis/reference mutation, exact endpoints, freshness/epoch checks and offline preview are host tested under 10; native scaling and drive actions retain later owners. |
 | R10 | 9-10, 13-25, 30-32 | Production Status preserves selected call-result semantics/static labels. Production SDO checks and the proof preserve raw U32 aborts separately; acknowledged write retains completion NOT_OBSERVED. Prompt 25 implements passive application communication health and exact counters; real drive/machine-state interpretation remains separate. |
-| R11 | 11-18, 23-25 | Real expedited/two-segment SDO proof plus prompt-6 continuous raw event dispatch and boot-up invalidation even when the observation ring is full. Prompt 11 adds installed checked initiation envelopes, legal segmented/abort evidence and real selected-engine vectors. Prompt 13 implements the optional bounded SDO lifecycle and checked 1-32-byte forms; 15 adds pure network codecs, shared node facts and reset/cache invalidation; 16 adds explicit NMT and service eligibility; 17 adds checked actual maps, qualified raw PDO observations and per-route invalidation; 19 adds checked raw SDO/PDO projection with per-field age/skew; remapping remains 18. |
+| R11 | 11-18, 23-25 | Real expedited/two-segment SDO proof plus prompt-6 continuous raw event dispatch and boot-up invalidation even when the observation ring is full. Prompt 11 adds installed checked initiation envelopes, legal segmented/abort evidence and real selected-engine vectors. Prompt 13 implements the optional bounded SDO lifecycle and checked 1-32-byte forms; 15 adds pure network codecs, shared node facts and reset/cache invalidation; 16 adds explicit NMT and service eligibility; 17 adds checked actual maps, qualified raw PDO observations and per-route invalidation; 19 adds checked raw SDO/PDO projection with per-field age/skew; 18 now adds the fixed TPDO1 sequence and exact readback; broader Q17 scope remains. |
 | R12 | 13-14, 21-25, 30-39, 45-46 | Production SDO tests cover copied intent/results, bounded queue/response/overall deadlines, per-route quarantine, abort cleanup and no replay. The [independent prompt-13 audit](reports/prompt_13_audit.md) adds abort-during-staging and reply-before-controller-confirmation regressions. Prompt 14 adds separate capture/processing observations, adversarial correlation, copied-TX eligibility, binding invalidation and permanent quarantine where reopening evidence is missing. Prompt 27 implements the pinned S3 controller retirement boundary with fake and SDK compile checks; physical retirement remains unqualified; [source/evidence gates](reports/prompt_14_sources.md) stay explicit. |
 | R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Prompt 12 generates 194 compact descriptors and complete source/semantic coverage with active freshness checks; four conflicting types and four reserved entries are withheld/excluded. 19 implements 30 raw read rows, 20 nine native group rows, and 21 all 23 I/O read rows and 22 all 33 tuning/control rows (95 total), with separate read coverage; remaining read rows have explicit owner 38. Twelve conditional setting rows now have separate setting coverage (three position parameters, eight DI fields and one loop selector); remaining DO/filter/actions stay gated under 21. Q20 blocks the non-consuming probe. Descriptors do not complete setters or actions. |
 | R14 | 21-25, 29-36, 47-48 | Prompt 21 decodes documentary DI function/polarity separately from raw output registers and logical monitor levels. Wiring/electrical knowledge and method prerequisites remain independent; explicit DI reassignment is implemented with partial-effect/readback/invalidation tests; no output action is implemented. |
@@ -134,7 +137,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18 Blocked, 19-33 Partial and 34-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
+| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18-33 Partial and 34-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified

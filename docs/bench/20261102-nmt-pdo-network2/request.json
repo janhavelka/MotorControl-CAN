@@ -1,0 +1,13 @@
+{
+  "started_utc": "2026-11-02T17:11:48.095786+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "command": "network",
+  "tx_hex": "6e",
+  "seconds": 2.0,
+  "reset": false,
+  "retry": false,
+  "prefix_bytes": 0,
+  "status": "captured"
+}

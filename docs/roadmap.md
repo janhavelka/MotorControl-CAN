@@ -18,16 +18,19 @@ SDO lifecycle with passing local and Windows/GCC/Clang sanitizer CI.
 [Prompt 15](reports/prompt_15.md) completes passive network events and shared lifecycle invalidation.
 [Prompt 16](reports/prompt_16.md) completes explicit NMT and service eligibility.
 [Prompt 17](reports/prompt_17.md) completes checked PDO map/sample observations.
-[Prompt 18](reports/prompt_18.md) is Blocked on the source-backed PDO mutation
-contract; its audit and precise Q17 evidence requirements are recorded.
+[Prompt 18](reports/prompt_18.md) is Partial: fixed TPDO1 configuration is
+implemented, host-tested and observed on node1; broader Q17 gates remain.
 [Prompt 19](reports/prompt_19.md) is Partial: all 30 assigned raw read rows are
 implemented; Q20 still blocks a documented non-consuming probe.
 
-The [S2 connection checkpoint](reports/2026-11-02_s2_live_connection.md) now
-provides 20 successful raw uploads on each of nodes 1/2 through the complete
-UART/core-0/TWAI port. Observed widths and initial TPDO1 contents remain raw
-evidence: no PDO writes or motor actions were sent. Prompt 18 implementation,
-Q17 mutation applicability, Q20 read effects and motor qualification stay pending.
+The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
+26 uploads per node, node1 heartbeat1000, fresh addressed Pre-operational and
+complete fixed-map readback. No motor action, start/reset, save or restore was
+sent. One physical power cycle subsequently reverted node1 producer/map to
+0/map3 without save/restore; both nodes completed26 baseline plus30 readiness
+uploads. Nonzero retained targets, mode0 and configured DI functions require
+further motion-admission evidence. Timer/SYNC, broader persistence, sample
+qualification and executable finite motion remain pending.
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
 [PROGRESS](prompts/PROGRESS.md) owns stage status. This roadmap gives executable
@@ -49,7 +52,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 15 | Passive network events and invalidation | Complete: pure codecs, shared node anchors, captured-time/epoch facts, four copied diagnostics and synchronous cache invalidation; checks in [report](reports/prompt_15.md) |
 | 16 | Explicit NMT requests and service eligibility | Complete: native producer, intent/TX/observations, domain effects and heartbeat-disabled service evidence; [report](reports/prompt_16.md) |
 | 17 | Observed PDO maps and decoding | Complete: checked layouts, explicit actual-map acquisition, independent sample qualification and atomic passive routing; [report](reports/prompt_17.md) |
-| 18 | Explicit PDO remapping | Blocked: Lichuan applicability/state/activation of the standard remap remain unconfirmed; [audit and scoped Q17 gates](reports/prompt_18.md#fresh-independent-audit). Timing changes and sample qualification are separate obligations. |
+| 18 | Explicit PDO remapping | Partial: fixed TPDO1 map3-to-map2 implemented and specimen-observed; [checkpoint and remaining Q17 gates](reports/2026-11-02_nmt_pdo_checkpoint.md). Broader settings/timers/SYNC, persistence and sample qualification remain. |
 | 19 | Typed raw identity/state/configuration reads | Partial: 30 rows, checked SDO/PDO evidence and getters implemented; close Q20 read-effect evidence before a non-consuming probe is usable. |
 | 20 | Native driver, limit and motion-parameter groups | Partial: nine typed raw read rows and position-parameter settings complete; direction/scale/limits/mode gates remain [owned here](reports/prompt_20.md). Current/holding remains solely 22. |
 | 21 | I/O settings and output actions | Partial: all 23 I/O reads and explicit DI settings implemented; DO, filter and output actions retain the precise [evidence gates](io_settings.md). Those remaining mutations retain their own partial-effect/invalidation obligations. |

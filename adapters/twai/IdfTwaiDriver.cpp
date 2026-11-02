@@ -3,7 +3,9 @@
 #include "driver/gpio.h"
 #include "esp_idf_version.h"
 #include "esp_memory_utils.h"
+#include "esp_timer.h"
 #include "esp_twai_onchip.h"
+#include "hal/twai_ll.h"
 #include "sdkconfig.h"
 
 #if ESP_IDF_VERSION != ESP_IDF_VERSION_VAL(5, 5, 5)
@@ -34,8 +36,8 @@ TwaiDriver IdfTwaiDriver::driver() noexcept {
         return static_cast<IdfTwaiDriver*>(p)->submit(frame, serial);
     };
     result.events = [](void* p) { return static_cast<IdfTwaiDriver*>(p)->events(); };
-    result.receive = [](void* p, ReceivedFrame& frame) {
-        return static_cast<IdfTwaiDriver*>(p)->receive(frame);
+    result.receive = [](void* p, ReceivedFrame& frame, uint64_t cutoffUs) {
+        return static_cast<IdfTwaiDriver*>(p)->receive(frame, cutoffUs);
     };
     return result;
 }
@@ -66,6 +68,10 @@ bool IdfTwaiDriver::start(const TwaiConfig& config, uint32_t epoch) noexcept {
     epoch_ = epoch;
     capacity_ = config.rxQueueDepth;
     retiring_ = pending_ = busOff_ = false;
+    receiveBoundaryKnown_ = false;
+    receiveBoundaryUs_ = 0;
+    clockKnown_ = false;
+    lastClockUs_ = 0;
     events_ = TwaiEvents();
     head_ = count_ = 0;
     twai_onchip_node_config_t configNative = {};
@@ -95,6 +101,9 @@ bool IdfTwaiDriver::start(const TwaiConfig& config, uint32_t epoch) noexcept {
         return false;
     lastError_ = twai_node_enable(node_);
     enabled_ = lastError_ == ESP_OK;
+    portENTER_CRITICAL(&mux_);
+    refreshReceiveBoundary();
+    portEXIT_CRITICAL(&mux_);
     return enabled_;
 }
 bool IdfTwaiDriver::stop() noexcept {
@@ -126,6 +135,10 @@ bool IdfTwaiDriver::stop() noexcept {
         node_ = nullptr;
     }
     pending_ = busOff_ = false;
+    receiveBoundaryKnown_ = false;
+    receiveBoundaryUs_ = 0;
+    clockKnown_ = false;
+    lastClockUs_ = 0;
     events_ = TwaiEvents();
     head_ = count_ = 0;
     return true;
@@ -165,18 +178,41 @@ TwaiEvents IdfTwaiDriver::events() noexcept {
         return failed;
     }
     portENTER_CRITICAL(&mux_);
+    refreshReceiveBoundary();
     TwaiEvents result = events_;
     result.rxPending = count_ != 0;
     events_ = TwaiEvents();
     portEXIT_CRITICAL(&mux_);
     return result;
 }
-bool IdfTwaiDriver::receive(ReceivedFrame& frame) noexcept {
+void IdfTwaiDriver::refreshReceiveBoundary() noexcept {
+    if (!node_ || !enabled_ || retiring_ || busOff_ || events_.fault || events_.rxDropped || count_)
+        return;
+    // This pinned private LL read does not drain/clear hardware. Same-core
+    // ownership excludes an SDK frame between FIFO pop and its RX callback.
+    // Sample BEFORE the empty check: an arrival after the check is then no older
+    // than this bound. This bounds frame completion, never its start bit.
+    const int64_t sampled = esp_timer_get_time();
+    if (sampled < 0 || (clockKnown_ && uint64_t(sampled) < lastClockUs_)) {
+        events_.fault = true;
+        receiveBoundaryKnown_ = false;
+    } else {
+        clockKnown_ = true;
+        lastClockUs_ = static_cast<uint64_t>(sampled);
+        if (twai_ll_get_rx_msg_count(TWAI_LL_GET_HW(0)) == 0) {
+            receiveBoundaryUs_ = lastClockUs_;
+            receiveBoundaryKnown_ = true;
+        }
+    }
+}
+bool IdfTwaiDriver::receive(ReceivedFrame& frame, uint64_t cutoffUs) noexcept {
     if (!taskValid())
         return false;
     portENTER_CRITICAL(&mux_);
+    refreshReceiveBoundary();
     const bool available =
-        count_ != 0 && !retiring_ && !busOff_ && !events_.fault && !events_.rxDropped;
+        count_ != 0 && !retiring_ && !busOff_ && !events_.fault && !events_.rxDropped &&
+        rx_[head_].receivedLatestUs <= cutoffUs;
     if (available) {
         frame = rx_[head_];
         head_ = (head_ + 1) % RX_CAPACITY;
@@ -206,6 +242,7 @@ bool IdfTwaiDriver::rxDone(twai_node_handle_t node, const twai_rx_done_event_dat
     native.buffer = bytes;
     native.buffer_len = sizeof(bytes);
     const bool read = twai_node_receive_from_isr(node, &native) == ESP_OK;
+    const int64_t observed = esp_timer_get_time();
     ReceivedFrame received;
     received.controllerEpoch = self.epoch_;
     received.frame.id = native.header.id;
@@ -222,8 +259,18 @@ bool IdfTwaiDriver::rxDone(twai_node_handle_t node, const twai_rx_done_event_dat
             received.frame.data[i] = bytes[i];
     }
     portENTER_CRITICAL_ISR(&self.mux_);
+    if (observed < 0 || (self.clockKnown_ && uint64_t(observed) < self.lastClockUs_)) {
+        self.events_.fault = true;
+        self.receiveBoundaryKnown_ = false;
+    } else {
+        self.clockKnown_ = true;
+        self.lastClockUs_ = static_cast<uint64_t>(observed);
+    }
+    received.receiveBoundsKnown = self.receiveBoundaryKnown_ && observed >= 0;
+    received.receivedEarliestUs = self.receiveBoundaryUs_;
+    received.receivedLatestUs = observed < 0 ? 0 : static_cast<uint64_t>(observed);
     if (!read || !validDlc || !MotorControlCAN::validateFrame(received.frame) ||
-        self.count_ == self.capacity_ || self.retiring_)
+        self.count_ == self.capacity_ || self.retiring_ || self.events_.fault)
         increment(self.events_.rxDropped);
     else {
         self.rx_[(self.head_ + self.count_) % RX_CAPACITY] = received;

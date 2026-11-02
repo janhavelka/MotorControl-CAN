@@ -1,0 +1,15 @@
+HEARTBEAT experiment admitted: exact1017 zero->1000ms thenreadback; no retry
+RAW id=3 node=1 failure=0 lost=0 terminals=3 traffic=9 tail=0 tailLost=0 gap=2008
+RESULT step=1 object=1017:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=96282968 completed=96285962
+RESULT step=2 object=1017:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=96287970 completed=96290962
+RESULT step=3 object=1017:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=96292970 completed=96295962
+TRAFFIC k=1 p=96282968 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0
+TRAFFIC k=2 p=96285962 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0
+TRAFFIC k=0 p=96285962 id=581 ext=0 rtr=0 dlc=8 data=4b17100000000000 ok=1 exact=0 t=0 bounds=1 lo=96284296 hi=96284871
+TRAFFIC k=1 p=96287970 id=601 ext=0 rtr=0 dlc=8 data=2b171000e8030000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0
+TRAFFIC k=2 p=96290962 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0
+TRAFFIC k=0 p=96290962 id=581 ext=0 rtr=0 dlc=8 data=6017100000000000 ok=1 exact=0 t=0 bounds=1 lo=96289329 hi=96289883
+TRAFFIC k=1 p=96292970 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0
+TRAFFIC k=2 p=96295962 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0
+TRAFFIC k=0 p=96295962 id=581 ext=0 rtr=0 dlc=8 data=4b171000e8030000 ok=1 exact=0 t=0 bounds=1 lo=96294170 hi=96294711
+END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release

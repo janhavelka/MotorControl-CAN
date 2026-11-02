@@ -51,7 +51,8 @@ cannot monopolize a service channel.
 | Ordinary request/results | 6 total | Queued, active and unread terminals share ordinary slots; admission reserves result storage before TX |
 | Urgent request/result | 1 separate slot | Ordinary work cannot use it; urgent work uses an existing axis reservation |
 | Recovery result | 1 separate slot | Pending or unread recovery blocks another recovery independently of request/result pressure |
-| External TX tracking | 1 frame per service channel | Exact handoff/epoch retained until final controller report, proven retirement or successful whole-controller recovery; includes cleanup aborts |
+| External TX tracking | 1 frame per service channel plus 1 NMT frame | Tagged exact handoff/epoch retained until final controller report, proven retirement or successful whole-controller recovery; includes cleanup aborts |
+| NMT request/result | 1 separate retained slot | Explicit manager intent; TX outcome and observed network transition remain independent |
 | Producer identities | 4, numbered 1..4 | Cyclic eligible-producer selection, independent of CAN node/subaxis or motor kind |
 | Active associations | 2 slot indexes/native handles | Refer to existing channels and canonical result slots; no second client or node state |
 | Binding health | At most 2 channel-associated records | Cached logical-service totals, failure streak, timestamps and communication projection; protocol state stays in the adapter |
@@ -96,6 +97,15 @@ unsigned abort, reply and effect evidence survive copying. Queued local failures
 produce consistent native failure evidence without claiming transmission.
 
 ### Finite unknown-effect upload experiments
+
+An explicitly reviewed scalar write uses `authorizeDownloadExperiment` with one
+exact 1–4-byte payload. Upload and download grants share the existing one-use
+slot and increasing review serial; each copied intent includes the direction,
+payload, route, operation/step, lifecycle epoch and immutable time budgets.
+The grant is not a production profile capability or service confirmation.
+`clearUploadExperiment` clears either unused grant; admitted work still needs
+explicit owner cancellation. The current bench uses fixed heartbeat and TPDO1
+procedures, with retained partial effects and no replay or automatic rollback.
 
 The application may install one exact
 [`authorizeUploadExperiment`](canopen_services.md#one-use-experimental-upload-grants)
@@ -208,6 +218,15 @@ reaches only the optional raw observer. Source-time, binding/map/epoch
 validation and same-ID/same-DLC PDO ambiguity rules remain in the
 [service contract](canopen_services.md#passive-network-events-and-node-lifecycle).
 
+`ReceivedFrame` may instead carry `receiveBoundsKnown` with inclusive
+`receivedEarliestUs`/`receivedLatestUs`. Exact and interval flags are mutually
+exclusive; reversed/future intervals are rejected before normal dispatch and
+remain raw diagnostics. Network freshness uses the oldest possible ingress,
+while definite expiry uses the newest. Bounds do not establish SDO correlation
+or PDO route retirement. The pinned TWAI shim defers future-upper-bound entries
+until the adapter's accepted service cutoff reaches them; it never clamps or
+relabels their timestamps. See the [source proof](adapters/twai_receive_time.md).
+
 For a staged first download, optional `beforeTransmit` validates application
 prerequisites and notifies the actual settings or stop-action context before possible TX.
 It runs once per download request, never for cleanup aborts. It performs no
@@ -216,7 +235,10 @@ operation stepping, I/O or reentrant owner call. `nextTx`, exact-token
 without receive interleaving. Failed enqueue is not retried.
 
 The transmit callback now has signature
-`bool transmit(void*, const Frame&, SdoTxId, uint32_t controllerEpoch)`.
+`bool transmit(void*, const Frame&, TransportTxId, uint32_t controllerEpoch)`.
+`TransportTxId::Kind` distinguishes an exact SDO request/frame ID from an NMT
+request ID. `sameTransportTxId` compares the active identity only; reports for
+another kind, generation or controller epoch cannot settle pending work.
 The final argument identifies the local enqueue epoch. True means enqueue
 acceptance only; false conservatively permits uncertain acceptance, closes native
 work as a transport failure and is never an instruction to retry the same bytes.
@@ -239,6 +261,15 @@ channels and ordinary receive dispatch remain available. There is no hidden
 retirement retry. An exact final report or explicit successful whole-controller
 recovery supplies the other settlement paths. These are application adapter
 obligations, not a guarantee about an unimplemented SDK or controller port.
+
+The same owner exposes `admitNmt`, `cancelNmt`, `nmtResult` and `releaseNmt`.
+Service hands off at most one explicit NMT frame within the ordinary TX budget,
+using the same transport, RX dispatcher, retirement and controller-report path.
+A pending or unretired NMT handoff blocks dependent SDO work for its addressed
+node, or all local nodes for a broadcast; unrelated addressed-node traffic
+continues. Releasing a terminal does not retire a potentially transmitting frame.
+Late reports can retire that frame but cannot rewrite its terminal outcome.
+NMT results are manager-service facts, never a motor-stop or enable result.
 
 ## Cancellation, observations and channel uncertainty
 
@@ -505,7 +536,7 @@ it never receives from the controller or consumes normal dispatch input. An
 empty/reentrant/overlapping-output call returns false without changing output.
 `DiagnosticKind` selects raw RX, enqueue-attempt TX, matching final TX report,
 complete copied terminal, controller report or recovery closure. Records own
-their frame/terminal bytes, processing time, RX capture time/known flag,
+their frame/terminal bytes, processing time, RX exact capture or conservative interval,
 exact local TX identity, controller epoch and applicable acceptance/controller/
 recovery facts. A TX trace records enqueue acceptance; a TX_REPORT copy records
 the distinct actual transmission report. Native retained histories
@@ -560,7 +591,8 @@ that decision.
 The optional [TWAI adapter](../adapters/twai/README.md) supplies concrete S2/S3/IDF
 5.5.5 enqueue, transmission and retirement evidence. Service the owner before
 adapter TX promotion with the same supplied time; unread RX defers promotion.
-SDK callbacks only copy into bounded internal-RAM storage. Explicit recovery
+SDK callbacks copy into bounded internal-RAM storage and sample receive-time
+upper bounds. Explicit recovery
 destroys the old node before a fresh instance can accept work. See the
 [SDK evidence](adapters/twai_sdk.md) for bus-off deletion proof, unavailable
 hardware-overrun evidence and ISR latency limits. This does not reopen an

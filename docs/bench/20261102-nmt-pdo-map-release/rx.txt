@@ -1,0 +1,1 @@
+PDO record released; configuration/uncertainty retained

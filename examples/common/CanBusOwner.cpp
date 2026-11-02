@@ -15,9 +15,6 @@ bool same(SequenceId a, SequenceId b) {
 bool same(C::SdoRequestId a, C::SdoRequestId b) {
     return a.owner == b.owner && a.channel == b.channel && a.generation == b.generation;
 }
-bool same(C::SdoTxId a, C::SdoTxId b) {
-    return same(a.request, b.request) && a.frame == b.frame;
-}
 bool peer(const Binding& a, const Binding& b) {
     return a.endpoint.protocol == b.endpoint.protocol && a.endpoint.bus == b.endpoint.bus &&
            a.endpoint.address == b.endpoint.address;
@@ -182,7 +179,7 @@ BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now, Request
     if (request.transfer.deadlineUs <= now || s->deadlineUs <= now)
         return BusAdmission::EXPIRED;
     const int c = channel(request.transfer.channel);
-    if (c >= 0 && external_[c].blocked)
+    if (c >= 0 && (external_[c].blocked || nmtBlocks(request.transfer.channel.binding)))
         return BusAdmission::INHIBITED;
     if (c < 0 || !MotorControlCAN::sameBinding(s->binding, request.transfer.channel.binding) ||
         request.transfer.operation != s->operation ||
@@ -276,6 +273,7 @@ bool CanBusOwner::eligible(unsigned index, uint64_t now) const noexcept {
         return false;
     const int c = channel(slot.request.transfer.channel);
     if (c < 0 || active_[c] >= 0 || external_[c].pending || external_[c].blocked ||
+        nmtBlocks(slot.request.transfer.channel.binding) ||
         !services_.checkAdmission(uint8_t(c), slot.request.transfer, now))
         return false;
     for (const Slot& other : slots_)
@@ -309,7 +307,8 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
         return false;
     expire(now);
     const auto* port = services_.port(c);
-    if (!port || !port->queueOccupied)
+    const auto* route = services_.channel(c);
+    if (!port || !port->queueOccupied || !route || nmtBlocks(route->binding))
         return false;
     const int index = active_[c];
     const bool cleanup = port->queued.data[0] == 0x80;
@@ -335,15 +334,15 @@ bool CanBusOwner::transmit(uint8_t c, uint64_t now) noexcept {
     external_[c] = ExternalTx();
     external_[c].pending = true;
     external_[c].epoch = controllerEpoch_;
-    external_[c].id = id;
-    const bool accepted = transport_.transmit(transport_.context, frame, id, controllerEpoch_);
+    external_[c].id = TransportTxId::fromSdo(id);
+    const bool accepted = transport_.transmit(transport_.context, frame, TransportTxId::fromSdo(id), controllerEpoch_);
     external_[c].rejected = !accepted;
     if (!accepted)
         detail::add(stats_.txRejected);
     Diagnostic diagnostic;
     diagnostic.kind = DiagnosticKind::TX;
     diagnostic.frame = frame;
-    diagnostic.txId = id;
+    diagnostic.txId = TransportTxId::fromSdo(id);
     diagnostic.accepted = accepted;
     diagnostic.processedUs = now;
     diagnostic.controllerEpoch = controllerEpoch_;
@@ -389,10 +388,13 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             if (!transport_.takeTxReport(transport_.context, report))
                 break;
             if (report.controllerEpoch != controllerEpoch_ ||
-                report.id.request.channel >= C::SdoClient::CHANNELS)
+                (report.id.kind != TransportTxId::Kind::SDO && report.id.kind != TransportTxId::Kind::NMT) ||
+                (report.id.kind == TransportTxId::Kind::SDO &&
+                 report.id.sdo.request.channel >= C::SdoClient::CHANNELS))
                 continue;
-            ExternalTx& tx = external_[report.id.request.channel];
-            if (!tx.pending || !same(tx.id, report.id))
+            ExternalTx& tx = report.id.kind == TransportTxId::Kind::NMT
+                ? nmtExternal_ : external_[report.id.sdo.request.channel];
+            if (!tx.pending || !sameTransportTxId(tx.id, report.id))
                 continue;
             if (report.transmitted)
                 detail::add(stats_.txFrames);
@@ -406,10 +408,15 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             diagnostic.controllerEpoch = report.controllerEpoch;
             trace(diagnostic);
             tx = ExternalTx(); // A matching final report proves this exact local frame is retired.
-            if (report.transmitted)
-                services_.confirmTx(report.id, now);
-            else if (services_.canTransmit(report.id, now))
-                services_.transportFailure(report.id.request, now);
+            if (report.id.kind == TransportTxId::Kind::NMT) {
+                if (report.transmitted)
+                    services_.confirmNmtTx(report.id.nmt, now);
+                else if (services_.canTransmitNmt(report.id.nmt, now))
+                    services_.transportFailureNmt(report.id.nmt, now);
+            } else if (report.transmitted)
+                services_.confirmTx(report.id.sdo, now);
+            else if (services_.canTransmit(report.id.sdo, now))
+                services_.transportFailure(report.id.sdo.request, now);
             collect();
             expire(now);
         }
@@ -422,9 +429,15 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             bool accepted = false;
             if (frame.controllerEpoch == controllerEpoch_ &&
                 MotorControlCAN::validateFrame(frame.frame) &&
-                (!frame.receivedTimeKnown || frame.receivedUs <= now)) {
+                !(frame.receivedTimeKnown && frame.receiveBoundsKnown) &&
+                (!frame.receivedTimeKnown || frame.receivedUs <= now) &&
+                (!frame.receiveBoundsKnown || (frame.receivedEarliestUs <= frame.receivedLatestUs &&
+                                               frame.receivedLatestUs <= now))) {
                 if (frame.receivedTimeKnown)
                     accepted = services_.receive(frame.frame, frame.receivedUs, now);
+                else if (frame.receiveBoundsKnown)
+                    accepted = services_.receive(frame.frame, frame.receivedEarliestUs,
+                                                 frame.receivedLatestUs, now);
                 else
                     accepted = services_.receive(frame.frame, now);
                 if (!accepted)
@@ -437,6 +450,9 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             diagnostic.frame = frame.frame;
             diagnostic.receivedTimeKnown = frame.receivedTimeKnown;
             diagnostic.receivedUs = frame.receivedUs;
+            diagnostic.receiveBoundsKnown = frame.receiveBoundsKnown;
+            diagnostic.receivedEarliestUs = frame.receivedEarliestUs;
+            diagnostic.receivedLatestUs = frame.receivedLatestUs;
             diagnostic.accepted = accepted;
             diagnostic.processedUs = now;
             diagnostic.controllerEpoch = frame.controllerEpoch;
@@ -450,6 +466,12 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
     settleExternal(now, budget.events != 0);
     const uint8_t tx = limit(budget.tx, TX_LIMIT);
     unsigned sent = 0, starts = 0;
+    if (sent < tx && transmitNmt(now)) {
+        ++sent;
+        collect();
+        expire(now);
+        settleExternal(now, budget.events != 0);
+    }
     const uint8_t firstChannel = nextChannel_;
     for (unsigned scan = 0; scan < C::SdoClient::CHANNELS && sent < tx; ++scan) {
         const uint8_t c = uint8_t((firstChannel + scan) % C::SdoClient::CHANNELS);
@@ -484,7 +506,8 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
 }
 bool CanBusOwner::localTxRetired(uint8_t slot) const noexcept {
     const auto* port = services_.port(slot);
-    return port && !port->queueOccupied && !external_[slot].pending && !external_[slot].blocked;
+    return port && !port->queueOccupied && !external_[slot].pending && !external_[slot].blocked &&
+        !nmtExternal_.pending && !nmtExternal_.blocked;
 }
 const Completion* CanBusOwner::result(RequestId id) const noexcept {
     return valid(id) && slots_[id.slot].terminal ? &slots_[id.slot].completion : nullptr;
@@ -495,18 +518,104 @@ bool CanBusOwner::release(RequestId id) noexcept {
     slots_[id.slot].occupied = false;
     return true;
 }
+bool CanBusOwner::nmtBlocks(const Binding& binding) const noexcept {
+    return (nmtExternal_.pending || nmtExternal_.blocked) &&
+        binding.endpoint.bus == nmtTransfer_.bus &&
+        (nmtTransfer_.broadcast || peer(binding, nmtTransfer_.target.binding));
+}
+bool CanBusOwner::canTransmit(TransportTxId id, uint64_t now) const noexcept {
+    return id.kind == TransportTxId::Kind::NMT ? services_.canTransmitNmt(id.nmt, now) :
+        id.kind == TransportTxId::Kind::SDO && services_.canTransmit(id.sdo, now);
+}
+void CanBusOwner::settle(ExternalTx& tx, uint64_t now, bool allowCallback) noexcept {
+    if (!tx.pending || canTransmit(tx.id, now))
+        return;
+    tx.blocked = true;
+    if (!allowCallback || tx.retirementTried)
+        return;
+    tx.retirementTried = true;
+    if (transport_.retire && transport_.retire(transport_.context, tx.id, tx.epoch))
+        tx = ExternalTx(); // This exact frame and every future final report are retired.
+}
 void CanBusOwner::settleExternal(uint64_t now, bool allowCallback) noexcept {
-    for (ExternalTx& tx : external_) {
-        if (!tx.pending || services_.canTransmit(tx.id, now))
-            continue;
-        tx.blocked = true;
-        if (!allowCallback || tx.retirementTried)
-            continue;
-        tx.retirementTried = true;
-        if (transport_.retire && transport_.retire(transport_.context, tx.id, tx.epoch)) {
-            tx = ExternalTx(); // Exact local frame and all its final reports are retired.
-        }
+    for (ExternalTx& tx : external_)
+        settle(tx, now, allowCallback);
+    settle(nmtExternal_, now, allowCallback);
+}
+bool CanBusOwner::admitNmt(const C::NmtTransfer& work, uint64_t now,
+                            C::NmtRequestId& output) noexcept {
+    if (entered_ || inhibited_ || !identity_ || !transport_.transmit || now < lastUs_ ||
+        nmtOccupied_ || nmtExternal_.pending || nmtExternal_.blocked ||
+        overlap(&output, sizeof output, this, sizeof *this) ||
+        overlap(&output, sizeof output, &services_, sizeof services_) ||
+        overlap(&output, sizeof output, &work, sizeof work))
+        return false;
+    entered_ = true;
+    C::NmtRequestId candidate;
+    const bool accepted = services_.admitNmt(work, now, candidate);
+    if (accepted) {
+        nmtId_ = candidate;
+        nmtTransfer_ = work;
+        nmtOccupied_ = true;
+        output = candidate;
+        lastUs_ = now;
     }
+    entered_ = false;
+    return accepted;
+}
+bool CanBusOwner::transmitNmt(uint64_t now) noexcept {
+    if (inhibited_ || !nmtOccupied_ || nmtExternal_.pending || nmtExternal_.blocked ||
+        !transport_.transmit)
+        return false;
+    Frame frame;
+    if (!services_.nextNmtTx(nmtId_, now, frame) || !services_.canTransmitNmt(nmtId_, now))
+        return false;
+    nmtExternal_ = ExternalTx();
+    nmtExternal_.pending = true;
+    nmtExternal_.epoch = controllerEpoch_;
+    nmtExternal_.id = TransportTxId::fromNmt(nmtId_);
+    const bool accepted = transport_.transmit(transport_.context, frame, nmtExternal_.id,
+                                            controllerEpoch_);
+    nmtExternal_.rejected = !accepted;
+    if (!accepted) {
+        detail::add(stats_.txRejected);
+        services_.transportFailureNmt(nmtId_, now);
+    }
+    Diagnostic diagnostic;
+    diagnostic.kind = DiagnosticKind::TX;
+    diagnostic.frame = frame;
+    diagnostic.txId = nmtExternal_.id;
+    diagnostic.accepted = accepted;
+    diagnostic.processedUs = now;
+    diagnostic.controllerEpoch = controllerEpoch_;
+    trace(diagnostic);
+    return true;
+}
+bool CanBusOwner::cancelNmt(C::NmtRequestId id, uint64_t now) noexcept {
+    if (entered_ || now < lastUs_ || !nmtOccupied_ || id.owner != nmtId_.owner ||
+        id.generation != nmtId_.generation)
+        return false;
+    entered_ = true;
+    lastUs_ = now;
+    const bool cancelled = services_.cancelNmt(id, now);
+    if (cancelled)
+        detail::add(stats_.cancelled);
+    collect();
+    expire(now);
+    settleExternal(now, true);
+    refreshHealth(now);
+    entered_ = false;
+    return cancelled;
+}
+const C::NmtCompletion* CanBusOwner::nmtResult(C::NmtRequestId id) const noexcept {
+    return nmtOccupied_ && id.owner == nmtId_.owner && id.generation == nmtId_.generation
+        ? services_.nmtResult(id) : nullptr;
+}
+bool CanBusOwner::releaseNmt(C::NmtRequestId id) noexcept {
+    if (entered_ || !nmtResult(id) || !services_.releaseNmt(id))
+        return false;
+    nmtOccupied_ = false;
+    return true;
 }
 void CanBusOwner::cancelSlot(unsigned index, CompletionReason reason, uint64_t now) noexcept {
     Slot& slot = slots_[index];
@@ -628,6 +737,7 @@ void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept 
         detail::add(stats_.recoveries);
         for (ExternalTx& tx : external_)
             tx = ExternalTx();
+        nmtExternal_ = ExternalTx();
         services_.reportController(C::ControllerState::AVAILABLE, now);
         inhibited_ = false;
     }
@@ -689,7 +799,8 @@ bool CanBusOwner::receiveOverflow(uint64_t now, uint32_t droppedFrames) noexcept
 }
 bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
                                        uint64_t now) noexcept {
-    if (entered_ || inhibited_ || now < lastUs_ || !sequence(id) || occupied(id))
+    if (entered_ || inhibited_ || now < lastUs_ || !sequence(id) || occupied(id) ||
+        nmtExternal_.pending || nmtExternal_.blocked)
         return false;
     Reservation& s = sequences_[id.slot];
     const Binding next = current;

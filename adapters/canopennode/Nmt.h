@@ -30,7 +30,8 @@ enum class NmtOutcome : uint8_t {
     TIMEOUT, ///< Queue or overall cutoff reached, never requested-state promotion.
     CANCELLED, ///< Local withdrawal, not a network or physical motor stop.
     BUS_OFF, ///< Controller unavailable; possible earlier TX remains possible.
-    INVALIDATED ///< Target/controller lifecycle changed before local completion.
+    INVALIDATED, ///< Target/controller lifecycle changed before local completion.
+    TRANSPORT_ERROR ///< Enqueue/final TX failed; earlier transmission may remain possible.
 };
 /** One affected local binding, including shared-node SDO channels. */
 struct NmtAffected {
