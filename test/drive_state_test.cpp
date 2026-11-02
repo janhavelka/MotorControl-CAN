@@ -415,11 +415,43 @@ void rejectionAndPartialHistory() {
                                      L::StatusLayout::ZH86, value));
     afterFailure.unchanged(value);
 }
+void overlapAndBootupPreserveHistory() {
+    Rig rig;
+    rig.acquire(0x4007, 0x0004);
+    L::StateInterpretation value = rig.get(L::StatusLayout::ZH86);
+    const Saved<L::ReadContext> history(rig.read);
+    const Saved<L::StateInterpretation> published(value);
+    // The current target is a live subobject of output, so this legal alias
+    // must be rejected before either the output or its input can change.
+    const M::Status overlap = L::getStateInterpretation(rig.read, value.target, rig.now, 1000,
+                                                        L::StatusLayout::ZH86, value);
+    CHECK(overlap.code == M::Err::INVALID_CONFIG &&
+          overlap.detail == static_cast<int32_t>(M::ReadError::OVERLAP));
+    published.unchanged(value);
+    history.unchanged(rig.read);
+
+    // A real boot-up goes through the ordinary receive owner. The retained
+    // successful read remains historical; publication requires the live epoch.
+    rig.wire.push(frame(0x705, 1), rig.now + 1);
+    rig.turn(rig.now + 1);
+    L::ReadTarget current = target();
+    current.nodeGeneration = rig.services.node(0)->route.generation;
+    CHECK(current.nodeGeneration == target().nodeGeneration + 1 &&
+          rig.services.node(0)->nmt == C::NmtState::INITIALIZING);
+    CHECK(rig.wire.transmitted == 5 && rig.wire.observed == 6);
+    const M::Status reboot =
+        L::getStateInterpretation(rig.read, current, rig.now, 1000, L::StatusLayout::ZH86, value);
+    CHECK(reboot.code == M::Err::INVALID_CONFIG &&
+          reboot.detail == static_cast<int32_t>(M::ReadError::TARGET));
+    published.unchanged(value);
+    history.unchanged(rig.read);
+}
 } // namespace
 int main() {
     documentaryBits();
     rawModesDisagreementAndCopies();
     rejectionAndPartialHistory();
+    overlapAndBootupPreserveHistory();
     std::printf("drive_state: %u checks passed\n", checks);
     return 0;
 }

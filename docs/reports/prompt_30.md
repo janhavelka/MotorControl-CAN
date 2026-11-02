@@ -1,8 +1,12 @@
 # Prompt 30: drive-state interpretation and enable/release evidence
 
+The [fresh independent 29/30 audit](prompts_29_30_audit.md) rechecks the original
+assignment, implementation and source gates, adding direct overlap and real
+boot-up publication regressions without changing action support.
+
 ## Status and scope
 
-**Partial.** The independent useful scope is passive documentary state
+**Partial.** Passive documentary state
 interpretation through the existing checked raw-read path is implemented,
 integrated, independently reviewed and host tested. Enable/release
 operations, their owner lifecycle and action acceptance tests remain pending;

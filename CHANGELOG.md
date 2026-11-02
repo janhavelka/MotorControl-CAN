@@ -4,6 +4,9 @@
 
 ### Documentary drive-state interpretation
 
+- Strengthen checked-publication tests for output/current overlap and real
+  boot-up invalidation while preserving historical observations.
+
 - Add checked `getStateInterpretation` over existing typed state reads, preserving
   raw values, per-field provenance, unknown bits and status/monitor disagreements.
 - Keep EN86, ZH86, ZH57 and OP86 interpretations explicitly separate. Selecting

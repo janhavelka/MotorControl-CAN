@@ -1,5 +1,9 @@
 # Prompt 29: device evidence readiness and conflict gate
 
+The [fresh independent 29/30 audit](prompts_29_30_audit.md) rechecks the original
+assignment, implementation and source evidence; it records current validation
+and confirms that acquisition/qualification obligations remain open.
+
 ## Scope and status
 
 The owned software-readiness package is implemented and host tested. Stage status

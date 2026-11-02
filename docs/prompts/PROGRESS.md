@@ -1,5 +1,12 @@
 # Prompt execution progress
 
+A [fresh independent audit of prompts 29/30](../reports/prompts_29_30_audit.md)
+found no runtime or source-transcription defect in the delivered scope. It adds
+checked state-publication regressions for overlapping output/current storage and
+an actual owner-dispatched boot-up after successful acquisition, and corrects
+the stale R35 coverage summary. Both stages retain their precise Partial status;
+no action or firmware qualification is supplied by these tests.
+
 Prompt 30 adds [checked documentary state interpretation](../drive_actions.md),
 with explicit source layouts, retained raw/provenance and disagreement reporting.
 It remains **Partial**: the documented position-enable sequence needs producible
