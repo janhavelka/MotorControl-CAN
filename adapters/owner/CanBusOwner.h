@@ -93,6 +93,14 @@ class CanBusOwner {
      */
     bool beginUrgentOperation(SequenceId id, uint32_t operation, uint64_t deadlineUs,
                               uint64_t nowUs) noexcept;
+    /** Read a node's current epochs, for an application that must keep its targets current.
+     * @param[in] binding Exact configured binding.
+     * @param[out] nodeGeneration Current node epoch, which any invalidation advances.
+     * @param[out] serverSessions Count that a local controller event does not advance.
+     * @return False, with outputs unchanged, for an unknown binding or exhausted node.
+     */
+    bool nodeEpochs(const Binding& binding, MotorControlCAN::Generation& nodeGeneration,
+                    uint32_t& serverSessions) const noexcept;
     /** Find the usable reservation of a binding, for a producer that does not hold it.
      * @param[in] binding Exact current binding.
      * @param[out] output Published only when found.
@@ -191,6 +199,8 @@ class CanBusOwner {
     bool receiveOverflow(uint64_t nowUs, uint32_t droppedFrames = 1) noexcept;
     /** @return Current local transport epoch, never proof of remote freshness. */
     uint32_t controllerEpoch() const noexcept { return controllerEpoch_; }
+    /** @return True while a begun recovery has no terminal yet. */
+    bool recoveryActive() const noexcept { return recoveryOccupied_ && !recoveryTerminal_; }
     /** @return Latest accepted supplied monotonic microseconds, initially zero.
      * Cached only, never a clock read. Includes explicit application calls between
      * service turns; use this authority when a platform clock itself fails.

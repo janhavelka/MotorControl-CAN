@@ -5995,7 +5995,7 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "15-&gt;271 example is not a script beginning with15.", "gate_ids": ["Q01", "Q12"], "status": "complete", "write_policy": "qualification_required"} |
-| implementation_scope | Prompt 31 implements the conditional CL86-C/OL86-C mode-1 transition from continuously evidenced latest 6040=000F, followed by fresh STATUS/MONITORS reads reporting not-running. See docs/stop_actions.md and test/stop_action_test.cpp. Whole-function coverage remains false: other predecessor states/modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
+| implementation_scope | Prompt 31 and handoff packet 7 implement the conditional CL86-C/OL86-C mode-1 transition from the session's latest acknowledged 6040 word: 000F as documented, and 001F/005F/003F/007F and 010F-to-000B as DEC-8 project decisions with predecessorDocumented=false, followed by fresh STATUS/MONITORS reads reporting not-running. BestEffortStop is the separate DEC-2 000B path, which never succeeds. See docs/stop_actions.md, test/stop_action_test.cpp and test/axis_session_test.cpp. Whole-function coverage remains false: other modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
 
 ### emergency_stop
 
@@ -6013,7 +6013,7 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "15-&gt;11 example is not a safety-rated stop or a script beginning with15.", "gate_ids": ["Q01", "Q12"], "status": "complete", "write_policy": "qualification_required"} |
-| implementation_scope | Prompt 31 implements the conditional CL86-C/OL86-C mode-1 transition from continuously evidenced latest 6040=000F, followed by fresh STATUS/MONITORS reads reporting not-running. See docs/stop_actions.md and test/stop_action_test.cpp. Whole-function coverage remains false: other predecessor states/modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
+| implementation_scope | Prompt 31 and handoff packet 7 implement the conditional CL86-C/OL86-C mode-1 transition from the session's latest acknowledged 6040 word: 000F as documented, and 001F/005F/003F/007F and 010F-to-000B as DEC-8 project decisions with predecessorDocumented=false, followed by fresh STATUS/MONITORS reads reporting not-running. BestEffortStop is the separate DEC-2 000B path, which never succeeds. See docs/stop_actions.md, test/stop_action_test.cpp and test/axis_session_test.cpp. Whole-function coverage remains false: other modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
 
 ### status_interpretation
 

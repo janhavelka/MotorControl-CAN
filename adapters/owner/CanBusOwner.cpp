@@ -166,6 +166,16 @@ bool CanBusOwner::beginUrgentOperation(SequenceId id, uint32_t operation, uint64
     s.lastStep = 0;
     return true;
 }
+bool CanBusOwner::nodeEpochs(const Binding& binding, MotorControlCAN::Generation& nodeGeneration,
+                             uint32_t& serverSessions) const noexcept {
+    const int c = channel(binding);
+    const auto* node = c < 0 ? nullptr : services_.node(uint8_t(c));
+    if (!node || node->exhausted)
+        return false;
+    nodeGeneration = node->route.generation;
+    serverSessions = node->serverSessions;
+    return true;
+}
 bool CanBusOwner::findSequence(const Binding& binding, SequenceId& output) const noexcept {
     if (overlap(&output, sizeof output, this, sizeof *this) ||
         overlap(&output, sizeof output, &services_, sizeof services_) ||

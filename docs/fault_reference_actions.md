@@ -16,7 +16,7 @@ model binding, not automatic firmware detection.
 
 | Action | Admission | Exact native sequence | New completion evidence | Consequences not established |
 | --- | --- | --- | --- | --- |
-| Alarm clear | Mode 1, monitor not running and alarm present, `603F=FF05`; complete ERRORS, ERROR_HISTORY, MONITORS and STATUS retained | `2301:00` U16 `1`, then `0`, each with its own matching acknowledgement | Fresh mode 1 / not-running report and `2100` alarm bit clear, after both writes | Fault cause removed, repeat-trigger/edge semantics, torque, reference or absence of internal resumption |
+| Alarm clear | Mode 1, monitor not running and alarm present, `603F=FF05`; complete ERRORS, ERROR_HISTORY, MONITORS and STATUS retained | `2301:00` U16 `1`, then `0`, each with its own matching acknowledgement | Fresh mode 1 / not-running report and `2100` alarm bit clear, after both writes, then one ERRORS read: these reads may consume data, so polling never repeats them | Fault cause removed, repeat-trigger/edge semantics, torque, reference or absence of internal resumption |
 | Device-position zero | Requested native position exactly zero; mode 1, monitor not running and no alarm; matching valid axis epochs with room to advance | `2302:00` U16 `0`, `1`, `0`, acknowledging each before the next | Fresh mode 1 / not-running / no-alarm reports and `6064` raw signed actual position equal to zero | Physical home, arbitrary position setting, all internal counters cleared, command/feedback scale or preserved coordinate reference |
 | Other position value, unsupported state/mode/fault or stale binding | Reject preparation atomically | No work | None | No clamp, guessed reset route, enabling preamble or factory reset |
 

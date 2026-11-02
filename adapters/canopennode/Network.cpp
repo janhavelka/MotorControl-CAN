@@ -191,6 +191,8 @@ void SdoClient::invalidateNode(unsigned anchor, NetworkInvalidation cause, uint6
     if (state.route.generation == UINT32_MAX) state.exhausted = true;
     else ++state.route.generation;
     notification.generation = state.route.generation;
+    if (cause != NetworkInvalidation::RECOVERY && cause != NetworkInvalidation::BUS_OFF &&
+        state.serverSessions != UINT32_MAX) ++state.serverSessions;
     state.boundaryUs = now; state.strictBoundary = true;
     state.heartbeat = state.nmtTime = state.sdo = ObservationTime();
     state.nmtOrderingUncertain = false;

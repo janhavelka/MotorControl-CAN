@@ -52,6 +52,7 @@ struct NetworkObserver {
  */
 struct NodeSnapshot {
     NetworkRoute route; ///< Current host event epoch; not an on-wire tag.
+    uint32_t serverSessions = 0; ///< Saturating boundaries of the server's session (boot, rebind, reset), which local controller events do not count.
     uint64_t boundaryUs = 0; ///< Processing boundary of configuration or last invalidation.
     bool strictBoundary = false; ///< After invalidation, exact capture or the entire receive interval must be strictly later.
     bool exhausted = false; ///< Epoch exhaustion permanently prevents current qualification.

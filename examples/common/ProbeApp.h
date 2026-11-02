@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 #pragma once
+#include "AxisSession.h"
 #include "CanBusOwner.h"
 #include "ProbePlatform.h"
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
@@ -75,6 +76,23 @@ class ProbeApp {
      * terminal is never consumed here. Output pressure never gates owner service.
      */
     bool service(uint64_t nowUs) noexcept;
+    /** Open one axis's session: latest controlword and stop work. An active read's
+     * reservation passes to the session, and later reads use the session's.
+     * @param[in] session Caller-owned closed session, borrowed until closed. Sessions are
+     * large, so an application that sends no commands stores none.
+     * @param[in] target Current route and node epoch.
+     * @param[in] model Applicable model, supplied from application evidence.
+     * @param[in] nowUs Supplied nondecreasing us.
+     * @return The session, or null when two are already open, this binding has one, or
+     * the target is stale.
+     */
+    AxisSession* openAxis(AxisSession& session,
+                          const MotorControlCAN::LICHUAN_C::ReadTarget& target,
+                          MotorControlCAN::LICHUAN_C::SettingsModel model, uint64_t nowUs) noexcept;
+    /** @param[in] binding Exact axis binding.
+     * @return Open session of that binding, or null. Sessions advance in service.
+     */
+    AxisSession* axis(const MotorControlCAN::Binding& binding) noexcept;
     /** @return Current owner request handle by value; default invalid between fields. */
     RequestId pendingRequest() const noexcept { return pending_; }
     /** Explicitly consume an inspected pending terminal and release its owner slot.
@@ -120,13 +138,15 @@ class ProbeApp {
     bool health(Health& output) const noexcept;
     /** Release a terminal read/reservation after inspection, never cancel active work.
      * @return True clears local history only when no pending request remains and
-     * owner reservation release succeeds. Does not clear quarantine or uncertainty.
+     * owner reservation release succeeds. A reservation held by an axis session stays
+     * with the session. Does not clear quarantine or uncertainty.
      */
     bool releaseRead() noexcept;
 
   private:
     CanBusOwner& owner_;
     ProbePlatform& platform_;
+    AxisSession* axes_[2] = {nullptr, nullptr};
     MotorControlCAN::LICHUAN_C::ReadTarget target_;
     MotorControlCAN::LICHUAN_C::ReadContext read_;
     SequenceId sequence_;
@@ -134,6 +154,7 @@ class ProbeApp {
     uint64_t lastUs_ = 0;
     uint32_t operation_ = 0;
     bool selected_ = false;
+    bool readOwnsSequence_ = false;
     bool request(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs, uint64_t deadlineUs,
                  const MotorControlCAN::LICHUAN_C::ReadOptions& options, uint8_t mask = 0) noexcept;
     bool current() const noexcept;

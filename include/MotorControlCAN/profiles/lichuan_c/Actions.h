@@ -2,15 +2,19 @@
  * @brief Finite source-backed 86C stop, fault-clear and device-zero actions.
  * SPDX-License-Identifier: MIT
  * Stop transition contract: CL86-C/OL86-C only, one continuous actual owner reservation
- * acquired before the last positively acknowledged 6040:00 U16=000F. Fresh SDO
+ * acquired before the last positively acknowledged 6040:00 U16 word. Fresh SDO
  * STATUS (mode 1, low bits 7) and MONITORS (alarm/released clear, running either)
  * must follow that acknowledgement. The application proves no intervening
  * control/mode/target/RPDO/configuration write, uncertain work or lifecycle change.
- * A copied or reacquired token cannot establish this continuous history.
- * control must be the actual latest acknowledged controlword: a successful stop
- * consumes the prior000F eligibility even if its copied token remains available.
- * HALT emits only 010F; QUICK_STOP emits only 000B. Neither enables first.
- * Repeated stop from a prior 010F/000B or released state is outside this subset.
+ * A copied or reacquired token cannot establish this continuous history. The
+ * library cannot see that history, so the application's session must supply it
+ * (see examples/common/AxisSession.h): a successful stop consumes the prior
+ * eligibility even if its copied token remains available.
+ * Allowed predecessors (DEC-8): 000F documented, EN86/ZH86 p12 and OP86 p10 for 000B,
+ * ZH86 p12 and OP86 p10 only for 010F. 001F/005F/003F/007F, and 010F to 000B only, are
+ * project decisions with no documented arrow, so predecessorDocumented is false.
+ * HALT emits only 010F; QUICK_STOP emits only 000B. Neither enables first. A prior
+ * 000B, a prior 010F for HALT, any other word and a released state are rejected.
  * After ACK, fresh five-field MONITORS+STATUS SDO cycles require mode 1 and no
  * alarm/release; monitor running clear establishes OBSERVED controller-not-running
  * during that sequential read window. Other mode/alarm/release is outside the
@@ -18,6 +22,7 @@
  * bits never decide completion. No 605A/6085, guessed 605D, queue disposition,
  * torque/reference retention, shaft standstill or firmware qualification is claimed.
  * One owner must retire obsolete queued/controller work before stop admission.
+ * BestEffortStop is the separate DEC-2 path for an unresolved route or missing history.
  * Independently received EMCY/fault/lifecycle withdrawal must be delivered as a
  * local terminal before accepting later observation completions; an older monitor
  * read never overrides a newer routed fault.
@@ -47,6 +52,14 @@ enum class ActionPhase : uint8_t {
     OBSERVING, ///< One finite action-specific state read cycle pending.
     WAITING    ///< Completion not yet reported; next cycle waits until eligibleUs.
 };
+/** Which sources show a stop's whole-word arrow. OP86's body carries a retained 57C/86C
+ * heading conflict, and no source is firmware evidence for a specimen. */
+enum class PredecessorBasis : uint8_t {
+    NONE,             ///< Not a stop context.
+    EN86_ZH86_OP86,   ///< 000F to 000B: EN86 and ZH86 p12, OP86 p10.
+    ZH86_OP86,        ///< 000F to 010F: ZH86 p12 and OP86 p10; EN86 omits the row.
+    PROJECT_DECISION  ///< DEC-8: derived word with no documented arrow.
+};
 /** Owned yielded service, not admission or transmission permission after epochs change. */
 struct PreparedAction {
     CANOPEN::SdoTransfer transfer; ///< Complete copied service when ready.
@@ -65,6 +78,10 @@ struct ActionContext {
     ActionOptions options;                  ///< Immutable caller budgets.
     ActionState state = ActionState::EMPTY; ///< Overall phase, distinct from drive state.
     ActionPhase phase = ActionPhase::COMMAND; ///< Current concrete work phase.
+    uint16_t predecessorWord = 0; ///< STOP only: acknowledged 6040 word this stop follows.
+    bool predecessorDocumented = false; ///< STOP only: false for DEC-8 project-decision arrows.
+    PredecessorBasis predecessorBasis = PredecessorBasis::NONE; ///< STOP only: which sources show it.
+    bool finalErrorRead = false; ///< CLEAR_ALARM only: alarm reported clear; read ERRORS once.
     ActionExecution execution =
         ActionExecution::NOT_TRANSMITTED; ///< Effecting command evidence only.
     ActionCompletion completion = ActionCompletion::NOT_OBSERVED; ///< Narrow report evidence only.
@@ -82,7 +99,7 @@ struct ActionContext {
     bool effectsPossible = false;   ///< At least one prefix command may have reached the drive.
     bool uncertain =
         false; ///< Unconfirmed command/read effects or missing supported action observation.
-    CANOPEN::SdoCompletion controlEvidence; ///< STOP only: prior positively acknowledged 000F.
+    CANOPEN::SdoCompletion controlEvidence; ///< STOP only: prior positively acknowledged word.
     CANOPEN::SdoCompletion
         commandEvidence; ///< Effecting command terminal: stop, alarm value 1, or counter value 1.
     bool commandEvidencePresent = false; ///< Makes commandEvidence meaningful.
@@ -103,32 +120,81 @@ struct ActionContext {
     StateObservation
         monitorObservation; ///< Latest complete cycle MONITORS; sequential, not atomic.
     StateObservation
-        errorObservation; ///< Alarm action raw 1001/603F, without latching assumptions.
+        errorObservation; ///< Alarm action raw 1001/603F: prerequisite until the final read.
     StateObservation feedbackObservation; ///< Counter action signed 6064/606C, no scale/home proof.
     bool observationKnown = false;        ///< All required blocks of a complete cycle are retained.
 };
-/** Prepare only the narrow documented stop transition; all failures leave output unchanged.
+/** Best-effort stop context (DEC-2), keyed to a target because its route has no usable
+ * reservation. It yields only 6040:00=000B and needs no state evidence. It never
+ * reaches SUCCEEDED: state FAILED with STOP_SENT_UNCONFIRMED means a frame left the
+ * controller, and nothing is known about the drive. Serialize access.
+ */
+struct BestEffortStop {
+    ReadTarget target;                      ///< Frozen route and node epoch at preparation.
+    ReadOptions service;                    ///< Nonzero queue/response budgets.
+    ActionState state = ActionState::EMPTY; ///< ACTIVE until terminal; never SUCCEEDED.
+    ActionExecution execution =
+        ActionExecution::NOT_TRANSMITTED; ///< UNKNOWN once a frame may have left; never ACKNOWLEDGED.
+    ActionOutcome outcome = ActionOutcome::NONE; ///< Immutable first terminal cause.
+    Status status;                 ///< Local status, separate from health.
+    uint32_t operation = 0;        ///< Nonzero live operation identity.
+    uint64_t startedUs = 0;        ///< Caller preparation time, zero valid.
+    uint64_t servicedUs = 0;       ///< Last local mutation time.
+    uint64_t deadlineUs = 0;       ///< Immutable exclusive cutoff, fixed at preparation.
+    bool admitted = false;         ///< The owner holds this work; only its terminal can settle it.
+    bool effectsPossible = false;  ///< The frame may have reached the drive.
+    CANOPEN::SdoCompletion commandEvidence; ///< Owner terminal, when commandEvidencePresent.
+    bool commandEvidencePresent = false;    ///< Makes commandEvidence meaningful.
+};
+/** The DEC-8 table for mode 1: may this stop follow this latest acknowledged 6040 word?
+ * @param[in] word Latest acknowledged controlword.
+ * @param[in] kind Native stop selection.
+ * @return True for an allowed predecessor, documented or a project decision.
+ */
+bool stopPredecessorAllowed(uint16_t word, StopKind kind) noexcept;
+/** Check budgets for prepareStop or prepareEscalation, before any work is retired.
+ * @param[in] options Caller policies.
+ * @return True with nonzero budgets and a maximumAgeUs covering five fields.
+ */
+bool stopOptionsValid(const ActionOptions& options) noexcept;
+/** Prepare only the DEC-8 stop transitions; all failures leave output unchanged.
  * @param[out] output Owned context; must not overlap any input.
  * @param[in] reservation Actual continuous exclusive owner reservation, not a fresh replacement.
  * @param[in] state Fresh complete SDO STATUS/MONITORS after control; mode 1/low7, alarm/release clear.
- * @param[in] control Actual last acknowledged 6040:00 U16=000F under the same reservation/history.
+ * @param[in] control Actual last acknowledged 6040:00 U16 under the same reservation/history, of
+ * any age. Only the read blocks expire. The word must be an allowed predecessor of kind.
  * @param[in] kind Native HALT or QUICK_STOP; no option-code interpretation.
  * @param[in] operation Nonzero identity unique while old owner work exists.
  * @param[in] nowUs Supplied nonwrapping monotonic microseconds, zero valid.
  * @param[in] deadlineUs Immutable exclusive future cutoff for command and observations.
- * @param[in] options Explicit nonzero caller service/observation/freshness policies.
+ * @param[in] options Explicit nonzero caller service/observation/freshness policies. maximumAgeUs
+ * must cover five fields at the queue plus response budgets, or no cycle could ever qualify.
  * @return Local validation status only; emits no I/O and establishes no firmware qualification.
  */
 Status prepareStop(ActionContext& output, const SettingsReservation& reservation,
                    const ReadContext& state, const CANOPEN::SdoCompletion& control, StopKind kind,
                    uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                    const ActionOptions& options) noexcept;
+/** Prepare QUICK_STOP from a running HALT, using its own acknowledgement and latest cycle.
+ * No separate read can run during a stop, so this is that path's fresh state. The
+ * word is 010F, a project decision, so predecessorDocumented is false.
+ * @param[out] output Owned context; must not overlap any input.
+ * @param[in] running The running or just finished HALT.
+ * @param[in] operation Nonzero identity. @param[in] nowUs Monotonic microseconds.
+ * @param[in] deadlineUs Exclusive future cutoff. @param[in] options As prepareStop.
+ * @return Local validation. An unacknowledged HALT, or no fresh complete cycle after
+ * its acknowledgement, rejects, and the application takes the best-effort path.
+ */
+Status prepareEscalation(ActionContext& output, const ActionContext& running, uint32_t operation,
+                         uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Prepare a CL86-C/OL86-C clear attempt; emits no enable or motion command.
  * Requires complete fresh SDO ERRORS/ERROR_HISTORY/MONITORS/STATUS acquired under
  * reservation: mode 1, monitor not-running, alarm set, raw 603F=FF05. Writes
  * 2301 U16=1 then 0 only after each ACK. Returning to ineffective 0 is library
  * policy, not a claimed vendor edge/rearm requirement. Completion requires fresh
- * mode 1/not-running/alarm-clear reports; 603F may retain its old raw value.
+ * mode 1/not-running/alarm-clear reports, then one ERRORS read: these reads may
+ * consume data, so polling never repeats them. 603F may retain its old raw value.
+ * maximumAgeUs must cover five fields at the queue plus response budgets.
  * @param[out] output Owned context, unchanged on failure and disjoint from inputs.
  * @param[in] reservation Continuous actual owner exclusion, CL86-C/OL86-C.
  * @param[in] state Complete fresh prerequisite; copied as historical originalState.
@@ -153,7 +219,8 @@ Status prepareClearAlarm(ActionContext& output, const SettingsReservation& reser
  * @param[in] nativePosition Native device request; only exactly zero supported.
  * @param[in] axis Valid matching axis with room in both configuration/confidence epochs.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
- * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Explicit caller policies.
+ * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Explicit caller policies;
+ * maximumAgeUs must cover seven fields at the queue plus response budgets.
  * @return Local validation. After trigger, retire old owner results/work and advance
  * owner configuration before admitting the new-epoch observation uploads.
  */
@@ -214,5 +281,44 @@ Status advanceAction(ActionContext& context, const SettingsReservation& live,
  */
 Status advanceAction(ActionContext& context, const SettingsReservation& live,
                      const ReadTarget& current, ActionOutcome reason, uint64_t nowUs) noexcept;
+/** Prepare a best-effort stop; no state evidence, no history and no traffic.
+ * @param[out] output Owned context; unchanged on failure; must not overlap any input.
+ * @param[in] target Actual current route and node epoch.
+ * @param[in] operation Nonzero identity. @param[in] nowUs Monotonic microseconds.
+ * @param[in] deadlineUs Immutable exclusive future cutoff; a recovery never extends it.
+ * @param[in] service Nonzero queue and response budgets.
+ * @return Local validation only.
+ */
+Status prepareBestEffortStop(BestEffortStop& output, const ReadTarget& target, uint32_t operation,
+                             uint64_t nowUs, uint64_t deadlineUs,
+                             const ReadOptions& service) noexcept;
+/** Yield the exact stop for CanBusOwner::admitBestEffortStop, without mutation or I/O.
+ * @param[in] context Active stop not yet admitted. @param[in] current Actual current target.
+ * @param[in] nowUs Nondecreasing time. @param[out] output Unchanged on rejection.
+ * @return Local status; a changed target or reached deadline rejects.
+ */
+Status nextBestEffortStop(const BestEffortStop& context, const ReadTarget& current, uint64_t nowUs,
+                          PreparedAction& output) noexcept;
+/** Record that the owner accepted the stop; from here only its terminal can settle it.
+ * @param[in,out] context Active stop not yet admitted. @param[in] nowUs Nondecreasing time.
+ * @return Local status; rejection leaves context unchanged.
+ */
+Status noteBestEffortAdmission(BestEffortStop& context, uint64_t nowUs) noexcept;
+/** Consume the owner terminal of an admitted stop. The target may have changed since.
+ * SUCCESS, a server abort or UNSUPPORTED cannot be this path's terminal and is rejected as
+ * correlation, so a matching-looking reply cannot make this stop succeed.
+ * @param[in,out] context Admitted stop. @param[in] evidence Borrowed terminal, no overlap.
+ * @param[in] nowUs Processing time at least the completion and previous mutation.
+ * @return Local call status. The accepted terminal sets outcome and execution.
+ */
+Status advanceBestEffortStop(BestEffortStop& context, const CANOPEN::SdoCompletion& evidence,
+                             uint64_t nowUs) noexcept;
+/** End a stop that was never admitted, so nothing can have left.
+ * @param[in,out] context Active stop. @param[in] reason CANCELLED, DEADLINE, INVALIDATED or TRANSPORT_ERROR.
+ * @param[in] nowUs Nondecreasing time; an inclusive deadline wins over the local reason.
+ * @return Local status; an admitted stop must end through its terminal.
+ */
+Status advanceBestEffortStop(BestEffortStop& context, ActionOutcome reason,
+                             uint64_t nowUs) noexcept;
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN
