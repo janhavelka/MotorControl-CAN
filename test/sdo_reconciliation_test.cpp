@@ -624,6 +624,204 @@ void nonwrappingTimeAndZeroCapture() {
         CHECK(c.observation(0)->processedUs == maximum); // A wrapped hardware clock is not monotonic.
     }
 }
+
+// Drain marker at the client boundary (DEC-3). Each premise below is stated by this fake. A
+// positive proves this client's logic, never that a real server answers in order (Q18).
+C::SdoDrainPremises fakePremises() {
+    C::SdoDrainPremises out;
+    out.soleClient = out.orderedServer = true;
+    return out;
+}
+C::SdoTransfer drainMarker(uint16_t index = 0x2000, uint8_t subindex = 0) {
+    C::SdoTransfer out = work(false);
+    out.operation = 40; out.request = 41; out.step = 42;
+    out.index = index; out.subindex = subindex;
+    out.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    out.allowSegmentedUpload = false;
+    return out;
+}
+M::Frame named(uint8_t command, uint16_t index, uint8_t subindex = 0) {
+    M::Frame f = reply(command);
+    f.data[1] = static_cast<uint8_t>(index); f.data[2] = static_cast<uint8_t>(index >> 8);
+    f.data[3] = subindex;
+    return f;
+}
+// A released timed-out write: the route is unresolved and retains 0x2200:00.
+void quarantine(C::SdoClient& c) {
+    CHECK(c.configure(0, route(), true, true));
+    C::SdoTransfer lost = work(); lost.responseTimeoutUs = 5;
+    const C::SdoRequestId id = admit(c, lost); take(c);
+    CHECK(c.service(5)); terminal(c, id, C::SdoOutcome::TIMEOUT);
+    CHECK(c.release(id) && c.unresolved(0));
+}
+
+void drainMarkerClientBoundary() {
+    C::SdoClient c; quarantine(c);
+    C::SdoTransfer marker = drainMarker();
+    C::SdoRequestId id; id.channel = 91; id.generation = 123;
+    const C::SdoRequestId saved = id;
+    C::SdoDrainPremises premises = fakePremises();
+    // Bad slots, a spent queue budget and each false premise publish nothing.
+    CHECK(!c.checkDrain(C::SdoClient::CHANNELS, marker, premises, 5));
+    CHECK(!c.drainSettled(C::SdoClient::CHANNELS) && !c.reopenAfterDrain(C::SdoClient::CHANNELS));
+    CHECK(c.requalifications(C::SdoClient::CHANNELS) == 0);
+    CHECK(!c.admitDrain(0, marker, premises, 5, id, 5));
+    premises.soleClient = false;
+    CHECK(!c.admitDrain(0, marker, premises, 5, id, 1000));
+    premises = fakePremises(); premises.orderedServer = false;
+    CHECK(!c.admitDrain(0, marker, premises, 5, id, 1000));
+    CHECK(!c.admitDrain(0, marker, C::SdoDrainPremises(), 5, id, 1000));
+    CHECK(sameRequest(id, saved) && !c.drainSettled(0) && !c.reopenAfterDrain(0));
+    // Nothing the client itself offers bypasses ordinary admission meanwhile.
+    CHECK(!c.checkAdmission(0, marker, 5) && !c.admit(0, marker, 5, id));
+    premises = fakePremises();
+    CHECK(c.admitDrain(0, marker, premises, 5, id, 1000));
+    CHECK(id.owner == &c && id.channel == 0 && id.generation != saved.generation);
+    C::SdoRequestId other;
+    CHECK(!c.admitDrain(0, drainMarker(0x2001), premises, 5, other, 1000)); // One at a time.
+    M::Frame sent = take(c, 5);
+    const uint8_t literal[8] = {0x40, 0x00, 0x20, 0, 0, 0, 0, 0};
+    CHECK(sent.id == 0x601 && std::memcmp(sent.data, literal, 8) == 0);
+    M::Frame answer = named(0x4b, 0x2000); answer.data[4] = 0x34; answer.data[5] = 0x12;
+    CHECK(c.receive(answer, 6));
+    const C::SdoCompletion result = terminal(c, id, C::SdoOutcome::SUCCESS);
+    CHECK(result.size == 2 && result.data[0] == 0x34 && result.data[1] == 0x12);
+    // The marker settles the channel. The route opens only on the explicit reopening.
+    CHECK(c.drainSettled(0) && c.unresolved(0) && c.requalifications(0) == 0);
+    CHECK(c.release(id));
+    CHECK(c.drainSettled(0) && c.unresolved(0));
+    CHECK(!c.checkAdmission(0, work(), 6) && !c.checkDrain(0, drainMarker(0x2001), premises, 6));
+    CHECK(c.reopenAfterDrain(0));
+    CHECK(!c.drainSettled(0) && !c.unresolved(0) && c.requalifications(0) == 1);
+    CHECK(!c.reopenAfterDrain(0) && c.requalifications(0) == 1);
+    CHECK(c.checkAdmission(0, work(), 6) && !c.checkDrain(0, drainMarker(0x2001), premises, 6));
+    // A controller state refuses a marker below the owner too, without touching the route.
+    C::SdoClient d; quarantine(d);
+    const C::ControllerState refused[] = {C::ControllerState::BUS_OFF, C::ControllerState::RECOVERING};
+    uint64_t now = 6;
+    for (const C::ControllerState state : refused) {
+        CHECK(d.reportController(state, now));
+        CHECK(!d.checkDrain(0, drainMarker(), premises, now));
+        CHECK(d.reportController(C::ControllerState::AVAILABLE, ++now));
+        CHECK(d.checkDrain(0, drainMarker(), premises, now));
+    }
+}
+
+// Quarantine follows what may have left the host, sampled before retirement clears it.
+void controllerEventsSamplePossibleWork() {
+    const C::ControllerState events[] = {C::ControllerState::BUS_OFF, C::ControllerState::RECOVERING};
+    for (const C::ControllerState event : events) {
+        // Admitted and staged frames never left.
+        for (unsigned staged = 0; staged < 2; ++staged) {
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            const C::SdoRequestId id = admit(c, work());
+            if (staged) CHECK(c.service(0) && c.port(0)->queueOccupied);
+            CHECK(c.reportController(event, 1));
+            CHECK(!c.unresolved(0) && !c.result(id)->transmissionPossible && !c.port(0)->queueOccupied);
+        }
+        // A first frame held unsubmitted never reached the SDK, so its handoff is proved unsent.
+        {
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            const C::SdoRequestId id = admit(c, work());
+            C::SdoTxId tx; take(c, 0, 0, &tx);
+            CHECK(c.holdHandoff(tx));
+            CHECK(c.reportController(event, 1));
+            CHECK(!c.unresolved(0) && !c.result(id)->transmissionPossible && !c.result(id)->effectUncertain);
+        }
+        // A later frame held unsubmitted follows one that did leave.
+        {
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            const C::SdoRequestId id = admit(c, work(true, 8));
+            take(c, 0);
+            CHECK(c.receive(reply(0x60), 1));
+            C::SdoTxId tx; take(c, 2, 0, &tx);
+            CHECK(c.holdHandoff(tx));
+            CHECK(c.reportController(event, 3));
+            CHECK(c.unresolved(0) && c.result(id)->transmissionPossible && c.result(id)->effectUncertain);
+        }
+        // A live handoff may be on the bus.
+        {
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            const C::SdoRequestId id = admit(c, work());
+            take(c);
+            CHECK(c.reportController(event, 1));
+            CHECK(c.unresolved(0) && c.result(id)->effectUncertain);
+        }
+        // A reply can overtake its TX report: that frame stays possible until it is reported.
+        for (unsigned reported = 0; reported < 2; ++reported) {
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            const C::SdoRequestId id = admit(c, work());
+            C::SdoTxId tx; take(c, 0, 0, &tx);
+            CHECK(c.receive(reply(0x60), 1));
+            if (reported) CHECK(c.noteTxRetired(tx));
+            CHECK(c.reportController(event, 2));
+            CHECK(c.unresolved(0) == !reported && c.result(id)->outcome == C::SdoOutcome::SUCCESS);
+            CHECK(!c.result(id)->effectUncertain);
+        }
+        // A cleanup abort staged after a failed exchange stays quarantined.
+        {
+            C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+            C::SdoTransfer w = work(false); w.allowSegmentedUpload = false;
+            const C::SdoRequestId id = admit(c, w); take(c);
+            M::Frame initiation = reply(0x41); initiation.data[4] = 2;
+            CHECK(c.receive(initiation, 1));
+            CHECK(terminal(c, id, C::SdoOutcome::UNSUPPORTED).clientAbortQueued);
+            CHECK(c.release(id));
+            CHECK(c.reportController(event, 2));
+            CHECK(c.unresolved(0) && !c.port(0)->queueOccupied);
+        }
+    }
+}
+
+// A grant armed before a loss is not revived by the marker that ends that loss. Reopening needs
+// its own new authorization. The ordered server here is a fake premise.
+void reopeningClearsArmedExperimentGrants() {
+    for (unsigned download = 0; download < 2; ++download) {
+        C::SdoClient c;
+        CHECK(c.configure(0, route(), false, true));
+        C::NetworkRoute network;
+        network.binding = route().binding;
+        network.generation = 5;
+        network.heartbeatId = 0x701;
+        network.emcyId = 0x81;
+        CHECK(c.configureNetwork(0, network, C::NetworkObserver(), 0));
+        C::SdoTransfer grant = work(download != 0);
+        grant.operation = 60; grant.request = 61; grant.step = 62; grant.index = 0x2100;
+        grant.readEffect = C::SdoReadEffect::UNQUALIFIED;
+        CHECK(download ? c.authorizeDownloadExperiment(0, grant, 5, 77, 0)
+                       : c.authorizeUploadExperiment(0, grant, 5, 77, 0));
+        CHECK(c.checkAdmission(0, grant, 0)); // The grant is what admits it, with no evidence yet.
+        C::SdoTransfer lost = drainMarker(0x2200);
+        lost.responseTimeoutUs = 5;
+        const C::SdoRequestId lostId = admit(c, lost); take(c);
+        CHECK(c.service(5)); terminal(c, lostId, C::SdoOutcome::TIMEOUT);
+        CHECK(c.release(lostId) && c.unresolved(0) && !c.checkAdmission(0, grant, 5));
+        C::SdoRequestId id;
+        CHECK(c.admitDrain(0, drainMarker(), fakePremises(), 5, id, 1000));
+        take(c, 5);
+        M::Frame answer = named(0x4b, 0x2000);
+        CHECK(c.receive(answer, 6));
+        terminal(c, id, C::SdoOutcome::SUCCESS);
+        CHECK(c.release(id) && c.reopenAfterDrain(0) && !c.unresolved(0));
+        CHECK(!c.checkAdmission(0, grant, 6));
+        C::SdoRequestId refused;
+        CHECK(!c.admit(0, grant, 6, refused));
+    }
+}
+
+// A wrong-object frame on a live transfer does not end it, but it is retained: a later marker
+// cannot use that object and be settled by a reply that was already on its way.
+void strayDuringOrdinaryTransferIsRetained() {
+    C::SdoClient c; CHECK(c.configure(0, route(), true, true));
+    C::SdoTransfer w = work(); w.responseTimeoutUs = 5;
+    const C::SdoRequestId id = admit(c, w); take(c);
+    CHECK(!c.receive(named(0x4b, 0x3000), 1));
+    CHECK(!c.result(id));
+    CHECK(c.service(5)); terminal(c, id, C::SdoOutcome::TIMEOUT);
+    CHECK(c.release(id) && c.unresolved(0));
+    CHECK(c.checkDrain(0, drainMarker(), fakePremises(), 5));
+    CHECK(!c.checkDrain(0, drainMarker(0x3000), fakePremises(), 5));
+}
 } // namespace
 
 int main() {
@@ -637,6 +835,10 @@ int main() {
     staleBeforeHandoffAndObservedDuplicates(); transmitEligibilityAndBindingInvalidation();
     oneHandoffCannotBecomeNewIntent();
     nonwrappingTimeAndZeroCapture();
+    drainMarkerClientBoundary();
+    controllerEventsSamplePossibleWork();
+    reopeningClearsArmedExperimentGrants();
+    strayDuringOrdinaryTransferIsRetained();
     std::printf("SDO reconciliation: %u checks\n", checks);
     std::printf("Host sizeof: SdoClient=%zu, SdoRxObservation=%zu bytes\n",
                 sizeof(C::SdoClient), sizeof(C::SdoRxObservation));

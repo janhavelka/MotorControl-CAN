@@ -651,7 +651,8 @@ void checkedSdoTimeRejectsMalformedTrafficAndFaultsRemainIndependent() {
     CHECK(owner.configure(0, sdo(), true, true));
     CHECK(owner.configureNetwork(0, network(), cache.observer(), 0));
     const C::SdoRequestId request = admit(owner, transfer(1, true), 0, 1);
-    handoff(owner, 0, 2);
+    // Service evidence needs a clean abort: a route with this frame still live quarantines instead.
+    CHECK(owner.confirmTx(handoff(owner, 0, 2), 2));
     M::Frame abort = uploadReply();
     const uint8_t aborted[] = {0x80, 0x41, 0x60, 0, 0, 0, 2, 6};
     std::memcpy(abort.data, aborted, sizeof aborted);
@@ -758,6 +759,8 @@ void directWithdrawalAndControllerScope() {
     const Saved<C::SdoCompletion> resultA(*owner.result(interrupted)), resultB(*owner.result(independent));
     CHECK(owner.reportController(C::ControllerState::BUS_OFF, 6));
     CHECK(owner.controllerState() == C::ControllerState::BUS_OFF);
+    // Slot 0 stays unresolved from its binding invalidation. Slot 1's exchange settled, but its
+    // TX was never reported, so that frame still counts as possible and bus-off quarantines it.
     CHECK(first.calls == 2 && second.calls == 1 && owner.unresolved(0) && owner.unresolved(1));
     CHECK(first.notification.cause == C::NetworkInvalidation::BUS_OFF);
     CHECK(second.notification.cause == C::NetworkInvalidation::BUS_OFF);

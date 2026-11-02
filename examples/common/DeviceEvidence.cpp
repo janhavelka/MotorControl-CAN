@@ -183,11 +183,10 @@ bool DeviceEvidence::service(uint64_t now) noexcept {
     if (now - lastUs_ > record_.maxServiceGapUs)
         record_.maxServiceGapUs = now - lastUs_;
     capture();
-    if (record_.evidenceLost && app_.readContext().state == M::ReadState::ACTIVE) {
+    // Loss of diagnostics is no reason to abandon a frame already on its way: cancelling
+    // it would quarantine the route. Let it settle, then withdraw only the remainder.
+    if (record_.evidenceLost && app_.readContext().state == M::ReadState::ACTIVE)
         record_.interrupted = true;
-        if (!app_.cancelRead(now))
-            return false;
-    }
     const Completion* terminal = owner_.result(app_.pendingRequest());
     if (terminal) {
         if (record_.terminalCount == L::READ_FIELDS)
@@ -200,6 +199,7 @@ bool DeviceEvidence::service(uint64_t now) noexcept {
     // A pending success wins its own cancellation race, but explicit interruption
     // still withdraws the unread remainder before the next application turn.
     if (record_.interrupted && app_.readContext().state == M::ReadState::ACTIVE &&
+        (!app_.pendingRequest().owner || !owner_.mayHaveTransmitted(app_.pendingRequest())) &&
         !app_.cancelRead(now))
         return false;
     record_.read = app_.readContext();

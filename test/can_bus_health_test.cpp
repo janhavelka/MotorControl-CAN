@@ -7,7 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
-#include <new>
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
@@ -165,7 +164,10 @@ struct Rig {
     Fake fake;
     O::CanBusOwner owner;
     uint64_t now = 0;
-    Rig() : owner(services, fake.transport(), 73) { configure(11); }
+    explicit Rig(uint32_t nodeGeneration = 11, uint32_t bindingGeneration = 3)
+        : owner(services, fake.transport(), 73) {
+        configure(nodeGeneration, bindingGeneration);
+    }
     void configure(uint32_t nodeGeneration, uint32_t bindingGeneration = 3) {
         for (uint8_t i = 0; i < 2; ++i) {
             auto channel = route(i + 1);
@@ -178,18 +180,6 @@ struct Rig {
             network.emcyId = 0x81 + i;
             CHECK(services.configureNetwork(i, network, C::NetworkObserver(), now));
         }
-    }
-    void retireSyntheticServerAndReconstruct(uint32_t nodeGeneration,
-                                             uint32_t bindingGeneration = 3) {
-        CHECK(owner.resources().active == 0 && owner.resources().queued == 0);
-        CHECK(fake.rxRead == fake.rxWrite && fake.reportRead == fake.reportWrite);
-        // This test server has no delayed replies, queued remote work or other
-        // producer. Destruction explicitly retires its entire session after
-        // successful controller recovery; changing a host token alone cannot.
-        CHECK(!owner.resources().inhibited);
-        services.~SdoClient();
-        new (&services) C::SdoClient;
-        configure(nodeGeneration, bindingGeneration);
     }
     void turn(uint64_t time, O::ServiceBudget b = budget()) {
         now = time;
@@ -325,7 +315,9 @@ void abortFailureThenIndependentRead() {
     r.fake.push(heartbeat(), 1);
     r.turn(1, budget(1, 0, 0, 0));
     CHECK(r.health().state == O::DriverState::DEGRADED && r.health().totalSuccess == 0);
-    CHECK(r.services.unresolved(0));
+    // Contract change (DEC-3, C-05): a matched abort leaves the route open, so the streak
+    // documented in docs/can_owner.md is reachable without rebuilding the client.
+    CHECK(!r.services.unresolved(0));
     O::Diagnostic diagnostic, failedHistory;
     bool historyFound = false;
     while (r.owner.takeDiagnostic(diagnostic))
@@ -334,21 +326,16 @@ void abortFailureThenIndependentRead() {
             historyFound = true;
         }
     CHECK(historyFound && failedHistory.completion.service.abortCode == 0xf1234567u);
-    // Retained results occupy their axis reservation. The application keeps its
-    // failed operation copy while explicitly releasing only owner storage.
-    CHECK(r.owner.release(failed) && r.owner.releaseSequence(sequence));
-    O::RecoveryId recovery;
-    CHECK(r.owner.recover(1, 10, recovery));
-    r.fake.progress = O::RecoveryProgress::RETIRED;
-    r.turn(2, budget(0, 0, 0, 0, 1));
-    CHECK(r.owner.releaseRecovery(recovery));
-    r.retireSyntheticServerAndReconstruct(12);
+    // The application keeps its failed operation copy while releasing only owner storage.
+    // The same route and reservation then carry an independent read.
+    CHECK(r.owner.release(failed));
     CHECK(r.health().consecutiveFailures == 1);
-    const auto freshSequence = r.sequence();
-    const auto reconcile = r.admit(r.request(freshSequence));
+    const auto reconcile = r.admit(r.request(sequence, 2));
     r.turn(2);
-    r.fake.reportTx(1, true, r.owner.controllerEpoch());
-    r.fake.push(reply(), 3, true, r.owner.controllerEpoch());
+    CHECK(r.fake.sentCount == 2 && r.fake.sent[1].id == 0x601 && r.fake.sent[1].data[0] == 0x40 &&
+          r.fake.sent[1].data[1] == 0x45 && r.fake.sent[1].data[2] == 0x23);
+    r.fake.reportTx(1);
+    r.fake.push(reply(), 3);
     r.turn(3, budget(1, 0, 8, 0));
     h = r.health();
     CHECK(h.totalSuccess == 1 && h.totalFailures == 1 && h.consecutiveFailures == 0);
@@ -364,6 +351,40 @@ void abortFailureThenIndependentRead() {
     CHECK(h.state == O::DriverState::READY && h.totalSuccess == 0 && h.totalFailures == 0);
     CHECK(h.lastOkKnown && h.lastOkUs == 3 && h.lastErrorKnown && h.lastErrorUs == 0 &&
           h.lastSeenKnown && h.lastSeenUs == 3 && h.lastError.detail == error.detail);
+}
+
+// Recovery ends local work without erasing the streak, and this idle route stays open.
+void failureStreakSurvivesRecoveryOnAnOpenRoute() {
+    Rig r;
+    const auto sequence = r.sequence();
+    const auto failed = r.admit(r.request(sequence));
+    r.turn(0);
+    r.fake.reportTx(0);
+    M::Frame abort = reply();
+    abort.data[0] = 0x80;
+    abort.data[7] = 0x06;
+    r.fake.push(abort, 0);
+    r.turn(0, budget(1, 0, 8, 0));
+    CHECK(r.health().consecutiveFailures == 1 && r.health().state == O::DriverState::DEGRADED);
+    CHECK(r.owner.release(failed) && r.owner.releaseSequence(sequence));
+    O::RecoveryId recovery;
+    CHECK(r.owner.recover(1, 10, recovery));
+    r.fake.progress = O::RecoveryProgress::RETIRED;
+    r.turn(2, budget(0, 0, 0, 0, 1));
+    CHECK(r.owner.releaseRecovery(recovery));
+    CHECK(!r.services.unresolved(0) && !r.services.unresolved(1));
+    CHECK(r.health().consecutiveFailures == 1 && r.health().state == O::DriverState::DEGRADED);
+    const auto freshSequence = r.sequence();
+    const auto reconcile = r.admit(r.request(freshSequence));
+    r.turn(2);
+    const uint32_t epoch = r.owner.controllerEpoch();
+    r.fake.reportTx(1, true, epoch);
+    r.fake.push(reply(), 3, true, epoch);
+    r.turn(3, budget(1, 0, 8, 0));
+    const O::Health h = r.health();
+    CHECK(r.done(reconcile).service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(h.consecutiveFailures == 0 && h.state == O::DriverState::READY);
+    CHECK(h.totalSuccess == 1 && h.totalFailures == 1 && h.lastErrorKnown && h.lastErrorUs == 0);
 }
 
 void freshHeartbeatPreservesServiceFailure() {
@@ -665,7 +686,9 @@ void fullTraceDoesNotDelayOrdinaryOrUrgentWork() {
     CHECK(r.done(a).service.protocolAcknowledged && r.done(b).service.protocolAcknowledged);
     CHECK(r.fake.observed == 22 && r.owner.stats().unmatchedFrames == 20);
     CHECK(r.owner.stats().rxFrames == 22 && r.owner.stats().txFrames == 2);
-    CHECK(r.owner.stats().traceOverwritten == 20 && r.owner.resources().traceUsed == 8);
+    // Contract change (C-06): capacity grew from 8 to 24; 28 records still overflow it.
+    CHECK(r.owner.stats().traceOverwritten == 28 - O::CanBusOwner::TRACE_CAPACITY &&
+          r.owner.resources().traceUsed == O::CanBusOwner::TRACE_CAPACITY);
     CHECK(r.owner.resources().retained == 2 && r.owner.resources().active == 0 &&
           r.owner.resources().queued == 0 && r.owner.resources().reservations == 2);
     O::Diagnostic diagnostic;
@@ -682,6 +705,37 @@ void fullTraceDoesNotDelayOrdinaryOrUrgentWork() {
     CHECK(!r.owner.takeDiagnostic(diagnostic));
     unchanged.unchanged(diagnostic);
     CHECK(r.owner.resources().traceUsed == 0 && r.owner.result(a) && r.owner.result(b));
+}
+
+// C-06. A heavy turn at the full budget still fits the trace: four queued steps expire, two TX
+// reports and eight frames arrive, two exchanges finish and one urgent step leaves.
+void heavyTurnFitsTheTrace() {
+    Rig r;
+    const auto first = r.sequence(1), second = r.sequence(2);
+    const auto a = r.admit(r.request(first)), b = r.admit(r.request(second));
+    r.turn(0);
+    CHECK(r.fake.sentCount == 2);
+    for (unsigned step = 2; step < 4; ++step) {
+        O::BusRequest one = r.request(first, step), other = r.request(second, step);
+        one.transfer.queueTimeoutUs = other.transfer.queueTimeoutUs = 5;
+        r.admit(one);
+        r.admit(other);
+    }
+    const auto urgent = r.admit(r.request(first, 4), true);
+    O::Diagnostic diagnostic;
+    while (r.owner.takeDiagnostic(diagnostic)) {
+    }
+    r.fake.reportTx(0);
+    r.fake.reportTx(1);
+    r.fake.push(reply(1), 5);
+    r.fake.push(reply(2), 5);
+    for (unsigned i = 0; i < 6; ++i)
+        r.fake.push(frame(0x400 + i, 1), 5);
+    r.turn(5);
+    CHECK(r.done(a).service.outcome == C::SdoOutcome::SUCCESS &&
+          r.done(b).service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(r.fake.sentCount == 3 && !r.owner.result(urgent));
+    CHECK(r.owner.resources().traceUsed == 17 && r.owner.stats().traceOverwritten == 0);
 }
 
 void configurationHistoryAndBindingReset() {
@@ -717,20 +771,21 @@ void configurationHistoryAndBindingReset() {
     r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(3, budget(0, 0, 0, 0, 1));
     CHECK(r.owner.releaseRecovery(recovery));
-    const O::Stats interfaceBefore = r.owner.stats();
-    r.retireSyntheticServerAndReconstruct(13, 4);
+    // Contract change (W5): a live client refuses to rebind a configured slot, so a new binding
+    // takes a new client and owner. They share no history; the old owner keeps its own.
+    CHECK(!r.services.configure(0, *r.services.channel(0), true, true));
+    Rig next(13, 4);
     M::Binding rebound = route().binding;
     rebound.bindingGeneration = 4;
-    CHECK(!r.owner.health(changed, h) && r.owner.health(rebound, h));
-    r.turn(3, O::ServiceBudget());
-    CHECK(r.owner.health(rebound, h));
+    CHECK(!next.owner.health(changed, h) && next.owner.health(rebound, h));
+    next.turn(3, O::ServiceBudget());
+    CHECK(next.owner.health(rebound, h));
     CHECK(h.state == O::DriverState::UNINIT && !h.lastOkKnown && !h.lastErrorKnown &&
           !h.lastSeenKnown);
     CHECK(h.totalSuccess == 0 && h.totalFailures == 0 && h.consecutiveFailures == 0);
     CHECK(h.lastError.code == O::Health().lastError.code);
-    CHECK(r.owner.stats().txFrames == interfaceBefore.txFrames &&
-          r.owner.stats().rxFrames == interfaceBefore.rxFrames &&
-          r.owner.stats().recoveries == interfaceBefore.recoveries);
+    CHECK(!r.owner.health(rebound, h) && r.owner.health(changed, h));
+    CHECK(h.totalSuccess == 1 && h.totalFailures == 1 && h.consecutiveFailures == 1);
     failed.unchanged(r.done(failure));
     // A lifecycle epoch change on the same binding withdraws current freshness
     // while preserving the binding's historical observation time.
@@ -974,6 +1029,8 @@ void exactRetirementAlsoRetiresFinalReports() {
 int main() {
     cachedStateAndKnownZero();
     abortFailureThenIndependentRead();
+    failureStreakSurvivesRecoveryOnAnOpenRoute();
+    heavyTurnFitsTheTrace();
     freshHeartbeatPreservesServiceFailure();
     heartbeatPolicyAndControllerRecovery();
     receiveIntervalsBoundHealthWithoutFresheningDeliveryTime();

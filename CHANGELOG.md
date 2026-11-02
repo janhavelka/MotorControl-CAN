@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### SDO settlement and drain marker (audit W5)
+
+- A matched server abort on a clean exchange no longer quarantines its route. It ends queued steps of its sequence and keeps earlier effects uncertain.
+- Bus-off and recovery quarantine only routes with a frame that may have left. Boot-up and rebinding still quarantine.
+- Add the explicit drain marker: `CanBusOwner::admitDrainMarker`, `SdoDrainPremises`, `SdoClient::checkDrain`, `admitDrain`, `reopenAfterDrain`. No real fixture can use it yet: remote server ordering is unestablished (Q18).
+- Evidence loss lets a frame already on its way settle, then withdraws only unstarted work (C-06). `TRACE_CAPACITY` is 24. Add `CanBusOwner::mayHaveTransmitted`.
+
 ### Accepted reads and identity widths (audit W4)
 
 - Add `ReadEffect::ACCEPTED_UNQUALIFIED` and `SdoReadEffect::ACCEPTED_UNQUALIFIED` for the owner's DEC-1 list, driven by the ledger's `read_disposition`. This records risk acceptance, not evidence: `effectPossible` stays true.

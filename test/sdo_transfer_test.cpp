@@ -428,6 +428,8 @@ void abortWhileStaged() {
             const C::SdoCompletion saved = *client.result(id);
             CHECK(saved.abortValid && saved.abortCode == 0xf1234567u);
             CHECK(saved.replyValid && sameFrame(saved.reply, aborted));
+            // A staged next segment means the abort answers no single confirmed frame, so this
+            // abort quarantines. matchedAbortNeedsACleanChannel pins the open case.
             CHECK(saved.transmissionPossible && saved.effectUncertain && client.unresolved(0));
             CHECK(!saved.protocolAcknowledged && !saved.clientAbortQueued);
             CHECK(!client.port(0)->queueOccupied);
@@ -809,6 +811,9 @@ void channelsAndFailure() {
     CHECK(client.result(first)->outcome == C::SdoOutcome::CANCELLED);
     const C::SdoCompletion saved = *client.result(second);
     CHECK(client.busOff(5));
+    // Contract change (W5): bus-off quarantines only possible work. The first route is still
+    // unresolved from its cancel. The second finished, but its TX was never reported, so that
+    // frame still counts as possible. controllerEventsSamplePossibleWork pins the reported case.
     CHECK(client.unresolved(0) && client.unresolved(1));
     CHECK(client.result(second)->outcome == saved.outcome && client.result(second)->completedUs == saved.completedUs);
     CHECK(!client.confirmTx(secondTx, 6));
@@ -905,6 +910,70 @@ void outerQueueDeadline() {
     CHECK(native.result(id) && native.result(id)->outcome == C::SdoOutcome::TIMEOUT &&
           !native.result(id)->transmissionPossible);
 }
+// A matched abort leaves the route open only when it answers the one confirmed outstanding frame.
+void matchedAbortNeedsACleanChannel() {
+    M::Frame absent = reply(0x80);
+    const uint8_t code[4] = {0x00, 0x00, 0x02, 0x06};
+    std::memcpy(absent.data + 4, code, sizeof code);
+    {   // The controller reported the frame, so the abort has the premise of a success.
+        C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(client, work(2, true));
+        C::SdoTxId tx; take(client, 0, 0, &tx);
+        CHECK(client.confirmTx(tx, 1));
+        CHECK(client.receive(absent, 2)); terminal(client, id, C::SdoOutcome::SERVER_ABORT);
+        CHECK(client.result(id)->abortCode == 0x06020000u && client.result(id)->effectUncertain);
+        CHECK(!client.unresolved(0));
+        CHECK(client.release(id));
+        C::SdoRequestId next; CHECK(client.admit(0, work(), 2, next));
+    }
+    {   // The frame is still live in transport: the same bytes quarantine, and a late report
+        // retires the frame without rewriting that.
+        C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(client, work(2, true));
+        C::SdoTxId tx; take(client, 0, 0, &tx);
+        CHECK(client.receive(absent, 1)); terminal(client, id, C::SdoOutcome::SERVER_ABORT);
+        CHECK(client.result(id)->abortCode == 0x06020000u && client.result(id)->effectUncertain);
+        CHECK(client.unresolved(0));
+        CHECK(!client.confirmTx(tx, 2) && client.unresolved(0));
+        CHECK(client.release(id));
+        C::SdoRequestId next; CHECK(!client.admit(0, work(), 2, next));
+    }
+    {   // A frame naming another object on a live transfer is retained and does not end it.
+        C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+        const C::SdoRequestId id = admit(client, work(2, true));
+        C::SdoTxId tx; take(client, 0, 0, &tx);
+        CHECK(client.confirmTx(tx, 1));
+        M::Frame other = absent; other.data[1] = 0x42;
+        CHECK(!client.receive(other, 2)); CHECK(!client.result(id) && !client.unresolved(0));
+        CHECK(client.receive(reply(0x60), 3)); terminal(client, id, C::SdoOutcome::SUCCESS);
+        CHECK(!client.unresolved(0));
+    }
+}
+// Whatever follows a marker's success withdraws it, so reopenAfterDrain cannot run on a route that
+// has since seen contrary evidence. orderedServer here is a fake premise: this proves logic only.
+void settledMarkerCannotOutliveContraryEvidence() {
+    for (unsigned event = 0; event < 3; ++event) {
+        C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+        C::SdoTransfer lost = work(2, true); lost.responseTimeoutUs = 5;
+        const C::SdoRequestId id = admit(client, lost); take(client, 0);
+        CHECK(client.service(5)); terminal(client, id, C::SdoOutcome::TIMEOUT);
+        CHECK(client.release(id));
+        C::SdoTransfer marker = work(); marker.index = 0x2000;
+        marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        marker.allowSegmentedUpload = false;
+        C::SdoDrainPremises premises; premises.soleClient = premises.orderedServer = true;
+        C::SdoRequestId pending;
+        CHECK(client.admitDrain(0, marker, premises, 5, pending, 1000));
+        take(client, 5);
+        CHECK(client.receive(reply(0x4b, 1, 0x2000), 6));
+        CHECK(client.drainSettled(0));
+        if (event == 0) CHECK(!client.receive(reply(0x4b, 1, 0x3000), 7)); // Unrecorded stray.
+        else if (event == 1) CHECK(client.reportController(C::ControllerState::RECOVERING, 7));
+        else CHECK(client.reboot(1, 7));
+        CHECK(!client.drainSettled(0) && !client.reopenAfterDrain(0) && client.unresolved(0));
+        CHECK(client.requalifications(0) == 0);
+    }
+}
 } // namespace
 
 int main() {
@@ -916,6 +985,8 @@ int main() {
     acceptedUploads();
     channelsAndFailure();
     outerQueueDeadline();
+    matchedAbortNeedsACleanChannel();
+    settledMarkerCannotOutliveContraryEvidence();
     std::printf("SDO transfer vectors passed: %u checks\n", checks);
     return 0;
 }

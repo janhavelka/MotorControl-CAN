@@ -27,7 +27,7 @@ class CanBusOwner {
         TX_LIMIT = 2,      ///< Maximum one-shot enqueue callbacks per turn.
         EVENT_LIMIT = 8,   ///< Maximum TX report callback calls per turn.
         START_LIMIT = 2,   ///< Maximum new native service admissions per turn.
-        TRACE_CAPACITY = 8 ///< Oldest-first diagnostic copies; full storage overwrites oldest.
+        TRACE_CAPACITY = 24 ///< Above one turn's RX, TX, report, terminal and controller records. Oldest-first diagnostic copies; full storage overwrites oldest.
     };
     /** Borrow stationary exclusive resources; construction performs no I/O.
      * @param[in] services Sole existing adapter, already configured or configured while idle.
@@ -87,6 +87,24 @@ class CanBusOwner {
      * @return Local admission only; ordinary pressure cannot consume this slot.
      */
     BusAdmission admitUrgent(const BusRequest& request, uint64_t nowUs, RequestId& output) noexcept;
+    /** Admit one explicit drain marker for an unresolved route, outside any reservation (DEC-3).
+     * Application-requested only. On a matched success the owner invalidates every
+     * reservation on the node before reopening, so new work needs a new reservation.
+     * Failure leaves the route unresolved. Earlier effects stay uncertain and nothing replays.
+     * @param[in] transfer One accepted upload whose object was not retained on this route.
+     * @param[in] premises Application's sole-client and ordered-server premises; Q18 gates the second.
+     * @param[in] nowUs Nondecreasing processing microseconds.
+     * @param[out] output Published only on acceptance.
+     * @return INHIBITED while local work is pending or blocked; INVALID if the marker fails its check.
+     */
+    BusAdmission admitDrainMarker(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                                  const MotorControlCAN::CANOPEN::SdoDrainPremises& premises,
+                                  uint64_t nowUs, RequestId& output) noexcept;
+    /** Query whether cancelling a request could quarantine its route.
+     * @param[in] id Current request.
+     * @return True if a frame of it may have reached a controller.
+     */
+    bool mayHaveTransmitted(RequestId id) const noexcept;
     /** Close one request without progressing unsent work or reading controller input.
      * @param[in] id Exact request handle; other queued requests require explicit cancellation.
      * @param[in] nowUs Same clock; already reached native/owner deadlines win first.
@@ -257,7 +275,8 @@ class CanBusOwner {
     } sequences_[SEQUENCES];
     struct Slot {
         bool occupied = false, terminal = false, submitted = false, guarded = false;
-        bool localCancellation = false;
+        bool localCancellation = false, outsideSequence = false;
+        MotorControlCAN::CANOPEN::SdoDrainPremises premises;
         uint32_t generation = 0;
         uint64_t queueDeadlineUs = 0;
         BusRequest request;
@@ -295,6 +314,8 @@ class CanBusOwner {
     uint64_t serviceTimeUs_ = 0;
     bool peersResolved(const Binding& binding) const noexcept;
     BusAdmission countAdmission(BusAdmission result) noexcept;
+    bool markerCurrent(const Slot& slot) const noexcept;
+    void reopenSettledRoutes() noexcept;
     bool valid(SequenceId id) const noexcept;
     bool valid(RequestId id) const noexcept;
     int channel(const Binding& binding) const noexcept;

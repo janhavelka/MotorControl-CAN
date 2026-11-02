@@ -713,6 +713,68 @@ void exactDeadlineAndRepeatedStopRejection() {
         CHECK(r.wire.sentCount == sent);
     }
 }
+// DEC-3: a marker reopens the route, not the reservation or its 000F. The ordered server here is
+// a fake premise: this proves the host's logic, not a real server's ordering (Q18).
+void drainMarkerConsumesOld000F() {
+    Rig r;
+    r.prerequisites();
+    const C::SdoCompletion old000F = r.control;
+    CHECK(old000F.protocolAcknowledged && old000F.transfer.index == 0x6040);
+    r.begin();
+    const O::RequestId lostId = r.admit(r.transfer(0x2200, 1, true));
+    r.turn(r.now);
+    r.turn(r.now + 100, budget(0, 0, 8, 0));
+    const C::SdoCompletion lost = r.done(lostId).service;
+    CHECK(lost.outcome == C::SdoOutcome::TIMEOUT && lost.effectUncertain);
+    CHECK(r.services.unresolved(0) && !r.owner.sequence(r.sequence));
+    CHECK(r.owner.release(lostId));
+    const unsigned sent = r.wire.sentCount;
+    C::SdoTransfer marker = r.transfer(0x2000);
+    marker.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    marker.allowSegmentedUpload = false;
+    C::SdoDrainPremises premises;
+    premises.soleClient = premises.orderedServer = true;
+    O::RequestId markerId;
+    CHECK(r.owner.admitDrainMarker(marker, premises, r.now, markerId) == O::BusAdmission::ACCEPTED);
+    r.turn(r.now);
+    CHECK(r.wire.sentCount == sent + 1 && r.wire.sent[sent].data[1] == 0x00 &&
+          r.wire.sent[sent].data[2] == 0x20);
+    r.wire.push(reply(marker, 0x1234), r.now + 1);
+    r.turn(r.now + 1, budget(8, 0, 8, 0));
+    CHECK(r.done(markerId).service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1);
+    // The reservation holding that 000F stays dead. Its copied values alone admit nothing.
+    CHECK(!r.owner.sequence(r.sequence));
+    CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
+    O::BusRequest stop;
+    stop.sequence = r.sequence;
+    stop.transfer = r.transfer(0x6040, 1, true);
+    stop.transfer.data[0] = 0x0f;
+    stop.transfer.data[1] = 1;
+    O::RequestId refused;
+    CHECK(r.owner.admitUrgent(stop, r.now, refused) == O::BusAdmission::INVALID);
+    CHECK(r.wire.sentCount == sent + 1);
+    // A new reservation cannot adopt the 000F acknowledged before it was acquired.
+    CHECK(r.owner.release(markerId) && r.owner.releaseSequence(r.sequence));
+    r.turn(r.now + 1, O::ServiceBudget());
+    CHECK(r.owner.beginSequence(target().channel.binding, 1, r.now, r.sequence));
+    r.reservation.sequence = uint32_t(r.sequence.slot + 1);
+    r.reservation.generation = r.sequence.generation;
+    r.reservation.acquiredUs = r.owner.sequence(r.sequence)->acquiredUs;
+    r.acquire();
+    r.begin();
+    L::ActionContext action;
+    const Saved<L::ActionContext> unchanged(action);
+    CHECK(!L::prepareStop(action, r.reservation, r.state, old000F, L::StopKind::HALT, r.operation,
+                          r.now, r.deadline, r.actionOptions()));
+    unchanged.unchanged(action);
+    // Only a 000F acknowledged under the new reservation qualifies it again.
+    r.prerequisites();
+    r.begin();
+    CHECK(L::prepareStop(action, r.reservation, r.state, r.control, L::StopKind::HALT, r.operation,
+                         r.now, r.deadline, r.actionOptions()));
+    CHECK(r.control.completedUs > old000F.completedUs);
+}
 void freshnessAndStepExhaustion() {
     Rig fresh;
     fresh.prerequisites();
@@ -979,6 +1041,7 @@ int main() {
     quarantineAndOtherNodeProgress();
     generationsRebootFaultAndCorrelation();
     exactDeadlineAndRepeatedStopRejection();
+    drainMarkerConsumesOld000F();
     freshnessAndStepExhaustion();
     everyObservationFieldCanFailIndependently();
     cancelBetweenObservationCycles();

@@ -355,6 +355,45 @@ void lifecycleDeadlineAndRetirement() {
     CHECK(old.experiment.record()->failure == E::PdoExperimentFailure::INVALIDATED);
     CHECK(old.wire.downloads == 0 && old.experiment.release());
 }
+// Diagnostic loss cancels only work with no frame out. A sent frame settles first.
+void evidenceLossWithdrawsOnlyUnstartedWork() {
+    const auto overflow = [](Rig& r, uint64_t from) {
+        O::ServiceBudget receiveOnly; // An owner turn that starts nothing still fills the trace.
+        receiveOnly.rx = 8;
+        for (unsigned round = 0; round < 4; ++round) {
+            for (unsigned i = 0; i < 8; ++i) {
+                M::Frame noise;
+                noise.id = 0x300;
+                noise.dlc = noise.payloadLength = 8;
+                r.wire.push(noise);
+            }
+            CHECK(r.owner.service(from + round, receiveOnly));
+        }
+        CHECK(r.owner.stats().traceOverwritten > 0);
+        CHECK(r.experiment.service(from + 3));
+    };
+    Rig unstarted;
+    unstarted.start();
+    CHECK(unstarted.wire.transmitted == 0);
+    overflow(unstarted, 2);
+    CHECK(unstarted.experiment.record()->terminal);
+    CHECK(unstarted.experiment.record()->failure == E::PdoExperimentFailure::EVIDENCE_LOSS);
+    CHECK(unstarted.wire.transmitted == 0 && !unstarted.services.unresolved(0));
+    Rig sent;
+    sent.wire.failure = Wire::Failure::SILENT;
+    sent.wire.failureAt = 1;
+    sent.start();
+    sent.turn(2);
+    CHECK(sent.wire.transmitted == 1 && !sent.experiment.record()->terminal);
+    overflow(sent, 3);
+    CHECK(!sent.experiment.record()->terminal && sent.experiment.record()->evidenceLost);
+    CHECK(sent.wire.transmitted == 1);
+    sent.turn(sent.plan().review.plan.deadlineUs);
+    CHECK(sent.experiment.record()->terminal);
+    CHECK(sent.experiment.record()->failure == E::PdoExperimentFailure::EVIDENCE_LOSS);
+    CHECK(sent.experiment.record()->terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
+    CHECK(sent.wire.transmitted == 1);
+}
 void planRejections() {
     for (unsigned i = 0; i < 7; ++i) {
         Rig r;
@@ -423,6 +462,7 @@ int main() {
     passiveHappyAndReservation();
     failureAtEveryStep();
     lifecycleDeadlineAndRetirement();
+    evidenceLossWithdrawsOnlyUnstartedWork();
     planRejections();
     operationalBetweenAdmissionAndOwnerHandoff();
     ageExpiresBetweenAdmissionAndOwnerHandoff();

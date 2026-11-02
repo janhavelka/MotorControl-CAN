@@ -434,19 +434,55 @@ void authoritativeRetirement() {
     lost.turn(1);
     lost.turn(2, false); // An accepted TX's diagnostic is not collected yet.
     CHECK(!lost.owner.localTxRetired(0));
-    for (unsigned i = 0; i < 8; ++i) {
-        M::Frame f;
-        f.id = 0x300;
-        lost.wire.push(f);
+    // Contract change (C-06): one full RX turn no longer overflows TRACE_CAPACITY, so this
+    // withholds collection for four. The ring overwrites that TX and the collector detects loss.
+    for (unsigned round = 0; round < 4; ++round) {
+        for (unsigned i = 0; i < 8; ++i) {
+            M::Frame f;
+            f.id = 0x300;
+            lost.wire.push(f);
+        }
+        lost.turn(3 + round, round == 3);
     }
-    lost.turn(3); // The ring overwrites that TX; collector detects loss and cancels.
+    CHECK(lost.owner.stats().traceOverwritten > 0);
+    // Contract change (C-06): the frame already sent is not cancelled. It settles by itself,
+    // here at its response timeout, and only then does the record close.
+    CHECK(!lost.collector.record()->terminal && lost.collector.record()->evidenceLost);
+    CHECK(lost.wire.reportCount == 1 && lost.wire.retireCalls == 0);
+    lost.turn(250002);
     CHECK(lost.collector.record()->terminal && lost.collector.record()->evidenceLost);
     CHECK(lost.collector.record()->failure == E::RawEvidenceFailure::EVIDENCE_LOSS);
-    CHECK(lost.wire.reportCount == 1 && lost.wire.retireCalls == 1);
+    CHECK(lost.collector.record()->terminalCount == 1 &&
+          lost.collector.record()->terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
+    CHECK(lost.wire.reportCount == 1 && lost.wire.retireCalls == 1 && lost.wire.transmitted == 1);
     CHECK(!lost.owner.localTxRetired(0) && !lost.collector.release());
     lost.wire.holdReport = false;
-    lost.turn(4);
+    lost.turn(250003);
     CHECK(lost.owner.localTxRetired(0) && lost.collector.release());
+
+    // A field admitted but not started has no frame to settle, so loss withdraws it unsent.
+    Rig unstarted;
+    CHECK(unstarted.collector.begin(unstarted.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
+    unstarted.turn(1);
+    CHECK(unstarted.wire.transmitted == 0);
+    O::ServiceBudget receiveOnly; // An owner turn that starts nothing still fills the trace.
+    receiveOnly.rx = 8;
+    for (unsigned round = 0; round < 4; ++round) {
+        for (unsigned i = 0; i < 8; ++i) {
+            M::Frame f;
+            f.id = 0x300;
+            unstarted.wire.push(f);
+        }
+        CHECK(unstarted.owner.service(2 + round, receiveOnly));
+    }
+    CHECK(unstarted.owner.stats().traceOverwritten > 0 && unstarted.wire.transmitted == 0);
+    CHECK(unstarted.collector.service(5));
+    CHECK(unstarted.collector.record()->terminal &&
+          unstarted.collector.record()->failure == E::RawEvidenceFailure::EVIDENCE_LOSS);
+    CHECK(unstarted.collector.record()->terminals[0].reason == O::CompletionReason::CANCELLED);
+    unstarted.turn(6);
+    CHECK(unstarted.wire.transmitted == 0 && !unstarted.services.unresolved(0));
+    CHECK(unstarted.collector.release());
 
     Rig retired;
     retired.wire.holdReport = true;
@@ -553,8 +589,9 @@ void capacityAndNoRetry() {
     Rig r;
     CHECK(r.collector.begin(r.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
     // Copies are bounded even under unrelated traffic; owner RX still consumes it.
-    for (unsigned turn = 1; turn <= 15 && !r.collector.record()->terminal; ++turn) {
-        for (unsigned i = 0; i < 6; ++i) {
+    // Contract change (C-06): each turn now fits the trace, so only the record's bound trips.
+    for (unsigned turn = 1; turn <= 25 && !r.collector.record()->terminal; ++turn) {
+        for (unsigned i = 0; i < 7; ++i) {
             M::Frame f;
             f.id = 0x300;
             r.wire.push(f);
@@ -563,7 +600,8 @@ void capacityAndNoRetry() {
     }
     CHECK(r.collector.record()->terminal && r.collector.record()->evidenceLost);
     CHECK(r.collector.record()->failure == E::RawEvidenceFailure::EVIDENCE_LOSS);
-    CHECK(r.collector.record()->trafficCount <= E::RAW_EVIDENCE_TRAFFIC);
+    CHECK(r.collector.record()->trafficCount == E::RAW_EVIDENCE_TRAFFIC);
+    CHECK(r.owner.stats().traceOverwritten == 0);
     const unsigned uploads = r.wire.uploads;
     for (unsigned i = 0; i < 5; ++i)
         r.turn(r.now + 1);

@@ -151,6 +151,51 @@ BusAdmission CanBusOwner::admitUrgent(const BusRequest& request, uint64_t now,
                                       RequestId& output) noexcept {
     return countAdmission(admit(request, now, output, true));
 }
+BusAdmission CanBusOwner::admitDrainMarker(const C::SdoTransfer& transfer,
+                                           const C::SdoDrainPremises& premises, uint64_t now,
+                                           RequestId& output) noexcept {
+    if (entered_ || !transport_.transmit || now < lastUs_ ||
+        overlap(&output, sizeof output, this, sizeof *this) ||
+        overlap(&output, sizeof output, &services_, sizeof services_) ||
+        overlap(&output, sizeof output, &transfer, sizeof transfer) ||
+        overlap(&output, sizeof output, &premises, sizeof premises))
+        return countAdmission(BusAdmission::INVALID);
+    if (inhibited_)
+        return countAdmission(BusAdmission::INHIBITED);
+    const int c = channel(transfer.channel);
+    if (c < 0)
+        return countAdmission(BusAdmission::INVALID);
+    if (active_[c] >= 0 || external_[c].pending || external_[c].blocked || nmtBlocks(transfer.channel.binding))
+        return countAdmission(BusAdmission::INHIBITED);
+    if (!services_.checkDrain(uint8_t(c), transfer, premises, now))
+        return countAdmission(BusAdmission::INVALID);
+    if (lastId_ == UINT32_MAX)
+        return countAdmission(BusAdmission::IDS_EXHAUSTED);
+    int free = -1;
+    for (unsigned i = REQUESTS; i < TOTAL_REQUESTS && free < 0; ++i)
+        if (!slots_[i].occupied)
+            free = int(i);
+    if (free < 0)
+        return countAdmission(BusAdmission::RESULTS_FULL);
+    Slot candidate;
+    candidate.occupied = candidate.outsideSequence = true;
+    candidate.premises = premises;
+    candidate.generation = ++lastId_;
+    candidate.queueDeadlineUs = cutoff(now, transfer.deadlineUs, transfer.queueTimeoutUs);
+    candidate.request.transfer = transfer;
+    candidate.completion.id.owner = this;
+    candidate.completion.id.slot = uint8_t(free);
+    candidate.completion.id.generation = candidate.generation;
+    candidate.completion.admittedUs = now;
+    candidate.completion.service.transfer = transfer;
+    candidate.completion.service.admittedUs = now;
+    const auto* node = services_.node(uint8_t(c));
+    candidate.completion.service.nodeGeneration = node ? node->route.generation : 0;
+    slots_[free] = candidate;
+    output = candidate.completion.id;
+    lastUs_ = now;
+    return BusAdmission::ACCEPTED;
+}
 BusAdmission CanBusOwner::countAdmission(BusAdmission result) noexcept {
     if (!entered_ && result != BusAdmission::ACCEPTED) {
         detail::add(stats_.queueRejected);
@@ -238,10 +283,45 @@ void CanBusOwner::collect() noexcept {
             continue;
         slot.completion.service = *e;
         slot.terminal = true;
+        if (!slot.outsideSequence && e->outcome == C::SdoOutcome::SERVER_ABORT)
+            // A rejected step ends what depends on it, though the route stays open.
+            for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
+                if (slots_[i].occupied && !slots_[i].terminal && !slots_[i].submitted &&
+                    same(slots_[i].request.sequence, slot.request.sequence))
+                    finish(i, CompletionReason::INVALIDATED, e->completedUs);
         recordTerminal(slot);
         services_.release(slot.native);
         active_[c] = -1;
     }
+}
+bool CanBusOwner::markerCurrent(const Slot& slot) const noexcept {
+    const int c = channel(slot.request.transfer.channel);
+    const auto* node = c < 0 ? nullptr : services_.node(uint8_t(c));
+    return c >= 0 && (node ? node->route.generation : 0) == slot.completion.service.nodeGeneration;
+}
+void CanBusOwner::reopenSettledRoutes() noexcept {
+    for (unsigned c = 0; c < C::SdoClient::CHANNELS; ++c) {
+        // The marker's own frame must be retired first, or its duplicate could answer new work.
+        if (!services_.drainSettled(uint8_t(c)) || external_[c].pending || external_[c].blocked)
+            continue;
+        const auto* route = services_.channel(uint8_t(c));
+        if (!route)
+            continue;
+        // Otherwise sequence() would make an old reservation, and its old command
+        // history, live again the moment the route reopens.
+        for (Reservation& s : sequences_)
+            if (s.occupied && peer(s.value.binding, route->binding))
+                s.invalidated = true;
+        services_.reopenAfterDrain(uint8_t(c));
+    }
+}
+bool CanBusOwner::mayHaveTransmitted(RequestId id) const noexcept {
+    if (!valid(id))
+        return false;
+    const Slot& slot = slots_[id.slot];
+    if (slot.terminal)
+        return slot.completion.service.transmissionPossible;
+    return slot.submitted && services_.transmissionPossible(slot.native);
 }
 void CanBusOwner::expire(uint64_t now) noexcept {
     for (unsigned i = 0; i < TOTAL_REQUESTS; ++i) {
@@ -249,14 +329,14 @@ void CanBusOwner::expire(uint64_t now) noexcept {
         if (!slot.occupied || slot.terminal)
             continue;
         if (slot.submitted) {
-            if (!sequence(slot.request.sequence)) {
+            if (!slot.outsideSequence && !sequence(slot.request.sequence)) {
                 slots_[i].completion.reason = CompletionReason::INVALIDATED;
                 services_.invalidate(slot.native.channel, now);
                 collect();
             }
         } else if (now >= slot.request.transfer.deadlineUs)
             finish(i, CompletionReason::DEADLINE, now);
-        else if (!sequence(slot.request.sequence))
+        else if (slot.outsideSequence ? !markerCurrent(slot) : !sequence(slot.request.sequence))
             finish(i, CompletionReason::INVALIDATED, now);
         else if (now >= slot.queueDeadlineUs)
             finish(i, CompletionReason::QUEUE_EXPIRED, now);
@@ -264,12 +344,17 @@ void CanBusOwner::expire(uint64_t now) noexcept {
 }
 bool CanBusOwner::eligible(unsigned index, uint64_t now) const noexcept {
     const Slot& slot = slots_[index];
-    if (!slot.occupied || slot.terminal || slot.submitted || !sequence(slot.request.sequence))
+    if (!slot.occupied || slot.terminal || slot.submitted ||
+        (!slot.outsideSequence && !sequence(slot.request.sequence)))
         return false;
     const int c = channel(slot.request.transfer.channel);
     if (c < 0 || active_[c] >= 0 || external_[c].pending || external_[c].blocked ||
-        nmtBlocks(slot.request.transfer.channel.binding) ||
-        !services_.checkAdmission(uint8_t(c), slot.request.transfer, now))
+        nmtBlocks(slot.request.transfer.channel.binding))
+        return false;
+    if (slot.outsideSequence)
+        return markerCurrent(slot) &&
+               services_.checkDrain(uint8_t(c), slot.request.transfer, slot.premises, now);
+    if (!services_.checkAdmission(uint8_t(c), slot.request.transfer, now))
         return false;
     for (const Slot& other : slots_)
         if (other.occupied && !other.terminal && other.generation < slot.generation &&
@@ -401,6 +486,8 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             diagnostic.controllerEpoch = report.controllerEpoch;
             trace(diagnostic);
             tx = ExternalTx(); // A matching final report proves this exact local frame is retired.
+            if (report.id.kind == TransportTxId::Kind::SDO)
+                services_.noteTxRetired(report.id.sdo);
             if (report.id.kind == TransportTxId::Kind::NMT) {
                 if (report.transmitted)
                     services_.confirmNmtTx(report.id.nmt, now);
@@ -485,8 +572,13 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         const int c = channel(slot.request.transfer.channel);
         ++starts;
         nextProducer_ = uint8_t(slot.completion.producer % PRODUCERS + 1);
-        if (!services_.admit(uint8_t(c), slot.request.transfer, now, slot.native,
-                             slot.queueDeadlineUs)) {
+        const bool admitted =
+            slot.outsideSequence
+                ? services_.admitDrain(uint8_t(c), slot.request.transfer, slot.premises, now,
+                                       slot.native, slot.queueDeadlineUs)
+                : services_.admit(uint8_t(c), slot.request.transfer, now, slot.native,
+                                  slot.queueDeadlineUs);
+        if (!admitted) {
             finish(unsigned(index), CompletionReason::ADMISSION_FAILED, now);
             continue;
         }
@@ -497,6 +589,7 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
         if (transmit(uint8_t(c), now))
             ++sent;
     }
+    reopenSettledRoutes();
     refreshHealth(now);
     return true;
 }
@@ -530,8 +623,11 @@ void CanBusOwner::settle(ExternalTx& tx, uint64_t now, bool allowCallback) noexc
     if (!allowCallback || tx.retirementTried)
         return;
     tx.retirementTried = true;
-    if (transport_.retire && transport_.retire(transport_.context, tx.id, tx.epoch))
+    if (transport_.retire && transport_.retire(transport_.context, tx.id, tx.epoch)) {
+        if (tx.id.kind == TransportTxId::Kind::SDO)
+            services_.noteTxRetired(tx.id.sdo);
         tx = ExternalTx(); // This exact frame and every future final report are retired.
+    }
 }
 void CanBusOwner::settleExternal(uint64_t now, bool allowCallback) noexcept {
     for (ExternalTx& tx : external_)

@@ -196,8 +196,10 @@ int main() {
     // A real console uses its own output budget and leaves transport service scheduled.
     while (copied < 3 && owner.takeDiagnostic(diagnostic))
         ++copied;
-    if (copied != 3 || before.traceUsed != O::CanBusOwner::TRACE_CAPACITY ||
-        owner.resources().traceUsed != before.traceUsed - copied || !stats.traceOverwritten ||
+    // Two exchanges produce 12 records: 2 TX, 2 TX reports, 6 RX and 2 terminals. The trace
+    // holds well over one turn, so an ordinary session like this loses none of them.
+    if (copied != 3 || before.traceUsed != 12 ||
+        owner.resources().traceUsed != before.traceUsed - copied || stats.traceOverwritten ||
         !owner.clearStats())
         return 1;
     O::Health after;

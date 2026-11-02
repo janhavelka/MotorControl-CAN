@@ -246,7 +246,10 @@ bool PdoExperiment::service(uint64_t now) noexcept {
         (!current() ||
          (record_.baselinePreOperational.present && !currentPreOperational(now, livePreOp))))
         requestedFailure_ = PdoExperimentFailure::INVALIDATED;
-    if (requestedFailure_ != PdoExperimentFailure::NONE && pendingValid_)
+    // Losing a diagnostic copy is no reason to cancel a frame already on its way.
+    if (requestedFailure_ != PdoExperimentFailure::NONE && pendingValid_ &&
+        (requestedFailure_ != PdoExperimentFailure::EVIDENCE_LOSS ||
+         !owner_.mayHaveTransmitted(pending_)))
         owner_.cancel(pending_, now);
     if (pendingValid_) {
         const Completion* done = owner_.result(pending_);

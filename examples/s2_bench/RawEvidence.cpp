@@ -204,7 +204,8 @@ bool RawEvidence::service(uint64_t now) noexcept {
         record_.maxServiceGapUs = now - lastUs_;
     lastUs_ = now;
     capture(false);
-    if (record_.evidenceLost && pendingValid_)
+    // A frame already on its way settles: cancelling it would quarantine the route.
+    if (record_.evidenceLost && pendingValid_ && !owner_.mayHaveTransmitted(pending_))
         owner_.cancel(pending_, now);
     if (pendingValid_) {
         const Completion* done = owner_.result(pending_);

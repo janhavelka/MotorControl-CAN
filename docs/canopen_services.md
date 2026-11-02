@@ -392,10 +392,29 @@ other descriptors stay `UNQUALIFIED` under Q20 (owner prompts 19, 29, 37, 41, 44
 flags. Multi-write callers keep each prior success and later possible effect;
 a matching server abort on a later request does not undo an earlier write.
 
-### Unsupported reopening and required evidence
+### Settling and reopening a route
 
-Prompt 14 implements no reopening capability. Negative tests keep admission
-blocked for every unsupported path below, rather than supplying a success stub.
+A matched server abort on a clean exchange, meaning a reply to the one confirmed outstanding frame, has the premise a success has. It reports the rejection, keeps earlier effects uncertain, ends queued steps of its sequence and leaves the route open. An abort with a staged next segment, or with its frame still live in transport, quarantines.
+
+A controller event, bus-off or recovery, quarantines only a route with a frame that may have left: `SdoClient::possibleWork`, sampled before retirement. A route with nothing possible stays open and needs NMT or service evidence for ordinary work. A boot-up or rebinding still quarantines.
+
+**Drain marker (DEC-3).** The only way to reopen. An application explicitly requests one finite marker through `CanBusOwner::admitDrainMarker`:
+
+| Rule | Detail |
+| --- | --- |
+| Premises | `SdoDrainPremises`: sole client on these COB-IDs, and a server that answers one request at a time and in order. **No retained Lichuan or CiA source establishes the second.** It rests on memory of CiA 301 and the protocol's shape, and classic SDO carries no transaction tag. It stays open under Q18, so no real fixture sets it and real routes stay blocked. Tests that set it name it as a fake |
+| Local TX | Every frame on the route retired, and the marker's own frame retired before reopening |
+| Marker | One accepted expedited upload whose object differs from the last completed transfer and from each of up to four retained pairs. Pairs come from unresolved requests and unsolicited frames |
+| Refusal | Retained-pair overflow, a frame with no multiplexer, or any unexpected frame after an earlier reopening: that evidence contradicts the premises, so the route refuses markers from then on |
+| While pending | A retained pair is ignored, because it may be the old reply still arriving. Any other frame fails the marker and is retained |
+| Success | The owner invalidates every reservation on the node first, so an old reservation and its old command history cannot come back. Armed experiment grants are void. `requalifications` counts it. Service qualification is not refreshed |
+| Failure | The route stays unresolved. A further attempt is new explicit intent with a different object |
+
+A marker settles the channel only. Earlier effects stay uncertain, and nothing replays or re-enables. **If the ordered-server premise is false, a stale reply naming the same object as a later write can still confirm that write, and no client-side check can tell.** That is why the premise is a gate, not a default.
+
+### Other proposed reopening paths
+
+Negative tests keep admission blocked for every path below, rather than supplying a success stub.
 The [source report](reports/prompt_14_sources.md) identifies the actual pinned
 stack, Lichuan documents and installed controller API inspected.
 

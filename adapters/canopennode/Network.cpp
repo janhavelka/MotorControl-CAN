@@ -201,7 +201,13 @@ void SdoClient::invalidateNode(unsigned anchor, NetworkInvalidation cause, uint6
         cause == NetworkInvalidation::BUS_OFF ? SdoOutcome::BUS_OFF : SdoOutcome::BINDING_INVALIDATED;
     for (Channel& c : channels_) {
         if (!c.configured || !sameNode(c.route.binding, notification.previous.binding)) continue;
-        expire(c, now); retire(c); c.unresolved = true;
+        expire(c, now);
+        // A boot or rebinding changes the server's session. A controller event only
+        // ends local work, so it quarantines what may have left and nothing else.
+        const bool local = cause == NetworkInvalidation::RECOVERY || cause == NetworkInvalidation::BUS_OFF;
+        const bool ambiguous = !local || possibleWork(c);
+        retire(c);
+        if (ambiguous) c.unresolved = true;
         finish(c, outcome, now);
     }
     // Every dependent cache is revoked synchronously, even when diagnostics are full.
@@ -231,6 +237,11 @@ bool SdoClient::invalidateNetwork(uint8_t slot, NetworkInvalidation cause, uint6
     invalidateNode(static_cast<unsigned>(anchor), cause, now);
     return true;
 }
+// Sample before retire, which clears cleanup. A held handoff never reached the SDK, and
+// finish() already quarantines a transfer with possible effects.
+bool SdoClient::possibleWork(const Channel& c) {
+    return c.txLive || c.cleanup;
+}
 bool SdoClient::reportController(ControllerState state, uint64_t now) {
     if (state > ControllerState::RECOVERING || now < lastUs_) return false;
     lastUs_ = now; controllerState_ = state;
@@ -242,7 +253,13 @@ bool SdoClient::reportController(ControllerState state, uint64_t now) {
         if (channels_[i].networkConfigured) invalidateNode(i, cause, now);
     for (Channel& c : channels_) {
         if (!c.configured) continue;
-        expire(c, now); retire(c); c.unresolved = true;
+        expire(c, now);
+        const bool ambiguous = possibleWork(c);
+        retire(c);
+        if (ambiguous) c.unresolved = true;
+        // Service proof from before a controller event says nothing about after it.
+        c.unanchoredService = ObservationTime();
+        c.unanchoredSdo = ObservationTime();
         finish(c, state == ControllerState::BUS_OFF ? SdoOutcome::BUS_OFF : SdoOutcome::BINDING_INVALIDATED, now);
     }
     return true;
