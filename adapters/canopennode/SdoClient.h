@@ -174,6 +174,32 @@ public:
      */
     bool configure(uint8_t slot, const SdoChannel& channel, bool externallyConfirmed,
                    bool freshSessionQualified);
+    /** Authorize one explicitly reviewed unknown-effect upload through the ordinary owner.
+     * This experimental permission never declares a read non-changing or confirms a
+     * service session. The configured fresh-session/exclusive-server premise still applies.
+     * @param[in] slot Configured channel with a current passive node anchor.
+     * @param[in] exactUpload Complete copied UNQUALIFIED upload, including identities,
+     * object, exact width or raw capacity, transfer policy and immutable deadline.
+     * SERVER_INDICATED permits bounded raw bytes, never a typed-object interpretation;
+     * an expedited response must indicate its size. No pointer is retained.
+     * Operation identities increase; within one operation each granted step increases.
+     * Clearing or cancelling a grant never permits the same step to be granted again.
+     * @param[in] nodeGeneration Exact current nonzero lifecycle epoch.
+     * @param[in] authorizationId Nonzero strictly increasing per-channel review serial.
+     * The application retains its finite experiment/review record under this identity.
+     * @param[in] nowUs Nondecreasing caller time before the upload deadline.
+     * @return False unchanged for invalid, busy, unresolved or inhibited state.
+     * The grant is consumed once at service admission; only that accepted transfer
+     * retains permission through handoff. A failed attempt is never replayed.
+     */
+    bool authorizeUploadExperiment(uint8_t slot, const SdoTransfer& exactUpload,
+                                   Generation nodeGeneration, uint32_t authorizationId,
+                                   uint64_t nowUs);
+    /** Withdraw an unused experimental grant; no I/O, recovery or admitted-work cancellation.
+     * @param[in] slot Channel slot; invalid slots are ignored. The owner must separately
+     * cancel any admitted request before ending an experiment. A consumed ID cannot be reused.
+     */
+    void clearUploadExperiment(uint8_t slot);
     /** Advance only a completed settings transaction's local configuration epoch.
      * Requires a confirmed, usable SDO channel and existing passive node anchor.
      * Every channel of the physical node must have exactly previous's binding and
@@ -422,6 +448,10 @@ private:
         bool queued = false, possible = false, txConfirmed = false, cleanup = false;
         bool unsizedExpedited = false;
         bool handoffLive = false, observationValid = false;
+        bool experimentArmed = false, experimentActive = false;
+        uint32_t experimentAuthorization = 0;
+        Generation experimentNodeGeneration = 0;
+        SdoTransfer experimentUpload;
         uint32_t generation = 0, frame = 0;
         uint64_t queueCutoff = 0, responseCutoff = 0;
         uint64_t handoffUs = 0, handoffCutoff = 0;
@@ -460,6 +490,8 @@ private:
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
+    bool experimentMatches(uint8_t slot, const SdoTransfer& work, uint64_t nowUs,
+                           bool admitted) const;
     struct PdoSlot {
         bool bound = false, reused = false;
         // Only an explicit map withdrawal permits checked replacement at the

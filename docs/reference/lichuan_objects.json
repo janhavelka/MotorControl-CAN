@@ -1055,7 +1055,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.",
+            "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03. Fixture observation 2026-11-02: Both CL86-C fixtures return explicitly sized U8=0x0C, contradicting EDS U16. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -1154,7 +1154,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.",
+            "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03. Fixture observation 2026-11-02: Both CL86-C fixtures return explicitly sized U8=0x20, contradicting EDS U16. No dotted-version conversion is established. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -1452,7 +1452,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03.",
+            "value_policy": "EDS values remain metadata. 1009/100A are U16, not strings; 1018 has only children 00..03. Fixture observation 2026-11-02: Both CL86-C fixtures return U8=5, exceeding EDS HighLimit4 and default3; this does not authorize probing undocumented children. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -5476,7 +5476,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Fixture observation 2026-11-02: Both CL86-C fixtures return raw100 versus EDS default0; current readback is not a factory-default or time-unit claim. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5616,7 +5616,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Fixture observation 2026-11-02: Both CL86-C fixtures return raw0 versus EDS default100; current readback does not establish zero behavior. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7172,7 +7172,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7242,7 +7242,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60640020, whereas the EDS default is 0x60610008; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -22522,7 +22522,7 @@
       {
         "id": "Q01",
         "feature": "Model and firmware binding / identity",
-        "required_evidence": "Retain drive label, selected CL/OL model, firmware identification and raw identity reads; compare 1009/100A, 1018:01..03, 2000/2001. Generic EDS IDs cannot select the exact model. A reviewed user selection must retain provenance. Raw identity acquisition may precede exact binding; this gate controls model-specific interpretation/effects, not passive discovery.",
+        "required_evidence": "Retain drive label, selected CL/OL model, firmware identification and raw identity reads; compare 1009/100A, 1018:01..03, 2000/2001. Generic EDS IDs cannot select the exact model. A reviewed user selection must retain provenance. Raw identity acquisition may precede exact binding; this gate controls model-specific interpretation/effects, not passive discovery. Physical acquisition 2026-11-02: user confirms both CL86-C labels. Nodes 1/2 return 1000 U32=0x00040192, 1009 U8=0x0C, 100A U8=0x20, 1018:00 U8=5, 1018:01..03 U32=0x1000/1/0 and 2000/2001 U16=0x0400/0x0200. 1009/100A widths contradict EDS U16; identity count exceeds EDS maximum4. Human version encoding, unique specimen identity and broader firmware applicability remain unresolved. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
         "owner_prompts": [
           19,
           37
@@ -22782,7 +22782,7 @@
       {
         "id": "Q17",
         "feature": "PDO eligibility / remapping / freshness",
-        "required_evidence": "Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples.",
+        "required_evidence": "Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples. Physical readback 2026-11-02: both CL86-C fixtures have TPDO1 type255, inhibit raw100, event raw0, count3, words60410010/60610008/60640020, COB-ID181/182. These current values differ from the EDS default template; no factory-default claim follows. No NMT state, mutation, timer unit/effect, persistence or sample-retirement boundary was established. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
         "owner_prompts": [
           17,
           18

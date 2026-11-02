@@ -1,0 +1,1 @@
+CAN ready bitrate=1000000 TX17 RX16 S18; no request

@@ -23,6 +23,12 @@ contract; its audit and precise Q17 evidence requirements are recorded.
 [Prompt 19](reports/prompt_19.md) is Partial: all 30 assigned raw read rows are
 implemented; Q20 still blocks a documented non-consuming probe.
 
+The [S2 connection checkpoint](reports/2026-11-02_s2_live_connection.md) now
+provides 20 successful raw uploads on each of nodes 1/2 through the complete
+UART/core-0/TWAI port. Observed widths and initial TPDO1 contents remain raw
+evidence: no PDO writes or motor actions were sent. Prompt 18 implementation,
+Q17 mutation applicability, Q20 read effects and motor qualification stay pending.
+
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
 [PROGRESS](prompts/PROGRESS.md) owns stage status. This roadmap gives executable
 milestones, not another dependency graph. Execute numeric order among ready
@@ -52,9 +58,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 24 | Urgent/cancel/recovery | Owned mechanisms implemented/tested; Partial only on inherited 23/19/Q20. [Report](reports/prompt_24.md) retains real-adapter and remote-session limits. |
 | 25 | Passive health/statistics | Owned software implemented/tested: cached projection, exact saturating counters/reset, eight copied diagnostics; Partial only on inherited 24/23/19/Q20. [Report](reports/prompt_25.md). No drive or machine-health policy is inferred. |
 | 26 | Shared native application and fake/offline examples | Owned software implemented/tested; Partial only on inherited 19/25/Q20. [Application contract](native_application.md), [report](reports/prompt_26.md). |
-| 27 | Pinned TWAI adapter | Owned software and ESP-IDF 5.5.5 S3 compile delivered; Partial on inherited 24/26/Q20. [Report](reports/prompt_27.md). No physical qualification. |
-| 28 | Shared Arduino/ESP-IDF application | Owned software and three real compile/link gates delivered; Partial only on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). Board configuration stays explicit; no physical qualification. |
-| 29 | Evidence harness, fixture record and conflict acquisition | Owned software readiness implemented and host/firmware checked; Partial on inherited 19/28 Q20 and conditional acquisition. [Report](reports/prompt_29.md), [exact measurement gates](device_conflicts.md). No live qualification or selected state-changing experiment. |
+| 27 | Pinned TWAI adapter | Reviewed ESP-IDF 5.5.5 S2/S3 port and compile evidence; Partial on inherited 24/26/Q20. [Report](reports/prompt_27.md). Bounded S2 exchanges observed; broader physical qualification pending. |
+| 28 | Shared Arduino/ESP-IDF application | Arduino/S3 IDF/S2 bench/isolated component build gates; Partial on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). S2 uses explicit fixture configuration and UART; P4 complete firmware remains pending. |
+| 29 | Evidence harness, fixture record and conflict acquisition | Typed and raw finite collectors implemented and host/firmware checked; [two-node S2 raw acquisition](reports/2026-11-02_s2_live_connection.md) observed. Partial on Q20 and remaining [measurement gates](device_conflicts.md); no PDO mutation or motor qualification. |
 | 30 | State interpretation, enable/release | Partial: checked documentary decoder implemented. [Enable admission provenance and release command](drive_actions.md) remain unresolved; action lifecycles/tests pending. |
 | 31 | Stop actions and urgent owner integration | Partial: conditional 000F halt/quick-stop command and fresh not-running report implemented; [broader state/firmware gates](stop_actions.md) remain. No enabling preamble. |
 | 32 | Fault/reference actions | Partial: conditional FF05 alarm clear and zero-only counter sequence implemented with exact owner/reference handoff. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
@@ -64,7 +70,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |
 | 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |
 | 45-46 | Integrated faults and FieldCore-like/alternate-drive consumers | Pending; test real resumed settings/remap through owner and preserve framework independence |
-| 47-48 | Finite physical tests and sustained-load qualification | Pending; actual bench and authorization required; no measured CAN evidence exists |
+| 47-48 | Finite physical tests and sustained-load qualification | Pending; bounded two-node S2 connectivity exists, while motor/load and sustained qualification retain their separate fixture/evidence requirements |
 | 49-50 | Package/docs audit and final review | Pending; software verdict and physical qualification stay separate; no release publication implied |
 
 The assigned [prompt 19](prompts/19_typed_reads.md) retains its Q20 probe

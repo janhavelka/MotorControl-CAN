@@ -260,6 +260,76 @@ class FirmwareBuildTests(unittest.TestCase):
                 runner.run.assert_not_called()
                 runner.tool.assert_not_called()
 
+    def test_s2_sdk_requires_the_s2_compiler_with_the_same_hash_and_version_gates(self):
+        args, runner = self.sdk_fixture()
+        with mock.patch.object(checker, "ROOT", self.root):
+            checker.sdk_environment(args, runner, target="esp32s2")
+        runner.tool.assert_called_once_with("xtensa", "xtensa-esp32s2-elf-g++")
+        self.assertEqual(runner.summary["source_hashes_verified"], 2)
+
+    def run_s2_cli(self, *, omit_main=False, omit_raw=False, linked_target="esp32s2"):
+        project = self.root / "examples/s2_bench"
+        entry = project / "main/main.cpp"
+        entry.parent.mkdir(parents=True)
+        entry.write_text("// synthetic S2 entry\n", encoding="utf-8")
+        raw = project / "RawEvidence.cpp"
+        raw.write_text("// synthetic raw collector\n", encoding="utf-8")
+        core = self.root / "src/core.cpp"
+        core.parent.mkdir()
+        core.write_text("// synthetic core\n", encoding="utf-8")
+        runner = mock.Mock()
+        runner.summary = {}
+        runner.directory = self.base / "retained S2 output"
+        runner.run.return_value = "synthetic revision"
+
+        def build_inputs(*args, **kwargs):
+            build = args[5]
+            build.mkdir(parents=True)
+            expected = (self.expected() + [core] + ([] if omit_main else [entry]) +
+                        ([] if omit_raw else [raw]))
+            (build / "compile_commands.json").write_text(
+                json.dumps([{"file": str(path)} for path in expected]), encoding="utf-8")
+            (build / "project_description.json").write_text(
+                json.dumps({"target": linked_target}), encoding="utf-8")
+
+        argv = ["check_firmware.py", "--target", "s2", "--temporary-root", str(self.base)]
+        with mock.patch.object(checker, "ROOT", self.root), \
+             mock.patch.object(checker, "Runner", return_value=runner), \
+             mock.patch.object(checker, "firmware_inventory", return_value=self.inventory), \
+             mock.patch.object(checker, "sdk_environment", return_value=(["python", "idf.py"], {})) as sdk, \
+             mock.patch.object(checker, "idf_build", side_effect=build_inputs) as build, \
+             mock.patch.object(sys, "argv", argv), \
+             mock.patch("sys.stdout", new_callable=io.StringIO), \
+             mock.patch("sys.stderr", new_callable=io.StringIO):
+            result = checker.main()
+        self.assertEqual(sdk.call_args.kwargs["target"], "esp32s2")
+        self.assertEqual(build.call_args.kwargs["target"], "esp32s2")
+        self.assertEqual(build.call_args.args[3:5], ("s2", project))
+        self.assertEqual(build.call_args.args[5].parent.parent, self.base)
+        return result, runner
+
+    def test_s2_cli_checks_shared_core_and_bench_entry_inputs(self):
+        result, runner = self.run_s2_cli()
+        self.assertEqual(result, 0)
+        self.assertEqual(runner.summary["status"], "passed")
+        self.assertEqual(runner.summary["s2_target"], "esp32s2")
+        self.assertEqual(runner.summary["s2_compile_entries"], len(SHARED_SOURCES) + 3)
+
+    def test_s2_cli_rejects_a_build_missing_the_bench_entry(self):
+        result, runner = self.run_s2_cli(omit_main=True)
+        self.assertEqual(result, 1)
+        self.assertIn("main.cpp", runner.summary["error"])
+
+    def test_s2_cli_rejects_a_build_missing_the_raw_collector(self):
+        result, runner = self.run_s2_cli(omit_raw=True)
+        self.assertEqual(result, 1)
+        self.assertIn("RawEvidence.cpp", runner.summary["error"])
+
+    def test_s2_cli_rejects_a_different_linked_target(self):
+        result, runner = self.run_s2_cli(linked_target="esp32s3")
+        self.assertEqual(result, 1)
+        self.assertIn("different target", runner.summary["error"])
+
     def run_twai_cli(self, args, runner, environment=None):
         runner.directory = self.base / "TWAI build output"
 
@@ -383,6 +453,27 @@ class FirmwareBuildTests(unittest.TestCase):
         retained_elf = output / "MotorControlCANProbe.elf"
         self.assertEqual(summary["firmware_artifacts"]["idf"], str(retained_elf))
         self.assertTrue(Path(summary["firmware_artifacts"]["idf"]).is_file())
+
+    def test_idf_build_uses_requested_s2_target_and_retains_its_images(self):
+        runner = checker.Runner(self.base / "retained S2", "firmware-s2")
+        with tempfile.TemporaryDirectory(prefix="mccan-s2-") as temporary:
+            build = Path(temporary) / "build"
+
+            def linked_build(*args, **kwargs):
+                build.mkdir()
+                (build / "S2Bench.elf").write_bytes(b"synthetic ELF")
+                (build / "S2Bench.bin").write_bytes(b"synthetic BIN")
+
+            with mock.patch.object(runner, "run", side_effect=linked_build) as run:
+                checker.idf_build(runner, ["python", "idf.py"], {}, "s2", self.root,
+                                  build, target="esp32s2")
+            command = run.call_args.args[1]
+            self.assertIn("-DIDF_TARGET=esp32s2", command)
+            self.assertNotIn("-DIDF_TARGET=esp32s3", command)
+            self.assertEqual(command[-1], "build")
+            self.assertNotIn("flash", command)
+        self.assertTrue(Path(runner.summary["firmware_artifacts"]["s2"]).is_file())
+        self.assertEqual((runner.directory / "s2/S2Bench.bin").read_bytes(), b"synthetic BIN")
 
     def test_idf_failed_build_retains_partial_sdk_diagnostics_after_temporary_cleanup(self):
         runner = checker.Runner(self.base / "failed build evidence", "firmware-idf")

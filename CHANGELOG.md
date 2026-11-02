@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### S2 connection and bounded raw evidence
+
+- Add the pinned IDF 5.5.5 S2 UART/core-0/TWAI port and a separate OPTAK bench
+  image with silent startup, explicit controller start and one finite upload-only
+  experiment per node. No startup device request, retry or automatic recovery.
+- Add exact one-use unknown-effect upload grants and bounded server-indicated
+  raw counts without promoting service qualification or changing typed widths.
+- Retain 20 successful raw uploads on each of nodes 1/2, 40 RX/40 TX in total,
+  zero reported CAN errors/drops and 9852 bytes minimum remaining task stack.
+  Both devices indicate one byte for `1009=0x0C` and `100A=0x20`, versus EDS U16.
+- Correct the acquisition stack budget/preflight scratch and wait for the
+  preceding controller TX report before granting the next raw field. Preserve
+  failed attempts and the separate bounded post-terminal traffic tail.
+- Add S2 compile/input checks and CI coverage. The [connection report](docs/reports/2026-11-02_s2_live_connection.md)
+  separates observations from firmware meaning and qualification; no PDO mutation
+  or motor action was performed and Prompt 18 remains pending.
+
 ### Native position preparation
 
 - Add pure `preparePositionParameters` with owned exact intent/axis/settings, native target limits, explicit quantization and current reference freshness.

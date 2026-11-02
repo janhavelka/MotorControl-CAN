@@ -1,5 +1,12 @@
 # Requirement coverage after pure CAN/SDO checks
 
+The [live S2 checkpoint](reports/2026-11-02_s2_live_connection.md) adds complete
+S2 UART/TWAI firmware and physical two-node upload evidence to R04/R12/R17/R19/R20.
+One-use exact grants, server-indicated bounded raw lengths and authoritative TX
+retirement have host regressions. Version-width and actual PDO-layout conflicts
+remain explicit; no remap, NMT-state, motor or general firmware qualification
+follows. Prompt 18 remains blocked with its implementation obligations retained.
+
 [Prompt 33](reports/prompt_33.md) adds checked native position-parameter arithmetic and owned target/axis/settings snapshots to R06/R13/R20. This produces no service work and does not implement finite absolute/relative moves. Acceptance/completion, relative wire semantics and a supported post-trigger stop remain gated in the [guide](position_parameters.md).
 
 [Prompt 32](reports/prompt_32.md) adds conditional fault-clear and zero-only
@@ -24,14 +31,16 @@ command/effects. Both lifecycles and their action-specific tests remain pending.
 
 The [connected-board intake](reports/2026-11-02_s2_bench_intake.md) adds actual
 USB/design facts to R19 and S2/P4 isolated core compile/link evidence to R04/R20.
-It does not establish target communication, complete S2/P4 firmware support or
-physical qualification; [platform coverage](firmware_examples.md) keeps these
+That original intake did not establish target communication; the S2 checkpoint
+above now does. P4 firmware support and wider physical qualification remain
+pending; [platform coverage](firmware_examples.md) keeps these
 separate.
 
 [Prompt 29](reports/prompt_29.md) delivers its offline evidence-readiness scope:
 one typed application/owner path, retained finite acquisitions, loss/failure
-tests and native/firmware builds. Physical acquisition and qualification remain
-pending; the [conflict table](device_conflicts.md) keeps Q01-Q21 open with exact
+tests and native/firmware builds. The later S2 checkpoint supplies raw acquisition,
+while qualification remains pending; the [conflict table](device_conflicts.md)
+keeps Q01-Q21 open with exact
 measurements and conditional experiment prerequisites. No firmware capability
 or canonical read-effect policy changed.
 

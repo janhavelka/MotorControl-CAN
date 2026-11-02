@@ -62,7 +62,8 @@ bool SdoClient::eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t now)
     ServiceEligibility eligibility;
     return serviceEligibility(channels_[anchor].network, now, eligibility) &&
         (eligibility.ordinarySdo || (eligibility.nonChangingProbe && work.direction == SdoDirection::UPLOAD &&
-                                    work.readEffect == SdoReadEffect::REVIEWED_NON_CHANGING));
+            (work.readEffect == SdoReadEffect::REVIEWED_NON_CHANGING ||
+             experimentMatches(slot, work, now, false) || experimentMatches(slot, work, now, true))));
 }
 
 bool SdoClient::validNmt(NmtRequestId id) const {

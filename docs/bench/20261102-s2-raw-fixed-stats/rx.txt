@@ -1,0 +1,1 @@
+STATS running=1 inhibited=0 rx=40 tx=40 dropped=0 errors=0 flags=00000000 stackFree=9852

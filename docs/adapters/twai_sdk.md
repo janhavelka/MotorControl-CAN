@@ -3,7 +3,8 @@
 The selected interface is the ESP-IDF **v5.5.5 node API** in `esp_twai.h` and
 `esp_twai_onchip.h`, reviewed at commit
 `b774170ff46c393eeb5e495ea37936038d3f4f4f`. The initial SDK implementation targets
-ESP32-S3. The installed portable library has no ESP-IDF, Arduino or board
+ESP32-S3; [the S2 review](twai_esp32s2.md) now covers that target separately.
+The installed portable library has no ESP-IDF, Arduino or board
 dependency. See [the adapter guide](../../adapters/twai/README.md) for application
 ownership and configuration.
 

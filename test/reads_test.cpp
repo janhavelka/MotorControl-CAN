@@ -400,7 +400,7 @@ void wrongServiceAndTime() {
     L::ReadContext c;
     CHECK(L::prepareIdentity(c, target(), 9, 10, 10000, options()));
     C::SdoCompletion good = success(c, 0x12340192, 11, 12);
-    for (unsigned i = 0; i < 37; ++i) {
+    for (unsigned i = 0; i < 38; ++i) {
         C::SdoCompletion e = good;
         switch (i) {
         case 0:
@@ -513,6 +513,10 @@ void wrongServiceAndTime() {
             break;
         case 36:
             e.nodeGeneration = 0;
+            break;
+        case 37:
+            // Matching bytes/count do not turn raw experiment evidence into a typed read.
+            e.transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
             break;
         }
         const Saved<L::ReadContext> before(c);

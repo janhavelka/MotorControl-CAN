@@ -14,6 +14,11 @@ enum class SdoReadEffect : uint8_t {
     UNQUALIFIED, ///< Upload may change/consume device state; preserve possible effects.
     REVIEWED_NON_CHANGING ///< Applicable source review establishes no drive-changing effect.
 };
+/** Upload representation policy; no policy establishes an object's native type. */
+enum class SdoUploadSize : uint8_t {
+    EXACT, ///< size is the exact expected count, including reviewed unsized scalar prefixes.
+    SERVER_INDICATED ///< Experimental raw upload: size is capacity, successful count is retained.
+};
 /** Native service terminal cause, separate from local admission rejection and drive state. */
 enum class SdoOutcome : uint8_t {
     SUCCESS, ///< Matching SDO completed; a download acknowledgement is not motion completion.
@@ -37,7 +42,8 @@ struct SdoTransfer {
     uint16_t index = 0; ///< Explicit reviewed object index.
     uint8_t subindex = 0; ///< Explicit object subindex.
     SdoDirection direction = SdoDirection::UPLOAD; ///< Selected CANopen service direction.
-    uint8_t size = 0; ///< Exact expected upload/download size, 1..32 bytes; scalar widths are 1..4.
+    uint8_t size = 0; ///< Exact size or SERVER_INDICATED upload capacity, 1..32 bytes.
+    SdoUploadSize uploadSize = SdoUploadSize::EXACT; ///< Raw capacity mode needs an exact experiment grant.
     uint8_t data[32] = {}; ///< Owned download bytes [0,size); ignored for an upload.
     SdoReadEffect readEffect = SdoReadEffect::UNQUALIFIED; ///< Independent reviewed upload policy.
     bool allowSegmentedUpload = true; ///< False requires explicit unsupported settlement if discovered.
@@ -62,7 +68,7 @@ struct SdoCompletion {
     uint32_t abortCode = 0; ///< Full raw server/client abort; never narrowed through Status::detail.
     int32_t stackReturn = 0; ///< Selected engine return, independent of the raw abort.
     uint8_t data[32] = {}; ///< Owned upload bytes [0,size) on success; otherwise no value is published.
-    uint8_t size = 0; ///< Exact successful upload byte count; zero otherwise.
+    uint8_t size = 0; ///< Actual successful upload count; exact expected size under EXACT, zero on failure.
     Frame reply; ///< Last received matching frame, copied before callback; inspect only if replyValid.
     bool replyValid = false; ///< Raw response envelope exists; not a claim that it was well formed.
     bool clientAbortQueued = false; ///< Cleanup was staged at publication; never claims it was sent.

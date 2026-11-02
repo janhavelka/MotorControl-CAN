@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "reviewed_date": "2026-11-01",
+  "reviewed_date": "2026-11-02",
   "sdk": {
     "repository": "https://github.com/espressif/esp-idf",
     "tag": "v5.5.5",
     "commit": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
     "interface": "esp_twai.h and esp_twai_onchip.h",
-    "target": "ESP32-S3",
+    "target": "ESP32-S2 and ESP32-S3",
     "license": "Apache-2.0"
   },
   "arduino": {
@@ -137,6 +137,26 @@
       "path": "components/freertos/FreeRTOS-Kernel/include/freertos/task.h",
       "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/FreeRTOS-Kernel/include/freertos/task.h",
       "sha256": "8b908b964d2c87377838762478253eec04312b985e6bb680bacd3f03ab253897"
+    },
+    {
+      "path": "components/hal/esp32s2/include/hal/twai_ll.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/esp32s2/include/hal/twai_ll.h",
+      "sha256": "a5225ed7a77b3a35d77157fb273aae2234d1a00a53190f154f141009845b0710"
+    },
+    {
+      "path": "components/soc/esp32s2/include/soc/soc_caps.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s2/include/soc/soc_caps.h",
+      "sha256": "eb63bc6fa8629dd187bcb7427975d2157e2b677f4cbcb308463590ae56ff20b3"
+    },
+    {
+      "path": "components/esp_hw_support/port/esp32s2/esp_clk_tree.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_hw_support/port/esp32s2/esp_clk_tree.c",
+      "sha256": "001f04669426ca08e87cd199e26a422534615314dbe562826369c9ef2d6020db"
+    },
+    {
+      "path": "components/soc/esp32s2/include/soc/gpio_num.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s2/include/soc/gpio_num.h",
+      "sha256": "ff138e72bb25df00ad64b0513bc2114fc04aecbda3db8410864b72d9ced3c2d0"
     }
   ],
   "documentation_urls": [
@@ -146,6 +166,7 @@
   "notes": [
     "Hashes identify original upstream bytes fetched at the recorded commit. No SDK source copies are included in this repository.",
     "Legacy twai.c and deprecated type definitions are retained as source references for the rejected receive wrapper; the adapter uses only the node API.",
-    "Installed paths record this local audit, not a portable build requirement."
+    "Installed paths record this local audit, not a portable build requirement.",
+    "ESP32-S2 target review: docs/adapters/twai_esp32s2.md. Installed SDK C:/pio/packages/framework-espidf matches all retained hashes; the four added S2 files were also compared byte-for-byte with the pinned upstream URLs."
   ]
 }

@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT
 #include "EspProbePlatform.h"
-#include "driver/usb_serial_jtag.h"
 #include "esp_idf_version.h"
 #include "esp_timer.h"
-#include "hal/usb_serial_jtag_ll.h"
 #include "sdkconfig.h"
+#if CONFIG_IDF_TARGET_ESP32S2
+#include "driver/uart.h"
+#else
+#include "driver/usb_serial_jtag.h"
+#include "hal/usb_serial_jtag_ll.h"
+#endif
 
 #if ESP_IDF_VERSION != ESP_IDF_VERSION_VAL(5, 5, 5)
-#error "USB platform requires reviewed ESP-IDF 5.5.5"
+#error "Console platform requires reviewed ESP-IDF 5.5.5"
 #endif
-#if !CONFIG_IDF_TARGET_ESP32S3 || CONFIG_FREERTOS_SMP
-#error "USB platform requires the reviewed ESP32-S3 non-SMP scheduler"
+#if (!CONFIG_IDF_TARGET_ESP32S3 && !CONFIG_IDF_TARGET_ESP32S2) || CONFIG_FREERTOS_SMP
+#error "Console platform requires reviewed ESP32-S2/S3 non-SMP scheduler"
+#endif
+#if CONFIG_IDF_TARGET_ESP32S2 && !CONFIG_ESP_CONSOLE_NONE
+#error "S2 UART0 platform requires the SDK console disabled for exclusive ownership"
 #endif
 
 namespace MotorControlCANExample {
@@ -30,6 +37,26 @@ bool EspProbePlatform::begin() noexcept {
         return false;
     task_ = task;
     core_ = core;
+#if CONFIG_IDF_TARGET_ESP32S2
+    if (uart_is_driver_installed(UART_NUM_0))
+        return false;
+    uart_config_t config = {};
+    config.baud_rate = 115200;
+    config.data_bits = UART_DATA_8_BITS;
+    config.parity = UART_PARITY_DISABLE;
+    config.stop_bits = UART_STOP_BITS_1;
+    config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    config.source_clk = UART_SCLK_DEFAULT;
+    diagnostics_.lastError = uart_param_config(UART_NUM_0, &config);
+    if (diagnostics_.lastError != ESP_OK)
+        return false;
+    diagnostics_.lastError =
+        uart_set_pin(UART_NUM_0, 43, 44, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    if (diagnostics_.lastError != ESP_OK)
+        return false;
+    // No TX ring: uart_tx_chars accepts only currently available FIFO capacity.
+    diagnostics_.lastError = uart_driver_install(UART_NUM_0, 256, 0, 0, nullptr, 0);
+#else
     if (usb_serial_jtag_is_driver_installed())
         return false;
     usb_serial_jtag_driver_config_t config = {};
@@ -39,6 +66,7 @@ bool EspProbePlatform::begin() noexcept {
     // service. Preserve status/FIFO contents, including initial TX-empty status.
     usb_serial_jtag_ll_disable_intr_mask(USB_SERIAL_JTAG_LL_INTR_MASK);
     diagnostics_.lastError = usb_serial_jtag_driver_install(&config);
+#endif
     ownsDriver_ = diagnostics_.lastError == ESP_OK;
     return ownsDriver_;
 }
@@ -73,7 +101,11 @@ bool EspProbePlatform::readByte(uint8_t& output) noexcept {
     if (!ownsDriver_ || !taskValid())
         return false;
     uint8_t byte = 0;
+#if CONFIG_IDF_TARGET_ESP32S2
+    if (uart_read_bytes(UART_NUM_0, &byte, 1, 0) != 1)
+#else
     if (usb_serial_jtag_read_bytes(&byte, 1, 0) != 1)
+#endif
         return false;
     output = byte;
     return true;
@@ -81,7 +113,13 @@ bool EspProbePlatform::readByte(uint8_t& output) noexcept {
 bool EspProbePlatform::writeByte(uint8_t byte) noexcept {
     if (!ownsDriver_ || !taskValid())
         return false;
+#if CONFIG_IDF_TARGET_ESP32S2
+    // Only this task uses UART0. Its SDK TX mutex is therefore uncontended;
+    // this call never waits for FIFO space or physical transmission completion.
+    if (uart_tx_chars(UART_NUM_0, reinterpret_cast<const char*>(&byte), 1) == 1)
+#else
     if (usb_serial_jtag_write_bytes(&byte, 1, 0) == 1)
+#endif
         return true;
     if (diagnostics_.writeRefused != UINT32_MAX)
         ++diagnostics_.writeRefused;
@@ -96,7 +134,11 @@ bool EspProbePlatform::stop() noexcept {
         return true;
     if (!taskValid())
         return false;
+#if CONFIG_IDF_TARGET_ESP32S2
+    diagnostics_.lastError = uart_driver_delete(UART_NUM_0);
+#else
     diagnostics_.lastError = usb_serial_jtag_driver_uninstall();
+#endif
     if (diagnostics_.lastError != ESP_OK)
         return false;
     ownsDriver_ = false;

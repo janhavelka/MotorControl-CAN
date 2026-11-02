@@ -386,7 +386,7 @@ void checkedReadbackEvidence() {
     CHECK(output.nodeGeneration == 2 && output.evidenceId == 99);
     for (unsigned i = 0; i < 6; ++i)
         CHECK(successful[i].transfer.index == (i < 2 ? 0x1400 : 0x1600));
-    for (unsigned test = 0; test < 21; ++test) {
+    for (unsigned test = 0; test < 22; ++test) {
         SdoCompletion results[11];
         std::memcpy(results, successful, sizeof(results));
         switch (test) {
@@ -411,6 +411,7 @@ void checkedReadbackEvidence() {
         case 18: results[4].nodeGeneration = 1; break;
         case 19: results[0].nodeGeneration = 0; break;
         case 20: results[5].admittedUs = results[5].completedUs + 1; break;
+        case 21: results[0].transfer.uploadSize = SdoUploadSize::SERVER_INDICATED; break;
         }
         const Retained<PdoMapEvidence> before(output);
         CHECK(!pdoMapFromReadback(results, 6, route, 2, 99, output));

@@ -9,6 +9,13 @@ what is actually evidenced. A [synthetic API/owner proof](reports/prompt_6.md) n
 exists; finite [raw Lichuan reads](reads.md) are now implemented. Missing
 device facts gate the smallest dependent feature, not all independent work.
 
+The [two-node S2 connection checkpoint](reports/2026-11-02_s2_live_connection.md)
+now retains 20 successful bounded raw uploads per node and zero reported CAN
+errors/drops. It establishes the connection and initial raw TPDO1 readback,
+without closing Q01/Q17/Q20 or completing Prompt 18. Both `1009` and `100A`
+returned one byte rather than the EDS U16; reconcile applicability before typed
+metadata changes. No PDO mutation or motor action has been performed.
+
 Prompt 24 implements the owner urgent/cancel/recovery mechanisms and their
 adversarial host checks. Prompt 27 implements checked SDK node destruction and fake retirement; physical retirement qualification remains pending;
 drive stop integration remains 31. Controller recovery cannot close Q18/Q17
@@ -30,7 +37,7 @@ stage Partial; no owned owner mechanism is deferred. See [report](reports/prompt
 | D09 | Node 2203 activation/DIP precedence, live COB-ID changes, 2300 save/reset completion and 2301 reset trigger/rearm are incomplete | Q13/Q15/Q16: 29/32/38/39 separate volatile, observed and persistent state; manual reset-bit return is not an established edge/pulse. No hidden save/restart, delay guess or replay. |
 | D10 | No drive-side host-loss stop guarantee; 1017 default 0 and missing 1016 do not prove one | Q18: 15/25/29 separate observed liveness, service health and physical behavior. Scalar widths also do not establish all-expedited uploads; 13 handles actual service form. |
 | D11 | Reused PDO ID/DLC can accept delayed old semantics despite a new host generation | 17/18/24/38/45: prove an applicable transition/retirement boundary, distinct route or observable marker; keep ambiguous samples unqualified |
-| D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware | Q01: 29/37 retain explicit model provenance; raw discovery may precede binding. Four model entries distinguish OL no-encoder hardware from unknown software capability. Prompt 4's N5/EPOS4 contrasts are documentary evidence, not installed profiles. |
+| D12 | Generic EDS identity does not bind every CL/OL variant or installed firmware; both connected specimens return one byte for EDS-U16 `1009/100A` | Q01: reconcile retained raw `0x0C/0x20` with applicable manufacturer firmware/type evidence; preserve original EDS and typed widths. 29/37 retain explicit model provenance; no human version string is inferred. N5/EPOS4 contrasts remain documentary, not installed profiles. |
 | D13 | Read consumption and complete 60FD bit layout are not established by source access flags | Q20/Q19: 19 implements raw values with unknown effects. Its non-consuming probe remains open until applicable read-effect evidence exists. Do not copy 2101 bits or infer a non-consuming read. |
 | D14 | No complete local/remote settlement boundary for reopening an unresolved Lichuan SDO channel; no proven second server channel | 14 implements permanent quarantine and explicit unsupported capabilities. Q18/Q16/Q20 plus model provenance gate any later reopening: prove old TX/RX retirement, server session bounds and permitted confirmation, not a quiet delay or host epoch. See [source evidence](reports/prompt_14_sources.md). |
 | D15 | Lichuan applicability of standard variable/dynamic remapping, device restrictions and activation/readback remain unconfirmed | Q17: [Prompt 18 is Blocked](reports/prompt_18.md#fresh-independent-audit). Confirm the selected subset, then implement its typed sequence and every-step failures in 18. Timer/SYNC facts gate only dependent settings; sample qualification stays separate. Keep persistence effects explicit. |
@@ -65,11 +72,11 @@ resolve the above facts by themselves.
 | ID | Current limit | Owner / next action |
 | --- | --- | --- |
 | T01 | Minimal native package, registered proofs and verification workflow exist | Current quick/full and package gates validate software; the planning checker validates original evidence. See the [maintained gate table](verification.md). |
-| T02 | Local Clang/MSVC and GCC sanitizer runtimes absent; SDK requires explicit environment | GCC/Clang sanitizer gates passed in Linux CI. Local requests for unavailable tools fail honestly; 27 verifies installed IDF 5.5.5/XTensa tools; 28 builds Arduino/IDF firmware and the isolated component with those pins; physical tests remain unperformed. MSVC is not a current gate. |
+| T02 | Local Clang/MSVC and GCC sanitizer runtimes absent; SDK requires explicit environment | GCC/Clang sanitizer gates passed in Linux CI. Local requests for unavailable tools fail honestly; IDF 5.5.5 builds cover Arduino/S3 IDF/S2 bench and the isolated component. Bounded S2 connectivity is observed separately; broader physical qualification remains pending. MSVC is not a current gate. |
 | T03 | Strict Doxygen 1.13.2 selected and tested on Windows and Linux | 8 complete: exact release/source pin and real documentation failures checked; maintain the pin and warning policy with future public APIs |
-| H01 | Board testing authorized; connected fixture not electrically/session qualified | [Actual S2 intake](reports/2026-11-02_s2_bench_intake.md) establishes USB/design facts and reported node2/node1 at 1 Mbit/s. Resolve duplicate COM15, rail/flicker measurements, cable/reference continuity and endpoint termination before target/CAN work. Read-effect/experiment admission and independent control remain necessary; no drive acquisition performed. |
-| T04 | Requested S2/S3/P4 platform coverage | Core/component compile/link passes for S2/S3/P4. Extend 27/28 with S2 UART/single-core support, explicit silent/listen-only control, target-specific S2/P4 TWAI retirement evidence, P4 silicon/USB configuration and registered build/test matrix. Current complete firmware supports S3 only; no hardware target is qualified. |
-| H02 | No physical drive qualification, load/service-gap measurements or sustained tests | 47-48 run separately authorized finite/stress campaigns after software prerequisites; report exact fixture/model/firmware |
+| H01 | Bounded S2/two-drive connection observed; electrical and remote-session qualification remain separate | [Live evidence](reports/2026-11-02_s2_live_connection.md) records COM15 upload/console and two 20-upload raw plans at 1 Mbit/s. Retain cable/reference, termination resistance, transient-power and applicable session facts for further work. Unknown read effects and raw identity do not grant another experiment or motor operation. |
+| T04 | Requested S2/S3/P4 platform coverage | S2 UART/core-0/TWAI port and explicit silent-start bench image implemented with registered build/tests; S3 retains USB/core-1. Core/component compile/link passes for P4, but its TWAI retirement, silicon/USB configuration and full firmware build remain pending. No platform has complete physical qualification. |
+| H02 | No motor/load or sustained qualification; short S2 raw exchanges have service-gap/stack observations | 47-48 retain finite/stress campaigns and exact fixture/model/firmware requirements. Observed 9852-byte remaining stack and zero errors/drops do not bound future action paths or sustained load. |
 
 Close an item only with its named evidence. Update a newly affected prompt to
 Partial/Blocked when necessary, keep its remaining work visible, and continue

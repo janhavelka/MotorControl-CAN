@@ -355,6 +355,20 @@ void exactSuccessAndRetention() {
     kept.unchanged(*rig.evidence.record());
     CHECK(rig.evidence.release() && !rig.evidence.record());
     CHECK(rig.evidence.request(rig.plan(), rig.now) == E::EvidenceAdmission::INVALID);
+    // Preflight may reuse the unoccupied record's storage, but failed app
+    // admission must expose neither the old record nor the rejected candidate.
+    E::SequenceId held;
+    CHECK(rig.owner.beginSequence(rig.app.selected()->channel.binding, 2, rig.now, held));
+    const Saved<L::ReadContext> empty(rig.app.readContext());
+    const unsigned beforeRejected = rig.wire.transmitted;
+    CHECK(rig.evidence.request(rig.plan(L::ReadKind::CONFIG, 2), rig.now) ==
+          E::EvidenceAdmission::INVALID);
+    CHECK(!rig.evidence.record() && !rig.evidence.release());
+    CHECK(rig.wire.transmitted == beforeRejected && rig.owner.resources().reservations == 1);
+    empty.unchanged(rig.app.readContext());
+    CHECK(rig.owner.sequence(held) && rig.owner.releaseSequence(held));
+    // Refusal consumed no acquisition identity; the same exact plan can start
+    // once the other producer's reservation is released, without device I/O.
     CHECK(rig.evidence.request(rig.plan(L::ReadKind::CONFIG, 2), rig.now) ==
           E::EvidenceAdmission::ACCEPTED);
     rig.finish();

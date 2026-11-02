@@ -220,7 +220,8 @@ Status pdoMapFromReadback(const SdoCompletion* results, size_t count, const PdoR
             transfer.channel.clientToServerId != results[0].transfer.channel.clientToServerId ||
             transfer.channel.serverToClientId != results[0].transfer.channel.serverToClientId ||
             transfer.index != index || transfer.subindex != subindex || transfer.size != width ||
-            transfer.direction != SdoDirection::UPLOAD || result.outcome != SdoOutcome::SUCCESS ||
+            transfer.direction != SdoDirection::UPLOAD || transfer.uploadSize != SdoUploadSize::EXACT ||
+            result.outcome != SdoOutcome::SUCCESS ||
             !result.protocolAcknowledged || result.size != width || result.abortValid ||
             result.nodeGeneration != nodeGeneration || result.admittedUs > result.completedUs)
             return invalid("PDO readback lacks matching successful uploads");

@@ -1,4 +1,4 @@
-# ESP32-S3 TWAI adapter
+# ESP32-S2/S3 TWAI adapter
 
 This application adapter uses the ESP-IDF v5.5.5 node API, pinned to
 `b774170ff46c393eeb5e495ea37936038d3f4f4f`. Arduino 3.3.11 with pioarduino
@@ -18,10 +18,12 @@ an external CAN transceiver suitable for the actual electrical interface, plus
 appropriate wiring and termination. RS UART/DE pins and an RJ45 connector do not
 establish CAN wiring. No drive node, bitrate or board pin is a working default.
 
-Initial support is ESP32-S3, Classical CAN, with power management and cache-safe
+Support is ESP32-S2 and ESP32-S3, Classical CAN, with power management and cache-safe
 TWAI ISR execution disabled. Keep the callback context and ISR storage in
 internal RAM. Task stacks, console buffers and optional traces remain
-application-owned; the portable API requires no PSRAM.
+application-owned; the portable API requires no PSRAM. The
+[S2-specific lifecycle proof](../../docs/adapters/twai_esp32s2.md) covers core 0,
+target GPIO restrictions and controller/interrupt retirement. P4 remains pending.
 
 Use normal acknowledgement semantics: self-test and loopback are disabled.
 Set `fail_retry_cnt=0`. Configure the SDK TX queue depth to one and submit only

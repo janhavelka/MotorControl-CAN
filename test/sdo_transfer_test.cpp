@@ -206,6 +206,129 @@ void expeditedTransfers() {
     CHECK(!client.nextTx(0, 1, unsent, unsentId));
 }
 
+void grantRaw(C::SdoClient& client, const C::SdoTransfer& transfer) {
+    CHECK(client.configure(0, route(), false, true));
+    C::NetworkRoute network;
+    network.binding = route().binding;
+    network.generation = 1;
+    network.heartbeatId = 0x701;
+    network.emcyId = 0x81;
+    CHECK(client.configureNetwork(0, network, C::NetworkObserver(), 0));
+    C::SdoRequestId rejected;
+    CHECK(!client.admit(0, transfer, 0, rejected));
+    CHECK(client.authorizeUploadExperiment(0, transfer, 1, 1, 0));
+}
+
+void boundedRawUploads() {
+    CHECK(work().uploadSize == C::SdoUploadSize::EXACT);
+    for (uint8_t width = 1; width <= 4; ++width) {
+        C::SdoClient client;
+        C::SdoTransfer transfer = work(32);
+        transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+        grantRaw(client, transfer);
+        C::SdoRequestId rejected;
+        C::SdoTransfer changed = transfer;
+        changed.uploadSize = C::SdoUploadSize::EXACT;
+        CHECK(!client.admit(0, changed, 0, rejected));
+        changed = transfer;
+        --changed.size;
+        CHECK(!client.admit(0, changed, 0, rejected));
+        const C::SdoRequestId id = admit(client, transfer);
+        take(client, 0);
+        M::Frame response = reply(static_cast<uint8_t>(0x43 | ((4 - width) << 2)));
+        const uint8_t bytes[] = {0x0c, 0x81, 0x42, 0xfe};
+        std::memcpy(response.data + 4, bytes, 4);
+        CHECK(client.receive(response, 1));
+        terminal(client, id, C::SdoOutcome::SUCCESS);
+        CHECK(client.result(id)->size == width && client.result(id)->transfer.size == 32);
+        CHECK(!std::memcmp(client.result(id)->data, bytes, width));
+        CHECK(client.result(id)->effectPossible && !client.result(id)->effectUncertain);
+        CHECK(client.node(0)->sdo.present && !client.node(0)->serviceQualification.present);
+        CHECK(client.release(id));
+        CHECK(!client.admit(0, transfer, 2, rejected));
+        CHECK(!client.admit(0, work(), 2, rejected));
+        CHECK(!client.authorizeUploadExperiment(0, transfer, 1, 2, 2));
+    }
+    // Raw capacity is not an ordinary service permission, even on a confirmed channel.
+    {
+        C::SdoClient client;
+        CHECK(client.configure(0, route(), true, true));
+        C::SdoTransfer transfer = work();
+        transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+        C::SdoRequestId rejected;
+        CHECK(!client.admit(0, transfer, 0, rejected));
+        transfer.direction = C::SdoDirection::DOWNLOAD;
+        CHECK(!client.admit(0, transfer, 0, rejected));
+        transfer.uploadSize = static_cast<C::SdoUploadSize>(255);
+        CHECK(!client.admit(0, transfer, 0, rejected));
+    }
+    for (unsigned malformed = 0; malformed < 3; ++malformed) {
+        C::SdoClient client;
+        C::SdoTransfer transfer = work(malformed == 0 ? 1 : 4);
+        transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+        grantRaw(client, transfer);
+        const C::SdoRequestId id = admit(client, transfer);
+        take(client, 0);
+        CHECK(client.receive(reply(malformed == 0 ? 0x43 : malformed == 1 ? 0x42 : 0x4e), 1));
+        terminal(client, id, C::SdoOutcome::CLIENT_ABORT);
+        CHECK(client.result(id)->size == 0 && client.result(id)->replyValid);
+        CHECK(client.result(id)->abortCode == (malformed == 0 ? 0x06070012u : 0x05040001u));
+        CHECK(client.result(id)->effectUncertain && client.unresolved(0));
+    }
+    const uint8_t bytes[] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+    for (unsigned form = 0; form < 6; ++form) {
+        C::SdoClient client;
+        C::SdoTransfer transfer = work(8);
+        transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+        grantRaw(client, transfer);
+        const C::SdoRequestId id = admit(client, transfer);
+        take(client, 0);
+        M::Frame initial = reply(form == 1 || form == 3 || form == 5 ? 0x40 : 0x41);
+        initial.data[4] = form == 2 ? 9 : form == 4 ? 5 : 4;
+        CHECK(client.receive(initial, 1));
+        if (form == 2) {
+            terminal(client, id, C::SdoOutcome::CLIENT_ABORT);
+            CHECK(client.result(id)->abortCode == 0x06070012u);
+        } else {
+            CHECK(take(client, 2).data[0] == 0x60);
+            if (form == 3) {
+                CHECK(client.receive(segment(0x00, bytes, 7), 3));
+                CHECK(take(client, 4).data[0] == 0x70);
+                CHECK(client.receive(segment(0x1b, bytes + 7, 2), 5));
+            } else {
+                CHECK(client.receive(segment(form == 5 ? 0x17 : 0x07, bytes, 4), 3));
+            }
+            terminal(client, id, form < 2 ? C::SdoOutcome::SUCCESS : C::SdoOutcome::CLIENT_ABORT);
+            if (form < 2) {
+                CHECK(client.result(id)->size == 4 && !std::memcmp(client.result(id)->data, bytes, 4));
+                CHECK(!client.unresolved(0) && !client.node(0)->serviceQualification.present);
+            } else {
+                CHECK(client.result(id)->size == 0 && client.result(id)->effectUncertain);
+                CHECK(client.result(id)->abortCode == (form == 3 ? 0x06070012u :
+                                                       form == 4 ? 0x06070013u : 0x05030000u));
+            }
+        }
+    }
+    for (unsigned phase = 0; phase < 3; ++phase) {
+        C::SdoClient client;
+        C::SdoTransfer transfer = work(8);
+        transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+        grantRaw(client, transfer);
+        const C::SdoRequestId id = admit(client, transfer);
+        if (phase) take(client, 0);
+        if (phase == 2) {
+            M::Frame initial = reply(0x41);
+            initial.data[4] = 4;
+            CHECK(client.receive(initial, 1));
+            take(client, 2);
+        }
+        CHECK(client.cancel(id, 3));
+        terminal(client, id, C::SdoOutcome::CANCELLED);
+        CHECK(client.result(id)->size == 0 && client.result(id)->effectUncertain == (phase != 0));
+        CHECK(client.unresolved(0) == (phase != 0));
+    }
+}
+
 void segmentedUploads() {
     const uint8_t bytes[32] = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
                               17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32};
@@ -699,6 +822,7 @@ void outerQueueDeadline() {
 } // namespace
 
 int main() {
+    boundedRawUploads();
     admissionAndRoutes(); expeditedTransfers(); segmentedUploads(); segmentedDownloads();
     abortWhileStaged(); confirmationAfterReply(); malformedAndAbort();
     deadlinesAndCancellation();

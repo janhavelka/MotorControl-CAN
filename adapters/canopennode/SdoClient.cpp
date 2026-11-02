@@ -43,6 +43,17 @@ SdoExpectation expectation(const SdoTransfer& work) {
     out.direction = work.direction;
     return out;
 }
+bool sameUpload(const SdoTransfer& a, const SdoTransfer& b) {
+    return sameBinding(a.channel.binding, b.channel.binding) &&
+        a.channel.clientToServerId == b.channel.clientToServerId &&
+        a.channel.serverToClientId == b.channel.serverToClientId &&
+        a.operation == b.operation && a.request == b.request && a.step == b.step &&
+        a.index == b.index && a.subindex == b.subindex && a.size == b.size &&
+        a.uploadSize == b.uploadSize &&
+        a.direction == b.direction && a.readEffect == b.readEffect &&
+        a.allowSegmentedUpload == b.allowSegmentedUpload && a.deadlineUs == b.deadlineUs &&
+        a.queueTimeoutUs == b.queueTimeoutUs && a.responseTimeoutUs == b.responseTimeoutUs;
+}
 } // namespace
 
 bool SdoClient::configure(uint8_t slot, const SdoChannel& route, bool confirmed, bool fresh) {
@@ -178,6 +189,51 @@ bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
 const SdoChannel* SdoClient::channel(uint8_t slot) const {
     return slot < CHANNELS && channels_[slot].configured ? &channels_[slot].route : nullptr;
 }
+bool SdoClient::authorizeUploadExperiment(uint8_t slot, const SdoTransfer& input,
+                                         Generation nodeGeneration, uint32_t authorizationId,
+                                         uint64_t now) {
+    if (slot >= CHANNELS || now < lastUs_ ||
+        overlap(&input, sizeof input, this, sizeof *this)) return false;
+    Channel& c = channels_[slot];
+    const int anchor = networkAnchor(slot);
+    ServiceEligibility eligibility;
+    if (!c.configured || c.occupied || c.cleanup || c.unresolved || c.handoffLive ||
+        !authorizationId || authorizationId <= c.experimentAuthorization ||
+        (c.experimentAuthorization && (input.operation < c.experimentUpload.operation ||
+         (input.operation == c.experimentUpload.operation && input.step <= c.experimentUpload.step))) ||
+        !nodeGeneration || anchor < 0 || channels_[anchor].network.route.generation != nodeGeneration ||
+        controllerState_ == ControllerState::BUS_OFF || controllerState_ == ControllerState::RECOVERING ||
+        !serviceEligibility(channels_[anchor].network, now, eligibility) || !eligibility.nonChangingProbe ||
+        !validateSdoChannel(input.channel) || !sameBinding(input.channel.binding, c.route.binding) ||
+        input.channel.clientToServerId != c.route.clientToServerId ||
+        input.channel.serverToClientId != c.route.serverToClientId ||
+        !input.operation || !input.request || !input.step || !input.size || input.size > 32 ||
+        input.direction != SdoDirection::UPLOAD || input.readEffect != SdoReadEffect::UNQUALIFIED ||
+        (input.uploadSize != SdoUploadSize::EXACT && input.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
+        input.deadlineUs <= now || !input.queueTimeoutUs || !input.responseTimeoutUs)
+        return false;
+    c.experimentUpload = input;
+    c.experimentNodeGeneration = nodeGeneration;
+    c.experimentAuthorization = authorizationId;
+    c.experimentArmed = true;
+    lastUs_ = now;
+    return true;
+}
+void SdoClient::clearUploadExperiment(uint8_t slot) {
+    if (slot < CHANNELS) channels_[slot].experimentArmed = false;
+}
+bool SdoClient::experimentMatches(uint8_t slot, const SdoTransfer& work, uint64_t now,
+                                  bool admitted) const {
+    if (slot >= CHANNELS) return false;
+    const Channel& c = channels_[slot];
+    const int anchor = networkAnchor(slot);
+    return c.configured && !c.unresolved && anchor >= 0 &&
+        !channels_[anchor].network.exhausted &&
+        c.experimentNodeGeneration == channels_[anchor].network.route.generation &&
+        now < c.experimentUpload.deadlineUs &&
+        (admitted ? c.experimentActive && c.occupied && !c.terminal : c.experimentArmed) &&
+        sameUpload(work, c.experimentUpload);
+}
 bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
     if (slot >= CHANNELS || now < lastUs_ || !eligibleSdo(slot, work, now))
         return false;
@@ -189,10 +245,14 @@ bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t n
         work.request == 0 || work.step == 0 || work.size == 0 || work.size > 32 ||
         work.deadlineUs <= now || work.queueTimeoutUs == 0 || work.responseTimeoutUs == 0 ||
         (work.direction != SdoDirection::UPLOAD && work.direction != SdoDirection::DOWNLOAD) ||
+        (work.uploadSize != SdoUploadSize::EXACT && work.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
+        (work.uploadSize == SdoUploadSize::SERVER_INDICATED &&
+         !experimentMatches(slot, work, now, false)) ||
         (work.readEffect != SdoReadEffect::UNQUALIFIED &&
          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING) ||
-        (!c.confirmed && (work.direction != SdoDirection::UPLOAD ||
-                          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING)))
+        (!c.confirmed && !experimentMatches(slot, work, now, false) &&
+         (work.direction != SdoDirection::UPLOAD ||
+          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING)))
         return false;
     return true;
 }
@@ -204,6 +264,8 @@ bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     Channel& c = channels_[slot];
     if (c.occupied || c.cleanup)
         return false;
+    c.experimentActive = experimentMatches(slot, work, now, false);
+    if (c.experimentActive) c.experimentArmed = false;
     c.work = work;
     c.admittedUs = now;
     const int anchor = networkAnchor(slot);
@@ -258,9 +320,11 @@ void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t ret
     out.reply = c.lastReply;
     out.replyValid = c.replyValid;
     if (outcome == SdoOutcome::SUCCESS && c.work.direction == SdoDirection::UPLOAD) {
-        out.size = c.work.size;
+        out.size = c.work.uploadSize == SdoUploadSize::SERVER_INDICATED ? c.uploaded : c.work.size;
         std::memcpy(out.data, c.upload, out.size);
-        c.confirmed = true; // Fresh-session premise was required before any initial confirmation.
+        // Experimental permission establishes neither harmless read effects nor
+        // production admission. Preserve an already established confirmation only.
+        if (!c.experimentActive) c.confirmed = true;
     }
     c.cleanup = c.port.queueOccupied && c.port.queued.data[0] == 0x80 && now < c.work.deadlineUs;
     out.clientAbortQueued = c.cleanup;
@@ -343,7 +407,8 @@ void SdoClient::pump(Channel& c, uint64_t now) {
     if (c.port.sendFault) {
         finish(c, SdoOutcome::TRANSPORT_ERROR, now, static_cast<int32_t>(returned));
     } else if (returned == CO_SDO_RT_ok_communicationEnd) {
-        if (c.work.direction == SdoDirection::UPLOAD && c.uploaded != c.work.size)
+        if (c.work.direction == SdoDirection::UPLOAD &&
+            c.work.uploadSize == SdoUploadSize::EXACT && c.uploaded != c.work.size)
             abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_DATA_SHORT, now);
         else finish(c, SdoOutcome::SUCCESS, now, static_cast<int32_t>(returned));
     } else if (returned < 0) {
@@ -422,7 +487,27 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
         c.lastReply = f; c.replyValid = true;
         c.observation.disposition = SdoRxDisposition::PROCESSED;
         if (initial && f.data[0] != 0x80) {
-            if (c.work.size <= 4) {
+            const bool raw = c.work.uploadSize == SdoUploadSize::SERVER_INDICATED;
+            if (raw && f.data[0] != 0x40 && f.data[0] != 0x41) {
+                // The selected engine derives expedited count from e/s/n bits.
+                // Without s, a raw capacity cannot establish the actual count.
+                if ((f.data[0] & 0xf3u) != 0x43) {
+                    abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_CMD, now);
+                    return true;
+                }
+                const uint8_t count = static_cast<uint8_t>(4 - ((f.data[0] >> 2) & 3));
+                if (count > c.work.size) {
+                    abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_DATA_LONG, now);
+                    return true;
+                }
+                SdoExpectation expected = expectation(c.work);
+                expected.width = count;
+                SdoReply checked;
+                if (!checkReply(f, expected, checked)) {
+                    abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_CMD, now);
+                    return true;
+                }
+            } else if (!raw && c.work.size <= 4) {
                 SdoReply checked;
                 const Status status = checkReply(f, expectation(c.work), checked);
                 if (!status) {
@@ -432,8 +517,8 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
                     return true;
                 }
                 c.unsizedExpedited = checked.kind == SdoReplyKind::EXPEDITED_UPLOAD && !checked.sizeIndicated;
-            } else if ((c.work.direction == SdoDirection::DOWNLOAD && f.data[0] != 0x60) ||
-                       (c.work.direction == SdoDirection::UPLOAD && f.data[0] != 0x40 && f.data[0] != 0x41)) {
+            } else if (!raw && ((c.work.direction == SdoDirection::DOWNLOAD && f.data[0] != 0x60) ||
+                       (c.work.direction == SdoDirection::UPLOAD && f.data[0] != 0x40 && f.data[0] != 0x41))) {
                 abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_CMD, now);
                 return true;
             }
@@ -443,8 +528,10 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
                     abort(c, SdoOutcome::UNSUPPORTED, CO_SDO_AB_UNSUPPORTED_ACCESS, now);
                     return true;
                 }
-                if (f.data[0] == 0x41 && word(f.data + 4) != c.work.size) {
-                    abort(c, SdoOutcome::CLIENT_ABORT, CO_SDO_AB_TYPE_MISMATCH, now);
+                if (f.data[0] == 0x41 && (raw ? word(f.data + 4) > c.work.size :
+                                               word(f.data + 4) != c.work.size)) {
+                    abort(c, SdoOutcome::CLIENT_ABORT,
+                          raw ? CO_SDO_AB_DATA_LONG : CO_SDO_AB_TYPE_MISMATCH, now);
                     return true;
                 }
             }
@@ -452,7 +539,8 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
                    (f.data[0] & 0xE0) == 0 && (f.data[0] & 0x10) == c.engine.toggle) {
             const uint8_t count = static_cast<uint8_t>(7 - ((f.data[0] >> 1) & 7));
             if (count > c.work.size - c.uploaded ||
-                ((f.data[0] & 1) && count != c.work.size - c.uploaded)) {
+                ((f.data[0] & 1) && c.work.uploadSize == SdoUploadSize::EXACT &&
+                 count != c.work.size - c.uploaded)) {
                 abort(c, SdoOutcome::CLIENT_ABORT,
                       count > c.work.size - c.uploaded ? CO_SDO_AB_DATA_LONG : CO_SDO_AB_DATA_SHORT, now);
                 return true;

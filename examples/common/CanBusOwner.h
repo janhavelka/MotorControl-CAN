@@ -377,6 +377,15 @@ class CanBusOwner {
      * frames enter normal adapter routing exactly once before observer copies.
      */
     bool service(uint64_t nowUs, const ServiceBudget& budget) noexcept;
+    /** Inspect authoritative local TX retirement for one configured adapter slot.
+     * @param[in] slot Existing fixed SDO channel slot, independent of wire node ID.
+     * @return True only when native software staging is empty and the owner has
+     * no external handoff awaiting a final report or exact retirement proof.
+     * Invalid/unconfigured slots return false. Queued owner requests may still
+     * exist: this is not an idle check or permission to replay/requalify work.
+     * Cached serialized inspection only; no I/O, clock, callback or mutation.
+     */
+    bool localTxRetired(uint8_t slot) const noexcept;
     /** Non-consuming canonical result view.
      * @param[in] id Exact admitted request identity.
      * @return Immutable pointer until release/destruction; null pending/stale/foreign.

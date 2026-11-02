@@ -1,7 +1,7 @@
 {
   "sdk": "ESP-IDF 5.5.5",
   "commit": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
-  "target": "ESP32-S3",
+  "target": "ESP32-S2 / ESP32-S3",
   "license": "Apache-2.0",
   "sources": [
     {
@@ -33,7 +33,27 @@
       "path": "components/freertos/esp_additions/include/freertos/idf_additions.h",
       "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/freertos/esp_additions/include/freertos/idf_additions.h",
       "sha256": "a89df54c936b87c3d77a380516e32fc8aadbb354b1982259e5afd0aef0cafbf2"
+    },
+    {
+      "path": "components/esp_driver_uart/src/uart.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_uart/src/uart.c",
+      "sha256": "660092e007c6f9c691e1597baf7012070926e407b1b93daf60398bcb152a88a8"
+    },
+    {
+      "path": "components/esp_driver_uart/include/driver/uart.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_driver_uart/include/driver/uart.h",
+      "sha256": "2d9f66d8c11d06c7a5caa01be95fd7dac10dcd6b5fa0475fefa658b5183eef85"
+    },
+    {
+      "path": "components/soc/esp32s2/uart_periph.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s2/uart_periph.c",
+      "sha256": "a921331a9e3157acefdb55188317223cf7ec630cbe1550c0b8267dc706e4a930"
+    },
+    {
+      "path": "components/soc/esp32s2/include/soc/uart_pins.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s2/include/soc/uart_pins.h",
+      "sha256": "310044baec226358d323b97b5301e54406c08da2176641f1c59f5a0f3c308457"
     }
   ],
-  "scope": "USB byte acceptance, silent RX overflow, interrupt ownership, signed 64-bit time and static task stack byte units. No source copies bundled."
+  "scope": "S3 USB and S2 UART0 byte acceptance, unobserved RX overflow, exclusive task/interrupt ownership, signed 64-bit time and static task stack byte units. No source copies bundled."
 }

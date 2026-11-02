@@ -482,6 +482,10 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
     entered_ = false;
     return true;
 }
+bool CanBusOwner::localTxRetired(uint8_t slot) const noexcept {
+    const auto* port = services_.port(slot);
+    return port && !port->queueOccupied && !external_[slot].pending && !external_[slot].blocked;
+}
 const Completion* CanBusOwner::result(RequestId id) const noexcept {
     return valid(id) && slots_[id.slot].terminal ? &slots_[id.slot].completion : nullptr;
 }
