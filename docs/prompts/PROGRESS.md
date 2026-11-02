@@ -1,5 +1,11 @@
 # Prompt execution progress
 
+The [external coder handoff for19–22/29–33](handoff_19_33/README.md) divides the
+remaining work and mandatory prerequisite repairs into 22 executable packets,
+including explicit HIL diagnostics/reproduction and finite test authority. This
+is documentation prepared at 4ae93e3; none of those packets was executed while
+authoring it, and no implementation or qualification status is advanced.
+
 The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) is now in the promptset and active under [COMMON.md](COMMON.md) item 5. None of its work packets has started. Its findings were verified at `c329c7e`, before the S2 commits `7764c89` and `c643af8`; its note on changes since the baseline lists what to recheck.
 
 The [NMT/TPDO checkpoint](../reports/2026-11-02_nmt_pdo_checkpoint.md)
