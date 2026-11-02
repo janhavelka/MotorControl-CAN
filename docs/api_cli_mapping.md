@@ -21,6 +21,13 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 32 adds conditional `prepareClearAlarm` and zero-only
+`prepareSetDevicePosition`, using the installed `nextAction/advanceAction`.
+The [fault/reference guide](fault_reference_actions.md) defines literal writes,
+retained trigger/rearm evidence and the axis-aware `noteActionTransmission`
+overload. No corresponding CLI route is installed; the controlword reset route
+and unsupported device-position values do not gain fallback implementations.
+
 Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming checked
 STATUS and MONITORS reads for explicit documentary comparison. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is

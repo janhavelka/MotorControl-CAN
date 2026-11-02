@@ -276,5 +276,13 @@ int main() {
                               CANOPEN::SdoCompletion(), LICHUAN_C::StopKind::HALT,
                               14, 65, 100, stopOptions) || stop.state != ActionState::EMPTY)
         return 55;
+    if (LICHUAN_C::prepareClearAlarm(stop, LICHUAN_C::SettingsReservation(), state,
+                                    15, 65, 100, stopOptions) || stop.state != ActionState::EMPTY)
+        return 56;
+    const Status arbitraryPosition = LICHUAN_C::prepareSetDevicePosition(
+        stop, LICHUAN_C::SettingsReservation(), state, 1, AxisConfig(),
+        16, 65, 100, stopOptions);
+    if (arbitraryPosition.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
+        return 57;
     return 0;
 }

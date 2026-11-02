@@ -1,5 +1,9 @@
 # MotorControl-CAN documentation
 
+The [fault/reference action guide](fault_reference_actions.md) separates alarm
+clear, native counter zero, host origin and home, including retained failures
+and coordinate-generation handoff.
+
 The [conditional stop guide](stop_actions.md) specifies exact native commands,
 controller-report completion, owner handoff and remaining firmware gates.
 

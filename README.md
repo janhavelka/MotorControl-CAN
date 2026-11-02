@@ -1,5 +1,11 @@
 # MotorControl-CAN
 
+**Explicit fault and counter actions:** [alarm clearing and device zero](docs/fault_reference_actions.md)
+now use the same finite action lifecycle and owner. The supported alarm is
+documented position deviation `FF05`; device-position requests support zero only.
+Command history and coordinate uncertainty survive failures. Broader reset
+semantics and physical qualification remain pending under prompt 32.
+
 **Conditional stop path:** [halt and quick-stop actions](docs/stop_actions.md)
 now use one documented write followed by fresh controller-report observations
 through the existing owner. The supported predecessor is an evidenced `000F`

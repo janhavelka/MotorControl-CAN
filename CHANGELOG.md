@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fault clear and device-position zero
+
+- Add conditional `prepareClearAlarm` and zero-only `prepareSetDevicePosition`
+  through the existing action lifecycle, with exact ordered native writes and
+  fresh report-based completion. No enable, motion or factory-reset preamble.
+- Preserve original errors, raw status and each command terminal, including an
+  acknowledged trigger followed by a failed return-to-zero write.
+- Withdraw host origins, references and prepared targets before possible counter
+  trigger transmission; synchronize owner configuration before new-epoch reads.
+- Keep controlword reset, other fault classes and physical home/rearm/internal
+  resume semantics explicitly outside the implemented conditional scope.
+
 ### Conditional Lichuan stops
 
 - Add finite `prepareStop/nextAction/advanceAction` for the documented position-mode

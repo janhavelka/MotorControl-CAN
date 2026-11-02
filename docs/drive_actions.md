@@ -7,7 +7,9 @@ already acquired STATUS and MONITORS blocks through the existing checked
 no action work. Enable and release lifecycles remain unimplemented. The separate
 [conditional stop lifecycle](stop_actions.md) now uses common `ActionOperation.h`
 evidence and concrete `Actions.h` contexts; it does not establish either missing
-enable/release transition.
+enable/release transition. [Fault clear and counter zero](fault_reference_actions.md)
+also use this lifecycle with their own documented writes and report criteria;
+they do not supply release, home or factory-reset semantics.
 
 The [typed-read contract](reads.md) owns acquisition, read effects, target and
 epoch checks, age, observation windows and PDO provenance. The state getter

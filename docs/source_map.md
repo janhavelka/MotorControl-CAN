@@ -1,5 +1,12 @@
 # Live source and responsibility map
 
+## Fault and counter actions (prompt 32)
+
+| Responsibility | Implementation | Caller/test | Boundary |
+| --- | --- | --- | --- |
+| Explicit clear / zero lifecycle | Existing [Actions.h](../include/MotorControlCAN/profiles/lichuan_c/Actions.h) and [Actions.cpp](../src/profiles/lichuan_c/Actions.cpp) | [Real-owner reference-action suite](../test/reference_action_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | Ordered 2301 1/0 or 2302 0/1/0; individual retained terminals and new typed reports |
+| Counter coordinate withdrawal | Axis-aware transmission notice, existing [Axis.cpp](../src/Axis.cpp) and owner `advanceConfiguration` | Same suite: stale target/cache/reference and exact one epoch advance | No origin/home publication; failure cannot roll back withdrawn confidence |
+
 ## Conditional stops (prompt 31)
 
 | Responsibility | Implementation | Caller/test | Boundary |
