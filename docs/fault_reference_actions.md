@@ -24,11 +24,16 @@ EN86 PDF p18 and EDS `[2301]` define U16 `0` ineffective / `1` effective.
 The second write explicitly returns to the documented ineffective value. It is
 a library policy, **not** a manufacturer-specified pulse, edge or rearm rule.
 No hold time, auto-clear behavior or equivalence to controlword reset is known.
+`2301` has no documented arming zero: if a final `0` was never sent and the object
+is edge-triggered, which is undocumented, a later `1` would produce no edge (Q13).
 An acknowledged attempt that leaves the alarm present waits for new bounded
 observations until its deadline; it does not repeat the writes.
 
-EN86 p16 identifies `FF05` as position deviation and p20 lists that alarm as
-resettable. `FF01` overcurrent requires restart under the source's fault table;
+EN86 p16 identifies `FF05` as position deviation and p20 lists a position
+out-of-tolerance alarm as resettable. The two are linked only by name: p20 gives no
+code and no reset route, so that link is an inference. This guide also notes `603F`
+may retain its value, so a stale `FF05` could admit a clear for a later alarm; Q13
+keeps both open, and packet 17 corrects the action's error text. `FF01` overcurrent requires restart under the source's fault table;
 this API does not restart it. No `FF02..FF04` code mapping is inferred from LED
 counts. Other faults remain outside this action's admitted scope.
 

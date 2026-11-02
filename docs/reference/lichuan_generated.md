@@ -70,14 +70,14 @@ Gate bits in descriptors use Q01 at bit zero through Q21 at bit twenty. All are 
 | Q08 | Input filter coefficients / defaults | Establish meaning of 2400:0A versus Reserved and 2401..2407 units, equation, accepted bounds and effective timing. Read actual defaults; do not turn a coefficient into milliseconds or write the reserved field. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [21] |
 | Q09 | Tuning / current / feedback applicability | Obtain model-specific admissible values, units, loop prerequisites and effects for the selected 2500..2520 field. Establish motor current ratings separately; encoder/closed-loop controls need an actual feedback-capable model. No inferred autotune or torque interface. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [22] |
 | Q10 | One-byte mode / homing codes | Retain the raw byte; documented positive modes 1/3/6 and methods 17/18/24/29 have identical U8/I8 wire encoding. Obtain evidence before interpreting any high-bit/negative code or default method zero. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [19, 20, 36] |
-| Q11 | Enable / position trigger and ramp boundary | For the current mode/state establish retained-target behavior, enable/release effect, bit-4 trigger/rearm and target-acceptance evidence. Verify zero ramp behavior before accepting it; approximate 10 ms between example transitions is not a response/completion deadline. Post-cycle2026-11-02 both specimens report retained607A=5000 and60FF=120, with6061=0; enabling/retained-target effect remains unresolved. Finite read-only readiness inventory and raw links: docs/reports/2026-11-02_nmt_pdo_checkpoint.md. No executable motion controller or blind enable sequence is qualified. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [20, 30, 33, 35] |
+| Q11 | Enable / position trigger and ramp boundary | For the current mode/state establish retained-target behavior, enable/release effect, bit-4 trigger/rearm and target-acceptance evidence. Verify zero ramp behavior before accepting it; approximate 10 ms between example transitions is not a response/completion deadline. Post-cycle2026-11-02 both specimens report retained607A=5000 and60FF=120, with6061=0; enabling/retained-target effect remains unresolved. Finite read-only readiness inventory and raw links: docs/reports/2026-11-02_nmt_pdo_checkpoint.md. No executable motion controller or blind enable sequence is qualified. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [20, 30, 33, 35, 36] |
 | Q12 | Normal / emergency stop and 605D | Obtain current-state stop transitions, applicable 605D option meanings, ramp/deceleration behavior and observable completion. Measure latency separately. Never send 15 merely to prepare 271 or 11; absent 605A/6085 is not a fallback. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [31] |
 | Q13 | Fault-clear effect / rearm | Establish which faults are resettable, 6040 bit-7 assertion/manual-return behavior, 2301 trigger/rearm and equivalence or differences. Record current state; never enable as reset preparation or write 603F. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [32] |
 | Q14 | Position clear / offset reference effects | Verify 2302 zero-to-one clear and manual return, affected command/feedback counters, 607C application point and resulting reference validity. A zero command is not arbitrary position setting, host-origin setting or successful homing. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [32, 34, 36] |
 | Q15 | Save / factory-reset completion and scope | Obtain 2300 trigger/rearm, affected parameter set, acknowledgement versus durable-completion evidence, interrupted-write behavior and restart/route consequences. Values 2 save and 1 factory reset are explicit actions; no guessed wait or automatic replay. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [39] |
 | Q16 | Node / bitrate / configurable routes | Establish DIP precedence and activation/restart/persistence for 2203 and routing fields; identify a supported way to select EDS-only 50 kbit/s before offering it. Verify full route field masks and new/old route retirement with a retained recovery plan. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [16, 37, 38] |
-| Q17 | PDO eligibility / remapping / freshness | Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples. Physical readback 2026-11-02: both CL86-C fixtures have TPDO1 type255, inhibit raw100, event raw0, count3, words60410010/60610008/60640020, COB-ID181/182. These current values differ from the EDS default template; no factory-default claim follows. That earlier connection checkpoint established no NMT state or mutation. The later NMT/TPDO checkpoint establishes the fixed subset below; timer unit/effect, persistence and sample-retirement remain unresolved. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Q17 remains open for broader RPDO/TPDO routes and firmware scope; prompt18 is Partial, not wholly blocked on the already observed fixed subset. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [17, 18] |
-| Q18 | Service / network event behavior | Observe actual upload forms, NMT transitions, heartbeat/EMCY/SYNC behavior and reset recovery for the binding. No manufacturer host-loss stop guarantee follows from 1017=0 or absent 1016; obtain applicable drive reaction evidence separately. The 2026-11-02 NMT/TPDO checkpoint observes node1 heartbeat1000 and addressed Pre-operational with fresh interval evidence; broader transitions, reset recovery, consumer reaction and firmware scope remain open. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [13, 14, 15, 16, 25] |
+| Q17 | PDO eligibility / remapping / freshness | Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples. Physical readback 2026-11-02: both CL86-C fixtures have TPDO1 type255, inhibit raw100, event raw0, count3, words60410010/60610008/60640020, COB-ID181/182. These current values differ from the EDS default template; no factory-default claim follows. That earlier connection checkpoint established no NMT state or mutation. The later NMT/TPDO checkpoint establishes the fixed subset below; timer unit/effect, persistence and sample-retirement remain unresolved. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Q17 remains open for broader RPDO/TPDO routes and firmware scope; prompt18 is Partial, not wholly blocked on the already observed fixed subset. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [17, 18, 38] |
+| Q18 | Service / network event behavior | Observe actual upload forms, NMT transitions, heartbeat/EMCY/SYNC behavior and reset recovery for the binding. No manufacturer host-loss stop guarantee follows from 1017=0 or absent 1016; obtain applicable drive reaction evidence separately. The 2026-11-02 NMT/TPDO checkpoint observes node1 heartbeat1000 and addressed Pre-operational with fresh interval evidence; broader transitions, reset recovery, consumer reaction and firmware scope remain open. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [13, 14, 15, 16, 25, 38] |
 | Q19 | Physical electrical fixture | Verify model label and applicable manufacturer electrical limits, board/transceiver/wiring/termination, motor/encoder, input assignments and authorization. Resolve 86C and 57C supply conflicts separately; do not use a document range as bench permission. Resolve only the selected model supply conflict. Establish the independent 60FD bit-to-function layout before decoding it; 2101 is not its mapping source. User identifies motorLC60H2127 and imperfect paper shaft marker. Both specimens read2400:01=0,:02/:03/:04=1/2/3,:05..08=0 and2101/60FD=0; reportedly unconnected terminals do not disable configured functions. No reassignment occurred. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [29, 47, 48] |
 | Q20 | Read side effects / polling | For each candidate polled observation establish whether upload consumes or clears state and whether repeated reads affect diagnostics. Preserve an explicit unknown until a manufacturer statement or matched-firmware observation supports non-consuming use. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [19] |
 | Q21 | Homing method / completion / reference | Verify actual switch assignment/polarity, safe direction/travel, method-specific edge behavior, interrupt result, offset and fresh completion evidence before publishing a home reference. Physical inputs are required only for the selected method. | ["CL86-C", "OL86-C", "CL57-C", "OL57-C"] | [36] |
@@ -312,9 +312,9 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | 38 | yes/no/no/no | not reported |
-| 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 38 | yes/no/no/no | not reported |
-| 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
-| 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
+| 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 39 | yes/no/no/no | not reported |
+| 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 32 | yes/no/no/no | not reported |
+| 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 32 | yes/no/no/no | not reported |
 | 0x2400:00 | count | U16 / 2 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2400:01 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x2400:02 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
@@ -375,29 +375,29 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | 0x603F:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x6040:00 | value | U16 / 2 / false | WO / WO | 1 / `null` (not stated) | resolved | 30 | `null` (not stated) | yes/no/no/no | not reported |
 | 0x6041:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
-| 0x605D:00 | value | I16 / 2 / true | RW / RO | 0 / false | resolved | 31 | 38 | yes/no/no/no | not reported |
+| 0x605D:00 | value | I16 / 2 / true | RW / RO | 0 / false | resolved | 31 | 31 | yes/no/no/no | not reported |
 | 0x6060:00 | value | U8 / 1 / false | WO / WO | 1 / `null` (not stated) | withheld | 20 | `null` (not stated) | yes/no/no/no | not reported |
 | 0x6061:00 | value | U8 / 1 / false | RO / RO | 1 / `null` (not stated) | withheld | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x6064:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x606C:00 | value | I32 / 4 / true | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
-| 0x607A:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 33 | 38 | yes/no/no/no | not reported |
-| 0x607C:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 32 | 38 | yes/no/no/no | not reported |
+| 0x607A:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 33 | 33 | yes/no/no/no | not reported |
+| 0x607C:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 36 | 36 | yes/no/no/no | not reported |
 | 0x607D:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x607D:01 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x607D:02 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x6081:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x6083:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x6084:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
-| 0x6098:00 | value | U8 / 1 / false | RW / RW | 1 / `null` (not stated) | withheld | 36 | 38 | yes/no/no/no | not reported |
-| 0x6099:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 36 | 38 | yes/no/no/no | not reported |
-| 0x6099:01 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
-| 0x6099:02 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
-| 0x609A:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 38 | yes/no/no/no | not reported |
+| 0x6098:00 | value | U8 / 1 / false | RW / RW | 1 / `null` (not stated) | withheld | 36 | 36 | yes/no/no/no | not reported |
+| 0x6099:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 36 | 36 | yes/no/no/no | not reported |
+| 0x6099:01 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 36 | yes/no/no/no | not reported |
+| 0x6099:02 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 36 | yes/no/no/no | not reported |
+| 0x609A:00 | value | U32 / 4 / false | RW / RW | 1 / `null` (not stated) | resolved | 36 | 36 | yes/no/no/no | not reported |
 | 0x60FD:00 | value | U32 / 4 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x60FE:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x60FE:01 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
 | 0x60FE:02 | value | U32 / 4 / false | RW / RO | 1 / `null` (not stated) | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
-| 0x60FF:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | withheld | 35 | 38 | yes/no/no/no | not reported |
+| 0x60FF:00 | value | I32 / 4 / true | RW / RW | 1 / `null` (not stated) | withheld | 35 | 35 | yes/no/no/no | not reported |
 
 ## Entry evidence and pending semantics
 
@@ -3552,7 +3552,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q15", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective; 1 factory reset; 2 save.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 39 |
-| Read owner prompt | 38 |
+| Read owner prompt | 39 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -3579,7 +3579,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q13", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective; 1 effective in EN86; ZH86 omits the entry.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 32 |
-| Read owner prompt | 38 |
+| Read owner prompt | 32 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -3606,7 +3606,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q14", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 to 1 clears current position; explicitly return to zero manually.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 32 |
-| Read owner prompt | 38 |
+| Read owner prompt | 32 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5253,7 +5253,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q12", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default1; no usable option-value semantics. 605A/6085 absent.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 31 |
-| Read owner prompt | 38 |
+| Read owner prompt | 31 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5385,10 +5385,10 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Sets position target; trigger and retained-target behavior belong to motion. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q04", "Q11", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "SIGNED", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 1902, "line_start": 1894, "section": "607A"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 664, "line_start": 656, "section": "1601sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32. Post-cycle2026-11-02 both CL86-C specimens returned raw5000 in the finite30-field readiness inventory. This nonzero retained target is stale intent, not a new command or evidence that enabling/mode change is safe. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q04", "Q11", "Q20"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "SIGNED", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 1902, "line_start": 1894, "section": "607A"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 664, "line_start": 656, "section": "1601sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32. Post-cycle2026-11-02 both CL86-C specimens returned raw5000 in the finite30-field readiness inventory, equal to the EDS default, with no write or pre-cycle read in any retained record. Its origin and effect are unknown; it is not retained intent, a new command or evidence that enabling/mode change is safe. The checkpoint's earlier stale-intent wording was unsupported. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
 | Conflicts | ["C21"] |
 | Owner prompt | 33 |
-| Read owner prompt | 38 |
+| Read owner prompt | 33 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5414,8 +5414,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q14", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32, documented -1000000..1000000; no arbitrary set-position effect.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
-| Owner prompt | 32 |
-| Read owner prompt | 38 |
+| Owner prompt | 36 |
+| Read owner prompt | 36 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5604,7 +5604,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q10", "Q21", "Q20"], "generation_type": "withheld", "read_effect": "not_established", "status": "complete", "type_policy": "Retain raw byte; positive codes17/18/24/29 are wire-identical in U8/I8. Do not infer negative methods.", "value_policy": "Documented 17 negative limit,18 positive limit,24 positive origin,29 negative origin. Default0 not a supported method.", "write_policy": "qualification_required"} |
 | Conflicts | ["C22"] |
 | Owner prompt | 36 |
-| Read owner prompt | 38 |
+| Read owner prompt | 36 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5631,7 +5631,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count2.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 36 |
-| Read owner prompt | 38 |
+| Read owner prompt | 36 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5658,7 +5658,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Documented 0..3000 rpm; sub2 is creep speed (rpm/prose), not a time. Zero behavior requires evidence.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 36 |
-| Read owner prompt | 38 |
+| Read owner prompt | 36 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5685,7 +5685,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Documented 0..3000 rpm; sub2 is creep speed (rpm/prose), not a time. Zero behavior requires evidence.", "write_policy": "qualification_required"} |
 | Conflicts | ["C23"] |
 | Owner prompt | 36 |
-| Read owner prompt | 38 |
+| Read owner prompt | 36 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5712,7 +5712,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Documentary review | {"gate_ids": ["Q01", "Q11", "Q21", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32; documented 0..2000 ms; zero behavior unqualified. EDS default100 not initialization.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 36 |
-| Read owner prompt | 38 |
+| Read owner prompt | 36 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -5844,10 +5844,10 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Sets velocity target; may start on enable under Chinese sequence. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q03", "Q20"], "generation_type": "withheld", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "RAW", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 2068, "line_start": 2060, "section": "60FF"}, {"id": "EN86", "page": 13}, {"id": "EN86", "page": 17}, {"id": "ZH86", "page": 13}, {"id": "ZH86", "page": 17}, {"id": "OP86", "page": 11}, {"id": "EDS", "line_end": 621, "line_start": 613, "section": "1600sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Preserve EDS I32 and contradictory U32 claim. Decode raw wire data; no typed signed motion until binding resolves Q03.", "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified. Post-cycle2026-11-02 both CL86-C specimens returned raw120 in the finite30-field readiness inventory. This nonzero retained target is stale intent, not a new command or evidence that enabling/mode change is safe. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q03", "Q20"], "generation_type": "withheld", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "RAW", "role": "COMMANDED", "source_refs": [{"id": "EDS", "line_end": 2068, "line_start": 2060, "section": "60FF"}, {"id": "EN86", "page": 13}, {"id": "EN86", "page": 17}, {"id": "ZH86", "page": 13}, {"id": "ZH86", "page": 17}, {"id": "OP86", "page": 11}, {"id": "EDS", "line_end": 621, "line_start": 613, "section": "1600sub2"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Preserve EDS I32 and contradictory U32 claim. Decode raw wire data; no typed signed motion until binding resolves Q03.", "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified. Post-cycle2026-11-02 both CL86-C specimens returned raw120 in the finite30-field readiness inventory, equal to the EDS default, with no write or pre-cycle read in any retained record. Its origin and effect are unknown; it is not retained intent, a new command or evidence that enabling/mode change is safe. The checkpoint's earlier stale-intent wording was unsupported. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
 | Conflicts | ["C11", "C17"] |
 | Owner prompt | 35 |
-| Read owner prompt | 38 |
+| Read owner prompt | 35 |
 | Read representation | `null` (not stated) |
 | Read coverage D/I/H/Q | not reported |
 | Typed setting scope | `null` (not stated) |
@@ -6960,7 +6960,7 @@ Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions 
 | {"id": "OP86", "page": 1} | cover identifies CL86-C/OL86-C |
 | {"id": "OP86", "page": 3} | internal header identifies CL57-C/OL57-C |
 
-Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.", "disposition": "OP86 cover does not make its57C headers firmware proof. Keep attribution per page.", "gate_ids": ["Q01"], "status": "complete"}.
+Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.", "disposition": "OP86 cover does not make its57C headers firmware proof. Keep attribution per page. OP86 pp5-14 render identical to OP57, so do not count them as independent 86C evidence.", "gate_ids": ["Q01"], "status": "complete"}.
 
 ### C19: 86C supply range
 

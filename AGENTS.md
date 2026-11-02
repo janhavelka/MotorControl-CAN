@@ -3,7 +3,7 @@
 ## CI and local verification
 
 - Inspect the actual workflows and verifier before implementation. Reuse their commands, dependency pins, generated-file checks, test registration and package consumers.
-- Run focused local checks for each coherent change. While this checkout is planning-only, run `python scripts/check_promptset.py` and `git diff --check`; do not claim this compiles a CAN library. Once implemented, use the real native, Python, package, example and Doxygen gates appropriate to the change.
+- Run focused local checks for each coherent change. For promptset-only changes run `python scripts/check_promptset.py` and `git diff --check`; those checks do not compile the library. For code use the real native, Python, package, example and Doxygen gates appropriate to the change.
 - Reserve remote CI dispatch and waiting for major milestones: substantial behavior/API changes, cross-module integration, persistence, build/toolchain/dependency/workflow changes, and release work. Judge impact, not diff size.
 - Small documentation, comment, formatting and low-risk isolated changes need appropriate local verification, not a manual CI run after every commit or push. Frequent synchronization does not mean repeatedly dispatching unchanged suites. Existing automatic triggers and required checks still apply.
 - For a major milestone, verify required CI on the exact final commit. Fix confirmed failures without weakening tests, bypassing hooks or changing workflow triggers to avoid checks. Report failed, unavailable and unperformed checks honestly; an older green run does not verify a new commit.
@@ -23,7 +23,7 @@
 
 ## Current assignment and scope
 
-This checkout is currently an audited implementation promptset, not a working driver. Do not report planned APIs, tests or hardware behavior as implemented. The library package name is `MotorControl-CAN`; the proposed C++ namespace, include directory and CMake identity are `MotorControlCAN`. Implement only when instructed to execute the promptset. Preserve the original references and their provenance.
+This checkout holds the implementation promptset and a partly implemented library. [PROGRESS.md](docs/prompts/PROGRESS.md) gives the implemented scope, remaining work and gates. Do not report planned APIs, tests or hardware behavior as implemented. The library package name is `MotorControl-CAN`; the proposed C++ namespace, include directory and CMake identity are `MotorControlCAN`. Implement only when instructed to execute the promptset. Preserve the original references and their provenance.
 
 CL86-C is a finished Lichuan motor drive with a CANopen interface, not an identified bare IC. Target its documented external protocol. Do not infer an internal chip, register map or shared firmware from similar product names; related models need their own applicability evidence.
 
@@ -41,9 +41,7 @@ The user authorizes subagents and model choices according to task complexity. In
 
 ## Recurring source audit
 
-For **every implementation, review or audit prompt**, inspect current `../MotorControl-RS` and the relevant sibling I2C implementations, callers, examples, tests, runners and CI. At minimum refresh MotorControl-RS, ADS1115 and INA228; select SHT3x-main, BME280, MB85RC, MCP45HVX1, PCA9555, RV3032-C7 and the stateless codec siblings according to the affected seam. Inspect current FieldCore-node read-only for ownership/integration changes. Record paths, revisions, dirty state, relevant behavior and intentional differences in the stage report. Do not rely solely on these historical audit reports or copy names from an old prompt.
-
-Keep that audit proportional: inspect current revisions and the sources relevant to this prompt, compare with the previous recorded findings, and record the delta. Do not reread unrelated modules or repeat unchanged suites at every checkpoint. A symbol search locates evidence; read enough implementation and callers to establish its meaning.
+For every prompt, refresh MotorControl-RS HEAD and dirty state and read the RS code for this seam; RS is authoritative. Check HEAD and dirty state only for siblings this prompt names, and inspect only the seam it states. Inspect current FieldCore-node read-only for ownership or integration changes. If HEAD, dirty state and seam match the last recorded row, write "unchanged since prompt N" and do not reread. A sibling row must name a behavior adopted or rejected, with path and symbol. This does not relax vendor evidence, safety, uncertainty or verification rules. Do not rely solely on historical audit reports or copy names from an old prompt. The [19-22/29-33 handoff](docs/prompts/handoff_19_33/COMMON.md) keeps its own refresh list for its packets. A symbol search locates evidence; read enough implementation and callers to establish its meaning.
 
 MotorControl-RS is authoritative for common motion names/meaning; I2C libraries establish ecosystem style and owner integration, not a single universal lifecycle. Native CANopen names describe genuinely different services. Keep `Status`, protocol errors, drive state, command outcome and application health distinct. Never import sensor retry policy into motor commands.
 
@@ -73,7 +71,7 @@ Distinguish controller state, CANopen NMT state, CiA402 drive state, mode, heart
 
 Manual controlword arrows are state-transition examples, not universal scripts: never enable merely to prepare a stop or reset. PDO host generations are not wire tags. On a reused route with potentially old semantics/identity, a confirmed map and new host epoch do not qualify delayed same-ID/same-length samples; require an evidenced transition/retirement boundary, distinct verified route or applicable observable marker. Keep ambiguous samples unqualified without invalidating unrelated stable traffic.
 
-The RS bench authorization and wiring are not CAN bench facts. Host-only work can proceed without hardware. Before live CAN/motion work establish the actual board, transceiver, drive/motor/firmware, wiring, node/bitrate and applicable user authorization. Do not guess defaults from the RS setup. Missing hardware blocks qualification, not independent implementation and testing.
+The RS bench authorization and wiring are not CAN bench facts. Host-only work can proceed without hardware. The user has given a [standing bench authorization](docs/prompts/COMMON.md) for this promptset, so physical tests and motion it needs do not need another permission question. Before live CAN/motion work establish the actual board, transceiver, drive/motor/firmware, wiring, node/bitrate and applicable user authorization. Do not guess defaults from the RS setup. Missing hardware blocks qualification, not independent implementation and testing.
 
 External I/O may be unused. An unconnected terminal does not mean its configured function is disabled. Require physical signals only for operations that need them; never silently disable limits, stops or input assignments to make a motion test run. Use only this profile's documented function values and actual fixture evidence.
 

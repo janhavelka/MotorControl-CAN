@@ -7,6 +7,8 @@ fetch showed 0 ahead/0 behind. No new branch, remote or sibling mutation.
 
 ## Status and owned scope
 
+*Packet 1 re-evaluated this stage as Complete with inherited gates, under the usable-prerequisite rule. See [PROGRESS](../prompts/PROGRESS.md).*
+
 **Owned software delivered; stage Partial solely on inherited 19/Q20.**
 The existing raw read lifecycle is implemented and usable on an explicitly
 established channel. Prompt 19's non-consuming bootstrap probe remains blocked

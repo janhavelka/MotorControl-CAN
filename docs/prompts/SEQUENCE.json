@@ -480,7 +480,7 @@
     {
       "id": 37,
       "file": "37_discovery.md",
-      "title": "Non-changing discovery and binding",
+      "title": "Explicit discovery and binding",
       "depends_on": [
         19,
         25
@@ -495,7 +495,6 @@
       "file": "38_communication_commissioning.md",
       "title": "Explicit communication commissioning",
       "depends_on": [
-        18,
         24,
         37
       ],
@@ -567,7 +566,7 @@
       "file": "43_python_console.md",
       "title": "Python Console and evidence primitives",
       "depends_on": [
-        42
+        40
       ],
       "source_stages": [
         "16"
@@ -579,6 +578,7 @@
       "file": "44_python_campaigns.md",
       "title": "Finite Python campaigns and sessions",
       "depends_on": [
+        42,
         43
       ],
       "source_stages": [
@@ -623,8 +623,7 @@
       "depends_on": [
         29,
         44,
-        45,
-        46
+        45
       ],
       "source_stages": [
         "18"

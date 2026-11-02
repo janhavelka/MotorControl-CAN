@@ -79,7 +79,7 @@ following-error read. Driver, I/O configuration and tuning reads retain owners
 [I/O read rows](io_settings.md), checked `getIo` and separate documentary DI
 labels without granting reassignment or output actions. Other communication/PDO record reads have explicit owner 38 in the
 [ledger](reference/lichuan_objects.md); their writable counterparts do not
-remove the read obligation. PDO mutation remains with 18/38.
+remove the read obligation. PDO mutation remains with 18.
 
 ## Time and PDO evidence
 

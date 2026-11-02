@@ -1449,7 +1449,7 @@ constexpr ObjectDescriptor OBJECT_607A_00 = {
 constexpr ObjectDescriptor OBJECT_607C_00 = {
     0x607C, 0x00, ScalarType::I32, 4, true, SdoAccess::READ_WRITE,
     ReadEffect::UNQUALIFIED, WritePolicy::QUALIFICATION_REQUIRED, PdoPolicy::UNQUALIFIED,
-    32, 0x00182001u, SourceScope::EDS_FAMILY_UNBOUND
+    36, 0x00182001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
 /** @brief 0x607D:00 U8 count declaration; EDS [607Dsub0] lines 1918-1926.

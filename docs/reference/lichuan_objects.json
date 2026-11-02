@@ -9516,7 +9516,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 39
         }
       ]
     },
@@ -9614,7 +9614,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 32
         }
       ]
     },
@@ -9724,7 +9724,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 32
         }
       ]
     },
@@ -16183,7 +16183,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 31
         }
       ]
     },
@@ -16947,7 +16947,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32. Post-cycle2026-11-02 both CL86-C specimens returned raw5000 in the finite30-field readiness inventory. This nonzero retained target is stale intent, not a new command or evidence that enabling/mode change is safe. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32. Post-cycle2026-11-02 both CL86-C specimens returned raw5000 in the finite30-field readiness inventory, equal to the EDS default, with no write or pre-cycle read in any retained record. Its origin and effect are unknown; it is not retained intent, a new command or evidence that enabling/mode change is safe. The checkpoint's earlier stale-intent wording was unsupported. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -16996,7 +16996,7 @@
               "live_qualification_required": true
             }
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 33
         }
       ]
     },
@@ -17084,7 +17084,7 @@
           ],
           "confidence": "documented_metadata",
           "conflict_ids": [],
-          "owner_prompt": 32,
+          "owner_prompt": 36,
           "disposition": "pending_qualification",
           "exclusion_reason": null,
           "coverage": {
@@ -17107,7 +17107,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 36
         }
       ]
     },
@@ -17927,7 +17927,7 @@
             ],
             "generation_type": "withheld"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 36
         }
       ]
     },
@@ -18017,7 +18017,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 36
         },
         {
           "key": "0x6099:01",
@@ -18111,7 +18111,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 36
         },
         {
           "key": "0x6099:02",
@@ -18207,7 +18207,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 36
         }
       ]
     },
@@ -18326,7 +18326,7 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 36
         }
       ]
     },
@@ -18863,7 +18863,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Preserve EDS I32 and contradictory U32 claim. Decode raw wire data; no typed signed motion until binding resolves Q03.",
-            "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified. Post-cycle2026-11-02 both CL86-C specimens returned raw120 in the finite30-field readiness inventory. This nonzero retained target is stale intent, not a new command or evidence that enabling/mode change is safe. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified. Post-cycle2026-11-02 both CL86-C specimens returned raw120 in the finite30-field readiness inventory, equal to the EDS default, with no write or pre-cycle read in any retained record. Its origin and effect are unknown; it is not retained intent, a new command or evidence that enabling/mode change is safe. The checkpoint's earlier stale-intent wording was unsupported. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -18915,7 +18915,7 @@
               "live_qualification_required": true
             }
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 35
         }
       ]
     }
@@ -22198,7 +22198,7 @@
       "owner_prompt": 3,
       "review": {
         "status": "complete",
-        "disposition": "OP86 cover does not make its57C headers firmware proof. Keep attribution per page.",
+        "disposition": "OP86 cover does not make its57C headers firmware proof. Keep attribution per page. OP86 pp5-14 render identical to OP57, so do not count them as independent 86C evidence.",
         "consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.",
         "gate_ids": [
           "Q01"
@@ -22690,7 +22690,8 @@
           20,
           30,
           33,
-          35
+          35,
+          36
         ],
         "status": "open",
         "models": [
@@ -22785,7 +22786,8 @@
         "required_evidence": "Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples. Physical readback 2026-11-02: both CL86-C fixtures have TPDO1 type255, inhibit raw100, event raw0, count3, words60410010/60610008/60640020, COB-ID181/182. These current values differ from the EDS default template; no factory-default claim follows. That earlier connection checkpoint established no NMT state or mutation. The later NMT/TPDO checkpoint establishes the fixed subset below; timer unit/effect, persistence and sample-retirement remain unresolved. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Q17 remains open for broader RPDO/TPDO routes and firmware scope; prompt18 is Partial, not wholly blocked on the already observed fixed subset. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
         "owner_prompts": [
           17,
-          18
+          18,
+          38
         ],
         "status": "open",
         "models": [
@@ -22804,7 +22806,8 @@
           14,
           15,
           16,
-          25
+          25,
+          38
         ],
         "status": "open",
         "models": [

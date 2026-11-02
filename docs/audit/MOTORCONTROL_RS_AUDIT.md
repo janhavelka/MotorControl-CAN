@@ -646,3 +646,41 @@ the original v1.0.0 release artifact or of any hardware image. No newly observed
 test failure was found in the executed checks. Passing software checks does
 not resolve the documented hardware/firmware uncertainties or certify a CAN
 implementation that does not yet exist.
+
+## Delta 2026-11-02 against MotorControl-RS 776facd
+
+Added 2026-11-02. This section records what changed in MotorControl-RS after the
+audit above. Sections 1 to 14 are left as originally written and still describe
+`5da4ba7`. The promptset repair audit refers to `513251d`; the baseline here is the
+audit's own `5da4ba7` (2026-10-19) and the refresh uses current HEAD.
+
+| Item | Observed value |
+| --- | --- |
+| Revision used | `776facd` (2026-11-02, "Log overnight USB stall finding in the audit"), `main`, clean working tree, read-only |
+| Distance from this audit's `5da4ba7` | 70 commits, of which 58 precede `513251d` and 12 follow it |
+| `513251d..776facd` | Documentation, audit, bench-regression report, `test/operations_inventory_test.py` only; no change under `include`, `src` or `examples` |
+| `5da4ba7..776facd` | 47 changed files in `include`, `src`, `examples` and `scripts`, mainly `Reads`, `Homing`, `Position`, `Velocity`, `DriverSettings`, `ProbeApp`, `ProbeConsole`, `bench_probe.py`, `_bench_evidence.py` |
+
+Additions that CAN has no adopt-or-reject row for in this audit, with the CAN
+disposition recorded in [api_cli_mapping.md](../api_cli_mapping.md#motorcontrol-rs-additions-after-the-audited-revision):
+
+| RS addition (path and symbol at `776facd`) | RS commits | CAN disposition |
+| --- | --- | --- |
+| `velocity read`; `prepareVelocityParameters` (`include/MotorControlRS/profiles/ess_rs/Reads.h`) | `6bede39` | Adopt as a typed read; Lichuan rows owned by prompt 35 |
+| `home read`; `prepareHomingParameters` (`Reads.h`) | in the same read series | Adopt as a typed read; rows owned by prompt 36 |
+| `home auxiliary` | `88f8b9c` | Not applicable: ESS function numbers |
+| `home qualification`, `checkHomeQualification`, `revokeHome` (`profiles/ess_rs/Homing.h`) | `77f9886`, `7079172`, `a9d5eaa`, `e157ce0`, `ba20c8b` | Adopt the named-fact shape; facts are Lichuan-specific (prompt 36) |
+| `velocity qualification install` | `ba20c8b` | Adopt the shape (prompt 35) |
+| `position-clear qualification install` | `ba20c8b` | Not applicable now; prompt 32 is gated by ledger evidence |
+| `motion-profile start-speed`, start-speed relation route | `ef38513`, `ba20c8b` | Not applicable: no Lichuan start-speed object in the ledger |
+| `position interrupt`, `PositionInterruption` (`profiles/ess_rs/Position.h`) | `db65b1b`, `b5df978` | Not applicable now: no documented CL86-C equivalent; bit 4 is gated |
+| Stop reliability: held across one bounded recovery, sent once, lost reply `unknown` and not resent, `stop fast` escalates `stop normal` (`docs/console.md` stop section; `examples/probe_cli/ProbeApp.cpp`) | `6ff2374` | Adopt; CAN differs deliberately: upward-only escalation and a held stop re-issued as `000B` |
+| `MoveContext::positionMismatch` (`Position.h`), reference-state checks on moves | between `5da4ba7` and `513251d` | Compare in prompt 33 |
+| Bench helpers `cleanup_stop_attempts`, `write_rejected`, `home_inputs_permit` (`scripts/bench_probe.py`, `scripts/_bench_evidence.py`) | between `5da4ba7` and `513251d` | Compare in prompts 43 and 44 |
+
+Not re-verified in this delta: RS build, tests, CI and hardware; the commit
+attributions above come from `git log` messages and diffs, and were not each
+re-read in full. Two RS behaviors that matter to CAN remain application policy,
+not core contract: already-at-target reporting (RS `preparePosition` succeeds with
+`zeroDisplacement=true`) and the stop supersede policy. Re-run this comparison
+before any prompt that adopts one of these rows.

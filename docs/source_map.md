@@ -7,7 +7,7 @@
 | Fixed configuration lifecycle | [PdoConfiguration.h](../include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h), [implementation](../src/profiles/lichuan_c/PdoConfiguration.cpp), [tests](../test/pdo_configuration_test.cpp) | Exact baseline, six writes, nine final reads, immutable deadline and partial effects; no sample qualification |
 | Explicit experiment caller | [PdoExperiment.cpp](../examples/s2_bench/PdoExperiment.cpp), [tests](../test/pdo_experiment_test.cpp) | Same owner/SDO engine, copied exact grants, no rollback/retry |
 | Addressed NMT and bounds | [owner](../examples/common/CanBusOwner.cpp), [NMT](../adapters/canopennode/Nmt.cpp), [driver proof](adapters/twai_receive_time.md), [interval tests](../test/network_receive_time_test.cpp), [owner tests](../test/nmt_owner_test.cpp) | Tagged TX retirement and conservative receive interval; no exact-arrival claim |
-| Post-cycle/readiness acquisition | [RawEvidence.cpp](../examples/s2_bench/RawEvidence.cpp), [S2 controls](../examples/s2_bench/README.md) | 26 baseline plus30 readiness uploads/node; one-cycle map/heartbeat reversion, retained nonzero targets and mode0; no motion controller |
+| Post-cycle/readiness acquisition | [RawEvidence.cpp](../examples/s2_bench/RawEvidence.cpp), [S2 controls](../examples/s2_bench/README.md) | 26 baseline plus30 readiness uploads/node; one-cycle map/heartbeat reversion, 607A/60FF reads equal to EDS defaults and mode0; no motion controller |
 | Specimen observation | [checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md), [raw TPDO trace](bench/20261102-nmt-pdo-tpdo1/rx.txt) | Node1 fixed map2 readback only; broader firmware/settings/persistence/samples remain gated |
 
 | Responsibility | Declaration / implementation | Real caller / test | Boundary |

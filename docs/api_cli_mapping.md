@@ -21,8 +21,9 @@ proof declarations to route intent. Prompt 19 now installs the finite
 getters and SDO/PDO evidence. No CLI route exists yet. The non-consuming probe
 remains Q20 gated; the inventory below retains later operation/CLI owners.
 
-[Prompt 18](reports/prompt_18.md) is blocked on the Lichuan PDO mutation contract
-(Q17). No typed remap/timing API or corresponding CLI route is implemented.
+[Prompt 18](reports/prompt_18.md) is Partial: the fixed TPDO1 subset in
+`PdoConfiguration.h` is implemented and specimen-observed. Broader remapping, timers and
+sample qualification stay gated by Q17, and no CLI route is implemented.
 `configurePdo` installs host map evidence only; raw SDO access and EDS metadata
 do not substitute for those missing operations.
 
@@ -121,7 +122,7 @@ I2C siblings differ in lifecycle, status helpers and health enum members. Carry 
 | `setAxisOrigin`, `invalidateAxisReference` | Same host reference semantics | No silent device-counter reset |
 | `preparePosition`, `prepareVelocityTarget` | Pure exact target/rate preparation | Remove ESS-only native RPM width from common types |
 | `getDiscoveryProfile`, `getDiscoveryCapabilities` | Finite explicit profile inventory | Model/firmware/dialect scope; no universal CiA402 compatibility |
-| `prepareProbe` | Smallest verified non-changing presence request | Reviewed SDO/passive evidence; absent heartbeat may be inconclusive |
+| `prepareProbe` | Typed upload of `1000:00` under DEC-1, with no write intent; effect recorded as unknown | Reviewed SDO/passive evidence; absent heartbeat may be inconclusive |
 | `prepareIdentity`, `prepareState`, `prepareConfig` | Typed bounded observations | Logical axis/binding generation is common; native node/channel/subaxis route is protocol-specific |
 | `prepareMoveAbsolute`, `prepareMoveRelative`, `prepareMoveAngle` | Same intent, coordinate, quantization and failure semantics | Device handshake and actual scaling are Lichuan-specific |
 | `prepareVelocity` | Finite signed velocity with explicit duration/stop policy | Wire units, signedness and start sequence require profile evidence |
@@ -144,31 +145,58 @@ Before copying `MoveRequest`, `MoveRamp`, `PreparedVelocityTarget` or `ReadTarge
 
 Current RS console protocol is **3**, with plain human output and `@ID` correlated JSONL. Reuse its correlation/framing model, bounded output and naming; include explicit library/profile identity and a documented CAN schema version so a Python client cannot mistake one protocol for the other. RS protocol number alone does not prove wire/schema compatibility.
 
-| Command group | Preserve/adapt |
-| --- | --- |
-| `help`, `version`, `profile list`, `caps` | One command inventory; report compiled profile/protocol, motor/feedback config, supported modes and qualification separately; research fixtures are excluded |
-| `config`, `host`, `wiring` | Host-only interface/node/bitrate selection; no silent device writes |
-| `useaddr` | Retain selection grammar where suitable; validate the selected protocol's endpoint/range, not a universal CAN node-ID limit; multi-axis bindings identify subaxis separately |
-| `status`, `health`, `stats`, `drv`, `memory`, `result` | Cached diagnostics and retained results, separate network/drive fields |
-| `stats reset` | Local counters only; preserve uncertainty, fault and evidence |
-| `probe`, `read identity\|config\|state`, `discover` | Explicit non-changing owner-scheduled reads; bounded scan |
-| `settings`, `subdivision [INTEGER\|options]` | Common settings inspect selected typed groups; subdivision is a Lichuan/native capability and cannot be forced onto servo profiles; host `stepsperturn` stays separate |
-| `axis config`, `axis origin`, `prepare` | Public pure API; exact values, no writes |
-| `moveby`, `moveto`, `move relative\|absolute\|angle` | Same public finite motion API; no assumed RS scale or speed/ramp limits |
-| `speed`, `accel`, `decel`, `motion`, `stepsperturn` | Explicit host intent where meaningful; display actual units, native ramp-time distinction and verified scale |
-| `velocity`, `home methods`, `home ...` | Finite velocity and reviewed homing |
-| `enable`, `motor-release`, `alarm-clear`, `position-clear`, `stop normal\|fast` | Common explicit actions where supported; define quick-stop versus halt without implying equivalence |
-| `driver`, `io`, `control`, `tuning` | Typed family settings; document any native group differences |
-| `motion-profile read\|inspect\|restore\|forget` | Retained profile snapshot with explicit read/restore effects and generation validity; no automatic restoration after uncertainty |
-| `communication`, `persistence` | Explicit network/device setting workflows with uncertain outcomes |
-| `monitor`, `cancel`, `release ID`, `recover` | Finite monitoring, local cancellation/result release/host recovery; not motor stop |
-| `debug off\|raw\|decoded`, `load` | Debug receives passive traffic copies; load is an optional bounded application workload, never another motor path |
-| `capture-read` | Active bounded diagnostic read through the normal owner/public API using a reviewed CAN object set; capture does not directly drain controller RX |
-| CANopen `nmt`, `pdo`, `heartbeat`, `network` groups | Native operations/state only on matching implemented profiles; other CAN protocols expose their own liveness/state and never fake CANopen support |
+Two inventory states apply to every route. **Implemented**: in help and dispatch, backed by a tested public path. **Gated**: listed by `caps` with an exact reason, absent from dispatch and working help, and not counted as implemented coverage. The owner column names the prompt that delivers the route; `P40` to `P42` below mean prompts 40 to 42. Prompt 40 ships a compiled-profile inventory for `profile list` and `caps` without prompt 37's `getDiscovery*`; prompt 41 adds discovery-backed fields.
 
-Do not copy removed RS aliases (`ping`, bare `reset`, `health check`, `profile ess_rs`, `?`, `ver`) from old documentation. Do not invent a `motor ...` prefix in parallel with the actual established command family. `release ID` releases result storage; `motor-release` changes drive state.
+| Command group | Owner | Preserve/adapt |
+| --- | --- | --- |
+| `help`, `version`, `profile list`, `caps` | P40 (compiled inventory); P41 adds discovery fields | One command inventory; report compiled profile/protocol, motor/feedback config, supported modes and qualification separately; research fixtures are excluded |
+| `config`, `wiring` | P40 | Host-only interface/node/bitrate selection; no silent device writes |
+| `host` | P41 | Host-only target selection; no silent device writes |
+| `useaddr` | P41 | Retain selection grammar where suitable; validate the selected protocol's endpoint/range, not a universal CAN node-ID limit; multi-axis bindings identify subaxis separately |
+| `status`, `health`, `stats`, `drv`, `memory`, `result` | P40 | Cached diagnostics and retained results, separate network/drive fields |
+| `stats reset` | P40 | Local counters only; preserve uncertainty, fault and evidence |
+| `probe`, `read identity\|config\|state`, `discover` | P41 | Explicit typed owner-scheduled uploads with no write intent, effect recorded as unknown; bounded scan; objects outside the accepted read list return the Q20 gate error |
+| `settings`, `subdivision [INTEGER\|options]` | P41 | Common settings inspect selected typed groups; subdivision is a Lichuan/native capability and cannot be forced onto servo profiles; host `stepsperturn` stays separate |
+| `axis config`, `axis origin`, `prepare` | P40 | Public pure API; exact values, no writes |
+| `moveby`, `moveto`, `move relative\|absolute\|angle` | P42 | Same public finite motion API; no assumed RS scale or speed/ramp limits. RS `moveby VALUE [unit]` has no speed or ramp argument; an unset speed, ramp or scale rejects, and `moveto` needs an explicit `axis origin` |
+| `speed`, `accel`, `decel`, `motion`, `stepsperturn` | P42 | Explicit host intent where meaningful; display actual units, native ramp-time distinction and verified scale; this is the simple-move intent that replaces RS boot defaults, which CAN forbids |
+| `velocity`, `home methods`, `home ...` | P42 | Finite velocity and reviewed homing; velocity `native` is defined for CAN and never writes `effectiveNative` to an rpm object until the native-rate basis is rpm |
+| `enable`, `alarm-clear`, `position-clear`, `stop normal\|fast` | P42 | Common explicit actions where supported; define quick-stop versus halt without implying equivalence; stop follows the DEC-2/DEC-8 contract in the RS rows below |
+| `motor-release` | P42 (visibly gated) | Gated: no manual documents a bus release command, so it is listed by `caps` with that reason and is not dispatched (D-17) |
+| `driver`, `io`, `control`, `tuning` | P41 | Typed family settings; document any native group differences |
+| `motion-profile read\|inspect` | P41 | Retained profile snapshot; read effects explicit |
+| `motion-profile restore\|forget` | P41 route and application code | Explicit restore effects and generation validity; no automatic restoration after uncertainty. This is `re-apply recorded configuration` in `examples/common` over the typed settings API, as RS does it in its application, with no new core API. Prompt 39 owns `restore factory settings` only |
+| `communication`, `persistence` | P41 | Explicit network/device setting workflows with uncertain outcomes; `save parameters` (`2300=2`), `restore factory settings` (`2300=1`) and `re-apply recorded configuration` stay separate |
+| `monitor` | P41 | Finite monitoring |
+| `cancel`, `release ID`, `recover` | P40 | Local cancellation/result release/host recovery; not motor stop; `cancel` of sequenced work or a typed read lets in-flight frames settle |
+| `debug [off\|raw\|decoded]`, `load` | P41 | Debug receives passive traffic copies; load is an optional bounded application workload, never another motor path |
+| `capture-read` | P41 | Active bounded diagnostic read through the normal owner/public API using a reviewed CAN object set; capture does not directly drain controller RX |
+| CANopen `nmt`, `pdo`, `heartbeat`, `network` groups | P41 | Native operations/state only on matching implemented profiles; other CAN protocols expose their own liveness/state and never fake CANopen support |
 
-Unsupported commands/capabilities must be inspectable and explain why they are unavailable. Avoid unimplemented commands presented as callable. Native features such as internal segments are added only if documented for the target; an ESS segment command is not automatically a CAN feature.
+### MotorControl-RS additions after the audited revision
+
+The RS audit baseline predates these additions; see the [dated delta](audit/MOTORCONTROL_RS_AUDIT.md#delta-2026-11-02-against-motorcontrol-rs-776facd). Each row is adopt, or not applicable with the reason. Adopt means the intent is mapped to the owner shown; it does not mean implemented, and no row below is a CAN route today.
+
+| RS addition | Disposition | CAN mapping and reason |
+| --- | --- | --- |
+| `velocity read`, `prepareVelocityParameters` | Adopt | Typed read of the reviewed velocity rows (the ledger owns the exact set; `60FF` is owned by prompt 35). Read API in prompt 35, route in P42 |
+| `home read`, `prepareHomingParameters` | Adopt | Typed read of the reviewed homing rows (`6098`, `6099:00..02`, `609A`). Read API in prompt 36, route in P42 |
+| `home auxiliary` | Not applicable | ESS auxiliary configuration 0..11 is an ESS function number set; ESS function numbers do not transfer and no CL86-C equivalent is documented |
+| `home qualification` install and revoke, `checkHomeQualification`, `revokeHome` | Adopt (shape) | Operator states each commissioning fact by name, live checks decide admission, and no all-true switch exists. The facts are Lichuan-specific and owned by prompt 36; revoke invalidates the reference. Route in P42 |
+| `velocity qualification install` | Adopt (shape) | Same named-fact install for velocity prerequisites, owned by prompt 35. The facts themselves are not copied from RS |
+| `position-clear qualification install` | Not applicable now | Prompt 32 gates `prepareSetDevicePosition` by ledger evidence (Q14), not operator-stated facts. Revisit if bench evidence produces a commissioning fact |
+| `motion-profile start-speed`, start-speed relation route | Not applicable | The reviewed Lichuan ledger has no start-speed object; the RS relation maps an ESS register word to a minimum rpm. Do not invent one |
+| `position interrupt`, `PositionInterruption` | Not applicable now | RS uses an ESS register bit for interrupt-versus-ignore. No equivalent is documented for CL86-C; mode-1 bit 4 behavior is Q12-gated and DEC-8 holds bit 4 until the move is terminal |
+| Stop held across one bounded recovery and sent once; second fault ends it not transmitted; lost reply stays UNKNOWN, never resent | Adopt | Prompt 42 application dispatch; the owner path is W6. CAN sends the held stop as `000B` (re-issued, not the requested policy), which differs from RS on purpose |
+| `stop fast` escalates `stop normal` | Adopt, with a difference | CAN escalates upward only. RS has no policy check on supersede, so a later `stop normal` could replace a running `stop fast` |
+| `cancel` of sequenced work or a typed read, and `monitor off`, let in-flight frames settle | Adopt | A cancel must not leave a route unresolved by itself; prompt 42 |
+| Move reference check (`MoveContext::positionMismatch`; idle, stationary, ACTUAL reference required; native bounds on relative displacement) | Compare in prompt 33 | Not a CLI row; recorded so prompt 33 decides adopt or reject |
+| Bench runner helpers `cleanup_stop_attempts`, `write_rejected`, `home_inputs_permit` | Compare in prompts 43 and 44 | Runner-side; not a console route |
+| ESS target magnitude limit and exception 05 mapping | Not applicable | Serial ESS facts with no CAN counterpart |
+
+Do not copy removed RS aliases (`ping`, bare `reset`, `health check`, `profile ess_rs`, `?`, `ver`) from old documentation; RS tests also reject `help advanced`, `profile ess_rs enable` and `stop direct`. `motor ...` is never-implemented grammar, not a removed alias; do not invent it in parallel with the actual established command family. `release ID` releases result storage; `motor-release` changes drive state.
+
+Gated commands/capabilities must be inspectable through `caps` and explain why they are unavailable; they are absent from dispatch and working help, so no unimplemented command is presented as callable. Native features such as internal segments are added only if documented for the target; an ESS segment command is not automatically a CAN feature.
 
 ## Health and result separation
 

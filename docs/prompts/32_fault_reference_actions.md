@@ -10,11 +10,13 @@ Follow [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) 
 
 ## Read and audit
 
-Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS alarm/device-position actions, reference invalidation and uncertainty tests; inspect INA228 hardware-state validity and PCA9555 explicit output actions. Review FieldCore reference generation and retained fault consumers read-only. Recheck original Lichuan fault-clear, monitor/EMCY and `0x2302` position-clear descriptions against the EDS and selected model/firmware.
+For this prompt, refresh MotorControl-RS HEAD and dirty state and read the RS code for this seam; RS is authoritative. Check HEAD and dirty state only for the siblings named below, and inspect only the seam stated. Inspect current FieldCore-node read-only for ownership or integration changes. If HEAD, dirty state and seam match the last recorded row, write "unchanged since prompt N" and do not reread. A sibling row must name a behavior adopted or rejected, with path and symbol. This does not relax vendor evidence, safety, uncertainty or verification rules. Read RS alarm/device-position actions, reference invalidation and uncertainty tests; inspect INA228 hardware-state validity and PCA9555 explicit output actions. Review FieldCore reference generation and retained fault consumers read-only. Recheck original Lichuan fault-clear, monitor/EMCY and `0x2302` position-clear descriptions against the EDS and selected model/firmware.
 
 ### Concrete evidence to recheck
 
 Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) and [object facts](../audit/LICHUAN_OBJECT_FACTS.md) for the distinct reset routes. `0x2301` is U16; EN86 p18 describes 1 clear/0 ineffective, but that does not establish an edge or equivalence to controlword bit7. The bit7 reset prose and full-word `15 -> 128` table also need reconciliation. `0x2302` position clear explicitly uses `0 -> 1` then manual return to 0. It does not prove a physical home, arbitrary set-position support or automatic rebase. Retain raw `0x603F` and post-action evidence; acknowledgement is not proof the fault cause disappeared.
+
+Evidence route: prompt 29 conditional experiment or manufacturer clarification; do not wait for prompt 47.
 
 ## Implement
 
@@ -23,7 +25,7 @@ Use [motion facts](../audit/LICHUAN_MOTION_FACTS.md) and [object facts](../audit
 3. Retain original error history, EMCY, raw status and failed operation evidence when fault clearing is requested. Acknowledged clear does not prove the fault condition is gone. No automatic retry, resume, enable or motion follows a clear.
 4. Treat confirmed or uncertain device counter changes as invalidating dependent axis origin/reference, cached position and prepared targets according to the established generation contract. Do not manufacture a known home reference from a local origin update or a counter reset.
 5. Publish outputs atomically and preserve partial/unknown effects. Integrate actions through the same owner and event precedence as other drive work. A late reply may update observation evidence without rewriting the original terminal failure.
-6. Close the corresponding native-action rows explicitly. Digital-output actions are already owned by 21, tuning/control groups by 22 and persistence by 39; do not accumulate unrelated “remaining actions” in this prompt.
+6. Close the corresponding native-action rows explicitly, including the read rows this prompt owns: `2301` and `2302`. A typed read returns the raw U16 stored value; it does not prove a clear, a counter change or an edge. Neither object is on the DEC-1 accepted list, so its read effect stays gated by Q20. Digital-output actions are already owned by 21, tuning/control groups by 22 and persistence by 39; do not accumulate unrelated “remaining actions” in this prompt.
 
 ## Verify and exit
 

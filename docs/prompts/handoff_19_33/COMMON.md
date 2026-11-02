@@ -63,6 +63,8 @@ distinct from a vendor statement or specimen measurement.
 
 ## Physical test authorization and boundaries
 
+**Standing bench authorization.** On 2 November 2026 the user stated, for this whole promptset: physical tests are generally allowed; the bench is ready, with two drives in series, free shafts and motors fixed to the table; run everything the work needs; and run as many subagents as needed. So do not stop to ask before a physical test or motion a prompt or packet needs. Check the fixture by what software can see, such as port identity and fresh readback, and report what ran. Ask only for something only the operator can supply: a physical action, an observation software cannot make, or a changed fixture. This does not change the evidence rules: an observed result stays scoped to its specimen and firmware, and one lead alone controls the port and active CAN requests.
+
 The user explicitly authorizes this external coder to upload firmware, communicate
 with the recorded board/drives, perform the bounded physical tests in these
 packets, implement HIL diagnostics, deliberately reproduce failures, fix bugs and

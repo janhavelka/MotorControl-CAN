@@ -18,7 +18,7 @@ Inspect [object facts](../audit/LICHUAN_OBJECT_FACTS.md) for `0x1000/0x1001/0x10
 
 ## Implement
 
-1. Implement `prepareProbe`, `prepareIdentity`, `prepareState`, `prepareConfig`, `nextRead` and `advanceRead` with concrete caller-owned contexts. Probe is a documented minimal non-changing read; it never starts NMT, configures heartbeat or sweeps all state.
+1. Implement `prepareProbe`, `prepareIdentity`, `prepareState`, `prepareConfig`, `nextRead` and `advanceRead` with concrete caller-owned contexts. Probe uses `1000:00` under DEC-1, a typed upload whose effect stays recorded as unknown; it never starts NMT, configures heartbeat or sweeps all state.
 2. Provide checked `getIdentity`, `getStateBlock` and `getConfig`. Wrong-kind, incomplete or stale-context access leaves output unchanged. Preserve raw identity/model/firmware fields, match confidence and unknown values. Do not invent a generic `getReadResult`.
 3. Publish only matched service or valid PDO evidence with binding, object/map/configuration generation, supplied observation time and provenance. A multi-object read is not automatically an atomic snapshot: expose block validity and relevant skew instead of presenting torn observations as one instant.
 4. Reuse existing object codecs, service matching and map decoding. Keep interpretation separate from raw read success. Unknown status dialect can block interpreted state while independently verified raw reads remain available.
@@ -26,7 +26,7 @@ Inspect [object facts](../audit/LICHUAN_OBJECT_FACTS.md) for `0x1000/0x1001/0x10
 
 ## Verify and exit
 
-Test matched and wrong replies, every owned type/access rule, getter before completion, wrong identity/context, timestamp zero, mixed-age blocks, reboot/configuration changes, atomic publication and partial read failure. Assert probe and all reviewed non-changing reads generate no reset, save, enabling, I/O reassignment or hidden NMT request. A destructive read requires explicit ledger-backed semantics and may not enter probe automatically.
+Test matched and wrong replies, every owned type/access rule, getter before completion, wrong identity/context, timestamp zero, mixed-age blocks, reboot/configuration changes, atomic publication and partial read failure. Assert probe and all accepted reads generate no reset, save, enabling, I/O reassignment or hidden NMT request. A destructive read requires explicit ledger-backed semantics and may not enter probe automatically.
 
 Exit only when all confirmed owned read rows and their negative tests are complete. Record unresolved fields separately from implemented reads and from unsupported models; an unsupported stub does not close a confirmed row. Run the focused native suites, relevant consumers and documentation gates.
 

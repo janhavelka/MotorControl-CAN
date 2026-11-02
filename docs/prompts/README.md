@@ -29,7 +29,7 @@ The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) is part of
 
 ## Execution order
 
-Prerequisites name completed earlier software/design results; the prompt also states any device or fixture evidence gate. All numbers refer to this sequence, not historical stages.
+Prerequisites name the earlier results a prompt consumes, under the usable-prerequisite rule below; the prompt also states any device or fixture evidence gate. All numbers refer to this sequence, not historical stages.
 
 | Prompt | Complete assignment | Prerequisites |
 | --- | --- | --- |
@@ -69,25 +69,25 @@ Prerequisites name completed earlier software/design results; the prompt also st
 | 34 | [Wrapped-angle motion integration](34_angle_moves.md) | 33 |
 | 35 | [Finite velocity operations](35_velocity.md) | 31, 33 |
 | 36 | [Homing and native coverage reconciliation](36_homing.md) | 31, 32, 35 |
-| 37 | [Non-changing discovery and binding](37_discovery.md) | 19, 25 |
-| 38 | [Explicit communication commissioning](38_communication_commissioning.md) | 18, 24, 37 |
+| 37 | [Explicit discovery and binding](37_discovery.md) | 19, 25 |
+| 38 | [Explicit communication commissioning](38_communication_commissioning.md) | 24, 37 |
 | 39 | [Persistence reset and reconciliation](39_persistence.md) | 24, 38 |
 | 40 | [Shared CLI parser and local routes](40_cli_parser.md) | 26, 28 |
 | 41 | [Typed device and network CLI routes](41_cli_device_routes.md) | 21, 22, 37, 38, 39, 40 |
 | 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | 34, 35, 36, 41 |
-| 43 | [Python Console and evidence primitives](43_python_console.md) | 42 |
-| 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | 43 |
+| 43 | [Python Console and evidence primitives](43_python_console.md) | 40 |
+| 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | 42, 43 |
 | 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | 36, 39, 44 |
 | 46 | [Independent consumers and drive contrasts](46_consumer_contrasts.md) | 4, 10, 28, 42, 45 |
-| 47 | [Finite hardware qualification](47_hardware_finite.md) | 29, 44, 45, 46 |
+| 47 | [Finite hardware qualification](47_hardware_finite.md) | 29, 44, 45 |
 | 48 | [Failure load and related-model qualification](48_hardware_stress.md) | 47 |
 | 49 | [User documentation and package audit](49_documentation_package_audit.md) | 42, 44, 46 |
 | 50 | [Final independent release-candidate review](50_final_review.md) | 49 |
 
 ## Completion and external blockers
 
-Update [PROGRESS.md](PROGRESS.md) and `docs/reports/prompt_N.md` after each prompt. A Complete verdict requires every owned deliverable and required check. Partial/Blocked preserves exactly what remains; it is not successful completion. Continue an independent later prompt only when its prerequisites are satisfied.
+Update [PROGRESS.md](PROGRESS.md) and `docs/reports/prompt_N.md` after each prompt. A Complete verdict requires every owned deliverable and required check. Partial/Blocked preserves exactly what remains; it is not successful completion. A prerequisite is usable when the specific artifact consumed exists and its checks passed, regardless of that prompt's state. Start when the consumed artifacts are usable and name them in the report. If an artifact is missing, the dependent feature is Blocked. Complete means the prompt's owned scope and checks closed. Record predecessor gates in an Inherited gates column; they do not change the state.
 
-Owner/adapters in 23-28 precede device-evidence readiness in 29 and motion in 30-36. Prompt 29 completes the host harness and evidence assessment; it cannot invent missing firmware facts. Affected motion behavior remains gated until resolved. Physical qualification in 47-48 requires actual fixture/authorization and remains pending or blocked when unavailable. Prompts 49-50 can still produce an honestly scoped software candidate; they cannot close missing hardware qualification or silently drop blocked native features.
+Owner/adapters in 23-28 precede device-evidence readiness in 29 and motion in 30-36. Prompt 29 completes the host harness and evidence assessment; it cannot invent missing firmware facts. Affected motion behavior remains gated until resolved. Physical qualification in 47-48 requires actual fixture/authorization and remains pending or blocked when unavailable. Prompts 49-50 close as a scoped software candidate listing all inherited gates; they cannot close missing hardware qualification or silently drop blocked native features. Prompt 18 has no dependents: PDO reads belong to 38 and PDO writes stay with 18, integrated through 38's workflow when 18 resumes.
 
 [SEQUENCE.json](SEQUENCE.json) is the machine-checked inventory of IDs, files, dependencies and original-stage ownership. [SPLIT_MAP.md](SPLIT_MAP.md) explains how all previous obligations were divided. The [historical v1 index](archive/v1/README.md) preserves the original 00-19 assignments for traceability; do not execute both versions. [ADD_DRIVE.md](ADD_DRIVE.md) is a later extension playbook, not an extra current prompt.

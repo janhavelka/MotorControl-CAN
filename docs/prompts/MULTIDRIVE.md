@@ -10,7 +10,7 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 4 | Finish N5 stepper/BLDC and EPOS4 contrast evidence without installing their drivers. |
 | 5 | Keep CANopen stack dependencies below the common motion interface and optional for core consumers. |
 | 6 | Prove shared logical-axis intent/ownership with small N5/EPOS4 fixtures and endpoint/subaxis mapping. |
-| 7 | Build core and selected-profile consumers without forcing optional SDK/stack/catalogue dependencies. |
+| 7 | Build a consumer that includes only core headers and a Lichuan consumer without forcing optional SDK/stack/catalogue dependencies; Lichuan is always built in the one library. |
 | 8 | Register contrast tests outside installation; tooling must not make SDKs mandatory for the core. |
 | 9 | Keep common values wider than RS native RPM fields; distinguish command/feedback/effort units and quantization. |
 | 10 | Allow servo coordinates without full-step geometry; keep independent load/command/feedback scale evidence. |
@@ -48,8 +48,8 @@ This contract applies through [COMMON.md](COMMON.md). Read the row for the activ
 | 42 | Common command names remain stable; all actual routes share public APIs and exact numeric representations. |
 | 43 | Handshake/evidence includes protocol/profile/model/firmware; no universal node/statusword or float-precision assumption. |
 | 44 | Select finite scenarios by capabilities; unavailable evidence is an explicit non-pass, not fabricated success. |
-| 45 | Exercise absent ack/done and differing native states through small actual-contract fault fixtures. |
-| 46 | Run N5 stepper/BLDC, EPOS4 and proprietary-frame contrasts on production common code, not installed fake drivers. |
+| 45 | Exercise lost replies, unobserved completion and differing native states on the CANopen path through small actual-contract fault fixtures; protocols with no acknowledgement or a native done report are prompt 46's contrasts. |
+| 46 | Run N5 stepper/BLDC, EPOS4 and proprietary-frame contrasts, including absent acknowledgement and native done reports, on production common code, not installed fake drivers. |
 | 47 | Qualify only the actual model/interface/firmware/motor/configuration and independently observed behavior. |
 | 48 | Related models, brake/stop/watchdog behavior and load limits need separate evidence; no family-wide extrapolation. |
 | 49 | Keep research, fixtures, implemented scope, firmware builds and hardware qualification in separate support columns. |

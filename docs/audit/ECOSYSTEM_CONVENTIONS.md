@@ -1,5 +1,9 @@
 # I2C ecosystem and FieldCore integration audit
 
+**Historical snapshot; superseded by [COMMON.md](../prompts/COMMON.md).** The
+revisions, line references and checklist below record this audit's state and are
+not kept current. Refresh sources under COMMON instead of relying on them.
+
 Audited locally on 2026-10-23. This is source/configuration evidence for the
 MotorControl-CAN implementation promptset, not a claim of fresh test, CI, or
 hardware success. No sibling repository was modified and no hardware was
@@ -257,7 +261,7 @@ Useful fault-test precedents, inspected as source but not run here:
 
 `FieldCore-node/AGENTS.md` makes `docs/guidelines/` authoritative, says resource
 owners call hardware libraries, and forbids services/CLI/Web from owning buses.
-`docs/guidelines/ownership.md:39` distinguishes ownership names from runtime
+`docs/guidelines/ownership.md:54-56` distinguishes ownership names from runtime
 threads: current enabled I2C and RS485 owners have RTOS workers, while services
 consume bounded command/status/result contracts. This is not a requirement that
 MotorControl-CAN create an RTOS task.
@@ -342,6 +346,9 @@ does not inherit move-only coordinate readiness, and cached status that never
 performs I/O or acknowledges an uncertain motion.
 
 ## Required recurring audit checklist for the AI coder
+
+**Superseded.** The recurring audit rule in [COMMON.md](../prompts/COMMON.md) replaces
+this checklist. It is kept as the historical record and is not an assignment.
 
 Run this at the start of **every prompt**, not just repository creation. Record
 a short delta when a previously audited HEAD is unchanged; do not reread huge

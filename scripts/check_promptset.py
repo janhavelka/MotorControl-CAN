@@ -347,16 +347,28 @@ def main():
     # The harness acquires missing firmware evidence for these settings stages.
     # Requiring them first would deadlock evidence acquisition even in an acyclic graph.
     dependencies_by_id = {entry.get("id"): entry.get("depends_on", []) for entry in entries}
-    evidence_ancestors = set()
-    pending = list(dependencies_by_id.get(29, []))
-    while pending:
-        dependency = pending.pop()
-        if dependency in evidence_ancestors:
-            continue
-        evidence_ancestors.add(dependency)
-        pending.extend(dependencies_by_id.get(dependency, []))
-    require(not evidence_ancestors.intersection({18, 20, 21, 22}),
+
+    def ancestors(prompt_id):
+        found = set()
+        pending = list(dependencies_by_id.get(prompt_id, []))
+        while pending:
+            dependency = pending.pop()
+            if dependency in found:
+                continue
+            found.add(dependency)
+            pending.extend(dependencies_by_id.get(dependency, []))
+        return found
+
+    require(not ancestors(29).intersection({18, 20, 21, 22}),
             "Evidence harness 29 must not depend on firmware-gated remapping/settings 18/20-22")
+    # A scoped software candidate must stay reachable while Q17 keeps remapping
+    # Partial. The same graph repair must not drop the CLI routes campaigns run on.
+    for prompt_id in dependencies_by_id:
+        require(18 not in ancestors(prompt_id),
+                "Prompt {} must not descend from firmware-gated remapping 18".format(prompt_id))
+    for prompt_id in (44, 45, 47, 48):
+        require({41, 42} <= ancestors(prompt_id),
+                "Prompt {} must keep CLI routes 41 and 42 as ancestors".format(prompt_id))
     matrix = (root / "docs/requirements_matrix.md").read_text(encoding="utf-8")
     requirement_ids = set(re.findall(r"\| (R\d\d) \|", matrix))
     counts["requirements"] = len(requirement_ids)
@@ -390,6 +402,9 @@ def main():
             continue
         counts["markdown_files"] += 1
         require("\ufffd" not in content, str(path.relative_to(root)) + ": replacement character")
+        # UTF-8 punctuation decoded through a legacy code page starts with these pairs.
+        for mojibake in ("\u00c3\u00a2", "\u00e2\u20ac"):
+            require(mojibake not in content, str(path.relative_to(root)) + ": mis-decoded UTF-8 text")
         require(len(re.findall(r"^```", content, flags=re.MULTILINE)) % 2 == 0,
                 str(path.relative_to(root)) + ": unmatched code fence")
         # Ignore example text inside fenced code blocks when checking links.
