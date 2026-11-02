@@ -6,9 +6,11 @@
 namespace M = MotorControlCAN;
 namespace C = M::CANOPEN;
 namespace O = MotorControlCANOwner;
-namespace {
-unsigned checks = 0;
+static unsigned checks = 0;
 #define CHECK(c) do { ++checks; if (!(c)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #c); std::abort(); } } while (false)
+#include "support/OwnerRig.h"
+namespace {
+using OwnerRig::frame;
 C::SdoChannel route(unsigned node) {
     C::SdoChannel out;
     out.binding.logicalAxisId = 100 + node;
@@ -18,12 +20,6 @@ C::SdoChannel route(unsigned node) {
     out.binding.configurationGeneration = 7;
     out.clientToServerId = 0x600 + node;
     out.serverToClientId = 0x580 + node;
-    return out;
-}
-M::Frame frame(uint32_t id, uint8_t count) {
-    M::Frame out;
-    out.id = id;
-    out.dlc = out.payloadLength = count;
     return out;
 }
 O::ServiceBudget budget(uint8_t tx = 2) {

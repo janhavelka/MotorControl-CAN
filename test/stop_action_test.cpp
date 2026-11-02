@@ -12,8 +12,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace O = MotorControlCANOwner;
-namespace {
-unsigned checks = 0;
+static unsigned checks = 0;
 #define CHECK(condition)                                                                           \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -22,6 +21,10 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/OwnerRig.h"
+namespace {
+using OwnerRig::budget;
+using OwnerRig::frame;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -48,12 +51,6 @@ uint8_t blocks() {
     return uint8_t((1u << unsigned(L::StateBlock::STATUS)) |
                    (1u << unsigned(L::StateBlock::MONITORS)));
 }
-M::Frame frame(uint32_t id, uint8_t size) {
-    M::Frame value;
-    value.id = id;
-    value.dlc = value.payloadLength = size;
-    return value;
-}
 M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = false) {
     M::Frame value = frame(request.channel.serverToClientId, 8);
     value.data[0] = abort                                            ? 0x80
@@ -69,33 +66,12 @@ M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = fal
             value.data[4 + i] = uint8_t(raw >> (8 * i));
     return value;
 }
-bool same(O::TransportTxId a, O::TransportTxId b) {
-        return O::sameTransportTxId(a, b);
-    }
-O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
-    O::ServiceBudget value;
-    value.rx = rx;
-    value.tx = tx;
-    value.events = events;
-    value.starts = starts;
-    return value;
-}
-struct Wire {
-    enum { CAPACITY = 128 };
-    O::ReceivedFrame incoming[CAPACITY];
-    O::TxReport reports[CAPACITY];
-    M::Frame sent[CAPACITY];
-    O::TransportTxId ids[CAPACITY];
-    uint32_t epochs[CAPACITY] = {};
-    bool pending[CAPACITY] = {};
-    unsigned rxRead = 0, rxWrite = 0, reportRead = 0, reportWrite = 0;
-    unsigned sentCount = 0, retireCalls = 0, observed = 0;
-    bool autoReport = true, retirement = true, accept = true;
+struct Wire : OwnerRig::WireBase {
     L::ActionContext* action = nullptr;
     const L::SettingsReservation* reservation = nullptr;
     C::SdoCompletion* latestControl = nullptr;
     static bool guard(void* context, O::SequenceId, const C::SdoTransfer& work, uint64_t now) {
-        Wire& w = *static_cast<Wire*>(context);
+        Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
         if (!w.action || work.operation != w.action->operation)
             return true;
         CHECK(w.reservation && work.index == 0x6040 && work.step == 1);
@@ -108,76 +84,10 @@ struct Wire {
         *w.latestControl = C::SdoCompletion();
         return true;
     }
-    static bool receive(void* context, O::ReceivedFrame& output) {
-        Wire& w = *static_cast<Wire*>(context);
-        if (w.rxRead == w.rxWrite)
-            return false;
-        output = w.incoming[w.rxRead++];
-        return true;
-    }
-    static bool transmit(void* context, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
-        Wire& w = *static_cast<Wire*>(context);
-        CHECK(w.sentCount < CAPACITY);
-        const unsigned i = w.sentCount++;
-        w.sent[i] = value;
-        w.ids[i] = id;
-        w.epochs[i] = epoch;
-        w.pending[i] = true;
-        if (w.autoReport)
-            w.report(i, w.accept);
-        return w.accept;
-    }
-    static bool takeReport(void* context, O::TxReport& output) {
-        Wire& w = *static_cast<Wire*>(context);
-        if (w.reportRead == w.reportWrite)
-            return false;
-        output = w.reports[w.reportRead++];
-        return true;
-    }
-    static bool retire(void* context, O::TransportTxId id, uint32_t epoch) {
-        Wire& w = *static_cast<Wire*>(context);
-        ++w.retireCalls;
-        if (!w.retirement)
-            return false;
-        for (unsigned i = 0; i < w.sentCount; ++i)
-            if (same(w.ids[i], id) && w.epochs[i] == epoch)
-                w.pending[i] = false;
-        unsigned kept = w.reportRead;
-        for (unsigned i = w.reportRead; i < w.reportWrite; ++i)
-            if (!same(w.reports[i].id, id) || w.reports[i].controllerEpoch != epoch)
-                w.reports[kept++] = w.reports[i];
-        w.reportWrite = kept;
-        return true;
-    }
-    static void observe(void* context, const O::ReceivedFrame&, uint64_t) {
-        ++static_cast<Wire*>(context)->observed;
-    }
     O::Transport callbacks() {
-        O::Transport value;
-        value.context = this;
-        value.receive = receive;
-        value.transmit = transmit;
-        value.takeTxReport = takeReport;
-        value.retire = retire;
-        value.observe = observe;
+        O::Transport value = plumbing();
         value.beforeTransmit = guard;
         return value;
-    }
-    void report(unsigned i, bool transmitted = true) {
-        CHECK(i < sentCount && reportWrite < CAPACITY && pending[i]);
-        O::TxReport& value = reports[reportWrite++];
-        value.id = ids[i];
-        value.controllerEpoch = epochs[i];
-        value.transmitted = transmitted;
-        pending[i] = false;
-    }
-    void push(const M::Frame& value, uint64_t now, uint32_t epoch = 1) {
-        CHECK(rxWrite < CAPACITY);
-        O::ReceivedFrame& input = incoming[rxWrite++];
-        input.frame = value;
-        input.receivedTimeKnown = true;
-        input.receivedUs = now;
-        input.controllerEpoch = epoch;
     }
 };
 struct Rig {

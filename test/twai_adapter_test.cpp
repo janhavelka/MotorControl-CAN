@@ -12,8 +12,7 @@ namespace M = MotorControlCAN;
 namespace C = M::CANOPEN;
 namespace E = MotorControlCANExample;
 namespace O = MotorControlCANOwner;
-namespace {
-unsigned checks = 0;
+static unsigned checks = 0;
 #define CHECK(c)                                                                                   \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -22,18 +21,11 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/OwnerRig.h"
+namespace {
+using OwnerRig::budget;
+using OwnerRig::route;
 
-C::SdoChannel route(unsigned node = 1) {
-    C::SdoChannel value;
-    value.binding.logicalAxisId = 100 + node;
-    value.binding.endpoint.profile = 41;
-    value.binding.endpoint.address = node;
-    value.binding.bindingGeneration = 3;
-    value.binding.configurationGeneration = 7;
-    value.clientToServerId = 0x600 + node;
-    value.serverToClientId = 0x580 + node;
-    return value;
-}
 M::Frame frame(uint32_t id, uint8_t count = 8) {
     M::Frame value;
     value.id = id;
@@ -47,16 +39,6 @@ E::TwaiConfig config() {
     value.bitrate = 250000;
     value.sdkTxQueueDepth = 1;
     value.rxQueueDepth = 16;
-    return value;
-}
-O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
-                        uint8_t recovery = 0) {
-    O::ServiceBudget value;
-    value.rx = rx;
-    value.tx = tx;
-    value.events = events;
-    value.starts = starts;
-    value.recovery = recovery;
     return value;
 }
 struct FakeDriver {

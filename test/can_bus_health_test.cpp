@@ -13,8 +13,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace O = MotorControlCANOwner;
 namespace L = MotorControlCAN::LICHUAN_C;
-namespace {
-unsigned checks = 0;
+static unsigned checks = 0;
 #define CHECK(c)                                                                                   \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -23,22 +22,15 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/OwnerRig.h"
+namespace {
+using OwnerRig::budget;
+using OwnerRig::route;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
     void unchanged(const T& value) const { CHECK(!std::memcmp(bytes, &value, sizeof value)); }
 };
-C::SdoChannel route(unsigned node = 1) {
-    C::SdoChannel out;
-    out.binding.logicalAxisId = 100 + node;
-    out.binding.endpoint.profile = 41;
-    out.binding.endpoint.address = node;
-    out.binding.bindingGeneration = 3;
-    out.binding.configurationGeneration = 7;
-    out.clientToServerId = 0x600 + node;
-    out.serverToClientId = 0x580 + node;
-    return out;
-}
 M::Frame frame(uint32_t id, uint8_t size = 8) {
     M::Frame out;
     out.id = id;
@@ -57,16 +49,6 @@ M::Frame reply(unsigned node = 1, uint16_t index = 0x2345, bool download = false
 M::Frame heartbeat(unsigned node = 1) {
     M::Frame out = frame(0x700 + node, 1);
     out.data[0] = 5;
-    return out;
-}
-O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
-                        uint8_t recovery = 0) {
-    O::ServiceBudget out;
-    out.rx = rx;
-    out.tx = tx;
-    out.events = events;
-    out.starts = starts;
-    out.recovery = recovery;
     return out;
 }
 struct Fake {

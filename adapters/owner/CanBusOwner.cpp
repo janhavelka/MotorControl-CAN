@@ -5,10 +5,7 @@
 namespace MotorControlCANOwner {
 namespace C = MotorControlCAN::CANOPEN;
 namespace {
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
+using detail::overlap;
 bool same(SequenceId a, SequenceId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
 }
@@ -74,15 +71,20 @@ const Sequence* CanBusOwner::sequence(SequenceId id) const noexcept {
     const Sequence& s = sequences_[id.slot].value;
     const int c = channel(s.binding);
     const auto* node = c < 0 ? nullptr : services_.node(uint8_t(c));
-    for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
-        const auto* route = services_.channel(uint8_t(i));
-        if (route && peer(route->binding, s.binding) && services_.unresolved(uint8_t(i)))
-            return nullptr;
-    }
+    if (!peersResolved(s.binding))
+        return nullptr;
     return node && !node->exhausted && node->route.generation == s.nodeGeneration &&
                    !services_.unresolved(uint8_t(c))
                ? &s
                : nullptr;
+}
+bool CanBusOwner::peersResolved(const Binding& binding) const noexcept {
+    for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
+        const auto* route = services_.channel(uint8_t(i));
+        if (route && peer(route->binding, binding) && services_.unresolved(uint8_t(i)))
+            return false;
+    }
+    return true;
 }
 bool CanBusOwner::beginSequence(const Binding& binding, uint8_t producer, uint64_t now,
                                 SequenceId& output) noexcept {
@@ -96,11 +98,8 @@ bool CanBusOwner::beginSequence(const Binding& binding, uint8_t producer, uint64
     const auto* node = c < 0 ? nullptr : services_.node(uint8_t(c));
     if (!node || node->exhausted || node->boundaryUs > now || services_.unresolved(uint8_t(c)))
         return false;
-    for (unsigned i = 0; i < C::SdoClient::CHANNELS; ++i) {
-        const auto* route = services_.channel(uint8_t(i));
-        if (route && peer(route->binding, binding) && services_.unresolved(uint8_t(i)))
-            return false;
-    }
+    if (!peersResolved(binding))
+        return false;
     int free = -1;
     for (unsigned i = 0; i < SEQUENCES; ++i) {
         const Reservation& s = sequences_[i];
@@ -146,17 +145,13 @@ bool CanBusOwner::releaseSequence(SequenceId id) noexcept {
 }
 BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now,
                                 RequestId& output) noexcept {
-    const BusAdmission result = admit(request, now, output, false);
-    if (!entered_ && result != BusAdmission::ACCEPTED) {
-        detail::add(stats_.queueRejected);
-        if (result == BusAdmission::RESULTS_FULL)
-            detail::add(stats_.resultsRejected);
-    }
-    return result;
+    return countAdmission(admit(request, now, output, false));
 }
 BusAdmission CanBusOwner::admitUrgent(const BusRequest& request, uint64_t now,
                                       RequestId& output) noexcept {
-    const BusAdmission result = admit(request, now, output, true);
+    return countAdmission(admit(request, now, output, true));
+}
+BusAdmission CanBusOwner::countAdmission(BusAdmission result) noexcept {
     if (!entered_ && result != BusAdmission::ACCEPTED) {
         detail::add(stats_.queueRejected);
         if (result == BusAdmission::RESULTS_FULL)
@@ -358,11 +353,9 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
     if (entered_ || now < lastUs_ || overlap(&budget, sizeof budget, this, sizeof *this) ||
         overlap(&budget, sizeof budget, &services_, sizeof services_))
         return false;
-    entered_ = true;
-    if (!services_.service(now)) {
-        entered_ = false;
+    const detail::EnteredScope entered(entered_);
+    if (!services_.service(now))
         return false;
-    }
     if (serviceTimeKnown_ && now - serviceTimeUs_ > stats_.maxServiceGapUs)
         stats_.maxServiceGapUs = now - serviceTimeUs_;
     serviceTimeKnown_ = true;
@@ -501,7 +494,6 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             ++sent;
     }
     refreshHealth(now);
-    entered_ = false;
     return true;
 }
 bool CanBusOwner::localTxRetired(uint8_t slot) const noexcept {
@@ -550,7 +542,7 @@ bool CanBusOwner::admitNmt(const C::NmtTransfer& work, uint64_t now,
         overlap(&output, sizeof output, &services_, sizeof services_) ||
         overlap(&output, sizeof output, &work, sizeof work))
         return false;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     C::NmtRequestId candidate;
     const bool accepted = services_.admitNmt(work, now, candidate);
     if (accepted) {
@@ -560,7 +552,6 @@ bool CanBusOwner::admitNmt(const C::NmtTransfer& work, uint64_t now,
         output = candidate;
         lastUs_ = now;
     }
-    entered_ = false;
     return accepted;
 }
 bool CanBusOwner::transmitNmt(uint64_t now) noexcept {
@@ -595,7 +586,7 @@ bool CanBusOwner::cancelNmt(C::NmtRequestId id, uint64_t now) noexcept {
     if (entered_ || now < lastUs_ || !nmtOccupied_ || id.owner != nmtId_.owner ||
         id.generation != nmtId_.generation)
         return false;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     const bool cancelled = services_.cancelNmt(id, now);
     if (cancelled)
@@ -604,7 +595,6 @@ bool CanBusOwner::cancelNmt(C::NmtRequestId id, uint64_t now) noexcept {
     expire(now);
     settleExternal(now, true);
     refreshHealth(now);
-    entered_ = false;
     return cancelled;
 }
 const C::NmtCompletion* CanBusOwner::nmtResult(C::NmtRequestId id) const noexcept {
@@ -641,7 +631,7 @@ void CanBusOwner::cancelSlot(unsigned index, CompletionReason reason, uint64_t n
 Cancel CanBusOwner::cancel(RequestId id, uint64_t now) noexcept {
     if (entered_ || now < lastUs_ || !valid(id))
         return Cancel::INVALID;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     collect();
     const bool alreadyTerminal = slots_[id.slot].terminal;
@@ -652,13 +642,12 @@ Cancel CanBusOwner::cancel(RequestId id, uint64_t now) noexcept {
             : Cancel::ALREADY_TERMINAL;
     settleExternal(now, true);
     refreshHealth(now);
-    entered_ = false;
     return disposition;
 }
 bool CanBusOwner::invalidate(SequenceId id, uint64_t now) noexcept {
     if (entered_ || now < lastUs_ || !valid(id))
         return false;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     collect();
     for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
@@ -667,13 +656,12 @@ bool CanBusOwner::invalidate(SequenceId id, uint64_t now) noexcept {
     sequences_[id.slot].invalidated = true;
     settleExternal(now, true);
     refreshHealth(now);
-    entered_ = false;
     return true;
 }
 bool CanBusOwner::invalidateProducer(uint8_t producer, uint64_t now) noexcept {
     if (entered_ || now < lastUs_ || !producer || producer > PRODUCERS)
         return false;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     collect();
     for (unsigned i = 0; i < TOTAL_REQUESTS; ++i)
@@ -684,7 +672,6 @@ bool CanBusOwner::invalidateProducer(uint8_t producer, uint64_t now) noexcept {
             s.invalidated = true;
     settleExternal(now, true);
     refreshHealth(now);
-    entered_ = false;
     return true;
 }
 bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) noexcept {
@@ -693,7 +680,7 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
         overlap(&output, sizeof output, this, sizeof *this) ||
         overlap(&output, sizeof output, &services_, sizeof services_))
         return false;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     inhibited_ = true;
     collect();
@@ -716,7 +703,6 @@ bool CanBusOwner::recover(uint64_t now, uint64_t deadline, RecoveryId& output) n
         !transport_.beginRecovery(transport_.context, controllerEpoch_))
         closeRecovery(RecoveryOutcome::FAILED, now);
     refreshHealth(now);
-    entered_ = false;
     return true;
 }
 void CanBusOwner::closeRecovery(RecoveryOutcome outcome, uint64_t now) noexcept {
@@ -758,7 +744,7 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
     if (entered_ || now < lastUs_ || state > C::ControllerState::RECOVERING ||
         (state == C::ControllerState::AVAILABLE && inhibited_))
         return false;
-    entered_ = true;
+    const detail::EnteredScope entered(entered_);
     lastUs_ = now;
     if (state == C::ControllerState::BUS_OFF &&
         services_.controllerState() != C::ControllerState::BUS_OFF)
@@ -787,7 +773,6 @@ bool CanBusOwner::reportController(C::ControllerState state, uint64_t now) noexc
         closeRecovery(
             now >= recovery_.deadlineUs ? RecoveryOutcome::TIMEOUT : RecoveryOutcome::FAILED, now);
     refreshHealth(now);
-    entered_ = false;
     return true;
 }
 bool CanBusOwner::receiveOverflow(uint64_t now, uint32_t droppedFrames) noexcept {
@@ -814,9 +799,11 @@ bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
             (external_[i].pending || external_[i].blocked))
             return false;
     }
-    entered_ = true;
-    const bool changed = services_.advanceConfiguration(uint8_t(c), s.value.binding, next, now);
-    entered_ = false;
+    bool changed;
+    {
+        const detail::EnteredScope entered(entered_);
+        changed = services_.advanceConfiguration(uint8_t(c), s.value.binding, next, now);
+    }
     if (!changed)
         return false;
     s.value.binding = next;
