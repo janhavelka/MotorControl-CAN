@@ -222,6 +222,7 @@ struct ReceivedFrame {
 struct TxReport {
     TransportTxId id; ///< Exact copied native handoff identity.
     bool transmitted = false; ///< True actual TX/ACK; false failure with uncertain effect.
+    bool provedUnsent = false; ///< With transmitted false: this frame never reached the SDK.
     uint32_t controllerEpoch =
         1; ///< Original enqueue epoch. Both results prove no later TX of this frame.
 };

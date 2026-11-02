@@ -290,6 +290,7 @@ bool SdoClient::admit(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     c.occupied = true;
     c.terminal = c.started = c.awaiting = c.queued = c.possible = c.txConfirmed = false;
     c.unsizedExpedited = c.replyValid = c.handoffLive = false;
+    c.held = c.withdrawn = c.possibleBeforeHandoff = false;
     c.uploaded = 0;
     c.frame = 0;
     c.queueCutoff = cutoff(now, work.deadlineUs, work.queueTimeoutUs);
@@ -311,6 +312,7 @@ void SdoClient::retire(Channel& c) {
     c.port.tx.bufferFull = false;
     c.cleanup = false;
     c.handoffLive = false;
+    c.held = false;
 }
 
 void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t returned,
@@ -345,9 +347,12 @@ void SdoClient::finish(Channel& c, SdoOutcome outcome, uint64_t now, int32_t ret
     c.cleanup = c.port.queueOccupied && c.port.queued.data[0] == 0x80 && now < c.work.deadlineUs;
     out.clientAbortQueued = c.cleanup;
     c.handoffLive = false;
+    c.held = false;
     if (!c.cleanup) retire(c);
-    if ((c.possible && outcome != SdoOutcome::SUCCESS) || outcome == SdoOutcome::TRANSPORT_ERROR ||
+    if ((c.possible && outcome != SdoOutcome::SUCCESS) ||
+        (outcome == SdoOutcome::TRANSPORT_ERROR && !c.withdrawn) ||
         outcome == SdoOutcome::BUS_OFF || outcome == SdoOutcome::REBOOT) c.unresolved = true;
+    c.withdrawn = false;
     CO_SDOclientClose(&c.engine);
     c.awaiting = false;
     c.completion = out;
@@ -359,7 +364,7 @@ void SdoClient::expire(Channel& c, uint64_t now) {
     if (c.cleanup && (now >= c.work.deadlineUs || now >= c.queueCutoff)) retire(c);
     if (!c.occupied || c.terminal) return;
     if (now >= c.work.deadlineUs ||
-        ((!c.started || c.port.queueOccupied) && now >= c.queueCutoff) ||
+        ((!c.started || c.port.queueOccupied || c.held) && now >= c.queueCutoff) ||
         (c.awaiting && now >= c.responseCutoff)) {
         retire(c);
         finish(c, SdoOutcome::TIMEOUT, now);
@@ -612,6 +617,7 @@ bool SdoClient::nextTx(uint8_t slot, uint64_t now, Frame& f, SdoTxId& id) {
     c.handoffUs = now;
     c.handoffCutoff = cleanupCutoff;
     if (!cleanup) {
+        c.possibleBeforeHandoff = c.possible;
         c.possible = true;
         c.awaiting = true;
         c.responseCutoff = cutoff(now, c.work.deadlineUs, c.work.responseTimeoutUs);
@@ -628,6 +634,47 @@ bool SdoClient::canTransmit(SdoTxId id, uint64_t now) const {
            id.request.generation == c.generation && id.frame != 0 && id.frame == c.frame &&
            now < c.handoffCutoff && now < c.work.deadlineUs &&
            ((!c.occupied || c.terminal) || eligibleSdo(id.request.channel, c.work, now));
+}
+
+bool SdoClient::holdHandoff(SdoTxId id) {
+    if (!valid(id.request)) return false;
+    Channel& c = channels_[id.request.channel];
+    if (!c.handoffLive || id.frame == 0 || id.frame != c.frame) return false;
+    c.held = true;
+    if (c.occupied && !c.terminal) {
+        c.possible = c.possibleBeforeHandoff;
+        c.awaiting = false;
+        c.handoffCutoff = c.queueCutoff < c.work.deadlineUs ? c.queueCutoff : c.work.deadlineUs;
+    }
+    return true;
+}
+
+bool SdoClient::noteSubmitted(SdoTxId id, uint64_t now) {
+    if (!canTransmit(id, now)) return false;
+    lastUs_ = now;
+    Channel& c = channels_[id.request.channel];
+    if (!c.held) return false;
+    c.held = false;
+    if (c.occupied && !c.terminal) {
+        c.possible = true;
+        c.awaiting = true;
+        c.handoffUs = now;
+        c.responseCutoff = cutoff(now, c.work.deadlineUs, c.work.responseTimeoutUs);
+        c.handoffCutoff = c.responseCutoff;
+    }
+    return true;
+}
+
+bool SdoClient::withdrawUnsent(SdoTxId id, uint64_t now) {
+    if (!valid(id.request) || now < lastUs_) return false;
+    lastUs_ = now;
+    Channel& c = channels_[id.request.channel];
+    expire(c, now);
+    if (c.terminal || !c.held || id.frame == 0 || id.frame != c.frame) return false;
+    retire(c);
+    c.withdrawn = true;
+    finish(c, SdoOutcome::TRANSPORT_ERROR, now);
+    return true;
 }
 
 bool SdoClient::confirmTx(SdoTxId id, uint64_t now) {

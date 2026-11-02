@@ -441,7 +441,7 @@ void ownerTask(void*) {
         firmware.service();
         raw.service(firmware.owner().lastTimeUs());
         pdo.service(firmware.owner().lastTimeUs());
-        if (firmware.clockFailed() && !silent)
+        if (firmware.progressionFailed() && !silent)
             silent = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK;
         const E::AcquisitionRecord* record = firmware.evidence().record();
         const E::RawEvidenceRecord* rawRecord = raw.record();

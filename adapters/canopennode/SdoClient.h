@@ -83,6 +83,29 @@ public:
      * @return True only for first terminal; possible effects remain in retained result.
      */
     bool transportFailureNmt(NmtRequestId id, uint64_t nowUs);
+    /** Mark the current NMT handoff as held by a controller adapter, short of its SDK.
+     * Clears possible transmission and the node's transition intent, so a later
+     * heartbeat cannot confirm a frame that never left. Host node evidence withdrawn
+     * at handoff stays withdrawn, which is the conservative direction.
+     * Call it in the same cooperative step as the handoff.
+     * @param[in] id Exact request just handed off.
+     * @return False for a stale, terminal or already held request.
+     */
+    bool holdNmtHandoff(NmtRequestId id);
+    /** Record that a held NMT frame reached the SDK, or may have.
+     * Restores possible transmission and transition intent at this actual boundary.
+     * @param[in] id Exact request held.
+     * @param[in] nowUs Same supplied time.
+     * @return False when no such request is held.
+     */
+    bool noteNmtSubmitted(NmtRequestId id, uint64_t nowUs);
+    /** Report a held NMT frame the adapter proved never reached its SDK.
+     * Ends with TRANSPORT_ERROR and no possible transmission.
+     * @param[in] id Exact request still held.
+     * @param[in] nowUs Same supplied time.
+     * @return True only for the first terminal of a matching request.
+     */
+    bool withdrawNmtUnsent(NmtRequestId id, uint64_t nowUs);
     /** Cancel local work without transmitting a network/motor stop.
      * @param[in] id Exact nonterminal request.
      * @param[in] nowUs Same supplied clock; expiration takes precedence.
@@ -418,6 +441,32 @@ public:
      * retirement evidence; this function cannot recall bytes outside the adapter.
      */
     bool canTransmit(SdoTxId id, uint64_t nowUs) const;
+    /** Mark the current handoff as held by a controller adapter, short of its SDK.
+     * Called by an adapter that queues a handoff itself. While held the frame has no
+     * possible effect, so this restores the earlier possible-TX fact, stops the response
+     * clock and leaves only the queue and overall cutoffs. Its expiry needs no
+     * quarantine. An unsolicited frame while held still ends correlation.
+     * Identity alone decides: call it in the same cooperative step as the handoff.
+     * @param[in] id Exact most recent live handoff.
+     * @return False for a stale or foreign handoff; nothing changes.
+     */
+    bool holdHandoff(SdoTxId id);
+    /** Record that a held handoff reached the SDK, or may have: effects are possible now.
+     * Starts the response clock at this actual boundary, not at adapter handoff.
+     * @param[in] id Exact handoff previously held.
+     * @param[in] nowUs Same supplied time.
+     * @return False when no such handoff is held.
+     */
+    bool noteSubmitted(SdoTxId id, uint64_t nowUs);
+    /** Withdraw a held handoff the adapter proved never reached the SDK.
+     * Ends the transfer with TRANSPORT_ERROR and no new possible effect, so a first
+     * frame leaves the route open. Effects of earlier confirmed frames still quarantine.
+     * Never use this for a frame the SDK may have accepted.
+     * @param[in] id Exact handoff still held.
+     * @param[in] nowUs Same supplied time.
+     * @return True only for the first terminal of a matching held handoff.
+     */
+    bool withdrawUnsent(SdoTxId id, uint64_t nowUs);
     /** Record actual controller TX/ACK separately from protocol confirmation.
      * A report can follow a nonfinal reply until the next frame handoff supersedes
      * its token. Recording it neither renews a cutoff nor rewrites a terminal.
@@ -497,6 +546,7 @@ private:
         bool queued = false, possible = false, txConfirmed = false, cleanup = false;
         bool unsizedExpedited = false;
         bool handoffLive = false, observationValid = false;
+        bool held = false, withdrawn = false, possibleBeforeHandoff = false;
         bool experimentArmed = false, experimentActive = false;
         uint32_t experimentAuthorization = 0;
         Generation experimentNodeGeneration = 0;
@@ -529,13 +579,14 @@ private:
     CO_NMT_t nmtEngine_ = {};
     CO_CANmodule_t nmtPort_ = {};
     NmtCompletion nmtCompletion_;
-    bool nmtOccupied_ = false, nmtTerminal_ = false;
+    bool nmtOccupied_ = false, nmtTerminal_ = false, nmtHeld_ = false;
     uint32_t nmtGeneration_ = 0;
     uint64_t nmtQueueCutoff_ = 0;
     bool validNmt(NmtRequestId id) const;
     void serviceNmt(uint64_t nowUs);
     void expireNmt(uint64_t nowUs);
     void finishNmt(NmtOutcome outcome, uint64_t nowUs);
+    void recordNmtIntent(uint64_t nowUs, bool present);
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;

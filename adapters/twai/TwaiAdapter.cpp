@@ -81,6 +81,11 @@ bool TwaiAdapter::enqueue(const MotorControlCAN::Frame& frame, TransportTxId id,
             slot.report.controllerEpoch = epoch;
             slot.serial = ++serial_;
             slot.state = State::QUEUED;
+            // Queued here means no SDK contact yet: no possible effect or response clock.
+            if (id.kind == TransportTxId::Kind::NMT)
+                services_.holdNmtHandoff(id.nmt);
+            else if (id.kind == TransportTxId::Kind::SDO)
+                services_.holdHandoff(id.sdo);
             return true;
         }
     return false;
@@ -95,18 +100,21 @@ bool TwaiAdapter::retire(TransportTxId id, uint32_t epoch) noexcept {
         }
     return true;
 }
-void TwaiAdapter::service(CanBusOwner& owner, uint64_t now) noexcept {
+bool TwaiAdapter::acceptTime(CanBusOwner& owner, uint64_t now) noexcept {
     if (haveTime_ && now < now_) {
         diagnostics_.inhibited = true;
         // Explicit owner calls can advance time between adapter turns. A clock
         // fault must invalidate at that authority, never a rejected older time.
         owner.reportController(MotorControlCAN::CANOPEN::ControllerState::RECOVERING,
                                owner.lastTimeUs());
-        return;
+        return false;
     }
     now_ = now;
     haveTime_ = true;
-    if (!initialized_ || recovery_ != Recovery::IDLE)
+    return initialized_ && recovery_ == Recovery::IDLE;
+}
+void TwaiAdapter::pollEvents(CanBusOwner& owner, uint64_t now) noexcept {
+    if (!acceptTime(owner, now))
         return;
     const TwaiEvents events = driver_.events(driver_.context);
     diagnostics_.rxDropped = add(diagnostics_.rxDropped, events.rxDropped);
@@ -136,7 +144,9 @@ void TwaiAdapter::service(CanBusOwner& owner, uint64_t now) noexcept {
                                    : MotorControlCAN::CANOPEN::ControllerState::RECOVERING,
                                now);
     }
-    if (diagnostics_.inhibited || events.rxPending)
+}
+void TwaiAdapter::promote(CanBusOwner& owner, uint64_t now) noexcept {
+    if (!acceptTime(owner, now) || diagnostics_.inhibited)
         return;
     Slot* next = nullptr;
     for (auto& slot : slots_) {
@@ -152,12 +162,27 @@ void TwaiAdapter::service(CanBusOwner& owner, uint64_t now) noexcept {
         ? services_.canTransmitNmt(id.nmt, now)
         : id.kind == TransportTxId::Kind::SDO && services_.canTransmit(id.sdo, now);
     if (!eligible) {
+        next->report.provedUnsent = true;
         next->state = State::REPORT;
         return;
     }
     // Mark active before submit: the SDK can interrupt with completion immediately.
     next->state = State::ACTIVE;
-    if (!driver_.submit(driver_.context, next->frame, next->serial))
+    const TwaiSubmit result = driver_.submit(driver_.context, next->frame, next->serial);
+    if (result == TwaiSubmit::DEFERRED) {
+        next->state = State::QUEUED;
+        return;
+    }
+    if (result == TwaiSubmit::FAILED_UNSENT) {
+        next->report.provedUnsent = true;
+        next->state = State::REPORT;
+        return;
+    }
+    if (id.kind == TransportTxId::Kind::NMT)
+        services_.noteNmtSubmitted(id.nmt, now);
+    else if (id.kind == TransportTxId::Kind::SDO)
+        services_.noteSubmitted(id.sdo, now);
+    if (result == TwaiSubmit::FAILED_UNCERTAIN)
         next->state = State::REPORT;
 }
 bool TwaiAdapter::beginRecovery(uint32_t epoch) noexcept {

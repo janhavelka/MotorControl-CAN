@@ -24,20 +24,28 @@ bool FirmwareProbe::service() noexcept {
         return false;
     }
     uint64_t now = 0;
-    bool progressed = platform_.nowUs(now) && now >= lastUs_ && app_.service(now);
-    if (progressed) {
-        lastUs_ = now;
-        transport_.service(owner_, now);
-        progressed = evidence_.service(now);
+    FirmwareFailure failure = FirmwareFailure::NONE;
+    if (!platform_.nowUs(now) || now < lastUs_) {
+        failure = FirmwareFailure::CLOCK;
+    } else {
+        transport_.pollEvents(owner_, now);
+        if (!app_.service(now)) {
+            failure = FirmwareFailure::APPLICATION;
+        } else {
+            lastUs_ = now;
+            transport_.promote(owner_, now);
+            if (!evidence_.service(now))
+                failure = FirmwareFailure::EVIDENCE;
+        }
     }
-    if (!progressed) {
+    if (failure != FirmwareFailure::NONE) {
         running_ = false;
-        clockFailed_ = true;
+        failure_ = failure;
         const bool invalidated = owner_.reportController(
             MotorControlCAN::CANOPEN::ControllerState::RECOVERING, owner_.lastTimeUs());
         evidence_.interrupt(owner_.lastTimeUs());
         // Public app/owner calls can advance time between firmware turns. Never
-        // report a clock failure at an older timestamp or invent a newer one.
+        // report this failure at an older timestamp or invent a newer one.
         const bool retired = transport_.shutdown();
         faultRetired_ = invalidated && retired;
         return false;

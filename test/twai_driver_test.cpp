@@ -33,6 +33,9 @@ struct FakeSdk {
     bool failEnabled = false, memoryInternal = true, live = false;
     bool immediate = false, rxFail = false;
     bool bootOnExit = false, deferredDone = false, deferredSuccess = false;
+    // Bus-off taking effect after the state query, seen by the SDK at disable.
+    bool busOffAtDisable = false, invalidStateAtDisable = false;
+    unsigned infoCalls = 0, failInfoAtCall = 0;
     const twai_frame_t* deferredPointer = nullptr;
     int currentCore = 1, taskCore = 1;
     TaskHandle_t task = reinterpret_cast<TaskHandle_t>(1);
@@ -219,9 +222,13 @@ esp_err_t twai_node_enable(twai_node_handle_t node) {
 }
 esp_err_t twai_node_disable(twai_node_handle_t node) {
     CHECK(node == sdk.node() && sdk.live);
+    if (sdk.busOffAtDisable) {
+        sdk.busOffAtDisable = false;
+        sdk.state = TWAI_ERROR_BUS_OFF;
+    }
     if (sdk.record(Call::DISABLE))
         return ESP_FAIL;
-    if (sdk.state == TWAI_ERROR_BUS_OFF)
+    if (sdk.state == TWAI_ERROR_BUS_OFF || sdk.invalidStateAtDisable)
         return ESP_ERR_INVALID_STATE;
     sdk.state = TWAI_ERROR_BUS_OFF;
     return ESP_OK;
@@ -240,7 +247,8 @@ esp_err_t twai_node_delete(twai_node_handle_t node) {
 esp_err_t twai_node_get_info(twai_node_handle_t node, twai_node_status_t* status,
                              twai_node_record_t*) {
     CHECK(node == sdk.node() && sdk.live);
-    if (sdk.record(Call::INFO))
+    ++sdk.infoCalls;
+    if (sdk.record(Call::INFO) || sdk.infoCalls == sdk.failInfoAtCall)
         return ESP_FAIL;
     status->state = sdk.state;
     return ESP_OK;
@@ -296,7 +304,8 @@ void initializationAndConfiguration() {
     CHECK(sdk.config.io_cfg.tx == 4 && sdk.config.io_cfg.rx == 5);
     CHECK(sdk.config.io_cfg.quanta_clk_out == -1 && sdk.config.io_cfg.bus_off_indicator == -1);
     CHECK(sdk.config.bit_timing.bitrate == 250000 && sdk.config.bit_timing.sp_permill == 800);
-    CHECK(sdk.config.fail_retry_cnt == 0 && sdk.config.tx_queue_depth == 1);
+    // Recorded contract change (DEC-4): hardware retransmits until ACK. Was 0.
+    CHECK(sdk.config.fail_retry_cnt == -1 && sdk.config.tx_queue_depth == 1);
     CHECK(sdk.config.timestamp_resolution_hz == 0 && !sdk.config.flags.enable_self_test);
     CHECK(!sdk.config.flags.enable_loopback && !sdk.config.flags.enable_listen_only);
     CHECK(sdk.filter.id == 0 && sdk.filter.mask == 0);
@@ -344,7 +353,9 @@ void actualReceiveCallbacksValidateBeforePublishing() {
     E::IdfTwaiDriver instance;
     auto driver = instance.driver();
     CHECK(driver.start(driver.context, config(2), 7));
-    for (uint16_t dlc = 9; dlc <= 15; ++dlc)
+    // DLC 9..15 moved to classicalDlcAndFramingReachOwnerStorage. Anything above a
+    // four-bit field is still not a Classical frame and is still dropped.
+    for (uint16_t dlc = 16; dlc <= 22; ++dlc)
         sdk.receive(0x123, dlc);
     sdk.receive(0x123, 8, false, false, true);
     sdk.receive(0x123, 8, false, false, false, true);
@@ -460,13 +471,15 @@ void actualTxCallbacksOwnAndCorrelate() {
         auto driver = instance.driver();
         CHECK(driver.start(driver.context, config(), 1));
         auto value = frame();
-        CHECK(driver.submit(driver.context, value, 91));
+        CHECK(driver.submit(driver.context, value, 91) == E::TwaiSubmit::SENT);
         value.data[0] = 0xee;
         CHECK(sdk.pending->buffer[0] == 11 && sdk.pending->header.id == 0x123);
         CHECK(sdk.pending->buffer_len == 8 && sdk.transmissions == 1);
         if (!immediate) {
             CHECK(!driver.events(driver.context).txDone);
-            CHECK(!driver.submit(driver.context, value, 92));
+            // One outstanding: refused without SDK contact, the first frame is untouched.
+            CHECK(driver.submit(driver.context, value, 92) == E::TwaiSubmit::FAILED_UNSENT);
+            CHECK(sdk.transmissions == 1);
             sdk.done(true);
         }
         auto events = driver.events(driver.context);
@@ -476,7 +489,7 @@ void actualTxCallbacksOwnAndCorrelate() {
         value.id = 0x1fffffff;
         value.extended = value.rtr = true;
         value.payloadLength = 0;
-        CHECK(driver.submit(driver.context, value, 92));
+        CHECK(driver.submit(driver.context, value, 92) == E::TwaiSubmit::SENT);
         CHECK(sdk.pending->header.ide && sdk.pending->header.rtr);
         CHECK(sdk.pending->header.dlc == 8 && sdk.pending->buffer_len == 0);
         sdk.done(false);
@@ -489,11 +502,11 @@ void actualTxCallbacksOwnAndCorrelate() {
     auto driver = instance.driver();
     CHECK(driver.start(driver.context, config(), 1));
     auto value = frame();
-    CHECK(driver.submit(driver.context, value, 1));
+    CHECK(driver.submit(driver.context, value, 1) == E::TwaiSubmit::SENT);
     const twai_frame_t wrong = {};
     sdk.done(true, &wrong);
     CHECK(driver.events(driver.context).fault);
-    CHECK(!driver.submit(driver.context, value, 2));
+    CHECK(driver.submit(driver.context, value, 2) == E::TwaiSubmit::FAILED_UNSENT);
     sdk.done();
     sdk.done();
     const auto duplicate = driver.events(driver.context);
@@ -508,24 +521,26 @@ void submissionFailureAndBusOffRemainExplicit() {
     CHECK(driver.start(driver.context, config(), 1));
     auto value = frame();
     value.fd = true;
-    CHECK(!driver.submit(driver.context, value, 1) && sdk.transmissions == 0);
+    CHECK(driver.submit(driver.context, value, 1) == E::TwaiSubmit::FAILED_UNSENT);
+    CHECK(sdk.transmissions == 0);
     value.fd = false;
     sdk.fail = Call::SUBMIT;
     sdk.failEnabled = true;
     sdk.immediate = true; // Rejected SDK handoffs must never schedule completion.
-    CHECK(!driver.submit(driver.context, value, 1) && sdk.pending == nullptr);
+    CHECK(driver.submit(driver.context, value, 1) == E::TwaiSubmit::FAILED_UNSENT);
+    CHECK(sdk.pending == nullptr);
     CHECK(instance.lastError() == ESP_FAIL);
     const auto rejected = driver.events(driver.context);
     CHECK(!rejected.txDone && !rejected.fault && !sdk.deferredDone);
     sdk.failEnabled = false;
     sdk.immediate = false;
-    CHECK(driver.submit(driver.context, value, 2));
+    CHECK(driver.submit(driver.context, value, 2) == E::TwaiSubmit::SENT);
     sdk.error(0x02);
     sdk.error();
     sdk.busOff();
     auto events = driver.events(driver.context);
     CHECK(events.busOff && events.busErrors == 2 && events.errorFlags == 0x12 && !events.txDone);
-    CHECK(!driver.submit(driver.context, value, 3));
+    CHECK(driver.submit(driver.context, value, 3) == E::TwaiSubmit::FAILED_UNSENT);
     CHECK(!driver.events(driver.context).busOff);
     const unsigned before = sdk.count;
     stop(driver);
@@ -549,18 +564,23 @@ void unreadRxAndLostEvidenceBlockTheSdkHandoff() {
     CHECK(driver.events(driver.context).rxPending);
     CHECK(driver.events(driver.context).rxPending); // Snapshot cannot consume RX.
     const unsigned beforeSubmit = sdk.count;
-    CHECK(!driver.submit(driver.context, frame(), 1) && sdk.transmissions == 0);
+    // Captured RX: a transient deferral with no SDK contact, not a failure.
+    CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::DEFERRED);
+    CHECK(sdk.transmissions == 0);
     CHECK(sdk.count == beforeSubmit); // No rejected or accepted SDK handoff occurred.
     O::ReceivedFrame received;
     CHECK(driver.receive(driver.context, received, UINT64_MAX));
     CHECK(!driver.events(driver.context).rxPending);
-    sdk.receive(0x123, 15);
-    CHECK(!driver.submit(driver.context, frame(), 1) && sdk.transmissions == 0);
+    // DLC 15 is now valid, so an out-of-range identifier supplies the same lost RX.
+    sdk.receive(0x800, 8);
+    CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::FAILED_UNSENT);
+    CHECK(sdk.transmissions == 0);
     CHECK(driver.events(driver.context).rxDropped == 1);
-    CHECK(driver.submit(driver.context, frame(), 2));
+    CHECK(driver.submit(driver.context, frame(), 2) == E::TwaiSubmit::SENT);
     sdk.done();
     sdk.done(); // Pending is already false; fault itself must gate next submission.
-    CHECK(!driver.submit(driver.context, frame(), 3) && sdk.transmissions == 1);
+    CHECK(driver.submit(driver.context, frame(), 3) == E::TwaiSubmit::FAILED_UNSENT);
+    CHECK(sdk.transmissions == 1);
     CHECK(driver.events(driver.context).fault);
     stop(driver);
 }
@@ -574,7 +594,7 @@ void guardedHandoffPrecedesNewRxCallbacks() {
     // An exit between the final ingress guard and the SDK call delivers this
     // boot-up before handing off the frame, invalidating the guarded premise.
     sdk.bootOnExit = true;
-    CHECK(driver.submit(driver.context, frame(), 1));
+    CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::SENT);
     CHECK(sdk.bootAfterTransmissions == 1 && sdk.transmissions == 1);
     CHECK(!sdk.bootOnExit && sdk.criticalDepth == 0);
     CHECK(driver.events(driver.context).rxPending);
@@ -607,13 +627,13 @@ void lifecycleFailuresPreserveOwnershipAndTask() {
         E::IdfTwaiDriver instance;
         auto driver = instance.driver();
         CHECK(driver.start(driver.context, config(), 1));
-        CHECK(driver.submit(driver.context, frame(), 1));
+        CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::SENT);
         sdk.receive(0x123, 1);
         const twai_frame_t* retained = sdk.pending;
         sdk.fail = failure;
         sdk.failEnabled = true;
         CHECK(!driver.stop(driver.context) && sdk.live && sdk.pending == retained);
-        CHECK(!driver.submit(driver.context, frame(), 2));
+        CHECK(driver.submit(driver.context, frame(), 2) == E::TwaiSubmit::FAILED_UNSENT);
         sdk.failEnabled = false;
         stop(driver);
         CHECK(sdk.pending == nullptr);
@@ -630,12 +650,237 @@ void lifecycleFailuresPreserveOwnershipAndTask() {
     const unsigned before = sdk.count;
     sdk.currentCore = 0;
     CHECK(!driver.stop(driver.context) && sdk.count == before);
-    CHECK(!driver.submit(driver.context, frame(), 1));
+    CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::FAILED_UNSENT);
     CHECK(driver.events(driver.context).fault);
     sdk.currentCore = 1;
     sdk.task = reinterpret_cast<TaskHandle_t>(2);
     CHECK(!driver.stop(driver.context) && sdk.count == before);
     sdk.task = reinterpret_cast<TaskHandle_t>(1);
+    stop(driver);
+}
+
+// Classical DLC is a four-bit wire code: 9..15 are legal and still mean eight bytes.
+void classicalDlcAndFramingReachOwnerStorage() {
+    reset();
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    CHECK(driver.start(driver.context, config(), 3));
+    O::ReceivedFrame out;
+    for (uint16_t dlc = 0; dlc <= 15; ++dlc) {
+        const uint8_t bytes = dlc > 8 ? 8 : uint8_t(dlc);
+        sdk.receive(0x123, dlc);
+        CHECK(driver.receive(driver.context, out, UINT64_MAX));
+        CHECK(out.frame.id == 0x123 && !out.frame.extended && !out.frame.rtr && !out.frame.fd);
+        CHECK(out.frame.dlc == bytes && out.frame.payloadLength == bytes);
+        CHECK(M::validateFrame(out.frame).isOk() && out.controllerEpoch == 3);
+        for (unsigned i = 0; i < 8; ++i)
+            CHECK(out.frame.data[i] == (i < bytes ? uint8_t(i + 1) : 0));
+        // Remote: the code survives clamped, and the frame never carries a payload.
+        sdk.receive(0x1fffffff, dlc, true, true);
+        CHECK(driver.receive(driver.context, out, UINT64_MAX));
+        CHECK(out.frame.id == 0x1fffffff && out.frame.extended && out.frame.rtr);
+        CHECK(out.frame.dlc == bytes && out.frame.payloadLength == 0);
+        CHECK(M::validateFrame(out.frame).isOk());
+        for (unsigned i = 0; i < 8; ++i)
+            CHECK(out.frame.data[i] == 0);
+        // Extended data and standard remote are independent of each other.
+        sdk.receive(0x1abcdef0, dlc, true, false);
+        CHECK(driver.receive(driver.context, out, UINT64_MAX));
+        CHECK(out.frame.id == 0x1abcdef0 && out.frame.extended && !out.frame.rtr);
+        CHECK(out.frame.dlc == bytes && out.frame.payloadLength == bytes);
+        sdk.receive(0x7ff, dlc, false, true);
+        CHECK(driver.receive(driver.context, out, UINT64_MAX));
+        CHECK(out.frame.id == 0x7ff && !out.frame.extended && out.frame.rtr);
+        CHECK(out.frame.dlc == bytes && out.frame.payloadLength == 0);
+    }
+    auto events = driver.events(driver.context);
+    CHECK(events.rxDropped == 0 && !events.fault);
+    // Rejected explicitly as a counted drop, at every DLC class: FD, BRS, ESI, bad IDs.
+    const uint16_t codes[] = {0, 8, 15};
+    unsigned expected = 0;
+    for (uint16_t dlc : codes) {
+        sdk.receive(0x123, dlc, false, false, true);
+        sdk.receive(0x123, dlc, false, false, false, true);
+        sdk.receive(0x123, dlc, false, false, false, false, true);
+        sdk.receive(0x800, dlc);
+        sdk.receive(0x20000000, dlc, true);
+        expected += 5;
+    }
+    out = O::ReceivedFrame();
+    out.frame.id = 777;
+    CHECK(!driver.receive(driver.context, out, UINT64_MAX) && out.frame.id == 777);
+    events = driver.events(driver.context);
+    CHECK(events.rxDropped == expected);
+    // Transmit framing reaches the SDK unchanged.
+    auto value = frame();
+    value.id = 0x7ff;
+    value.dlc = value.payloadLength = 3;
+    CHECK(driver.submit(driver.context, value, 1) == E::TwaiSubmit::SENT);
+    CHECK(sdk.pending->header.id == 0x7ff && !sdk.pending->header.ide && !sdk.pending->header.rtr);
+    CHECK(sdk.pending->header.dlc == 3 && sdk.pending->buffer_len == 3);
+    CHECK(sdk.pending->buffer[2] == 13);
+    sdk.done();
+    CHECK(driver.events(driver.context).txDone);
+    value.id = 0x1fffffff;
+    value.extended = true;
+    CHECK(driver.submit(driver.context, value, 2) == E::TwaiSubmit::SENT);
+    CHECK(sdk.pending->header.id == 0x1fffffff && sdk.pending->header.ide);
+    CHECK(!sdk.pending->header.rtr && sdk.pending->header.dlc == 3);
+    sdk.done();
+    CHECK(driver.events(driver.context).txDone);
+    value.rtr = true;
+    value.dlc = 5;
+    value.payloadLength = 0;
+    CHECK(driver.submit(driver.context, value, 3) == E::TwaiSubmit::SENT);
+    CHECK(sdk.pending->header.ide && sdk.pending->header.rtr);
+    CHECK(sdk.pending->header.dlc == 5 && sdk.pending->buffer_len == 0);
+    sdk.done();
+    CHECK(driver.events(driver.context).txDone);
+    // Invalid transmit shapes are refused before any SDK contact.
+    const unsigned before = sdk.transmissions;
+    M::Frame bad = frame();
+    bad.fd = true;
+    CHECK(driver.submit(driver.context, bad, 4) == E::TwaiSubmit::FAILED_UNSENT);
+    bad = frame();
+    bad.dlc = 9;
+    CHECK(driver.submit(driver.context, bad, 4) == E::TwaiSubmit::FAILED_UNSENT);
+    bad = frame();
+    bad.id = 0x800;
+    CHECK(driver.submit(driver.context, bad, 4) == E::TwaiSubmit::FAILED_UNSENT);
+    CHECK(sdk.transmissions == before);
+    stop(driver);
+}
+
+// Hardware retransmission makes bus-off a normal path, and it can arrive between the
+// state query and the disable. Deletion accepts that state, so stop still completes.
+void stopToleratesBusOffBetweenQueryAndDisable() {
+    reset();
+    {
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::SENT);
+        const unsigned before = sdk.count;
+        sdk.busOffAtDisable = true;
+        CHECK(driver.stop(driver.context));
+        CHECK(sdk.count == before + 4);
+        CHECK(sdk.calls[before] == Call::INFO && sdk.calls[before + 1] == Call::DISABLE);
+        CHECK(sdk.calls[before + 2] == Call::INFO && sdk.calls[before + 3] == Call::DELETE);
+        CHECK(!sdk.live && sdk.pending == nullptr);
+        CHECK(sdk.transmissions == 1);
+        // A fresh node carries nothing of the old one.
+        CHECK(driver.start(driver.context, config(), 2));
+        CHECK(!driver.events(driver.context).txDone);
+        CHECK(driver.submit(driver.context, frame(), 2) == E::TwaiSubmit::SENT);
+        stop(driver);
+    }
+    // INVALID_STATE without bus-off is not this race: stop fails and retains everything.
+    reset();
+    {
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::SENT);
+        const twai_frame_t* retained = sdk.pending;
+        const unsigned before = sdk.count;
+        sdk.invalidStateAtDisable = true;
+        CHECK(!driver.stop(driver.context));
+        CHECK(sdk.count == before + 3);
+        CHECK(sdk.calls[before] == Call::INFO && sdk.calls[before + 1] == Call::DISABLE);
+        CHECK(sdk.calls[before + 2] == Call::INFO);
+        // The successful query must not hide why the stop failed.
+        CHECK(instance.lastError() == ESP_ERR_INVALID_STATE);
+        CHECK(sdk.live && sdk.pending == retained);
+        CHECK(driver.submit(driver.context, frame(), 2) == E::TwaiSubmit::FAILED_UNSENT);
+        sdk.invalidStateAtDisable = false;
+        stop(driver); // A later explicit attempt can still finish the same node.
+        CHECK(sdk.pending == nullptr && instance.lastError() == ESP_OK);
+    }
+    // The second query itself fails: the state stays unknown, so nothing is deleted.
+    reset();
+    {
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::SENT);
+        const twai_frame_t* retained = sdk.pending;
+        sdk.busOffAtDisable = true;
+        sdk.failInfoAtCall = sdk.infoCalls + 2;
+        CHECK(!driver.stop(driver.context));
+        CHECK(instance.lastError() == ESP_FAIL);
+        CHECK(sdk.live && sdk.pending == retained);
+        sdk.failInfoAtCall = 0;
+        stop(driver); // Now plainly bus-off: query, then delete without a disable.
+        CHECK(sdk.pending == nullptr);
+    }
+    // Deletion still fails honestly after the tolerated race.
+    reset();
+    {
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        CHECK(driver.submit(driver.context, frame(), 1) == E::TwaiSubmit::SENT);
+        const twai_frame_t* retained = sdk.pending;
+        sdk.busOffAtDisable = true;
+        sdk.fail = Call::DELETE;
+        sdk.failEnabled = true;
+        CHECK(!driver.stop(driver.context));
+        CHECK(sdk.live && sdk.pending == retained && instance.lastError() == ESP_FAIL);
+        sdk.failEnabled = false;
+        stop(driver);
+    }
+    // A disable error other than INVALID_STATE never takes the tolerant path.
+    reset();
+    {
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        const unsigned before = sdk.count;
+        sdk.fail = Call::DISABLE;
+        sdk.failEnabled = true;
+        CHECK(!driver.stop(driver.context));
+        CHECK(sdk.count == before + 2 && sdk.live);
+        CHECK(instance.lastError() == ESP_FAIL);
+        sdk.failEnabled = false;
+        stop(driver);
+    }
+}
+
+// The driver copies is_tx_success verbatim. The SDK source does not establish what it
+// reads when a frame ends with bus-off, so this field cannot be delivery evidence there.
+void finalReportOnBusOffIsCopiedNotInterpreted() {
+    for (unsigned success = 0; success < 2; ++success) {
+        reset();
+        E::IdfTwaiDriver instance;
+        auto driver = instance.driver();
+        CHECK(driver.start(driver.context, config(), 1));
+        CHECK(driver.submit(driver.context, frame(), 7) == E::TwaiSubmit::SENT);
+        sdk.done(success != 0);
+        sdk.busOff();
+        const auto events = driver.events(driver.context);
+        CHECK(events.txDone && events.serial == 7 && events.busOff);
+        CHECK(events.transmitted == (success != 0));
+        CHECK(sdk.transmissions == 1);
+        CHECK(driver.submit(driver.context, frame(), 8) == E::TwaiSubmit::FAILED_UNSENT);
+        CHECK(sdk.transmissions == 1);
+        stop(driver);
+    }
+}
+
+// SDK review: a frame completing just before stop has its report discarded. The driver
+// offers no "not delivered" fact: the mailbox is simply gone with the old node.
+void reportOfAFrameCompletingBeforeStopIsDiscarded() {
+    reset();
+    E::IdfTwaiDriver instance;
+    auto driver = instance.driver();
+    CHECK(driver.start(driver.context, config(), 1));
+    CHECK(driver.submit(driver.context, frame(), 5) == E::TwaiSubmit::SENT);
+    sdk.done(true);
+    stop(driver);
+    CHECK(sdk.transmissions == 1 && sdk.pending == nullptr);
+    CHECK(driver.start(driver.context, config(), 2));
+    const auto events = driver.events(driver.context);
+    CHECK(!events.txDone && !events.transmitted && events.serial == 0 && !events.fault);
     stop(driver);
 }
 } // namespace
@@ -651,6 +896,10 @@ int main() {
     unreadRxAndLostEvidenceBlockTheSdkHandoff();
     guardedHandoffPrecedesNewRxCallbacks();
     lifecycleFailuresPreserveOwnershipAndTask();
+    classicalDlcAndFramingReachOwnerStorage();
+    stopToleratesBusOffBetweenQueryAndDisable();
+    finalReportOnBusOffIsCopiedNotInterpreted();
+    reportOfAFrameCompletingBeforeStopIsDiscarded();
     std::printf("TWAI SDK shim host simulation: %u checks; host sizeof(IdfTwaiDriver)=%zu\n",
                 checks, sizeof(E::IdfTwaiDriver));
 }
