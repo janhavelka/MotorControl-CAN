@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### External coder continuation
+
+- Add 22 paste-ready handoff packets for prompts19–22 and29–33, including the
+  required architecture repairs, concrete source/test routes, bounded HIL
+  diagnostics and deliberate failure reproduction/retesting. Preserve current
+  implementation and firmware gates; this documentation performs no hardware test.
+
 ### Fixed TPDO1, explicit NMT and honest receive bounds
 
 - Add the fixed reviewed TPDO1 configuration lifecycle, retained per-step effects,

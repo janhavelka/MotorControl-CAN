@@ -1,0 +1,29 @@
+Execute this packet fully. Apply [COMMON.md](COMMON.md).
+
+# Packet 18: Finish device-zero behavior and reference invalidation
+
+Prerequisites: packet 17's action/history contract and packet 12's checked configuration/reference path; use packet 11's HIL diagnostics. Resume the device-reference portion of [prompt 32](../32_fault_reference_actions.md). This packet does not implement homing, arbitrary device-position assignment, host-origin manipulation or persistence.
+
+## Inspect current code and evidence
+
+Read [Actions.h](../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../src/profiles/lichuan_c/Actions.cpp), [Axis.h](../../../include/MotorControlCAN/Axis.h), [Axis.cpp](../../../src/Axis.cpp), [Position.h](../../../include/MotorControlCAN/profiles/lichuan_c/Position.h), [reference action tests](../../../test/reference_action_test.cpp) and [fault/reference guidance](../../fault_reference_actions.md). Follow `prepareSetDevicePosition`, the axis-aware `noteActionTransmission`, coordinate invalidation, `advanceAction`, owner configuration migration and later prepared-target admission. Read the existing `uncertainCounterTriggerCannotReopenThroughEpochSync` regression before changing recovery.
+
+Refresh RS device-position/reference actions and actual caller/tests, INA228 uncertain destructive-effect validity, PCA9555 explicit action evidence and FieldCore reference-generation consumers read-only. CAN's native counter mapping and reference consequences remain profile-owned; neither a local origin update nor ESS word order proves them.
+
+Render EN86/ZH86 PDF 15 and 18, inspect EDS `[2302]`, `[6064]`, `[607A]`, `[607C]`, and reopen Q14 in [the conflict table](../../device_conflicts.md). The documented counter-clear command is U16 `2302=0→1`, followed by manual return to0. This establishes a command edge, not which internal counters change, an arbitrary-position setter, a physical home or automatic host rebase. `607C` homing-offset interpretation belongs to its separate scope.
+
+## Complete the supported zero-only contract
+
+1. State admissible mode/state and exact prerequisite evidence. Preserve zero-only admission: nonzero requested values reject before work. Require independently observed stationary mechanics and current raw status/monitor/position evidence for live testing. Do not clear an active fault or enable first merely to obtain a convenient predecessor.
+2. Audit the three native writes and retained prefix. Before the first possible `2302=1` submission, atomically withdraw dependent origin/reference, cached coordinates, coordinate-dependent limit qualification and prepared targets under the established generation contract. Preserve configured limit values and protective input assignments; this is validity withdrawal, not disabling limits. A failed or uncertain trigger cannot restore old validity. A rejection before possible effect must remain distinguishable.
+3. Keep the accepted wire work tied to its original binding/configuration while the ordered writes settle. Migrate the owner epoch only through the implemented retirement/reconciliation boundary, then acquire new readback. A host generation increment, result release or reset of the MCU must not erase remote SDO ambiguity or qualify an unresolved route.
+4. Prepare one finite public-path experiment with exact initial state and raw `607A/6064/606C`, status/monitor and reference metadata. Execute0,1,0 with explicit service results, then acquire the planned fresh observations and independent shaft observation. Preserve the existing baseline: both specimens previously reported actual 0 and retained target 5000. Clearing an already-zero observation cannot prove which counter changed or that the command caused it. Do not invent a prior move or arbitrary counter write to manufacture a nonzero baseline; a later independently qualified move can supply that case.
+5. Treat a missing final0 or ambiguous edge as retained rearm/effect uncertainty. Preserve the command that may have reached the drive and the exact later admission block. A subsequent test is new explicit intent after reviewed reconciliation; it is not a hidden retry. No save, restore, enable, resumed target or automatic host-origin publication follows the action.
+
+## Verify the observable boundaries
+
+Extend direct API and real-fake-owner tests for zero/nonzero values, wrong mode/state, stale generations and atomic preparation. Fail each of0/1/0 independently: before admission, locally queued, SDK accepted, physically reported TX and protocol ACK. Cover lost trigger ACK, final-zero failure, cancellation, reboot, deadline equality, late responses after terminal/release and generation exhaustion. Assert exactly one coordinate-confidence withdrawal at the first possible trigger, immutable original outcome and preserved trigger acknowledgement even if a later step fails.
+
+Test later reads, exact target snapshots and owner admission against success, definite nontransmission and uncertainty. Successful raw zero must not publish home or a host origin. Keep an uncertain channel unresolved unless its reviewed reconciliation path establishes reuse; test that advancing epochs alone cannot bypass this rule. Use `reference_action`, `axis`, `position_parameters` where registered, owner/recovery and SDO-reconciliation suites; inspect actual CTest names rather than assuming a new target exists.
+
+One writer owns reference/epoch mutations; a separate reviewer traces partial effects into later target admission, and another may add disjoint coordinate tests. Use COMMON's causal diagnostics and bounded retest procedure, with only the lead on hardware. Update Doxygen, Q14/coverage, bench/reference guides, original prompt-32 report and `docs/reports/handoff_19_33/packet_18.md`. Record precisely what the specimen demonstrated and what remains unmeasured. Run required gates, commit and sync the same branch.
