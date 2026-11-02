@@ -1,5 +1,7 @@
 # Verification
 
+The `position_parameters` and `position_preview` native gates check the installed pure Lichuan target candidate. They do not qualify a position command or motor completion.
+
 The working skeleton has reproducible native, package and documentation gates.
 They check implemented local contracts and retained test-only proofs; they do
 not qualify a drive, firmware adapter or physical CAN setup. Ordinary consumers

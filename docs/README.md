@@ -1,5 +1,7 @@
 # MotorControl-CAN documentation
 
+[Native position parameters](position_parameters.md) document the checked numeric candidate, the remaining finite-motion gates and the [offline example](../examples/position_preview/README.md).
+
 The [fault/reference action guide](fault_reference_actions.md) separates alarm
 clear, native counter zero, host origin and home, including retained failures
 and coordinate-generation handoff.

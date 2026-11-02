@@ -5909,6 +5909,7 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Documented position intent and bit meanings retained; qualify trigger, fresh completion and independent scale.", "gate_ids": ["Q01", "Q04", "Q11", "Q02"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 33 implements pure preparePositionParameters in profiles/lichuan_c/Position.h: owned common exact target/axis/settings, checked 607A requested/effective bounds (relative displacement, separately bounded endpoint), U32 rpm/ms limits, conservative approximate bounds and current reference freshness. See docs/position_parameters.md and test/position_parameters_test.cpp. No service work, confirmed finite move, relative wire basis, acceptance/completion or firmware qualification is claimed; whole-function coverage remains false. |
 
 ### position_trigger
 

@@ -10,6 +10,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
+#include <MotorControlCAN/profiles/lichuan_c/Position.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstring>
 
@@ -62,6 +63,15 @@ int main() {
     PreparedTarget target;
     if (!preparePosition(request, config, nullptr, target) || target.endpointNative != 1536) return 7;
     if (!validatePreparedTarget(target, config, nullptr, 0)) return 8;
+    LICHUAN_C::DriverSettings parameters;
+    parameters.positionSpeedRpm = 60;
+    parameters.rampUpTimeMs = parameters.rampDownTimeMs = 100;
+    LICHUAN_C::PreparedPositionParameters position;
+    if (!LICHUAN_C::preparePositionParameters(position, LICHUAN_C::SettingsModel::CL86_C,
+          request, config, nullptr, parameters, 0) || position.targetNative != 1536) return 58;
+    parameters.positionSpeedRpm = 3001;
+    if (LICHUAN_C::preparePositionParameters(position, LICHUAN_C::SettingsModel::CL86_C,
+          request, config, nullptr, parameters, 0) || position.targetNative != 1536) return 59;
     CANOPEN::SdoExpectation sdo;
     sdo.channel.binding = binding; sdo.channel.binding.endpoint.protocol = Protocol::CANOPEN;
     sdo.channel.binding.endpoint.address = 5;

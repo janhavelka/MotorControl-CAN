@@ -1,5 +1,7 @@
 # Requirement coverage after pure CAN/SDO checks
 
+[Prompt 33](reports/prompt_33.md) adds checked native position-parameter arithmetic and owned target/axis/settings snapshots to R06/R13/R20. This produces no service work and does not implement finite absolute/relative moves. Acceptance/completion, relative wire semantics and a supported post-trigger stop remain gated in the [guide](position_parameters.md).
+
 [Prompt 32](reports/prompt_32.md) adds conditional fault-clear and zero-only
 device-position actions to R06/R13/R20. Ordered command terminals, original
 errors and new observations remain independent. Counter effects withdraw
@@ -123,7 +125,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18 Blocked, 19-32 Partial and 33-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
+| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18 Blocked, 19-33 Partial and 34-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified

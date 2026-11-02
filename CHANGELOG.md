@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Native position preparation
+
+- Add pure `preparePositionParameters` with owned exact intent/axis/settings, native target limits, explicit quantization and current reference freshness.
+- Keep relative displacement limits separate from endpoint limits; preserve exact and conservative approximate error evidence.
+- Add standalone native usage and installed consumers. Finite move lifecycle and firmware qualification remain pending; preparation produces no service work.
+
 ### Stop and reference-action audit
 
 - Add real-owner regressions for admission after failed or uncertain device
