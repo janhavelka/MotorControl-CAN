@@ -1,5 +1,9 @@
 # Live source and responsibility map
 
+| Responsibility | Declaration / implementation | Real caller / test | Boundary |
+| --- | --- | --- | --- |
+| Native position parameters | `include/MotorControlCAN/profiles/lichuan_c/Position.h`; `src/profiles/lichuan_c/Position.cpp` | `examples/position_preview/main.cpp`; `test/position_parameters_test.cpp`; installed consumer | Reuses common exact axis math; native limits only, no service/lifecycle/firmware permission |
+
 ## Fault and counter actions (prompt 32)
 
 | Responsibility | Implementation | Caller/test | Boundary |

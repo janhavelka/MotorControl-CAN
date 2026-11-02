@@ -20,6 +20,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/ActionOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
+           "MotorControlCAN/profiles/lichuan_c/Position.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h",
            "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN/canopen/Network.h", "MotorControlCAN/Version.h",
            "MotorControlCAN/MotorControlCAN.h",
@@ -92,9 +93,9 @@ def check_package(args, work, summary):
     run(sys.executable, str(ROOT / "scripts/export_package.py"), str(archive))
     source = work / "exported source"
     expected = {"include/" + h for h in HEADERS} | {
-        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "CMakeLists.txt", "library.json",
+        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
-        "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
+        "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
     with zipfile.ZipFile(archive) as package:
         require(len(package.namelist()) == len(expected) and set(package.namelist()) == expected,
                 package.namelist())
@@ -154,6 +155,7 @@ def check_package(args, work, summary):
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
         "evidence": ("examples/device_evidence", ["main.cpp"]),
         "units": ("examples/units_preview", ["main.cpp"]),
+        "position": ("examples/position_preview", ["main.cpp"]),
         "reads": ("examples/reads_preview", ["main.cpp"]),
         "adapter": ("adapters/canopennode", ["SdoClient.h", "SdoClient.cpp", "NetworkState.h", "Network.cpp",
                      "Nmt.h", "Nmt.cpp", "PdoState.h", "Pdo.cpp", "CO_driver_target.h", "Driver.cpp"]),
@@ -182,6 +184,8 @@ target_include_directories(device_evidence PRIVATE native)
 target_link_libraries(device_evidence PRIVATE app)
 add_executable(units_preview units/main.cpp)
 target_link_libraries(units_preview PRIVATE MotorControlCAN::MotorControlCAN)
+add_executable(position_preview position/main.cpp)
+target_link_libraries(position_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(reads_preview reads/main.cpp)
 target_link_libraries(reads_preview PRIVATE MotorControlCAN::MotorControlCAN)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp" "#include <ProbeApp.h>\\n")
@@ -189,7 +193,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePla
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter app native_probe device_evidence units_preview reads_preview probe_headers)
+foreach(target stack adapter app native_probe device_evidence units_preview position_preview reads_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4;/WX>)
@@ -201,8 +205,9 @@ enable_testing()
 add_test(NAME native_probe COMMAND native_probe --fake)
 add_test(NAME device_evidence COMMAND device_evidence --fake-only)
 add_test(NAME units_preview COMMAND units_preview)
+add_test(NAME position_preview COMMAND position_preview)
 add_test(NAME reads_preview COMMAND reads_preview)
-set_tests_properties(native_probe device_evidence units_preview reads_preview PROPERTIES TIMEOUT 10)
+set_tests_properties(native_probe device_evidence units_preview position_preview reads_preview PROPERTIES TIMEOUT 10)
 ''', encoding="utf-8")
     probe_build = work / "native probe build"
     run(*base, "-S", str(probe), "-B", str(probe_build), "-DCMAKE_PREFIX_PATH=" + str(relocated))

@@ -1,5 +1,9 @@
 # API and CLI naming map
 
+| New public API | Scope | CLI status |
+| --- | --- | --- |
+| `LICHUAN_C::preparePositionParameters` | Pure native pulse/rpm/ms candidate with exact owned axis/intent; no move/service work | No implemented route; future motion routes must first satisfy prompt 33 gates |
+
 This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The stage notes identify implemented APIs; remaining inventory entries are planned contracts.
 
 Prompt 6 now demonstrates `prepareIdentity/nextRead/advanceRead/getIdentity`,

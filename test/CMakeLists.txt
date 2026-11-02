@@ -23,6 +23,18 @@ target_link_libraries(axis_test PRIVATE MotorControlCAN::MotorControlCAN)
 strict_test(axis_test)
 add_test(NAME axis COMMAND axis_test)
 
+add_executable(position_parameters_test position_parameters_test.cpp)
+target_link_libraries(position_parameters_test PRIVATE MotorControlCAN::MotorControlCAN)
+strict_test(position_parameters_test)
+add_test(NAME position_parameters COMMAND position_parameters_test)
+set_tests_properties(position_parameters PROPERTIES TIMEOUT 10)
+if(NOT TARGET position_preview)
+    add_subdirectory(../examples/position_preview position_preview_example)
+endif()
+strict_test(position_preview)
+add_test(NAME position_preview COMMAND position_preview)
+set_tests_properties(position_preview PROPERTIES TIMEOUT 10)
+
 # Compile and run the real offline example in quick/full verification too.
 if(NOT TARGET units_preview)
     add_subdirectory(../examples/units_preview units_preview_example)

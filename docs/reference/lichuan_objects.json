@@ -19170,7 +19170,8 @@
           "Q02"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 33 implements pure preparePositionParameters in profiles/lichuan_c/Position.h: owned common exact target/axis/settings, checked 607A requested/effective bounds (relative displacement, separately bounded endpoint), U32 rpm/ms limits, conservative approximate bounds and current reference freshness. See docs/position_parameters.md and test/position_parameters_test.cpp. No service work, confirmed finite move, relative wire basis, acceptance/completion or firmware qualification is claimed; whole-function coverage remains false."
     },
     {
       "key": "position_trigger",

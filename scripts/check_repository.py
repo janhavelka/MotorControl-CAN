@@ -17,7 +17,7 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
 }
 REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
@@ -89,6 +89,9 @@ REQUIRED = {
     "include/MotorControlCAN/ActionOperation.h", "include/MotorControlCAN/profiles/lichuan_c/Actions.h",
     "src/profiles/lichuan_c/Actions.cpp", "test/stop_action_test.cpp", "docs/stop_actions.md",
     "test/reference_action_test.cpp", "docs/fault_reference_actions.md",
+    "include/MotorControlCAN/profiles/lichuan_c/Position.h", "src/profiles/lichuan_c/Position.cpp",
+    "test/position_parameters_test.cpp", "docs/position_parameters.md",
+    "examples/position_preview/main.cpp", "examples/position_preview/CMakeLists.txt", "examples/position_preview/README.md",
     "examples/common/CanBusOwner.h", "examples/common/CanBusOwner.cpp", "examples/common/CMakeLists.txt",
     "examples/common/CanBusDiagnostics.cpp", "examples/common/OwnerCounters.h", "test/can_bus_health_test.cpp",
     "examples/common/DeviceEvidence.h", "examples/common/DeviceEvidence.cpp",

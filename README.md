@@ -1,5 +1,7 @@
 # MotorControl-CAN
 
+**Position parameters:** [checked native preparation](docs/position_parameters.md) now retains exact absolute/relative host intent and validates the documented pulse/rpm/ms ranges. The [native example](examples/position_preview/README.md) performs no CAN I/O. Finite motion remains blocked on qualified acceptance/completion, relative-base and post-trigger stop evidence.
+
 **Explicit fault and counter actions:** [alarm clearing and device zero](docs/fault_reference_actions.md)
 now use the same finite action lifecycle and owner. The supported alarm is
 documented position deviation `FF05`; device-position requests support zero only.
