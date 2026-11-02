@@ -97,6 +97,13 @@ produce consistent native failure evidence without claiming transmission.
 
 ## Scheduling and time
 
+The [Lichuan stop handoff](stop_actions.md#owner-handoff-and-retained-interruption)
+uses these same methods and reserved slots. Cancel every obsolete request before
+starting a newer stop operation; `admitUrgent` alone preserves FIFO and does not
+withdraw later queued work. Preserve the original terminals and consume the
+application's prior controlword eligibility when the stop may transmit. A new
+operation ID cannot make old `000F` evidence current again.
+
 All time is supplied nonwrapping, nondecreasing monotonic microseconds; zero is
 valid. No clock is acquired. Overall deadlines are immutable. Owner queue delay
 counts against the first-frame queue budget: dispatch passes its original cutoff
@@ -150,7 +157,7 @@ validation and same-ID/same-DLC PDO ambiguity rules remain in the
 [service contract](canopen_services.md#passive-network-events-and-node-lifecycle).
 
 For a staged first download, optional `beforeTransmit` validates application
-prerequisites and notifies the actual settings context before possible TX.
+prerequisites and notifies the actual settings or stop-action context before possible TX.
 It runs once per download request, never for cleanup aborts. It performs no
 operation stepping, I/O or reentrant owner call. `nextTx`, exact-token
 `canTransmit` and one-shot `transmit` then run in the same cooperative turn

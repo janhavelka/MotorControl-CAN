@@ -19377,7 +19377,8 @@
           "Q12"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 31 implements the conditional CL86-C/OL86-C mode-1 transition from continuously evidenced latest 6040=000F, followed by fresh STATUS/MONITORS reads reporting not-running. See docs/stop_actions.md and test/stop_action_test.cpp. Whole-function coverage remains false: other predecessor states/modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay."
     },
     {
       "key": "emergency_stop",
@@ -19419,7 +19420,8 @@
           "Q12"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 31 implements the conditional CL86-C/OL86-C mode-1 transition from continuously evidenced latest 6040=000F, followed by fresh STATUS/MONITORS reads reporting not-running. See docs/stop_actions.md and test/stop_action_test.cpp. Whole-function coverage remains false: other predecessor states/modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay."
     },
     {
       "key": "status_interpretation",

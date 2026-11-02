@@ -1,5 +1,12 @@
 # Live source and responsibility map
 
+## Conditional stops (prompt 31)
+
+| Responsibility | Implementation | Caller/test | Boundary |
+| --- | --- | --- | --- |
+| Native stop lifecycle and retained outcomes | [Actions.h](../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../src/profiles/lichuan_c/Actions.cpp), [common evidence](../include/MotorControlCAN/ActionOperation.h) | [Real-owner fake suite](../test/stop_action_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | One 010F/000B write from evidenced000F; typed fresh observation cycles; no generic firmware/physical qualification |
+| Urgent interruption and retirement | Existing [CanBusOwner](../examples/common/CanBusOwner.h) | Same stop suite and [handoff contract](stop_actions.md) | Cancel each old request, retain results, use newer operation; quarantine persists |
+
 ## Documentary drive-state interpretation (prompt 30)
 
 | Responsibility | Declaration / implementation | Caller / focused test | Boundary |

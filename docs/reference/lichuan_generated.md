@@ -5994,6 +5994,7 @@ All source-reviewed manual items remain accounted for without declarations or im
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "15-&gt;271 example is not a script beginning with15.", "gate_ids": ["Q01", "Q12"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 31 implements the conditional CL86-C/OL86-C mode-1 transition from continuously evidenced latest 6040=000F, followed by fresh STATUS/MONITORS reads reporting not-running. See docs/stop_actions.md and test/stop_action_test.cpp. Whole-function coverage remains false: other predecessor states/modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
 
 ### emergency_stop
 
@@ -6011,6 +6012,7 @@ All source-reviewed manual items remain accounted for without declarations or im
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "15-&gt;11 example is not a safety-rated stop or a script beginning with15.", "gate_ids": ["Q01", "Q12"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 31 implements the conditional CL86-C/OL86-C mode-1 transition from continuously evidenced latest 6040=000F, followed by fresh STATUS/MONITORS reads reporting not-running. See docs/stop_actions.md and test/stop_action_test.cpp. Whole-function coverage remains false: other predecessor states/modes, option/torque/reference/queue effects and firmware qualification remain gated; no enable preamble or automatic replay. |
 
 ### status_interpretation
 

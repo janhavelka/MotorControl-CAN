@@ -24,8 +24,11 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming checked
 STATUS and MONITORS reads for explicit documentary comparison. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is
-no CLI route or implemented `prepareEnable/prepareRelease/nextAction/advanceAction`
-yet. The [transition guide](drive_actions.md) records their exact remaining gates.
+no CLI route or implemented `prepareEnable/prepareRelease` yet. The
+[transition guide](drive_actions.md) records their exact remaining gates.
+Prompt 31 installs `prepareStop/nextAction/advanceAction` and the concrete
+`ActionContext` for the [conditional native stop path](stop_actions.md), including
+`noteActionTransmission` at the owner's external handoff. No stop CLI is installed.
 
 Prompt 29 extends example `ProbeApp` with explicit `requestState`, checked
 `getStateBlock` and local `cancelRead`. The application-only

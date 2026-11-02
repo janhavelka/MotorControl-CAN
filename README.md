@@ -1,5 +1,11 @@
 # MotorControl-CAN
 
+**Conditional stop path:** [halt and quick-stop actions](docs/stop_actions.md)
+now use one documented write followed by fresh controller-report observations
+through the existing owner. The supported predecessor is an evidenced `000F`
+in position mode. Broader motion-state transitions and physical stop behavior
+remain unqualified; [prompt 31](docs/reports/prompt_31.md) stays Partial.
+
 **Drive-state inspection:** [checked documentary interpretation](docs/drive_actions.md)
 now separates each manual's status layout, raw monitor values, unknown bits and
 disagreements. This does not qualify a firmware dialect or complete enable/release.

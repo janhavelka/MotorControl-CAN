@@ -9,6 +9,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
+#include <MotorControlCAN/profiles/lichuan_c/Actions.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstring>
 
@@ -266,5 +267,14 @@ int main() {
         interpreted.mode != LICHUAN_C::ObservedMode::PROFILE_POSITION ||
         interpreted.running != LICHUAN_C::StateIndication::NO || interpreted.window.skewUs != 4)
         return 54;
+    // A source/install consumer cannot authorize stopping from cached state alone.
+    LICHUAN_C::ActionContext stop;
+    LICHUAN_C::ActionOptions stopOptions;
+    stopOptions.service = readOptions;
+    stopOptions.maximumAgeUs = stopOptions.observationIntervalUs = 10;
+    if (LICHUAN_C::prepareStop(stop, LICHUAN_C::SettingsReservation(), state,
+                              CANOPEN::SdoCompletion(), LICHUAN_C::StopKind::HALT,
+                              14, 65, 100, stopOptions) || stop.state != ActionState::EMPTY)
+        return 55;
     return 0;
 }

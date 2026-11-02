@@ -4,7 +4,10 @@
 `getStateInterpretation` getter in `MotorControlCAN::LICHUAN_C`. It interprets
 already acquired STATUS and MONITORS blocks through the existing checked
 `getStateBlock` path. It performs no I/O, changes no drive state and produces
-no action work. Enable and release lifecycles remain unimplemented.
+no action work. Enable and release lifecycles remain unimplemented. The separate
+[conditional stop lifecycle](stop_actions.md) now uses common `ActionOperation.h`
+evidence and concrete `Actions.h` contexts; it does not establish either missing
+enable/release transition.
 
 The [typed-read contract](reads.md) owns acquisition, read effects, target and
 epoch checks, age, observation windows and PDO provenance. The state getter

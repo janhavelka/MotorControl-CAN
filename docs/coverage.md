@@ -1,5 +1,11 @@
 # Requirement coverage after pure CAN/SDO checks
 
+[Prompt 31](reports/prompt_31.md) adds conditional native halt/quick-stop coverage
+to R06/R12/R13/R20: exact single writes, fresh typed not-running observations and
+real-owner urgent/interruption tests. It does not qualify other predecessor
+states, velocity/homing stopping, target disposal, braking, torque or reference
+effects. [Stop scope and gates](stop_actions.md) remain separate from host tests.
+
 [Prompt 30](reports/prompt_30.md) adds checked documentary state interpretation
 to R08/R10/R20: explicit layouts, raw values and acquisition provenance, unknown
 bits and disagreement. It does not close action coverage R06/R13 or firmware
@@ -81,7 +87,7 @@ that support claim. Reference/data verification is not driver testing.
 | R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; 19 adds installed typed raw read contexts/getters; motion operations/CLI remain pending. |
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | C++11 api_contract and fixtures build without stack/SDK/Python/siblings; optional owner uses the selected C99 client. Prompt 7 source/install/export consumers pass; the core excludes the optional owner/stack. |
 | R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table, lifetimes and per-call RX/TX/event budgets including zero-budget behavior. Native tests cover copied payload, single RX, reservations, immutable operation deadlines and retained terminals; urgent capacity now has real application-owner tests in 24. Prompt 13 promotes the selected-stack SDO lifecycle with persistent channel quarantine; 15 adds passive node facts and synchronous invalidation to that table; 23 adds the real ordinary application scheduler, two-channel fairness, copied admission/retention, passive dispatch and actual typed read/loop-setting paths; 24 adds reserved urgent/results, cancellation, local controller epochs and finite retained recovery without remote requalification. |
-| R06 | 2-4, 19-22, 29-36, 47-50 | Pending |
+| R06 | 2-4, 19-22, 29-36, 47-50 | Conditional position-mode halt/quick-stop lifecycle and host owner tests in 31; broader stop states and other motion operations remain pending. No physical qualification. |
 | R07 | 1-4 | Original bytes verified; every EDS entry and all 53 manual functions reviewed with exact sources. Four Lichuan model scopes and N5/EPOS4 documentary contrasts complete. |
 | R08 | 2-4, 19-22, 29-36, 47-48 | All 24 conflicting claim sets retain original alternatives and reviewed dispositions; 21 bounded feature gates remain open. Prompt 29 rechecked original pages/EDS and supplies a [measurement table](device_conflicts.md) separating documentary, host and physical evidence. No firmware winner invented. |
 | R09 | 9-10, 21-22, 32-36 | Production exact rational parsing/conversion, independent scales, integer rounding and bounded radians/binary32 quantization are host tested. Pure axis/reference mutation, exact endpoints, freshness/epoch checks and offline preview are host tested under 10; native scaling and drive actions retain later owners. |
@@ -110,7 +116,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18 Blocked, 19-30 Partial and 31-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
+| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18 Blocked, 19-31 Partial and 32-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified
