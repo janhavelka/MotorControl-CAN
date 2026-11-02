@@ -9,7 +9,8 @@ tests pending; this decoder grants no firmware qualification or motion permissio
 
 The [2026-11-02 connected-board intake](../reports/2026-11-02_s2_bench_intake.md)
 records the user's board-test authorization, EasyEDA power/debug/CAN net review,
-ESP-Prog2 COM15 conflict and reported drive DIP settings. Portable-core S2/P4
+resolved ESP-Prog2 COM15 conflict, successful UART/automatic-boot ROM identity and
+reported drive DIP/termination settings. Portable-core S2/P4
 compile/link experiments pass; complete S2/P4 adapter support and physical tests
 remain pending. This advances prompt 29's fixture intake without closing Q20 or
 changing motion-stage status.

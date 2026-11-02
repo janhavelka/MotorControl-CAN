@@ -18,8 +18,9 @@ pending. [Prompt 29's report](docs/reports/prompt_29.md) separates delivered
 software from conditional acquisition.
 
 **Connected board intake:** the [ESP-Prog2/S2 inspection](docs/reports/2026-11-02_s2_bench_intake.md)
-records actual USB identity, duplicate COM15 names, matching design pin nets and
-remaining power/cable checks. The isolated core also compiles for S2 and P4;
+records USB identity, resolution of duplicate COM15 names, matching design pin
+nets and a successful S2 ROM/automatic-boot check. Power/cable checks remain.
+The isolated core also compiles for S2 and P4;
 complete S2/P4 firmware adapters and physical tests remain pending.
 
 **TWAI transport:** the optional [ESP32-S3 adapter](adapters/twai/README.md)

@@ -25,6 +25,26 @@ bytes and no data written. This resolves host port availability; it does not
 test the detached MCU. Reconnection of the target UART/programming cable was
 requested for the next bounded ROM/EN/BOOT check.
 
+After the user reconnected **only UART/programming** and reported manual upload
+mode, `esptool 4.12.0 --before no_reset --connect-attempts 2 --no-stub --after
+no_reset chip_id` received no serial data. The separate finite automatic-entry
+check, changing only `--before default_reset`, succeeded on COM15 at 115200 baud.
+It reports **ESP32-S2FH4 revision 1.0, embedded 4 MB flash, no embedded PSRAM and a
+40 MHz crystal**. ROM identity is actual target evidence. The successful run
+verifies UART communication and automatic bootloader entry through the attached
+programming path; it does not explain the failed manual-entry condition or
+qualify every reset timing/electrical margin. Both outcomes remain retained:
+
+- `.build/board-check-20261102/s2_rom_identity_manual_boot.log` (failed).
+- `.build/board-check-20261102/s2_rom_identity_auto_boot.log` (passed).
+
+The exact tool is the existing
+`../MotorControl-RS/build/p25/idf-python/Scripts/python.exe -m esptool`; this uses
+an installed tool without modifying the sibling repository. No stub or firmware
+was uploaded, no flash/eFuse written, and no CAN/motor command sent. The MCU was
+left in the ROM bootloader (`--after no_reset`). JTAG remains untested. A successful
+ROM connection does not close the target-specific S2 adapter or drive gates.
+
 The user authorized board testing and supplied a new fixture: PC, ESP-Prog2,
 OPTAK_FGI_2025 PCB, two daisy-chained CL86 drives and free-shaft motors bolted
 to the table. Both probe cables are attached. Probe and PCB power selectors are
@@ -217,8 +237,9 @@ suite rerun. The RS delta adds consumer/header coverage, not transferable bench
 authorization. Separate agents reviewed official probe data, actual board netlist
 and target SDK capabilities. The lead alone owns eventual physical operations.
 
-Next: establish rail stability and cable continuity, resolve COM15, then perform
-bounded target identification. Compile reviewed S2 startup with CAN disabled,
+COM15 and bounded UART/automatic-boot target identification are now established
+by the subsequent checks above. Next: verify remaining power/cable/reference facts
+and compile reviewed S2 startup with CAN disabled,
 check reset/console behavior, then add finite passive CAN capture with explicit
 listen-only/silent behavior and known bitrate. A silent bus does not prove bad
 wiring because drive heartbeat may be disabled. Subsequent active typed-read

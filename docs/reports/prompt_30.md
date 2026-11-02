@@ -51,8 +51,11 @@ resolve the dependent facts. The [device-evidence procedure](../device_conflicts
 owns acquisition prerequisites. No CAN transmission, firmware flash or motor
 operation occurred. In the separately authorized bench follow-up, COM15 initially
 failed before opening; after the user reconnected ESP-Prog2 and detached the PCB,
-the probe-only UART opened and closed with no data written. That verifies host
-port availability, not target wiring or drive semantics; see the current
+the probe-only UART opened and closed with no data written. With the target UART
+reconnected, a no-reset ROM attempt failed, then automatic EN/BOOT entry succeeded
+and identified ESP32-S2FH4 revision 1.0 / 4 MB flash. Both logs are retained and
+the MCU remains in the bootloader. This establishes target UART/automatic entry,
+not drive semantics or S2 firmware support; see the current
 [bench record](../hardware_bench.md).
 
 ## Current sibling audit

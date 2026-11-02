@@ -18,6 +18,8 @@
   power/debug/CAN net mappings and the user's reported DIP settings.
 - Verify isolated portable-core builds for S2 and P4; retain the separate
   firmware-adapter, electrical and hardware qualification obligations.
+- Resolve the COM15 mapping and verify UART/automatic boot entry with the actual
+  S2FH4 ROM. Retain the failed manual-entry attempt; no flash or CAN test performed.
 
 ### Finite device evidence readiness
 
