@@ -1,0 +1,13 @@
+{
+  "started_utc": "2026-11-02T15:42:25.669285+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "command": "ping",
+  "tx_hex": "70",
+  "seconds": 1.0,
+  "reset": false,
+  "retry": false,
+  "prefix_bytes": 0,
+  "status": "captured"
+}

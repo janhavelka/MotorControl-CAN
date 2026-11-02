@@ -5,8 +5,8 @@
 #include "esp_attr.h"
 #include <atomic>
 
-#if !configSUPPORT_STATIC_ALLOCATION || portNUM_PROCESSORS < 2
-#error "This S3 example requires static task allocation and the configured owner core"
+#if !configSUPPORT_STATIC_ALLOCATION || portNUM_PROCESSORS < 1
+#error "This example requires static task allocation and an owner core"
 #endif
 
 namespace MotorControlCANExample {

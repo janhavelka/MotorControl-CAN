@@ -175,7 +175,8 @@ struct Rig {
     Fake fake;
     E::CanBusOwner owner;
     uint64_t now = 0;
-    explicit Rig(uint32_t seed = 0, bool sharedPeer = false, bool distinctLogicalAxis = false)
+    explicit Rig(uint32_t seed = 0, bool sharedPeer = false, bool distinctLogicalAxis = false,
+                 bool confirmed = true)
         : owner(services, fake.transport(), 73, seed) {
         fake.owner = &owner;
         fake.services = &services;
@@ -192,7 +193,7 @@ struct Rig {
                 selected.clientToServerId = 0x641;
                 selected.serverToClientId = 0x5c1;
             }
-            CHECK(services.configure(i, selected, true, true));
+            CHECK(services.configure(i, selected, confirmed, true));
             if (sharedPeer && i == 1)
                 continue;
             C::NetworkRoute n;
@@ -285,6 +286,125 @@ struct Rig {
         return copy;
     }
 };
+
+void finiteUploadExperimentBootstrap() {
+    Rig r(0, false, false, false);
+    const auto sequence = r.sequence();
+    auto request = r.request(sequence, 1, 0x1000);
+    request.transfer.size = 4;
+    request.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
+    E::RequestId rejected;
+    CHECK(r.owner.admit(request, 0, rejected) == E::BusAdmission::INVALID);
+    CHECK(!r.services.authorizeUploadExperiment(0, request.transfer, 10, 1, 0));
+    CHECK(!r.services.authorizeUploadExperiment(0, request.transfer, 11, 0, 0));
+    auto wrong = request.transfer;
+    wrong.direction = C::SdoDirection::DOWNLOAD;
+    CHECK(!r.services.authorizeUploadExperiment(0, wrong, 11, 1, 0));
+    wrong = request.transfer;
+    wrong.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING;
+    CHECK(!r.services.authorizeUploadExperiment(0, wrong, 11, 1, 0));
+    CHECK(r.services.authorizeUploadExperiment(0, request.transfer, 11, 1, 0));
+    CHECK(!r.services.authorizeUploadExperiment(0, request.transfer, 11, 1, 0));
+    // Permission is for the complete copied request, not its object alone.
+    for (unsigned field = 0; field < 14; ++field) {
+        auto changed = request;
+        switch (field) {
+        case 0: ++changed.transfer.operation; break;
+        case 1: ++changed.transfer.request; break;
+        case 2: ++changed.transfer.step; break;
+        case 3: ++changed.transfer.index; break;
+        case 4: ++changed.transfer.subindex; break;
+        case 5: changed.transfer.size = 2; break;
+        case 6: changed.transfer.direction = C::SdoDirection::DOWNLOAD; break;
+        case 7: ++changed.transfer.queueTimeoutUs; break;
+        case 8: ++changed.transfer.responseTimeoutUs; break;
+        case 9: ++changed.transfer.deadlineUs; break;
+        case 10: changed.transfer.allowSegmentedUpload = false; break;
+        case 11: ++changed.transfer.channel.binding.configurationGeneration; break;
+        case 12: ++changed.transfer.channel.serverToClientId; break;
+        case 13: changed.transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED; break;
+        }
+        CHECK(r.owner.admit(changed, 0, rejected) == E::BusAdmission::INVALID);
+    }
+    const auto id = r.admit(request);
+    request.transfer.index = 0x1010; // Mutation cannot redirect either retained copy.
+    r.turn(1);
+    CHECK(r.fake.sentCount == 1 && r.fake.sent[0].data[0] == 0x40 &&
+          r.fake.sent[0].data[1] == 0 && r.fake.sent[0].data[2] == 0x10);
+    r.services.clearUploadExperiment(0); // Consumed handoff remains authorized.
+    CHECK(!r.services.authorizeUploadExperiment(0, request.transfer, 11, 2, r.now));
+    r.respond(id, 1, 0x1000, 0x40192, false, 4);
+    const auto terminal = r.done(id).service;
+    CHECK(terminal.effectPossible && !terminal.effectUncertain &&
+          terminal.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED);
+    CHECK(r.services.node(0)->sdo.present && !r.services.node(0)->serviceQualification.present);
+    CHECK(r.owner.release(id));
+    auto next = r.request(sequence, 2, 0x1009);
+    next.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
+    CHECK(r.owner.admit(next, r.now, rejected) == E::BusAdmission::INVALID);
+    auto download = next;
+    download.transfer.direction = C::SdoDirection::DOWNLOAD;
+    CHECK(r.owner.admit(download, r.now, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.services.authorizeUploadExperiment(0, next.transfer, 11, 2, r.now));
+    r.services.clearUploadExperiment(0);
+    CHECK(r.owner.admit(next, r.now, rejected) == E::BusAdmission::INVALID);
+    CHECK(!r.services.authorizeUploadExperiment(0, next.transfer, 11, 2, r.now));
+    CHECK(!r.services.authorizeUploadExperiment(0, next.transfer, 11, 3, r.now));
+    ++next.transfer.step;
+    CHECK(r.services.authorizeUploadExperiment(0, next.transfer, 11, 3, r.now));
+    const auto second = r.admit(next);
+    r.turn(3);
+    r.respond(second, 1, 0x1009, 17);
+    CHECK(r.fake.sentCount == 2 && !r.services.node(0)->serviceQualification.present);
+    CHECK(r.owner.release(second));
+
+    for (unsigned failure = 0; failure < 4; ++failure) {
+        Rig failed(0, false, false, false);
+        const auto seq = failed.sequence();
+        auto upload = failed.request(seq, 1, 0x1000);
+        upload.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
+        CHECK(failed.services.authorizeUploadExperiment(0, upload.transfer, 11, 1, 0));
+        const auto pending = failed.admit(upload);
+        if (failure == 0) {
+            // Reboot between owner admission and adapter dispatch revokes the grant.
+            M::Frame boot = frame(0x701, 1);
+            failed.fake.push(boot, 1);
+            failed.turn(1);
+            CHECK(failed.fake.sentCount == 0);
+        } else if (failure == 1) {
+            CHECK(failed.owner.cancel(pending, 0) == E::Cancel::CANCELLED);
+            failed.services.clearUploadExperiment(0);
+            failed.turn(1);
+            CHECK(failed.fake.sentCount == 0);
+        } else {
+            failed.turn(1);
+            CHECK(failed.fake.sentCount == 1);
+            if (failure == 2)
+                CHECK(failed.owner.cancel(pending, 2) == E::Cancel::CANCELLED);
+            else
+                failed.turn(101);
+            CHECK(failed.done(pending).service.effectUncertain);
+            CHECK(failed.services.unresolved(0));
+        }
+        CHECK(failed.done(pending).service.outcome != C::SdoOutcome::SUCCESS);
+        CHECK(failed.owner.release(pending));
+        CHECK(!failed.services.authorizeUploadExperiment(0, upload.transfer, 11, 2, failed.now));
+        CHECK(!failed.services.node(0)->serviceQualification.present);
+    }
+    Rig expired(0, false, false, false);
+    const auto seq = expired.sequence(1, 1, 1, 10);
+    auto upload = expired.request(seq, 1, 0x1000);
+    upload.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
+    CHECK(expired.services.authorizeUploadExperiment(0, upload.transfer, 11, 1, 0));
+    CHECK(!expired.services.checkAdmission(0, upload.transfer, 10));
+    CHECK(!expired.services.authorizeUploadExperiment(0, upload.transfer, 11, 2, 10));
+    M::Frame stopped = frame(0x701, 1);
+    stopped.data[0] = 4;
+    expired.fake.push(stopped, 1);
+    expired.turn(1);
+    CHECK(!expired.services.checkAdmission(0, upload.transfer, 1));
+    CHECK(!expired.services.authorizeUploadExperiment(0, upload.transfer, 11, 2, 1));
+}
 
 void copiedAdmissionAndRetainedPressure() {
     Rig r;
@@ -1155,6 +1275,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
 }
 } // namespace
 int main() {
+    finiteUploadExperimentBootstrap();
     copiedAdmissionAndRetainedPressure();
     fairProducersAndBusyChannel();
     passiveDispatchDuringTransferAndBudgets();

@@ -1,42 +1,52 @@
 # CAN bench facts and evidence gaps
 
-As of 2026-11-02, the user reports an attached ESP-Prog2, an ESP32-S2 PCB and two
+As of 2026-11-02, [firmware upload and live CAN checks](reports/2026-11-02_s2_live_connection.md)
+verify UART communication and matching SDO responses from both reported nodes
+1/2 at 1 Mbit/s. Both completed 20 explicit raw uploads, including one-byte
+`1009=0x0C` and `100A=0x20`, conflicting with the EDS U16 widths. Actual TPDO1
+contents are retained; model-wide identity interpretation and PDO mutation
+remain unqualified. The user confirmed both labels read **CL86-C**.
+The firmware starts with CAN disabled and contains no motor-action commands.
+
+The user reports an attached ESP-Prog2, an ESP32-S2 PCB and two
 CL86 drives with free-shaft motors bolted to a table, and authorizes board testing.
 Windows USB enumeration and read-only EasyEDA schematic/PCB net inspection are
 recorded in [the board intake](reports/2026-11-02_s2_bench_intake.md). The user now
 reports 3.25 V/4.75 V rails, bridged PCB JP1 and last-drive SW8 ON. Cable continuity,
 reference ground and transient power behavior remain unmeasured. A bounded target
-ROM identification succeeded through UART with automatic EN/BOOT entry. No JTAG
-target session, flash, CAN acquisition or motor action has been performed. The installed
-drive firmware and exact motor ratings remain unknown. Host readiness, firmware
+ROM identification succeeded through UART with automatic EN/BOOT entry. The later
+upload and acquisition are recorded above; no JTAG target session or motor action
+has been performed. The installed
+drive version fields are now captured as raw values; their human version encoding
+and exact motor ratings remain unknown. Host readiness, firmware
 builds, acquisition and physical qualification remain separate facts.
 
 ## Actual fixture record
 
 | Item | Established fact | Evidence needed before dependent live work |
 | --- | --- | --- |
-| Drive | User reports two CL86 drives with different DIP addresses | Confirm exact CL86-C labels, specimen/firmware/raw identity and applicable dialect |
+| Drive | User confirms both labels CL86-C; nodes 1/2 share the captured raw identity tuple | Manufacturer interpretation of version fields, unique specimen identity and applicable dialect |
 | Motor and feedback | Two attached motors, user reports free shafts | Motor ratings, wiring, encoder configuration and command/feedback scale |
 | PC interface | User reports PCAN-USB opto IPEH-002022 available; not inspected or exercised | Exact connected interface, driver/version, timestamp and queue behavior, wiring and applicable authorization; availability is not adapter integration or qualification |
-| Embedded controller and SDK | EasyEDA specifies ESP32-S2-MINI-2-N4; actual ROM reports ESP32-S2FH4 revision 1.0, embedded 4 MB flash, no embedded PSRAM, 40 MHz crystal. Current complete firmware targets S3 / IDF 5.5.5 | Physical PCB/module revision still unrecorded; S2 firmware needs single-core, UART and target-specific TWAI support. Requested P4 support remains separate |
+| Embedded controller and SDK | EasyEDA specifies ESP32-S2-MINI-2-N4; ROM reports ESP32-S2FH4 revision 1.0, embedded 4 MB flash, no embedded PSRAM, 40 MHz crystal. S2 UART/core-0/TWAI firmware was built, uploaded and exercised on IDF 5.5.5 | Physical PCB/module revision still unrecorded; requested P4 adapter support remains separate |
 | Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
 | Interface and pins | User confirms CAN RX GPIO16, TX GPIO17, silent GPIO18; no physical signal verification | Pin orientation and actual board/firmware routing, CAN_H/CAN_L/reference wiring; no inferred RS COM port |
-| Debug/programming | ESP-Prog-2 303A:1002 serial 94A990398B40 is uniquely COM15 after USB reconnection. With only UART/programming cable attached, esptool 4.12.0 automatic reset/boot entry and ROM identity succeeded; MCU left in bootloader | Earlier manual/no-reset connection received no data; cause not established. Successful automatic entry verifies that path, not JTAG, CAN or sustained power stability |
+| Debug/programming | ESP-Prog-2 303A:1002 serial 94A990398B40 is uniquely COM15. With only UART/programming cable attached, esptool 4.12.0 automatic EN/BOOT entry, flash verification and application restart succeeded; firmware responds at 115200 baud | JTAG remains untested. Earlier manual/no-reset connection failure does not invalidate the successful automatic path or establish its cause |
 | Bus topology | User reports PCB to drive to drive daisy chain; CN2 pin1 L, pin2 H in both design netlists | Physical cable/reference continuity and endpoint termination. Drive RJ45 pin1 is H, pin2 L, pin3 GND; CN2 is only two pins |
-| Node and bitrate | User reports drive A SW2 ON and drive B SW1 ON, SW6/7 OFF: documentary nodes 2/1 at 1 Mbit/s. User subsequently bridged JP1 and set last-drive SW8 ON | Reported endpoint termination; verify bridges, about 60-ohm unpowered bus resistance, cable/reference continuity and effective on-wire settings |
+| Node and bitrate | Matched replies on 581/582 prove service communication with nodes 1/2 using 1 Mbit/s. User reports PCB JP1 bridged and last-drive SW8 ON | Measure unpowered bus resistance and cable/reference continuity; successful short exchanges do not establish electrical margins |
 | Power | User reports both probe selectors and PCB jumpers at 5 V, measured rails 4.75 V and 3.25 V on probe/PCB; green VPROG LED blinks. Design supplies MCU through U14; U3 uses separate VCC/VIO | These are user measurements, not captured rail traces. Green activity indication alone is not a power diagnosis; transient behavior, EN and other attached supplies remain unconfirmed |
 | External I/O | Unknown; it may be unused | Actual assignments, electrical levels and connected limits/home/stop inputs needed by the chosen operation |
-| Mechanics | User reports free shafts, motors bolted to table and safe to test | Actual ratings, permitted finite motion bounds and independent observation/control for the chosen experiment |
+| Mechanics | User reconfirmed free shafts, motors bolted to table and independent drive-power cutoff available | Actual ratings, finite motion bounds and independent observation for any motion experiment |
 | Authorization | User explicitly authorizes starting board testing; no repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
-| Evidence | Documentary/host checks plus USB enumeration and matching schematic/PCB pad nets; no acquired drive record | Physical measurements, target identity, raw CAN traffic and independently observed behavior |
+| Evidence | Original sources, host checks, board ROM, verified flash, UART ping and 20 matched raw uploads per node | Manufacturer interpretation, target electrical measurements and independent motor/PDO behavior remain pending |
 
 An unconnected input does not mean its protective or enabling function is
 disabled. An SDO acknowledgement does not prove physical standstill, a valid
 position reference or a cleared fault cause.
 
-These user-reported parts and pins are useful fixture intake, not evidence of
-electrical correctness, live firmware, active bitrate/node or a safe motion
-envelope. A PCAN interface and an embedded interface do not imply permission for
+The reported parts/pins and successful communication establish the functional
+path above, without electrical qualification or a defined motion envelope.
+A PCAN interface and an embedded interface do not imply permission for
 two active controllers. One designated operator and one application owner
 control the selected physical interface. An independently configured observer
 must not transmit or change the bus; its presence and electrical effect belong
@@ -52,7 +62,7 @@ one-based PDF pages. The independent page review is recorded in
 | --- | --- | --- |
 | EN86 pp5/9 | RJ45 pins 1 CAN_H/CAN+, 2 CAN_L/CAN-, 3 GND; pins 4-8 NC | Confirm exact connector/model and wiring before use; this is not an Ethernet interface |
 | EN86 pp9-10 | SW1-5 select nodes 1-31; all OFF is user-defined | Actual address and DIP/parameter precedence are not established |
-| EN86 pp9-10 | SW6/7 choices 125/250/500/1000 kbit/s; SW8 ON connects 120 ohms | Actual bitrate and total installed termination remain unknown; EDS also advertises 50 kbit/s without a documented DIP choice |
+| EN86 pp9-10 | SW6/7 choices 125/250/500/1000 kbit/s; SW8 ON connects 120 ohms | 1 Mbit/s works on this fixture; total installed resistance remains unmeasured. EDS also advertises 50 kbit/s without a documented DIP choice |
 | EN86 p3 | CL encoder specification 1000 lines; OL entry N/A | Does not establish actual-position units, quadrature conversion or command-pulse scale |
 | OP86 pp3/10 | Cover says 86C; internal headers say 57C and p3 pin table says RS485 despite CAN labels | Preserve source inconsistency; do not substitute its labels for an inspected fixture |
 
@@ -173,7 +183,9 @@ manufacturer evidence or a scoped physical experiment. The exact gates and
 remain owned by prompt 29 and can be resumed before completed motion APIs or the
 later CLI exist.
 
-No state-changing experiment has been selected or authorized. Before one runs,
+The user authorized the bounded PDO test and confirmed independent power cutoff.
+No state-changing sequence has run: selected-firmware edit/state prerequisites
+are still unproved. Before one runs,
 specify and independently review a single exact finite sequence through the
 checked public codec/service path and the same owner, implement its isolated
 harness support, and fake-test its bytes and failure/uncertainty branches.

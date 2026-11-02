@@ -291,7 +291,7 @@ void SdoClient::recordSdo(Channel& channel, bool known, uint64_t received, uint6
     if (anchor < 0) {
         if (!older(channel.unanchoredSdo, known, received))
             channel.unanchoredSdo = timeOf(known, received, now);
-        if (!older(channel.unanchoredService, known, received)) {
+        if (!channel.experimentActive && !older(channel.unanchoredService, known, received)) {
             channel.unanchoredService = timeOf(known, received, now);
             channel.unanchoredServiceFromSdo = true;
         }
@@ -303,7 +303,7 @@ void SdoClient::recordSdo(Channel& channel, bool known, uint64_t received, uint6
         older(state.sdo, known, received)) return;
     state.sdo = timeOf(known, received, now);
     state.sdo.generation = state.route.generation;
-    if (!older(state.serviceQualification, known, received)) {
+    if (!channel.experimentActive && !older(state.serviceQualification, known, received)) {
         state.serviceQualification = state.sdo;
         state.serviceFromSdo = true;
     }

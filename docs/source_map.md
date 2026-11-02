@@ -30,6 +30,13 @@ maps actual EasyEDA schematic/PCB nets, USB identity and S2/P4 core compile
 evidence to the [firmware boundary](firmware_examples.md). These are fixture and
 platform facts, not installed drive operations or motion qualification.
 
+| S2 connection responsibility | Implementation / check | Evidence boundary |
+| --- | --- | --- |
+| UART/core-0/TWAI board port | [Platform](../examples/common/EspProbePlatform.cpp), [S2 platform tests](../test/esp_s2_probe_platform_test.cpp), [retirement proof](adapters/twai_esp32s2.md) | IDF 5.5.5; UART0 TX43/RX44, same owner; no core SDK dependency |
+| Finite raw upload collection | [RawEvidence](../examples/s2_bench/RawEvidence.cpp), [owner-path tests](../test/raw_evidence_test.cpp), [one-use service grants](canopen_services.md#one-use-experimental-upload-grants) | Server-indicated bounded bytes and unknown effects; no typed/production qualification |
+| Explicit fixture controls and serial retention | [Bench entry](../examples/s2_bench/main/main.cpp), [runner](../scripts/s2_bench.py), [bench guide](../examples/s2_bench/README.md) | Silent startup; controls 3/4 acquire one finite plan per node without drive writes/retry |
+| Actual two-node exchange | [Live report](reports/2026-11-02_s2_live_connection.md), [node 1](bench/20261102-s2-raw-fixed-node1/rx.txt), [node 2](bench/20261102-s2-raw-fixed-node2/rx.txt) | 20 successful uploads per node; observed widths differ from EDS; no PDO mutation or motor qualification |
+
 Audited 2026-10-28 for [prompt 1](reports/prompt_1.md). This is navigation to
 current declarations, implementation, real callers and focused tests, not a
 directory dump. The original sibling audit remains below; production additions
@@ -59,7 +66,7 @@ dirty-state delta. Its concrete proof navigation is separate from planned paths:
 | Responsibility | Declaration / implementation | Caller and focused check | Deliberate boundary |
 | --- | --- | --- | --- |
 | Copied transport queue, TX evidence and explicit retirement | [TwaiAdapter.h](../adapters/twai/TwaiAdapter.h), [TwaiAdapter.cpp](../adapters/twai/TwaiAdapter.cpp) | [Real owner fake integration](../test/twai_adapter_test.cpp) | Two total TX slots; same service store, no second receiver; RX drained before promotion |
-| Pinned SDK callbacks, Classical framing and node destruction | [IdfTwaiDriver.h](../adapters/twai/IdfTwaiDriver.h), [IdfTwaiDriver.cpp](../adapters/twai/IdfTwaiDriver.cpp) | [Actual shim with SDK fakes](../test/twai_driver_test.cpp), [SDK compile target](../test/twai_sdk_compile/main/CMakeLists.txt), [compile command](../scripts/check_twai_sdk.py) | S3/IDF 5.5.5 only; one SDK active frame; ISR copies into internal RAM, no routing; old node never restarted |
+| Pinned SDK callbacks, Classical framing and node destruction | [IdfTwaiDriver.h](../adapters/twai/IdfTwaiDriver.h), [IdfTwaiDriver.cpp](../adapters/twai/IdfTwaiDriver.cpp) | [Actual shim with SDK fakes](../test/twai_driver_test.cpp), [SDK compile target](../test/twai_sdk_compile/main/CMakeLists.txt), [compile command](../scripts/check_twai_sdk.py) | Reviewed S2/S3 IDF 5.5.5; one SDK active frame; ISR copies into internal RAM, no routing; old node never restarted |
 
 [SDK source hashes/evidence](adapters/twai_sdk.md) and [stage report](reports/prompt_27.md)
 record scope, sibling revisions and measured capacities. Firmware entry points
@@ -74,9 +81,9 @@ to the same driver/adapter and focused tests above.
 | Responsibility | Declaration / implementation | Caller / focused check | Boundary |
 | --- | --- | --- | --- |
 | Shared controller/application assembly | [FirmwareProbe.h](../examples/common/FirmwareProbe.h), [implementation](../examples/common/FirmwareProbe.cpp) | [Firmware fake integration](../test/firmware_probe_test.cpp), common owner task | Borrows sole service store; explicit configuration, owner-first service and clock-fault retirement |
-| USB/time callbacks | [EspProbePlatform.h](../examples/common/EspProbePlatform.h), [implementation](../examples/common/EspProbePlatform.cpp) | [SDK platform fake tests](../test/esp_probe_platform_test.cpp) | Same-task/core single-byte zero-tick I/O; signed 64-bit time, retained errors |
+| USB/UART/time callbacks | [EspProbePlatform.h](../examples/common/EspProbePlatform.h), [implementation](../examples/common/EspProbePlatform.cpp) | [S3 SDK fakes](../test/esp_probe_platform_test.cpp), [S2 SDK fakes](../test/esp_s2_probe_platform_test.cpp) | Same-task/core single-byte I/O; S2 exclusive UART0, S3 USB; signed 64-bit time, retained errors |
 | Pinned startup / board configuration | [EspProbeMain.h](../examples/common/EspProbeMain.h), [implementation](../examples/common/EspProbeMain.cpp), [FirmwareBoard.h](../examples/common/FirmwareBoard.h) | [Arduino entry](../examples/probe_cli/main.cpp), [IDF entry](../examples/probe_idf/main/main.cpp) | One internal task; compile fixture CAN disabled, no target/request |
-| Actual source/link proof | [Shared source inventory](../examples/common/firmware_sources.json), [build checker](../scripts/check_firmware.py) | [Negative build-checker tests](../test/firmware_build_test.py), [CI](../.github/workflows/verify.yml) | Three separate real builds; actual compiler inputs required |
+| Actual source/link proof | [Shared source inventory](../examples/common/firmware_sources.json), [build checker](../scripts/check_firmware.py) | [Negative build-checker tests](../test/firmware_build_test.py), [CI](../.github/workflows/verify.yml) | Arduino/S3 IDF/S2 bench/isolated component builds; actual compiler inputs required |
 | Portable IDF component | [Root component registration](../CMakeLists.txt) | [Isolated consumer](../test/idf_consumer/README.md) | Staged core only; no shared app/SDK headers in core includes |
 
 [The firmware guide](firmware_examples.md) owns configuration, capacity and timing

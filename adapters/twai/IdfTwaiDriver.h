@@ -1,5 +1,5 @@
 /** @file IdfTwaiDriver.h
- * @brief ESP-IDF 5.5.5 ESP32-S3 TWAI node shim; application-only SDK boundary.
+ * @brief ESP-IDF 5.5.5 ESP32-S2/S3 TWAI node shim; application-only SDK boundary.
  * SPDX-License-Identifier: MIT
  */
 #pragma once

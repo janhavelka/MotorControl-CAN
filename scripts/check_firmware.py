@@ -63,7 +63,8 @@ def check_inputs(database, expected):
     return len(entries)
 
 
-def sdk_environment(args, runner, manifests=("twai_sources.json", "esp_platform_sources.json")):
+def sdk_environment(args, runner, manifests=("twai_sources.json", "esp_platform_sources.json"),
+                    target="esp32s3"):
     """Check the selected SDK scope without resolving away its Python virtualenv."""
     if not args.idf_path:
         raise VerificationFailure("Export IDF_PATH or supply --idf-path", "unavailable")
@@ -91,15 +92,15 @@ def sdk_environment(args, runner, manifests=("twai_sources.json", "esp_platform_
     runner.summary["source_hashes_verified"] = verified
     runner.summary["sdk_python"] = str(python)
     runner.run("sdk_python_version", [python, "--version"], timeout=20)
-    runner.tool("xtensa", "xtensa-esp32s3-elf-g++")
+    runner.tool("xtensa", "xtensa-" + target + "-elf-g++")
     return [python, sdk / "tools/idf.py"], env
 
 
-def idf_build(runner, command, env, name, project, build, options=()):
+def idf_build(runner, command, env, name, project, build, options=(), target="esp32s3"):
     failure = None
     try:
         runner.run(name, [*command, "-C", project, "-B", build,
-                         "-DSDKCONFIG=" + (build / "sdkconfig").as_posix(), "-DIDF_TARGET=esp32s3",
+                         "-DSDKCONFIG=" + (build / "sdkconfig").as_posix(), "-DIDF_TARGET=" + target,
                          *options, "build"], timeout=600, env=env)
         images = list(build.glob("*.elf"))
         if len(images) != 1 or not (build / (images[0].stem + ".bin")).is_file():
@@ -148,11 +149,13 @@ def retain_idf(runner, name, build, failed=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--target", choices=("arduino", "idf", "component", "all"), default="all")
+    parser.add_argument("--target", choices=("arduino", "idf", "s2", "component", "all"), default="all")
     parser.add_argument("--build-dir", type=Path, default=ROOT / ".build/firmware")
     parser.add_argument("--pio", default="pio")
     parser.add_argument("--idf-path", type=Path, default=os.environ.get("IDF_PATH"))
     parser.add_argument("--idf-python", type=Path, default=Path(sys.executable))
+    parser.add_argument("--temporary-root", type=Path,
+                        help="Existing short path for disposable IDF builds; products are retained")
     args = parser.parse_args()
     runner = Runner(args.build_dir, "firmware-" + args.target)
     try:
@@ -177,20 +180,35 @@ def main():
                 raise VerificationFailure("Arduino did not link firmware ELF/BIN")
             runner.summary.setdefault("firmware_artifacts", {})["arduino"] = str(output / "firmware.elf")
             runner.save()
-        if args.target in ("idf", "component", "all"):
-            command, env = sdk_environment(args, runner)
+        if args.target in ("idf", "s2", "component", "all"):
+            target = "esp32s2" if args.target == "s2" else "esp32s3"
+            command, env = sdk_environment(args, runner, target=target)
             if args.target in ("idf", "all"):
                 # Deep checkout + timestamped logs can exceed the Windows SDK
                 # compiler's dependency-file path limit. Build under a short
                 # temporary root; preserve products and logs separately.
-                with tempfile.TemporaryDirectory(prefix="mccan-idf-") as temporary:
+                with tempfile.TemporaryDirectory(prefix="mccan-idf-", dir=args.temporary_root) as temporary:
                     build = Path(temporary) / "build"
                     idf_build(runner, command, env, "idf", ROOT / "examples/probe_idf", build)
                     runner.summary["idf_compile_entries"] = check_inputs(build / "compile_commands.json", common + core)
+            if args.target in ("s2", "all"):
+                if args.target == "all":
+                    runner.tool("xtensa_s2", "xtensa-esp32s2-elf-g++")
+                with tempfile.TemporaryDirectory(prefix="mccan-s2-", dir=args.temporary_root) as temporary:
+                    build = Path(temporary) / "build"
+                    project = ROOT / "examples/s2_bench"
+                    idf_build(runner, command, env, "s2", project, build, target="esp32s2")
+                    runner.summary["s2_compile_entries"] = check_inputs(
+                        build / "compile_commands.json", common + core +
+                        [project / "main/main.cpp", project / "RawEvidence.cpp"])
+                    description = json.loads((build / "project_description.json").read_text(encoding="utf-8"))
+                    if description.get("target") != "esp32s2":
+                        raise VerificationFailure("S2 bench build linked a different target")
+                    runner.summary["s2_target"] = description["target"]
             if args.target in ("component", "all"):
                 # Source directories live outside the checkout. Only the staged
                 # core and consumer are visible; SDK is the intentional dependency.
-                with tempfile.TemporaryDirectory(prefix="mccan-core-") as temporary:
+                with tempfile.TemporaryDirectory(prefix="mccan-core-", dir=args.temporary_root) as temporary:
                     isolated = Path(temporary)
                     component = isolated / "MotorControlCAN"
                     component.mkdir()

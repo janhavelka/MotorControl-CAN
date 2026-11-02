@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.19)
+set(COMPONENTS main)
+set(EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/../probe_idf/components")
+include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+project(motorcontrol_can_s2_bench)

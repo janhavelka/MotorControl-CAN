@@ -77,7 +77,10 @@ EvidenceAdmission DeviceEvidence::start(const AcquisitionPlan& plan, const ReadE
         !text(plan.authorization) || !text(plan.observations) || !app_.selected() ||
         !same(plan.target, *app_.selected()) || environment_ > EvidenceEnvironment::HOST_FAKE)
         return EvidenceAdmission::INVALID;
-    L::ReadContext candidate;
+    // No record is observable while unoccupied. Reuse its owned context for
+    // preflight instead of stacking it above the application's own preparation.
+    // A refusal leaves the application and any retained public record unchanged.
+    L::ReadContext& candidate = record_.read;
     if (!prepare(plan, now, candidate))
         return EvidenceAdmission::INVALID;
     if (environment_ == EvidenceEnvironment::DEVICE && !review) {

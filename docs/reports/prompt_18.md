@@ -2,6 +2,12 @@
 
 ## Status and delivered scope
 
+The 2026-11-02 [S2 connection checkpoint](2026-11-02_s2_live_connection.md)
+now supplies both CL86-C labels, raw version fields, TPDO1 readback and working
+computer-to-drive communication on nodes 1/2. Prompt 18 remains **Blocked**;
+no remapping write or typed remap implementation was added. The final section
+below records the new evidence and precise remaining obligations.
+
 **Blocked: Lichuan applicability of the standard remap is unconfirmed.** The source
 audit, prerequisite review and precise evidence assessment are complete; the
 typed remapping/settings implementation and its acceptance tests are not.
@@ -240,3 +246,50 @@ This documentation/ledger correction requires no manual remote CI dispatch;
 Linux sanitizers and hardware were not run locally. Final commit and fresh
 upstream comparison are reported at delivery. Prompt 18 remains Blocked on the
 scoped device evidence above, with all implementation obligations retained.
+
+## 2026-11-02 physical readback and resumed assessment
+
+Both drives completed 20 explicit uploads through the real S2 firmware and
+single application owner. The user confirmed exact CL86-C labels, independent
+power cutoff and free, bolted shafts, and power-cycled the drives before raw
+acquisition. The [connection report](2026-11-02_s2_live_connection.md) retains
+original failures, fixes, firmware/input hashes and successful node-specific
+raw traffic. This supersedes the earlier absence of a connected fixture, not
+the unfulfilled remapping requirements.
+
+Actual TPDO1 readback is COB-ID `181`/`182`, transmission type 255, inhibit raw100,
+event raw0, count3 and mapping words `60410010/60610008/60640020` (unused fourth
+word zero). This differs from the EDS layout and timer defaults; current values
+are not claimed to be factory defaults. Both version fields `1009/100A` return
+one byte (`0C/20`) against EDS U16, and `1018:00=5` exceeds its EDS maximum4.
+The original dictionary remains immutable; Q01/Q17 and entry review notes now
+record these contradictions. No undocumented identity child was probed.
+
+The lead and independent reviewer reopened the original communication/mapping
+EDS sections and CiA's [PDO](https://www.can-cia.org/can-knowledge/pdo-protocol),
+[NMT](https://www.can-cia.org/can-knowledge/network-management) and
+[heartbeat](https://www.can-cia.org/can-knowledge/error-control-protocols)
+descriptions. A narrow candidate may preserve identifier/timers and change only
+already-mapped status/mode fields. Its standard order is known, but applicability
+and the required edit state still need evidence. Specifically:
+
+1. SDO responses and raw statusword do not distinguish Operational from
+   Pre-operational. No heartbeat was observed; `1017` was not read and cannot
+   be assumed zero. NMT transmission alone has no remote state acknowledgement.
+2. `SdoClient` has NMT request/confirmation APIs, but the concrete owner/TWAI
+   transport/report identity is currently SDO-only. An actual owner NMT path
+   must precede a network-state experiment; a raw sender is not a substitute.
+3. The S2 adapter preserves unknown physical capture time. The current exact-NMT
+   freshness contract requires qualified capture evidence. Any alternative
+   bounded observation contract needs source review and adverse-ordering tests;
+   tagging dequeue time as capture would be incorrect.
+4. Exact upload-experiment grants authorize no downloads and promote no ordinary
+   channel qualification. A reviewed session/effect decision and isolated finite
+   download-experiment admission remain necessary before mutation. No
+   unconditional `confirmed=true` flag is justified by these raw observations.
+
+The missing actual mutation, typed context, owner integration and
+failure-at-each-step tests remain owned by this prompt. The finite experiment
+route remains in prompt 29; timer/SYNC/persistence changes and sample provenance
+retain their separate gates. This is an executable connection/evidence checkpoint,
+not a completed remap or an instruction to wait for later motion APIs.

@@ -6,6 +6,13 @@
 
 This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The stage notes identify implemented APIs; remaining inventory entries are planned contracts.
 
+The [S2 bench controls](../examples/s2_bench/README.md) are explicit experimental
+acquisition commands, not the future production CLI. `RawEvidence` uses the same
+owner and an exact one-use upload grant; `SERVER_INDICATED` retains actual wire
+length without replacing typed getters or EDS metadata. Owner
+`localTxRetired(slot)` inspects local queue/report retirement only; it does not
+qualify an SDO session or prove absence of earlier remote effects.
+
 Prompt 6 now demonstrates `prepareIdentity/nextRead/advanceRead/getIdentity`,
 `prepareMoveAbsolute/nextMove/advanceMove` and the owner admission/result lifecycle
 in an [experimental synthetic profile](profile_contract.md). That page maps

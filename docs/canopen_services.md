@@ -156,9 +156,11 @@ The EDS `1200:01/:02` defaults are the literal `$NODEID+0x600` and
 `$NODEID+0x580`; they establish source metadata, not live configuration. No IDs
 are derived, probed with writes or silently installed. `externallyConfirmed`
 means bounded, applicable, reviewed non-changing confirmation already occurred
-under the fresh-session premise. If false, only an explicitly reviewed
-non-changing upload can be admitted until one completes. Its success confirms
-the selected route but cannot establish freshness retrospectively. Current
+under the fresh-session premise. If false, ordinary admission requires an
+explicitly reviewed non-changing upload until one completes. Its success confirms
+the selected route but cannot establish freshness retrospectively. The finite
+experimental exception below grants one unknown-effect upload without promoting
+that route to ordinary service eligibility. Current
 Lichuan read-effect gates remain unresolved; the synthetic host fixture's
 non-changing read is not manufacturer qualification.
 
@@ -173,15 +175,64 @@ A released handle cannot affect a later admission; generations never wrap.
 
 Object access and effect permission belong to the reviewed profile caller.
 This service mechanism supplies no raw Lichuan operation, setter, retry or
-escape around unresolved typed policy. The optional adapter supports exact
-1-32-byte uploads/downloads. All 202 EDS scalar entries are 1-4 bytes; the larger
-bound preserves the retained segmented proof and is not another object
+escape around unresolved typed policy. `SdoUploadSize::EXACT` is the default:
+the optional adapter supports exact 1-32-byte uploads/downloads. The separately
+granted raw upload mode below treats size as capacity. All 202 EDS scalar entries
+are 1-4 bytes; the larger bound preserves the retained segmented proof and is not another object
 catalogue or advertised device capability. Block transfer is disabled.
+
+### One-use experimental upload grants
+
+`authorizeUploadExperiment(slot, exactUpload, nodeGeneration, authorizationId,
+nowUs)` copies one explicitly reviewed `UNQUALIFIED` upload. It requires the
+configured fresh-session/exclusive-server premise, a current nonzero passive
+node epoch, eligible controller/NMT state and no occupied transfer, cleanup,
+unresolved route or live handoff. The nonzero authorization serial increases
+per channel; operation IDs cannot decrease and steps within the same operation
+must increase. Clearing a grant does not allow its step to be authorized again.
+The application retains the actual fixture, authorization and finite experiment
+review under that serial; the adapter cannot authenticate those external facts.
+
+The grant matches the complete relevant upload intent: route/binding epochs,
+operation/request/step, object/subindex, exact width or raw capacity, size policy,
+read-effect policy, segmented permission, deadline and queue/response budgets.
+An object-only permission or altered candidate is insufficient. Native service
+admission consumes the grant once; an accepted transfer retains its permission
+through the ordinary owner handoff. `clearUploadExperiment` withdraws only an
+unused grant. It performs no I/O and does not cancel work already admitted;
+the owner must cancel that work explicitly when ending an experiment.
+
+Experimental success retains SDO observation and unknown-effect evidence. It
+does not establish a new channel confirmation or `serviceQualification`, change
+`UNQUALIFIED` to `REVIEWED_NON_CHANGING`, authorize a download, or admit another
+upload. An already established confirmation remains separate. No grant or failed
+attempt is automatically replayed. Reboot, binding withdrawal, bus-off, expiry
+and uncertain completion retain their ordinary invalidation/quarantine rules.
+
+`SdoUploadSize::SERVER_INDICATED` is available only for an exact experimental
+grant, including on an already confirmed channel. `SdoTransfer::size` is its
+1-32-byte capacity; successful `SdoCompletion::size` is the actual returned count.
+A raw expedited reply must indicate its width: `43/47/4B/4F` are bounded by that
+capacity; unsized `42` cannot establish an actual count and is rejected. Sized
+or unsized segmented transfers remain bounded by capacity, native declared-size
+consistency, toggles and the immutable deadline. Overflow or malformed transfer
+publishes no successful value and retains its failure/raw-reply evidence.
+The policy establishes no native object type, unit or firmware applicability.
+
+Production typed read completion matching and PDO-map readback require `EXACT`;
+they reject raw-capacity evidence even when its returned count happens to equal
+the reviewed width. The bench-only [raw collector](../examples/s2_bench/RawEvidence.h)
+retains such bytes as observations through this same owner. It neither repairs
+the EDS nor changes the production object ledger. The
+[service vectors](../test/sdo_transfer_test.cpp),
+[owner grant tests](../test/can_bus_owner_test.cpp) and
+[collector tests](../test/raw_evidence_test.cpp) exercise this distinction.
 
 ### Transfer forms and dispatch bounds
 
-Sized expedited scalar replies must agree with the expected width. For legal
-unsized `42` replies, CANopenNode internally copies four bytes; the checked
+Under the default `EXACT` policy, sized expedited scalar replies must agree with
+the expected width. For legal unsized `42` replies, CANopenNode internally copies
+four bytes; the checked
 adapter publishes only the admitted 1-4-byte prefix and retains the entire raw
 frame. Every download waits for the matching native acknowledgement. Server
 aborts must match index/subindex before entering the upstream callback, and all
@@ -193,8 +244,8 @@ cannot discard it. Before the initial handoff, no abort can belong to the
 untransmitted request.
 
 A server may choose segmented upload for a small scalar. Segmented transfers
-use the actual selected engine's toggle/last-bit protocol. Declared size and
-final total must agree with the explicit request; capacity and command bits are
+use the actual selected engine's toggle/last-bit protocol. Under `EXACT`, declared
+size and final total must agree with the explicit request; capacity and command bits are
 checked. The adapter drains the FIFO after each progression call, so all sizes
 through 32 work without the proof's former 28-byte boundary. No progress loop
 runs inside a service call. `service` makes at most one initiation, two engine
@@ -542,6 +593,10 @@ ordinary TX during an admitted transfer; it never renews the overall deadline.
 | Exact state and serviceability unknown | Denied | Allowed explicitly | Denied | Allowed to enter validation |
 | Exhausted lifecycle provenance | Denied | Denied | Denied | Denied |
 
+The probe column also bounds the state eligibility of a specifically granted
+unknown-effect upload. The grant does not reclassify that upload as reviewed
+non-changing, and its result cannot promote ordinary service eligibility.
+
 `setServiceAge(slot, maximumAgeUs, nowUs)` selects a nonzero inclusive age cap
 for exact NMT and SDO service evidence; it does not refresh either fact. The
 documented default `UINT64_MAX` selects lifecycle validity without age expiry,
@@ -551,6 +606,8 @@ freshness. Explicit external service confirmation is recorded separately in
 `serviceQualification` with `serviceFromSdo=false`; the last matching SDO time
 is not fabricated. Checked matching responses, including a valid rejection,
 update service evidence with SDO provenance while preserving channel quarantine.
+An experimental upload updates the separate raw SDO observation only and leaves
+`serviceQualification` unchanged.
 An older or unknown-capture response may update separate raw SDO history but
 cannot replace a newer known service proof. Configuring an externally confirmed
 SDO route uses the owner's last supplied processing time as a conservative
@@ -561,7 +618,9 @@ current exact state or service fact, explicitly request a bounded, reviewed
 non-changing upload on a qualified fresh channel. Once it succeeds, a reviewed
 producer-setting SDO write can be admitted without requiring heartbeat first.
 It still needs actual object/drive prerequisites and explicit caller intent;
-no current Lichuan read is newly declared non-changing here. A current Stopped
+no current Lichuan read is newly declared non-changing here. The separate
+one-use experiment can collect raw observations while retaining unknown effects;
+it cannot establish this write-enabling service qualification. A current Stopped
 observation blocks that probe. An explicit transition that may have transmitted
 makes prior Stopped historical, permitting the bounded probe while exact state
 remains unknown. No NMT Start or heartbeat write is issued automatically.
@@ -638,7 +697,7 @@ COB-ID parameter/transmission type, acquisition times and provenance record.
 explicitly established reviewed actual configuration, or collect matched SDO
 completions through the existing bounded owner and call `pdoMapFromReadback`.
 That helper checks communication `:01/:02`, mapping `:00` and each active slot,
-in order, with exact sizes, matching channel/full binding, successful upload,
+in order, with `SdoUploadSize::EXACT`, exact sizes, matching channel/full binding, successful upload,
 no abort and the specified node epoch. It never uploads mapped payload targets.
 All completions retain admission time/node epoch from the actual service owner;
 earliest admission and latest completion remain separate. Stale constituent

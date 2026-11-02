@@ -3,6 +3,7 @@
 /docs/reference/** -text
 /docs/baseline/MotorControl-RS/** -text
 /docs/audit/evidence/** -text
+/docs/bench/** -text
 /experiments/canopen_service_fit/vendor/** -text
 /experiments/canopen_service_fit/UPSTREAM.json text eol=lf
 # Generated object headers are compared byte-for-byte by their freshness check.

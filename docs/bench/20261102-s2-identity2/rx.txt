@@ -1,0 +1,10 @@
+IDENTITY admitted; finite experimental uploads; no retry
+EVIDENCE id=2 node=2 outcome=2 uncertain=1 lost=0 terminals=2 traffic=5 gap=2168
+RESULT step=1 object=1000:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 size=4 data=92010400 admitted=56281945 completed=56283954
+RESULT step=2 object=1009:00 outcome=2 ack=0 possible=1 uncertain=1 abort=06070010 size=0 data=00000000 admitted=56287943 completed=56289954
+TRAFFIC kind=1 time=56281945 id=00000602 ext=0 rtr=0 dlc=8 data=4000100000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=56283954 id=00000582 ext=0 rtr=0 dlc=8 data=4300100092010400 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=56286122 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=56287943 id=00000602 ext=0 rtr=0 dlc=8 data=4009100000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=56289954 id=00000582 ext=0 rtr=0 dlc=8 data=4f0910000c000000 accepted=1 captureKnown=0
+END evidence retained; r=release

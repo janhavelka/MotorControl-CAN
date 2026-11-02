@@ -31,20 +31,25 @@ effects (Q20). Host fakes and firmware builds pass; physical qualification remai
 pending. [Prompt 29's report](docs/reports/prompt_29.md) separates delivered
 software from conditional acquisition.
 
-**Connected board intake:** the [ESP-Prog2/S2 inspection](docs/reports/2026-11-02_s2_bench_intake.md)
-records USB identity, resolution of duplicate COM15 names, matching design pin
-nets and a successful S2 ROM/automatic-boot check. Power/cable checks remain.
-The isolated core also compiles for S2 and P4;
-complete S2/P4 firmware adapters and physical tests remain pending.
+**Two-drive connection observed:** the [S2 bench](examples/s2_bench/README.md)
+now runs on the OPTAK board through ESP-Prog2 UART. Each node completed 20
+explicit experimental uploads; [retained traffic and results](docs/reports/2026-11-02_s2_live_connection.md)
+record the actual one-byte `1009=0x0C` and `100A=0x20`, which disagree with the
+EDS's U16 widths. Production typed widths remain unchanged. This checkpoint
+establishes the connection; read effects, firmware interpretation, motion and
+PDO mutation remain unqualified. No PDO write was sent. P4 firmware support
+remains pending after its isolated core build.
 
-**TWAI transport:** the optional [ESP32-S3 adapter](adapters/twai/README.md)
+**TWAI transport:** the optional [ESP32-S2/S3 adapter](adapters/twai/README.md)
 uses pinned ESP-IDF 5.5.5, copied bounded queues and identifiable TX callbacks.
 Host fakes and an SDK compile check cover explicit retirement/recovery without
 replaying queued work. It is application code, excluded from the installed core.
 The [Arduino and native-IDF examples](docs/firmware_examples.md) now compile the
-same application and owner, with explicit configuration, bounded USB I/O and
-a separate isolated IDF component consumer. Compile fixtures leave CAN disabled;
-no firmware was flashed and physical qualification remains pending.
+same application and owner, with explicit configuration, bounded S3 USB or S2
+UART I/O and a separate isolated IDF component consumer. Compile fixtures leave
+CAN disabled; the separate S2 bench image starts silent and requires explicit
+controller start and finite acquisition controls. Broader physical qualification
+remains pending.
 
 **Native application:** the [fake native probe](examples/native_probe/README.md)
 uses shared ProbeApp/ProbePlatform code, ordinary owner dispatch, explicit typed

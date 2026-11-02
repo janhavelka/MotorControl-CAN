@@ -110,12 +110,13 @@ jobs:
           git -C .build/esp-idf checkout --detach FETCH_HEAD
           test "$(git -C .build/esp-idf rev-parse HEAD)" = b774170ff46c393eeb5e495ea37936038d3f4f4f
           git -C .build/esp-idf submodule update --init --recursive --depth 1
-          .build/esp-idf/install.sh esp32s3
+          .build/esp-idf/install.sh esp32s2 esp32s3
       - name: Build standalone firmware and separate portable component
         shell: bash
         run: |
           . .build/esp-idf/export.sh
           python scripts/check_firmware.py --target idf --build-dir .build/firmware-idf
+          python scripts/check_firmware.py --target s2 --build-dir .build/firmware-s2
           python scripts/check_firmware.py --target component --build-dir .build/firmware-component
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -126,6 +127,10 @@ jobs:
             .build/firmware-idf/**/*.json
             .build/firmware-idf/**/*.elf
             .build/firmware-idf/**/*.bin
+            .build/firmware-s2/**/*.log
+            .build/firmware-s2/**/*.json
+            .build/firmware-s2/**/*.elf
+            .build/firmware-s2/**/*.bin
             .build/firmware-component/**/*.log
             .build/firmware-component/**/*.json
             .build/firmware-component/**/*.elf

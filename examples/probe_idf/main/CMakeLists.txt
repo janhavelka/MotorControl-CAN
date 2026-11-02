@@ -10,9 +10,14 @@ foreach(section sources include_dirs)
         list(APPEND firmware_${section} "${can_root}/${relative}")
     endforeach()
 endforeach()
+if(IDF_TARGET STREQUAL "esp32s2")
+    set(console_driver esp_driver_uart)
+else()
+    set(console_driver esp_driver_usb_serial_jtag)
+endif()
 idf_component_register(SRCS main.cpp ${firmware_sources}
     INCLUDE_DIRS ${firmware_include_dirs}
-    REQUIRES MotorControlCAN esp_driver_twai esp_driver_usb_serial_jtag esp_driver_gpio esp_timer)
+    REQUIRES MotorControlCAN esp_driver_twai ${console_driver} esp_driver_gpio esp_timer)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     MOTORCONTROLCAN_COMPILE_FIXTURE=$<BOOL:${CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE}>
     MOTORCONTROLCAN_CAN_TX_PIN=${CONFIG_MOTORCONTROLCAN_CAN_TX_PIN}

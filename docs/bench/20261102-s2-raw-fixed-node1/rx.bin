@@ -1,0 +1,83 @@
+IDENTITY admitted; finite experimental uploads; no retry
+RAW id=1 node=1 failure=0 lost=0 terminals=20 traffic=59 tail=0 tailLost=0 gap=2004
+RESULT step=1 object=1000:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=347257952 completed=347259954
+RESULT step=2 object=1009:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=347262952 completed=347264954
+RESULT step=3 object=100a:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=347267950 completed=347269954
+RESULT step=4 object=1018:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=347272950 completed=347274954
+RESULT step=5 object=1018:01 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=347277950 completed=347279954
+RESULT step=6 object=1018:02 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=347282950 completed=347284954
+RESULT step=7 object=1018:03 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=347287950 completed=347289954
+RESULT step=8 object=2000:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=347292950 completed=347294954
+RESULT step=9 object=2001:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=347297950 completed=347299954
+RESULT step=10 object=1800:01 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81010000 admitted=347302950 completed=347304954
+RESULT step=11 object=1800:02 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=347307950 completed=347309954
+RESULT step=12 object=1800:03 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=64000000 admitted=347312950 completed=347314954
+RESULT step=13 object=1800:05 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=347317950 completed=347319954
+RESULT step=14 object=1a00:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=03000000 admitted=347322950 completed=347324954
+RESULT step=15 object=1a00:01 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=10004160 admitted=347327950 completed=347329954
+RESULT step=16 object=1a00:02 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=08006160 admitted=347332950 completed=347334954
+RESULT step=17 object=1a00:03 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=20006460 admitted=347337950 completed=347339954
+RESULT step=18 object=1a00:04 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=347342950 completed=347344954
+RESULT step=19 object=6041:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=37800000 admitted=347347950 completed=347349954
+RESULT step=20 object=6061:00 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=347352950 completed=347354954
+TRAFFIC kind=1 time=347257952 id=00000601 ext=0 rtr=0 dlc=8 data=4000100000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347259954 id=00000581 ext=0 rtr=0 dlc=8 data=4300100092010400 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347261952 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347262952 id=00000601 ext=0 rtr=0 dlc=8 data=4009100000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347264954 id=00000581 ext=0 rtr=0 dlc=8 data=4f0910000c000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347266950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347267950 id=00000601 ext=0 rtr=0 dlc=8 data=400a100000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347269954 id=00000581 ext=0 rtr=0 dlc=8 data=4f0a100020000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347271950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347272950 id=00000601 ext=0 rtr=0 dlc=8 data=4018100000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347274954 id=00000581 ext=0 rtr=0 dlc=8 data=4f18100005000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347276950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347277950 id=00000601 ext=0 rtr=0 dlc=8 data=4018100100000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347279954 id=00000581 ext=0 rtr=0 dlc=8 data=4318100100100000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347281950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347282950 id=00000601 ext=0 rtr=0 dlc=8 data=4018100200000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347284954 id=00000581 ext=0 rtr=0 dlc=8 data=4318100201000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347286950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347287950 id=00000601 ext=0 rtr=0 dlc=8 data=4018100300000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347289954 id=00000581 ext=0 rtr=0 dlc=8 data=4318100300000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347291950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347292950 id=00000601 ext=0 rtr=0 dlc=8 data=4000200000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347294954 id=00000581 ext=0 rtr=0 dlc=8 data=4b00200000040000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347296950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347297950 id=00000601 ext=0 rtr=0 dlc=8 data=4001200000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347299954 id=00000581 ext=0 rtr=0 dlc=8 data=4b01200000020000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347301950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347302950 id=00000601 ext=0 rtr=0 dlc=8 data=4000180100000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347304954 id=00000581 ext=0 rtr=0 dlc=8 data=4300180181010000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347306950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347307950 id=00000601 ext=0 rtr=0 dlc=8 data=4000180200000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347309954 id=00000581 ext=0 rtr=0 dlc=8 data=4f001802ff000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347311950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347312950 id=00000601 ext=0 rtr=0 dlc=8 data=4000180300000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347314954 id=00000581 ext=0 rtr=0 dlc=8 data=4b00180364000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347316950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347317950 id=00000601 ext=0 rtr=0 dlc=8 data=4000180500000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347319954 id=00000581 ext=0 rtr=0 dlc=8 data=4b00180500000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347321950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347322950 id=00000601 ext=0 rtr=0 dlc=8 data=40001a0000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347324954 id=00000581 ext=0 rtr=0 dlc=8 data=4f001a0003000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347326950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347327950 id=00000601 ext=0 rtr=0 dlc=8 data=40001a0100000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347329954 id=00000581 ext=0 rtr=0 dlc=8 data=43001a0110004160 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347331950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347332950 id=00000601 ext=0 rtr=0 dlc=8 data=40001a0200000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347334954 id=00000581 ext=0 rtr=0 dlc=8 data=43001a0208006160 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347336950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347337950 id=00000601 ext=0 rtr=0 dlc=8 data=40001a0300000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347339954 id=00000581 ext=0 rtr=0 dlc=8 data=43001a0320006460 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347341950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347342950 id=00000601 ext=0 rtr=0 dlc=8 data=40001a0400000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347344954 id=00000581 ext=0 rtr=0 dlc=8 data=43001a0400000000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347346950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347347950 id=00000601 ext=0 rtr=0 dlc=8 data=4041600000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347349954 id=00000581 ext=0 rtr=0 dlc=8 data=4b41600037800000 accepted=1 captureKnown=0
+TRAFFIC kind=2 time=347351950 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+TRAFFIC kind=1 time=347352950 id=00000601 ext=0 rtr=0 dlc=8 data=4061600000000000 accepted=1 captureKnown=0
+TRAFFIC kind=0 time=347354954 id=00000581 ext=0 rtr=0 dlc=8 data=4f61600000000000 accepted=1 captureKnown=0
+TAIL kind=2 time=347356948 id=00000000 ext=0 rtr=0 dlc=0 data=0000000000000000 accepted=1 captureKnown=0
+END raw evidence retained; r=release

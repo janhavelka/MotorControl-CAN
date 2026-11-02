@@ -95,6 +95,50 @@ remains actual native admission. Full transfer bytes, native node epoch,
 unsigned abort, reply and effect evidence survive copying. Queued local failures
 produce consistent native failure evidence without claiming transmission.
 
+### Finite unknown-effect upload experiments
+
+The application may install one exact
+[`authorizeUploadExperiment`](canopen_services.md#one-use-experimental-upload-grants)
+grant on the borrowed adapter in this same serialized context. It then submits
+the copied `BusRequest` through ordinary `admit`; the grant creates no competing
+receiver, sender or service loop. Owner reservation, current binding/node epoch,
+increasing operation/step, deadlines, result capacity and controller eligibility
+still apply. An altered object, route, size policy, effect policy or budget
+cannot use the grant. Native admission consumes it once. An unused grant can be
+withdrawn independently; ending the experiment also requires explicit owner
+cancellation of any pending request and retention of its terminal.
+
+Experimental permission remains `UNQUALIFIED`. A successful exchange records
+the raw service observation and possible effects without creating channel
+confirmation or service qualification. It cannot authorize another upload,
+download, implicit recovery or automatic retry. Existing qualifications remain
+independent. Unknown effects on successful uploads and execution uncertainty
+after a submitted failed/interrupted upload survive the owner completion copy.
+
+`SdoUploadSize::EXACT` remains the production default. Typed read and map-readback
+consumers reject `SERVER_INDICATED` completions. That experimental policy gives
+an upload a fixed capacity and retains the actual successful byte count; it
+does not substitute an observed count for a reviewed object width or native
+meaning. Neither an EDS width disagreement nor a raw successful read silently
+changes profile metadata or read-effect policy.
+
+The bench-only [`RawEvidence`](../examples/s2_bench/RawEvidence.h) collector
+reserves one operation and producer through this owner, grants/adopts at most
+one next fixed-inventory upload per collector turn, and copies ordinary owner
+diagnostics and immutable completions. Service the owner first and collector
+second; do not drain diagnostics, clear statistics or run `DeviceEvidence`
+concurrently. A preceding accepted TX awaiting its final controller report
+delays the next grant within the original deadline. Failure or evidence loss
+stops further field admission without replay. A bounded post-terminal cleanup
+tail remains separate from frozen terminal facts, and release waits for local
+handoff/cleanup retirement. This application collector supplies no typed
+interpretation, drive mutation or qualification shortcut.
+
+`DeviceEvidence::requestExperiment` retains external review references for its
+typed finite plan. Those references alone do not install an adapter grant or
+establish the configured fresh-session premise. Both collectors remain subject
+to the actual service admission rules and separate fixture authorization.
+
 ## Scheduling and time
 
 The [counter-zero handoff](fault_reference_actions.md#coordinate-withdrawal-and-owner-synchronization)
@@ -505,7 +549,15 @@ hardware scheduling guarantee.
 
 ## Pinned controller boundary
 
-The optional [TWAI adapter](../adapters/twai/README.md) supplies concrete S3/IDF
+`localTxRetired(slot)` is a cached, read-only check of native staged frames and
+the owner's external pending/blocked handoff. Invalid or unconfigured slots
+return false. A controller-completed frame still blocks until its final report
+is consumed or exact retirement is established. This check never calls the
+transport, retires work itself, settles remote effects or qualifies a channel.
+Collectors use it for progression/release; lossy diagnostic copies cannot own
+that decision.
+
+The optional [TWAI adapter](../adapters/twai/README.md) supplies concrete S2/S3/IDF
 5.5.5 enqueue, transmission and retirement evidence. Service the owner before
 adapter TX promotion with the same supplied time; unread RX defers promotion.
 SDK callbacks only copy into bounded internal-RAM storage. Explicit recovery

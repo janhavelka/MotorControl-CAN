@@ -9,8 +9,8 @@
 #if ESP_IDF_VERSION != ESP_IDF_VERSION_VAL(5, 5, 5)
 #error "TWAI adapter requires reviewed ESP-IDF 5.5.5"
 #endif
-#if !CONFIG_IDF_TARGET_ESP32S3
-#error "Initial TWAI node retirement proof covers ESP32-S3 only"
+#if !CONFIG_IDF_TARGET_ESP32S3 && !CONFIG_IDF_TARGET_ESP32S2
+#error "TWAI node retirement proof covers ESP32-S2 and ESP32-S3 only"
 #endif
 #if CONFIG_TWAI_ISR_CACHE_SAFE || CONFIG_TWAI_ISR_IN_IRAM || CONFIG_PM_ENABLE || CONFIG_FREERTOS_SMP
 #error "TWAI adapter requires cache-safe ISR, PM and FreeRTOS SMP disabled"
@@ -77,7 +77,7 @@ bool IdfTwaiDriver::start(const TwaiConfig& config, uint32_t epoch) noexcept {
     configNative.bit_timing.sp_permill = config.samplePointPermill;
     configNative.fail_retry_cnt = 0;
     configNative.tx_queue_depth = 1;
-    // Timestamp intentionally disabled: S3 exposes ISR time, not wire arrival.
+    // Timestamp disabled: the reviewed S2/S3 HAL has no wire-arrival timestamp.
     lastError_ = twai_new_node_onchip(&configNative, &node_);
     if (lastError_ != ESP_OK)
         return false;
@@ -118,7 +118,7 @@ bool IdfTwaiDriver::stop() noexcept {
                 return false;
         }
         enabled_ = false;
-        // Exact S3/same pinned core proof: HAL masks level interrupts before
+        // Exact S2/S3 same-core proof: HAL masks peripheral interrupts before
         // deinit; deletion frees the ISR before buffers. See SDK evidence table.
         lastError_ = twai_node_delete(node_);
         if (lastError_ != ESP_OK)

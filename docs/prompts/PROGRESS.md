@@ -1,5 +1,15 @@
 # Prompt execution progress
 
+The [S2 connection checkpoint](../reports/2026-11-02_s2_live_connection.md)
+now includes complete upload-only raw experiments on both connected nodes:
+20 successful uploads each, 40 RX/40 TX, zero reported CAN errors/drops and
+9852 bytes minimum remaining task stack. One-byte `1009=0x0C` and `100A=0x20`
+conflict with the retained EDS U16 widths; raw evidence changes neither typed
+metadata nor model/firmware qualification. S2 UART/core-0/TWAI and the separate
+explicit bench controls are implemented. No PDO mutation or motor action was
+sent. Prompt 18 retains its pending implementation and Q17 obligations, and Q20
+read effects remain open. This checkpoint does not change other stage statuses.
+
 Prompt 33 adds [pure native position preparation](../position_parameters.md), owned exact targets/settings and checked ranges with an installed native example. It remains **Partial**: actual finite move preparation/progression, qualified acceptance/completion, relative wire bases and post-trigger stop integration are not implemented. See the [report](../reports/prompt_33.md) for independent delivered scope and exact evidence gates.
 
 A [fresh independent audit of prompts 31/32](../reports/prompts_31_32_audit.md)
@@ -39,18 +49,20 @@ tests pending; this decoder grants no firmware qualification or motion permissio
 The [2026-11-02 connected-board intake](../reports/2026-11-02_s2_bench_intake.md)
 records the user's board-test authorization, EasyEDA power/debug/CAN net review,
 resolved ESP-Prog2 COM15 conflict, successful UART/automatic-boot ROM identity and
-reported drive DIP/termination settings. Portable-core S2/P4
-compile/link experiments pass; complete S2/P4 adapter support and physical tests
-remain pending. This advances prompt 29's fixture intake without closing Q20 or
-changing motion-stage status.
+reported drive DIP/termination settings. Portable-core S2/P4 compile/link
+experiments pass; the later connection checkpoint above adds the complete S2
+port and actual bounded drive exchanges. P4 firmware support and broader
+physical qualification remain pending. This advances prompt 29's evidence
+without closing Q20 or changing motion-stage status.
 
 Prompt 29 delivers [finite device evidence readiness](../reports/prompt_29.md):
 typed native/firmware acquisition through the same owner, exact retained plans,
 raw traffic/failures and a complete conflict-to-measurement table. Local full,
 package, Doxygen, Arduino and IDF checks pass. Its owned software scope is done;
 inherited 19/28 Q20 and conditional acquisition keep the stage Partial. No
-physical measurement, state-changing experiment or production gate closure is
-claimed. Continue with independent ready work; resume the precise evidence
+state-changing experiment or production gate closure is claimed by its original
+software delivery. The later S2 connection report owns acquired raw observations.
+Continue with independent ready work; resume the precise evidence
 gates when fixture, review and applicable authorization exist.
 
 A [fresh independent prompts 27/28 audit](../reports/prompts_27_28_audit.md)

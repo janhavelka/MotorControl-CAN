@@ -233,6 +233,7 @@ bool sameWork(const CANOPEN::SdoTransfer& a, const CANOPEN::SdoTransfer& b) {
     return sameChannel(a.channel, b.channel) && a.operation == b.operation &&
            a.request == b.request && a.step == b.step && a.index == b.index &&
            a.subindex == b.subindex && a.direction == b.direction && a.size == b.size &&
+           a.uploadSize == b.uploadSize &&
            a.readEffect == b.readEffect && a.allowSegmentedUpload == b.allowSegmentedUpload &&
            a.deadlineUs == b.deadlineUs && a.queueTimeoutUs == b.queueTimeoutUs &&
            a.responseTimeoutUs == b.responseTimeoutUs;
