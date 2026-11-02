@@ -126,6 +126,9 @@ def normalize_path(path):
     text = path.replace("\\", "/")
     if text.startswith("<"):
         return text
+    # A drive path is absolute only on Windows; elsewhere Path would resolve it under the cwd.
+    if os.name != "nt" and re.match(r"^[A-Za-z]:/", text):
+        return "<external>/" + text.rsplit("/", 1)[-1]
     if re.match(r"^(?:[A-Za-z]:)?/", text):
         try:
             return Path(text).resolve().relative_to(ROOT).as_posix()
