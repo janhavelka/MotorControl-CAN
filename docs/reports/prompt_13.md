@@ -1,5 +1,7 @@
 # Prompt 13 - Bounded SDO transfer lifecycle
 
+**Reopened by audit W5.** [Packet 5](handoff_19_33/packet_5.md) changed abort and controller-event settlement and added the drain marker. Quarantine statements below describe the earlier contract.
+
 ## Scope and current state
 
 Implemented the selected CANopenNode application adapter with bounded transfer

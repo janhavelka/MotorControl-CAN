@@ -1,5 +1,7 @@
 # Prompt 14 SDO ambiguity and reconciliation
 
+**Reopened by audit W5.** [Packet 5](handoff_19_33/packet_5.md) changed abort and controller-event settlement and added the drain marker. Quarantine statements below describe the earlier contract.
+
 A [fresh independent audit](prompt_14_audit.md) subsequently clarified the
 per-segment freshness premise and strengthened upload cancellation/toggle-wrap
 regressions. No runtime defect was reproduced; its fresh checks are recorded

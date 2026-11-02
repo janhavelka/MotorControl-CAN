@@ -617,25 +617,32 @@ void boundedLossAndTime() {
             rig.wire.push(frame(0x706, 1), rig.now);
         rig.turn(turn);
     }
-    CHECK(rig.evidence.record()->terminal && rig.evidence.record()->interrupted &&
+    // Contract change (C-06): evidence loss no longer cancels the transmitted request. It stays
+    // pending until its own terminal, here a response timeout, and the remainder never starts.
+    CHECK(!rig.evidence.record()->terminal && rig.evidence.record()->interrupted &&
           rig.evidence.record()->evidenceLost && rig.evidence.record()->droppedTraffic > 0);
     CHECK(rig.evidence.record()->trafficCount == E::EVIDENCE_TRAFFIC && rig.wire.transmitted == 1);
+    CHECK(rig.app.pendingRequest().owner && rig.evidence.record()->terminalCount == 0);
+    rig.turn(1000);
+    CHECK(rig.evidence.record()->terminal && rig.wire.transmitted == 1);
     CHECK(rig.evidence.record()->read.uncertain && rig.evidence.record()->terminalCount == 1);
+    CHECK(rig.evidence.record()->terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
     Rig overwrite;
     overwrite.wire.mode = Wire::Mode::SILENT;
     CHECK(overwrite.evidence.request(overwrite.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
     overwrite.turn(0);
     overwrite.turn(1);
-    for (unsigned i = 0; i < 8; ++i)
-        overwrite.wire.push(frame(0x706, 1), 1);
-    overwrite.turn(2, false);
-    for (unsigned i = 0; i < 8; ++i)
-        overwrite.wire.push(frame(0x706, 1), 2);
-    overwrite.turn(3, false);
+    for (unsigned turn = 2; turn < 6; ++turn) {
+        for (unsigned i = 0; i < 8; ++i)
+            overwrite.wire.push(frame(0x706, 1), turn - 1);
+        overwrite.turn(turn, false);
+    }
     CHECK(overwrite.owner.stats().traceOverwritten > 0);
-    CHECK(overwrite.evidence.service(3));
-    CHECK(overwrite.evidence.record()->terminal && overwrite.evidence.record()->evidenceLost &&
+    CHECK(overwrite.evidence.service(5));
+    CHECK(!overwrite.evidence.record()->terminal && overwrite.evidence.record()->evidenceLost &&
           overwrite.evidence.record()->interrupted);
+    overwrite.turn(1000);
+    CHECK(overwrite.evidence.record()->terminal && overwrite.evidence.record()->read.uncertain);
     const Saved<E::AcquisitionRecord> retained(*overwrite.evidence.record());
     const unsigned receives = overwrite.wire.receiveCalls;
     CHECK(!overwrite.evidence.service(2) && !overwrite.evidence.interrupt(2));
@@ -651,12 +658,11 @@ void boundedLossAndTime() {
           deadline.evidence.record()->read.outcome == M::ReadOutcome::DEADLINE &&
           !deadline.evidence.record()->read.uncertain && !deadline.wire.transmitted);
     Rig counter;
-    for (unsigned i = 0; i < 8; ++i)
-        counter.wire.push(frame(0x706, 1), 0);
-    counter.turn(0, false);
-    for (unsigned i = 0; i < 8; ++i)
-        counter.wire.push(frame(0x706, 1), 0);
-    counter.turn(1, false);
+    for (unsigned turn = 0; turn < 4; ++turn) {
+        for (unsigned i = 0; i < 8; ++i)
+            counter.wire.push(frame(0x706, 1), 0);
+        counter.turn(turn >= 2 ? 1 : turn, false);
+    }
     CHECK(counter.owner.stats().traceOverwritten > 0);
     CHECK(counter.evidence.request(counter.plan(), 1) == E::EvidenceAdmission::ACCEPTED);
     CHECK(counter.owner.clearStats());
@@ -686,6 +692,105 @@ void boundedLossAndTime() {
             CHECK(missing.traffic[i].controller == C::ControllerState::RECOVERING);
         }
     CHECK(overflowCause);
+}
+// C-06. The trace holds more than one turn produces, so RX at the budget plus a TX loses nothing.
+void fullTurnFitsTheTrace() {
+    Rig rig;
+    CHECK(rig.evidence.request(rig.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
+    rig.turn(0); // The application admits its first read after this owner turn.
+    CHECK(rig.wire.transmitted == 0);
+    for (unsigned i = 0; i < O::CanBusOwner::RX_LIMIT; ++i)
+        rig.wire.push(frame(0x706, 1), 0);
+    rig.turn(1);
+    CHECK(rig.wire.transmitted == 1 && rig.owner.stats().rxFrames == 8);
+    CHECK(rig.owner.stats().traceOverwritten == 0);
+    const E::AcquisitionRecord& record = *rig.evidence.record();
+    CHECK(!record.evidenceLost && !record.interrupted && record.droppedTraffic == 0);
+    unsigned rx = 0, tx = 0;
+    for (unsigned i = 0; i < record.trafficCount; ++i) {
+        rx += record.traffic[i].kind == O::DiagnosticKind::RX ? 1 : 0;
+        tx += record.traffic[i].kind == O::DiagnosticKind::TX ? 1 : 0;
+    }
+    CHECK(rx == 8 && tx == 1);
+    rig.finish();
+    CHECK(record.read.state == M::ReadState::SUCCEEDED && !record.evidenceLost);
+}
+// C-06. A forced overflow is real evidence loss, but no reason to abandon a sent frame. Its reply
+// settles it, only the unstarted remainder is withdrawn, and the route stays usable.
+void traceOverflowLetsTheSentRequestSettle() {
+    Rig rig;
+    rig.wire.mode = Wire::Mode::SILENT;
+    CHECK(rig.evidence.request(rig.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
+    rig.turn(0);
+    rig.turn(1);
+    CHECK(rig.wire.transmitted == 1 && rig.app.pendingRequest().owner);
+    const O::RequestId sent = rig.app.pendingRequest();
+    for (unsigned turn = 2; turn < 6; ++turn) {
+        for (unsigned i = 0; i < 8; ++i)
+            rig.wire.push(frame(0x706, 1), turn - 1);
+        rig.turn(turn, false);
+    }
+    CHECK(rig.owner.stats().traceOverwritten > 0);
+    CHECK(rig.evidence.service(5));
+    const E::AcquisitionRecord& record = *rig.evidence.record();
+    CHECK(record.evidenceLost && record.interrupted && !record.terminal);
+    CHECK(rig.app.pendingRequest().generation == sent.generation && !rig.owner.result(sent));
+    CHECK(!rig.services.unresolved(0) && record.terminalCount == 0);
+    const M::Frame request = rig.wire.sent[0];
+    CHECK(request.data[1] == 0x00 && request.data[2] == 0x10 && request.data[3] == 0);
+    M::Frame reply = frame(0x585, 8);
+    reply.data[0] = 0x43;
+    std::memcpy(reply.data + 1, request.data + 1, 3);
+    reply.data[4] = 0x78;
+    reply.data[5] = 0x56;
+    reply.data[6] = 0x34;
+    reply.data[7] = 0x12;
+    rig.wire.push(reply, 6);
+    rig.turn(6);
+    CHECK(record.terminal && record.terminalCount == 1);
+    CHECK(record.terminals[0].service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(record.terminals[0].service.size == 4 && record.terminals[0].service.data[0] == 0x78);
+    // The acquired field is kept. Local termination of an SDO read records uncertainty by rule.
+    CHECK(record.read.outcome == M::ReadOutcome::CANCELLED && record.read.uncertain);
+    CHECK(record.read.values[0].valid && record.read.values[0].raw == 0x12345678u &&
+          !record.read.values[1].valid);
+    CHECK(record.interrupted && record.evidenceLost);
+    CHECK(rig.wire.transmitted == 1);
+    rig.turn(7);
+    CHECK(rig.wire.transmitted == 1 && !rig.services.unresolved(0));
+    // Loss cost that record, not the route: the next acquisition runs on the same client.
+    CHECK(rig.evidence.release());
+    rig.wire.mode = Wire::Mode::SUCCESS;
+    CHECK(rig.evidence.request(rig.plan(L::ReadKind::IDENTITY, 2), rig.now) ==
+          E::EvidenceAdmission::ACCEPTED);
+    rig.finish();
+    CHECK(rig.evidence.record()->read.state == M::ReadState::SUCCEEDED);
+    CHECK(rig.wire.transmitted == 10 && !rig.evidence.record()->evidenceLost);
+}
+// C-06. A field admitted but not started has no frame to settle, so loss withdraws it unsent.
+void traceOverflowWithdrawsTheUnstartedField() {
+    Rig rig;
+    CHECK(rig.evidence.request(rig.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
+    rig.turn(0);
+    const O::RequestId admitted = rig.app.pendingRequest();
+    CHECK(admitted.owner && !rig.owner.mayHaveTransmitted(admitted) && rig.wire.transmitted == 0);
+    O::ServiceBudget receiveOnly; // An owner turn that starts nothing still fills the trace.
+    receiveOnly.rx = O::CanBusOwner::RX_LIMIT;
+    for (unsigned turn = 1; turn < 5; ++turn) {
+        for (unsigned i = 0; i < 8; ++i)
+            rig.wire.push(frame(0x706, 1), turn - 1);
+        CHECK(rig.owner.service(turn, receiveOnly));
+    }
+    CHECK(rig.owner.stats().traceOverwritten > 0 && rig.wire.transmitted == 0);
+    CHECK(rig.evidence.service(4));
+    CHECK(rig.owner.result(admitted));
+    rig.turn(5);
+    const E::AcquisitionRecord& record = *rig.evidence.record();
+    CHECK(record.terminal && record.evidenceLost && record.interrupted && record.terminalCount == 1);
+    CHECK(record.terminals[0].reason == O::CompletionReason::CANCELLED);
+    CHECK(!record.terminals[0].service.transmissionPossible);
+    rig.turn(6);
+    CHECK(rig.wire.transmitted == 0 && !rig.services.unresolved(0));
 }
 void acceptedPlansAndUnlistedPlans() {
     const uint8_t status = mask(L::StateBlock::STATUS), monitors = mask(L::StateBlock::MONITORS),
@@ -939,6 +1044,9 @@ int main() {
     interruptAfterReplyAndControllerLoss();
     stateAndScope();
     boundedLossAndTime();
+    fullTurnFitsTheTrace();
+    traceOverflowLetsTheSentRequestSettle();
+    traceOverflowWithdrawsTheUnstartedField();
     acceptedPlansAndUnlistedPlans();
     faultAndHistoryNeedAReviewedExperiment();
     startupAndCachedInspectionEmitNoTraffic();

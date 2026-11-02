@@ -771,6 +771,37 @@ void failedCounterActionThenExplicitNewEpochRead() {
     r.checkWithdrawn();       // Nor can it synthesize an origin or home witness.
 }
 
+// A matched absent-object abort settles its write and leaves the route open. It does not
+// retire the workflow's history: the recorded prefix and the possible effect stay as they were.
+void absentObjectAbortLeavesWorkflowHistoryOnAnOpenRoute() {
+    Rig r;
+    r.acquire(0);
+    L::ActionContext action;
+    r.prepare(action, true);
+    r.command(action, 0x2302, 0);
+    const auto write = r.next(action);
+    const auto id = r.admit(write.transfer);
+    const unsigned sent = r.wire.sentCount;
+    r.turn(r.now);
+    CHECK(r.wire.sentCount == sent + 1);
+    r.wire.push(reply(write.transfer, 0x06020000, true), r.now + 1);
+    r.turn(r.now + 1, budget(8, 0, 8, 0));
+    const auto terminal = r.result(id);
+    CHECK(terminal.outcome == C::SdoOutcome::SERVER_ABORT && terminal.abortCode == 0x06020000);
+    CHECK(terminal.effectPossible && terminal.effectUncertain);
+    CHECK(!r.services.unresolved(0) && r.owner.sequence(r.sequence));
+    CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
+    CHECK(action.state == M::ActionState::FAILED);
+    CHECK(action.commandHistory[0].protocolAcknowledged && action.commandHistory[0].effectPossible);
+    CHECK(action.commandHistory[1].outcome == C::SdoOutcome::SERVER_ABORT &&
+          action.commandHistory[1].effectUncertain);
+    const Saved<L::ActionContext> failed(action);
+    CHECK(!r.next(action).ready);
+    r.turn(r.now + 1000, budget());
+    failed.unchanged(action);
+    CHECK(r.wire.sentCount == sent + 1); // Open route, and still nothing replays.
+}
+
 void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     Rig r;
     r.acquire(0);
@@ -822,6 +853,17 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     CHECK(!r.owner.beginSequence(target().channel.binding, 1, r.now, replacement));
     unchanged.unchanged(replacement);
     CHECK(r.services.unresolved(0));
+    // Reading the trigger's own object back is the same pair, so it cannot be the boundary either.
+    C::SdoTransfer readback = trigger.transfer;
+    readback.channel = *r.services.channel(0);
+    readback.direction = C::SdoDirection::UPLOAD;
+    readback.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    readback.allowSegmentedUpload = false;
+    readback.deadlineUs = r.now + 1000;
+    C::SdoDrainPremises premises;
+    premises.soleClient = premises.orderedServer = true;
+    CHECK(r.owner.admitDrainMarker(readback, premises, r.now, rejected) == O::BusAdmission::INVALID);
+    CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
     CHECK(r.wire.sentCount == sent + 1 && !r.wire.pending[sent] && r.invalidations == 0);
     failed.unchanged(action);
     r.checkWithdrawn();
@@ -839,5 +881,6 @@ int main() {
     conservativeNoticeThenDefiniteNoTransmission();
     failedCounterActionThenExplicitNewEpochRead();
     uncertainCounterTriggerCannotReopenThroughEpochSync();
+    absentObjectAbortLeavesWorkflowHistoryOnAnOpenRoute();
     std::printf("reference actions: %u checks passed\n", checks);
 }

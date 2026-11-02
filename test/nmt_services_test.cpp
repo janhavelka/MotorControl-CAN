@@ -482,7 +482,9 @@ void invalidatedStartIntentCannotCompleteInNewEpoch() {
         CHECK(owner.receiveNetwork(heartbeat(1, 5), renewed, 6, 6));
         CHECK(eligibility(owner, 6).exactNmtKnown && eligibility(owner, 6).state == C::NmtState::OPERATIONAL);
         CHECK(owner.node(0)->transitionInvalidated && !owner.node(0)->transitionObserved);
-        CHECK(!owner.node(0)->transitionPending && owner.unresolved(0));
+        // Contract change (W5): boot-up and binding quarantine. Bus-off with no SDO work leaves
+        // the route clean; it still invalidates the transition and needs the new heartbeat above.
+        CHECK(!owner.node(0)->transitionPending && owner.unresolved(0) == (cause != 2));
         auto next = request(C::NmtCommand::PRE_OPERATIONAL); next.target = renewed; next.request = 32;
         const auto replacement = admitNmt(owner, next, 7);
         CHECK(owner.cancelNmt(replacement, 7)); // Dead old intent cannot reserve the node until time 100.
@@ -628,21 +630,37 @@ void unknownCaptureCannotReplacePendingServiceProof() {
     CHECK(!eligibility(owner, 6).ordinarySdo);
 }
 
-void checkedAbortQualifiesServiceWithoutReopeningChannel() {
+// Contract change (DEC-3): a matched abort on a confirmed frame also leaves the route open. It
+// does not confirm an unconfirmed route, so a download stays refused and a reviewed upload is not.
+void checkedAbortQualifiesServiceAndLeavesChannelOpen() {
+    {   // With its frame still live, the abort quarantines and qualifies nothing.
+        C::SdoClient owner; setup(owner, true, false);
+        const auto live = admitSdo(owner, transfer(), 1);
+        handoffSdo(owner, 2);
+        M::Frame abort = reply();
+        abort.data[0] = 0x80;
+        abort.data[4] = 0x00; abort.data[5] = 0x00; abort.data[6] = 0x02; abort.data[7] = 0x06;
+        CHECK(owner.receive(abort, 3, 3));
+        CHECK(owner.result(live)->outcome == C::SdoOutcome::SERVER_ABORT && owner.unresolved(0));
+        CHECK(!owner.node(0)->serviceFromSdo && !owner.node(0)->serviceQualification.present);
+    }
     C::SdoClient owner; setup(owner, true, false);
     const auto probe = admitSdo(owner, transfer(), 1);
-    handoffSdo(owner, 2);
+    const C::SdoTxId tx = handoffSdo(owner, 2);
+    CHECK(owner.confirmTx(tx, 2));
     M::Frame abort = reply();
     abort.data[0] = 0x80;
     abort.data[4] = 0x00; abort.data[5] = 0x00; abort.data[6] = 0x02; abort.data[7] = 0x06;
     CHECK(owner.receive(abort, 3, 3));
     CHECK(owner.result(probe)->outcome == C::SdoOutcome::SERVER_ABORT);
-    CHECK(owner.unresolved(0));
+    CHECK(!owner.unresolved(0));
     CHECK(eligibility(owner, 3).ordinarySdo && !eligibility(owner, 3).exactNmtKnown);
     CHECK(owner.node(0)->serviceFromSdo && owner.node(0)->serviceQualification.receivedUs == 3);
     CHECK(owner.release(probe));
     C::SdoRequestId rejected;
     CHECK(!owner.admit(0, transfer(true), 4, rejected));
+    const auto next = admitSdo(owner, transfer(), 4);
+    CHECK(owner.cancel(next, 4));
 }
 
 void networkAttachmentSelectsUsableChannelProof() {
@@ -659,16 +677,31 @@ void networkAttachmentSelectsUsableChannelProof() {
         CHECK(eligibility(owner, 12).ordinarySdo == (quarantine == 0));
         CHECK(!owner.node(0)->serviceFromSdo);
     }
-    for (unsigned reset = 0; reset < 2; ++reset) {
+    {
         C::SdoClient owner;
         CHECK(owner.configure(0, channel(), true, true));
-        if (reset) CHECK(owner.reboot(1, 1));
-        else CHECK(owner.busOff(1));
+        CHECK(owner.reboot(1, 1));
         CHECK(owner.reportController(C::ControllerState::AVAILABLE, 2));
         CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 3));
         CHECK(!owner.node(0)->serviceQualification.present);
         CHECK(!eligibility(owner, 3).ordinarySdo && eligibility(owner, 3).probeUpload);
         CHECK(owner.unresolved(0));
+    }
+}
+
+// Contract change (W5): a controller event leaves an idle route clean. Clean must not mean its
+// pre-event proof survives: a node attached afterwards needs new NMT or service evidence.
+void controllerEventWithdrawsUnanchoredServiceProof() {
+    for (unsigned recovering = 0; recovering < 2; ++recovering) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), true, true));
+        CHECK(owner.reportController(recovering ? C::ControllerState::RECOVERING
+                                                : C::ControllerState::BUS_OFF, 1));
+        CHECK(!owner.unresolved(0));
+        CHECK(owner.reportController(C::ControllerState::AVAILABLE, 2));
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 3));
+        CHECK(!owner.node(0)->serviceQualification.present);
+        CHECK(!eligibility(owner, 3).ordinarySdo && eligibility(owner, 3).probeUpload);
     }
 }
 } // namespace
@@ -681,7 +714,8 @@ int main() {
     invalidatedStartIntentCannotCompleteInNewEpoch(); resetObservationRequiresQualifiedWireEvidence();
     explicitStopRetiresQueuedAndPossibleSdo(); nmtCutoffsDoNotWrap();
     networkAttachmentPreservesServiceProof(); unknownCaptureCannotReplacePendingServiceProof();
-    checkedAbortQualifiesServiceWithoutReopeningChannel();
+    checkedAbortQualifiesServiceAndLeavesChannelOpen();
     networkAttachmentSelectsUsableChannelProof();
+    controllerEventWithdrawsUnanchoredServiceProof();
     std::printf("nmt_services: %u checks\n", checks);
 }

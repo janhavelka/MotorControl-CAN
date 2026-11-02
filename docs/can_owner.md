@@ -303,9 +303,12 @@ terminal. A service already confirmed before cancellation stays confirmed.
 This preserves the native adapter's existing precedence; no retroactive success
 is inferred from buffered evidence.
 
-Timeout after possible transmission preserves unknown effects and permanent
-channel quarantine. Owner release, quiet time, new host IDs or a new sequence
-cannot reopen it. Same-peer quarantine revokes reservation usability; queued
+Timeout after possible transmission preserves unknown effects and channel
+quarantine. Owner release, quiet time, new host IDs or a new sequence cannot
+reopen it; only an explicit drain marker on established premises can, and no
+real fixture has those premises yet (Q18). A matched server rejection on a clean
+exchange leaves the route open and ends queued steps of its sequence.
+Same-peer quarantine revokes reservation usability; queued
 work fails and active work is invalidated before later RX/TX can restore success
 or emit a segment. Already retained terminals stay unchanged; unrelated nodes
 continue normally. Boot-up uses existing synchronous node/cache invalidation,

@@ -24,6 +24,13 @@ struct SdoTxId {
     SdoRequestId request; ///< Exact owning admission.
     uint32_t frame = 0; ///< Nonzero monotonic frame number within this admission.
 };
+/** Premises a drain marker rests on. A host fake can state these; only evidence can qualify them.
+ * Both default false, so a route stays blocked until an application establishes them.
+ */
+struct SdoDrainPremises {
+    bool soleClient = false;    ///< This host is the only SDO client on these COB-IDs.
+    bool orderedServer = false; ///< The server answers one request at a time and in order (Q18).
+};
 /** Bounded optional stack adapter extracted from the prompt-6 channel storage.
  * Two physical channels, each with one active/retained request, one 32-byte
  * upstream FIFO, owned 32-byte upload and retirable software TX staging.
@@ -31,7 +38,8 @@ struct SdoTxId {
  * No controller I/O, heap, clock reads, automatic retries, ISR use or reentrancy.
  * Contexts cannot move while callback pointers/handles exist. Application TX
  * acceptance may already permit transmission; nextTx conservatively marks that
- * boundary before returning bytes. Quarantine survives release and all tokens.
+ * boundary before returning bytes. Quarantine survives release and all tokens; only
+ * an explicit drain marker on established premises can end it.
  * Every exchange requires a qualified peer/controller premise that old responses
  * cannot arrive as a later exchange's reply. This includes individual segments
  * within one transfer; a repeated toggle or host token cannot establish freshness.
@@ -366,6 +374,58 @@ public:
      * occupied terminal/active storage and cleanup. No state or output is changed.
      */
     bool checkAdmission(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs) const;
+    /** Check one explicit drain marker for an unresolved route (DEC-3).
+     * The marker is one accepted upload whose object differs from every pair retained on
+     * this route. All local TX must be retired. It settles the channel only: earlier
+     * effects stay uncertain. Quiet time, heartbeat, epochs and same-object readback
+     * are not substitutes. Never triggered automatically.
+     * @param[in] slot Unresolved configured channel.
+     * @param[in] transfer Marker upload with its own finite deadline.
+     * @param[in] premises Both must hold; the ordered-server premise is Q18.
+     * @param[in] nowUs Same supplied time.
+     * @return False on overflowed or unidentifiable history, a retained pair, live local
+     * work, an ineligible controller or NMT state, or a stale binding.
+     */
+    bool checkDrain(uint8_t slot, const SdoTransfer& transfer, const SdoDrainPremises& premises,
+                    uint64_t nowUs) const;
+    /** Admit the marker checkDrain accepts. Each attempt is new explicit intent, never a retry.
+     * @param[in] slot Unresolved configured channel.
+     * @param[in] transfer Marker upload.
+     * @param[in] premises As checkDrain.
+     * @param[in] nowUs Same supplied time.
+     * @param[out] id Published only on success.
+     * @param[in] initialQueueDeadline Queue cutoff, after nowUs.
+     * @return True when admitted.
+     */
+    bool admitDrain(uint8_t slot, const SdoTransfer& transfer, const SdoDrainPremises& premises,
+                    uint64_t nowUs, SdoRequestId& id, uint64_t initialQueueDeadline);
+    /** Record a final report or proved retirement for a frame, even after its transfer ended.
+     * Local TX evidence only. It never reopens a route or settles a remote effect.
+     * @param[in] id Exact most recent handoff of the channel.
+     * @return False for a stale or foreign identity.
+     */
+    bool noteTxRetired(SdoTxId id);
+    /** Query possible transmission.
+     * @param[in] id Live request.
+     * @return True if a frame of it may have reached a controller.
+     */
+    bool transmissionPossible(SdoRequestId id) const;
+    /** Query a channel's settled marker.
+     * @param[in] slot Channel.
+     * @return True after a matched marker success, until reopenAfterDrain. Stays unresolved.
+     */
+    bool drainSettled(uint8_t slot) const;
+    /** Reopen a settled route. The caller must first invalidate every reservation on its node,
+     * or an old reservation and its old command history become live again.
+     * @param[in] slot Channel whose marker succeeded.
+     * @return True when reopened; requalifications then counts it.
+     */
+    bool reopenAfterDrain(uint8_t slot);
+    /** Query a route's reopening count.
+     * @param[in] slot Channel.
+     * @return Marker reopenings on this route, retained across results. Zero for a bad slot.
+     */
+    uint32_t requalifications(uint8_t slot) const;
     /** Inspect the authoritative configured channel, never a duplicate node registry.
      * @param[in] slot Fixed channel slot.
      * @return Borrowed immutable route until explicit configuration change/destruction;
@@ -483,7 +543,7 @@ public:
     bool cancel(SdoRequestId id, uint64_t nowUs);
     /** Report controller failure on this interface; retire local staging, never replay.
      * @param[in] nowUs Supplied monotonic time.
-     * @return False for backward time; otherwise all configured channels quarantine.
+     * @return False for backward time; otherwise channels with possible work quarantine.
      */
     bool busOff(uint64_t nowUs);
     /** Invalidate every channel of a rebooted node, independent of event-ring space.
@@ -495,7 +555,7 @@ public:
     /** Withdraw one binding without overwriting the route or clearing possible effects.
      * @param[in] slot Configured fixed channel; other physical nodes remain independent.
      * @param[in] nowUs Same processing clock; expiry wins before invalidation.
-     * @return False atomically for invalid slot/time; true quarantines permanently,
+     * @return False atomically for invalid slot/time; true quarantines the route,
      * retires local staging and closes live work. With a passive anchor, shared
      * node-dependent evidence and its channels are revoked too. Other physical
      * nodes and existing terminals stay independent/immutable.
@@ -527,7 +587,7 @@ public:
     bool release(SdoRequestId id);
     /** Inspect persistent ambiguity; never infers recovery from time or client abort.
      * @param[in] slot Fixed channel slot.
-     * @return True for invalid/unconfigured or permanently unresolved channel.
+     * @return True for an invalid, unconfigured or unresolved channel.
      */
     bool unresolved(uint8_t slot) const;
     /** Read-only stack-port staging inspection; no controller/SDK is owned here.
@@ -546,7 +606,20 @@ private:
         bool queued = false, possible = false, txConfirmed = false, cleanup = false;
         bool unsizedExpedited = false;
         bool handoffLive = false, observationValid = false;
-        bool held = false, withdrawn = false, possibleBeforeHandoff = false;
+        bool held = false, withdrawn = false, possibleBeforeHandoff = false, txLive = false;
+        bool abortClean = false;
+        // Drain marker history: object pairs that may still answer on this route.
+        enum { RETAINED_PAIRS = 4 };
+        /** One SDO object address. */
+        struct Pair {
+            uint16_t index = 0;   ///< Object index.
+            uint8_t subindex = 0; ///< Object subindex.
+        } retained[RETAINED_PAIRS];
+        Pair lastCompleted;
+        bool lastCompletedValid = false;
+        uint8_t retainedCount = 0;
+        bool drainRefused = false, drainActive = false, drainSuccess = false;
+        uint32_t requalifications = 0;
         bool experimentArmed = false, experimentActive = false;
         uint32_t experimentAuthorization = 0;
         Generation experimentNodeGeneration = 0;
@@ -587,6 +660,12 @@ private:
     void expireNmt(uint64_t nowUs);
     void finishNmt(NmtOutcome outcome, uint64_t nowUs);
     void recordNmtIntent(uint64_t nowUs, bool present);
+    bool checkWork(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
+    bool start(uint8_t slot, const SdoTransfer& work, uint64_t nowUs, SdoRequestId& id,
+               uint64_t initialQueueDeadline);
+    static bool possibleWork(const Channel& channel);
+    static void retainPair(Channel& channel, uint16_t index, uint8_t subindex);
+    static void retainFrame(Channel& channel, const Frame& frame);
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;

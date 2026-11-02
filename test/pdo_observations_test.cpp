@@ -353,7 +353,10 @@ void readbackThroughNormalServices() {
             response.data[1] = static_cast<uint8_t>(work.index); response.data[2] = static_cast<uint8_t>(work.index >> 8);
             response.data[3] = work.subindex;
             for (unsigned b = 0; b < 4; ++b) response.data[4 + b] = static_cast<uint8_t>(words[i] >> (8 * b));
-            if (failLast && i == 4) { response.data[0] = 0x80; response.data[4] = 0; response.data[5] = 0; response.data[6] = 2; response.data[7] = 6; }
+            if (failLast && i == 4) {
+                response.data[0] = 0x80; response.data[4] = 0; response.data[5] = 0; response.data[6] = 2; response.data[7] = 6;
+                CHECK(owner.confirmTx(tx, now + 1)); // The abort answers a confirmed frame.
+            }
             CHECK(owner.receive(response, now + 2, now + 2)); CHECK(owner.result(id));
             results[i] = *owner.result(id);
             CHECK(results[i].admittedUs == now && results[i].completedUs == now + 2 && results[i].nodeGeneration == 11);
@@ -364,7 +367,9 @@ void readbackThroughNormalServices() {
         const M::Status checked = C::pdoMapFromReadback(results, 5, expected.route, 11, 909, actual);
         CHECK(bool(checked) == !failLast);
         CHECK(owner.port(0)->accepted == 5 && owner.nmtPort()->accepted == 0);
-        if (failLast) { CHECK(before.unchanged(actual)); CHECK(!owner.pdo(0) && owner.unresolved(0)); }
+        // Contract change (DEC-3): the rejected readback publishes no map, but its clean matched
+        // abort leaves the SDO route open.
+        if (failLast) { CHECK(before.unchanged(actual)); CHECK(!owner.pdo(0) && !owner.unresolved(0)); }
         else {
             Consumer consumer; install(owner, actual, consumer, 0, 20);
             CHECK(actual.startedUs == 1 && actual.observedUs == 15 && !owner.pdo(0)->qualified);

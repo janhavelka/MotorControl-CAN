@@ -1,5 +1,7 @@
 # Prompt 24 - urgent owner capacity and transport recovery
 
+**Reopened by audit W5.** [Packet 5](handoff_19_33/packet_5.md) changed abort and controller-event settlement and added the drain marker. Quarantine statements below describe the earlier contract.
+
 Date: 2026-10-31. Promptset v2 continues on `promptset/motorcontrol-can`, upstream
 `origin/promptset/motorcontrol-can`, original base `7878f7c`. Entry commit
 `29906a203cf2a988cc9c393ea97f019d3443e36d` had a clean worktree/index; fresh
