@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | Fixed configuration lifecycle | [PdoConfiguration.h](../include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h), [implementation](../src/profiles/lichuan_c/PdoConfiguration.cpp), [tests](../test/pdo_configuration_test.cpp) | Exact baseline, six writes, nine final reads, immutable deadline and partial effects; no sample qualification |
 | Explicit experiment caller | [PdoExperiment.cpp](../examples/s2_bench/PdoExperiment.cpp), [tests](../test/pdo_experiment_test.cpp) | Same owner/SDO engine, copied exact grants, no rollback/retry |
-| Addressed NMT and bounds | [owner](../examples/common/CanBusOwner.cpp), [NMT](../adapters/canopennode/Nmt.cpp), [driver proof](adapters/twai_receive_time.md), [interval tests](../test/network_receive_time_test.cpp), [owner tests](../test/nmt_owner_test.cpp) | Tagged TX retirement and conservative receive interval; no exact-arrival claim |
+| Addressed NMT and bounds | [owner](../adapters/owner/CanBusOwner.cpp), [NMT](../adapters/canopennode/Nmt.cpp), [driver proof](adapters/twai_receive_time.md), [interval tests](../test/network_receive_time_test.cpp), [owner tests](../test/nmt_owner_test.cpp) | Tagged TX retirement and conservative receive interval; no exact-arrival claim |
 | Post-cycle/readiness acquisition | [RawEvidence.cpp](../examples/s2_bench/RawEvidence.cpp), [S2 controls](../examples/s2_bench/README.md) | 26 baseline plus30 readiness uploads/node; one-cycle map/heartbeat reversion, 607A/60FF reads equal to EDS defaults and mode0; no motion controller |
 | Specimen observation | [checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md), [raw TPDO trace](bench/20261102-nmt-pdo-tpdo1/rx.txt) | Node1 fixed map2 readback only; broader firmware/settings/persistence/samples remain gated |
 
@@ -26,7 +26,7 @@
 | Responsibility | Implementation | Caller/test | Boundary |
 | --- | --- | --- | --- |
 | Native stop lifecycle and retained outcomes | [Actions.h](../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../src/profiles/lichuan_c/Actions.cpp), [common evidence](../include/MotorControlCAN/ActionOperation.h) | [Real-owner fake suite](../test/stop_action_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | One 010F/000B write from evidenced000F; typed fresh observation cycles; no generic firmware/physical qualification |
-| Urgent interruption and retirement | Existing [CanBusOwner](../examples/common/CanBusOwner.h) | Same stop suite and [handoff contract](stop_actions.md) | Cancel each old request, retain results, use newer operation; quarantine persists |
+| Urgent interruption and retirement | Existing [CanBusOwner](../adapters/owner/CanBusOwner.h) | Same stop suite and [handoff contract](stop_actions.md) | Cancel each old request, retain results, use newer operation; quarantine persists |
 
 ## Documentary drive-state interpretation (prompt 30)
 
@@ -106,7 +106,7 @@ semantics; [report 28](reports/prompt_28.md) records actual builds and limitatio
 | Explicit typed acquisition and retained record | [DeviceEvidence.h](../examples/common/DeviceEvidence.h), [implementation](../examples/common/DeviceEvidence.cpp) | [Offline finite procedure](../examples/device_evidence/main.cpp), [harness tests](../test/device_evidence_test.cpp) | Existing typed identity/configuration/state path; up to 15 full terminals and 64 diagnostic copies, no protocol engine or parser |
 | State blocks and local read withdrawal | [ProbeApp.h](../examples/common/ProbeApp.h), [implementation](../examples/common/ProbeApp.cpp) | Collector above, existing [application tests](../test/probe_app_test.cpp) | `requestState/getStateBlock/cancelRead`; cancellation does not stop a motor or resolve unknown effects |
 | Firmware collection | [FirmwareProbe.h](../examples/common/FirmwareProbe.h), [implementation](../examples/common/FirmwareProbe.cpp) | [Actual assembly tests](../test/firmware_probe_test.cpp), shared Arduino/IDF source inventory above | `evidence()` remains DEVICE; service collects automatically after ordinary application/transport work; clock fault interrupts without replay |
-| Evidence-loss classification | [CanBusOwner.h](../examples/common/CanBusOwner.h), [owner implementation](../examples/common/CanBusOwner.cpp), [diagnostics](../examples/common/CanBusDiagnostics.cpp) | Harness and owner tests | `Stats::rxLost` counts reported missing frames separately from retained rejected ingress; collector retains loss, statistics and resource snapshots |
+| Evidence-loss classification | [CanBusOwner.h](../adapters/owner/CanBusOwner.h), [owner implementation](../adapters/owner/CanBusOwner.cpp), [diagnostics](../adapters/owner/CanBusDiagnostics.cpp) | Harness and owner tests | `Stats::rxLost` counts reported missing frames separately from retained rejected ingress; collector retains loss, statistics and resource snapshots |
 | Source conflicts and live prerequisites | [Conflict gates](device_conflicts.md), [bench record](hardware_bench.md) | [Original source manifest](reference/SOURCES.json), [reviewed ledger](reference/lichuan_objects.json) | No source ambiguity, Q20 permission or physical capability is inferred from a matched fake reply |
 
 The [native guide](native_application.md#finite-acquisition-collector) owns service
@@ -369,7 +369,7 @@ node table or production motion context.
 
 | Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
 | --- | --- | --- | --- |
-| Copied admission, reservations, fair dispatch and retained results | [CanBusOwner.h](../examples/common/CanBusOwner.h) / [CanBusOwner.cpp](../examples/common/CanBusOwner.cpp) | [Native consumer](../examples/owner_preview/main.cpp), [independent owner tests](../test/can_bus_owner_test.cpp) | Application-only; no UART, clocks, heap, motion executor or second node table |
+| Copied admission, reservations, fair dispatch and retained results | [CanBusOwner.h](../adapters/owner/CanBusOwner.h) / [CanBusOwner.cpp](../adapters/owner/CanBusOwner.cpp) | [Native consumer](../examples/owner_preview/main.cpp), [independent owner tests](../test/can_bus_owner_test.cpp) | Application-only; no UART, clocks, heap, motion executor or second node table |
 | Authoritative route/policy and initial queue cutoff | Existing SdoClient header/implementation, `channel/checkAdmission/admit` | Native SDO and owner queue-age cases | Keep complete transferred intent and actual admission time; outer waiting cannot restart first-frame budget |
 | Passive ingress, settings pre-TX and configuration sync | Owner Transport callbacks, existing adapter routing and `advanceConfiguration` | Two-node passive/PDO tests and actual loop write/readback with frozen token | Observers copy after normal dispatch; typed contexts advance outside owner; queue/TX/protocol/effect facts remain separate |
 
@@ -384,5 +384,5 @@ node table or production motion context.
 
 | Responsibility | Declaration / implementation | Actual caller / test | Deliberate boundary |
 | --- | --- | --- | --- |
-| Health projection, exact counters and reset lifetime | [Owner declarations](../examples/common/CanBusOwner.h), [diagnostics](../examples/common/CanBusDiagnostics.cpp), single routing hooks in CanBusOwner.cpp | [Native preview](../examples/owner_preview/main.cpp), [health suite](../test/can_bus_health_test.cpp) | Derived application facts only; no installed lifecycle, retry threshold or drive-state interpretation |
-| Saturation and bounded history/resource copies | Private OwnerCounters.h, owner trace/resources methods | Same suite's extremes, full history and urgent/ordinary interleaving | Current state remains in the existing backend; copies never consume RX or requalify old PDO samples |
+| Health projection, exact counters and reset lifetime | [Owner declarations](../adapters/owner/CanBusOwner.h), [diagnostics](../adapters/owner/CanBusDiagnostics.cpp), single routing hooks in CanBusOwner.cpp | [Native preview](../examples/owner_preview/main.cpp), [health suite](../test/can_bus_health_test.cpp) | Derived application facts only; no installed lifecycle, retry threshold or drive-state interpretation |
+| Saturation and bounded history/resource copies | Private adapters/owner/OwnerCounters.h, owner trace/resources methods | Same suite's extremes, full history and urgent/ordinary interleaving | Current state remains in the existing backend; copies never consume RX or requalify old PDO samples |

@@ -11,7 +11,7 @@
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition)                                                                           \
@@ -69,11 +69,11 @@ M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = fal
             value.data[4 + i] = uint8_t(raw >> (8 * i));
     return value;
 }
-bool same(E::TransportTxId a, E::TransportTxId b) {
-        return E::sameTransportTxId(a, b);
+bool same(O::TransportTxId a, O::TransportTxId b) {
+        return O::sameTransportTxId(a, b);
     }
-E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
-    E::ServiceBudget value;
+O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
+    O::ServiceBudget value;
     value.rx = rx;
     value.tx = tx;
     value.events = events;
@@ -82,10 +82,10 @@ E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint
 }
 struct Wire {
     enum { CAPACITY = 128 };
-    E::ReceivedFrame incoming[CAPACITY];
-    E::TxReport reports[CAPACITY];
+    O::ReceivedFrame incoming[CAPACITY];
+    O::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    E::TransportTxId ids[CAPACITY];
+    O::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool pending[CAPACITY] = {};
     unsigned rxRead = 0, rxWrite = 0, reportRead = 0, reportWrite = 0;
@@ -94,7 +94,7 @@ struct Wire {
     L::ActionContext* action = nullptr;
     const L::SettingsReservation* reservation = nullptr;
     C::SdoCompletion* latestControl = nullptr;
-    static bool guard(void* context, E::SequenceId, const C::SdoTransfer& work, uint64_t now) {
+    static bool guard(void* context, O::SequenceId, const C::SdoTransfer& work, uint64_t now) {
         Wire& w = *static_cast<Wire*>(context);
         if (!w.action || work.operation != w.action->operation)
             return true;
@@ -108,14 +108,14 @@ struct Wire {
         *w.latestControl = C::SdoCompletion();
         return true;
     }
-    static bool receive(void* context, E::ReceivedFrame& output) {
+    static bool receive(void* context, O::ReceivedFrame& output) {
         Wire& w = *static_cast<Wire*>(context);
         if (w.rxRead == w.rxWrite)
             return false;
         output = w.incoming[w.rxRead++];
         return true;
     }
-    static bool transmit(void* context, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(context);
         CHECK(w.sentCount < CAPACITY);
         const unsigned i = w.sentCount++;
@@ -127,14 +127,14 @@ struct Wire {
             w.report(i, w.accept);
         return w.accept;
     }
-    static bool takeReport(void* context, E::TxReport& output) {
+    static bool takeReport(void* context, O::TxReport& output) {
         Wire& w = *static_cast<Wire*>(context);
         if (w.reportRead == w.reportWrite)
             return false;
         output = w.reports[w.reportRead++];
         return true;
     }
-    static bool retire(void* context, E::TransportTxId id, uint32_t epoch) {
+    static bool retire(void* context, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(context);
         ++w.retireCalls;
         if (!w.retirement)
@@ -149,11 +149,11 @@ struct Wire {
         w.reportWrite = kept;
         return true;
     }
-    static void observe(void* context, const E::ReceivedFrame&, uint64_t) {
+    static void observe(void* context, const O::ReceivedFrame&, uint64_t) {
         ++static_cast<Wire*>(context)->observed;
     }
-    E::Transport callbacks() {
-        E::Transport value;
+    O::Transport callbacks() {
+        O::Transport value;
         value.context = this;
         value.receive = receive;
         value.transmit = transmit;
@@ -165,7 +165,7 @@ struct Wire {
     }
     void report(unsigned i, bool transmitted = true) {
         CHECK(i < sentCount && reportWrite < CAPACITY && pending[i]);
-        E::TxReport& value = reports[reportWrite++];
+        O::TxReport& value = reports[reportWrite++];
         value.id = ids[i];
         value.controllerEpoch = epochs[i];
         value.transmitted = transmitted;
@@ -173,7 +173,7 @@ struct Wire {
     }
     void push(const M::Frame& value, uint64_t now, uint32_t epoch = 1) {
         CHECK(rxWrite < CAPACITY);
-        E::ReceivedFrame& input = incoming[rxWrite++];
+        O::ReceivedFrame& input = incoming[rxWrite++];
         input.frame = value;
         input.receivedTimeKnown = true;
         input.receivedUs = now;
@@ -183,8 +183,8 @@ struct Wire {
 struct Rig {
     C::SdoClient services;
     Wire wire;
-    E::CanBusOwner owner;
-    E::SequenceId sequence;
+    O::CanBusOwner owner;
+    O::SequenceId sequence;
     L::SettingsReservation reservation;
     L::ReadContext state;
     C::SdoCompletion control;
@@ -213,7 +213,7 @@ struct Rig {
         reservation.acquiredUs = owner.sequence(sequence)->acquiredUs;
     }
     void begin() { CHECK(owner.beginOperation(sequence, ++operation, deadline, now)); }
-    void turn(uint64_t time, const E::ServiceBudget& work = budget()) {
+    void turn(uint64_t time, const O::ServiceBudget& work = budget()) {
         now = time;
         CHECK(owner.service(now, work));
     }
@@ -230,21 +230,21 @@ struct Rig {
         value.queueTimeoutUs = value.responseTimeoutUs = 100;
         return value;
     }
-    E::RequestId admit(const C::SdoTransfer& transfer, bool urgent = false) {
-        E::BusRequest work;
+    O::RequestId admit(const C::SdoTransfer& transfer, bool urgent = false) {
+        O::BusRequest work;
         work.sequence = sequence;
         work.transfer = transfer;
-        E::RequestId id;
+        O::RequestId id;
         CHECK((urgent ? owner.admitUrgent(work, now, id) : owner.admit(work, now, id)) ==
-              E::BusAdmission::ACCEPTED);
+              O::BusAdmission::ACCEPTED);
         return id;
     }
-    const E::Completion& done(E::RequestId id) const {
-        const E::Completion* value = owner.result(id);
+    const O::Completion& done(O::RequestId id) const {
+        const O::Completion* value = owner.result(id);
         CHECK(value);
         return *value;
     }
-    C::SdoCompletion complete(E::RequestId id, const C::SdoTransfer& work, uint32_t raw = 0,
+    C::SdoCompletion complete(O::RequestId id, const C::SdoTransfer& work, uint32_t raw = 0,
                               bool abort = false, bool release = true) {
         wire.push(reply(work, raw, abort), now + 1);
         turn(now + 1, budget(8, 0, 8, 0));
@@ -254,7 +254,7 @@ struct Rig {
         return value;
     }
     C::SdoCompletion exchange(const C::SdoTransfer& work, uint32_t raw = 0) {
-        const E::RequestId id = admit(work);
+        const O::RequestId id = admit(work);
         turn(now);
         return complete(id, work, raw);
     }
@@ -310,7 +310,7 @@ struct Rig {
                            bool abort = false) {
         const L::PreparedAction work = next(action);
         CHECK(work.ready && work.transfer.index == index && work.transfer.subindex == 0);
-        const E::RequestId id = admit(work.transfer, true);
+        const O::RequestId id = admit(work.transfer, true);
         turn(now);
         const M::Frame& sent = wire.sent[wire.sentCount - 1];
         CHECK(sent.id == 0x600 + selectedNode && sent.payloadLength == 8 &&
@@ -393,13 +393,13 @@ void runningPollingAndDeadline() {
     const uint64_t eligible = action.eligibleUs;
     const unsigned before = r.wire.sentCount;
     CHECK(eligible == r.now + 10 && !r.next(action).ready);
-    r.turn(eligible - 1, E::ServiceBudget());
+    r.turn(eligible - 1, O::ServiceBudget());
     CHECK(!r.next(action).ready && r.wire.sentCount == before);
-    r.turn(eligible, E::ServiceBudget());
+    r.turn(eligible, O::ServiceBudget());
     CHECK(r.next(action).ready && r.next(action).transfer.step == 7);
     r.cycle(action, 4);
     CHECK(action.observations == 2 && action.state == M::ActionState::ACTIVE);
-    r.turn(r.deadline, E::ServiceBudget());
+    r.turn(r.deadline, O::ServiceBudget());
     CHECK(L::advanceAction(action, r.reservation, target(), M::ActionOutcome::CANCELLED, r.now));
     CHECK(action.outcome == M::ActionOutcome::DEADLINE && action.uncertain &&
           action.execution == M::ActionExecution::ACKNOWLEDGED &&
@@ -485,7 +485,7 @@ void cancellationAndLostReplies() {
         L::ActionContext action;
         r.prepare(action);
         const L::PreparedAction work = r.next(action);
-        const E::RequestId id = r.admit(work.transfer, true);
+        const O::RequestId id = r.admit(work.transfer, true);
         const unsigned before = r.wire.sentCount;
         if (phase) {
             r.wire.autoReport = phase > 1;
@@ -494,10 +494,10 @@ void cancellationAndLostReplies() {
                 r.turn(r.now + 1, budget(0, 0, 8, 0));
         }
         if (phase == 3) {
-            r.turn(r.now + 100, E::ServiceBudget());
+            r.turn(r.now + 100, O::ServiceBudget());
             CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT);
         } else {
-            CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+            CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
         }
         const C::SdoCompletion original = r.done(id).service;
         CHECK(original.transmissionPossible == (phase != 0));
@@ -507,7 +507,7 @@ void cancellationAndLostReplies() {
               action.execution ==
                   (phase ? M::ActionExecution::UNKNOWN : M::ActionExecution::NOT_TRANSMITTED));
         CHECK(action.uncertain == (phase != 0));
-        const Saved<E::Completion> retained(r.done(id));
+        const Saved<O::Completion> retained(r.done(id));
         const Saved<L::ActionContext> terminal(action);
         r.wire.push(reply(work.transfer), r.now + 1);
         r.turn(r.now + 1, budget(8, 2, 8, 2));
@@ -531,20 +531,20 @@ void interruptQueuedWorkPreservesResultsAndFencesOldOperations() {
     r.begin();
     const C::SdoTransfer oldA = r.transfer(0x2101, 1);
     const C::SdoTransfer oldB = r.transfer(0x2102, 2);
-    const E::RequestId first = r.admit(oldA), second = r.admit(oldB);
+    const O::RequestId first = r.admit(oldA), second = r.admit(oldB);
     CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
-    CHECK(r.owner.cancel(first, r.now) == E::Cancel::CANCELLED);
-    CHECK(r.owner.cancel(second, r.now) == E::Cancel::CANCELLED);
-    const Saved<E::Completion> savedA(r.done(first)), savedB(r.done(second));
+    CHECK(r.owner.cancel(first, r.now) == O::Cancel::CANCELLED);
+    CHECK(r.owner.cancel(second, r.now) == O::Cancel::CANCELLED);
+    const Saved<O::Completion> savedA(r.done(first)), savedB(r.done(second));
     L::ActionContext stop;
     r.prepare(stop);
-    E::BusRequest stale;
+    O::BusRequest stale;
     stale.sequence = r.sequence;
     stale.transfer = oldA;
-    E::RequestId rejected;
+    O::RequestId rejected;
     rejected.generation = 999;
-    const Saved<E::RequestId> unchanged(rejected);
-    CHECK(r.owner.admit(stale, r.now, rejected) == E::BusAdmission::INVALID);
+    const Saved<O::RequestId> unchanged(rejected);
+    CHECK(r.owner.admit(stale, r.now, rejected) == O::BusAdmission::INVALID);
     unchanged.unchanged(rejected);
     const unsigned before = r.wire.sentCount;
     r.field(stop, 0x6040);
@@ -552,7 +552,7 @@ void interruptQueuedWorkPreservesResultsAndFencesOldOperations() {
     CHECK(stop.state == M::ActionState::SUCCEEDED && r.wire.sentCount == before + 6);
     savedA.unchanged(r.done(first));
     savedB.unchanged(r.done(second));
-    CHECK(r.owner.admit(stale, r.now, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admit(stale, r.now, rejected) == O::BusAdmission::INVALID);
     CHECK(!r.done(first).service.transmissionPossible &&
           !r.done(second).service.transmissionPossible);
     // Explicitly newer post-stop work has a different operation, while old
@@ -568,36 +568,36 @@ void reservedUrgentCapacity() {
     Rig r;
     r.prerequisites();
     r.begin();
-    E::RequestId original[E::CanBusOwner::REQUESTS];
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i) {
+    O::RequestId original[O::CanBusOwner::REQUESTS];
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
         const C::SdoTransfer work = r.transfer(0x2101, i + 1);
         original[i] = r.admit(work);
-        CHECK(r.owner.cancel(original[i], r.now) == E::Cancel::CANCELLED);
+        CHECK(r.owner.cancel(original[i], r.now) == O::Cancel::CANCELLED);
     }
     L::ActionContext action;
     r.prepare(action);
     const L::PreparedAction work = r.next(action);
-    E::BusRequest request;
+    O::BusRequest request;
     request.sequence = r.sequence;
     request.transfer = work.transfer;
-    E::RequestId id;
-    CHECK(r.owner.admit(request, r.now, id) == E::BusAdmission::RESULTS_FULL);
+    O::RequestId id;
+    CHECK(r.owner.admit(request, r.now, id) == O::BusAdmission::RESULTS_FULL);
     id = r.admit(work.transfer, true);
     request.transfer.step = 2;
-    E::RequestId refused;
-    CHECK(r.owner.admitUrgent(request, r.now, refused) == E::BusAdmission::RESULTS_FULL);
+    O::RequestId refused;
+    CHECK(r.owner.admitUrgent(request, r.now, refused) == O::BusAdmission::RESULTS_FULL);
     r.turn(r.now);
     const C::SdoCompletion ack = r.complete(id, work.transfer, 0, false, false);
     CHECK(L::advanceAction(action, r.reservation, target(), ack, r.now));
-    const Saved<E::Completion> retained(r.done(id));
+    const Saved<O::Completion> retained(r.done(id));
     request.transfer = r.next(action).transfer;
-    CHECK(r.owner.admitUrgent(request, r.now, refused) == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admitUrgent(request, r.now, refused) == O::BusAdmission::RESULTS_FULL);
     retained.unchanged(r.done(id));
     CHECK(r.owner.release(id));
     r.cycle(action);
     CHECK(action.state == M::ActionState::SUCCEEDED);
-    for (E::RequestId old : original)
-        CHECK(r.done(old).reason == E::CompletionReason::CANCELLED &&
+    for (O::RequestId old : original)
+        CHECK(r.done(old).reason == O::CompletionReason::CANCELLED &&
               !r.done(old).service.transmissionPossible);
 }
 
@@ -607,24 +607,24 @@ void quarantineAndOtherNodeProgress() {
         r.prerequisites();
         r.begin();
         const C::SdoTransfer oldWork = r.transfer(0x2101);
-        const E::RequestId old = r.admit(oldWork);
+        const O::RequestId old = r.admit(oldWork);
         r.wire.autoReport = false;
         r.wire.retirement = retired != 0;
         const unsigned last = r.wire.sentCount;
         r.turn(r.now);
         CHECK(r.wire.pending[last]);
-        CHECK(r.owner.cancel(old, r.now) == E::Cancel::CANCELLED);
-        const Saved<E::Completion> previous(r.done(old));
+        CHECK(r.owner.cancel(old, r.now) == O::Cancel::CANCELLED);
+        const Saved<O::Completion> previous(r.done(old));
         CHECK(r.done(old).service.effectUncertain && r.services.unresolved(0));
         CHECK(r.wire.pending[last] == !retired && r.wire.retireCalls == 1);
         CHECK(!r.owner.sequence(r.sequence));
         CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
-        E::BusRequest blocked;
+        O::BusRequest blocked;
         blocked.sequence = r.sequence;
         blocked.transfer = oldWork;
         ++blocked.transfer.step;
-        E::RequestId refused;
-        CHECK(r.owner.admitUrgent(blocked, r.now, refused) == E::BusAdmission::INVALID);
+        O::RequestId refused;
+        CHECK(r.owner.admitUrgent(blocked, r.now, refused) == O::BusAdmission::INVALID);
         // The old channel cannot interpret an identical late reply as fresh
         // stop confirmation, regardless of local retirement success.
         r.wire.push(reply(oldWork, 0), r.now + 1);
@@ -632,18 +632,18 @@ void quarantineAndOtherNodeProgress() {
         previous.unchanged(r.done(old));
         CHECK(r.services.unresolved(0));
 
-        E::SequenceId second;
+        O::SequenceId second;
         CHECK(r.owner.beginSequence(target(2).channel.binding, 2, r.now, second));
         CHECK(r.owner.beginOperation(second, 50, r.deadline, r.now));
         C::SdoTransfer fresh = oldWork;
         fresh.channel = target(2).channel;
         fresh.operation = fresh.request = 50;
-        E::BusRequest request;
+        O::BusRequest request;
         request.sequence = second;
         request.transfer = fresh;
-        E::RequestId other;
+        O::RequestId other;
         r.wire.autoReport = true;
-        CHECK(r.owner.admitUrgent(request, r.now, other) == E::BusAdmission::ACCEPTED);
+        CHECK(r.owner.admitUrgent(request, r.now, other) == O::BusAdmission::ACCEPTED);
         r.turn(r.now);
         M::Frame heartbeat = frame(0x702, 1);
         heartbeat.data[0] = 5;
@@ -736,7 +736,7 @@ void generationsRebootFaultAndCorrelation() {
     L::ActionContext action;
     r.prepare(action);
     const L::PreparedAction work = r.next(action);
-    const E::RequestId id = r.admit(work.transfer, true);
+    const O::RequestId id = r.admit(work.transfer, true);
     r.turn(r.now);
     const C::SdoCompletion actual = r.complete(id, work.transfer);
     for (unsigned wrong = 0; wrong < 4; ++wrong) {
@@ -767,7 +767,7 @@ void exactDeadlineAndRepeatedStopRejection() {
         L::ActionContext action;
         r.prepare(action);
         const L::PreparedAction work = r.next(action);
-        const E::RequestId id = r.admit(work.transfer, true);
+        const O::RequestId id = r.admit(work.transfer, true);
         r.turn(r.now);
         r.wire.push(reply(work.transfer), r.deadline - 1);
         r.turn(r.deadline - (late ? 0 : 1), budget(8, 0, 8, 0));
@@ -856,13 +856,13 @@ void everyObservationFieldCanFailIndependently() {
                 r.field(action, indices[i], values[i]);
             const L::PreparedAction work = r.next(action);
             CHECK(work.ready && work.transfer.index == indices[failed]);
-            const E::RequestId id = r.admit(work.transfer, true);
+            const O::RequestId id = r.admit(work.transfer, true);
             r.turn(r.now);
             C::SdoCompletion terminal;
             if (abort)
                 terminal = r.complete(id, work.transfer, 0x08000023, true, false);
             else {
-                CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+                CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
                 terminal = r.done(id).service;
             }
             CHECK(L::advanceAction(action, r.reservation, target(), terminal, r.now));
@@ -879,7 +879,7 @@ void everyObservationFieldCanFailIndependently() {
                 CHECK(action.observationEvidence.abortCode == 0x08000023);
             command.unchanged(action.commandEvidence);
             const Saved<L::ActionContext> closed(action);
-            const Saved<E::Completion> retained(r.done(id));
+            const Saved<O::Completion> retained(r.done(id));
             const unsigned count = r.wire.sentCount;
             r.wire.push(reply(work.transfer, values[failed]), r.now + 1);
             r.turn(r.now + 1);
@@ -992,13 +992,13 @@ void nearMaximumTimeAndBackwardCalls() {
     CHECK(action.phase == L::ActionPhase::WAITING && action.eligibleUs == UINT64_MAX &&
           !r.next(action).ready);
     const unsigned count = r.wire.sentCount;
-    r.turn(UINT64_MAX - 1, E::ServiceBudget());
+    r.turn(UINT64_MAX - 1, O::ServiceBudget());
     CHECK(!r.next(action).ready);
     CHECK(
         L::advanceAction(action, r.reservation, target(), M::ActionOutcome::CANCELLED, UINT64_MAX));
     CHECK(action.state == M::ActionState::FAILED && action.outcome == M::ActionOutcome::DEADLINE &&
           action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain);
-    r.turn(UINT64_MAX, E::ServiceBudget());
+    r.turn(UINT64_MAX, O::ServiceBudget());
     CHECK(!r.next(action).ready && r.wire.sentCount == count);
 }
 
@@ -1008,7 +1008,7 @@ void uncertainEnqueueRefusalAndObservedEmcy() {
     L::ActionContext failure;
     refused.prepare(failure);
     const L::PreparedAction work = refused.next(failure);
-    const E::RequestId id = refused.admit(work.transfer, true);
+    const O::RequestId id = refused.admit(work.transfer, true);
     refused.wire.accept = refused.wire.autoReport = refused.wire.retirement = false;
     const unsigned pending = refused.wire.sentCount;
     refused.turn(refused.now);
@@ -1019,7 +1019,7 @@ void uncertainEnqueueRefusalAndObservedEmcy() {
     CHECK(failure.outcome == M::ActionOutcome::TRANSPORT_ERROR &&
           failure.execution == M::ActionExecution::UNKNOWN && failure.uncertain);
     const Saved<L::ActionContext> closed(failure);
-    const Saved<E::Completion> retained(refused.done(id));
+    const Saved<O::Completion> retained(refused.done(id));
     refused.turn(refused.now + 1, budget(0, 0, 8, 0));
     CHECK(refused.wire.retireCalls == 1 && refused.wire.pending[pending]);
     // False from enqueue did not prove the controller rejected the frame.

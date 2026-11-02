@@ -8,6 +8,13 @@
 #include "ProbeApp.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::Stats;
+using MotorControlCANOwner::TransportTxId;
+using MotorControlCANOwner::RecoveryOutcome;
+using MotorControlCANOwner::Completion;
+using MotorControlCANOwner::DiagnosticKind;
+using MotorControlCANOwner::OwnerResources;
+using MotorControlCANOwner::CanBusOwner;
 /** Provenance fixed at construction, not a per-request permission switch. */
 enum class EvidenceEnvironment : uint8_t {
     DEVICE,   ///< Physical controller; ordinary acquisition requires reviewed read effects.

@@ -7,7 +7,7 @@
 #include <initializer_list>
 namespace M = MotorControlCAN;
 namespace C = M::CANOPEN;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(c) do { ++checks; if (!(c)) { std::fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #c); std::abort(); } } while (false)
@@ -38,16 +38,16 @@ C::SdoTransfer transfer(C::SdoDirection direction = C::SdoDirection::DOWNLOAD,
     return out;
 }
 struct Wire {
-    E::ReceivedFrame rx;
-    E::TxReport report;
+    O::ReceivedFrame rx;
+    O::TxReport report;
     M::Frame sent[4];
     uint64_t now = 0;
     unsigned count = 0;
     bool rxReady = false, reportReady = false;
     bool respond = true, accept = true;
-    static bool transmit(void* p, const M::Frame& frame, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& frame, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(p);
-        CHECK(id.kind == E::TransportTxId::Kind::SDO && w.count < 4);
+        CHECK(id.kind == O::TransportTxId::Kind::SDO && w.count < 4);
         w.sent[w.count++] = frame;
         if (!w.accept) return false;
         CHECK(!w.reportReady && !w.rxReady);
@@ -68,25 +68,25 @@ struct Wire {
         }
         return true;
     }
-    E::Transport transport() {
-        E::Transport out;
+    O::Transport transport() {
+        O::Transport out;
         out.context = this;
         out.transmit = transmit;
-        out.receive = [](void* p, E::ReceivedFrame& value) {
+        out.receive = [](void* p, O::ReceivedFrame& value) {
             Wire& w = *static_cast<Wire*>(p);
             if (!w.rxReady) return false;
             value = w.rx;
             w.rxReady = false;
             return true;
         };
-        out.takeTxReport = [](void* p, E::TxReport& value) {
+        out.takeTxReport = [](void* p, O::TxReport& value) {
             Wire& w = *static_cast<Wire*>(p);
             if (!w.reportReady) return false;
             value = w.report;
             w.reportReady = false;
             return true;
         };
-        out.retire = [](void* p, E::TransportTxId, uint32_t) {
+        out.retire = [](void* p, O::TransportTxId, uint32_t) {
             static_cast<Wire*>(p)->reportReady = false;
             return true; // No future local callback; earlier wire effects remain possible.
         };
@@ -96,8 +96,8 @@ struct Wire {
 struct Rig {
     C::SdoClient services;
     Wire wire;
-    E::CanBusOwner owner;
-    E::SequenceId sequence;
+    O::CanBusOwner owner;
+    O::SequenceId sequence;
     Rig() : owner(services, wire.transport(), 127) {
         CHECK(services.configure(0, route(), false, true));
         C::NetworkRoute network;
@@ -114,17 +114,17 @@ struct Rig {
             ? services.authorizeDownloadExperiment(0, work, 11, authorization, now)
             : services.authorizeUploadExperiment(0, work, 11, authorization, now);
     }
-    E::RequestId admit(const C::SdoTransfer& work, uint64_t now = 0) {
-        E::BusRequest request;
+    O::RequestId admit(const C::SdoTransfer& work, uint64_t now = 0) {
+        O::BusRequest request;
         request.sequence = sequence;
         request.transfer = work;
-        E::RequestId id;
-        CHECK(owner.admit(request, now, id) == E::BusAdmission::ACCEPTED);
+        O::RequestId id;
+        CHECK(owner.admit(request, now, id) == O::BusAdmission::ACCEPTED);
         return id;
     }
     void turn(uint64_t now) {
         wire.now = now;
-        E::ServiceBudget budget;
+        O::ServiceBudget budget;
         budget.rx = budget.events = 8;
         budget.tx = budget.starts = 2;
         CHECK(owner.service(now, budget));
@@ -218,7 +218,7 @@ void cancellationConsumesNativeGrantWithoutReplay() {
         const auto exact = transfer();
         CHECK(r.grant(exact));
         const auto id = r.admit(exact);
-        CHECK(r.owner.cancel(id, 1) == E::Cancel::CANCELLED);
+        CHECK(r.owner.cancel(id, 1) == O::Cancel::CANCELLED);
         r.services.clearUploadExperiment(0); // Explicitly end an unused native grant.
         CHECK(r.owner.release(id));
         CHECK(!r.services.checkAdmission(0, exact, 1) && !r.grant(exact, 2, 1));
@@ -233,7 +233,7 @@ void cancellationConsumesNativeGrantWithoutReplay() {
         CHECK(r.grant(exact));
         const auto id = r.admit(exact);
         r.turn(1);
-        if (!reject) CHECK(r.owner.cancel(id, 2) == E::Cancel::CANCELLED);
+        if (!reject) CHECK(r.owner.cancel(id, 2) == O::Cancel::CANCELLED);
         const auto* completion = r.owner.result(id);
         CHECK(completion && completion->service.effectUncertain && completion->service.transmissionPossible);
         const auto outcome = completion->service.outcome;

@@ -9,6 +9,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 // Independent EDS width/address vectors; manual access disagreements remain raw.
@@ -47,8 +48,8 @@ struct Wire {
     enum class Mode { SUCCESS, SILENT, WRONG_OBJECT, BOOTUP, SERVER_ABORT, OVERSIZED, MALFORMED };
     Mode mode = Mode::SUCCESS;
     uint64_t now = 0;
-    E::ReceivedFrame rx[32];
-    E::TxReport reports[4];
+    O::ReceivedFrame rx[32];
+    O::TxReport reports[4];
     M::Frame sent[64];
     unsigned rxHead = 0, rxCount = 0, reportHead = 0, reportCount = 0;
     unsigned transmitted = 0, uploads = 0, receives = 0;
@@ -68,7 +69,7 @@ struct Wire {
         out.receivedUs = now;
         out.controllerEpoch = 1;
     }
-    static bool receive(void* ptr, E::ReceivedFrame& out) {
+    static bool receive(void* ptr, O::ReceivedFrame& out) {
         Wire& w = *static_cast<Wire*>(ptr);
         ++w.receives;
         if (!w.rxCount)
@@ -78,7 +79,7 @@ struct Wire {
         --w.rxCount;
         return true;
     }
-    static bool transmit(void* ptr, const M::Frame& request, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* ptr, const M::Frame& request, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(ptr);
         CHECK(request.id == 0x601 && epoch == 1 && request.payloadLength == 8);
         CHECK(request.data[0] == 0x40 || request.data[0] == 0x80 ||
@@ -152,7 +153,7 @@ struct Wire {
         w.push(reply);
         return true;
     }
-    static bool report(void* ptr, E::TxReport& out) {
+    static bool report(void* ptr, O::TxReport& out) {
         Wire& w = *static_cast<Wire*>(ptr);
         if (!w.reportCount || w.holdReport ||
             (w.holdCleanupReport && w.uploads && w.sent[w.transmitted - 1].data[0] == 0x80))
@@ -162,13 +163,13 @@ struct Wire {
         --w.reportCount;
         return true;
     }
-    E::Transport callbacks() {
-        E::Transport t;
+    O::Transport callbacks() {
+        O::Transport t;
         t.context = this;
         t.receive = receive;
         t.transmit = transmit;
         t.takeTxReport = report;
-        t.retire = [](void* ptr, E::TransportTxId, uint32_t) {
+        t.retire = [](void* ptr, O::TransportTxId, uint32_t) {
             Wire& w = *static_cast<Wire*>(ptr);
             ++w.retireCalls;
             if (!w.proveRetirement)
@@ -182,7 +183,7 @@ struct Wire {
 struct Rig {
     C::SdoClient services;
     Wire wire;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     E::RawEvidence collector;
     uint64_t now = 0;
     explicit Rig(M::Generation configuration = 1, M::Generation nodeGeneration = 1)
@@ -225,7 +226,7 @@ struct Rig {
     }
     void turn(uint64_t time, bool collect = true, uint8_t tx = 2) {
         now = wire.now = time;
-        E::ServiceBudget b;
+        O::ServiceBudget b;
         b.rx = 8;
         b.tx = tx;
         b.events = 8;
@@ -251,7 +252,7 @@ void passiveAndSuccess() {
     CHECK(r.collector.begin(p, 0) == E::EvidenceAdmission::ACCEPTED);
     CHECK(!r.wire.transmitted && r.owner.resources().reservations == 1);
     CHECK(r.collector.begin(p, 0) == E::EvidenceAdmission::BUSY);
-    E::SequenceId other;
+    O::SequenceId other;
     CHECK(!r.owner.beginSequence(p.review.plan.target.channel.binding, 1, 0, other));
     p = E::RawEvidencePlan(); // No request metadata is borrowed after begin.
     r.finish();
@@ -271,7 +272,7 @@ void passiveAndSuccess() {
     E::RawEvidenceRecord owned = *out;
     CHECK(r.collector.release() && !r.collector.record());
     for (auto& frame : r.wire.rx)
-        frame = E::ReceivedFrame();
+        frame = O::ReceivedFrame();
     CHECK(owned.terminals[1].service.data[0] == 0x32 && owned.traffic[0].frame.data[0] == 0x40);
     p = r.plan();
     p.review.plan.id = 101;
@@ -358,7 +359,7 @@ void replyBeforeFinalTxReport() {
     next.index = 0x1009;
     next.request = next.step = 2;
     CHECK(!r.services.checkAdmission(0, next, r.now)); // No premature next-field grant.
-    const E::Completion first = record->terminals[0];
+    const O::Completion first = record->terminals[0];
     for (unsigned i = 0; i < 3; ++i) {
         r.turn(r.now + 1);
         CHECK(!record->terminal && record->attemptedCount == 1 && record->terminalCount == 1);
@@ -510,11 +511,11 @@ void admissionAndGrantFailure() {
     n.heartbeatId = 0x702;
     n.emcyId = 0x82;
     CHECK(r.services.configureNetwork(1, n, C::NetworkObserver(), 0));
-    E::SequenceId sequence;
+    O::SequenceId sequence;
     CHECK(r.owner.beginSequence(second.channel.binding, 3, 0, sequence));
     CHECK(r.owner.beginOperation(sequence, 1, 5000000, 0));
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i) {
-        E::BusRequest req;
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
+        O::BusRequest req;
         req.sequence = sequence;
         auto& t = req.transfer;
         t.channel = second.channel;
@@ -525,16 +526,16 @@ void admissionAndGrantFailure() {
         t.deadlineUs = 5000000;
         t.queueTimeoutUs = t.responseTimeoutUs = 250000;
         t.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING;
-        E::RequestId id;
-        CHECK(r.owner.admit(req, 0, id) == E::BusAdmission::ACCEPTED);
+        O::RequestId id;
+        CHECK(r.owner.admit(req, 0, id) == O::BusAdmission::ACCEPTED);
     }
     CHECK(r.collector.begin(r.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
     CHECK(r.collector.service(0));
     CHECK(r.collector.record()->failure == E::RawEvidenceFailure::ADMISSION);
-    CHECK(r.collector.record()->admission == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.collector.record()->admission == O::BusAdmission::RESULTS_FULL);
     CHECK(r.collector.record()->attemptedCount == 1 && !r.wire.transmitted);
     CHECK(r.collector.release()); // Other producer's queued work remains owned and untouched.
-    CHECK(r.owner.resources().queued == E::CanBusOwner::REQUESTS);
+    CHECK(r.owner.resources().queued == O::CanBusOwner::REQUESTS);
 
     Rig grant;
     auto p = grant.plan();

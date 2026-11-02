@@ -7,7 +7,7 @@
 #pragma once
 #include "SdoClient.h"
 
-namespace MotorControlCANExample {
+namespace MotorControlCANOwner {
 using MotorControlCAN::Binding;
 using MotorControlCAN::Frame;
 class CanBusOwner;
@@ -587,4 +587,4 @@ class CanBusOwner {
     void trace(const Diagnostic& record) noexcept;
     int healthSlot(const Binding& binding) const noexcept;
 };
-} // namespace MotorControlCANExample
+} // namespace MotorControlCANOwner

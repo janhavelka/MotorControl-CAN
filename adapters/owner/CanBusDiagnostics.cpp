@@ -2,7 +2,7 @@
 #include "CanBusOwner.h"
 #include "OwnerCounters.h"
 
-namespace MotorControlCANExample {
+namespace MotorControlCANOwner {
 namespace C = MotorControlCAN::CANOPEN;
 namespace {
 bool overlap(const void* a, size_t an, const void* b, size_t bn) {
@@ -237,4 +237,4 @@ OwnerResources CanBusOwner::resources() const noexcept {
     value.nmtTxPending = nmtExternal_.pending || nmtExternal_.blocked;
     return value;
 }
-} // namespace MotorControlCANExample
+} // namespace MotorControlCANOwner

@@ -10,7 +10,7 @@
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition)                                                                           \
@@ -64,11 +64,11 @@ M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = fal
             value.data[4 + i] = uint8_t(raw >> (8 * i));
     return value;
 }
-bool same(E::TransportTxId a, E::TransportTxId b) {
-        return E::sameTransportTxId(a, b);
+bool same(O::TransportTxId a, O::TransportTxId b) {
+        return O::sameTransportTxId(a, b);
     }
-E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
-    E::ServiceBudget value;
+O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
+    O::ServiceBudget value;
     value.rx = rx;
     value.tx = tx;
     value.events = events;
@@ -77,10 +77,10 @@ E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint
 }
 struct Wire {
     enum { CAPACITY = 128 };
-    E::ReceivedFrame incoming[CAPACITY];
-    E::TxReport reports[CAPACITY];
+    O::ReceivedFrame incoming[CAPACITY];
+    O::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    E::TransportTxId ids[CAPACITY];
+    O::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool pending[CAPACITY] = {};
     unsigned rxRead = 0, rxWrite = 0, reportRead = 0, reportWrite = 0;
@@ -91,7 +91,7 @@ struct Wire {
     L::ReadTarget* current = nullptr;
     M::AxisConfig* axis = nullptr;
     M::AxisReference* reference = nullptr;
-    static bool guard(void* context, E::SequenceId, const C::SdoTransfer& work, uint64_t now) {
+    static bool guard(void* context, O::SequenceId, const C::SdoTransfer& work, uint64_t now) {
         Wire& w = *static_cast<Wire*>(context);
         if (!w.action || work.operation != w.action->operation)
             return true;
@@ -103,14 +103,14 @@ struct Wire {
         }
         return bool(L::noteActionTransmission(*w.action, *w.reservation, *w.current, now));
     }
-    static bool receive(void* context, E::ReceivedFrame& output) {
+    static bool receive(void* context, O::ReceivedFrame& output) {
         Wire& w = *static_cast<Wire*>(context);
         if (w.rxRead == w.rxWrite)
             return false;
         output = w.incoming[w.rxRead++];
         return true;
     }
-    static bool transmit(void* context, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(context);
         CHECK(w.sentCount < CAPACITY);
         const unsigned i = w.sentCount++;
@@ -122,14 +122,14 @@ struct Wire {
             w.report(i, w.accept);
         return w.accept;
     }
-    static bool takeReport(void* context, E::TxReport& output) {
+    static bool takeReport(void* context, O::TxReport& output) {
         Wire& w = *static_cast<Wire*>(context);
         if (w.reportRead == w.reportWrite)
             return false;
         output = w.reports[w.reportRead++];
         return true;
     }
-    static bool retire(void* context, E::TransportTxId id, uint32_t epoch) {
+    static bool retire(void* context, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(context);
         ++w.retireCalls;
         if (!w.retirement)
@@ -144,11 +144,11 @@ struct Wire {
         w.reportWrite = kept;
         return true;
     }
-    static void observe(void* context, const E::ReceivedFrame&, uint64_t) {
+    static void observe(void* context, const O::ReceivedFrame&, uint64_t) {
         ++static_cast<Wire*>(context)->observed;
     }
-    E::Transport callbacks() {
-        E::Transport value;
+    O::Transport callbacks() {
+        O::Transport value;
         value.context = this;
         value.receive = receive;
         value.transmit = transmit;
@@ -160,7 +160,7 @@ struct Wire {
     }
     void report(unsigned i, bool transmitted = true) {
         CHECK(i < sentCount && reportWrite < CAPACITY && pending[i]);
-        E::TxReport& value = reports[reportWrite++];
+        O::TxReport& value = reports[reportWrite++];
         value.id = ids[i];
         value.controllerEpoch = epochs[i];
         value.transmitted = transmitted;
@@ -168,7 +168,7 @@ struct Wire {
     }
     void push(const M::Frame& value, uint64_t now, uint32_t epoch = 1) {
         CHECK(rxWrite < CAPACITY);
-        E::ReceivedFrame& input = incoming[rxWrite++];
+        O::ReceivedFrame& input = incoming[rxWrite++];
         input.frame = value;
         input.receivedTimeKnown = true;
         input.receivedUs = now;
@@ -178,8 +178,8 @@ struct Wire {
 struct Rig {
     C::SdoClient services;
     Wire wire;
-    E::CanBusOwner owner;
-    E::SequenceId sequence;
+    O::CanBusOwner owner;
+    O::SequenceId sequence;
     L::SettingsReservation reservation;
     L::ReadTarget current = target();
     L::ReadContext state;
@@ -254,20 +254,20 @@ struct Rig {
         wire.reference = &reference;
     }
     void begin() { CHECK(owner.beginOperation(sequence, ++operation, deadline, now)); }
-    void turn(uint64_t time, const E::ServiceBudget& work = budget()) {
+    void turn(uint64_t time, const O::ServiceBudget& work = budget()) {
         now = time;
         CHECK(owner.service(now, work));
     }
-    E::RequestId admit(const C::SdoTransfer& transfer) {
-        E::BusRequest work;
+    O::RequestId admit(const C::SdoTransfer& transfer) {
+        O::BusRequest work;
         work.sequence = sequence;
         work.transfer = transfer;
-        E::RequestId id;
-        CHECK(owner.admit(work, now, id) == E::BusAdmission::ACCEPTED);
+        O::RequestId id;
+        CHECK(owner.admit(work, now, id) == O::BusAdmission::ACCEPTED);
         return id;
     }
-    C::SdoCompletion result(E::RequestId id, bool release = true) {
-        const E::Completion* terminal = owner.result(id);
+    C::SdoCompletion result(O::RequestId id, bool release = true) {
+        const O::Completion* terminal = owner.result(id);
         CHECK(terminal);
         const C::SdoCompletion value = terminal->service;
         if (release)
@@ -275,7 +275,7 @@ struct Rig {
         return value;
     }
     C::SdoCompletion exchange(const C::SdoTransfer& work, uint32_t raw = 0, bool abort = false) {
-        const E::RequestId id = admit(work);
+        const O::RequestId id = admit(work);
         turn(now);
         wire.push(reply(work, raw, abort), now + 1);
         turn(now + 1, budget(8, 0, 8, 0));
@@ -577,10 +577,10 @@ void pendingObservationsAndDeadline() {
               action.completion == M::ActionCompletion::NOT_OBSERVED);
         const unsigned sent = r.wire.sentCount;
         CHECK(!r.next(action).ready);
-        r.turn(action.eligibleUs, E::ServiceBudget());
+        r.turn(action.eligibleUs, O::ServiceBudget());
         r.cycle(action, position ? 0 : 8, position ? -123 : 0);
         CHECK(action.state == M::ActionState::ACTIVE && action.observations == 2);
-        r.turn(r.deadline, E::ServiceBudget());
+        r.turn(r.deadline, O::ServiceBudget());
         CHECK(
             L::advanceAction(action, r.reservation, r.current, M::ActionOutcome::CANCELLED, r.now));
         CHECK(action.outcome == M::ActionOutcome::DEADLINE &&
@@ -613,9 +613,9 @@ void writeFailuresPreservePrefixes() {
                     r.wire.push(reply(work.transfer, 0x06090030, true), r.now + 1);
                     r.turn(r.now + 1, budget(8, 0, 8, 0));
                 } else if (failure == 3) {
-                    r.turn(r.now + 101, E::ServiceBudget());
+                    r.turn(r.now + 101, O::ServiceBudget());
                 } else {
-                    CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+                    CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
                 }
                 const C::SdoCompletion terminal = r.result(id);
                 CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
@@ -705,11 +705,11 @@ void interruptedResultSurvivesClear() {
     L::PreparedRead read;
     CHECK(L::nextRead(interrupted, r.now, read) && read.ready);
     const auto id = r.admit(read.transfer);
-    CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
-    const E::Completion* result = r.owner.result(id);
+    CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
+    const O::Completion* result = r.owner.result(id);
     CHECK(result && result->service.outcome == C::SdoOutcome::CANCELLED &&
           !result->service.transmissionPossible);
-    const Saved<E::Completion> saved(*result);
+    const Saved<O::Completion> saved(*result);
     CHECK(L::advanceRead(interrupted, result->service, r.now));
     const Saved<L::ReadContext> failedRead(interrupted);
     L::ActionContext action;
@@ -740,7 +740,7 @@ void deadlinesFaultsAndRebootKeepOriginalTerminals() {
             const auto work = r.next(action);
             CHECK(work.ready && work.transfer.direction == C::SdoDirection::UPLOAD);
             if (event == 0)
-                r.turn(r.deadline - 1, E::ServiceBudget());
+                r.turn(r.deadline - 1, O::ServiceBudget());
             const auto id = r.admit(work.transfer);
             r.turn(r.now);
             const Saved<C::SdoCompletion> command(action.commandEvidence);
@@ -761,7 +761,7 @@ void deadlinesFaultsAndRebootKeepOriginalTerminals() {
                 r.turn(r.now + 1, budget(8, 0, 8, 0));
                 if (event == 1) {
                     CHECK(r.services.node(0)->emcyCount == 1);
-                    CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+                    CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
                 }
                 const auto terminal = r.result(id);
                 CHECK(terminal.outcome ==
@@ -800,7 +800,7 @@ void conservativeNoticeThenDefiniteNoTransmission() {
     CHECK(L::noteActionTransmission(action, r.reservation, r.current, r.axis, r.reference, r.now));
     r.checkWithdrawn();
     const auto id = r.admit(work.transfer);
-    CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+    CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
     const auto terminal = r.result(id);
     CHECK(!terminal.transmissionPossible);
     CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
@@ -819,14 +819,14 @@ void failedCounterActionThenExplicitNewEpochRead() {
     const auto rearm = r.next(action);
     const auto id = r.admit(rearm.transfer);
     const unsigned sent = r.wire.sentCount;
-    CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+    CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
     const auto terminal = r.result(id, false);
     CHECK(!terminal.transmissionPossible && !r.services.unresolved(0));
     CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
     CHECK(action.outcome == M::ActionOutcome::CANCELLED &&
           action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain);
     const Saved<L::ActionContext> failed(action);
-    const Saved<E::Completion> retained(*r.owner.result(id));
+    const Saved<O::Completion> retained(*r.owner.result(id));
     r.checkWithdrawn();
     // Even a definite no-TX rearm failure keeps the trigger's coordinate loss.
     // An unread old-epoch result prevents synchronization, without erasing it.
@@ -840,13 +840,13 @@ void failedCounterActionThenExplicitNewEpochRead() {
                           uint8_t(1u << unsigned(L::StateBlock::FEEDBACK))));
     L::PreparedRead fresh;
     CHECK(L::nextRead(read, r.now, fresh) && fresh.ready);
-    E::BusRequest stale;
+    O::BusRequest stale;
     stale.sequence = r.sequence;
     stale.transfer = fresh.transfer;
     stale.transfer.channel.binding = target().channel.binding;
-    E::RequestId rejected;
-    const Saved<E::RequestId> unchanged(rejected);
-    CHECK(r.owner.admit(stale, r.now, rejected) == E::BusAdmission::INVALID);
+    O::RequestId rejected;
+    const Saved<O::RequestId> unchanged(rejected);
+    CHECK(r.owner.admit(stale, r.now, rejected) == O::BusAdmission::INVALID);
     unchanged.unchanged(rejected);
     CHECK(r.wire.sentCount == sent);
     while (read.state == M::ReadState::ACTIVE) {
@@ -881,7 +881,7 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
     CHECK(action.execution == M::ActionExecution::UNKNOWN && action.uncertain);
     const Saved<L::ActionContext> failed(action);
-    const Saved<E::Completion> retained(*r.owner.result(id));
+    const Saved<O::Completion> retained(*r.owner.result(id));
     CHECK(!r.owner.advanceConfiguration(r.sequence, r.current.channel.binding, r.now));
     CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
     // Retiring the local controller frame and receiving a late ACK still do
@@ -893,22 +893,22 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     CHECK(r.owner.release(id));
     CHECK(r.services.unresolved(0) && !r.owner.sequence(r.sequence));
     CHECK(!r.owner.advanceConfiguration(r.sequence, r.current.channel.binding, r.now));
-    E::BusRequest request;
+    O::BusRequest request;
     request.sequence = r.sequence;
     request.transfer = trigger.transfer;
     ++request.transfer.step;
-    E::RequestId rejected;
+    O::RequestId rejected;
     for (unsigned epoch = 0; epoch < 2; ++epoch) {
         request.transfer.channel.binding =
             epoch ? r.current.channel.binding : target().channel.binding;
-        CHECK(r.owner.admit(request, r.now, rejected) == E::BusAdmission::INVALID);
+        CHECK(r.owner.admit(request, r.now, rejected) == O::BusAdmission::INVALID);
     }
     // Remove reservation occupancy as an alternative rejection cause. A new
     // local token still cannot establish a fresh remote transaction boundary.
     CHECK(r.owner.releaseSequence(r.sequence));
     CHECK(M::sameBinding(r.services.channel(0)->binding, target().channel.binding));
-    E::SequenceId replacement;
-    const Saved<E::SequenceId> unchanged(replacement);
+    O::SequenceId replacement;
+    const Saved<O::SequenceId> unchanged(replacement);
     CHECK(!r.owner.beginSequence(target().channel.binding, 1, r.now, replacement));
     unchanged.unchanged(replacement);
     CHECK(r.services.unresolved(0));

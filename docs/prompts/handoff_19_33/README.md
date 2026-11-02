@@ -59,6 +59,8 @@ production finite motion; missing firmware qualification remains separate.
 
 ## Where the repository actually stands
 
+Source map: packet 2 moved the owner, diagnostics and counters to `adapters/owner/`, namespace `MotorControlCANOwner`, target `MotorControlCAN::CanBusOwner`. Any `examples/common/CanBusOwner.*` in these packets or the audit means that baseline; do not recreate the old files. Packet 2 also split transport and request values into `CanBusTypes.h`.
+
 Authoring baseline: **4ae93e3**, 2026-11-02. Refresh it on entry. Read
 `docs/reports/prompts_20_21_audit.md`, `prompts_22_23_audit.md`,
 `prompts_29_30_audit.md`, `prompts_31_32_audit.md`, and reports 19–22/29–33.

@@ -8,6 +8,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 // Forty hex digits identify this synthetic procedure fixture only. They do not
 // identify this checkout or attest any running firmware image.
@@ -25,7 +26,7 @@ E::ProbeCallbacks callbacks(E::FakeTransport& fake) {
 struct Fixture {
     C::SdoClient services;
     E::FakeTransport fake;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     E::ProbePlatform platform;
     E::ProbeApp app;
     E::DeviceEvidence evidence;
@@ -84,7 +85,7 @@ void frame(const M::Frame& value) {
                 unsigned(value.extended), unsigned(value.rtr), unsigned(value.dlc));
     bytes(value.data, value.payloadLength);
 }
-void counters(const char* name, const E::Stats& s, const E::OwnerResources& r) {
+void counters(const char* name, const O::Stats& s, const O::OwnerResources& r) {
     std::printf(
         "  %s stats tx=%lu rx=%lu txRejected=%lu rxDropped=%lu rxLost=%lu unmatched=%lu "
         "queueRejected=%lu resultsRejected=%lu cancelled=%lu timeouts=%lu "
@@ -149,7 +150,7 @@ void dump(const E::AcquisitionRecord& r) {
                     unsigned(r.intended[i].index), unsigned(r.intended[i].subindex),
                     unsigned(r.intended[i].widthBytes));
     for (unsigned i = 0; i < r.terminalCount; ++i) {
-        const E::Completion& t = r.terminals[i];
+        const O::Completion& t = r.terminals[i];
         const C::SdoCompletion& s = t.service;
         std::printf("  terminal[%u] ownerSlot=%u ownerGeneration=%lu operation=%lu request=%lu "
                     "step=%lu object=%04x:%02x "
@@ -181,16 +182,16 @@ void dump(const E::AcquisitionRecord& r) {
             static_cast<unsigned long long>(t.processedUs),
             static_cast<unsigned long long>(t.receivedUs), unsigned(t.receivedTimeKnown),
             unsigned(t.accepted));
-        if (t.kind == E::DiagnosticKind::TX || t.kind == E::DiagnosticKind::TX_REPORT)
+        if (t.kind == O::DiagnosticKind::TX || t.kind == O::DiagnosticKind::TX_REPORT)
             std::printf("transportKind=%u requestChannel=%u requestGeneration=%lu frameToken=%lu ",
                         unsigned(t.txId.kind), unsigned(t.txId.sdo.request.channel),
                         static_cast<unsigned long>(t.txId.sdo.request.generation),
                         static_cast<unsigned long>(t.txId.sdo.frame));
-        if (t.kind == E::DiagnosticKind::RX || t.kind == E::DiagnosticKind::TX)
+        if (t.kind == O::DiagnosticKind::RX || t.kind == O::DiagnosticKind::TX)
             frame(t.frame);
-        else if (t.kind == E::DiagnosticKind::CONTROLLER)
+        else if (t.kind == O::DiagnosticKind::CONTROLLER)
             std::printf("controller=%u", unsigned(t.controller));
-        else if (t.kind == E::DiagnosticKind::RECOVERY)
+        else if (t.kind == O::DiagnosticKind::RECOVERY)
             std::printf("recovery=%u", unsigned(t.recovery));
         std::putchar('\n');
     }

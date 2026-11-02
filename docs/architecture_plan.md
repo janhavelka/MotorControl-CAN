@@ -37,7 +37,7 @@ MotorControl-CAN/
     profiles/lichuan_c/
   adapters/                                     # optional, outside the installed core
     canopennode/  twai/                         # selected stack and controller adapters
-    owner/CanBusOwner.*                         # planned target for the owner (DEC-5)
+    owner/CanBusOwner.*                         # optional target MotorControlCAN::CanBusOwner (DEC-5)
   examples/
     common/ProbeApp.*  ProbeConsole.*  ProbePlatform.*  # shared app/CLI, thin startup
     common/FirmwareProbe.*  EspProbeMain.*  EspProbePlatform.*  FirmwareBoard.h

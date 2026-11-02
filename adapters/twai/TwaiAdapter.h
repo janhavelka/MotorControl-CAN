@@ -6,6 +6,12 @@
 #include "CanBusOwner.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::TransportTxId;
+using MotorControlCANOwner::RecoveryProgress;
+using MotorControlCANOwner::ReceivedFrame;
+using MotorControlCANOwner::TxReport;
+using MotorControlCANOwner::Transport;
+using MotorControlCANOwner::CanBusOwner;
 /** Explicit controller facts; no board, pin or bitrate defaults. */
 struct TwaiConfig {
     int txPin = -1;       ///< Application-established transceiver TX GPIO.

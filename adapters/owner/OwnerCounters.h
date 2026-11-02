@@ -3,7 +3,7 @@
 #pragma once
 #include <stdint.h>
 
-namespace MotorControlCANExample {
+namespace MotorControlCANOwner {
 namespace detail {
 inline void add(uint32_t& value, uint32_t amount = 1) noexcept {
     value = amount > UINT32_MAX - value ? UINT32_MAX : value + amount;
@@ -13,4 +13,4 @@ inline void add(uint8_t& value) noexcept {
         ++value;
 }
 } // namespace detail
-} // namespace MotorControlCANExample
+} // namespace MotorControlCANOwner

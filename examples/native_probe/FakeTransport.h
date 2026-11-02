@@ -7,6 +7,10 @@
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::TransportTxId;
+using MotorControlCANOwner::ReceivedFrame;
+using MotorControlCANOwner::TxReport;
+using MotorControlCANOwner::Transport;
 /** Synthetic server for the configured node 5 expedited identity/config uploads.
  * One owner alone calls receive. All queued frames/reports own their bytes.
  * Caller serializes methods and supplies nonwrapping time; no clocks or threads.

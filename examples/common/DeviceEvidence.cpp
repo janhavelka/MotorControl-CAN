@@ -2,6 +2,7 @@
 #include "DeviceEvidence.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::Diagnostic;
 namespace M = MotorControlCAN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {

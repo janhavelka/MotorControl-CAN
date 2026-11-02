@@ -12,7 +12,7 @@
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(c)                                                                                   \
@@ -64,41 +64,41 @@ M::Frame response(unsigned node, uint16_t index, uint8_t width, uint32_t raw = 0
             f.data[4 + i] = uint8_t(raw >> (i * 8));
     return f;
 }
-E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
-    E::ServiceBudget b;
+O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
+    O::ServiceBudget b;
     b.rx = rx;
     b.tx = tx;
     b.events = events;
     b.starts = starts;
     return b;
 }
-bool same(E::RequestId a, E::RequestId b) {
+bool same(O::RequestId a, O::RequestId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
 }
 struct Fake {
     enum { CAPACITY = 64 };
-    E::ReceivedFrame incoming[CAPACITY];
-    E::TxReport reports[CAPACITY];
+    O::ReceivedFrame incoming[CAPACITY];
+    O::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    E::TransportTxId sentId[CAPACITY];
+    O::TransportTxId sentId[CAPACITY];
     unsigned rxRead = 0, rxWrite = 0, reportRead = 0, reportWrite = 0, sentCount = 0;
     unsigned receives = 0, transmits = 0, reportCalls = 0, observations = 0, guards = 0;
     uint64_t now = 0;
     bool autoConfirm = true, accept = true, reenter = false, rejectGuard = false;
-    E::CanBusOwner* owner = nullptr;
+    O::CanBusOwner* owner = nullptr;
     C::SdoClient* services = nullptr;
-    E::RequestId retained;
+    O::RequestId retained;
     L::DriverSettingsContext* settings = nullptr;
     L::SettingsReservation reservation;
     M::Binding current;
     void recursiveCall() {
         if (!reenter)
             return;
-        CHECK(owner && !owner->service(now, E::ServiceBudget()));
+        CHECK(owner && !owner->service(now, O::ServiceBudget()));
         if (retained.owner)
             CHECK(!owner->release(retained));
     }
-    static bool receive(void* p, E::ReceivedFrame& out) {
+    static bool receive(void* p, O::ReceivedFrame& out) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.receives;
         f.recursiveCall();
@@ -107,7 +107,7 @@ struct Fake {
         out = f.incoming[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.transmits;
         f.recursiveCall();
@@ -122,7 +122,7 @@ struct Fake {
         }
         return f.accept;
     }
-    static bool report(void* p, E::TxReport& out) {
+    static bool report(void* p, O::TxReport& out) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.reportCalls;
         f.recursiveCall();
@@ -131,7 +131,7 @@ struct Fake {
         out = f.reports[f.reportRead++];
         return true;
     }
-    static bool guard(void* p, E::SequenceId id, const C::SdoTransfer& work, uint64_t now) {
+    static bool guard(void* p, O::SequenceId id, const C::SdoTransfer& work, uint64_t now) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.guards;
         f.recursiveCall();
@@ -145,7 +145,7 @@ struct Fake {
         }
         return true;
     }
-    static void observe(void* p, const E::ReceivedFrame& value, uint64_t) {
+    static void observe(void* p, const O::ReceivedFrame& value, uint64_t) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.observations;
         f.recursiveCall();
@@ -153,8 +153,8 @@ struct Fake {
         if (value.frame.id == 0x701 && value.frame.data[0] == 5)
             CHECK(f.services->node(0)->nmt == C::NmtState::OPERATIONAL);
     }
-    E::Transport transport() {
-        E::Transport t;
+    O::Transport transport() {
+        O::Transport t;
         t.context = this;
         t.receive = receive;
         t.transmit = transmit;
@@ -173,7 +173,7 @@ struct Fake {
 struct Rig {
     C::SdoClient services;
     Fake fake;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     uint64_t now = 0;
     explicit Rig(uint32_t seed = 0, bool sharedPeer = false, bool distinctLogicalAxis = false,
                  bool confirmed = true)
@@ -206,22 +206,22 @@ struct Rig {
         if (sharedPeer)
             CHECK(services.node(0) == services.node(1));
     }
-    void turn(uint64_t time, E::ServiceBudget b = budget()) {
+    void turn(uint64_t time, O::ServiceBudget b = budget()) {
         now = fake.now = time;
         CHECK(owner.service(now, b));
     }
-    E::SequenceId sequence(unsigned node = 1, uint8_t producer = 1, uint32_t operation = 1,
+    O::SequenceId sequence(unsigned node = 1, uint8_t producer = 1, uint32_t operation = 1,
                            uint64_t deadline = 1000) {
-        E::SequenceId id;
+        O::SequenceId id;
         CHECK(owner.beginSequence(route(node).binding, producer, now, id));
         CHECK(owner.beginOperation(id, operation, deadline, now));
         return id;
     }
-    E::BusRequest request(E::SequenceId sequence, uint32_t step = 1, uint16_t index = 0x6041,
+    O::BusRequest request(O::SequenceId sequence, uint32_t step = 1, uint16_t index = 0x6041,
                           bool download = false) {
-        const E::Sequence* s = owner.sequence(sequence);
+        const O::Sequence* s = owner.sequence(sequence);
         CHECK(s);
-        E::BusRequest r;
+        O::BusRequest r;
         r.sequence = sequence;
         r.transfer.channel = route(s->binding.endpoint.address);
         r.transfer.channel.binding = s->binding;
@@ -237,33 +237,33 @@ struct Rig {
         r.transfer.data[1] = 0x12;
         return r;
     }
-    E::RequestId admit(const E::BusRequest& r) {
-        E::RequestId id;
-        CHECK(owner.admit(r, now, id) == E::BusAdmission::ACCEPTED);
+    O::RequestId admit(const O::BusRequest& r) {
+        O::RequestId id;
+        CHECK(owner.admit(r, now, id) == O::BusAdmission::ACCEPTED);
         CHECK(!owner.result(id) && !owner.release(id));
         return id;
     }
-    E::RequestId admit(E::SequenceId sequence, const C::SdoTransfer& work) {
-        E::BusRequest r;
+    O::RequestId admit(O::SequenceId sequence, const C::SdoTransfer& work) {
+        O::BusRequest r;
         r.sequence = sequence;
         r.transfer = work;
         return admit(r);
     }
-    const E::Completion& done(E::RequestId id) {
-        const E::Completion* c = owner.result(id);
+    const O::Completion& done(O::RequestId id) {
+        const O::Completion* c = owner.result(id);
         CHECK(c && same(c->id, id));
         return *c;
     }
-    void respond(E::RequestId id, unsigned node, uint16_t index, uint32_t raw,
+    void respond(O::RequestId id, unsigned node, uint16_t index, uint32_t raw,
                  bool download = false, uint8_t width = 2, uint8_t subindex = 0) {
         fake.push(response(node, index, width, raw, download, subindex), now + 1);
         turn(now + 1, budget(8, 0, 8, 0));
-        CHECK(done(id).reason == E::CompletionReason::SERVICE);
+        CHECK(done(id).reason == O::CompletionReason::SERVICE);
         CHECK(done(id).service.outcome == C::SdoOutcome::SUCCESS);
     }
-    C::SdoCompletion exchange(E::SequenceId sequence, const C::SdoTransfer& work, uint32_t raw) {
+    C::SdoCompletion exchange(O::SequenceId sequence, const C::SdoTransfer& work, uint32_t raw) {
         const unsigned sent = fake.sentCount;
-        const E::RequestId id = admit(sequence, work);
+        const O::RequestId id = admit(sequence, work);
         turn(now);
         CHECK(fake.sentCount == sent + 1);
         const M::Frame& tx = fake.sent[sent];
@@ -293,8 +293,8 @@ void finiteUploadExperimentBootstrap() {
     auto request = r.request(sequence, 1, 0x1000);
     request.transfer.size = 4;
     request.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
-    E::RequestId rejected;
-    CHECK(r.owner.admit(request, 0, rejected) == E::BusAdmission::INVALID);
+    O::RequestId rejected;
+    CHECK(r.owner.admit(request, 0, rejected) == O::BusAdmission::INVALID);
     CHECK(!r.services.authorizeUploadExperiment(0, request.transfer, 10, 1, 0));
     CHECK(!r.services.authorizeUploadExperiment(0, request.transfer, 11, 0, 0));
     auto wrong = request.transfer;
@@ -324,7 +324,7 @@ void finiteUploadExperimentBootstrap() {
         case 12: ++changed.transfer.channel.serverToClientId; break;
         case 13: changed.transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED; break;
         }
-        CHECK(r.owner.admit(changed, 0, rejected) == E::BusAdmission::INVALID);
+        CHECK(r.owner.admit(changed, 0, rejected) == O::BusAdmission::INVALID);
     }
     const auto id = r.admit(request);
     request.transfer.index = 0x1010; // Mutation cannot redirect either retained copy.
@@ -341,13 +341,13 @@ void finiteUploadExperimentBootstrap() {
     CHECK(r.owner.release(id));
     auto next = r.request(sequence, 2, 0x1009);
     next.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
-    CHECK(r.owner.admit(next, r.now, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admit(next, r.now, rejected) == O::BusAdmission::INVALID);
     auto download = next;
     download.transfer.direction = C::SdoDirection::DOWNLOAD;
-    CHECK(r.owner.admit(download, r.now, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admit(download, r.now, rejected) == O::BusAdmission::INVALID);
     CHECK(r.services.authorizeUploadExperiment(0, next.transfer, 11, 2, r.now));
     r.services.clearUploadExperiment(0);
-    CHECK(r.owner.admit(next, r.now, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admit(next, r.now, rejected) == O::BusAdmission::INVALID);
     CHECK(!r.services.authorizeUploadExperiment(0, next.transfer, 11, 2, r.now));
     CHECK(!r.services.authorizeUploadExperiment(0, next.transfer, 11, 3, r.now));
     ++next.transfer.step;
@@ -372,7 +372,7 @@ void finiteUploadExperimentBootstrap() {
             failed.turn(1);
             CHECK(failed.fake.sentCount == 0);
         } else if (failure == 1) {
-            CHECK(failed.owner.cancel(pending, 0) == E::Cancel::CANCELLED);
+            CHECK(failed.owner.cancel(pending, 0) == O::Cancel::CANCELLED);
             failed.services.clearUploadExperiment(0);
             failed.turn(1);
             CHECK(failed.fake.sentCount == 0);
@@ -380,7 +380,7 @@ void finiteUploadExperimentBootstrap() {
             failed.turn(1);
             CHECK(failed.fake.sentCount == 1);
             if (failure == 2)
-                CHECK(failed.owner.cancel(pending, 2) == E::Cancel::CANCELLED);
+                CHECK(failed.owner.cancel(pending, 2) == O::Cancel::CANCELLED);
             else
                 failed.turn(101);
             CHECK(failed.done(pending).service.effectUncertain);
@@ -409,51 +409,51 @@ void finiteUploadExperimentBootstrap() {
 void copiedAdmissionAndRetainedPressure() {
     Rig r;
     const auto sequence = r.sequence();
-    E::RequestId ids[E::CanBusOwner::REQUESTS];
-    E::BusRequest first = r.request(sequence, 1, 0x2500, true);
+    O::RequestId ids[O::CanBusOwner::REQUESTS];
+    O::BusRequest first = r.request(sequence, 1, 0x2500, true);
     ids[0] = r.admit(first);
     first.transfer.data[0] = 0xee;
     first.transfer.index = 0x1010;
     first.transfer.deadlineUs = 1;
-    for (unsigned i = 1; i < E::CanBusOwner::REQUESTS; ++i)
+    for (unsigned i = 1; i < O::CanBusOwner::REQUESTS; ++i)
         ids[i] = r.admit(r.request(sequence, i + 1));
-    E::RequestId rejected;
+    O::RequestId rejected;
     rejected.generation = 999;
-    CHECK(r.owner.admit(r.request(sequence, 7), 0, rejected) == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admit(r.request(sequence, 7), 0, rejected) == O::BusAdmission::RESULTS_FULL);
     CHECK(rejected.generation == 999 && r.fake.sentCount == 0);
     CHECK(!r.owner.releaseSequence(sequence));
     r.turn(0, budget(0, 1, 0, 1));
     const uint8_t literal[] = {0x2b, 0x00, 0x25, 0, 0x34, 0x12, 0, 0};
     CHECK(r.fake.sentCount == 1 && !std::memcmp(r.fake.sent[0].data, literal, 8));
     r.respond(ids[0], 1, 0x2500, 0, true);
-    const E::Completion* retained = r.owner.result(ids[0]);
+    const O::Completion* retained = r.owner.result(ids[0]);
     CHECK(retained->service.transfer.deadlineUs == 1000);
     CHECK(retained->service.transfer.data[0] == 0x34 && retained->controllerAccepted);
-    const Saved<E::Completion> saved(*retained);
-    for (unsigned i = 1; i < E::CanBusOwner::REQUESTS; ++i) {
+    const Saved<O::Completion> saved(*retained);
+    for (unsigned i = 1; i < O::CanBusOwner::REQUESTS; ++i) {
         r.turn(r.now, budget(0, 1, 8, 1));
         CHECK(r.fake.sentCount == i + 1);
         r.respond(ids[i], 1, 0x6041, 0x1200 + i);
     }
     saved.unchanged(*retained);
-    CHECK(r.owner.admit(r.request(sequence, 7), r.now, rejected) == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admit(r.request(sequence, 7), r.now, rejected) == O::BusAdmission::RESULTS_FULL);
     CHECK(r.owner.beginOperation(sequence, 2, 2000, r.now));
     saved.unchanged(*retained); // A new intent can begin without discarding old evidence.
-    E::RequestId foreign = ids[0];
+    O::RequestId foreign = ids[0];
     Rig other;
     foreign.owner = &other.owner;
     CHECK(!r.owner.result(foreign) && !r.owner.release(foreign));
-    E::RequestId wrong = ids[0];
+    O::RequestId wrong = ids[0];
     ++wrong.generation;
     CHECK(!r.owner.result(wrong) && !r.owner.release(wrong));
     CHECK(r.owner.release(ids[0]) && !r.owner.release(ids[0]));
-    const E::RequestId reused = r.admit(r.request(sequence, 7));
+    const O::RequestId reused = r.admit(r.request(sequence, 7));
     CHECK(reused.slot == ids[0].slot && reused.generation != ids[0].generation);
     CHECK(!r.owner.result(ids[0]) && !r.owner.release(ids[0]));
     r.turn(r.now);
     r.respond(reused, 1, 0x6041, 77);
     CHECK(r.owner.release(reused));
-    for (unsigned i = 1; i < E::CanBusOwner::REQUESTS; ++i)
+    for (unsigned i = 1; i < O::CanBusOwner::REQUESTS; ++i)
         CHECK(r.owner.release(ids[i]));
     CHECK(r.owner.releaseSequence(sequence));
     CHECK(!r.owner.sequence(sequence) && !r.owner.releaseSequence(sequence));
@@ -462,7 +462,7 @@ void copiedAdmissionAndRetainedPressure() {
 void fairProducersAndBusyChannel() {
     Rig r;
     const auto a = r.sequence(1, 1), b = r.sequence(2, 4);
-    E::RequestId ids[4];
+    O::RequestId ids[4];
     ids[0] = r.admit(r.request(a, 1, 0x2500));
     ids[1] = r.admit(r.request(a, 2, 0x2501));
     ids[2] = r.admit(r.request(b, 1, 0x2500));
@@ -530,7 +530,7 @@ void passiveDispatchDuringTransferAndBudgets() {
     CHECK(r.services.qualifyPdo(0, proof, 0));
     const auto s = r.sequence();
     const auto id = r.admit(r.request(s));
-    r.turn(0, E::ServiceBudget());
+    r.turn(0, O::ServiceBudget());
     CHECK(r.fake.receives == 0 && r.fake.transmits == 0 && r.fake.reportCalls == 0);
     r.turn(0, budget(0, 0, 0, 2));
     CHECK(r.fake.transmits == 0); // A start requires an explicit TX opportunity.
@@ -561,7 +561,7 @@ void passiveDispatchDuringTransferAndBudgets() {
     CHECK(!r.owner.result(id));
     r.respond(id, 1, 0x6041, 0x1234);
     CHECK(r.done(id).service.transmissionConfirmed && r.fake.sentCount == 1);
-    const Saved<E::Completion> immutable(r.done(id));
+    const Saved<O::Completion> immutable(r.done(id));
     r.fake.retained = id;
     r.fake.reenter = true;
     r.fake.push(heartbeat, r.now + 1);
@@ -577,15 +577,15 @@ void passiveDispatchDuringTransferAndBudgets() {
 void invalidAdmissionSequenceAndIdExhaustion() {
     Rig r;
     const auto s = r.sequence();
-    E::SequenceId unchanged;
+    O::SequenceId unchanged;
     unchanged.generation = 999;
     CHECK(!r.owner.beginSequence(route().binding, 2, 0, unchanged));
     CHECK(unchanged.generation == 999);
-    const Saved<E::Sequence> saved(*r.owner.sequence(s));
+    const Saved<O::Sequence> saved(*r.owner.sequence(s));
     CHECK(!r.owner.beginOperation(s, 1, 2000, 0));
     saved.unchanged(*r.owner.sequence(s));
     for (unsigned fault = 0; fault < 9; ++fault) {
-        E::BusRequest bad = r.request(s);
+        O::BusRequest bad = r.request(s);
         switch (fault) {
         case 0:
             bad.sequence.owner = nullptr;
@@ -615,34 +615,34 @@ void invalidAdmissionSequenceAndIdExhaustion() {
             bad.transfer.responseTimeoutUs = 0;
             break;
         }
-        E::RequestId out;
+        O::RequestId out;
         out.generation = 555;
-        CHECK(r.owner.admit(bad, 0, out) == E::BusAdmission::INVALID);
+        CHECK(r.owner.admit(bad, 0, out) == O::BusAdmission::INVALID);
         CHECK(out.generation == 555 && r.fake.sentCount == 0);
         saved.unchanged(*r.owner.sequence(s));
     }
     const auto first = r.admit(r.request(s));
-    E::RequestId out;
+    O::RequestId out;
     out.generation = 555;
-    CHECK(r.owner.admit(r.request(s), 0, out) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admit(r.request(s), 0, out) == O::BusAdmission::INVALID);
     CHECK(out.generation == 555 && !r.owner.release(first));
-    r.turn(1000, E::ServiceBudget());
-    CHECK(r.done(first).reason == E::CompletionReason::DEADLINE);
+    r.turn(1000, O::ServiceBudget());
+    CHECK(r.done(first).reason == O::CompletionReason::DEADLINE);
     CHECK(!r.done(first).service.transmissionPossible && r.fake.sentCount == 0);
     CHECK(r.owner.release(first));
     CHECK(r.owner.beginOperation(s, 2, 2000, r.now));
     Rig exhausted(std::numeric_limits<uint32_t>::max() - 2);
     const auto sequence = exhausted.sequence();
     const auto last = exhausted.admit(exhausted.request(sequence));
-    E::RequestId refused;
+    O::RequestId refused;
     refused.generation = 123;
     CHECK(exhausted.owner.admit(exhausted.request(sequence, 2), 0, refused) ==
-          E::BusAdmission::IDS_EXHAUSTED);
+          O::BusAdmission::IDS_EXHAUSTED);
     CHECK(refused.generation == 123);
     exhausted.turn(0);
     exhausted.respond(last, 1, 0x6041, 42);
     CHECK(exhausted.owner.release(last) && exhausted.owner.releaseSequence(sequence));
-    E::SequenceId noWrap;
+    O::SequenceId noWrap;
     noWrap.generation = 321;
     CHECK(!exhausted.owner.beginSequence(route().binding, 1, exhausted.now, noWrap));
     CHECK(noWrap.generation == 321);
@@ -651,17 +651,17 @@ void invalidAdmissionSequenceAndIdExhaustion() {
 void queueAgeAndServiceEvidence() {
     Rig r;
     const auto s = r.sequence();
-    E::BusRequest a = r.request(s, 1);
+    O::BusRequest a = r.request(s, 1);
     a.transfer.responseTimeoutUs = 500;
     const auto active = r.admit(a);
     r.turn(0);
-    E::BusRequest b = r.request(s, 2);
+    O::BusRequest b = r.request(s, 2);
     b.transfer.queueTimeoutUs = 10;
     const auto queued = r.admit(b);
-    r.turn(9, E::ServiceBudget());
+    r.turn(9, O::ServiceBudget());
     CHECK(!r.owner.result(queued));
-    r.turn(10, E::ServiceBudget());
-    CHECK(r.done(queued).reason == E::CompletionReason::QUEUE_EXPIRED);
+    r.turn(10, O::ServiceBudget());
+    CHECK(r.done(queued).reason == O::CompletionReason::QUEUE_EXPIRED);
     CHECK(r.done(queued).admittedUs == 0 && !r.done(queued).adapterAdmitted &&
           !r.done(queued).controllerAccepted && !r.done(queued).service.transmissionPossible);
     CHECK(r.fake.sentCount == 1 && !r.owner.result(active));
@@ -673,7 +673,7 @@ void queueAgeAndServiceEvidence() {
     w.transfer.queueTimeoutUs = 10;
     const auto expired = equality.admit(w);
     equality.turn(10);
-    CHECK(equality.done(expired).reason == E::CompletionReason::QUEUE_EXPIRED &&
+    CHECK(equality.done(expired).reason == O::CompletionReason::QUEUE_EXPIRED &&
           equality.fake.sentCount == 0);
     Rig lastMoment;
     const auto atLimit = lastMoment.sequence();
@@ -692,20 +692,20 @@ void queueAgeAndServiceEvidence() {
     late.fake.autoConfirm = false;
     late.turn(0);
     CHECK(late.fake.sentCount == 1 && !late.owner.result(timeout));
-    late.turn(100, E::ServiceBudget());
+    late.turn(100, O::ServiceBudget());
     const auto* terminal = late.owner.result(timeout);
     CHECK(terminal && terminal->controllerAccepted && terminal->service.transmissionPossible &&
           !terminal->service.transmissionConfirmed && !terminal->service.protocolAcknowledged);
     CHECK(terminal->service.outcome == C::SdoOutcome::TIMEOUT && terminal->service.effectUncertain);
-    const Saved<E::Completion> saved(*terminal);
+    const Saved<O::Completion> saved(*terminal);
     late.fake.push(response(1, 0x2500, 2, 0, true), 101);
     late.turn(101, budget(1, 0, 0, 0));
     saved.unchanged(*terminal);
     CHECK(late.services.unresolved(0));
     CHECK(late.owner.release(timeout));
-    E::RequestId different;
+    O::RequestId different;
     different.generation = 777;
-    CHECK(late.owner.admit(nextWrite, late.now, different) == E::BusAdmission::INVALID);
+    CHECK(late.owner.admit(nextWrite, late.now, different) == O::BusAdmission::INVALID);
     CHECK(different.generation == 777 && late.fake.sentCount == 1);
 }
 
@@ -722,7 +722,7 @@ void checkedAbortTxReportsAndGuard() {
     const auto& c = r.done(id);
     CHECK(c.service.outcome == C::SdoOutcome::SERVER_ABORT && c.service.abortValid &&
           c.service.abortCode == 0xf1234567u && !c.service.protocolAcknowledged);
-    const Saved<E::Completion> retained(c);
+    const Saved<O::Completion> retained(c);
     // A stale controller report cannot revise the first service terminal.
     r.fake.reports[r.fake.reportWrite].id = r.fake.sentId[0];
     r.fake.reports[r.fake.reportWrite++].transmitted = false;
@@ -743,7 +743,7 @@ void checkedAbortTxReportsAndGuard() {
     guard.fake.rejectGuard = true;
     guard.fake.reenter = true;
     guard.turn(0);
-    CHECK(guard.done(withdrawn).reason == E::CompletionReason::PREFLIGHT_REJECTED &&
+    CHECK(guard.done(withdrawn).reason == O::CompletionReason::PREFLIGHT_REJECTED &&
           !guard.done(withdrawn).controllerAccepted && guard.fake.sentCount == 0);
     CHECK(guard.fake.guards == 1 && !guard.done(withdrawn).service.transmissionPossible);
 }
@@ -756,14 +756,14 @@ void boundedCallbacksAndOneShotTransportFailure() {
     const auto second = bounded.admit(bounded.request(secondSequence));
     bounded.fake.reenter = true;
     bounded.turn(0, budget(0, 255, 0, 255));
-    CHECK(bounded.fake.transmits == E::CanBusOwner::TX_LIMIT && bounded.fake.sentCount == 2);
+    CHECK(bounded.fake.transmits == O::CanBusOwner::TX_LIMIT && bounded.fake.sentCount == 2);
     CHECK(!bounded.owner.result(first) && !bounded.owner.result(second));
     // More ingress/report records than one turn can consume remain queued.
     M::Frame unknown = frame(0x321, 1);
     for (unsigned i = 0; i < 10; ++i) {
         bounded.fake.push(unknown, 1);
         CHECK(bounded.fake.reportWrite < Fake::CAPACITY);
-        E::TxReport& report = bounded.fake.reports[bounded.fake.reportWrite++];
+        O::TxReport& report = bounded.fake.reports[bounded.fake.reportWrite++];
         report.id.sdo.request.owner = &bounded.services;
         report.id.sdo.request.channel = 0;
         report.id.sdo.request.generation = 999;
@@ -771,9 +771,9 @@ void boundedCallbacksAndOneShotTransportFailure() {
         report.transmitted = true;
     }
     bounded.turn(1, budget(255, 0, 255, 0));
-    CHECK(bounded.fake.rxRead == E::CanBusOwner::RX_LIMIT &&
-          bounded.fake.reportRead == E::CanBusOwner::EVENT_LIMIT);
-    CHECK(bounded.fake.observations == E::CanBusOwner::RX_LIMIT);
+    CHECK(bounded.fake.rxRead == O::CanBusOwner::RX_LIMIT &&
+          bounded.fake.reportRead == O::CanBusOwner::EVENT_LIMIT);
+    CHECK(bounded.fake.observations == O::CanBusOwner::RX_LIMIT);
     bounded.fake.reenter = false;
     bounded.turn(1, budget(255, 0, 255, 0));
     CHECK(bounded.fake.rxRead == 10 && bounded.fake.reportRead == 12);
@@ -798,8 +798,8 @@ void boundedCallbacksAndOneShotTransportFailure() {
         CHECK(result.controllerAccepted == (failure != 0));
         CHECK(result.service.transmissionPossible && !result.service.transmissionConfirmed &&
               result.service.effectUncertain && !result.service.protocolAcknowledged);
-        const Saved<E::Completion> original(result);
-        r.turn(2, E::ServiceBudget());
+        const Saved<O::Completion> original(result);
+        r.turn(2, O::ServiceBudget());
         original.unchanged(r.done(id));
         CHECK(r.fake.transmits == 1); // A refused or failed handoff is never replayed.
     }
@@ -819,18 +819,18 @@ void nodeInvalidationKeepsOtherChannelAndTerminals() {
     r.turn(1, budget(1, 0, 8, 0));
     CHECK(r.done(active).service.outcome == C::SdoOutcome::REBOOT &&
           r.done(active).service.effectUncertain);
-    CHECK(r.done(queued).reason == E::CompletionReason::INVALIDATED &&
+    CHECK(r.done(queued).reason == O::CompletionReason::INVALIDATED &&
           !r.done(queued).adapterAdmitted && !r.done(queued).service.transmissionPossible);
     CHECK(!r.owner.sequence(a) && r.owner.sequence(b) && !r.owner.result(independent));
     CHECK(r.services.unresolved(0) && !r.services.unresolved(1));
     CHECK(!r.owner.releaseSequence(a));
-    const Saved<E::Completion> original(r.done(active));
+    const Saved<O::Completion> original(r.done(active));
     r.respond(independent, 2, 0x6041, 0x2345);
     original.unchanged(r.done(active));
     CHECK(r.fake.sentCount == 2);
     CHECK(r.owner.release(active) && r.owner.release(queued));
     CHECK(r.owner.releaseSequence(a));
-    E::SequenceId rejected;
+    O::SequenceId rejected;
     rejected.generation = 789;
     CHECK(!r.owner.beginSequence(route().binding, 1, r.now, rejected));
     CHECK(rejected.generation == 789); // New host reservation cannot reopen the wire route.
@@ -844,11 +844,11 @@ void sharedPeerQuarantineRejectsNewSequenceAtomically() {
     r.fake.push(unsolicited, 1);
     r.turn(1, budget(1, 0, 0, 0));
     CHECK(!r.services.unresolved(0) && r.services.unresolved(1));
-    E::SequenceId id;
+    O::SequenceId id;
     id.owner = &r.owner;
     id.slot = 1;
     id.generation = 456;
-    const Saved<E::SequenceId> unchanged(id);
+    const Saved<O::SequenceId> unchanged(id);
     CHECK(!r.owner.beginSequence(route().binding, 1, r.now, id));
     unchanged.unchanged(id);
     CHECK(r.fake.sentCount == 0 && r.services.node(0) == r.services.node(1));
@@ -876,15 +876,15 @@ void sharedPeerQuarantineRetiresActiveBeforeLaterRxOrTx() {
         r.fake.push(phase == 2 ? ack : unsolicited, 1);
         r.fake.push(phase == 2 ? unsolicited : ack, 1);
         r.turn(1, budget(2, 2, 8, 2));
-        const E::Completion& terminal = r.done(active);
+        const O::Completion& terminal = r.done(active);
         CHECK(terminal.service.outcome == C::SdoOutcome::BINDING_INVALIDATED &&
               terminal.service.effectUncertain && terminal.service.transmissionPossible &&
               !terminal.service.protocolAcknowledged);
-        CHECK(r.done(queued).reason == E::CompletionReason::INVALIDATED &&
+        CHECK(r.done(queued).reason == O::CompletionReason::INVALIDATED &&
               !r.done(queued).adapterAdmitted && !r.done(queued).service.transmissionPossible);
         CHECK(!r.owner.sequence(s) && r.services.unresolved(0) && r.services.unresolved(1));
         CHECK(r.fake.sentCount == 1 && !r.services.port(0)->queueOccupied);
-        const Saved<E::Completion> immutable(terminal);
+        const Saved<O::Completion> immutable(terminal);
         r.fake.push(ack, 2);
         r.turn(2, budget(1, 2, 8, 2));
         immutable.unchanged(r.done(active));
@@ -904,7 +904,7 @@ void staleNegativeReportDoesNotFailNewSegment() {
     const auto id = r.admit(write);
     r.turn(0);
     CHECK(r.fake.sentCount == 1 && r.fake.sent[0].data[0] == 0x21);
-    const E::TransportTxId initiation = r.fake.sentId[0];
+    const O::TransportTxId initiation = r.fake.sentId[0];
     r.fake.reports[0].id = initiation;
     r.fake.reports[0].transmitted = true;
     r.fake.reportWrite = 1;
@@ -913,7 +913,7 @@ void staleNegativeReportDoesNotFailNewSegment() {
     CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x00);
     const uint8_t segment[] = {0, 1, 2, 3, 4, 5, 6, 7};
     CHECK(!std::memcmp(r.fake.sent[1].data, segment, sizeof segment));
-    const E::TransportTxId current = r.fake.sentId[1];
+    const O::TransportTxId current = r.fake.sentId[1];
     CHECK(initiation.sdo.request.generation == current.sdo.request.generation && initiation.sdo.frame == 1 &&
           current.sdo.frame == 2);
     CHECK(r.services.canTransmit(current.sdo, r.now));
@@ -934,8 +934,8 @@ void staleNegativeReportDoesNotFailNewSegment() {
           terminal.controllerAccepted && terminal.service.effectUncertain &&
           !terminal.service.protocolAcknowledged);
     CHECK(!r.services.canTransmit(current.sdo, r.now) && r.fake.sentCount == 2);
-    const Saved<E::Completion> retained(terminal);
-    r.turn(4, E::ServiceBudget());
+    const Saved<O::Completion> retained(terminal);
+    r.turn(4, O::ServiceBudget());
     retained.unchanged(r.done(id));
 }
 
@@ -946,14 +946,14 @@ void alternateChannelUsesConfiguredBindingAndSharesExclusion() {
     const C::SdoChannel alternate = *r.services.channel(1);
     CHECK(alternate.binding.logicalAxisId == 202 && alternate.binding.endpoint.channel == 1);
     CHECK(!M::sameBinding(alternate.binding, r.services.node(1)->route.binding));
-    E::SequenceId selected;
+    O::SequenceId selected;
     CHECK(r.owner.beginSequence(alternate.binding, 3, 0, selected));
-    const E::Sequence* live = r.owner.sequence(selected);
+    const O::Sequence* live = r.owner.sequence(selected);
     CHECK(live && M::sameBinding(live->binding, alternate.binding) && live->nodeGeneration == 11);
     CHECK(r.owner.beginOperation(selected, 1, 1000, 0));
-    E::SequenceId competing;
+    O::SequenceId competing;
     competing.generation = 987;
-    const Saved<E::SequenceId> unchanged(competing);
+    const Saved<O::SequenceId> unchanged(competing);
     CHECK(!r.owner.beginSequence(route().binding, 2, 0, competing));
     unchanged.unchanged(competing);
     auto request = r.request(selected);
@@ -1025,7 +1025,7 @@ void publicReadAndConfirmedControlSetting() {
         CHECK(L::advanceDriver(prior, e, r.now));
     }
     CHECK(prior.read.state == M::ReadState::SUCCEEDED);
-    const E::Sequence* live = r.owner.sequence(s);
+    const O::Sequence* live = r.owner.sequence(s);
     CHECK(live && live->acquiredUs == 0);
     r.fake.reservation.target = current;
     r.fake.reservation.model = L::SettingsModel::CL86_C;
@@ -1073,7 +1073,7 @@ void publicReadAndConfirmedControlSetting() {
     CHECK(r.owner.releaseSequence(s));
 }
 
-E::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& settings) {
+O::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& settings) {
     const auto sequence = r.sequence(1, 1, 11);
     L::DriverContext prior;
     CHECK(L::prepareControlRead(prior, target(), 11, r.now, 1000, options()));
@@ -1083,7 +1083,7 @@ E::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& setti
         const auto event = r.exchange(sequence, work.transfer, i ? 0xffff : 0);
         CHECK(L::advanceDriver(prior, event, r.now));
     }
-    const E::Sequence* live = r.owner.sequence(sequence);
+    const O::Sequence* live = r.owner.sequence(sequence);
     CHECK(live);
     r.fake.reservation.target = target();
     r.fake.reservation.model = L::SettingsModel::CL86_C;
@@ -1100,7 +1100,7 @@ E::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& setti
     return sequence;
 }
 
-void checkFailedControlRetention(Rig& r, E::SequenceId sequence, E::RequestId failed,
+void checkFailedControlRetention(Rig& r, O::SequenceId sequence, O::RequestId failed,
                                  L::DriverSettingsContext& settings, unsigned uploads) {
     L::ReadTarget current = target();
     current.channel.binding = r.fake.current;
@@ -1111,7 +1111,7 @@ void checkFailedControlRetention(Rig& r, E::SequenceId sequence, E::RequestId fa
     CHECK(!L::getControl(settings, r.fake.reservation, current, r.now, 1000, output));
     oldOutput.unchanged(output);
     const Saved<L::DriverSettingsContext> oldSettings(settings);
-    const Saved<E::Completion> retained(r.done(failed));
+    const Saved<O::Completion> retained(r.done(failed));
     CHECK(!r.owner.releaseSequence(sequence));
     // A retained failure and quarantined node cannot starve a different node.
     const auto other = r.sequence(2, 2, 21);
@@ -1158,7 +1158,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
         r.fake.rejectGuard = true;
         r.turn(r.now);
         const auto& terminal = r.done(id);
-        CHECK(terminal.reason == E::CompletionReason::PREFLIGHT_REJECTED &&
+        CHECK(terminal.reason == O::CompletionReason::PREFLIGHT_REJECTED &&
               terminal.service.outcome == C::SdoOutcome::CANCELLED &&
               !terminal.controllerAccepted && !terminal.service.transmissionPossible &&
               !terminal.service.effectPossible && !terminal.service.effectUncertain);
@@ -1169,7 +1169,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
               !settings.uncertain && !settings.confirmed && !settings.acknowledgedUs[0]);
         CHECK(r.fake.current.configurationGeneration == 7 && r.fake.sentCount == 2 &&
               r.fake.guards == 1 && r.owner.sequence(sequence));
-        const Saved<E::Completion> retained(terminal);
+        const Saved<O::Completion> retained(terminal);
         const Saved<L::DriverSettingsContext> oldSettings(settings);
         r.fake.settings = nullptr;
         const auto other = r.sequence(2, 2, 21);
@@ -1194,7 +1194,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
         r.fake.autoConfirm = false;
         r.turn(r.now);
         CHECK(settings.effectsPossible && r.fake.current.configurationGeneration == 8);
-        r.turn(r.now + 100, E::ServiceBudget());
+        r.turn(r.now + 100, O::ServiceBudget());
         const auto& terminal = r.done(id);
         CHECK(terminal.controllerAccepted && terminal.service.outcome == C::SdoOutcome::TIMEOUT &&
               terminal.service.transmissionPossible && !terminal.service.transmissionConfirmed &&
@@ -1205,7 +1205,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
               settings.effectsPossible && !settings.confirmed && !settings.acknowledgedUs[0]);
         r.fake.settings = nullptr;
         r.fake.autoConfirm = true;
-        const Saved<E::Completion> retained(terminal);
+        const Saved<O::Completion> retained(terminal);
         r.fake.push(response(1, 0x2500, 2, 0, true), r.now + 1);
         r.turn(r.now + 1, budget(1, 0, 0, 0));
         retained.unchanged(r.done(id));
@@ -1251,7 +1251,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
                 r.fake.push(abort, r.now + 1);
                 r.turn(r.now + 1, budget(1, 0, 8, 0));
             } else if (failure == 1)
-                r.turn(r.now + 100, E::ServiceBudget());
+                r.turn(r.now + 100, O::ServiceBudget());
             else
                 r.respond(id, 1, work.transfer.index, field ? 1234 : 1);
             const auto& terminal = r.done(id);
@@ -1292,6 +1292,6 @@ int main() {
     publicReadAndConfirmedControlSetting();
     actualControlUncertainDownloadAndFailedReadback();
     std::printf("can_bus_owner_test: %u checks; owner=%zu, completion=%zu bytes\n", checks,
-                sizeof(E::CanBusOwner), sizeof(E::Completion));
+                sizeof(O::CanBusOwner), sizeof(O::Completion));
     return 0;
 }

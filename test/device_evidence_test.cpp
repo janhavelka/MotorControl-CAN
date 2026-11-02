@@ -9,6 +9,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition)                                                                           \
@@ -63,21 +64,21 @@ struct Wire {
     enum class Mode { SUCCESS, ABORT, SILENT, STALE };
     Mode mode = Mode::SUCCESS;
     uint64_t now = 0;
-    E::ReceivedFrame incoming[32];
-    E::TxReport reports[4];
+    O::ReceivedFrame incoming[32];
+    O::TxReport reports[4];
     M::Frame sent[32];
     unsigned rxHead = 0, rxCount = 0, reportHead = 0, reportCount = 0;
     unsigned transmitted = 0, receiveCalls = 0, observed = 0;
     unsigned abortAt = 0;
     void push(const M::Frame& value, uint64_t captured) {
         CHECK(rxCount < 32);
-        E::ReceivedFrame& item = incoming[(rxHead + rxCount++) % 32];
+        O::ReceivedFrame& item = incoming[(rxHead + rxCount++) % 32];
         item.frame = value;
         item.receivedTimeKnown = true;
         item.receivedUs = captured;
         item.controllerEpoch = 1;
     }
-    static bool receive(void* context, E::ReceivedFrame& output) {
+    static bool receive(void* context, O::ReceivedFrame& output) {
         Wire& wire = *static_cast<Wire*>(context);
         ++wire.receiveCalls;
         if (!wire.rxCount)
@@ -87,7 +88,7 @@ struct Wire {
         --wire.rxCount;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& request, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& request, O::TransportTxId id, uint32_t epoch) {
         Wire& wire = *static_cast<Wire*>(context);
         CHECK(epoch == 1 && request.id == 0x605 && !request.extended && !request.rtr);
         CHECK(request.payloadLength == 8 && request.data[0] == 0x40);
@@ -106,7 +107,7 @@ struct Wire {
         CHECK(selected);
         const bool abort = wire.mode == Mode::ABORT && wire.transmitted == wire.abortAt;
         wire.sent[wire.transmitted++] = request;
-        E::TxReport& report = wire.reports[(wire.reportHead + wire.reportCount++) % 4];
+        O::TxReport& report = wire.reports[(wire.reportHead + wire.reportCount++) % 4];
         report.id = id;
         report.controllerEpoch = epoch;
         report.transmitted = true;
@@ -126,7 +127,7 @@ struct Wire {
         }
         return true;
     }
-    static bool report(void* context, E::TxReport& output) {
+    static bool report(void* context, O::TxReport& output) {
         Wire& wire = *static_cast<Wire*>(context);
         if (!wire.reportCount)
             return false;
@@ -135,11 +136,11 @@ struct Wire {
         --wire.reportCount;
         return true;
     }
-    static void observe(void* context, const E::ReceivedFrame&, uint64_t) {
+    static void observe(void* context, const O::ReceivedFrame&, uint64_t) {
         ++static_cast<Wire*>(context)->observed;
     }
-    E::Transport callbacks() {
-        E::Transport result;
+    O::Transport callbacks() {
+        O::Transport result;
         result.context = this;
         result.receive = receive;
         result.transmit = transmit;
@@ -152,7 +153,7 @@ struct Rig {
     C::SdoClient services;
     Wire wire;
     E::ProbePlatform platform;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     E::ProbeApp app;
     E::DeviceEvidence evidence;
     uint64_t now = 0;
@@ -311,7 +312,7 @@ void exactSuccessAndRetention() {
             0x40, uint8_t(expected.index), uint8_t(expected.index >> 8), expected.subindex, 0, 0, 0,
             0};
         CHECK(!std::memcmp(rig.wire.sent[i].data, request, 8));
-        const E::Completion& terminal = record.terminals[i];
+        const O::Completion& terminal = record.terminals[i];
         CHECK(terminal.service.outcome == C::SdoOutcome::SUCCESS && terminal.service.replyValid);
         CHECK(terminal.service.transfer.index == expected.index &&
               terminal.service.transfer.subindex == expected.subindex &&
@@ -332,14 +333,14 @@ void exactSuccessAndRetention() {
     for (unsigned i = 0; i < record.trafficCount; ++i) {
         const E::EvidenceTraffic& copy = record.traffic[i];
         CHECK(copy.controllerEpoch == 1 && copy.accepted);
-        if (copy.kind == E::DiagnosticKind::TX) {
+        if (copy.kind == O::DiagnosticKind::TX) {
             CHECK(!std::memcmp(copy.frame.data, rig.wire.sent[tx].data, 8));
             ++tx;
-        } else if (copy.kind == E::DiagnosticKind::RX) {
+        } else if (copy.kind == O::DiagnosticKind::RX) {
             CHECK(copy.frame.id == 0x585 && copy.receivedTimeKnown &&
                   copy.receivedUs <= copy.processedUs);
             ++rx;
-        } else if (copy.kind == E::DiagnosticKind::TX_REPORT)
+        } else if (copy.kind == O::DiagnosticKind::TX_REPORT)
             ++reports;
         else
             CHECK(false);
@@ -357,7 +358,7 @@ void exactSuccessAndRetention() {
     CHECK(rig.evidence.request(rig.plan(), rig.now) == E::EvidenceAdmission::INVALID);
     // Preflight may reuse the unoccupied record's storage, but failed app
     // admission must expose neither the old record nor the rejected candidate.
-    E::SequenceId held;
+    O::SequenceId held;
     CHECK(rig.owner.beginSequence(rig.app.selected()->channel.binding, 2, rig.now, held));
     const Saved<L::ReadContext> empty(rig.app.readContext());
     const unsigned beforeRejected = rig.wire.transmitted;
@@ -421,7 +422,7 @@ void failedEvidenceAndNoReplay() {
     CHECK(!old.evidenceLost && old.finalStats.rxLost == 0);
     bool rawStale = false;
     for (unsigned i = 0; i < old.trafficCount; ++i)
-        if (old.traffic[i].kind == E::DiagnosticKind::RX) {
+        if (old.traffic[i].kind == O::DiagnosticKind::RX) {
             rawStale = true;
             CHECK(old.traffic[i].receivedTimeKnown && old.traffic[i].receivedUs == 0 &&
                   !old.traffic[i].accepted && old.traffic[i].frame.id == 0x585);
@@ -513,7 +514,7 @@ void interruptAfterReplyAndControllerLoss() {
           failed.terminalCount == 1 && failed.read.values[0].valid);
     bool retainedCause = false;
     for (unsigned i = 0; i < failed.trafficCount; ++i)
-        if (failed.traffic[i].kind == E::DiagnosticKind::CONTROLLER) {
+        if (failed.traffic[i].kind == O::DiagnosticKind::CONTROLLER) {
             retainedCause = true;
             CHECK(failed.traffic[i].controller == C::ControllerState::BUS_OFF);
         }
@@ -653,7 +654,7 @@ void boundedLossAndTime() {
           overflow.wire.transmitted == 1);
     bool overflowCause = false;
     for (unsigned i = 0; i < missing.trafficCount; ++i)
-        if (missing.traffic[i].kind == E::DiagnosticKind::CONTROLLER) {
+        if (missing.traffic[i].kind == O::DiagnosticKind::CONTROLLER) {
             overflowCause = true;
             CHECK(missing.traffic[i].controller == C::ControllerState::RECOVERING);
         }

@@ -11,6 +11,7 @@
 namespace M = MotorControlCAN;
 namespace C = M::CANOPEN;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(c)                                                                                   \
@@ -48,9 +49,9 @@ E::TwaiConfig config() {
     value.rxQueueDepth = 16;
     return value;
 }
-E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
+O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
                         uint8_t recovery = 0) {
-    E::ServiceBudget value;
+    O::ServiceBudget value;
     value.rx = rx;
     value.tx = tx;
     value.events = events;
@@ -61,7 +62,7 @@ E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint
 struct FakeDriver {
     enum { RX_CAPACITY = 16, HISTORY = 16 };
     E::TwaiEvents pending;
-    E::ReceivedFrame rx[RX_CAPACITY];
+    O::ReceivedFrame rx[RX_CAPACITY];
     M::Frame sent[HISTORY];
     uint32_t serials[HISTORY] = {};
     unsigned starts = 0, stops = 0, submits = 0, eventCalls = 0, receiveCalls = 0;
@@ -110,7 +111,7 @@ struct FakeDriver {
         f.pending = E::TwaiEvents();
         return copy;
     }
-    static bool receive(void* p, E::ReceivedFrame& output, uint64_t) {
+    static bool receive(void* p, O::ReceivedFrame& output, uint64_t) {
         FakeDriver& f = *static_cast<FakeDriver*>(p);
         ++f.receiveCalls;
         if (f.rxRead == f.rxWrite || f.pending.busOff || f.pending.fault || f.pending.rxDropped)
@@ -141,7 +142,7 @@ struct FakeDriver {
             pending.fault = true;
             return;
         }
-        E::ReceivedFrame& entry = rx[rxWrite++ % RX_CAPACITY];
+        O::ReceivedFrame& entry = rx[rxWrite++ % RX_CAPACITY];
         entry.frame = value;
         entry.controllerEpoch = epoch;
         entry.receivedTimeKnown = captureKnown;
@@ -152,7 +153,7 @@ struct Rig {
     C::SdoClient services;
     FakeDriver sdk;
     E::TwaiAdapter adapter;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     uint64_t now = 0;
     explicit Rig(bool start = true)
         : adapter(services, sdk.driver()), owner(services, adapter.transport(), 127) {
@@ -168,17 +169,17 @@ struct Rig {
         if (start)
             CHECK(adapter.start(config()));
     }
-    void turn(uint64_t time, E::ServiceBudget b = budget()) {
+    void turn(uint64_t time, O::ServiceBudget b = budget()) {
         now = time;
         CHECK(owner.service(now, b));
         adapter.service(owner, now);
     }
-    E::RequestId request(unsigned node = 1, bool download = false, uint64_t deadline = 1000,
+    O::RequestId request(unsigned node = 1, bool download = false, uint64_t deadline = 1000,
                          uint32_t queueUs = 100, bool requirePreOperational = false) {
-        E::SequenceId sequence;
+        O::SequenceId sequence;
         CHECK(owner.beginSequence(route(node).binding, 1, now, sequence));
         CHECK(owner.beginOperation(sequence, 1, deadline, now));
-        E::BusRequest work;
+        O::BusRequest work;
         work.sequence = sequence;
         work.transfer.channel = route(node);
         work.transfer.operation = work.transfer.request = work.transfer.step = 1;
@@ -192,22 +193,22 @@ struct Rig {
         work.transfer.deadlineUs = deadline;
         work.transfer.data[0] = 0x34;
         work.transfer.data[1] = 0x12;
-        E::RequestId id;
-        CHECK(owner.admit(work, now, id) == E::BusAdmission::ACCEPTED);
+        O::RequestId id;
+        CHECK(owner.admit(work, now, id) == O::BusAdmission::ACCEPTED);
         return id;
     }
-    const E::Completion& done(E::RequestId id) {
-        const E::Completion* result = owner.result(id);
+    const O::Completion& done(O::RequestId id) {
+        const O::Completion* result = owner.result(id);
         CHECK(result);
         return *result;
     }
 };
-E::TransportTxId arbitraryId(C::SdoClient& services, uint32_t number) {
+O::TransportTxId arbitraryId(C::SdoClient& services, uint32_t number) {
     C::SdoTxId id;
     id.request.owner = &services;
     id.request.generation = number;
     id.frame = 1;
-    return E::TransportTxId::fromSdo(id);
+    return O::TransportTxId::fromSdo(id);
 }
 
 void startupValidationAndOwnedCapacity() {
@@ -222,7 +223,7 @@ void startupValidationAndOwnedCapacity() {
     CHECK(!r.adapter.start(config()));
     r.turn(0);
     CHECK(r.sdk.submits == 0 && !r.adapter.diagnostics().inhibited);
-    E::Transport t = r.adapter.transport();
+    O::Transport t = r.adapter.transport();
     M::Frame original = frame(0x123, 2);
     original.data[0] = 0x12;
     CHECK(t.transmit(t.context, original, arbitraryId(r.services, 1), 1));
@@ -231,10 +232,10 @@ void startupValidationAndOwnedCapacity() {
     CHECK(!t.transmit(t.context, original, arbitraryId(r.services, 3), 1));
     // Unqualified direct IDs reach negative reports, never the SDK. Reports
     // retain the same two capacity slots until explicitly consumed.
-    CHECK(r.owner.service(1, E::ServiceBudget()));
+    CHECK(r.owner.service(1, O::ServiceBudget()));
     r.adapter.service(r.owner, 1);
     CHECK(!t.transmit(t.context, original, arbitraryId(r.services, 3), 1));
-    E::TxReport report;
+    O::TxReport report;
     CHECK(t.takeTxReport(t.context, report) && !report.transmitted);
     CHECK(report.id.sdo.request.generation == 1);
     CHECK(t.transmit(t.context, original, arbitraryId(r.services, 3), 1));
@@ -246,7 +247,7 @@ void delayedImmediateAndFailedCompletion() {
     for (unsigned immediate = 0; immediate < 2; ++immediate) {
         Rig r;
         r.sdk.immediate = immediate != 0;
-        const E::RequestId id = r.request(1, true);
+        const O::RequestId id = r.request(1, true);
         r.turn(0);
         CHECK(r.sdk.submits == 1 && !r.owner.result(id));
         r.turn(1);
@@ -314,13 +315,13 @@ void copiedPayloadAndWireFormatsReachTheDriver() {
             wire.payloadLength = 0;
         }
         const M::Frame expected = wire;
-        E::Transport transport = r.adapter.transport();
-        CHECK(transport.transmit(transport.context, wire, E::TransportTxId::fromSdo(id), 1));
+        O::Transport transport = r.adapter.transport();
+        CHECK(transport.transmit(transport.context, wire, O::TransportTxId::fromSdo(id), 1));
         wire.id = 0;
         std::memset(wire.data, 0xff, sizeof wire.data);
         std::memset(work.data, 0xee, sizeof work.data);
         CHECK(r.sdk.submits == 0);
-        CHECK(r.owner.service(1, E::ServiceBudget()));
+        CHECK(r.owner.service(1, O::ServiceBudget()));
         r.adapter.service(r.owner, 1);
         CHECK(r.sdk.submits == 1 && r.sdk.sent[0].id == expected.id);
         CHECK(r.sdk.sent[0].extended == expected.extended && r.sdk.sent[0].rtr == expected.rtr);
@@ -370,7 +371,7 @@ void activeAndQueuedRetirement() {
     // Pause between the production owner and adapter calls to cancel a queued
     // handoff before the controller is allowed to receive it.
     CHECK(queued.owner.service(0, budget()));
-    CHECK(queued.owner.cancel(before, 0) == E::Cancel::CANCELLED);
+    CHECK(queued.owner.cancel(before, 0) == O::Cancel::CANCELLED);
     queued.turn(1);
     queued.turn(2);
     CHECK(queued.sdk.submits == 0);
@@ -380,7 +381,7 @@ void activeAndQueuedRetirement() {
     const auto sent = active.request(1, true);
     active.turn(0);
     active.turn(1);
-    CHECK(active.owner.cancel(sent, 1) == E::Cancel::CANCELLED);
+    CHECK(active.owner.cancel(sent, 1) == O::Cancel::CANCELLED);
     CHECK(active.sdk.active && active.sdk.submits == 1);
     active.turn(2);
     CHECK(active.sdk.submits == 1);
@@ -423,14 +424,14 @@ void faultsRecoveryAndFailureOwnership() {
         // Completion and RX from the old controller are retired by destruction.
         r.sdk.complete(true);
         r.sdk.push(frame(0x123, 1));
-        E::RecoveryId recovery;
+        O::RecoveryId recovery;
         CHECK(r.owner.recover(3, 100, recovery));
         r.turn(3, budget(0, 0, 0, 0, 1));
         CHECK(r.sdk.stops == 1 && r.sdk.starts == 1 && !r.sdk.active);
         CHECK(!r.owner.recoveryResult(recovery));
         r.turn(4, budget(0, 0, 0, 0, 1));
         CHECK(r.owner.recoveryResult(recovery));
-        CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::RETIRED);
+        CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
         CHECK(r.sdk.starts == 2 && r.sdk.epoch == 2 && r.sdk.submits == 1);
         CHECK(!r.adapter.diagnostics().inhibited);
         r.turn(5);
@@ -443,13 +444,13 @@ void faultsRecoveryAndFailureOwnership() {
         r.turn(1);
         r.sdk.stopOk = failure != 0;
         r.sdk.startOk = failure == 0;
-        E::RecoveryId recovery;
+        O::RecoveryId recovery;
         CHECK(r.owner.recover(2, 100, recovery));
         r.turn(2, budget(0, 0, 0, 0, 1));
         if (failure)
             r.turn(3, budget(0, 0, 0, 0, 1));
         CHECK(r.owner.recoveryResult(recovery));
-        CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::FAILED);
+        CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::FAILED);
         CHECK(r.adapter.diagnostics().inhibited && r.owner.resources().inhibited);
         CHECK(r.sdk.submits == 1);
         if (!failure)
@@ -469,7 +470,7 @@ void faultsRecoveryAndFailureOwnership() {
 
 void frameShapesAndBoundedReceive() {
     Rig r;
-    E::Transport t = r.adapter.transport();
+    O::Transport t = r.adapter.transport();
     M::Frame value = frame(0x1fffffff, 0);
     value.extended = true;
     value.rtr = true;
@@ -490,7 +491,7 @@ void frameShapesAndBoundedReceive() {
     remote.extended = remote.rtr = true;
     remote.dlc = 8;
     r.sdk.push(remote);
-    E::ReceivedFrame copied;
+    O::ReceivedFrame copied;
     CHECK(t.receive(t.context, copied));
     CHECK(copied.frame.extended && copied.frame.rtr && copied.frame.dlc == 8);
     CHECK(copied.frame.payloadLength == 0 && !copied.receivedTimeKnown &&
@@ -565,14 +566,14 @@ void backwardClockInvalidatesAtLatestOwnerTime() {
     CHECK(r.owner.lastTimeUs() == 200 && r.services.node(0)->boundaryUs == 200);
     CHECK(r.services.node(0)->route.generation > generation);
     CHECK(!r.services.node(0)->heartbeat.present);
-    const E::Completion* terminal = r.owner.result(request);
+    const O::Completion* terminal = r.owner.result(request);
     CHECK(terminal && terminal->service.outcome == C::SdoOutcome::BINDING_INVALIDATED);
     CHECK(terminal->service.completedUs == 200 && terminal->service.transfer.deadlineUs == 1000);
     CHECK(terminal->service.transmissionPossible && terminal->service.effectPossible &&
           terminal->service.effectUncertain && !terminal->service.protocolAcknowledged);
     // Local inhibition cannot prove an already submitted write was retired.
     CHECK(r.sdk.active && r.sdk.live && r.sdk.stops == 0 && r.sdk.starts == 1);
-    uint8_t retained[sizeof(E::Completion)];
+    uint8_t retained[sizeof(O::Completion)];
     std::memcpy(retained, terminal, sizeof retained);
     const unsigned events = r.sdk.eventCalls;
     for (uint64_t bad = 98; bad > 95; --bad) {
@@ -728,13 +729,13 @@ void explicitNmtUsesTheSameTransportRetirement() {
         C::NmtRequestId id;
         CHECK(r.owner.admitNmt(nmtWork(r, C::NmtCommand::RESET_NODE), 0, id));
         r.turn(1);
-        E::RecoveryId recovery;
+        O::RecoveryId recovery;
         CHECK(r.owner.recover(2, 20, recovery));
         CHECK(r.owner.nmtResult(id)->outcome == C::NmtOutcome::INVALIDATED &&
               r.owner.nmtResult(id)->transmissionPossible);
         r.turn(3, budget(8, 2, 8, 2, 1));
         r.turn(4, budget(8, 2, 8, 2, 1));
-        CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::RETIRED);
+        CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
         CHECK(r.sdk.stops == 1 && r.sdk.starts == 2 && r.sdk.submits == 1);
         CHECK(r.owner.nmtResult(id)->outcome == C::NmtOutcome::INVALIDATED);
         r.turn(5);

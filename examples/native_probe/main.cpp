@@ -8,6 +8,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 bool clockUs(void* context, uint64_t& output) {
     output = static_cast<E::FakeTransport*>(context)->nowUs();
@@ -15,7 +16,7 @@ bool clockUs(void* context, uint64_t& output) {
 }
 // The application explicitly inspects each retained owner terminal twice,
 // advances the concrete typed context, then releases the owner result slot.
-bool finishRead(E::ProbeApp& app, E::CanBusOwner& owner, E::FakeTransport& fake,
+bool finishRead(E::ProbeApp& app, O::CanBusOwner& owner, E::FakeTransport& fake,
                 E::ProbePlatform& platform) {
     for (unsigned turn = 0; turn < 100 && app.readContext().state == M::ReadState::ACTIVE; ++turn) {
         if (!fake.setTime(fake.nowUs() + 1))
@@ -23,11 +24,11 @@ bool finishRead(E::ProbeApp& app, E::CanBusOwner& owner, E::FakeTransport& fake,
         uint64_t now = 0;
         if (!platform.nowUs(now) || !app.service(now))
             return false;
-        const E::RequestId pending = app.pendingRequest();
-        const E::Completion* terminal = owner.result(pending);
+        const O::RequestId pending = app.pendingRequest();
+        const O::Completion* terminal = owner.result(pending);
         if (!terminal)
             continue;
-        if (terminal != owner.result(pending) || terminal->reason != E::CompletionReason::SERVICE ||
+        if (terminal != owner.result(pending) || terminal->reason != O::CompletionReason::SERVICE ||
             terminal->service.outcome != C::SdoOutcome::SUCCESS || !app.advanceRead(now) ||
             owner.result(pending))
             return false;
@@ -53,13 +54,13 @@ int main(int argc, char** argv) {
         !services.configureNetwork(0, network, C::NetworkObserver(), 0))
         return 1;
     E::FakeTransport fake;
-    E::CanBusOwner owner(services, fake.callbacks(), 26);
+    O::CanBusOwner owner(services, fake.callbacks(), 26);
     E::ProbeCallbacks callbacks;
     callbacks.context = &fake;
     callbacks.nowUs = clockUs;
     E::ProbePlatform platform(callbacks);
     E::ProbeApp app(owner, platform);
-    E::Health health;
+    O::Health health;
     if (!app.select(target) || !app.health(health) || fake.transmitCalls())
         return 1;
     L::ReadOptions options;

@@ -8,6 +8,13 @@
 #include <MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h>
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::Stats;
+using MotorControlCANOwner::RequestId;
+using MotorControlCANOwner::SequenceId;
+using MotorControlCANOwner::BusAdmission;
+using MotorControlCANOwner::Completion;
+using MotorControlCANOwner::OwnerResources;
+using MotorControlCANOwner::CanBusOwner;
 /** Entire copied exact experiment intent; records are external review attestations. */
 struct PdoExperimentPlan {
     ReadExperiment review; ///< Fixture/source/control/failure/reconciliation metadata and budgets.

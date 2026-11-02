@@ -123,8 +123,8 @@ request and `2B` download when the reviewed `609A` width is four.
 [selected-stack adapter tests](../test/sdo_adapter_test.cpp) exercise independent
 literal vectors, widths/signs, malformed commands, sizes, identities, capacities,
 overlap and unchanged outputs. These remain host evidence. The lifecycle below
-uses these checks; the [network event section](#passive-network-events-and-node-lifecycle)
-covers the event codecs.
+uses these checks; the passive network events section below covers the event
+codecs.
 
 ## Bounded production SDO lifecycle
 
