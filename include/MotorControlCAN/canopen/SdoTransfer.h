@@ -32,7 +32,8 @@ enum class SdoOutcome : uint8_t {
     BINDING_INVALIDATED, ///< Application withdraws this route/binding; earlier effects remain possible.
     CORRELATION_LOST, ///< Observed unsolicited/stale response contradicts the qualified session premise.
     TRANSPORT_ERROR, ///< Application/controller or selected-stack boundary failure.
-    UNSUPPORTED ///< Valid discovered transfer form exceeds admitted capability.
+    UNSUPPORTED, ///< Valid discovered transfer form exceeds admitted capability.
+    UNCONFIRMED_SENT ///< Best-effort stop: controller reported TX. No reply can qualify it, and execution stays unknown.
 };
 /** Complete copied service intent. This is not an object-access permission. */
 struct SdoTransfer {

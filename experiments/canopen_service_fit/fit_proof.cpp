@@ -71,6 +71,7 @@ void CanBusOwner::collect() {
     case C::SdoOutcome::REBOOT:
     case C::SdoOutcome::BINDING_INVALIDATED:
     case C::SdoOutcome::CORRELATION_LOST:
+    case C::SdoOutcome::UNCONFIRMED_SENT: // Best-effort stops are outside this proof.
     case C::SdoOutcome::TRANSPORT_ERROR: candidate.outcome = Outcome::Transport; break;
     }
     candidate.stackReturn = static_cast<CO_SDO_return_t>(source->stackReturn);

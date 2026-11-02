@@ -50,7 +50,7 @@ cannot monopolize a service channel.
 | PDO wire routes / raw network history | Existing adapter 8 / 4 | Actual map/sample qualification and FIFO/drop policy remain [service contracts](canopen_services.md#one-owner-independent-sample-provenance) |
 | Logical-axis reservations | 2 | Span operations and service gaps; exclude the same logical axis or physical node across all its SDO channels |
 | Ordinary request/results | 6 total | Queued, active and unread terminals share ordinary slots; admission reserves result storage before TX |
-| Urgent request/result | 1 separate slot | Ordinary work cannot use it; urgent work uses an existing axis reservation |
+| Urgent request/result | 1 separate slot per channel | Ordinary work cannot use it, and one axis's unread result cannot block another's. Urgent work uses an existing reservation; a best-effort stop or drain marker needs none |
 | Recovery result | 1 separate slot | Pending or unread recovery blocks another recovery independently of request/result pressure |
 | External TX tracking | 1 frame per service channel plus 1 NMT frame | Tagged exact handoff/epoch retained until final controller report, proven retirement or successful whole-controller recovery; includes cleanup aborts |
 | NMT request/result | 1 separate retained slot | Explicit manager intent; TX outcome and observed network transition remain independent |
@@ -161,11 +161,11 @@ again. Failed/uncertain prefixes remain retained, with no automatic final-zero
 cleanup or channel reopening.
 
 The [Lichuan stop handoff](stop_actions.md#owner-handoff-and-retained-interruption)
-uses these same methods and reserved slots. Cancel every obsolete request before
-starting a newer stop operation; `admitUrgent` alone preserves FIFO and does not
-withdraw later queued work. Preserve the original terminals and consume the
-application's prior controlword eligibility when the stop may transmit. A new
-operation ID cannot make old `000F` evidence current again.
+uses these same methods and reserved slots. `beginUrgentOperation` retires obsolete
+unsubmitted work and leaves in-flight work to settle; `admitUrgent` alone preserves
+FIFO and does not withdraw later queued work. Preserve the original terminals and
+consume the application's prior controlword eligibility when the stop may transmit.
+A new operation ID cannot make old `000F` evidence current again.
 
 All time is supplied nonwrapping, nondecreasing monotonic microseconds; zero is
 valid. No clock is acquired. Overall deadlines are immutable. Owner queue delay
@@ -275,13 +275,60 @@ NMT results are manager-service facts, never a motor-stop or enable result.
 ## Cancellation, observations and channel uncertainty
 
 `admitUrgent` validates and copies the same native work as `admit`, using the
-separate urgent slot. It reuses one of the existing two reservations; there is
-no extra urgent axis reservation. Ordinary request/result pressure cannot consume
-its slot, but route validity, result lifetime and the same-sequence FIFO still
-apply. Eligible urgent work gets the next safe dispatch opportunity. It neither
-preempts an active request nor cancels earlier intent. Explicitly cancel obsolete
-requests before beginning a new urgent operation; old retained terminals may
-remain. An occupied or quarantined channel does not become free through urgency.
+urgent slot of its channel: `TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS`, and
+`URGENT_REQUESTS` is `SdoClient::CHANNELS`. The slot belongs to the channel, not to
+a node number or to a reservation index. One channel cannot take another's slot,
+and an unread urgent result on one channel leaves the others free. The next urgent
+admission on the same channel returns `RESULTS_FULL` until that result is released.
+It reuses one of the existing two reservations; there is no extra urgent axis
+reservation. Ordinary request/result pressure cannot consume these slots, but route
+validity, result lifetime and the same-sequence FIFO still apply. Eligible urgent
+work gets the next safe dispatch opportunity. It neither preempts an active request
+nor cancels earlier intent. An occupied or quarantined channel does not become free
+through urgency.
+
+`beginUrgentOperation(id, operation, deadlineUs, nowUs)` starts a new operation on a
+live reservation. Queued work that has not reached the transport ends with an
+explicit no-TX result under its own identity, while work in flight is left to settle:
+cancelling it could quarantine the route, and its reply is still evidence. New work
+waits behind it on the FIFO. The operation number must increase, and the deadline is
+immutable and independent of the old work. Old results stay readable by `RequestId`.
+A quarantined route refuses the call. `findSequence(binding, output)` gives a
+producer that does not hold the reservation its identity, and fails on an unknown
+binding, an invalidated reservation or a quarantined route. A later `beginSequence`
+takes a free slot first, then reuses the slot of an invalidated reservation with
+nothing live. Its old `SequenceId` stays invalid and retained results stay readable.
+`releaseSequence` on that old identity returns true and changes nothing, because it
+no longer holds anything, so its holder can finish. Retired urgent work keeps its
+channel's urgent slot until released, and a server abort of old in-flight work ends
+queued steps of its own operation only.
+
+### Best-effort stop route (DEC-2)
+
+`admitBestEffortStop(transfer, nowUs, output)` is the one transfer allowed outside
+any reservation and on an unresolved route. It takes only the `6040:00` U16 download
+of `000B`, and packet 7 owns the action that calls it. The route exists so that a
+stop can still be tried after a lost reply, and it claims nothing about the stop:
+
+| Case | Result |
+| --- | --- |
+| Other object, word, width, direction, `requirePreOperational`, zero identity or timeout, or an expired deadline | `INVALID`, no slot used, whatever the channel is doing |
+| Bus-off, recovery, known `STOPPED` or `INITIALIZING`, exhausted node, or a blocked external TX | `INHIBITED` |
+| That channel's urgent slot holds other work or an unread result | `RESULTS_FULL`. The stop never displaces anything. Read and release that result, or cancel and release queued work, then admit again |
+| Work in an ordinary slot live on the channel or a peer channel of the node | Admitted, waits for it to settle; every rule rechecks at dispatch. No new peer work starts meanwhile |
+| Its queue budget ends while waiting | `QUEUE_EXPIRED`, no TX. Size it for the settling time |
+| Controller reports the TX | `SdoOutcome::UNCONFIRMED_SENT`, execution unknown |
+| No report by the deadline | `TIMEOUT`, effect still possible |
+| Never submitted by the deadline | Terminal, no effect possible |
+| Boot-up before submission | Invalidated, no TX |
+
+It is submitted at most once. It skips the `beforeTransmit` guard, because that guard
+consumes a sequence's controlword eligibility and this request has no sequence. A
+frame arriving during it, including an identical `60 40 60 00`, is retained. It cannot
+retire the handoff, qualify the route or refresh service evidence: classic SDO has no
+transaction tag, so that frame may answer the write before it. The route ends
+unresolved, and ordinary work stays blocked until a drain marker settles it.
+`UNCONFIRMED_SENT` is not a stop result. It says one frame left the controller.
 
 `cancel(id, nowUs)` closes only that request. Unlike RS owner sequence
 cancellation, it does not revoke the reservation or cancel its other queued

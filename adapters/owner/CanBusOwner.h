@@ -19,7 +19,7 @@ class CanBusOwner {
   public:
     enum {
         REQUESTS = 6,        ///< Queued + active + unread terminal capacity, shared ordinary slots.
-        URGENT_REQUESTS = 1, ///< Reserved urgent request/result slot, never used by ordinary work.
+        URGENT_REQUESTS = MotorControlCAN::CANOPEN::SdoClient::CHANNELS, ///< One reserved urgent request/result slot per channel, so one axis cannot block another's. Never used by ordinary work.
         TOTAL_REQUESTS = REQUESTS + URGENT_REQUESTS, ///< All copied work/result storage.
         SEQUENCES = 2,     ///< Logical-axis reservations, independent of wire node numbering.
         PRODUCERS = 4,     ///< Cyclic eligible-producer fairness, FIFO within each sequence.
@@ -68,7 +68,8 @@ class CanBusOwner {
     const Sequence* sequence(SequenceId id) const noexcept;
     /** Release axis exclusion only when all its request/results have been released.
      * @param[in] id Exact reserved identity; invalidated reservations may be released.
-     * @return False unchanged for wrong ID, live work or unread terminals.
+     * @return False unchanged for wrong ID, live work or unread terminals. True, with
+     * nothing changed, for an identity whose slot was since reused: it holds nothing.
      */
     bool releaseSequence(SequenceId id) noexcept;
     /** Copy one yielded native request and reserve its immutable terminal slot.
@@ -78,10 +79,43 @@ class CanBusOwner {
      * @return ACCEPTED is local only. Rejection changes neither queue nor reservation.
      */
     BusAdmission admit(const BusRequest& request, uint64_t nowUs, RequestId& output) noexcept;
+    /** Start a new urgent operation on a live reservation, such as a stop during a move.
+     * Retires this reservation's unsubmitted work as terminal with no TX. An in-flight
+     * request is left to settle, because cancelling it could quarantine the route; the
+     * new work waits for it. The new operation gets its own identity and deadline, and
+     * old results stay readable.
+     * @param[in] id Exact usable reservation. A quarantined route refuses this. Retired
+     * urgent work keeps its channel's urgent slot until its result is released.
+     * @param[in] operation Identity above the reservation's current operation.
+     * @param[in] deadlineUs Immutable deadline, after nowUs, independent of the old work's.
+     * @param[in] nowUs Nondecreasing processing microseconds.
+     * @return True when the new operation began.
+     */
+    bool beginUrgentOperation(SequenceId id, uint32_t operation, uint64_t deadlineUs,
+                              uint64_t nowUs) noexcept;
+    /** Find the usable reservation of a binding, for a producer that does not hold it.
+     * @param[in] binding Exact current binding.
+     * @param[out] output Published only when found.
+     * @return False when none is usable, including on a quarantined route.
+     */
+    bool findSequence(const Binding& binding, SequenceId& output) const noexcept;
+    /** Admit an explicit best-effort stop outside any reservation (DEC-2).
+     * Accepts only `6040:00=000B`, in the channel's urgent slot. It may go out on an
+     * unresolved route. It is transmitted at most once, and no reply can qualify it, so
+     * its route ends unresolved. It waits for local work in ordinary slots to settle.
+     * @param[in] transfer The exact stop with its own finite deadline.
+     * @param[in] nowUs Nondecreasing processing microseconds.
+     * @param[out] output Published only on acceptance.
+     * @return INVALID for any other transfer or a past deadline; INHIBITED while the
+     * controller, external TX or network state cannot send it; RESULTS_FULL while that
+     * channel's urgent slot holds other work or an unread result.
+     */
+    BusAdmission admitBestEffortStop(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                                     uint64_t nowUs, RequestId& output) noexcept;
     /** Copy work into reserved urgent capacity; never preempts or stops existing work.
      * @param[in] request Same validation as admit; reuse the axis's live reservation.
-     * FIFO within that reservation still applies. Explicitly cancel obsolete work
-     * before beginning a new urgent operation; quarantined routes remain unavailable.
+     * FIFO within that reservation still applies. Begin a new operation with
+     * beginUrgentOperation to retire obsolete work; quarantined routes remain unavailable.
      * @param[in] nowUs Nondecreasing processing microseconds.
      * @param[out] output Published only on acceptance, with admit's nonaliasing rules.
      * @return Local admission only; ordinary pressure cannot consume this slot.
@@ -275,7 +309,7 @@ class CanBusOwner {
     } sequences_[SEQUENCES];
     struct Slot {
         bool occupied = false, terminal = false, submitted = false, guarded = false;
-        bool localCancellation = false, outsideSequence = false;
+        bool localCancellation = false, outsideSequence = false, bestEffortStop = false;
         MotorControlCAN::CANOPEN::SdoDrainPremises premises;
         uint32_t generation = 0;
         uint64_t queueDeadlineUs = 0;
@@ -315,6 +349,8 @@ class CanBusOwner {
     bool peersResolved(const Binding& binding) const noexcept;
     BusAdmission countAdmission(BusAdmission result) noexcept;
     bool markerCurrent(const Slot& slot) const noexcept;
+    BusAdmission placeOutside(uint8_t channel, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                              uint64_t nowUs, RequestId& output) noexcept;
     void reopenSettledRoutes() noexcept;
     bool valid(SequenceId id) const noexcept;
     bool valid(RequestId id) const noexcept;

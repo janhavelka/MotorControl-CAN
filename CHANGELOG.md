@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Per-axis urgent work and best-effort stop route (audit W6, owner half)
+
+- `CanBusOwner::URGENT_REQUESTS` is now one slot per channel, so one axis's unread urgent result no longer blocks another's. **Migration:** `TOTAL_REQUESTS` grows by one and `resources()` reports the new capacity. Code that assumed one urgent slot must not.
+- Add `CanBusOwner::beginUrgentOperation` and `findSequence`. Unsubmitted old work ends with explicit no-TX results; in-flight work settles. `beginSequence` reuses the slot of an invalidated reservation with nothing live, and retained results stay readable.
+- Add `CanBusOwner::admitBestEffortStop`, `SdoClient::checkBestEffortStop`, `admitBestEffortStop` and `SdoOutcome::UNCONFIRMED_SENT` (DEC-2). Only `6040:00=000B` passes. **Migration:** switches over `SdoOutcome` need the new value. It reports that a frame left the controller, not that a drive stopped. The profile action arrives in packet 7.
+
 ### SDO settlement and drain marker (audit W5)
 
 - A matched server abort on a clean exchange no longer quarantines its route. It ends queued steps of its sequence and keeps earlier effects uncertain.

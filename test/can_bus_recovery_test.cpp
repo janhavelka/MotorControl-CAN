@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <new>
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
@@ -63,6 +64,13 @@ struct Fake {
     O::RecoveryProgress progress = O::RecoveryProgress::PENDING;
     O::TransportTxId retired;
     uint32_t retiredEpoch = 0;
+    unsigned guardCalls = 0;
+    bool guardAllows = true;
+    static bool guard(void* p, O::SequenceId, const C::SdoTransfer&, uint64_t) {
+        Fake& f = *static_cast<Fake*>(p);
+        ++f.guardCalls;
+        return f.guardAllows;
+    }
     static bool receive(void* p, O::ReceivedFrame& output) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.receives;
@@ -151,6 +159,7 @@ struct Fake {
         out.retire = withRetire ? retire : nullptr;
         out.beginRecovery = begin;
         out.pollRecovery = poll;
+        out.beforeTransmit = guard;
         return out;
     }
     void push(const M::Frame& value, uint64_t captured, uint32_t epoch = 1) {
@@ -203,10 +212,22 @@ struct Rig {
     Fake fake;
     O::CanBusOwner owner;
     uint64_t now = 0;
-    explicit Rig(uint32_t serial = 0, uint32_t epoch = 1, bool retirement = true)
+    explicit Rig(uint32_t serial = 0, uint32_t epoch = 1, bool retirement = true, bool confirmed = true,
+                 bool sharedPeer = false)
         : owner(services, fake.transport(retirement), 73, serial, epoch) {
         for (uint8_t i = 0; i < 2; ++i) {
-            CHECK(services.configure(i, route(i + 1), true, true));
+            if (sharedPeer && i == 1) {
+                // A synthetic server's distinct SDO channel and logical axis on the same node.
+                C::SdoChannel selected = route(1);
+                selected.binding.endpoint.channel = 1;
+                selected.binding.logicalAxisId = 202;
+                selected.clientToServerId = 0x641;
+                selected.serverToClientId = 0x5c1;
+                CHECK(services.configure(i, selected, confirmed, true));
+                CHECK(services.node(0) == services.node(1));
+                continue;
+            }
+            CHECK(services.configure(i, route(i + 1), confirmed, true));
             C::NetworkRoute n;
             n.binding = route(i + 1).binding;
             n.generation = 11;
@@ -312,7 +333,12 @@ void urgentCapacityAndPriority() {
     full.turn(full.now, budget(0, 1, 0, 1));
     full.complete(extra);
     first.unchanged(full.done(results[0]));
-    CHECK(full.fake.sentCount == O::CanBusOwner::TOTAL_REQUESTS);
+    // Contract change (W6): six ordinary plus this channel's one urgent request. The second
+    // urgent slot in TOTAL_REQUESTS belongs to node 2, which this sequence cannot take.
+    CHECK(full.fake.sentCount == O::CanBusOwner::REQUESTS + 1);
+    CHECK(full.owner.admitUrgent(full.request(sequence, 2), full.now, rejected) ==
+          O::BusAdmission::RESULTS_FULL);
+    unchanged.unchanged(rejected);
 }
 
 void urgentKeepsSequenceOrder() {
@@ -700,10 +726,16 @@ void repliesBeforeFinalTxReportDoNotLoseRetirement() {
 void recoveryHasSeparateCapacityAndFiniteBudget() {
     Rig r;
     const auto sequence = r.sequence();
+    // Contract change (W6): the urgent slots are per channel, so filling every slot takes both
+    // axes. Node 1's urgent request is oldest, so node 1 still has the one frame on the wire.
+    const auto otherAxis = r.sequence(2, 2);
     O::RequestId pending[O::CanBusOwner::TOTAL_REQUESTS];
-    for (unsigned i = 0; i < O::CanBusOwner::TOTAL_REQUESTS; ++i)
-        pending[i] = r.admit(r.request(sequence, i + 1, true), i == O::CanBusOwner::REQUESTS);
+    pending[0] = r.admit(r.request(sequence, 1, true), true);
+    for (unsigned i = 1; i <= O::CanBusOwner::REQUESTS; ++i)
+        pending[i] = r.admit(r.request(sequence, i + 1, true));
+    pending[O::CanBusOwner::REQUESTS + 1] = r.admit(r.request(otherAxis, 1, true), true);
     r.turn(0, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0x601);
     O::RecoveryId recovery;
     CHECK(r.owner.recover(0, 10, recovery));
     CHECK(r.fake.begins == 1 && r.fake.recoveryEpoch == 2 && !r.owner.recoveryResult(recovery));
@@ -741,7 +773,7 @@ void recoveryHasSeparateCapacityAndFiniteBudget() {
     CHECK(r.services.controllerState() == C::ControllerState::AVAILABLE);
     // Contract change (W5): recovery quarantines the route with a frame out, not the idle one.
     CHECK(r.services.unresolved(0) && !r.services.unresolved(1));
-    CHECK(r.fake.sentCount == 1 && !r.owner.sequence(sequence));
+    CHECK(r.fake.sentCount == 1 && !r.owner.sequence(sequence) && !r.owner.sequence(otherAxis));
 }
 
 void missingRecoveryHooksRetainFailure() {
@@ -1510,7 +1542,7 @@ void markerRefusals() {
         markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INHIBITED);
         r.turn(r.now + 1000, budget(0, 0, 8, 0));
         CHECK(r.done(first).service.outcome == C::SdoOutcome::TIMEOUT);
-        // Its retained result occupies the only urgent slot until released.
+        // Its retained result occupies this channel's urgent slot until released.
         markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::RESULTS_FULL);
         CHECK(r.owner.release(first));
         CHECK(r.services.checkDrain(0, markerWork(r.now, 1, 0x2001), fakePremises(), r.now));
@@ -1854,12 +1886,17 @@ void markerSuccessThroughOwner() {
     CHECK(r.fake.sentCount == 4);
     expectUpload(r.fake.sent[3], 2, LOST_INDEX);
     r.complete(independent, 2);
-    // New work needs a new reservation; the invalid one must be released first.
+    // Contract change (W6): new work needs a new reservation, and the invalid one no longer has
+    // to be released first. Retained results stay readable and the old identity stays dead.
     O::SequenceId fresh;
-    CHECK(!r.owner.beginSequence(route(1).binding, 1, r.now, fresh));
-    CHECK(r.owner.release(acknowledged) && r.owner.release(lost) && r.owner.releaseSequence(sequence));
     CHECK(r.owner.beginSequence(route(1).binding, 1, r.now, fresh));
-    CHECK(fresh.generation != sequence.generation && r.owner.beginOperation(fresh, 1, r.now + 1000, r.now));
+    CHECK(fresh.slot == sequence.slot && fresh.generation != sequence.generation);
+    CHECK(!r.owner.sequence(sequence));
+    CHECK(r.owner.releaseSequence(sequence) && r.owner.sequence(fresh)); // Holds nothing now.
+    ackResult.unchanged(r.done(acknowledged));
+    lostResult.unchanged(r.done(lost));
+    CHECK(r.owner.release(acknowledged) && r.owner.release(lost));
+    CHECK(r.owner.beginOperation(fresh, 1, r.now + 1000, r.now));
     const auto after = r.admit(r.request(fresh, 1, false, 0x2347));
     r.turn(r.now, budget(0, 1, 0, 1));
     CHECK(r.fake.sentCount == 5);
@@ -2146,6 +2183,2030 @@ void quietTimeHeartbeatEpochAndReadbackCannotReopen() {
     blocked(r.now);
 }
 
+// Packet 6 (W6, DEC-2). Every request and word below is an owner fixture, not a validated motor stop.
+void expectFrame(const M::Frame& sent, uint32_t id, const uint8_t (&bytes)[8]) {
+    CHECK(sent.id == id && sent.dlc == 8 && sent.payloadLength == 8);
+    CHECK(!sent.extended && !sent.rtr && !sent.fd);
+    CHECK(!std::memcmp(sent.data, bytes, sizeof bytes));
+}
+void expectStop(const M::Frame& sent, unsigned node = 1) {
+    const uint8_t literal[8] = {0x2b, 0x40, 0x60, 0x00, 0x0b, 0x00, 0x00, 0x00};
+    expectFrame(sent, 0x600 + node, literal);
+}
+C::SdoTransfer stopWork(uint64_t now, unsigned node = 1) {
+    C::SdoTransfer out;
+    out.channel = route(node);
+    out.operation = out.request = out.step = 901;
+    out.index = 0x6040;
+    out.size = 2;
+    out.direction = C::SdoDirection::DOWNLOAD;
+    out.data[0] = 0x0b;
+    out.queueTimeoutUs = out.responseTimeoutUs = 1000;
+    out.deadlineUs = now + 5000;
+    return out;
+}
+O::RequestId admitStop(Rig& r, const C::SdoTransfer& work) {
+    O::RequestId out;
+    CHECK(r.owner.admitBestEffortStop(work, r.now, out) == O::BusAdmission::ACCEPTED);
+    CHECK(out.slot == O::CanBusOwner::REQUESTS + work.channel.binding.endpoint.address - 1 +
+                          work.channel.binding.endpoint.channel);
+    CHECK(!r.owner.result(out));
+    return out;
+}
+void stopRefused(Rig& r, const C::SdoTransfer& work, O::BusAdmission expected) {
+    O::RequestId output;
+    output.generation = 987;
+    const Saved<O::RequestId> unchanged(output);
+    const unsigned sent = r.fake.sentCount;
+    const O::OwnerResources before = r.owner.resources();
+    CHECK(r.owner.admitBestEffortStop(work, r.now, output) == expected);
+    unchanged.unchanged(output);
+    const O::OwnerResources after = r.owner.resources();
+    CHECK(r.fake.sentCount == sent && after.queued == before.queued && after.retained == before.retained);
+}
+struct SentStop {
+    O::RequestId id;
+    unsigned frame;
+};
+// Hands one stop to the controller and proves its bytes. It stays unreported.
+SentStop sendStop(Rig& r, const C::SdoTransfer& work) {
+    SentStop out;
+    out.id = admitStop(r, work);
+    out.frame = r.fake.sentCount;
+    r.turn(r.now, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == out.frame + 1 && !r.owner.result(out.id));
+    expectStop(r.fake.sent[out.frame], unsigned(work.channel.binding.endpoint.address));
+    return out;
+}
+void expectNeverSent(const O::Completion& result, O::CompletionReason reason, C::SdoOutcome outcome) {
+    CHECK(result.reason == reason && result.service.outcome == outcome);
+    CHECK(!result.adapterAdmitted && !result.controllerAccepted);
+    CHECK(!result.service.queued && !result.service.transmissionPossible);
+    CHECK(!result.service.transmissionConfirmed && !result.service.protocolAcknowledged);
+    CHECK(!result.service.effectPossible && !result.service.effectUncertain && !result.service.replyValid);
+}
+// Reached the controller with no qualifying reply: execution unknown whatever the outcome.
+void expectUnqualifiedStop(const O::Completion& result, C::SdoOutcome outcome, bool confirmed) {
+    CHECK(result.service.outcome == outcome && result.adapterAdmitted);
+    CHECK(result.service.transmissionPossible && result.service.transmissionConfirmed == confirmed);
+    CHECK(result.service.effectPossible && result.service.effectUncertain);
+    CHECK(!result.service.protocolAcknowledged && !result.service.replyValid && !result.service.abortValid);
+    CHECK(!result.sequence.owner && result.producer == 0);
+    CHECK(result.service.transfer.index == 0x6040 && result.service.transfer.subindex == 0);
+    CHECK(result.service.transfer.size == 2 && result.service.transfer.data[0] == 0x0b);
+}
+void manyTurns(Rig& r, unsigned count = 40) {
+    for (unsigned i = 0; i < count; ++i)
+        r.turn(r.now + 100, budget());
+}
+M::Frame emergency(unsigned node, uint8_t low, uint8_t high) {
+    M::Frame out = frame(0x80 + node);
+    out.data[0] = low;
+    out.data[1] = high;
+    out.data[2] = 0x80;
+    return out;
+}
+
+// An unread urgent result on node 1 cannot hold node 2's urgent work, only node 1's own next.
+void urgentSlotsBelongToTheirAxes() {
+    Rig r;
+    const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
+    const auto firstOne = r.admit(r.request(one, 1, true), true);
+    const auto firstTwo = r.admit(r.request(two, 1, true, 0x2346), true);
+    CHECK(firstOne.slot == O::CanBusOwner::REQUESTS && firstTwo.slot == O::CanBusOwner::REQUESTS + 1);
+    CHECK(int(O::CanBusOwner::URGENT_REQUESTS) == int(C::SdoClient::CHANNELS));
+    r.turn(0, budget(0, 2, 0, 2));
+    CHECK(r.fake.sentCount == 2);
+    expectWrite(r.fake.sent[0], 1, LOST_INDEX);
+    expectWrite(r.fake.sent[1], 2, 0x2346);
+    r.fake.report(0);
+    stray(r, reply(1, true));
+    CHECK(r.done(firstOne).service.outcome == C::SdoOutcome::SUCCESS);
+    const Saved<O::Completion> unread(r.done(firstOne));
+    r.fake.report(1);
+    stray(r, serverFrame(2, 0x60, 0x2346));
+    CHECK(r.done(firstTwo).service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(r.owner.release(firstTwo));
+    const auto secondTwo = r.admit(r.request(two, 2, true, 0x2347), true);
+    CHECK(secondTwo.slot == firstTwo.slot && secondTwo.generation != firstTwo.generation);
+    r.turn(r.now, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 3);
+    expectWrite(r.fake.sent[2], 2, 0x2347);
+    O::RequestId refused;
+    refused.generation = 987;
+    const Saved<O::RequestId> unchanged(refused);
+    const uint32_t rejected = r.owner.stats().resultsRejected;
+    CHECK(r.owner.admitUrgent(r.request(one, 2, true, 0x2348), r.now, refused) ==
+          O::BusAdmission::RESULTS_FULL);
+    unchanged.unchanged(refused);
+    CHECK(r.owner.stats().resultsRejected == rejected + 1 && r.fake.sentCount == 3);
+    unread.unchanged(r.done(firstOne));
+    CHECK(r.owner.release(firstOne) && !r.owner.result(firstOne));
+    const auto secondOne = r.admit(r.request(one, 3, true, 0x2348), true);
+    CHECK(secondOne.slot == firstOne.slot && secondOne.generation != firstOne.generation);
+    r.turn(r.now, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 4);
+    expectWrite(r.fake.sent[3], 1, 0x2348);
+}
+
+void ordinaryAndUrgentPressureAreIndependent() {
+    {   // All six ordinary slots hold unread results: both urgent slots stay free and usable.
+        Rig r;
+        const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
+        O::RequestId ordinary[O::CanBusOwner::REQUESTS];
+        for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
+            ordinary[i] = r.admit(r.request(one, i + 1));
+            CHECK(ordinary[i].slot < O::CanBusOwner::REQUESTS);
+            r.turn(r.now, budget(0, 1, 0, 1));
+            r.complete(ordinary[i]);
+        }
+        CHECK(r.owner.resources().retained == O::CanBusOwner::REQUESTS);
+        const Saved<O::Completion> firstOrdinary(r.done(ordinary[0]));
+        O::RequestId refused;
+        CHECK(r.owner.admit(r.request(one, 7), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.admit(r.request(two, 1), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        const auto urgentOne = r.admit(r.request(one, 7, true, 0x2346), true);
+        const auto urgentTwo = r.admit(r.request(two, 1, true, 0x2347), true);
+        CHECK(urgentOne.slot == O::CanBusOwner::REQUESTS && urgentTwo.slot == O::CanBusOwner::REQUESTS + 1);
+        r.turn(r.now, budget(0, 2, 0, 2));
+        CHECK(r.fake.sentCount == O::CanBusOwner::REQUESTS + 2);
+        expectWrite(r.fake.sent[6], 1, 0x2346);
+        expectWrite(r.fake.sent[7], 2, 0x2347);
+        r.fake.report(6);
+        r.fake.report(7);
+        stray(r, serverFrame(1, 0x60, 0x2346));
+        stray(r, serverFrame(2, 0x60, 0x2347));
+        CHECK(r.owner.resources().retained == O::CanBusOwner::TOTAL_REQUESTS);
+        // Everything is unread now. Nothing is evicted, and each slot refuses its own next user.
+        CHECK(r.owner.admit(r.request(two, 2), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.admitUrgent(r.request(one, 8), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.admitUrgent(r.request(two, 2), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        stopRefused(r, stopWork(r.now, 1), O::BusAdmission::RESULTS_FULL);
+        stopRefused(r, stopWork(r.now, 2), O::BusAdmission::RESULTS_FULL);
+        firstOrdinary.unchanged(r.done(ordinary[0]));
+        // Releasing ordinary storage frees ordinary storage, not urgent.
+        CHECK(r.owner.release(ordinary[0]));
+        CHECK(r.owner.admitUrgent(r.request(one, 8), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        const auto next = r.admit(r.request(two, 2, false, 0x2349));
+        CHECK(next.slot == ordinary[0].slot);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 9);
+        expectUpload(r.fake.sent[8], 2, 0x2349);
+        // Releasing node 1's urgent result opens only that slot, though node 2's is unread.
+        CHECK(r.owner.release(urgentOne));
+        CHECK(r.owner.admitUrgent(r.request(two, 3), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        CHECK(r.done(urgentTwo).service.outcome == C::SdoOutcome::SUCCESS);
+        const auto stop = admitStop(r, stopWork(r.now, 1));
+        CHECK(stop.slot == urgentOne.slot);
+    }
+    {   // Both urgent results unread: all six ordinary slots still serve both axes.
+        Rig r;
+        const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
+        const auto urgentOne = r.admit(r.request(one, 1, true), true);
+        r.turn(0, budget(0, 1, 0, 1));
+        r.complete(urgentOne, 1, true);
+        const auto urgentTwo = r.admit(r.request(two, 1, true), true);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        r.complete(urgentTwo, 2, true);
+        const Saved<O::Completion> savedOne(r.done(urgentOne)), savedTwo(r.done(urgentTwo));
+        for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
+            const unsigned node = 1 + i % 2;
+            const uint16_t index = uint16_t(0x2400 + i);
+            const auto id = r.admit(r.request(node == 1 ? one : two, i + 2, false, index));
+            CHECK(id.slot == i);
+            r.turn(r.now, budget(0, 1, 0, 1));
+            CHECK(r.fake.sentCount == 3 + i);
+            expectUpload(r.fake.sent[2 + i], node, index);
+            r.complete(id, node, false, index);
+        }
+        O::RequestId refused;
+        CHECK(r.owner.admit(r.request(one, 9), r.now, refused) == O::BusAdmission::RESULTS_FULL);
+        savedOne.unchanged(r.done(urgentOne));
+        savedTwo.unchanged(r.done(urgentTwo));
+        CHECK(r.owner.resources().retained == O::CanBusOwner::TOTAL_REQUESTS);
+    }
+}
+
+void staleEpochsRefuseUrgentWork() {
+    {   // Producer: queued urgent work ends unsent, copies stay dead, the other producer is untouched.
+        Rig r;
+        const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
+        const O::BusRequest copied = r.request(one, 2, true, 0x2346);
+        const auto queued = r.admit(r.request(one, 1, true), true);
+        CHECK(r.owner.invalidateProducer(1, r.now));
+        expectNeverSent(r.done(queued), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        const Saved<O::Completion> saved(r.done(queued));
+        O::RequestId refused;
+        CHECK(r.owner.admit(copied, r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(r.owner.admitUrgent(copied, r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(!r.owner.sequence(one) && !r.owner.beginUrgentOperation(one, 2, r.now + 100, r.now));
+        O::SequenceId found;
+        CHECK(!r.owner.findSequence(route(1).binding, found));
+        const auto other = r.admit(r.request(two, 1, true), true);
+        r.turn(r.now, budget(0, 2, 0, 2));
+        CHECK(r.fake.sentCount == 1);
+        expectWrite(r.fake.sent[0], 2, LOST_INDEX);
+        r.complete(other, 2, true);
+        saved.unchanged(r.done(queued));
+    }
+    {   // Configuration: a target copied before the change names a binding that no longer exists.
+        Rig r;
+        const auto sequence = r.sequence();
+        const O::BusRequest copied = r.request(sequence, 1, true);
+        const C::SdoTransfer oldStop = stopWork(r.now);
+        M::Binding changed = route().binding;
+        ++changed.configurationGeneration;
+        CHECK(r.owner.advanceConfiguration(sequence, changed, r.now));
+        O::RequestId refused;
+        CHECK(r.owner.admit(copied, r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(r.owner.admitUrgent(copied, r.now, refused) == O::BusAdmission::INVALID);
+        stopRefused(r, oldStop, O::BusAdmission::INVALID);
+        O::SequenceId found;
+        CHECK(!r.owner.findSequence(route().binding, found));
+        CHECK(r.owner.findSequence(changed, found) && found.generation == sequence.generation);
+        const auto current = r.admit(r.request(sequence, 1, true, 0x2346), true);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectWrite(r.fake.sent[0], 1, 0x2346);
+        r.complete(current, 1, true, 0x2346);
+    }
+    {   // A queued stop holds the configuration on its node, so it cannot survive the change.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto stop = admitStop(r, stopWork(r.now));
+        M::Binding changed = route().binding;
+        ++changed.configurationGeneration;
+        CHECK(!r.owner.advanceConfiguration(sequence, changed, r.now));
+        CHECK(r.owner.cancel(stop, r.now) == O::Cancel::CANCELLED && r.owner.release(stop));
+        CHECK(r.owner.advanceConfiguration(sequence, changed, r.now));
+    }
+    {   // Node epoch on a clean route: nothing quarantines, and the old epoch is still dead.
+        Rig r;
+        const auto sequence = r.sequence();
+        const O::BusRequest copied = r.request(sequence, 1, true);
+        const auto stop = admitStop(r, stopWork(r.now));
+        const uint32_t generation = r.services.node(0)->route.generation;
+        CHECK(r.services.invalidateNetwork(0, C::NetworkInvalidation::RECOVERY, r.now));
+        CHECK(r.services.node(0)->route.generation == generation + 1 && !r.services.unresolved(0));
+        O::RequestId refused;
+        CHECK(r.owner.admit(copied, r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(r.owner.admitUrgent(copied, r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(!r.owner.sequence(sequence));
+        CHECK(!r.owner.beginUrgentOperation(sequence, 2, r.now + 100, r.now));
+        O::SequenceId found;
+        CHECK(!r.owner.findSequence(route().binding, found));
+        r.turn(r.now, budget());
+        expectNeverSent(r.done(stop), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        CHECK(r.fake.sentCount == 0 && !r.services.unresolved(0));
+    }
+    {   // Boot: both a queued stop and urgent work from the old session end unsent.
+        Rig r;
+        const auto other = r.sequence(2, 2);
+        const auto stop = admitStop(r, stopWork(r.now));
+        const auto urgent = r.admit(r.request(other, 1, true), true);
+        stray(r, networkState(1, 0));
+        expectNeverSent(r.done(stop), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        CHECK(r.services.unresolved(0) && !r.services.unresolved(1));
+        CHECK(!r.owner.result(urgent)); // The other node is a separate session.
+        CHECK(r.owner.release(stop));
+        // Known INITIALIZING refuses; a later state report restores the path.
+        stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectWrite(r.fake.sent[0], 2, LOST_INDEX);
+        r.complete(urgent, 2, true);
+        stray(r, networkState(1, 0x7f));
+        const SentStop sent = sendStop(r, stopWork(r.now));
+        CHECK(sent.frame == 1);
+    }
+}
+
+void reusedReservationKeepsOldIdentityDead() {
+    Rig r;
+    const auto old = r.sequence(1, 1);
+    const auto bystander = r.sequence(2, 4); // Takes the free slot, so a new reservation must reuse.
+    const auto settled = r.admit(r.request(old, 1));
+    r.turn(0, budget(0, 1, 0, 1));
+    r.complete(settled);
+    const O::BusRequest copied = r.request(old, 2, true, 0x2346);
+    const auto queued = r.admit(copied);
+    O::SequenceId fresh;
+    CHECK(!r.owner.beginSequence(route(1).binding, 2, r.now, fresh)); // Live, so not reusable.
+    CHECK(r.owner.invalidate(old, r.now));
+    expectNeverSent(r.done(queued), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+    const Saved<O::Completion> settledResult(r.done(settled)), queuedResult(r.done(queued));
+    // Unread results do not hold the slot, and the new identity is not the old one.
+    CHECK(r.owner.beginSequence(route(1).binding, 2, r.now, fresh));
+    CHECK(fresh.slot == old.slot && fresh.generation > old.generation);
+    CHECK(r.owner.sequence(fresh)->producer == 2 && r.owner.sequence(fresh)->operation == 0);
+    M::Binding changed = route().binding;
+    ++changed.configurationGeneration;
+    const auto dead = [&] {
+        CHECK(!r.owner.sequence(old));
+        CHECK(!r.owner.beginOperation(old, 9, r.now + 100, r.now));
+        CHECK(!r.owner.beginUrgentOperation(old, 9, r.now + 100, r.now));
+        CHECK(!r.owner.invalidate(old, r.now));
+        CHECK(!r.owner.advanceConfiguration(old, changed, r.now));
+        // Releasing a reused identity succeeds with nothing to do: it cannot free the new holder.
+        CHECK(r.owner.releaseSequence(old) && r.owner.resources().reservations == 2);
+        CHECK(r.owner.sequence(bystander));
+        O::RequestId refused;
+        CHECK(r.owner.admit(copied, r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(r.owner.admitUrgent(copied, r.now, refused) == O::BusAdmission::INVALID);
+        settledResult.unchanged(r.done(settled));
+        queuedResult.unchanged(r.done(queued));
+        CHECK(r.done(settled).sequence.generation == old.generation && r.done(settled).producer == 1);
+    };
+    dead();
+    // A copied target moved onto the new identity still names the old operation and deadline.
+    CHECK(r.owner.beginOperation(fresh, 2, r.now + 2000, r.now));
+    O::BusRequest moved = copied;
+    moved.sequence = fresh;
+    O::RequestId refused;
+    CHECK(r.owner.admit(moved, r.now, refused) == O::BusAdmission::INVALID);
+    CHECK(r.owner.admitUrgent(moved, r.now, refused) == O::BusAdmission::INVALID);
+    dead();
+    const auto work = r.admit(r.request(fresh, 1, false, 0x2347), true);
+    r.turn(r.now, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 2);
+    expectUpload(r.fake.sent[1], 1, 0x2347);
+    r.complete(work, 1, false, 0x2347);
+    CHECK(r.done(work).sequence.generation == fresh.generation && r.done(work).producer == 2);
+    dead();
+    // Invalidating the new identity leaves old results alone, and the slot is reused again.
+    CHECK(r.owner.invalidate(fresh, r.now));
+    const Saved<O::Completion> workResult(r.done(work));
+    O::SequenceId third;
+    CHECK(r.owner.beginSequence(route(1).binding, 3, r.now, third));
+    CHECK(third.slot == old.slot && third.generation > fresh.generation && !r.owner.sequence(fresh));
+    dead();
+    workResult.unchanged(r.done(work));
+    // Old results release by their own identities, which never touches the reservation.
+    CHECK(r.owner.release(settled) && r.owner.release(queued) && r.owner.release(work));
+    CHECK(r.owner.sequence(third) && r.owner.releaseSequence(third));
+    {   // A free slot goes first, so an invalidated holder keeps its identity until it releases.
+        Rig f;
+        const auto held = f.sequence(1, 1);
+        const auto read = f.admit(f.request(held));
+        f.turn(0, budget(0, 1, 0, 1));
+        f.complete(read);
+        const Saved<O::Completion> saved(f.done(read));
+        CHECK(f.owner.invalidate(held, f.now));
+        O::SequenceId next;
+        CHECK(f.owner.beginSequence(route(1).binding, 2, f.now, next));
+        CHECK(next.slot != held.slot && !f.owner.sequence(held) && f.owner.sequence(next));
+        CHECK(!f.owner.releaseSequence(held)); // Its unread result still names it.
+        saved.unchanged(f.done(read));
+        CHECK(f.owner.release(read));
+        CHECK(f.owner.releaseSequence(held) && !f.owner.releaseSequence(held));
+        CHECK(f.owner.sequence(next));
+    }
+    {   // Another axis takes the free slot too, and the invalidated holder can still release.
+        Rig f;
+        const auto held = f.sequence(1, 1);
+        CHECK(f.owner.invalidate(held, f.now));
+        O::SequenceId axisTwo;
+        CHECK(f.owner.beginSequence(route(2).binding, 2, f.now, axisTwo));
+        CHECK(axisTwo.slot != held.slot && f.owner.resources().reservations == 2);
+        CHECK(!f.owner.sequence(held) && f.owner.sequence(axisTwo));
+        CHECK(f.owner.releaseSequence(held) && f.owner.resources().reservations == 1);
+        CHECK(!f.owner.releaseSequence(held) && f.owner.sequence(axisTwo)); // No reuse: stays false.
+    }
+    {   // An invalidated reservation of another axis does not block a new axis.
+        Rig other;
+        const auto first = other.sequence(1, 1), second = other.sequence(2, 2);
+        CHECK(other.owner.invalidate(first, other.now));
+        O::SequenceId replacement;
+        CHECK(other.owner.beginSequence(route(1).binding, 1, other.now, replacement));
+        CHECK(replacement.slot == first.slot && other.owner.sequence(second));
+        CHECK(!other.owner.beginSequence(route(2).binding, 3, other.now, replacement));
+    }
+}
+
+void beginUrgentOperationRetiresOnlyUnsentWork() {
+    {   // Queued work ends with its own identity and no TX. The new operation is immediate.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto first = r.admit(r.request(sequence, 1, true));
+        const auto second = r.admit(r.request(sequence, 2, true, 0x2346));
+        const auto urgent = r.admit(r.request(sequence, 3, true, 0x2347), true);
+        const O::BusRequest copied = r.request(sequence, 4, true, 0x2348);
+        r.now = 10;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 500, r.now));
+        const O::RequestId ids[] = {first, second, urgent};
+        const uint16_t indexes[] = {LOST_INDEX, 0x2346, 0x2347};
+        for (unsigned i = 0; i < 3; ++i) {
+            const O::Completion& ended = r.done(ids[i]);
+            expectNeverSent(ended, O::CompletionReason::CANCELLED, C::SdoOutcome::CANCELLED);
+            CHECK(ended.id.generation == ids[i].generation && ended.id.slot == ids[i].slot);
+            CHECK(ended.sequence.generation == sequence.generation && ended.producer == 1);
+            CHECK(ended.service.transfer.operation == 1 && ended.service.transfer.step == i + 1);
+            CHECK(ended.service.transfer.index == indexes[i] && ended.service.completedUs == 10);
+            CHECK(!r.owner.mayHaveTransmitted(ids[i]));
+        }
+        CHECK(r.fake.sentCount == 0 && !r.services.unresolved(0));
+        const O::Sequence* current = r.owner.sequence(sequence);
+        CHECK(current && current->operation == 2 && current->deadlineUs == 500);
+        O::RequestId refused;
+        CHECK(r.owner.admitUrgent(copied, r.now, refused) == O::BusAdmission::INVALID); // Old operation.
+        // This axis's own unread urgent result holds the slot until released.
+        CHECK(r.owner.admitUrgent(r.request(sequence, 1, true, 0x2349), r.now, refused) ==
+              O::BusAdmission::RESULTS_FULL);
+        const Saved<O::Completion> firstResult(r.done(first));
+        CHECK(r.owner.release(urgent));
+        const auto stop = r.admit(r.request(sequence, 1, true, 0x2349), true);
+        r.turn(r.now, budget(0, 2, 8, 2));
+        CHECK(r.fake.sentCount == 1);
+        expectWrite(r.fake.sent[0], 1, 0x2349);
+        r.complete(stop, 1, true, 0x2349);
+        CHECK(r.done(stop).service.transfer.operation == 2 && r.done(stop).service.transfer.deadlineUs == 500);
+        firstResult.unchanged(r.done(first));
+    }
+    // An in-flight poll is left to settle with its reply, whichever of reply and TX report is
+    // first, and only then does the urgent frame go. Nothing cancels it or quarantines the route.
+    for (unsigned replyFirst = 0; replyFirst < 2; ++replyFirst) {
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        const auto queued = r.admit(r.request(sequence, 2, true, 0x2346));
+        r.turn(0, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectUpload(r.fake.sent[0], 1, LOST_INDEX);
+        r.now = 1;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 5000, r.now));
+        CHECK(!r.owner.result(poll) && r.owner.mayHaveTransmitted(poll));
+        expectNeverSent(r.done(queued), O::CompletionReason::CANCELLED, C::SdoOutcome::CANCELLED);
+        const auto urgent = r.admit(r.request(sequence, 1, true, 0x2347), true);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1);
+        if (replyFirst) {
+            stray(r, reply());
+            CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS);
+            r.turn(r.now, budget(0, 2, 0, 2));
+            CHECK(r.fake.sentCount == 1); // The poll's own frame is not retired yet.
+            r.fake.report(0);
+            r.turn(r.now, budget(0, 0, 8, 0));
+        } else {
+            r.fake.report(0);
+            r.turn(r.now, budget());
+            CHECK(r.fake.sentCount == 1 && !r.owner.result(poll));
+            stray(r, reply());
+        }
+        const O::Completion& settled = r.done(poll);
+        CHECK(settled.reason == O::CompletionReason::SERVICE && settled.service.outcome == C::SdoOutcome::SUCCESS);
+        CHECK(settled.service.size == 2 && settled.service.data[0] == 0x34 && settled.service.data[1] == 0x12);
+        CHECK(settled.service.transfer.operation == 1 && settled.service.protocolAcknowledged);
+        CHECK(!r.services.unresolved(0));
+        const Saved<O::Completion> pollResult(settled);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 2);
+        expectWrite(r.fake.sent[1], 1, 0x2347);
+        r.complete(urgent, 1, true, 0x2347);
+        pollResult.unchanged(r.done(poll));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 2);
+    }
+    {   // A clean server abort of the old poll ends that operation's queue, not the urgent one.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        const auto dependent = r.admit(r.request(sequence, 2));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.now = 1;
+        CHECK(!r.owner.beginOperation(sequence, 2, 10000, r.now)); // Poll still live.
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 5000, r.now));
+        expectNeverSent(r.done(dependent), O::CompletionReason::CANCELLED, C::SdoOutcome::CANCELLED);
+        O::BusRequest write = r.request(sequence, 1, true, 0x6040);
+        write.transfer.data[0] = 0x0b;
+        write.transfer.data[1] = 0;
+        const auto urgent = r.admit(write, true);
+        r.fake.report(0);
+        stray(r, serverAbort(1, LOST_INDEX, 0x06020000u));
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SERVER_ABORT);
+        CHECK(r.done(poll).service.abortCode == 0x06020000u && !r.services.unresolved(0));
+        CHECK(!r.owner.result(urgent));
+        const Saved<O::Completion> aborted(r.done(poll));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[1]);
+        r.complete(urgent, 1, true, 0x6040);
+        aborted.unchanged(r.done(poll));
+    }
+    {   // Within the new operation a rejected step still ends the steps queued behind it.
+        Rig r;
+        const auto sequence = r.sequence();
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 5000, r.now));
+        const auto first = r.admit(r.request(sequence, 1, true), true);
+        const auto second = r.admit(r.request(sequence, 2, true, 0x2346));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.fake.report(0);
+        stray(r, serverAbort(1, LOST_INDEX, 0x06020000u));
+        CHECK(r.done(first).service.outcome == C::SdoOutcome::SERVER_ABORT);
+        expectNeverSent(r.done(second), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // An abort overtaking its TX report quarantines, so nothing of this reservation goes.
+        Rig r;
+        const auto sequence = r.sequence();
+        r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.now = 1;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 5000, r.now));
+        const auto urgent = r.admit(r.request(sequence, 1, true, 0x2347), true);
+        stray(r, serverAbort(1, LOST_INDEX, 0x06020000u));
+        CHECK(r.services.unresolved(0));
+        expectNeverSent(r.done(urgent), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        r.fake.report(0);
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // The poll's reply is lost: unresolved route, so the reservation's urgent work never sends.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.now = 1;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 5000, r.now));
+        const auto urgent = r.admit(r.request(sequence, 1, true, 0x2347), true);
+        r.fake.report(0);
+        r.turn(1000, budget(0, 2, 8, 2));
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+        CHECK(r.done(poll).service.transmissionPossible && !r.done(poll).service.protocolAcknowledged);
+        const Saved<O::Completion> lostPoll(r.done(poll));
+        expectNeverSent(r.done(urgent), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        CHECK(r.fake.sentCount == 1);
+        CHECK(!r.owner.beginUrgentOperation(sequence, 3, r.now + 1000, r.now));
+        CHECK(!r.owner.sequence(sequence));
+        O::SequenceId found;
+        CHECK(!r.owner.findSequence(route().binding, found));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+        // The separate best-effort path is what remains, once this axis's slot is released.
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.release(urgent));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(stop.frame == 1);
+        lostPoll.unchanged(r.done(poll));
+    }
+    {   // A deadline is exclusive and belongs to its own operation. The new one is refused at
+        // equality and in the past; each old one wins at its own equality.
+        Rig r;
+        const auto sequence = r.sequence(1, 1, 100);
+        const auto queued = r.admit(r.request(sequence));
+        r.now = 50;
+        CHECK(!r.owner.beginUrgentOperation(sequence, 2, 50, 50));
+        CHECK(!r.owner.beginUrgentOperation(sequence, 2, 49, 50));
+        CHECK(!r.owner.result(queued) && r.owner.sequence(sequence)->operation == 1);
+        r.now = 100;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 200, 100));
+        expectNeverSent(r.done(queued), O::CompletionReason::DEADLINE, C::SdoOutcome::TIMEOUT);
+        CHECK(r.owner.sequence(sequence)->deadlineUs == 200);
+        // The old deadline being past does not hold back the new operation.
+        O::BusRequest work = r.request(sequence, 1, true);
+        O::RequestId refused;
+        work.transfer.deadlineUs = 199;
+        CHECK(r.owner.admitUrgent(work, r.now, refused) == O::BusAdmission::INVALID);
+        work.transfer.deadlineUs = 200;
+        CHECK(r.owner.admitUrgent(work, 200, refused) == O::BusAdmission::EXPIRED);
+    }
+    {   // Queue cutoff equality also beats local cancellation.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto queued = r.admit(r.request(sequence));
+        r.now = 1000;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 2000, 1000));
+        expectNeverSent(r.done(queued), O::CompletionReason::QUEUE_EXPIRED, C::SdoOutcome::TIMEOUT);
+    }
+    {   // A shorter urgent deadline ends the urgent work, and the old poll keeps its later one.
+        Rig r;
+        const auto sequence = r.sequence(1, 1, 10000);
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.now = 1;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 100, r.now));
+        const auto urgent = r.admit(r.request(sequence, 1, true), true);
+        r.fake.report(0);
+        r.turn(99, budget());
+        CHECK(!r.owner.result(urgent) && !r.owner.result(poll));
+        r.turn(100, budget());
+        expectNeverSent(r.done(urgent), O::CompletionReason::DEADLINE, C::SdoOutcome::TIMEOUT);
+        CHECK(r.done(urgent).service.completedUs == 100 && !r.owner.result(poll));
+        stray(r, reply());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS && r.fake.sentCount == 1);
+        CHECK(!r.services.unresolved(0));
+    }
+    {   // A longer urgent deadline does not extend the old poll, which times out at its own.
+        Rig r;
+        const auto sequence = r.sequence(1, 1, 100);
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.now = 1;
+        CHECK(r.owner.beginUrgentOperation(sequence, 2, 5000, r.now));
+        r.fake.report(0);
+        r.turn(99, budget());
+        CHECK(!r.owner.result(poll));
+        r.turn(100, budget());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::TIMEOUT);
+        CHECK(r.done(poll).service.completedUs == 100 && r.services.unresolved(0));
+    }
+    {   // Operation identity must increase. A refused call retires nothing and changes nothing.
+        Rig r;
+        const auto sequence = r.sequence();
+        CHECK(r.owner.beginOperation(sequence, 5, 10000, 0));
+        const auto queued = r.admit(r.request(sequence));
+        r.now = 5;
+        const uint32_t refusedOperations[] = {0, 1, 4, 5};
+        for (const uint32_t operation : refusedOperations) {
+            CHECK(!r.owner.beginUrgentOperation(sequence, operation, 500, 5));
+            CHECK(!r.owner.result(queued));
+            CHECK(r.owner.sequence(sequence)->operation == 5 && r.owner.sequence(sequence)->deadlineUs == 10000);
+        }
+        O::SequenceId foreign = sequence;
+        ++foreign.generation;
+        CHECK(!r.owner.beginUrgentOperation(foreign, 6, 500, 5));
+        CHECK(!r.owner.result(queued));
+        r.turn(5, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectUpload(r.fake.sent[0], 1, LOST_INDEX);
+        CHECK(!r.owner.beginUrgentOperation(sequence, 6, 500, 4)); // Backward time.
+        CHECK(r.owner.beginUrgentOperation(sequence, 6, 500, 5));
+    }
+    {   // Another axis's queue is untouched by this axis's urgent operation.
+        Rig r;
+        const auto one = r.sequence(1, 1), two = r.sequence(2, 2);
+        const auto mine = r.admit(r.request(one));
+        const auto theirs = r.admit(r.request(two));
+        CHECK(r.owner.beginUrgentOperation(one, 2, 5000, 0));
+        CHECK(r.owner.result(mine) && !r.owner.result(theirs));
+        r.turn(0, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectUpload(r.fake.sent[0], 2, LOST_INDEX);
+    }
+}
+
+void findSequenceServesOtherProducers() {
+    Rig r;
+    O::SequenceId found;
+    found.generation = 555;
+    const Saved<O::SequenceId> unchanged(found);
+    const auto absent = [&](const M::Binding& binding) {
+        CHECK(!r.owner.findSequence(binding, found));
+        unchanged.unchanged(found);
+    };
+    absent(route(1).binding); // No reservation yet.
+    const auto held = r.sequence(1, 1);
+    absent(route(2).binding);
+    absent(route(3).binding);
+    M::Binding stale = route(1).binding;
+    ++stale.bindingGeneration;
+    absent(stale);
+    stale = route(1).binding;
+    ++stale.configurationGeneration;
+    absent(stale);
+    O::SequenceId console;
+    CHECK(r.owner.findSequence(route(1).binding, console));
+    CHECK(console.owner == held.owner && console.slot == held.slot && console.generation == held.generation);
+    // A console producer acts on the reservation it found. The result stays the holder's.
+    const auto queued = r.admit(r.request(held));
+    CHECK(r.owner.beginUrgentOperation(console, 2, 5000, r.now));
+    CHECK(r.owner.result(queued));
+    const auto urgent = r.admit(r.request(console, 1, true, 0x2346), true);
+    r.turn(r.now, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 1);
+    expectWrite(r.fake.sent[0], 1, 0x2346);
+    r.complete(urgent, 1, true, 0x2346);
+    CHECK(r.done(urgent).sequence.generation == held.generation && r.done(urgent).producer == 1);
+    // Invalidated reservation.
+    CHECK(r.owner.invalidate(held, r.now));
+    absent(route(1).binding);
+    // A reuse finds the new identity, never the old.
+    O::SequenceId fresh;
+    CHECK(r.owner.beginSequence(route(1).binding, 2, r.now, fresh));
+    CHECK(r.owner.findSequence(route(1).binding, console));
+    CHECK(console.generation == fresh.generation && console.generation != held.generation);
+    // Released.
+    CHECK(r.owner.releaseSequence(fresh));
+    absent(route(1).binding);
+    {   // Quarantined route, while the reservation itself is still held.
+        Rig q;
+        lose(q);
+        O::SequenceId none;
+        none.generation = 555;
+        const Saved<O::SequenceId> same(none);
+        CHECK(!q.owner.findSequence(route(1).binding, none));
+        same.unchanged(none);
+    }
+    {   // A marker reopening the route still leaves its old reservation invalid.
+        Rig q;
+        lose(q);
+        const auto marker = sendMarker(q, markerWork(q.now));
+        stray(q, uploaded());
+        CHECK(q.done(marker).service.outcome == C::SdoOutcome::SUCCESS && !q.services.unresolved(0));
+        O::SequenceId none;
+        CHECK(!q.owner.findSequence(route(1).binding, none));
+    }
+}
+
+// C-01 regression: lost trigger reply, stop admitted and sent once, identical late reply stays
+// unqualified. Refusal of ordinary work on the route is unchanged.
+void stopAfterLostTriggerStaysUnqualified() {
+    Rig r;
+    const auto sequence = r.sequence();
+    const auto read = r.admit(r.request(sequence, 1, false, 0x2001));
+    r.turn(0, budget(0, 1, 0, 1));
+    r.complete(read, 1, false, 0x2001);
+    CHECK(r.services.node(0)->sdo.present && r.services.node(0)->serviceQualification.present);
+    const auto trigger = r.admit(r.request(sequence, 2, true, 0x6040));
+    r.turn(r.now, budget(0, 1, 0, 1));
+    const uint8_t triggerBytes[8] = {0x2b, 0x40, 0x60, 0x00, 0xa5, 0x5a, 0x00, 0x00};
+    expectFrame(r.fake.sent[1], 0x601, triggerBytes);
+    r.fake.report(1);
+    r.turn(r.now + 1000, budget(0, 0, 8, 0));
+    CHECK(r.done(trigger).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+    const Saved<O::Completion> readResult(r.done(read)), triggerResult(r.done(trigger));
+    const Saved<C::ObservationTime> qualification(r.services.node(0)->serviceQualification);
+    const Saved<C::ObservationTime> sdo(r.services.node(0)->sdo);
+    O::Health before;
+    CHECK(r.owner.health(route().binding, before));
+    const auto refusesOrdinary = [&] {
+        CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
+        CHECK(!r.owner.sequence(sequence) && !r.owner.beginOperation(sequence, 2, r.now + 100, r.now));
+        CHECK(!r.owner.beginUrgentOperation(sequence, 2, r.now + 100, r.now));
+        O::SequenceId refused;
+        CHECK(!r.owner.beginSequence(route().binding, 2, r.now, refused));
+        CHECK(!r.owner.findSequence(route().binding, refused));
+        CHECK(!r.services.checkAdmission(0, stopWork(r.now), r.now));
+        qualification.unchanged(r.services.node(0)->serviceQualification);
+        sdo.unchanged(r.services.node(0)->sdo);
+        readResult.unchanged(r.done(read));
+        triggerResult.unchanged(r.done(trigger));
+    };
+    refusesOrdinary();
+    const SentStop stop = sendStop(r, stopWork(r.now));
+    CHECK(stop.frame == 2);
+    refusesOrdinary();
+    r.fake.report(stop.frame);
+    r.turn(r.now, budget(0, 0, 8, 0));
+    const O::Completion& result = r.done(stop.id);
+    CHECK(result.reason == O::CompletionReason::SERVICE && result.controllerAccepted);
+    expectUnqualifiedStop(result, C::SdoOutcome::UNCONFIRMED_SENT, true);
+    const Saved<O::Completion> stopResult(result);
+    CHECK(r.owner.localTxRetired(0));
+    refusesOrdinary();
+    // UNCONFIRMED_SENT counts neither for nor against the service.
+    O::Health after;
+    CHECK(r.owner.health(route().binding, after));
+    CHECK(after.totalSuccess == before.totalSuccess && after.totalFailures == before.totalFailures);
+    // The identical late reply, and an abort of the same pair, stay unqualified each time.
+    const M::Frame late = serverFrame(1, 0x60, 0x6040);
+    const uint8_t lateBytes[8] = {0x60, 0x40, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00};
+    CHECK(!std::memcmp(late.data, lateBytes, sizeof lateBytes));
+    for (unsigned i = 0; i < 3; ++i) {
+        const uint32_t unmatched = r.owner.stats().unmatchedFrames;
+        stray(r, i == 2 ? serverAbort(1, 0x6040, 0x06020000u) : late);
+        CHECK(r.owner.stats().unmatchedFrames == unmatched + 1);
+        CHECK(r.services.observation(0)->disposition == C::SdoRxDisposition::UNRESOLVED);
+        stopResult.unchanged(r.done(stop.id));
+        refusesOrdinary();
+    }
+    manyTurns(r);
+    CHECK(r.fake.sentCount == 3);
+    stopResult.unchanged(r.done(stop.id));
+    // Release frees storage and settles nothing. A marker must not reuse the stop's own pair.
+    CHECK(r.owner.release(stop.id) && !r.owner.result(stop.id) && !r.owner.release(stop.id));
+    refusesOrdinary();
+    markerRefused(r, markerWork(r.now, 1, 0x6040), O::BusAdmission::INVALID);
+    // A second stop is a new explicit request and one more frame.
+    const SentStop second = sendStop(r, stopWork(r.now));
+    CHECK(second.frame == 3 && second.id.generation != stop.id.generation);
+    r.fake.report(second.frame);
+    r.turn(r.now, budget(0, 0, 8, 0));
+    expectUnqualifiedStop(r.done(second.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+    CHECK(r.owner.release(second.id));
+    // Only a marker on another object can reopen the route, and an old stop reply cannot help it.
+    const auto marker = sendMarker(r, markerWork(r.now));
+    stray(r, late);
+    CHECK(!r.owner.result(marker) && r.services.unresolved(0));
+    stray(r, uploaded());
+    CHECK(r.done(marker).service.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 1);
+    CHECK(!r.owner.sequence(sequence));
+    readResult.unchanged(r.done(read));
+    triggerResult.unchanged(r.done(trigger));
+}
+
+void lateReplyDoesNotWithdrawPendingStop() {
+    const uint8_t commands[] = {0x60, 0x80, 0x4b};
+    for (const uint8_t command : commands) {
+        const M::Frame late = serverFrame(1, command, 0x6040);
+        {   // While queued in the owner: a stray on the idle route quarantines it, nothing more.
+            Rig r;
+            const auto stop = admitStop(r, stopWork(r.now));
+            stray(r, late);
+            CHECK(!r.owner.result(stop) && r.services.unresolved(0) && r.fake.sentCount == 0);
+            r.turn(r.now, budget(0, 1, 0, 1));
+            CHECK(r.fake.sentCount == 1);
+            expectStop(r.fake.sent[0]);
+            r.fake.report(0);
+            r.turn(r.now, budget(0, 0, 8, 0));
+            expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        }
+        {   // Handed off and unreported: retained, and the handoff stays live until the report.
+            Rig r;
+            lose(r);
+            const SentStop stop = sendStop(r, stopWork(r.now));
+            for (unsigned i = 0; i < 2; ++i) {
+                stray(r, late);
+                CHECK(!r.owner.result(stop.id) && !r.owner.localTxRetired(0));
+                CHECK(r.services.observation(0)->disposition == C::SdoRxDisposition::UNRESOLVED);
+                CHECK(!r.services.port(0)->queueOccupied);
+            }
+            r.turn(r.now, budget());
+            CHECK(r.fake.sentCount == stop.frame + 1 && r.fake.retireCalls == 0);
+            r.fake.report(stop.frame);
+            r.turn(r.now, budget(0, 0, 8, 0));
+            expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+            CHECK(r.services.unresolved(0) && r.owner.localTxRetired(0));
+            CHECK(r.services.requalifications(0) == 0);
+            manyTurns(r);
+            CHECK(r.fake.sentCount == stop.frame + 1);
+        }
+        {   // A reply on a clean route before the report is not an acknowledgement either.
+            Rig r;
+            const Saved<C::ObservationTime> sdo(r.services.node(0)->sdo);
+            const SentStop stop = sendStop(r, stopWork(r.now));
+            stray(r, late);
+            CHECK(!r.owner.result(stop.id) && r.services.unresolved(0));
+            sdo.unchanged(r.services.node(0)->sdo);
+            r.fake.report(stop.frame);
+            r.turn(r.now, budget(0, 0, 8, 0));
+            expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+            CHECK(r.services.unresolved(0));
+            sdo.unchanged(r.services.node(0)->sdo);
+        }
+    }
+    // On a requalified route the stop's own reply is expected, before or after its report. It
+    // leaves the next marker possible. Any other frame still disproves the earlier marker.
+    for (unsigned replyFirst = 0; replyFirst < 2; ++replyFirst) {
+        Rig r;
+        lose(r);
+        const auto marker = sendMarker(r, markerWork(r.now));
+        stray(r, uploaded());
+        CHECK(r.services.requalifications(0) == 1 && r.owner.release(marker));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        if (replyFirst)
+            stray(r, serverFrame(1, 0x60, 0x6040));
+        r.fake.report(stop.frame);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        if (!replyFirst)
+            stray(r, serverFrame(1, 0x60, 0x6040));
+        CHECK(r.owner.release(stop.id));
+        const C::SdoTransfer next = markerWork(r.now, 1, 0x2001);
+        CHECK(r.services.checkDrain(0, next, fakePremises(), r.now));
+        markerRefused(r, markerWork(r.now, 1, 0x6040), O::BusAdmission::INVALID);
+        stray(r, serverFrame(1, 0x60, 0x3001));
+        markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INVALID);
+        CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 1);
+    }
+    {   // A stop queued but not sent names no request, so a reply then does disprove the marker.
+        Rig r;
+        lose(r);
+        const auto marker = sendMarker(r, markerWork(r.now));
+        stray(r, uploaded());
+        CHECK(r.owner.release(marker));
+        const auto stop = admitStop(r, stopWork(r.now));
+        stray(r, serverFrame(1, 0x60, 0x6040));
+        CHECK(!r.owner.result(stop) && r.services.unresolved(0));
+        CHECK(!r.services.checkDrain(0, markerWork(r.now, 1, 0x2001), fakePremises(), r.now));
+    }
+    {   // A marker retried after a stop reopens the route and is counted.
+        Rig r;
+        lose(r);
+        const auto first = sendMarker(r, markerWork(r.now));
+        stray(r, uploaded());
+        CHECK(r.owner.release(first));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        r.fake.report(stop.frame);
+        stray(r, serverFrame(1, 0x60, 0x6040));
+        CHECK(r.owner.release(stop.id));
+        const auto second = sendMarker(r, markerWork(r.now, 1, 0x2001));
+        stray(r, uploaded(1, 0x2001));
+        CHECK(r.done(second).service.outcome == C::SdoOutcome::SUCCESS);
+        CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 2);
+    }
+    {   // Another object's frame during the stop is retained history, so no marker may reuse it.
+        Rig r;
+        lose(r);
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        stray(r, serverFrame(1, 0x60, 0x3001));
+        CHECK(!r.owner.result(stop.id));
+        CHECK(!r.services.checkDrain(0, markerWork(r.now, 1, 0x3001), fakePremises(), r.now));
+    }
+    {   // A frame naming no object is equally unusable as evidence, and it refuses any marker.
+        Rig r;
+        lose(r);
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        stray(r, frame(0x581, 7));
+        CHECK(!r.owner.result(stop.id));
+        r.fake.report(stop.frame);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        CHECK(r.owner.release(stop.id));
+        markerRefused(r, markerWork(r.now), O::BusAdmission::INVALID);
+    }
+}
+
+void stopRoutesAndCapacity() {
+    {   // Clean but unconfirmed: ordinary writes are refused, and the stop goes anyway.
+        Rig r(0, 1, true, false);
+        const auto sequence = r.sequence();
+        O::RequestId refused;
+        CHECK(r.owner.admit(r.request(sequence, 1, true), r.now, refused) == O::BusAdmission::INVALID);
+        CHECK(!r.services.unresolved(0));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(stop.frame == 0 && !r.services.unresolved(0));
+        r.fake.report(0);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        // No reply can qualify it, so a clean route ends unresolved, and the reservation with it.
+        CHECK(r.services.unresolved(0) && !r.owner.sequence(sequence));
+        CHECK(!r.services.node(0)->serviceQualification.present);
+        CHECK(!r.services.unresolved(1));
+    }
+    {   // No network anchor: the SDO-only route takes the same path.
+        C::SdoClient services;
+        Fake fake;
+        O::CanBusOwner owner(services, fake.transport(), 73);
+        CHECK(services.configure(0, route(), false, true));
+        O::RequestId id;
+        CHECK(owner.admitBestEffortStop(stopWork(0), 0, id) == O::BusAdmission::ACCEPTED);
+        CHECK(owner.service(0, budget(0, 1, 0, 1)) && fake.sentCount == 1);
+        expectStop(fake.sent[0]);
+    }
+    {   // Two axes at once: one frame each, and node 1's unread stop does not hold node 2's.
+        Rig r;
+        const auto one = admitStop(r, stopWork(r.now, 1));
+        const auto two = admitStop(r, stopWork(r.now, 2));
+        r.turn(r.now, budget(0, 2, 0, 2));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[0], 1);
+        expectStop(r.fake.sent[1], 2);
+        r.fake.report(0);
+        r.fake.report(1);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(one), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        expectUnqualifiedStop(r.done(two), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        CHECK(r.owner.release(two));
+        stopRefused(r, stopWork(r.now, 1), O::BusAdmission::RESULTS_FULL);
+        const SentStop again = sendStop(r, stopWork(r.now, 2));
+        CHECK(again.frame == 2);
+    }
+    {   // The stop shares its channel's urgent slot with other outside and urgent work.
+        Rig r;
+        lose(r);
+        const auto marker = sendMarker(r, markerWork(r.now));
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        stray(r, uploaded());
+        CHECK(r.done(marker).service.outcome == C::SdoOutcome::SUCCESS);
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.release(marker));
+        const auto stop = admitStop(r, stopWork(r.now));
+        markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INVALID); // Open route.
+        CHECK(r.owner.cancel(stop, r.now) == O::Cancel::CANCELLED);
+    }
+    {   // A queued marker holds that slot, and so does its unread result once cancelled.
+        Rig r;
+        lose(r);
+        const auto marker = admitMarker(r, markerWork(r.now));
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.cancel(marker, r.now) == O::Cancel::CANCELLED);
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.release(marker));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(stop.frame == 1);
+    }
+    {   // So does urgent work still queued.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto urgent = r.admit(r.request(sequence), true);
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.cancel(urgent, r.now) == O::Cancel::CANCELLED && r.owner.release(urgent));
+        const auto stop = admitStop(r, stopWork(r.now));
+        CHECK(stop.slot == urgent.slot);
+    }
+    {   // Urgent work still in flight holds that slot. The stop waits only behind ordinary slots.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto urgent = r.admit(r.request(sequence), true);
+        r.turn(0, budget(0, 1, 0, 1));
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        r.complete(urgent);
+        stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+        CHECK(r.owner.release(urgent));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(stop.frame == 1);
+    }
+    {   // The application guard has no reservation to act on and cannot withdraw a stop.
+        Rig r;
+        r.fake.guardAllows = false;
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(r.fake.guardCalls == 0 && !r.owner.result(stop.id));
+        r.fake.report(stop.frame);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        // The same refusal still withdraws ordinary work on the other axis.
+        const auto other = r.sequence(2, 2);
+        const auto write = r.admit(r.request(other, 1, true));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.guardCalls == 1 && r.fake.sentCount == 1);
+        CHECK(r.done(write).reason == O::CompletionReason::PREFLIGHT_REJECTED);
+        CHECK(!r.done(write).service.transmissionPossible);
+    }
+    {   // Reservation invalidation is unrelated: a stop has neither reservation nor producer.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto stop = admitStop(r, stopWork(r.now));
+        CHECK(r.owner.invalidate(sequence, r.now));
+        CHECK(r.owner.invalidateProducer(1, r.now));
+        CHECK(!r.owner.result(stop));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectStop(r.fake.sent[0]);
+    }
+    {   // Explicit local cancellation of a queued stop: no TX, the route stays as it was.
+        Rig r;
+        const auto stop = admitStop(r, stopWork(r.now));
+        CHECK(r.owner.cancel(stop, r.now) == O::Cancel::CANCELLED);
+        expectNeverSent(r.done(stop), O::CompletionReason::CANCELLED, C::SdoOutcome::CANCELLED);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 0 && !r.services.unresolved(0));
+    }
+    {   // Cancelling a stop already handed off keeps the possible effect, without a resend.
+        Rig r;
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(r.owner.mayHaveTransmitted(stop.id));
+        CHECK(r.owner.cancel(stop.id, r.now) == O::Cancel::CANCELLED);
+        const C::SdoCompletion& ended = r.done(stop.id).service;
+        CHECK(ended.outcome == C::SdoOutcome::CANCELLED && ended.transmissionPossible && ended.effectUncertain);
+        CHECK(r.services.unresolved(0));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // A refused enqueue may still have been accepted. It stays possible and is never retried.
+        Rig r;
+        r.fake.accept = false;
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectStop(r.fake.sent[0]);
+        const C::SdoCompletion& ended = r.done(stop).service;
+        CHECK(ended.outcome == C::SdoOutcome::TRANSPORT_ERROR && ended.transmissionPossible);
+        CHECK(ended.effectUncertain && r.services.unresolved(0) && !r.done(stop).controllerAccepted);
+        r.fake.accept = true;
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // A negative final report ends it uncertain, because the frame could have left.
+        Rig r;
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        r.fake.report(stop.frame, false);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        const C::SdoCompletion& ended = r.done(stop.id).service;
+        CHECK(ended.outcome == C::SdoOutcome::TRANSPORT_ERROR && ended.transmissionPossible);
+        CHECK(!ended.transmissionConfirmed && ended.effectUncertain && r.services.unresolved(0));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // A transport holding the frame proves it never reached the SDK: nothing went out.
+        Rig r;
+        r.fake.holder = &r.services;
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(stop));
+        CHECK(!r.services.unresolved(0));
+        stray(r, serverFrame(1, 0x60, 0x6040)); // Not a withdrawal either.
+        CHECK(!r.owner.result(stop) && r.services.unresolved(0));
+        r.fake.queueReport(0, false, 1);
+        r.fake.reports[r.fake.reportWrite - 1].provedUnsent = true;
+        r.fake.holder = nullptr;
+        r.turn(r.now, budget(0, 0, 8, 0));
+        const C::SdoCompletion& ended = r.done(stop).service;
+        CHECK(ended.outcome == C::SdoOutcome::TRANSPORT_ERROR);
+        CHECK(!ended.transmissionPossible && !ended.effectPossible && !ended.effectUncertain);
+        // Its own frame never left, but that stray frame still disproved the route.
+        CHECK(r.services.unresolved(0));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // Withdrawn with no stray frame: nothing left, so the route stays clean.
+        Rig r;
+        r.fake.holder = &r.services;
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        r.fake.queueReport(0, false, 1);
+        r.fake.reports[r.fake.reportWrite - 1].provedUnsent = true;
+        r.fake.holder = nullptr;
+        r.turn(r.now, budget(0, 0, 8, 0));
+        CHECK(!r.done(stop).service.transmissionPossible && !r.services.unresolved(0));
+    }
+    {   // Identity, clock and unsupported transport refusals leave the owner unchanged.
+        Rig last(UINT32_MAX);
+        stopRefused(last, stopWork(0), O::BusAdmission::IDS_EXHAUSTED);
+        Rig clock;
+        clock.turn(10, budget());
+        O::RequestId output;
+        CHECK(clock.owner.admitBestEffortStop(stopWork(10), 9, output) == O::BusAdmission::INVALID);
+        C::SdoClient services;
+        Fake fake;
+        O::Transport none = fake.transport();
+        none.transmit = nullptr;
+        O::CanBusOwner silent(services, none, 73);
+        CHECK(services.configure(0, route(), true, true));
+        CHECK(silent.admitBestEffortStop(stopWork(0), 0, output) == O::BusAdmission::INVALID);
+    }
+}
+
+void stopWaitsBehindLiveWork() {
+    {   // It waits through the poll's TX report and reply, then goes first and ends the queue.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        const auto queued = r.admit(r.request(sequence, 2, true, 0x2346));
+        r.turn(0, budget(0, 1, 0, 1));
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1);
+        r.fake.report(0);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(poll) && !r.owner.result(stop));
+        stray(r, reply());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS && !r.services.unresolved(0));
+        const Saved<O::Completion> pollResult(r.done(poll));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[1]);
+        r.fake.report(1);
+        r.turn(r.now, budget());
+        expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        pollResult.unchanged(r.done(poll));
+        expectNeverSent(r.done(queued), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        CHECK(r.fake.sentCount == 2 && r.services.unresolved(0));
+    }
+    {   // The poll's frame is not retired until its report, even with its result published.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        const auto stop = admitStop(r, stopWork(r.now));
+        stray(r, reply());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(stop));
+        r.fake.report(0);
+        r.turn(r.now, budget(0, 1, 8, 1));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[1]);
+    }
+    {   // A lost poll quarantines the route, and the stop still goes once it is free to.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        C::SdoTransfer work = stopWork(r.now);
+        work.queueTimeoutUs = 3000;
+        const auto stop = admitStop(r, work);
+        r.fake.report(0);
+        r.turn(1000, budget(0, 1, 8, 1));
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(0));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[1]);
+        r.fake.report(1);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+    }
+    {   // Queue budget: pending one before the cutoff, unsent terminal at it, and the poll carries on.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        C::SdoTransfer work = stopWork(r.now);
+        work.queueTimeoutUs = 10;
+        const auto stop = admitStop(r, work);
+        r.turn(9, budget());
+        CHECK(!r.owner.result(stop));
+        r.turn(10, budget());
+        expectNeverSent(r.done(stop), O::CompletionReason::QUEUE_EXPIRED, C::SdoOutcome::TIMEOUT);
+        CHECK(!r.owner.result(poll) && !r.services.unresolved(0));
+        r.fake.report(0);
+        stray(r, reply());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS);
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1 && !r.services.unresolved(0));
+    }
+    {   // Overall deadline: never sent, possible false, and it does not go out when the poll ends.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        C::SdoTransfer work = stopWork(r.now);
+        work.deadlineUs = 100;
+        const auto stop = admitStop(r, work);
+        r.turn(99, budget());
+        CHECK(!r.owner.result(stop) && !r.owner.mayHaveTransmitted(stop));
+        r.turn(100, budget());
+        expectNeverSent(r.done(stop), O::CompletionReason::DEADLINE, C::SdoOutcome::TIMEOUT);
+        CHECK(r.done(stop).service.completedUs == 100 && !r.owner.mayHaveTransmitted(stop));
+        const Saved<O::Completion> saved(r.done(stop));
+        r.fake.report(0);
+        stray(r, reply());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS);
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+        saved.unchanged(r.done(stop));
+    }
+    {   // Never started on an idle channel for want of budget: the same terminal, and the same
+        // result on a route that was already unresolved.
+        for (unsigned lost = 0; lost < 2; ++lost) {
+            Rig r;
+            if (lost)
+                lose(r);
+            const unsigned sent = r.fake.sentCount;
+            C::SdoTransfer work = stopWork(r.now);
+            work.deadlineUs = r.now + 100;
+            const auto stop = admitStop(r, work);
+            r.turn(r.now + 99, O::ServiceBudget());
+            CHECK(!r.owner.result(stop));
+            r.turn(r.now + 1, O::ServiceBudget());
+            expectNeverSent(r.done(stop), O::CompletionReason::DEADLINE, C::SdoOutcome::TIMEOUT);
+            CHECK(r.services.unresolved(0) == bool(lost) && r.fake.sentCount == sent);
+        }
+    }
+    {   // External work still pending holds the stop, and the final report releases it.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto write = r.admit(r.request(sequence, 1, true));
+        r.turn(0, budget(0, 1, 0, 1));
+        C::SdoTransfer work = stopWork(r.now);
+        work.queueTimeoutUs = 3000;
+        const auto stop = admitStop(r, work);
+        r.turn(1000, budget()); // The write times out with its frame unreported, so it blocks.
+        CHECK(r.done(write).service.outcome == C::SdoOutcome::TIMEOUT && r.fake.retireCalls == 1);
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(stop));
+        r.fake.report(0);
+        r.turn(r.now, budget(0, 1, 8, 1));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[1]);
+    }
+    {   // A staged cleanup abort is live local work too: it goes first, and the stop follows.
+        Rig r;
+        const auto sequence = r.sequence();
+        O::BusRequest read = r.request(sequence);
+        read.transfer.allowSegmentedUpload = false;
+        const auto id = r.admit(read);
+        r.turn(0, budget(0, 1, 0, 1));
+        r.fake.report(0);
+        M::Frame initial = serverFrame(1, 0x41, LOST_INDEX);
+        initial.data[4] = 2;
+        r.fake.push(initial, 1);
+        r.turn(1, budget(8, 0, 8, 0));
+        CHECK(r.done(id).service.clientAbortQueued && r.services.port(0)->queueOccupied);
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget(0, 2, 0, 2));
+        CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x80 && !r.owner.result(stop));
+        r.fake.report(1);
+        r.turn(r.now, budget(0, 1, 8, 1));
+        CHECK(r.fake.sentCount == 3);
+        expectStop(r.fake.sent[2]);
+    }
+    {   // A cleanup abort already on the controller is live local work too.
+        Rig r;
+        const auto sequence = r.sequence();
+        O::BusRequest read = r.request(sequence);
+        read.transfer.allowSegmentedUpload = false;
+        const auto id = r.admit(read);
+        r.turn(0, budget(0, 1, 0, 1));
+        r.fake.report(0);
+        M::Frame initial = serverFrame(1, 0x41, LOST_INDEX);
+        initial.data[4] = 2;
+        r.fake.push(initial, 1);
+        r.turn(1, budget(8, 1, 8, 0));
+        CHECK(r.done(id).service.outcome == C::SdoOutcome::UNSUPPORTED);
+        CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x80);
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 2 && !r.owner.result(stop));
+        r.fake.report(1);
+        r.turn(r.now, budget(0, 1, 8, 1));
+        CHECK(r.fake.sentCount == 3);
+        expectStop(r.fake.sent[2]);
+    }
+}
+
+void stopResultIsFinalAcrossManyTurns() {
+    {   // No report by its cutoff: TIMEOUT, still possible, and no resend ever.
+        Rig r;
+        lose(r);
+        const uint64_t cutoff = r.now + 1000;
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        r.turn(cutoff - 1, budget(0, 0, 8, 0));
+        CHECK(!r.owner.result(stop.id));
+        r.turn(cutoff, budget());
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::TIMEOUT, false);
+        CHECK(r.done(stop.id).service.completedUs == cutoff);
+        const Saved<O::Completion> saved(r.done(stop.id));
+        CHECK(r.services.unresolved(0) && !r.owner.localTxRetired(0));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == stop.frame + 1);
+        saved.unchanged(r.done(stop.id));
+        // The frame is unretired, so the channel is blocked until its final report.
+        CHECK(r.owner.release(stop.id));
+        CHECK(r.fake.retireCalls >= 1);
+        stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+        // A late report retires the frame without rewriting anything or sending.
+        r.fake.report(stop.frame);
+        manyTurns(r);
+        CHECK(r.fake.sentCount == stop.frame + 1 && r.owner.localTxRetired(0));
+        CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
+    }
+    {   // A report before its result is frozen: pre-cutoff report wins; at the cutoff TIMEOUT wins.
+        for (unsigned atCutoff = 0; atCutoff < 2; ++atCutoff) {
+            Rig r;
+            const SentStop stop = sendStop(r, stopWork(r.now));
+            r.fake.report(stop.frame);
+            r.turn(atCutoff ? 1000 : 999, budget(0, 0, 8, 0));
+            if (atCutoff) {
+                expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::TIMEOUT, false);
+                CHECK(r.owner.localTxRetired(0));
+            } else
+                expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+            CHECK(r.services.unresolved(0));
+            const Saved<O::Completion> saved(r.done(stop.id));
+            manyTurns(r);
+            CHECK(r.fake.sentCount == 1);
+            saved.unchanged(r.done(stop.id));
+        }
+    }
+    {   // The overall deadline bounds the wait for a report too.
+        Rig r;
+        C::SdoTransfer work = stopWork(r.now);
+        work.deadlineUs = 200;
+        const SentStop stop = sendStop(r, work);
+        r.turn(199, budget());
+        CHECK(!r.owner.result(stop.id));
+        r.turn(200, budget());
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::TIMEOUT, false);
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // Reported and left alone across many turns, with every budget open.
+        Rig r;
+        lose(r);
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        r.fake.report(stop.frame);
+        for (unsigned i = 0; i < 200; ++i) {
+            r.turn(r.now + 50, budget());
+            CHECK(r.fake.sentCount == stop.frame + 1);
+        }
+        expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        CHECK(r.done(stop.id).service.completedUs < r.now);
+    }
+}
+
+void controllerEventsEndAStop() {
+    const ControllerEvent events[] = {ControllerEvent::RECOVERY, ControllerEvent::BUS_OFF};
+    for (ControllerEvent event : events) {
+        // Queued: ended with no TX, not replayed after recovery, and the route is as it was.
+        for (unsigned lost = 0; lost < 2; ++lost) {
+            Rig r;
+            if (lost)
+                lose(r);
+            const unsigned sent = r.fake.sentCount;
+            const auto stop = admitStop(r, stopWork(r.now));
+            O::RecoveryId recovery;
+            raise(r, event, recovery);
+            expectNeverSent(r.done(stop),
+                            event == ControllerEvent::BUS_OFF ? O::CompletionReason::INVALIDATED
+                                                              : O::CompletionReason::RECOVERY,
+                            C::SdoOutcome::BINDING_INVALIDATED);
+            const Saved<O::Completion> saved(r.done(stop));
+            CHECK(r.services.unresolved(0) == bool(lost));
+            stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+            CHECK(!r.services.checkBestEffortStop(0, stopWork(r.now), r.now));
+            r.turn(r.now, budget());
+            CHECK(r.fake.sentCount == sent);
+            retireRecovery(r, recovery);
+            manyTurns(r);
+            CHECK(r.fake.sentCount == sent);
+            saved.unchanged(r.done(stop));
+            CHECK(r.services.unresolved(0) == bool(lost));
+            // After the boundary only a new explicit request goes, with the new epoch.
+            stopRefused(r, stopWork(r.now), O::BusAdmission::RESULTS_FULL);
+            CHECK(r.owner.release(stop));
+            const SentStop again = sendStop(r, stopWork(r.now));
+            CHECK(r.fake.epochs[again.frame] == r.owner.controllerEpoch());
+            r.fake.report(again.frame, true, r.owner.controllerEpoch());
+            r.turn(r.now, budget(0, 0, 8, 0));
+            expectUnqualifiedStop(r.done(again.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+            CHECK(r.services.unresolved(0));
+        }
+        {   // In flight: possibly sent, so it stays uncertain and quarantines. Never resent.
+            Rig r;
+            const SentStop stop = sendStop(r, stopWork(r.now));
+            O::RecoveryId recovery;
+            raise(r, event, recovery);
+            const C::SdoCompletion& ended = r.done(stop.id).service;
+            CHECK(ended.outcome == (event == ControllerEvent::BUS_OFF ? C::SdoOutcome::BUS_OFF
+                                                                      : C::SdoOutcome::CANCELLED));
+            CHECK(ended.transmissionPossible && !ended.transmissionConfirmed && ended.effectUncertain);
+            CHECK(!ended.protocolAcknowledged && r.services.unresolved(0) && !r.services.unresolved(1));
+            const Saved<O::Completion> saved(r.done(stop.id));
+            retireRecovery(r, recovery);
+            manyTurns(r);
+            CHECK(r.fake.sentCount == 1 && r.services.unresolved(0));
+            saved.unchanged(r.done(stop.id));
+        }
+    }
+    {   // Lost RX refuses the same way, and known bus-off underneath refuses at the service too.
+        Rig r;
+        CHECK(r.owner.receiveOverflow(r.now));
+        stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+        CHECK(!r.services.checkBestEffortStop(0, stopWork(r.now), r.now));
+    }
+    {   // A boot or a known STOPPED ends a handed-off stop. It may have left, and never resends.
+        for (unsigned stopped = 0; stopped < 2; ++stopped) {
+            Rig r;
+            const SentStop stop = sendStop(r, stopWork(r.now));
+            stray(r, networkState(1, stopped ? 4 : 0));
+            const C::SdoCompletion& ended = r.done(stop.id).service;
+            CHECK(ended.outcome == (stopped ? C::SdoOutcome::BINDING_INVALIDATED : C::SdoOutcome::REBOOT));
+            CHECK(ended.transmissionPossible && ended.effectUncertain && r.services.unresolved(0));
+            manyTurns(r);
+            CHECK(r.fake.sentCount == 1);
+        }
+    }
+    {   // Known STOPPED while queued behind a poll: refused at handoff, ending with no TX.
+        Rig r;
+        const auto sequence = r.sequence();
+        r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        const auto stop = admitStop(r, stopWork(r.now));
+        stray(r, networkState(1, 4));
+        r.fake.report(0);
+        r.turn(r.now + 1000, budget());
+        expectNeverSent(r.done(stop), O::CompletionReason::QUEUE_EXPIRED, C::SdoOutcome::TIMEOUT);
+        CHECK(r.fake.sentCount == 1);
+    }
+}
+
+// INHIBITED on these whatever the route: no owner storage is taken and the state is unchanged.
+void stopNetworkAndTransportInhibits() {
+    {   // Known STOPPED and INITIALIZING; a later state report restores the path.
+        for (unsigned state = 0; state < 2; ++state) {
+            for (unsigned lost = 0; lost < 2; ++lost) {
+                Rig r;
+                if (lost)
+                    lose(r);
+                stray(r, networkState(1, state ? 4 : 0));
+                stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+                CHECK(!r.services.checkBestEffortStop(0, stopWork(r.now), r.now));
+                stray(r, networkState(1, 0x7f));
+                CHECK(r.services.checkBestEffortStop(0, stopWork(r.now), r.now));
+                const SentStop stop = sendStop(r, stopWork(r.now));
+                CHECK(stop.frame == lost);
+            }
+        }
+    }
+    {   // An exhausted node has no generation left to invalidate.
+        C::SdoClient services;
+        Fake fake;
+        O::CanBusOwner owner(services, fake.transport(), 73);
+        CHECK(services.configure(0, route(), true, true));
+        C::NetworkRoute network;
+        network.binding = route().binding;
+        network.generation = UINT32_MAX;
+        network.heartbeatId = 0x701;
+        network.emcyId = 0x81;
+        CHECK(services.configureNetwork(0, network, C::NetworkObserver(), 0));
+        CHECK(services.invalidateNetwork(0, C::NetworkInvalidation::BINDING, 0));
+        CHECK(services.node(0)->exhausted && services.unresolved(0));
+        O::RequestId output;
+        CHECK(owner.admitBestEffortStop(stopWork(0), 0, output) == O::BusAdmission::INHIBITED);
+        CHECK(!services.checkBestEffortStop(0, stopWork(0), 0));
+        CHECK(owner.service(0, budget()) && fake.sentCount == 0);
+    }
+    {   // A blocked external frame inhibits only its own channel, and its final report lifts it.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto write = r.admit(r.request(sequence, 1, true));
+        r.turn(0, budget(0, 1, 0, 1));
+        r.turn(1000, budget(0, 0, 8, 0));
+        CHECK(r.done(write).service.outcome == C::SdoOutcome::TIMEOUT && r.fake.retireCalls == 1);
+        CHECK(!r.owner.localTxRetired(0));
+        stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+        const SentStop other = sendStop(r, stopWork(r.now, 2));
+        CHECK(other.frame == 1);
+        r.fake.report(0);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        CHECK(r.owner.localTxRetired(0) && r.services.unresolved(0));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(stop.frame == 2);
+    }
+    {   // An NMT frame still owned by the controller holds this node, and not the other.
+        Rig r;
+        lose(r);
+        C::NmtTransfer nmt;
+        nmt.command = C::NmtCommand::START;
+        nmt.target = r.services.node(0)->route;
+        nmt.request = 123;
+        nmt.deadlineUs = r.now + 100;
+        nmt.queueTimeoutUs = 20;
+        C::NmtRequestId id;
+        CHECK(r.owner.admitNmt(nmt, r.now, id));
+        r.turn(r.now, budget(0, 1, 0, 0));
+        CHECK(r.fake.sent[r.fake.sentCount - 1].id == 0);
+        stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+        const auto other = admitStop(r, stopWork(r.now, 2));
+        CHECK(r.owner.cancel(other, r.now) == O::Cancel::CANCELLED);
+    }
+    {   // Also a queued stop: a pending NMT frame holds it from handoff until it is retired.
+        Rig r;
+        const auto stop = admitStop(r, stopWork(r.now));
+        C::NmtTransfer nmt;
+        nmt.command = C::NmtCommand::START;
+        nmt.target = r.services.node(0)->route;
+        nmt.request = 124;
+        nmt.deadlineUs = r.now + 100;
+        nmt.queueTimeoutUs = 20;
+        C::NmtRequestId id;
+        CHECK(r.owner.admitNmt(nmt, r.now, id));
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0);
+        r.turn(r.now, budget(0, 2, 0, 2));
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(stop));
+    }
+}
+
+// Nothing but the exact stop passes, on a clean route, an unresolved one and behind live work.
+void onlyTheExactStopPasses() {
+    for (unsigned context = 0; context < 3; ++context) {
+        Rig r;
+        r.turn(1, budget());
+        if (context == 1)
+            lose(r);
+        if (context == 2) {
+            const auto sequence = r.sequence();
+            r.admit(r.request(sequence));
+            r.turn(r.now, budget(0, 1, 0, 1));
+        }
+        const unsigned sent = r.fake.sentCount;
+        const C::SdoTransfer exact = stopWork(r.now);
+        const auto refused = [&](const C::SdoTransfer& work) {
+            stopRefused(r, work, O::BusAdmission::INVALID);
+            CHECK(!r.services.validBestEffortStop(0, work, r.now));
+            CHECK(!r.services.checkBestEffortStop(0, work, r.now));
+        };
+        CHECK(r.services.validBestEffortStop(0, exact, r.now));
+        CHECK(r.services.bestEffortEligible(0, r.now));
+        CHECK(r.services.checkBestEffortStop(0, exact, r.now) == (context != 2));
+        for (unsigned word = 0; word <= 0xffff; ++word) {
+            if (word == 0x000b)
+                continue;
+            C::SdoTransfer work = exact;
+            work.data[0] = uint8_t(word);
+            work.data[1] = uint8_t(word >> 8);
+            refused(work);
+        }
+        for (unsigned index = 0; index <= 0xffff; ++index) {
+            if (index == 0x6040)
+                continue;
+            C::SdoTransfer work = exact;
+            work.index = uint16_t(index);
+            refused(work);
+        }
+        for (unsigned subindex = 1; subindex <= 0xff; ++subindex) {
+            C::SdoTransfer work = exact;
+            work.subindex = uint8_t(subindex);
+            refused(work);
+        }
+        for (unsigned size = 0; size <= 33; ++size) {
+            if (size == 2)
+                continue;
+            C::SdoTransfer work = exact;
+            work.size = uint8_t(size);
+            refused(work);
+        }
+        const C::SdoDirection directions[] = {C::SdoDirection::UPLOAD, static_cast<C::SdoDirection>(0x7f)};
+        for (const C::SdoDirection direction : directions) {
+            C::SdoTransfer work = exact;
+            work.direction = direction;
+            refused(work);
+            work.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+            work.allowSegmentedUpload = false;
+            refused(work);
+        }
+        {   // Another route or binding epoch is not this channel, including the other node's IDs.
+            C::SdoTransfer work = exact;
+            ++work.channel.binding.bindingGeneration;
+            refused(work);
+            work = exact;
+            ++work.channel.binding.configurationGeneration;
+            refused(work);
+            work = exact;
+            ++work.channel.clientToServerId;
+            refused(work);
+            work = exact;
+            ++work.channel.serverToClientId;
+            refused(work);
+            work = exact;
+            work.channel = route(3);
+            refused(work);
+        }
+        {   // The rest of the shape, including a deadline that has already passed.
+            C::SdoTransfer work = exact;
+            work.operation = 0;
+            refused(work);
+            work = exact;
+            work.request = 0;
+            refused(work);
+            work = exact;
+            work.step = 0;
+            refused(work);
+            work = exact;
+            work.deadlineUs = r.now;
+            refused(work);
+            work = exact;
+            work.deadlineUs = r.now - 1;
+            refused(work);
+            work = exact;
+            work.queueTimeoutUs = 0;
+            refused(work);
+            work = exact;
+            work.responseTimeoutUs = 0;
+            refused(work);
+            work = exact;
+            work.requirePreOperational = true;
+            refused(work);
+            work = exact;
+            work.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+            refused(work);
+            work = exact;
+            work.readEffect = static_cast<C::SdoReadEffect>(0x7f);
+            refused(work);
+        }
+        CHECK(r.fake.sentCount == sent);
+        // The sweep used no slot: the exact request still lands, and trailing storage stays local.
+        C::SdoTransfer exactWithTail = exact;
+        for (unsigned i = 2; i < sizeof exactWithTail.data; ++i)
+            exactWithTail.data[i] = 0xff;
+        const auto stop = admitStop(r, exactWithTail);
+        if (context == 2) {
+            r.fake.report(sent - 1);
+            stray(r, reply());
+        }
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == sent + 1);
+        expectStop(r.fake.sent[sent]);
+        CHECK(!r.owner.result(stop));
+    }
+    // Ordinary and urgent admission stay independent of this path. Neither sends a stop on
+    // the quarantined route, whichever word it carries.
+    Rig q;
+    const Lost lost = lose(q);
+    O::BusRequest ordinary;
+    ordinary.sequence = lost.sequence;
+    ordinary.transfer = stopWork(q.now);
+    ordinary.transfer.operation = ordinary.transfer.request = 1;
+    O::RequestId output;
+    CHECK(q.owner.admit(ordinary, q.now, output) == O::BusAdmission::INVALID);
+    CHECK(q.owner.admitUrgent(ordinary, q.now, output) == O::BusAdmission::INVALID);
+    CHECK(q.fake.sentCount == 1);
+}
+
+// State refusals are INHIBITED on an idle channel and a busy one alike, and only state is at
+// fault: the same stop still passes the shape check and lands once that state has gone.
+void stopStateRefusalsAreTheSameBusy() {
+    const auto inhibited = [](Rig& r) {
+        stopRefused(r, stopWork(r.now), O::BusAdmission::INHIBITED);
+        CHECK(r.services.validBestEffortStop(0, stopWork(r.now), r.now));
+        CHECK(!r.services.bestEffortEligible(0, r.now));
+        CHECK(!r.services.checkBestEffortStop(0, stopWork(r.now), r.now));
+    };
+    {   // Known STOPPED with the poll's result in and its frame not yet retired, then idle.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        stray(r, reply());
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::SUCCESS && !r.owner.localTxRetired(0));
+        stray(r, networkState(1, 4));
+        CHECK(!r.owner.localTxRetired(0));
+        inhibited(r);
+        r.fake.report(0);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        CHECK(r.owner.localTxRetired(0));
+        inhibited(r);
+        stray(r, networkState(1, 0x7f));
+        const SentStop stop = sendStop(r, stopWork(r.now));
+        CHECK(stop.frame == 1);
+    }
+    {   // Known INITIALIZING after a boot that ended a poll in flight.
+        Rig r;
+        const auto sequence = r.sequence();
+        const auto poll = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        stray(r, networkState(1, 0));
+        CHECK(r.done(poll).service.outcome == C::SdoOutcome::REBOOT);
+        inhibited(r);
+        r.fake.report(0);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        inhibited(r);
+    }
+    // Controller state reported beneath the owner, so the owner's own interlock is not what refuses.
+    const C::ControllerState states[] = {C::ControllerState::BUS_OFF, C::ControllerState::RECOVERING};
+    for (const C::ControllerState state : states) {
+        for (unsigned busy = 0; busy < 2; ++busy) {
+            Rig r;
+            if (busy) {
+                const auto sequence = r.sequence();
+                r.admit(r.request(sequence));
+                r.turn(0, budget(0, 1, 0, 1));
+            }
+            CHECK(r.services.reportController(state, r.now));
+            CHECK(!r.owner.resources().inhibited);
+            inhibited(r);
+            if (busy) {
+                r.fake.report(0);
+                r.turn(r.now, budget(0, 0, 8, 0));
+                inhibited(r);
+            }
+        }
+    }
+}
+
+// One node with two SDO channels: a stop's route ends unresolved, and that ends work on the peer.
+void stopWaitsForPeerChannel() {
+    const auto reservePeer = [](Rig& r, O::SequenceId& out) {
+        const C::SdoChannel alternate = *r.services.channel(1);
+        CHECK(r.owner.beginSequence(alternate.binding, 3, r.now, out));
+        CHECK(r.owner.beginOperation(out, 1, 10000, r.now));
+    };
+    const auto peerRead = [](Rig& r, O::SequenceId held) {
+        O::BusRequest read = r.request(held);
+        read.transfer.channel = *r.services.channel(1);
+        return read;
+    };
+    M::Frame answer = reply();
+    answer.id = 0x5c1;
+    {   // The peer's read settles with its own reply and result, and only then the stop goes.
+        Rig r(0, 1, true, true, true);
+        O::SequenceId held;
+        reservePeer(r, held);
+        const auto read = r.admit(peerRead(r, held));
+        r.turn(0, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectUpload(r.fake.sent[0], 0x41, LOST_INDEX);
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(stop));
+        r.fake.report(0);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(stop) && !r.owner.result(read));
+        stray(r, answer);
+        const O::Completion& settled = r.done(read);
+        CHECK(settled.service.outcome == C::SdoOutcome::SUCCESS && settled.service.protocolAcknowledged);
+        CHECK(settled.service.data[0] == 0x34 && settled.service.data[1] == 0x12);
+        CHECK(!r.services.unresolved(0) && !r.services.unresolved(1));
+        const Saved<O::Completion> saved(settled);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 2);
+        expectStop(r.fake.sent[1]);
+        r.fake.report(1);
+        r.turn(r.now, budget(0, 0, 8, 0));
+        expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        saved.unchanged(r.done(read));
+        CHECK(r.services.unresolved(0) && !r.services.unresolved(1) && !r.owner.sequence(held));
+        manyTurns(r);
+        CHECK(r.fake.sentCount == 2);
+    }
+    {   // A lost peer read quarantines the peer's route, and the stop still goes.
+        Rig r(0, 1, true, true, true);
+        O::SequenceId held;
+        reservePeer(r, held);
+        const auto read = r.admit(peerRead(r, held));
+        r.turn(0, budget(0, 1, 0, 1));
+        C::SdoTransfer work = stopWork(r.now);
+        work.queueTimeoutUs = 3000;
+        const auto stop = admitStop(r, work);
+        r.fake.report(0);
+        r.turn(1000, budget(0, 1, 8, 1));
+        CHECK(r.done(read).service.outcome == C::SdoOutcome::TIMEOUT && r.services.unresolved(1));
+        CHECK(r.fake.sentCount == 2 && !r.owner.result(stop));
+        expectStop(r.fake.sent[1]);
+    }
+    {   // Ordinary peer work does not start around a live stop, and the stop's route then ends it.
+        Rig r(0, 1, true, true, true);
+        O::SequenceId held;
+        reservePeer(r, held);
+        const auto read = r.admit(peerRead(r, held));
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(0, budget(0, 2, 0, 2));
+        CHECK(r.fake.sentCount == 1);
+        expectStop(r.fake.sent[0]);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1 && !r.owner.result(read));
+        r.fake.report(0);
+        r.turn(r.now, budget());
+        expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+        expectNeverSent(r.done(read), O::CompletionReason::INVALIDATED, C::SdoOutcome::BINDING_INVALIDATED);
+        CHECK(r.fake.sentCount == 1);
+    }
+    {   // Queued for want of budget it still holds the peer, until cancelled with nothing sent.
+        Rig r(0, 1, true, true, true);
+        O::SequenceId held;
+        reservePeer(r, held);
+        const auto read = r.admit(peerRead(r, held));
+        const auto stop = admitStop(r, stopWork(r.now));
+        r.turn(0, O::ServiceBudget());
+        CHECK(r.owner.cancel(stop, r.now) == O::Cancel::CANCELLED);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 1);
+        expectUpload(r.fake.sent[0], 0x41, LOST_INDEX);
+        CHECK(!r.owner.result(read) && !r.services.unresolved(0));
+    }
+    {   // Symmetric: a stop on the alternate channel waits for channel 0, in its own urgent slot.
+        Rig r(0, 1, true, true, true);
+        const auto sequence = r.sequence();
+        const auto read = r.admit(r.request(sequence));
+        r.turn(0, budget(0, 1, 0, 1));
+        C::SdoTransfer work = stopWork(r.now);
+        work.channel = *r.services.channel(1);
+        const auto stop = admitStop(r, work);
+        CHECK(stop.slot == O::CanBusOwner::REQUESTS + 1);
+        r.turn(r.now, budget());
+        CHECK(r.fake.sentCount == 1);
+        r.fake.report(0);
+        stray(r, reply());
+        CHECK(r.done(read).service.outcome == C::SdoOutcome::SUCCESS);
+        r.turn(r.now, budget(0, 1, 0, 1));
+        CHECK(r.fake.sentCount == 2);
+        const uint8_t literal[8] = {0x2b, 0x40, 0x60, 0x00, 0x0b, 0x00, 0x00, 0x00};
+        expectFrame(r.fake.sent[1], 0x641, literal);
+    }
+}
+
+// A frame a stop retained, or a request retained after a reopening, is expected. Reopening and
+// stopping again works as often as the application asks, and each reopening is counted.
+void retainedRepliesLeaveMarkersPossible() {
+    for (unsigned replyFirst = 0; replyFirst < 2; ++replyFirst) {
+        Rig r;
+        const auto stopAndReply = [&] {
+            const SentStop stop = sendStop(r, stopWork(r.now));
+            const M::Frame answer = serverFrame(1, 0x60, 0x6040);
+            if (replyFirst)
+                stray(r, answer);
+            r.fake.report(stop.frame);
+            r.turn(r.now, budget(0, 0, 8, 0));
+            expectUnqualifiedStop(r.done(stop.id), C::SdoOutcome::UNCONFIRMED_SENT, true);
+            if (!replyFirst)
+                stray(r, answer);
+            CHECK(r.services.unresolved(0) && r.owner.release(stop.id));
+        };
+        const auto reopen = [&](uint16_t index, uint32_t count) {
+            const auto marker = sendMarker(r, markerWork(r.now, 1, index));
+            stray(r, uploaded(1, index));
+            CHECK(r.done(marker).service.outcome == C::SdoOutcome::SUCCESS);
+            CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == count);
+            CHECK(r.owner.release(marker));
+        };
+        stopAndReply();
+        reopen(0x6041, 1);
+        stopAndReply();
+        reopen(0x6061, 2);
+        // A frame with a pair nothing retained, after a reopening, still refuses.
+        stopAndReply();
+        stray(r, serverFrame(1, 0x60, 0x3001));
+        markerRefused(r, markerWork(r.now, 1, 0x6041), O::BusAdmission::INVALID);
+        CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 2);
+    }
+    {   // A lost ordinary request after a reopening: its late reply is expected too.
+        Rig r;
+        lose(r);
+        const auto first = sendMarker(r, markerWork(r.now));
+        stray(r, uploaded());
+        CHECK(r.services.requalifications(0) == 1 && r.owner.release(first));
+        lose(r);
+        stray(r, reply(1, true));
+        CHECK(r.services.unresolved(0));
+        const auto second = sendMarker(r, markerWork(r.now, 1, 0x2001));
+        stray(r, uploaded(1, 0x2001));
+        CHECK(r.done(second).service.outcome == C::SdoOutcome::SUCCESS);
+        CHECK(!r.services.unresolved(0) && r.services.requalifications(0) == 2);
+    }
+    {   // The same loss followed by another pair's frame refuses from then on.
+        Rig r;
+        lose(r);
+        const auto first = sendMarker(r, markerWork(r.now));
+        stray(r, uploaded());
+        CHECK(r.owner.release(first));
+        lose(r);
+        stray(r, serverFrame(1, 0x60, 0x3001));
+        markerRefused(r, markerWork(r.now, 1, 0x2001), O::BusAdmission::INVALID);
+    }
+}
+
+void findSequenceRejectsOverlappingOutput() {
+    Rig r;
+    const auto held = r.sequence();
+    O::SequenceId found;
+    CHECK(r.owner.findSequence(route().binding, found) && found.generation == held.generation);
+    // The reservation exists, so only the overlap can refuse each of these.
+    CHECK(!r.owner.findSequence(route().binding, *reinterpret_cast<O::SequenceId*>(static_cast<void*>(&r.owner))));
+    CHECK(!r.owner.findSequence(route().binding, *reinterpret_cast<O::SequenceId*>(static_cast<void*>(&r.services))));
+    alignas(O::SequenceId) unsigned char storage[sizeof(M::Binding) + sizeof(O::SequenceId)] = {};
+    const M::Binding* binding = new (storage) M::Binding(route().binding);
+    CHECK(!r.owner.findSequence(*binding, *reinterpret_cast<O::SequenceId*>(static_cast<void*>(storage))));
+    CHECK(M::sameBinding(*binding, route().binding));
+    CHECK(r.owner.sequence(held));
+}
+
+// Producer 1 has just gone, so producer 2 is next. A stop in between, withdrawn with nothing sent
+// so that both channels stay usable, has no producer and does not move that turn.
+void stopLeavesProducerFairness() {
+    Rig r;
+    const auto a = r.sequence(1, 1), b = r.sequence(2, 2);
+    const auto a1 = r.admit(r.request(a, 1, false, 0x2401));
+    r.admit(r.request(a, 2, false, 0x2402));
+    r.admit(r.request(b, 1, false, 0x2403));
+    r.turn(0, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 1);
+    expectUpload(r.fake.sent[0], 1, 0x2401);
+    r.complete(a1, 1, false, 0x2401);
+    r.fake.holder = &r.services;
+    const auto stop = admitStop(r, stopWork(r.now));
+    r.turn(r.now, budget(0, 1, 0, 1));
+    r.fake.holder = nullptr;
+    CHECK(r.fake.sentCount == 2);
+    expectStop(r.fake.sent[1]);
+    r.fake.queueReport(1, false, 1);
+    r.fake.reports[r.fake.reportWrite - 1].provedUnsent = true;
+    r.turn(r.now, budget(0, 0, 8, 0));
+    CHECK(!r.done(stop).service.transmissionPossible && !r.services.unresolved(0));
+    r.turn(r.now, budget(0, 1, 0, 1));
+    CHECK(r.fake.sentCount == 3);
+    expectUpload(r.fake.sent[2], 2, 0x2403);
+}
+
+// Heartbeat, EMCY and other axes keep flowing through the owner's one receive path meanwhile.
+void asynchronousDeliveryContinuesDuringStop() {
+    Rig r;
+    lose(r);
+    const auto other = r.sequence(2, 2);
+    const auto work = r.admit(r.request(other));
+    const auto stop = admitStop(r, stopWork(r.now));
+    const C::NodeSnapshot& node = *r.services.node(0);
+    const Saved<C::ObservationTime> qualification(node.serviceQualification);
+    const auto deliver = [&](uint8_t low, unsigned count) {
+        const unsigned observed = r.fake.observations;
+        const uint64_t seen = node.heartbeat.processedUs;
+        r.fake.push(networkState(1, 5), r.now + 1);
+        r.fake.push(emergency(1, low, 0x23), r.now + 1);
+        r.turn(r.now + 1, budget(8, 0, 0, 0));
+        CHECK(r.fake.observations == observed + 2);
+        CHECK(node.heartbeat.present && node.heartbeat.processedUs > seen && node.nmt == C::NmtState::OPERATIONAL);
+        CHECK(node.emcyCount == count && node.emcy.errorCode == uint16_t(low | 0x2300));
+        CHECK(r.services.unresolved(0) && r.services.requalifications(0) == 0);
+        qualification.unchanged(node.serviceQualification);
+    };
+    // Queued.
+    deliver(0x10, 1);
+    CHECK(!r.owner.result(stop) && r.fake.sentCount == 1);
+    // Handed off and unreported, with the other axis in flight too.
+    r.turn(r.now, budget(0, 2, 0, 2));
+    CHECK(r.fake.sentCount == 3);
+    expectStop(r.fake.sent[1]);
+    expectUpload(r.fake.sent[2], 2, LOST_INDEX);
+    deliver(0x20, 2);
+    CHECK(!r.owner.result(stop) && !r.owner.result(work));
+    // A reply on node 1 changes nothing there, and node 2's own reply settles node 2's work.
+    r.fake.report(2);
+    r.fake.push(serverFrame(1, 0x60, 0x6040), r.now + 1);
+    r.fake.push(reply(2), r.now + 1);
+    r.turn(r.now + 1, budget(8, 0, 8, 0));
+    CHECK(!r.owner.result(stop));
+    CHECK(r.done(work).service.outcome == C::SdoOutcome::SUCCESS && !r.services.unresolved(1));
+    CHECK(r.services.node(1)->sdo.present);
+    deliver(0x30, 3);
+    r.fake.report(1);
+    r.turn(r.now, budget(0, 0, 8, 0));
+    expectUnqualifiedStop(r.done(stop), C::SdoOutcome::UNCONFIRMED_SENT, true);
+    // After its terminal, and after its release.
+    deliver(0x40, 4);
+    CHECK(r.owner.release(stop));
+    deliver(0x50, 5);
+    CHECK(r.fake.sentCount == 3);
+}
+
 } // namespace
 int main() {
     urgentCapacityAndPriority();
@@ -2181,6 +4242,26 @@ int main() {
     abortOnLiveFrameQuarantines();
     rejectedStepEndsQueuedSteps();
     successOvertakingItsReportStaysPossible();
+    urgentSlotsBelongToTheirAxes();
+    ordinaryAndUrgentPressureAreIndependent();
+    staleEpochsRefuseUrgentWork();
+    reusedReservationKeepsOldIdentityDead();
+    beginUrgentOperationRetiresOnlyUnsentWork();
+    findSequenceServesOtherProducers();
+    stopAfterLostTriggerStaysUnqualified();
+    lateReplyDoesNotWithdrawPendingStop();
+    stopRoutesAndCapacity();
+    stopWaitsBehindLiveWork();
+    stopResultIsFinalAcrossManyTurns();
+    controllerEventsEndAStop();
+    stopNetworkAndTransportInhibits();
+    onlyTheExactStopPasses();
+    stopStateRefusalsAreTheSameBusy();
+    stopWaitsForPeerChannel();
+    retainedRepliesLeaveMarkersPossible();
+    findSequenceRejectsOverlappingOutput();
+    stopLeavesProducerFairness();
+    asynchronousDeliveryContinuesDuringStop();
     std::printf("can_bus_recovery_test: %u checks\n", checks);
     return 0;
 }

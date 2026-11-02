@@ -25,6 +25,7 @@ bool attempted(const Completion& completion) {
     case C::SdoOutcome::CANCELLED:
     case C::SdoOutcome::UNSUPPORTED:
     case C::SdoOutcome::BINDING_INVALIDATED:
+    case C::SdoOutcome::UNCONFIRMED_SENT: // No reply exists to count for or against the service.
         return false;
     default:
         return true;
