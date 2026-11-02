@@ -11,8 +11,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace O = MotorControlCANOwner;
-namespace {
-unsigned checks = 0;
+static unsigned checks = 0;
 #define CHECK(condition)                                                                           \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -21,6 +20,9 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/OwnerRig.h"
+namespace {
+using OwnerRig::frame;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
@@ -47,12 +49,6 @@ uint8_t blocks(bool feedback = false) {
     return uint8_t((1u << unsigned(L::StateBlock::STATUS)) |
                    (1u << unsigned(L::StateBlock::MONITORS)) |
                    (feedback ? 1u << unsigned(L::StateBlock::FEEDBACK) : 0));
-}
-M::Frame frame(uint32_t id, uint8_t width) {
-    M::Frame value;
-    value.id = id;
-    value.dlc = value.payloadLength = width;
-    return value;
 }
 // One staged frame and TX report suffice: the fixture explicitly dispatches
 // heartbeat and SDO separately, through the same real receive owner.

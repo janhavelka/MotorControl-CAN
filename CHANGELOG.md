@@ -5,6 +5,7 @@
 ### Owner placement (audit W2)
 
 - Move `CanBusOwner`, its diagnostics and counters from `examples/common/` to `adapters/owner/`, in namespace `MotorControlCANOwner`, with optional target `MotorControlCAN::CanBusOwner`. Runtime behavior is unchanged and the target is still not installed.
+- Owner value types and the transport boundary are in `CanBusTypes.h`, included by `CanBusOwner.h`. Tests share plumbing through `test/support/OwnerRig.h`.
 - Migration: include path `adapters/owner`; replace `MotorControlCANExample::CanBusOwner` and its owner types with `MotorControlCANOwner::`; link `MotorControlCAN::CanBusOwner` instead of `MotorControlCANExampleOwner`. `ProbeApp`, consoles and board code stay in `examples/` under `MotorControlCANExample`.
 
 ### Promptset repair (audit W1)

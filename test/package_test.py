@@ -151,7 +151,7 @@ def check_package(args, work, summary):
     # headers/library must come from the relocated install, never the checkout.
     probe = work / "native probe consumer"
     copied = {
-        "owner": ("adapters/owner", ["CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
+        "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
         "common": ("examples/common", ["ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),

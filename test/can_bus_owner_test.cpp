@@ -13,8 +13,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace O = MotorControlCANOwner;
-namespace {
-unsigned checks = 0;
+static unsigned checks = 0;
 #define CHECK(c)                                                                                   \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -23,22 +22,15 @@ unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
+#include "support/OwnerRig.h"
+namespace {
+using OwnerRig::budget;
+using OwnerRig::route;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
     void unchanged(const T& value) const { CHECK(!std::memcmp(bytes, &value, sizeof value)); }
 };
-C::SdoChannel route(unsigned node = 1) {
-    C::SdoChannel c;
-    c.binding.logicalAxisId = 100 + node;
-    c.binding.endpoint.profile = 41;
-    c.binding.endpoint.address = node;
-    c.binding.bindingGeneration = 3;
-    c.binding.configurationGeneration = 7;
-    c.clientToServerId = 0x600 + node;
-    c.serverToClientId = 0x580 + node;
-    return c;
-}
 L::ReadTarget target(unsigned node = 1) {
     L::ReadTarget t;
     t.channel = route(node);
@@ -63,14 +55,6 @@ M::Frame response(unsigned node, uint16_t index, uint8_t width, uint32_t raw = 0
         for (unsigned i = 0; i < width && i < 4; ++i)
             f.data[4 + i] = uint8_t(raw >> (i * 8));
     return f;
-}
-O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2) {
-    O::ServiceBudget b;
-    b.rx = rx;
-    b.tx = tx;
-    b.events = events;
-    b.starts = starts;
-    return b;
 }
 bool same(O::RequestId a, O::RequestId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;

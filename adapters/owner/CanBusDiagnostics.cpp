@@ -5,10 +5,7 @@
 namespace MotorControlCANOwner {
 namespace C = MotorControlCAN::CANOPEN;
 namespace {
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
+using detail::overlap;
 bool sameIdentity(const Binding& a, const Binding& b) {
     Binding candidate = a;
     candidate.configurationGeneration = b.configurationGeneration;
