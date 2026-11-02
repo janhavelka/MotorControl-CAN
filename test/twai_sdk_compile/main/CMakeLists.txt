@@ -3,7 +3,7 @@ set(can_root "${CMAKE_CURRENT_LIST_DIR}/../../..")
 idf_component_register(
     SRCS "sizes.cpp" "${can_root}/adapters/twai/IdfTwaiDriver.cpp"
          "${can_root}/adapters/twai/TwaiAdapter.cpp"
-    INCLUDE_DIRS "${can_root}/include" "${can_root}/examples/common"
+    INCLUDE_DIRS "${can_root}/include" "${can_root}/examples/common" "${can_root}/adapters/owner"
          "${can_root}/adapters/canopennode" "${can_root}/adapters/twai"
          "${can_root}/experiments/canopen_service_fit"
          "${can_root}/experiments/canopen_service_fit/vendor/CANopenNode"

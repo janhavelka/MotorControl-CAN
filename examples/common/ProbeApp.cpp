@@ -2,6 +2,12 @@
 #include "ProbeApp.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::BusRequest;
+using MotorControlCANOwner::BusAdmission;
+using MotorControlCANOwner::Cancel;
+using MotorControlCANOwner::Completion;
+using MotorControlCANOwner::ServiceBudget;
+using MotorControlCANOwner::Sequence;
 namespace M = MotorControlCAN;
 namespace L = MotorControlCAN::LICHUAN_C;
 ProbeApp::ProbeApp(CanBusOwner& owner, ProbePlatform& platform) noexcept

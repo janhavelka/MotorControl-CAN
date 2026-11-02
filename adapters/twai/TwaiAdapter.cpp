@@ -2,6 +2,7 @@
 #include "TwaiAdapter.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::sameTransportTxId;
 namespace {
 uint32_t add(uint32_t a, uint32_t b) {
     return b > UINT32_MAX - a ? UINT32_MAX : a + b;

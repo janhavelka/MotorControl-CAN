@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: MIT
 #include "ProbePlatform.h"
-#include "OwnerCounters.h"
 
 namespace MotorControlCANExample {
+namespace {
+void addSaturating(uint32_t& value) noexcept {
+    if (value != UINT32_MAX)
+        ++value;
+}
+} // namespace
+
 ProbePlatform::ProbePlatform(const ProbeCallbacks& callbacks) noexcept : callbacks_(callbacks) {}
 bool ProbePlatform::nowUs(uint64_t& output) const noexcept {
     uint64_t candidate = 0;
@@ -17,7 +23,7 @@ void ProbePlatform::service() noexcept {
         if (!callbacks_.readByte(callbacks_.context, byte))
             break;
         if (stats_.inputUsed == INPUT_CAPACITY) {
-            detail::add(stats_.inputDropped);
+            addSaturating(stats_.inputDropped);
         } else {
             input_[(inputHead_ + stats_.inputUsed) % INPUT_CAPACITY] = byte;
             ++stats_.inputUsed;
@@ -44,7 +50,7 @@ bool ProbePlatform::writeOutput(const uint8_t* bytes, size_t size) noexcept {
     if (!bytes && size)
         return false;
     if (size > static_cast<size_t>(OUTPUT_CAPACITY - stats_.outputUsed)) {
-        detail::add(stats_.outputRejected);
+        addSaturating(stats_.outputRejected);
         return false;
     }
     for (size_t i = 0; i < size; ++i)

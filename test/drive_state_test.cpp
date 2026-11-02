@@ -10,7 +10,7 @@
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition)                                                                           \
@@ -57,12 +57,12 @@ M::Frame frame(uint32_t id, uint8_t width) {
 // One staged frame and TX report suffice: the fixture explicitly dispatches
 // heartbeat and SDO separately, through the same real receive owner.
 struct Wire {
-    E::ReceivedFrame incoming;
-    E::TxReport report;
+    O::ReceivedFrame incoming;
+    O::TxReport report;
     M::Frame sent;
     bool hasIncoming = false, hasReport = false;
     unsigned transmitted = 0, observed = 0;
-    static bool receive(void* context, E::ReceivedFrame& value) {
+    static bool receive(void* context, O::ReceivedFrame& value) {
         Wire& wire = *static_cast<Wire*>(context);
         if (!wire.hasIncoming)
             return false;
@@ -70,7 +70,7 @@ struct Wire {
         wire.hasIncoming = false;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
         Wire& wire = *static_cast<Wire*>(context);
         CHECK(!wire.hasReport && epoch == 1);
         CHECK(value.id == 0x605 && value.payloadLength == 8 && value.data[0] == 0x40);
@@ -84,7 +84,7 @@ struct Wire {
         ++wire.transmitted;
         return true;
     }
-    static bool takeReport(void* context, E::TxReport& value) {
+    static bool takeReport(void* context, O::TxReport& value) {
         Wire& wire = *static_cast<Wire*>(context);
         if (!wire.hasReport)
             return false;
@@ -92,11 +92,11 @@ struct Wire {
         wire.hasReport = false;
         return true;
     }
-    static void observe(void* context, const E::ReceivedFrame&, uint64_t) {
+    static void observe(void* context, const O::ReceivedFrame&, uint64_t) {
         ++static_cast<Wire*>(context)->observed;
     }
-    E::Transport callbacks() {
-        E::Transport value;
+    O::Transport callbacks() {
+        O::Transport value;
         value.context = this;
         value.receive = receive;
         value.transmit = transmit;
@@ -115,8 +115,8 @@ struct Wire {
 struct Rig {
     C::SdoClient services;
     Wire wire;
-    E::CanBusOwner owner;
-    E::SequenceId sequence;
+    O::CanBusOwner owner;
+    O::SequenceId sequence;
     L::ReadContext read;
     uint64_t now = 0;
     explicit Rig(bool feedback = false, uint8_t selection = 0)
@@ -135,7 +135,7 @@ struct Rig {
     }
     void turn(uint64_t time) {
         now = time;
-        E::ServiceBudget budget;
+        O::ServiceBudget budget;
         budget.rx = budget.tx = budget.events = budget.starts = 1;
         CHECK(owner.service(now, budget));
     }
@@ -146,11 +146,11 @@ struct Rig {
         CHECK(work.transfer.index == index && work.transfer.subindex == 0 &&
               work.transfer.size == width && work.transfer.direction == C::SdoDirection::UPLOAD);
         CHECK(work.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED);
-        E::BusRequest request;
+        O::BusRequest request;
         request.sequence = sequence;
         request.transfer = work.transfer;
-        E::RequestId id;
-        CHECK(owner.admit(request, now, id) == E::BusAdmission::ACCEPTED);
+        O::RequestId id;
+        CHECK(owner.admit(request, now, id) == O::BusAdmission::ACCEPTED);
         turn(now);
         CHECK(wire.sent.data[1] == uint8_t(index) && wire.sent.data[2] == uint8_t(index >> 8));
         if (heartbeat) {
@@ -169,8 +169,8 @@ struct Rig {
             reply.data[4 + i] = uint8_t(raw >> (8 * i));
         wire.push(reply, now + 1);
         turn(now + 1);
-        const E::Completion* result = owner.result(id);
-        CHECK(result && result->reason == E::CompletionReason::SERVICE);
+        const O::Completion* result = owner.result(id);
+        CHECK(result && result->reason == O::CompletionReason::SERVICE);
         const C::SdoCompletion copied = result->service;
         CHECK(copied.outcome == (abort ? C::SdoOutcome::SERVER_ABORT : C::SdoOutcome::SUCCESS));
         CHECK(L::advanceRead(read, copied, now));

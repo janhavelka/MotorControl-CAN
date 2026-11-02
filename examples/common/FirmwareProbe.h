@@ -8,6 +8,7 @@
 #include "TwaiAdapter.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::CanBusOwner;
 /** Explicit local controller configuration; default leaves CAN disabled.
  * Applies to the S3 USB Serial/JTAG examples, which reserve GPIO19/20 for USB.
  * No node, drive, model, firmware, session or physical presence is inferred.

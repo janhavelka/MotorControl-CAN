@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Owner placement (audit W2)
+
+- Move `CanBusOwner`, its diagnostics and counters from `examples/common/` to `adapters/owner/`, in namespace `MotorControlCANOwner`, with optional target `MotorControlCAN::CanBusOwner`. Runtime behavior is unchanged and the target is still not installed.
+- Migration: include path `adapters/owner`; replace `MotorControlCANExample::CanBusOwner` and its owner types with `MotorControlCANOwner::`; link `MotorControlCAN::CanBusOwner` instead of `MotorControlCANExampleOwner`. `ProbeApp`, consoles and board code stay in `examples/` under `MotorControlCANExample`.
+
 ### Promptset repair (audit W1)
 
 - Remove prompt 18 from prompt 38's prerequisites, make prompt 43 depend on 40, 44 on 42 and 43, and 47 on 29, 44 and 45, so prompts 49-50 can close as a scoped software candidate. New checker guards keep 18 out of 49's ancestors and 41/42 in the ancestors of 44, 45, 47 and 48, and reject mis-decoded UTF-8.

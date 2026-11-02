@@ -9,6 +9,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(x)                                                                                   \
@@ -41,8 +42,8 @@ struct Wire {
     unsigned failureAt = 0, attempts = 0, transmitted = 0, receives = 0, downloads = 0;
     uint64_t now = 0;
     uint32_t values[9] = {0x181, 255, 100, 0, 3, 0x60410010, 0x60610008, 0x60640020, 0};
-    E::ReceivedFrame rx[16];
-    E::TxReport reports[8];
+    O::ReceivedFrame rx[16];
+    O::TxReport reports[8];
     M::Frame sent[32];
     unsigned rxHead = 0, rxCount = 0, reportHead = 0, reportCount = 0;
     bool holdReports = false;
@@ -61,7 +62,7 @@ struct Wire {
         f.data[0] = state;
         push(f);
     }
-    static bool receive(void* ptr, E::ReceivedFrame& out) {
+    static bool receive(void* ptr, O::ReceivedFrame& out) {
         auto& w = *static_cast<Wire*>(ptr);
         ++w.receives;
         if (!w.rxCount)
@@ -71,7 +72,7 @@ struct Wire {
         --w.rxCount;
         return true;
     }
-    static bool transmit(void* ptr, const M::Frame& f, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* ptr, const M::Frame& f, O::TransportTxId id, uint32_t epoch) {
         auto& w = *static_cast<Wire*>(ptr);
         CHECK(f.id == 0x601 && f.payloadLength == 8 && epoch == 1 && w.transmitted < 32 &&
               w.reportCount < 8);
@@ -149,7 +150,7 @@ struct Wire {
         w.push(response);
         return true;
     }
-    static bool report(void* ptr, E::TxReport& out) {
+    static bool report(void* ptr, O::TxReport& out) {
         auto& w = *static_cast<Wire*>(ptr);
         if (!w.reportCount || w.holdReports)
             return false;
@@ -158,8 +159,8 @@ struct Wire {
         --w.reportCount;
         return true;
     }
-    E::Transport callbacks() {
-        E::Transport t;
+    O::Transport callbacks() {
+        O::Transport t;
         t.context = this;
         t.receive = receive;
         t.transmit = transmit;
@@ -170,7 +171,7 @@ struct Wire {
 struct Rig {
     C::SdoClient services;
     Wire wire;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     E::PdoExperiment experiment;
     uint64_t now = 0;
     Rig() : owner(services, wire.callbacks(), 42), experiment(owner, services) {
@@ -217,7 +218,7 @@ struct Rig {
     }
     void turn(uint64_t at) {
         now = wire.now = at;
-        E::ServiceBudget b;
+        O::ServiceBudget b;
         b.rx = 8;
         b.tx = 2;
         b.events = 8;
@@ -245,7 +246,7 @@ void passiveHappyAndReservation() {
     CHECK(r.experiment.begin(r.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
     CHECK(!r.wire.transmitted && r.owner.resources().reservations == 1);
     CHECK(r.experiment.begin(r.plan(), 0) == E::EvidenceAdmission::BUSY);
-    E::SequenceId other;
+    O::SequenceId other;
     CHECK(!r.owner.beginSequence(target().channel.binding, 1, 0, other));
     r.turn(1);
     CHECK(!r.wire.transmitted); // No heartbeat/state manufactured from elapsed time.

@@ -2,7 +2,7 @@
 #include "CanBusOwner.h"
 #include "OwnerCounters.h"
 
-namespace MotorControlCANExample {
+namespace MotorControlCANOwner {
 namespace C = MotorControlCAN::CANOPEN;
 namespace {
 bool overlap(const void* a, size_t an, const void* b, size_t bn) {
@@ -824,4 +824,4 @@ bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,
     refreshHealth(now);
     return true;
 }
-} // namespace MotorControlCANExample
+} // namespace MotorControlCANOwner

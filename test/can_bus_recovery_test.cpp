@@ -9,7 +9,7 @@
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {
 unsigned checks = 0;
@@ -52,9 +52,9 @@ M::Frame reply(unsigned node = 1, bool download = false, uint16_t index = 0x2345
     out.data[5] = 0x12;
     return out;
 }
-E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
+O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
                         uint8_t recovery = 0) {
-    E::ServiceBudget out;
+    O::ServiceBudget out;
     out.rx = rx;
     out.tx = tx;
     out.events = events;
@@ -64,10 +64,10 @@ E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint
 }
 struct Fake {
     enum { CAPACITY = 64 };
-    E::ReceivedFrame incoming[CAPACITY];
-    E::TxReport reports[CAPACITY];
+    O::ReceivedFrame incoming[CAPACITY];
+    O::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    E::TransportTxId ids[CAPACITY];
+    O::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool pending[CAPACITY] = {};      // Controller queue ownership, separate from enqueue history.
     unsigned departed[CAPACITY] = {}; // Enqueue indices which actually left the fake controller.
@@ -77,10 +77,10 @@ struct Fake {
     unsigned begins = 0, polls = 0;
     uint32_t recoveryEpoch = 0;
     bool accept = true, retirement = false, startRecovery = true;
-    E::RecoveryProgress progress = E::RecoveryProgress::PENDING;
-    E::TransportTxId retired;
+    O::RecoveryProgress progress = O::RecoveryProgress::PENDING;
+    O::TransportTxId retired;
     uint32_t retiredEpoch = 0;
-    static bool receive(void* p, E::ReceivedFrame& output) {
+    static bool receive(void* p, O::ReceivedFrame& output) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.receives;
         if (f.rxRead == f.rxWrite)
@@ -88,7 +88,7 @@ struct Fake {
         output = f.incoming[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         CHECK(f.sentCount < CAPACITY);
         f.sent[f.sentCount] = value;
@@ -98,7 +98,7 @@ struct Fake {
         f.epochs[f.sentCount++] = epoch;
         return f.accept;
     }
-    static bool takeReport(void* p, E::TxReport& output) {
+    static bool takeReport(void* p, O::TxReport& output) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.reportCalls;
         if (f.reportRead == f.reportWrite)
@@ -106,10 +106,10 @@ struct Fake {
         output = f.reports[f.reportRead++];
         return true;
     }
-    static void observe(void* p, const E::ReceivedFrame&, uint64_t) {
+    static void observe(void* p, const O::ReceivedFrame&, uint64_t) {
         ++static_cast<Fake*>(p)->observations;
     }
-    static bool retire(void* p, E::TransportTxId id, uint32_t epoch) {
+    static bool retire(void* p, O::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.retireCalls;
         f.retired = id;
@@ -123,7 +123,7 @@ struct Fake {
                     f.pending[i] = false;
             unsigned write = f.reportRead;
             for (unsigned i = f.reportRead; i < f.reportWrite; ++i) {
-                const E::TxReport& report = f.reports[i];
+                const O::TxReport& report = f.reports[i];
                 if (report.controllerEpoch == epoch &&
                     report.id.sdo.request.owner == id.sdo.request.owner &&
                     report.id.sdo.request.channel == id.sdo.request.channel &&
@@ -142,11 +142,11 @@ struct Fake {
         f.recoveryEpoch = epoch;
         return f.startRecovery;
     }
-    static E::RecoveryProgress poll(void* p, uint32_t epoch) {
+    static O::RecoveryProgress poll(void* p, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         CHECK(epoch == f.recoveryEpoch);
         ++f.polls;
-        if (f.progress == E::RecoveryProgress::RETIRED) {
+        if (f.progress == O::RecoveryProgress::RETIRED) {
             // This fake has no asynchronous callbacks. Empty every local queue
             // before claiming readiness for the new epoch; nothing is replayed.
             for (unsigned i = 0; i < f.sentCount; ++i)
@@ -156,8 +156,8 @@ struct Fake {
         }
         return f.progress;
     }
-    E::Transport transport(bool withRetire = true) {
-        E::Transport out;
+    O::Transport transport(bool withRetire = true) {
+        O::Transport out;
         out.context = this;
         out.receive = receive;
         out.transmit = transmit;
@@ -170,7 +170,7 @@ struct Fake {
     }
     void push(const M::Frame& value, uint64_t captured, uint32_t epoch = 1) {
         CHECK(rxWrite < CAPACITY);
-        E::ReceivedFrame& f = incoming[rxWrite++];
+        O::ReceivedFrame& f = incoming[rxWrite++];
         f.frame = value;
         f.receivedTimeKnown = true;
         f.receivedUs = captured;
@@ -178,7 +178,7 @@ struct Fake {
     }
     void queueReport(unsigned sentIndex, bool transmitted, uint32_t epoch) {
         CHECK(sentIndex < sentCount && reportWrite < CAPACITY);
-        E::TxReport& r = reports[reportWrite++];
+        O::TxReport& r = reports[reportWrite++];
         r.id = ids[sentIndex];
         r.transmitted = transmitted;
         r.controllerEpoch = epoch;
@@ -216,7 +216,7 @@ struct Fake {
 struct Rig {
     C::SdoClient services;
     Fake fake;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     uint64_t now = 0;
     explicit Rig(uint32_t serial = 0, uint32_t epoch = 1, bool retirement = true)
         : owner(services, fake.transport(retirement), 73, serial, epoch) {
@@ -230,21 +230,21 @@ struct Rig {
             CHECK(services.configureNetwork(i, n, C::NetworkObserver(), 0));
         }
     }
-    void turn(uint64_t time, E::ServiceBudget b = budget()) {
+    void turn(uint64_t time, O::ServiceBudget b = budget()) {
         now = time;
         CHECK(owner.service(time, b));
     }
-    E::SequenceId sequence(unsigned node = 1, uint8_t producer = 1, uint64_t deadline = 10000) {
-        E::SequenceId out;
+    O::SequenceId sequence(unsigned node = 1, uint8_t producer = 1, uint64_t deadline = 10000) {
+        O::SequenceId out;
         CHECK(owner.beginSequence(route(node).binding, producer, now, out));
         CHECK(owner.beginOperation(out, 1, deadline, now));
         return out;
     }
-    E::BusRequest request(E::SequenceId sequence, uint32_t step = 1, bool download = false,
+    O::BusRequest request(O::SequenceId sequence, uint32_t step = 1, bool download = false,
                           uint16_t index = 0x2345) {
-        const E::Sequence* s = owner.sequence(sequence);
+        const O::Sequence* s = owner.sequence(sequence);
         CHECK(s);
-        E::BusRequest out;
+        O::BusRequest out;
         out.sequence = sequence;
         out.transfer.channel = route(s->binding.endpoint.address);
         out.transfer.channel.binding = s->binding;
@@ -260,18 +260,18 @@ struct Rig {
         out.transfer.data[1] = 0x5a;
         return out;
     }
-    E::RequestId admit(const E::BusRequest& input, bool urgent = false) {
-        E::RequestId out;
+    O::RequestId admit(const O::BusRequest& input, bool urgent = false) {
+        O::RequestId out;
         CHECK((urgent ? owner.admitUrgent(input, now, out) : owner.admit(input, now, out)) ==
-              E::BusAdmission::ACCEPTED);
+              O::BusAdmission::ACCEPTED);
         return out;
     }
-    const E::Completion& done(E::RequestId id) {
-        const E::Completion* out = owner.result(id);
+    const O::Completion& done(O::RequestId id) {
+        const O::Completion* out = owner.result(id);
         CHECK(out);
         return *out;
     }
-    void complete(E::RequestId id, unsigned node = 1, bool download = false,
+    void complete(O::RequestId id, unsigned node = 1, bool download = false,
                   uint16_t index = 0x2345) {
         fake.report(fake.sentCount - 1);
         fake.push(reply(node, download, index), now + 1);
@@ -283,51 +283,51 @@ struct Rig {
 void urgentCapacityAndPriority() {
     Rig r;
     const auto ordinary = r.sequence(1, 1), urgent = r.sequence(2, 4);
-    E::RequestId pending[E::CanBusOwner::REQUESTS];
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i)
+    O::RequestId pending[O::CanBusOwner::REQUESTS];
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i)
         pending[i] = r.admit(r.request(ordinary, i + 1));
-    E::RequestId rejected;
+    O::RequestId rejected;
     rejected.generation = 987;
-    const Saved<E::RequestId> unchanged(rejected);
-    CHECK(r.owner.admit(r.request(ordinary, 7), 0, rejected) == E::BusAdmission::RESULTS_FULL);
+    const Saved<O::RequestId> unchanged(rejected);
+    CHECK(r.owner.admit(r.request(ordinary, 7), 0, rejected) == O::BusAdmission::RESULTS_FULL);
     unchanged.unchanged(rejected);
     const auto reserved = r.admit(r.request(urgent), true);
-    CHECK(reserved.slot >= E::CanBusOwner::REQUESTS);
-    CHECK(r.owner.admitUrgent(r.request(urgent, 2), 0, rejected) == E::BusAdmission::RESULTS_FULL);
+    CHECK(reserved.slot >= O::CanBusOwner::REQUESTS);
+    CHECK(r.owner.admitUrgent(r.request(urgent, 2), 0, rejected) == O::BusAdmission::RESULTS_FULL);
     unchanged.unchanged(rejected);
     r.turn(0, budget(0, 1, 0, 1));
     CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0x602);
     r.complete(reserved, 2);
     CHECK(r.owner.beginOperation(urgent, 2, 10000, r.now));
-    CHECK(r.owner.admitUrgent(r.request(urgent), r.now, rejected) == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admitUrgent(r.request(urgent), r.now, rejected) == O::BusAdmission::RESULTS_FULL);
     CHECK(r.owner.release(reserved));
     const auto reused = r.admit(r.request(urgent), true);
     CHECK(reused.slot == reserved.slot && reused.generation != reserved.generation);
     CHECK(!r.owner.result(reserved));
-    CHECK(r.owner.cancel(reused, r.now) == E::Cancel::CANCELLED);
+    CHECK(r.owner.cancel(reused, r.now) == O::Cancel::CANCELLED);
     for (const auto id : pending)
-        CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+        CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
     CHECK(r.fake.sentCount == 1);
 
     // Six unread ordinary successes occupy all ordinary slots. New operation
     // admission still has a separate urgent terminal reservation.
     Rig full;
     const auto sequence = full.sequence();
-    E::RequestId results[E::CanBusOwner::REQUESTS];
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i) {
+    O::RequestId results[O::CanBusOwner::REQUESTS];
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
         results[i] = full.admit(full.request(sequence, i + 1));
         full.turn(full.now, budget(0, 1, 0, 1));
         full.complete(results[i]);
     }
-    const Saved<E::Completion> first(full.done(results[0]));
+    const Saved<O::Completion> first(full.done(results[0]));
     CHECK(full.owner.beginOperation(sequence, 2, 10000, full.now));
     CHECK(full.owner.admit(full.request(sequence), full.now, rejected) ==
-          E::BusAdmission::RESULTS_FULL);
+          O::BusAdmission::RESULTS_FULL);
     const auto extra = full.admit(full.request(sequence), true);
     full.turn(full.now, budget(0, 1, 0, 1));
     full.complete(extra);
     first.unchanged(full.done(results[0]));
-    CHECK(full.fake.sentCount == E::CanBusOwner::TOTAL_REQUESTS);
+    CHECK(full.fake.sentCount == O::CanBusOwner::TOTAL_REQUESTS);
 }
 
 void urgentKeepsSequenceOrder() {
@@ -366,24 +366,24 @@ void cancellationPhasesAndTerminalPrecedence() {
             }
         }
         if (phase == 3) {
-            const Saved<E::Completion> prior(r.done(id));
-            CHECK(r.owner.cancel(id, r.now) == E::Cancel::ALREADY_TERMINAL);
+            const Saved<O::Completion> prior(r.done(id));
+            CHECK(r.owner.cancel(id, r.now) == O::Cancel::ALREADY_TERMINAL);
             prior.unchanged(r.done(id));
             CHECK(r.done(id).service.protocolAcknowledged);
         } else {
-            CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+            CHECK(r.owner.cancel(id, r.now) == O::Cancel::CANCELLED);
             const auto& terminal = r.done(id);
-            CHECK(terminal.reason == E::CompletionReason::CANCELLED);
+            CHECK(terminal.reason == O::CompletionReason::CANCELLED);
             CHECK(terminal.service.outcome == C::SdoOutcome::CANCELLED);
             CHECK(terminal.service.transmissionPossible == (phase != 0));
             CHECK(terminal.service.transmissionConfirmed == (phase == 2));
             CHECK(terminal.service.effectUncertain == (phase != 0));
             CHECK(!terminal.service.protocolAcknowledged);
-            const Saved<E::Completion> saved(terminal);
+            const Saved<O::Completion> saved(terminal);
             r.fake.push(reply(1, true), r.now + 1);
             r.turn(r.now + 1, budget(1, 0, 8, 0));
             saved.unchanged(r.done(id));
-            CHECK(r.owner.cancel(id, r.now) == E::Cancel::ALREADY_TERMINAL);
+            CHECK(r.owner.cancel(id, r.now) == O::Cancel::ALREADY_TERMINAL);
         }
         CHECK(r.fake.sentCount == unsigned(phase != 0));
         CHECK(r.fake.retireCalls == unsigned(phase == 1));
@@ -391,8 +391,8 @@ void cancellationPhasesAndTerminalPrecedence() {
     Rig deadline;
     const auto sequence = deadline.sequence(1, 1, 10);
     const auto id = deadline.admit(deadline.request(sequence));
-    CHECK(deadline.owner.cancel(id, 10) == E::Cancel::ALREADY_TERMINAL);
-    CHECK(deadline.done(id).reason == E::CompletionReason::DEADLINE);
+    CHECK(deadline.owner.cancel(id, 10) == O::Cancel::ALREADY_TERMINAL);
+    CHECK(deadline.done(id).reason == O::CompletionReason::DEADLINE);
     CHECK(!deadline.done(id).service.transmissionPossible && deadline.fake.sentCount == 0);
 
     // The adapter has staged a segment after initiation, but TX budget is zero.
@@ -407,7 +407,7 @@ void cancellationPhasesAndTerminalPrecedence() {
     staged.fake.push(reply(1, true), 1);
     staged.turn(1, budget(1, 0, 1, 0));
     CHECK(staged.services.port(0)->queueOccupied);
-    CHECK(staged.owner.cancel(segment, 1) == E::Cancel::CANCELLED);
+    CHECK(staged.owner.cancel(segment, 1) == O::Cancel::CANCELLED);
     staged.turn(2, budget(0, 2, 8, 2));
     CHECK(staged.fake.sentCount == 1);
     for (unsigned i = 1; i < staged.fake.sentCount; ++i)
@@ -427,7 +427,7 @@ void cleanupHandoffNeedsRetirement() {
     r.turn(1, budget(1, 1, 1, 0));
     CHECK(r.done(id).service.outcome == C::SdoOutcome::CLIENT_ABORT);
     CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x80);
-    const Saved<E::Completion> saved(r.done(id));
+    const Saved<O::Completion> saved(r.done(id));
     // Protocol abort cleanup has the same external queue ownership as work.
     CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 2));
     CHECK(r.fake.retireCalls == 1 && r.fake.retired.sdo.frame == r.fake.ids[1].sdo.frame);
@@ -448,9 +448,9 @@ void captureTimeCannotRewriteAnExpiredTerminal() {
         r.turn(10, budget(1, 0, 0, 0));
         CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT);
         CHECK(!r.done(id).service.protocolAcknowledged && r.done(id).service.effectUncertain);
-        const Saved<E::Completion> saved(r.done(id));
-        CHECK(r.owner.cancel(id, 10) == E::Cancel::ALREADY_TERMINAL);
-        CHECK(r.owner.cancel(id, 9) == E::Cancel::INVALID);
+        const Saved<O::Completion> saved(r.done(id));
+        CHECK(r.owner.cancel(id, 10) == O::Cancel::ALREADY_TERMINAL);
+        CHECK(r.owner.cancel(id, 9) == O::Cancel::INVALID);
         r.fake.push(reply(1, true), 11);
         r.turn(11, budget(1, 0, 0, 0));
         saved.unchanged(r.done(id));
@@ -467,13 +467,13 @@ void unprovedRetirementBlocksOnlyItsChannel() {
         const auto other = r.admit(r.request(b));
         r.turn(0, budget(0, 1, 0, 1));
         CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0x601);
-        CHECK(r.owner.cancel(first, 1) == E::Cancel::CANCELLED);
+        CHECK(r.owner.cancel(first, 1) == O::Cancel::CANCELLED);
         CHECK(r.done(first).service.effectUncertain);
         M::Frame heartbeat = frame(0x702, 1);
         heartbeat.data[0] = 5;
         r.fake.push(heartbeat, 2);
         r.turn(2, budget(1, 1, 8, 1));
-        CHECK(r.done(urgent).reason == E::CompletionReason::INVALIDATED);
+        CHECK(r.done(urgent).reason == O::CompletionReason::INVALIDATED);
         CHECK(r.fake.sentCount == 2 && r.fake.sent[1].id == 0x602);
         CHECK(r.services.node(1)->heartbeat.present &&
               r.services.node(1)->nmt == C::NmtState::OPERATIONAL);
@@ -495,8 +495,8 @@ void groupInvalidationDoesNotCancelOtherProducer() {
         const auto other = r.admit(r.request(b));
         CHECK(group ? r.owner.invalidateProducer(1, 0) : r.owner.invalidate(a, 0));
         CHECK(!r.owner.sequence(a) && r.owner.sequence(b));
-        CHECK(r.done(first).reason == E::CompletionReason::INVALIDATED);
-        CHECK(r.done(next).reason == E::CompletionReason::INVALIDATED);
+        CHECK(r.done(first).reason == O::CompletionReason::INVALIDATED);
+        CHECK(r.done(next).reason == O::CompletionReason::INVALIDATED);
         r.turn(0, budget(0, 1, 0, 1));
         CHECK(r.fake.sentCount == 1 && r.fake.sent[0].id == 0x602);
         r.complete(other, 2);
@@ -525,7 +525,7 @@ void staleQueuedFramesAfterBoundaries() {
               !r.done(queued).service.transmissionPossible);
         CHECK(r.fake.retireCalls == 1 && r.fake.retiredEpoch == 1);
         CHECK(r.fake.retired.sdo.frame == r.fake.ids[0].sdo.frame);
-        const Saved<E::Completion> interrupted(r.done(first));
+        const Saved<O::Completion> interrupted(r.done(first));
         r.fake.report(0);
         r.fake.push(reply(1, true), 2);
         r.turn(2, budget(1, 2, 8, 2));
@@ -549,7 +549,7 @@ void refusedEnqueueStillNeedsRetirement() {
     r.turn(1, budget(0, 2, 8, 2));
     r.turn(2, budget());
     CHECK(r.fake.sentCount == 1 && r.fake.retireCalls == 1 && r.services.unresolved(0));
-    const Saved<E::Completion> retained(r.done(id));
+    const Saved<O::Completion> retained(r.done(id));
     r.fake.report(0, false);
     r.turn(3, budget(0, 2, 8, 2));
     retained.unchanged(r.done(id));
@@ -565,12 +565,12 @@ void exactRetirementControlsPhysicalDeparture() {
         const auto later = r.admit(r.request(sequence, 2, true, 0x2346), true);
         r.turn(0, budget(0, 1, 0, 1));
         CHECK(r.fake.pendingCount() == 1 && r.fake.departedCount == 0);
-        CHECK(r.owner.cancel(original, 1) == E::Cancel::CANCELLED);
+        CHECK(r.owner.cancel(original, 1) == O::Cancel::CANCELLED);
         CHECK(r.fake.retireCalls == 1 && r.fake.pendingCount() == unsigned(!positive));
         r.turn(1, budget());
-        CHECK(r.done(later).reason == E::CompletionReason::INVALIDATED);
+        CHECK(r.done(later).reason == O::CompletionReason::INVALIDATED);
         CHECK(r.fake.sentCount == 1);
-        const Saved<E::Completion> saved(r.done(original));
+        const Saved<O::Completion> saved(r.done(original));
         CHECK(r.fake.physicalDrain(0) == !positive);
         CHECK(r.fake.departedCount == unsigned(!positive));
         if (!positive) {
@@ -603,7 +603,7 @@ void exactRetirementControlsPhysicalDeparture() {
     const auto unaffected = parallel.admit(parallel.request(b, 1, true));
     parallel.turn(0, budget(0, 2, 0, 2));
     CHECK(parallel.fake.pendingCount() == 2);
-    CHECK(parallel.owner.cancel(cancelled, 1) == E::Cancel::CANCELLED);
+    CHECK(parallel.owner.cancel(cancelled, 1) == O::Cancel::CANCELLED);
     CHECK(parallel.fake.pendingCount() == 1 && !parallel.fake.physicalDrain(0));
     CHECK(parallel.fake.physicalDrain(1));
     CHECK(parallel.fake.departedCount == 1 && parallel.fake.departed[0] == 1);
@@ -618,7 +618,7 @@ void recoveryActuallyRetiresLocalQueues() {
         Rig r;
         const auto a = r.sequence(1, 1), b = r.sequence(2, 2);
         const auto first = r.admit(r.request(a, 1, true));
-        const E::BusRequest original = r.request(b, 1, true, 0x2346);
+        const O::BusRequest original = r.request(b, 1, true, 0x2346);
         const auto second = r.admit(original);
         r.turn(0, budget(0, 2, 0, 2));
         CHECK(r.fake.pendingCount() == 2 && r.fake.departedCount == 0);
@@ -629,28 +629,28 @@ void recoveryActuallyRetiresLocalQueues() {
         r.fake.push(heartbeat, 0);
         CHECK(r.fake.pendingCount() == 1 && r.fake.reportWrite == 1 && r.fake.rxWrite == 1);
         r.fake.startRecovery = outcome != 1;
-        r.fake.progress = outcome == 0   ? E::RecoveryProgress::RETIRED
-                          : outcome == 2 ? E::RecoveryProgress::FAILED
-                                         : E::RecoveryProgress::PENDING;
-        E::RecoveryId recovery;
+        r.fake.progress = outcome == 0   ? O::RecoveryProgress::RETIRED
+                          : outcome == 2 ? O::RecoveryProgress::FAILED
+                                         : O::RecoveryProgress::PENDING;
+        O::RecoveryId recovery;
         CHECK(r.owner.recover(1, 3, recovery));
-        const Saved<E::Completion> firstResult(r.done(first));
-        const Saved<E::Completion> secondResult(r.done(second));
+        const Saved<O::Completion> firstResult(r.done(first));
+        const Saved<O::Completion> secondResult(r.done(second));
         r.turn(outcome == 3 ? 3 : 2, budget(0, 0, 0, 0, 1));
         CHECK(r.owner.recoveryResult(recovery));
         if (outcome == 0) {
-            CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::RETIRED);
+            CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
             CHECK(r.fake.pendingCount() == 0 && r.fake.rxRead == r.fake.rxWrite);
             CHECK(r.fake.reportRead == r.fake.reportWrite);
             CHECK(!r.fake.physicalDrain(1) && r.fake.departedCount == 1);
             CHECK(r.services.controllerState() == C::ControllerState::AVAILABLE);
         } else {
             CHECK(r.owner.recoveryResult(recovery)->outcome ==
-                  (outcome == 3 ? E::RecoveryOutcome::TIMEOUT : E::RecoveryOutcome::FAILED));
+                  (outcome == 3 ? O::RecoveryOutcome::TIMEOUT : O::RecoveryOutcome::FAILED));
             CHECK(r.fake.pendingCount() == 1 && r.fake.rxRead == 0 && r.fake.reportRead == 0);
             CHECK(!r.owner.reportController(C::ControllerState::AVAILABLE, r.now));
-            E::RequestId rejected;
-            CHECK(r.owner.admit(original, r.now, rejected) == E::BusAdmission::INHIBITED);
+            O::RequestId rejected;
+            CHECK(r.owner.admit(original, r.now, rejected) == O::BusAdmission::INHIBITED);
             r.turn(4, budget(0, 2, 0, 2));
             CHECK(r.fake.pendingCount() == 1 && r.fake.sentCount == 2);
             // Failed/timed-out host work cannot claim that the old queue vanished.
@@ -698,9 +698,9 @@ void repliesBeforeFinalTxReportDoNotLoseRetirement() {
     r.fake.push(segmentAck, 6);
     r.turn(6, budget(1, 0, 0, 0));
     CHECK(r.done(segmented).service.protocolAcknowledged);
-    const Saved<E::Completion> saved(r.done(segmented));
-    E::RequestId rejected;
-    CHECK(r.owner.admit(r.request(sequence, 2), 6, rejected) == E::BusAdmission::INHIBITED);
+    const Saved<O::Completion> saved(r.done(segmented));
+    O::RequestId rejected;
+    CHECK(r.owner.admit(r.request(sequence, 2), 6, rejected) == O::BusAdmission::INHIBITED);
     r.turn(7, budget(0, 1, 0, 1));
     CHECK(r.fake.sentCount == 3);
     r.fake.report(2);
@@ -715,20 +715,20 @@ void repliesBeforeFinalTxReportDoNotLoseRetirement() {
 void recoveryHasSeparateCapacityAndFiniteBudget() {
     Rig r;
     const auto sequence = r.sequence();
-    E::RequestId pending[E::CanBusOwner::TOTAL_REQUESTS];
-    for (unsigned i = 0; i < E::CanBusOwner::TOTAL_REQUESTS; ++i)
-        pending[i] = r.admit(r.request(sequence, i + 1, true), i == E::CanBusOwner::REQUESTS);
+    O::RequestId pending[O::CanBusOwner::TOTAL_REQUESTS];
+    for (unsigned i = 0; i < O::CanBusOwner::TOTAL_REQUESTS; ++i)
+        pending[i] = r.admit(r.request(sequence, i + 1, true), i == O::CanBusOwner::REQUESTS);
     r.turn(0, budget(0, 1, 0, 1));
-    E::RecoveryId recovery;
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(0, 10, recovery));
     CHECK(r.fake.begins == 1 && r.fake.recoveryEpoch == 2 && !r.owner.recoveryResult(recovery));
     CHECK(!r.owner.releaseRecovery(recovery));
     for (const auto id : pending)
-        CHECK(r.done(id).reason == E::CompletionReason::RECOVERY);
-    const Saved<E::Completion> interrupted(r.done(pending[0]));
-    E::RecoveryId unchanged;
+        CHECK(r.done(id).reason == O::CompletionReason::RECOVERY);
+    const Saved<O::Completion> interrupted(r.done(pending[0]));
+    O::RecoveryId unchanged;
     unchanged.generation = 765;
-    const Saved<E::RecoveryId> rejected(unchanged);
+    const Saved<O::RecoveryId> rejected(unchanged);
     CHECK(!r.owner.recover(0, 20, unchanged));
     rejected.unchanged(unchanged);
     r.turn(0, budget(0, 0, 0, 0, 0));
@@ -737,11 +737,11 @@ void recoveryHasSeparateCapacityAndFiniteBudget() {
     CHECK(r.fake.polls == 1 && !r.owner.recoveryResult(recovery));
     r.turn(10, budget(0, 0, 0, 0, 255));
     CHECK(r.fake.polls == 1);
-    const E::RecoveryCompletion* terminal = r.owner.recoveryResult(recovery);
-    CHECK(terminal && terminal->outcome == E::RecoveryOutcome::TIMEOUT);
+    const O::RecoveryCompletion* terminal = r.owner.recoveryResult(recovery);
+    CHECK(terminal && terminal->outcome == O::RecoveryOutcome::TIMEOUT);
     CHECK(terminal->startedUs == 0 && terminal->deadlineUs == 10 && terminal->completedUs == 10);
-    const Saved<E::RecoveryCompletion> saved(*terminal);
-    r.fake.progress = E::RecoveryProgress::RETIRED;
+    const Saved<O::RecoveryCompletion> saved(*terminal);
+    r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(11, budget(8, 2, 8, 2, 255));
     saved.unchanged(*r.owner.recoveryResult(recovery));
     interrupted.unchanged(r.done(pending[0]));
@@ -752,7 +752,7 @@ void recoveryHasSeparateCapacityAndFiniteBudget() {
     CHECK(r.owner.recover(11, 20, unchanged));
     CHECK(unchanged.generation != recovery.generation && r.fake.recoveryEpoch == 3);
     r.turn(12, budget(0, 0, 0, 0, 1));
-    CHECK(r.owner.recoveryResult(unchanged)->outcome == E::RecoveryOutcome::RETIRED);
+    CHECK(r.owner.recoveryResult(unchanged)->outcome == O::RecoveryOutcome::RETIRED);
     CHECK(r.services.controllerState() == C::ControllerState::AVAILABLE);
     CHECK(r.services.unresolved(0) && r.services.unresolved(1));
     CHECK(r.fake.sentCount == 1 && !r.owner.sequence(sequence));
@@ -762,30 +762,30 @@ void missingRecoveryHooksRetainFailure() {
     for (unsigned missing = 1; missing <= 3; ++missing) {
         C::SdoClient services;
         Fake fake;
-        E::Transport transport = fake.transport();
+        O::Transport transport = fake.transport();
         if (missing & 1)
             transport.beginRecovery = nullptr;
         if (missing & 2)
             transport.pollRecovery = nullptr;
-        E::CanBusOwner owner(services, transport, 73);
-        E::RecoveryId id;
+        O::CanBusOwner owner(services, transport, 73);
+        O::RecoveryId id;
         CHECK(owner.recover(0, 10, id));
-        const E::RecoveryCompletion* terminal = owner.recoveryResult(id);
-        CHECK(terminal && terminal->outcome == E::RecoveryOutcome::FAILED);
+        const O::RecoveryCompletion* terminal = owner.recoveryResult(id);
+        CHECK(terminal && terminal->outcome == O::RecoveryOutcome::FAILED);
         CHECK(terminal->completedUs == 0 && terminal->controllerEpoch == 2);
-        const Saved<E::RecoveryCompletion> saved(*terminal);
+        const Saved<O::RecoveryCompletion> saved(*terminal);
         CHECK(owner.service(1, budget(8, 2, 8, 2, 1)));
         saved.unchanged(*owner.recoveryResult(id));
         CHECK(fake.begins == 0 && fake.polls == 0 && fake.sentCount == 0);
-        E::RecoveryId rejected;
+        O::RecoveryId rejected;
         CHECK(!owner.recover(1, 20, rejected));
         CHECK(owner.releaseRecovery(id) && !owner.recoveryResult(id));
         CHECK(!owner.reportController(C::ControllerState::AVAILABLE, 1));
-        E::RequestId work;
-        CHECK(owner.admit(E::BusRequest(), 1, work) == E::BusAdmission::INHIBITED);
+        O::RequestId work;
+        CHECK(owner.admit(O::BusRequest(), 1, work) == O::BusAdmission::INHIBITED);
         CHECK(owner.recover(1, 20, rejected));
         CHECK(rejected.generation != id.generation);
-        CHECK(owner.recoveryResult(rejected)->outcome == E::RecoveryOutcome::FAILED);
+        CHECK(owner.recoveryResult(rejected)->outcome == O::RecoveryOutcome::FAILED);
         CHECK(!owner.recoveryResult(id));
     }
 }
@@ -795,8 +795,8 @@ void twoVendorBindingsShareRecoveryWithoutInventingEvidence() {
     // Profile tags and object bytes are local fixtures, not installed vendor operations.
     C::SdoClient services;
     Fake fake;
-    E::CanBusOwner owner(services, fake.transport(), 73);
-    E::RequestId ids[2];
+    O::CanBusOwner owner(services, fake.transport(), 73);
+    O::RequestId ids[2];
     C::SdoChannel bindings[2];
     for (uint8_t channel = 0; channel < 2; ++channel) {
         C::SdoChannel& binding = bindings[channel];
@@ -812,10 +812,10 @@ void twoVendorBindingsShareRecoveryWithoutInventingEvidence() {
     }
     for (uint8_t channel = 0; channel < 2; ++channel) {
         const C::SdoChannel& binding = bindings[channel];
-        E::SequenceId sequence;
+        O::SequenceId sequence;
         CHECK(owner.beginSequence(binding.binding, channel + 1, 0, sequence));
         CHECK(owner.beginOperation(sequence, 1, 100, 0));
-        E::BusRequest work;
+        O::BusRequest work;
         work.sequence = sequence;
         work.transfer.channel = binding;
         work.transfer.request = work.transfer.operation = work.transfer.step = 1;
@@ -825,7 +825,7 @@ void twoVendorBindingsShareRecoveryWithoutInventingEvidence() {
         work.transfer.data[0] = uint8_t(10 + channel);
         work.transfer.queueTimeoutUs = work.transfer.responseTimeoutUs = 50;
         work.transfer.deadlineUs = 100;
-        CHECK(owner.admit(work, 0, ids[channel]) == E::BusAdmission::ACCEPTED);
+        CHECK(owner.admit(work, 0, ids[channel]) == O::BusAdmission::ACCEPTED);
     }
     CHECK(owner.service(0, budget(0, 2, 0, 2)));
     CHECK(fake.sentCount == 2 && fake.pendingCount() == 2);
@@ -835,16 +835,16 @@ void twoVendorBindingsShareRecoveryWithoutInventingEvidence() {
     CHECK(owner.service(1, budget(1, 0, 8, 0)));
     CHECK(owner.result(ids[0]) && owner.result(ids[0])->service.protocolAcknowledged);
     CHECK(!owner.result(ids[1]));
-    const Saved<E::Completion> confirmed(*owner.result(ids[0]));
-    E::RecoveryId recovery;
+    const Saved<O::Completion> confirmed(*owner.result(ids[0]));
+    O::RecoveryId recovery;
     CHECK(owner.recover(2, 10, recovery));
-    const E::Completion* uncertain = owner.result(ids[1]);
+    const O::Completion* uncertain = owner.result(ids[1]);
     CHECK(uncertain && uncertain->service.effectUncertain);
     CHECK(!uncertain->service.protocolAcknowledged && !uncertain->service.transmissionConfirmed);
-    const Saved<E::Completion> interrupted(*uncertain);
-    fake.progress = E::RecoveryProgress::RETIRED;
+    const Saved<O::Completion> interrupted(*uncertain);
+    fake.progress = O::RecoveryProgress::RETIRED;
     CHECK(owner.service(3, budget(0, 0, 0, 0, 1)));
-    CHECK(owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::RETIRED);
+    CHECK(owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
     CHECK(fake.pendingCount() == 0 && !fake.physicalDrain(1));
     for (uint8_t channel = 0; channel < 2; ++channel) {
         CHECK(owner.result(ids[channel])->service.transfer.channel.binding.endpoint.profile ==
@@ -863,7 +863,7 @@ void wrongEpochIngressAndReportsRemainDiagnostic() {
     unconfirmed.turn(0, budget(0, 1, 0, 1));
     unconfirmed.fake.report(0, true, 2);
     unconfirmed.turn(1, budget(0, 0, 1, 0));
-    CHECK(unconfirmed.owner.cancel(unconfirmedId, 1) == E::Cancel::CANCELLED);
+    CHECK(unconfirmed.owner.cancel(unconfirmedId, 1) == O::Cancel::CANCELLED);
     CHECK(!unconfirmed.done(unconfirmedId).service.transmissionConfirmed);
     CHECK(unconfirmed.fake.retireCalls == 1);
 
@@ -883,10 +883,10 @@ void wrongEpochIngressAndReportsRemainDiagnostic() {
     r.fake.push(reply(1, true), 2, 1);
     r.turn(2, budget(8, 0, 8, 0));
     CHECK(r.done(id).service.transmissionConfirmed && r.done(id).service.protocolAcknowledged);
-    const Saved<E::Completion> saved(r.done(id));
-    E::RecoveryId recovery;
+    const Saved<O::Completion> saved(r.done(id));
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(3, 10, recovery));
-    r.fake.progress = E::RecoveryProgress::RETIRED;
+    r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(4, budget(0, 0, 0, 0, 1));
     // Deliberate adapter-contract violation: recovery retired these old local
     // queues, but inject stale epoch-one input afterward to test owner rejection.
@@ -931,10 +931,10 @@ void recoveryCannotRequalifyPdo() {
     r.fake.push(frame(0x281), 1);
     r.turn(1, budget(1, 0, 0, 0));
     CHECK(r.services.pdo(0)->qualified && r.services.pdo(0)->observation.time.present);
-    E::RecoveryId recovery;
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(2, 10, recovery));
     CHECK(!r.services.pdo(0)->qualified && !r.services.pdo(0)->confirmed);
-    r.fake.progress = E::RecoveryProgress::RETIRED;
+    r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(3, budget(0, 0, 0, 0, 1));
     r.fake.push(frame(0x281), 4, 2);
     r.turn(4, budget(1, 2, 8, 2));
@@ -1000,7 +1000,7 @@ void unknownControllerWithdrawsFreshness() {
     CHECK(!r.owner.sequence(sequence) &&
           !r.owner.reportController(C::ControllerState::AVAILABLE, 1));
     CHECK(r.fake.pendingCount() == 0 && !r.fake.physicalDrain(0));
-    const Saved<E::Completion> retained(r.done(first));
+    const Saved<O::Completion> retained(r.done(first));
     r.turn(5000, budget());
     CHECK(r.fake.sentCount == 1 && r.fake.departedCount == 0);
     retained.unchanged(r.done(first));
@@ -1009,31 +1009,31 @@ void unknownControllerWithdrawsFreshness() {
 void exhaustionClockBoundariesAndOverflow() {
     for (unsigned kind = 0; kind < 3; ++kind) {
         Rig r(kind == 0 ? UINT32_MAX : 0, kind == 1 ? UINT32_MAX : kind == 2 ? 0 : 1);
-        E::RecoveryId output;
+        O::RecoveryId output;
         output.generation = 123;
-        const Saved<E::RecoveryId> unchanged(output);
+        const Saved<O::RecoveryId> unchanged(output);
         CHECK(!r.owner.recover(0, 1, output));
         unchanged.unchanged(output);
         CHECK(r.fake.begins == 0);
     }
     Rig last(UINT32_MAX - 1);
-    E::RecoveryId final;
+    O::RecoveryId final;
     CHECK(last.owner.recover(0, 1, final));
     CHECK(final.generation == UINT32_MAX);
-    last.fake.progress = E::RecoveryProgress::RETIRED;
+    last.fake.progress = O::RecoveryProgress::RETIRED;
     last.turn(0, budget(0, 0, 0, 0, 1));
     CHECK(last.owner.releaseRecovery(final));
     CHECK(!last.owner.recover(0, 1, final));
     CHECK(last.fake.begins == 1);
 
     Rig epoch(0, UINT32_MAX - 1);
-    E::RecoveryId finalEpoch;
+    O::RecoveryId finalEpoch;
     CHECK(epoch.owner.recover(0, 1, finalEpoch));
     CHECK(epoch.fake.recoveryEpoch == UINT32_MAX);
-    epoch.fake.progress = E::RecoveryProgress::RETIRED;
+    epoch.fake.progress = O::RecoveryProgress::RETIRED;
     epoch.turn(0, budget(0, 0, 0, 0, 1));
     CHECK(epoch.owner.releaseRecovery(finalEpoch));
-    const Saved<E::RecoveryId> unchangedEpoch(finalEpoch);
+    const Saved<O::RecoveryId> unchangedEpoch(finalEpoch);
     CHECK(!epoch.owner.recover(0, 1, finalEpoch));
     unchangedEpoch.unchanged(finalEpoch);
     CHECK(epoch.fake.begins == 1);
@@ -1042,23 +1042,23 @@ void exhaustionClockBoundariesAndOverflow() {
     const auto lastSequence = requests.sequence();
     const auto lastRequest = requests.admit(requests.request(lastSequence));
     CHECK(lastRequest.generation == UINT32_MAX);
-    E::RequestId exhausted;
+    O::RequestId exhausted;
     exhausted.generation = 543;
-    const Saved<E::RequestId> unchangedRequest(exhausted);
+    const Saved<O::RequestId> unchangedRequest(exhausted);
     CHECK(requests.owner.admitUrgent(requests.request(lastSequence, 2), 0, exhausted) ==
-          E::BusAdmission::IDS_EXHAUSTED);
+          O::BusAdmission::IDS_EXHAUSTED);
     unchangedRequest.unchanged(exhausted);
 
     Rig clock;
-    E::RecoveryId recovery;
+    O::RecoveryId recovery;
     CHECK(!clock.owner.recover(0, 0, recovery));
     CHECK(clock.owner.recover(0, std::numeric_limits<uint64_t>::max(), recovery));
-    clock.turn(1, E::ServiceBudget());
+    clock.turn(1, O::ServiceBudget());
     CHECK(!clock.owner.service(0, budget(8, 2, 8, 2, 1)));
     CHECK(!clock.owner.receiveOverflow(0));
     CHECK(clock.fake.polls == 0);
-    clock.turn(std::numeric_limits<uint64_t>::max(), E::ServiceBudget());
-    CHECK(clock.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::TIMEOUT);
+    clock.turn(std::numeric_limits<uint64_t>::max(), O::ServiceBudget());
+    CHECK(clock.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::TIMEOUT);
 
     Rig overflow;
     const auto sequence = overflow.sequence();
@@ -1076,11 +1076,11 @@ void exhaustionClockBoundariesAndOverflow() {
     for (unsigned refused = 0; refused < 2; ++refused) {
         Rig failure;
         failure.fake.startRecovery = !refused;
-        failure.fake.progress = E::RecoveryProgress::FAILED;
-        E::RecoveryId id;
+        failure.fake.progress = O::RecoveryProgress::FAILED;
+        O::RecoveryId id;
         CHECK(failure.owner.recover(0, 10, id));
         failure.turn(0, budget(0, 0, 0, 0, 1));
-        CHECK(failure.owner.recoveryResult(id)->outcome == E::RecoveryOutcome::FAILED);
+        CHECK(failure.owner.recoveryResult(id)->outcome == O::RecoveryOutcome::FAILED);
         CHECK(!failure.owner.reportController(C::ControllerState::AVAILABLE, 0));
         CHECK(failure.fake.polls == unsigned(!refused) && failure.fake.sentCount == 0);
     }

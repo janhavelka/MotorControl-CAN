@@ -7,6 +7,13 @@
 #include "DeviceEvidence.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::Stats;
+using MotorControlCANOwner::RequestId;
+using MotorControlCANOwner::SequenceId;
+using MotorControlCANOwner::BusAdmission;
+using MotorControlCANOwner::Completion;
+using MotorControlCANOwner::OwnerResources;
+using MotorControlCANOwner::CanBusOwner;
 /** Fixed upload inventories; neither selection grants a general raw accessor. */
 enum class RawEvidenceInventory : uint8_t {
     IDENTITY_NETWORK, ///< Existing identity/TPDO baseline with explicit optional network fields.

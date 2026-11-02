@@ -19,6 +19,7 @@
 #endif
 
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {
@@ -653,7 +654,7 @@ void ownerTask(void*) {
                                      : "CAN start refused or failed; no automatic retry\n");
             } else if (command == 's') {
                 const E::TwaiDiagnostics diagnostics = firmware.transport().diagnostics();
-                const E::Stats stats = firmware.owner().stats();
+                const O::Stats stats = firmware.owner().stats();
                 formatLine(output, sizeof(output),
                            "STATS running=%u inhibited=%u rx=%lu tx=%lu dropped=%lu errors=%lu "
                            "flags=%08lx stackFree=%lu\n",

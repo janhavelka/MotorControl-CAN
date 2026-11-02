@@ -9,6 +9,7 @@
 #include <cstring>
 
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace M = MotorControlCAN;
 namespace {
 unsigned checks = 0;
@@ -352,7 +353,7 @@ void actualReceiveCallbacksValidateBeforePublishing() {
     sdk.rxFail = true;
     sdk.receive(0x123, 8);
     sdk.rxFail = false;
-    E::ReceivedFrame result;
+    O::ReceivedFrame result;
     result.frame.id = 777;
     CHECK(!driver.receive(driver.context, result, UINT64_MAX) && result.frame.id == 777);
     auto events = driver.events(driver.context);
@@ -384,7 +385,7 @@ void receiveIntervalsUseOnlyProvenEmptyIngress() {
     CHECK(driver.start(driver.context, config(), 1));
     sdk.nowUs = 40; // Arbitrarily delayed ISR: no inferred latency bound.
     sdk.receive(0x701, 1);
-    E::ReceivedFrame copied;
+    O::ReceivedFrame copied;
     copied.frame.id = 777;
     CHECK(!driver.receive(driver.context, copied, 39) && copied.frame.id == 777);
     CHECK(driver.events(driver.context).rxPending);
@@ -438,12 +439,12 @@ void receiveClockFailureInhibitsQualification() {
         if (caseNumber == 2) {
             sdk.nowUs = 30;
             sdk.receive(0x701, 1);
-            E::ReceivedFrame first;
+            O::ReceivedFrame first;
             CHECK(driver.receive(driver.context, first, 30));
         }
         sdk.nowUs = caseNumber == 0 ? -1 : caseNumber == 1 ? 9 : 20;
         sdk.receive(0x701, 1);
-        E::ReceivedFrame copied;
+        O::ReceivedFrame copied;
         CHECK(!driver.receive(driver.context, copied, 100));
         const auto events = driver.events(driver.context);
         CHECK(events.fault && events.rxDropped == 1);
@@ -531,7 +532,7 @@ void submissionFailureAndBusOffRemainExplicit() {
     CHECK(sdk.calls[before] == Call::INFO && sdk.calls[before + 1] == Call::DELETE);
     CHECK(sdk.pending == nullptr && sdk.transmissions == 1);
     CHECK(driver.start(driver.context, config(), 2));
-    E::ReceivedFrame copied;
+    O::ReceivedFrame copied;
     CHECK(!driver.receive(driver.context, copied, UINT64_MAX));
     CHECK(!driver.events(driver.context).txDone && sdk.transmissions == 1);
     sdk.receive(0x123, 1);
@@ -550,7 +551,7 @@ void unreadRxAndLostEvidenceBlockTheSdkHandoff() {
     const unsigned beforeSubmit = sdk.count;
     CHECK(!driver.submit(driver.context, frame(), 1) && sdk.transmissions == 0);
     CHECK(sdk.count == beforeSubmit); // No rejected or accepted SDK handoff occurred.
-    E::ReceivedFrame received;
+    O::ReceivedFrame received;
     CHECK(driver.receive(driver.context, received, UINT64_MAX));
     CHECK(!driver.events(driver.context).rxPending);
     sdk.receive(0x123, 15);
@@ -577,7 +578,7 @@ void guardedHandoffPrecedesNewRxCallbacks() {
     CHECK(sdk.bootAfterTransmissions == 1 && sdk.transmissions == 1);
     CHECK(!sdk.bootOnExit && sdk.criticalDepth == 0);
     CHECK(driver.events(driver.context).rxPending);
-    E::ReceivedFrame boot;
+    O::ReceivedFrame boot;
     CHECK(driver.receive(driver.context, boot, UINT64_MAX));
     CHECK(boot.frame.id == 0x701 && boot.frame.payloadLength == 1 && boot.frame.data[0] == 0);
     sdk.done();
@@ -617,7 +618,7 @@ void lifecycleFailuresPreserveOwnershipAndTask() {
         stop(driver);
         CHECK(sdk.pending == nullptr);
         CHECK(driver.start(driver.context, config(), 2));
-        E::ReceivedFrame copied;
+        O::ReceivedFrame copied;
         CHECK(!driver.receive(driver.context, copied, UINT64_MAX));
         CHECK(!driver.events(driver.context).txDone && sdk.transmissions == 1);
         stop(driver);

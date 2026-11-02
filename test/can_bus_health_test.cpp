@@ -11,7 +11,7 @@
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {
 unsigned checks = 0;
@@ -59,9 +59,9 @@ M::Frame heartbeat(unsigned node = 1) {
     out.data[0] = 5;
     return out;
 }
-E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
+O::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint8_t starts = 2,
                         uint8_t recovery = 0) {
-    E::ServiceBudget out;
+    O::ServiceBudget out;
     out.rx = rx;
     out.tx = tx;
     out.events = events;
@@ -71,9 +71,9 @@ E::ServiceBudget budget(uint8_t rx = 8, uint8_t tx = 2, uint8_t events = 8, uint
 }
 struct Fake {
     enum { CAPACITY = 96 };
-    E::ReceivedFrame rx[CAPACITY];
-    E::TxReport reports[CAPACITY];
-    E::TransportTxId ids[CAPACITY];
+    O::ReceivedFrame rx[CAPACITY];
+    O::TxReport reports[CAPACITY];
+    O::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool reportsRetired[CAPACITY] = {};
     M::Frame sent[CAPACITY];
@@ -81,8 +81,8 @@ struct Fake {
     unsigned receiveCalls = 0, reportCalls = 0, observed = 0, retireCalls = 0;
     unsigned beginCalls = 0, pollCalls = 0;
     bool accept = true, retireAccepted = false, rejectGuard = false;
-    E::RecoveryProgress progress = E::RecoveryProgress::PENDING;
-    static bool receive(void* p, E::ReceivedFrame& out) {
+    O::RecoveryProgress progress = O::RecoveryProgress::PENDING;
+    static bool receive(void* p, O::ReceivedFrame& out) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.receiveCalls;
         if (f.rxRead == f.rxWrite)
@@ -90,7 +90,7 @@ struct Fake {
         out = f.rx[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& value, O::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         CHECK(f.sentCount < CAPACITY);
         f.sent[f.sentCount] = value;
@@ -98,7 +98,7 @@ struct Fake {
         f.epochs[f.sentCount++] = epoch;
         return f.accept;
     }
-    static bool report(void* p, E::TxReport& out) {
+    static bool report(void* p, O::TxReport& out) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.reportCalls;
         if (f.reportRead == f.reportWrite)
@@ -106,16 +106,16 @@ struct Fake {
         out = f.reports[f.reportRead++];
         return true;
     }
-    static void observe(void* p, const E::ReceivedFrame&, uint64_t) {
+    static void observe(void* p, const O::ReceivedFrame&, uint64_t) {
         ++static_cast<Fake*>(p)->observed;
     }
-    static bool guard(void* p, E::SequenceId, const C::SdoTransfer&, uint64_t) {
+    static bool guard(void* p, O::SequenceId, const C::SdoTransfer&, uint64_t) {
         return !static_cast<Fake*>(p)->rejectGuard;
     }
-    static bool same(E::TransportTxId a, E::TransportTxId b) {
-        return E::sameTransportTxId(a, b);
+    static bool same(O::TransportTxId a, O::TransportTxId b) {
+        return O::sameTransportTxId(a, b);
     }
-    static bool retire(void* p, E::TransportTxId id, uint32_t epoch) {
+    static bool retire(void* p, O::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.retireCalls;
         if (!f.retireAccepted)
@@ -137,10 +137,10 @@ struct Fake {
         ++static_cast<Fake*>(p)->beginCalls;
         return true;
     }
-    static E::RecoveryProgress poll(void* p, uint32_t) {
+    static O::RecoveryProgress poll(void* p, uint32_t) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.pollCalls;
-        if (f.progress == E::RecoveryProgress::RETIRED) {
+        if (f.progress == O::RecoveryProgress::RETIRED) {
             // No asynchronous callbacks exist in this fake; retirement drops
             // every pending ingress/report before accepting the new epoch.
             f.rxRead = f.rxWrite;
@@ -148,8 +148,8 @@ struct Fake {
         }
         return f.progress;
     }
-    E::Transport transport() {
-        E::Transport out;
+    O::Transport transport() {
+        O::Transport out;
         out.context = this;
         out.receive = receive;
         out.transmit = transmit;
@@ -181,7 +181,7 @@ struct Fake {
 struct Rig {
     C::SdoClient services;
     Fake fake;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     uint64_t now = 0;
     Rig() : owner(services, fake.transport(), 73) { configure(11); }
     void configure(uint32_t nodeGeneration, uint32_t bindingGeneration = 3) {
@@ -209,25 +209,25 @@ struct Rig {
         new (&services) C::SdoClient;
         configure(nodeGeneration, bindingGeneration);
     }
-    void turn(uint64_t time, E::ServiceBudget b = budget()) {
+    void turn(uint64_t time, O::ServiceBudget b = budget()) {
         now = time;
         CHECK(owner.service(time, b));
     }
-    E::Health health(unsigned node = 1) const {
-        E::Health out;
+    O::Health health(unsigned node = 1) const {
+        O::Health out;
         CHECK(owner.health(route(node).binding, out));
         return out;
     }
-    E::SequenceId sequence(unsigned node = 1) {
-        E::SequenceId out;
+    O::SequenceId sequence(unsigned node = 1) {
+        O::SequenceId out;
         CHECK(owner.beginSequence(route(node).binding, uint8_t(node), now, out));
         CHECK(owner.beginOperation(out, 1, 10000, now));
         return out;
     }
-    E::BusRequest request(E::SequenceId sequence, unsigned step = 1, bool download = false) {
-        const E::Sequence* s = owner.sequence(sequence);
+    O::BusRequest request(O::SequenceId sequence, unsigned step = 1, bool download = false) {
+        const O::Sequence* s = owner.sequence(sequence);
         CHECK(s);
-        E::BusRequest out;
+        O::BusRequest out;
         out.sequence = sequence;
         auto& t = out.transfer;
         t.channel = route(s->binding.endpoint.address);
@@ -244,14 +244,14 @@ struct Rig {
         t.data[1] = 0x12;
         return out;
     }
-    E::RequestId admit(const E::BusRequest& request, bool urgent = false) {
-        E::RequestId out;
+    O::RequestId admit(const O::BusRequest& request, bool urgent = false) {
+        O::RequestId out;
         CHECK((urgent ? owner.admitUrgent(request, now, out) : owner.admit(request, now, out)) ==
-              E::BusAdmission::ACCEPTED);
+              O::BusAdmission::ACCEPTED);
         return out;
     }
-    const E::Completion& done(E::RequestId id) const {
-        const E::Completion* out = owner.result(id);
+    const O::Completion& done(O::RequestId id) const {
+        const O::Completion* out = owner.result(id);
         CHECK(out);
         return *out;
     }
@@ -259,16 +259,16 @@ struct Rig {
 
 void cachedStateAndKnownZero() {
     Rig r;
-    CHECK(r.health().state == E::DriverState::UNINIT);
-    E::Health unknown;
+    CHECK(r.health().state == O::DriverState::UNINIT);
+    O::Health unknown;
     unknown.totalSuccess = 99;
-    const Saved<E::Health> saved(unknown);
+    const Saved<O::Health> saved(unknown);
     M::Binding missing = route().binding;
     ++missing.logicalAxisId;
     CHECK(!r.owner.health(missing, unknown));
     saved.unchanged(unknown);
-    E::DriverState state = E::DriverState::OFFLINE;
-    CHECK(!r.owner.driverState(missing, state) && state == E::DriverState::OFFLINE);
+    O::DriverState state = O::DriverState::OFFLINE;
+    CHECK(!r.owner.driverState(missing, state) && state == O::DriverState::OFFLINE);
     const auto sequence = r.sequence();
     const auto id = r.admit(r.request(sequence));
     r.turn(0);
@@ -276,15 +276,15 @@ void cachedStateAndKnownZero() {
     r.fake.push(reply(), 0);
     r.turn(0, budget(1, 0, 0, 0));
     const auto h = r.health();
-    CHECK(h.state == E::DriverState::READY && h.totalSuccess == 1 && h.totalFailures == 0);
+    CHECK(h.state == O::DriverState::READY && h.totalSuccess == 1 && h.totalFailures == 0);
     CHECK(h.lastOkKnown && h.lastOkUs == 0 && h.lastSeenKnown && h.lastSeenUs == 0);
     CHECK(!h.lastErrorKnown && h.consecutiveFailures == 0);
     CHECK(r.done(id).service.protocolAcknowledged && !r.done(id).service.transmissionConfirmed);
     const unsigned receives = r.fake.receiveCalls, reports = r.fake.reportCalls;
     const unsigned sent = r.fake.sentCount, observed = r.fake.observed;
-    const Saved<E::Stats> stats(r.owner.stats());
+    const Saved<O::Stats> stats(r.owner.stats());
     for (unsigned i = 0; i < 20; ++i) {
-        CHECK(r.owner.driverState(route().binding, state) && state == E::DriverState::READY);
+        CHECK(r.owner.driverState(route().binding, state) && state == O::DriverState::READY);
         CHECK(r.owner.health(route().binding, unknown));
         CHECK(r.owner.resources().retained == 1 && r.owner.result(id));
     }
@@ -299,18 +299,18 @@ void cachedStateAndKnownZero() {
     r.fake.reportTx(0, false);
     r.turn(1, budget(0, 0, 8, 0));
     CHECK(r.owner.stats().txFrames == 1 && r.owner.stats().txRejected == 0);
-    E::Diagnostic diagnostic;
+    O::Diagnostic diagnostic;
     unsigned txCopies = 0, rxCopies = 0, reportsCopied = 0;
     while (r.owner.takeDiagnostic(diagnostic)) {
-        if (diagnostic.kind == E::DiagnosticKind::TX) {
+        if (diagnostic.kind == O::DiagnosticKind::TX) {
             ++txCopies;
             CHECK(diagnostic.accepted && diagnostic.txId.sdo.frame == r.fake.ids[0].sdo.frame &&
                   diagnostic.txId.sdo.request.generation == r.fake.ids[0].sdo.request.generation);
-        } else if (diagnostic.kind == E::DiagnosticKind::RX) {
+        } else if (diagnostic.kind == O::DiagnosticKind::RX) {
             ++rxCopies;
             CHECK(diagnostic.receivedTimeKnown && diagnostic.receivedUs == 0 &&
                   diagnostic.frame.id == 0x581 && diagnostic.frame.data[4] == 0x34);
-        } else if (diagnostic.kind == E::DiagnosticKind::TX_REPORT) {
+        } else if (diagnostic.kind == O::DiagnosticKind::TX_REPORT) {
             ++reportsCopied;
             CHECK(diagnostic.accepted && diagnostic.txId.sdo.frame == r.fake.ids[0].sdo.frame);
         }
@@ -335,19 +335,19 @@ void abortFailureThenIndependentRead() {
     auto h = r.health();
     CHECK(h.totalSuccess == 0 && h.totalFailures == 1 && h.consecutiveFailures == 1);
     CHECK(h.lastErrorKnown && h.lastErrorUs == 0 && h.lastSeenKnown && h.lastSeenUs == 0);
-    CHECK(h.state == E::DriverState::DEGRADED);
+    CHECK(h.state == O::DriverState::DEGRADED);
     CHECK(r.done(failed).service.abortValid && r.done(failed).service.abortCode == 0xf1234567u);
-    const E::Completion failedOperation = r.done(failed);
-    const Saved<E::Completion> terminal(failedOperation);
+    const O::Completion failedOperation = r.done(failed);
+    const Saved<O::Completion> terminal(failedOperation);
     const M::Status error = h.lastError;
     r.fake.push(heartbeat(), 1);
     r.turn(1, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::DEGRADED && r.health().totalSuccess == 0);
+    CHECK(r.health().state == O::DriverState::DEGRADED && r.health().totalSuccess == 0);
     CHECK(r.services.unresolved(0));
-    E::Diagnostic diagnostic, failedHistory;
+    O::Diagnostic diagnostic, failedHistory;
     bool historyFound = false;
     while (r.owner.takeDiagnostic(diagnostic))
-        if (diagnostic.kind == E::DiagnosticKind::TERMINAL) {
+        if (diagnostic.kind == O::DiagnosticKind::TERMINAL) {
             failedHistory = diagnostic;
             historyFound = true;
         }
@@ -355,9 +355,9 @@ void abortFailureThenIndependentRead() {
     // Retained results occupy their axis reservation. The application keeps its
     // failed operation copy while explicitly releasing only owner storage.
     CHECK(r.owner.release(failed) && r.owner.releaseSequence(sequence));
-    E::RecoveryId recovery;
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(1, 10, recovery));
-    r.fake.progress = E::RecoveryProgress::RETIRED;
+    r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(2, budget(0, 0, 0, 0, 1));
     CHECK(r.owner.releaseRecovery(recovery));
     r.retireSyntheticServerAndReconstruct(12);
@@ -370,7 +370,7 @@ void abortFailureThenIndependentRead() {
     r.turn(3, budget(1, 0, 8, 0));
     h = r.health();
     CHECK(h.totalSuccess == 1 && h.totalFailures == 1 && h.consecutiveFailures == 0);
-    CHECK(h.state == E::DriverState::READY && h.lastOkKnown && h.lastOkUs == 3);
+    CHECK(h.state == O::DriverState::READY && h.lastOkKnown && h.lastOkUs == 3);
     CHECK(h.lastErrorKnown && h.lastErrorUs == 0 && h.lastError.code == error.code &&
           h.lastError.detail == error.detail && h.lastSeenUs == 3);
     terminal.unchanged(failedOperation);
@@ -379,7 +379,7 @@ void abortFailureThenIndependentRead() {
           failedHistory.completion.service.outcome == C::SdoOutcome::SERVER_ABORT);
     CHECK(r.owner.clearStats());
     h = r.health();
-    CHECK(h.state == E::DriverState::READY && h.totalSuccess == 0 && h.totalFailures == 0);
+    CHECK(h.state == O::DriverState::READY && h.totalSuccess == 0 && h.totalFailures == 0);
     CHECK(h.lastOkKnown && h.lastOkUs == 3 && h.lastErrorKnown && h.lastErrorUs == 0 &&
           h.lastSeenKnown && h.lastSeenUs == 3 && h.lastError.detail == error.detail);
 }
@@ -395,14 +395,14 @@ void freshHeartbeatPreservesServiceFailure() {
     r.fake.push(heartbeat(), 1);
     r.turn(1, budget(1, 0, 8, 0));
     CHECK(r.done(id).service.outcome == C::SdoOutcome::TRANSPORT_ERROR);
-    CHECK(r.health().state == E::DriverState::DEGRADED && r.health().totalFailures == 1);
-    r.turn(6, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::DEGRADED);
-    r.turn(7, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::OFFLINE);
+    CHECK(r.health().state == O::DriverState::DEGRADED && r.health().totalFailures == 1);
+    r.turn(6, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::DEGRADED);
+    r.turn(7, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::OFFLINE);
     r.fake.push(heartbeat(), 7);
     r.turn(7, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::DEGRADED && r.health().consecutiveFailures == 1 &&
+    CHECK(r.health().state == O::DriverState::DEGRADED && r.health().consecutiveFailures == 1 &&
           r.health().totalSuccess == 0 && r.health().lastErrorUs == 1);
     CHECK(r.services.unresolved(0));
 }
@@ -410,50 +410,50 @@ void freshHeartbeatPreservesServiceFailure() {
 void heartbeatPolicyAndControllerRecovery() {
     Rig r;
     CHECK(r.owner.setHeartbeatMaximumAge(route().binding, 5, 0));
-    r.turn(50, E::ServiceBudget());
+    r.turn(50, O::ServiceBudget());
     CHECK(r.health().state ==
-          E::DriverState::UNINIT); // Unknown producer, no invented startup timer.
+          O::DriverState::UNINIT); // Unknown producer, no invented startup timer.
     CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 1, 50));
-    r.turn(60, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::UNINIT);
+    r.turn(60, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::UNINIT);
     r.fake.push(heartbeat(), 60);
     r.turn(60, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY);
-    r.turn(65, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::READY);
-    r.turn(66, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::OFFLINE);
+    CHECK(r.health().state == O::DriverState::READY);
+    r.turn(65, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::READY);
+    r.turn(66, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::OFFLINE);
     // Communication projection alone does not reject an explicit service.
     const auto sequence = r.sequence();
     const auto read = r.admit(r.request(sequence));
-    CHECK(r.owner.cancel(read, 66) == E::Cancel::CANCELLED);
+    CHECK(r.owner.cancel(read, 66) == O::Cancel::CANCELLED);
     r.fake.push(heartbeat(), 66);
     r.turn(66, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY);
+    CHECK(r.health().state == O::DriverState::READY);
     CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 0, 66));
-    r.turn(80, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::READY);
+    r.turn(80, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::READY);
     CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 1, 80));
     CHECK(r.owner.setHeartbeatMaximumAge(route().binding, 0, 80));
-    r.turn(90, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::READY);
+    r.turn(90, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::READY);
     CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 90));
-    CHECK(r.health().state == E::DriverState::OFFLINE && r.owner.stats().busOffEvents == 1);
+    CHECK(r.health().state == O::DriverState::OFFLINE && r.owner.stats().busOffEvents == 1);
     CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 90));
     CHECK(r.owner.stats().busOffEvents == 1);
     CHECK(!r.owner.reportController(C::ControllerState::AVAILABLE, 90));
-    CHECK(r.health().state == E::DriverState::OFFLINE && r.owner.resources().inhibited);
-    E::RecoveryId recovery;
+    CHECK(r.health().state == O::DriverState::OFFLINE && r.owner.resources().inhibited);
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(90, 100, recovery));
-    r.fake.progress = E::RecoveryProgress::RETIRED;
+    r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(91, budget(0, 0, 0, 0, 1));
-    CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::RETIRED);
-    CHECK(r.health().state == E::DriverState::UNINIT && !r.owner.resources().inhibited);
+    CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::RETIRED);
+    CHECK(r.health().state == O::DriverState::UNINIT && !r.owner.resources().inhibited);
     CHECK(r.owner.stats().recoveries == 1 && r.fake.beginCalls == 1 && r.fake.pollCalls == 1);
     CHECK(r.owner.releaseRecovery(recovery));
     r.fake.push(heartbeat(), 92, true, r.owner.controllerEpoch());
     r.turn(92, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY);
+    CHECK(r.health().state == O::DriverState::READY);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
 }
 
@@ -471,33 +471,33 @@ void receiveIntervalsBoundHealthWithoutFresheningDeliveryTime() {
     };
     pushInterval(10, 12);
     r.turn(12, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 12);
+    CHECK(r.health().state == O::DriverState::READY && r.health().lastSeenUs == 12);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
-    r.turn(15, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::READY); // Conservative age equals policy.
-    r.turn(16, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::UNINIT); // Neither fresh nor definitely expired.
-    r.turn(17, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::UNINIT && r.health().lastSeenUs == 12);
-    r.turn(18, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::OFFLINE); // Even the latest possible ingress expired.
+    r.turn(15, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::READY); // Conservative age equals policy.
+    r.turn(16, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::UNINIT); // Neither fresh nor definitely expired.
+    r.turn(17, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::UNINIT && r.health().lastSeenUs == 12);
+    r.turn(18, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::OFFLINE); // Even the latest possible ingress expired.
     pushInterval(19, 20);
     r.turn(20, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 20);
+    CHECK(r.health().state == O::DriverState::READY && r.health().lastSeenUs == 20);
     CHECK(r.services.invalidateNetwork(0, C::NetworkInvalidation::CONFIGURATION, 21));
     pushInterval(20, 22);
     r.turn(22, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::UNINIT && r.health().lastSeenUs == 20);
+    CHECK(r.health().state == O::DriverState::UNINIT && r.health().lastSeenUs == 20);
     pushInterval(23, 24);
     r.turn(24, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 24);
+    CHECK(r.health().state == O::DriverState::READY && r.health().lastSeenUs == 24);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
 
     Rig zero;
     zero.fake.push(heartbeat(), 0, false);
     zero.fake.rx[0].receiveBoundsKnown = true;
     zero.turn(0, budget(1, 0, 0, 0));
-    CHECK(zero.health().state == E::DriverState::READY && zero.health().lastSeenKnown &&
+    CHECK(zero.health().state == O::DriverState::READY && zero.health().lastSeenKnown &&
           zero.health().lastSeenUs == 0);
 }
 
@@ -505,10 +505,10 @@ void localCancellationAndQueueExpiryAreHealthNeutral() {
     Rig r;
     const auto sequence = r.sequence();
     const auto queued = r.admit(r.request(sequence));
-    CHECK(r.owner.cancel(queued, 0) == E::Cancel::CANCELLED);
-    CHECK(r.owner.cancel(queued, 0) == E::Cancel::ALREADY_TERMINAL);
+    CHECK(r.owner.cancel(queued, 0) == O::Cancel::CANCELLED);
+    CHECK(r.owner.cancel(queued, 0) == O::Cancel::ALREADY_TERMINAL);
     const auto expires = r.admit(r.request(sequence, 2));
-    r.turn(100, E::ServiceBudget());
+    r.turn(100, O::ServiceBudget());
     CHECK(r.done(expires).service.outcome == C::SdoOutcome::TIMEOUT);
     CHECK(r.owner.stats().cancelled == 1 && r.owner.stats().timeouts == 1);
     CHECK(r.health().totalFailures == 0 && r.health().totalSuccess == 0 &&
@@ -524,13 +524,13 @@ void localCancellationAndQueueExpiryAreHealthNeutral() {
     const auto denied = guard.admit(guard.request(gs, 1, true));
     guard.fake.rejectGuard = true;
     guard.turn(0);
-    CHECK(guard.done(denied).reason == E::CompletionReason::PREFLIGHT_REJECTED);
+    CHECK(guard.done(denied).reason == O::CompletionReason::PREFLIGHT_REJECTED);
     CHECK(guard.owner.stats().cancelled == 1 && guard.health().totalFailures == 0);
     Rig active;
     const auto as = active.sequence();
     const auto write = active.admit(active.request(as, 1, true));
     active.turn(0);
-    CHECK(active.owner.cancel(write, 1) == E::Cancel::CANCELLED);
+    CHECK(active.owner.cancel(write, 1) == O::Cancel::CANCELLED);
     CHECK(active.done(write).service.effectUncertain && active.owner.stats().cancelled == 1);
     CHECK(active.health().totalFailures == 0 && active.health().totalSuccess == 0);
 }
@@ -570,17 +570,17 @@ void statisticsResetPreservesUncertaintyHistoryAndLiveWork() {
     r.turn(0);
     r.fake.reportTx(0);
     r.turn(1, budget(0, 0, 8, 0));
-    r.turn(101, E::ServiceBudget());
+    r.turn(101, O::ServiceBudget());
     CHECK(r.done(write).service.outcome == C::SdoOutcome::TIMEOUT &&
           r.done(write).service.effectUncertain);
-    const Saved<E::Completion> retained(r.done(write));
-    const E::Health before = r.health();
+    const Saved<O::Completion> retained(r.done(write));
+    const O::Health before = r.health();
     const auto resources = r.owner.resources();
     CHECK(before.totalFailures == 1 && before.consecutiveFailures == 1);
     CHECK(r.owner.clearStats());
     auto h = r.health();
     CHECK(h.totalFailures == 0 && h.totalSuccess == 0 && h.consecutiveFailures == 1);
-    CHECK(h.state == E::DriverState::DEGRADED && h.lastErrorKnown &&
+    CHECK(h.state == O::DriverState::DEGRADED && h.lastErrorKnown &&
           h.lastErrorUs == before.lastErrorUs);
     CHECK(h.lastError.code == before.lastError.code &&
           h.lastError.detail == before.lastError.detail);
@@ -589,13 +589,13 @@ void statisticsResetPreservesUncertaintyHistoryAndLiveWork() {
     retained.unchanged(r.done(write));
     CHECK(r.owner.stats().txFrames == 0 && r.owner.stats().timeouts == 0 &&
           r.owner.stats().maxServiceGapUs == 0);
-    r.turn(151, E::ServiceBudget());
+    r.turn(151, O::ServiceBudget());
     CHECK(r.owner.stats().maxServiceGapUs == 50);
-    CHECK(!r.owner.service(150, E::ServiceBudget()) && r.owner.stats().maxServiceGapUs == 50);
-    E::Diagnostic diagnostic;
+    CHECK(!r.owner.service(150, O::ServiceBudget()) && r.owner.stats().maxServiceGapUs == 50);
+    O::Diagnostic diagnostic;
     bool historicalTimeout = false;
     while (r.owner.takeDiagnostic(diagnostic))
-        historicalTimeout |= diagnostic.kind == E::DiagnosticKind::TERMINAL &&
+        historicalTimeout |= diagnostic.kind == O::DiagnosticKind::TERMINAL &&
                              diagnostic.completion.service.effectUncertain;
     CHECK(historicalTimeout);
     const auto second = r.sequence(2);
@@ -608,7 +608,7 @@ void statisticsResetPreservesUncertaintyHistoryAndLiveWork() {
     const uint32_t epoch = r.owner.controllerEpoch();
     CHECK(r.owner.clearStats());
     CHECK(r.owner.resources().inhibited && r.owner.controllerEpoch() == epoch);
-    CHECK(r.health().state == E::DriverState::OFFLINE);
+    CHECK(r.health().state == O::DriverState::OFFLINE);
     retained.unchanged(r.done(write));
 }
 
@@ -624,20 +624,20 @@ void exactIngressEnqueueAndAdmissionBoundaries() {
     r.turn(0, budget(8, 0, 0, 0));
     CHECK(r.owner.stats().rxFrames == 5 && r.owner.stats().rxDropped == 3 &&
           r.owner.stats().unmatchedFrames == 1 && r.fake.observed == 5);
-    CHECK(r.health().lastSeenKnown && r.health().state == E::DriverState::UNINIT);
-    E::RequestId rejected;
+    CHECK(r.health().lastSeenKnown && r.health().state == O::DriverState::UNINIT);
+    O::RequestId rejected;
     rejected.generation = 99;
-    CHECK(r.owner.admit(E::BusRequest(), 0, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admit(O::BusRequest(), 0, rejected) == O::BusAdmission::INVALID);
     CHECK(rejected.generation == 99 && r.owner.stats().queueRejected == 1);
-    CHECK(r.owner.admitUrgent(E::BusRequest(), 0, rejected) == E::BusAdmission::INVALID);
+    CHECK(r.owner.admitUrgent(O::BusRequest(), 0, rejected) == O::BusAdmission::INVALID);
     CHECK(r.owner.stats().queueRejected == 2 && r.owner.stats().resultsRejected == 0);
     const auto sequence = r.sequence();
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i)
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i)
         r.admit(r.request(sequence, i + 1));
-    CHECK(r.owner.admit(r.request(sequence, 7), 0, rejected) == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.owner.admit(r.request(sequence, 7), 0, rejected) == O::BusAdmission::RESULTS_FULL);
     r.admit(r.request(sequence, 7), true);
     CHECK(r.owner.admitUrgent(r.request(sequence, 8), 0, rejected) ==
-          E::BusAdmission::RESULTS_FULL);
+          O::BusAdmission::RESULTS_FULL);
     CHECK(r.owner.stats().resultsRejected == 2 && r.owner.stats().queueRejected == 4);
     CHECK(r.owner.receiveOverflow(0, 7));
     CHECK(r.owner.stats().rxDropped == 10 && r.owner.stats().cancelled == 0);
@@ -686,17 +686,17 @@ void fullTraceDoesNotDelayOrdinaryOrUrgentWork() {
     CHECK(r.owner.stats().traceOverwritten == 20 && r.owner.resources().traceUsed == 8);
     CHECK(r.owner.resources().retained == 2 && r.owner.resources().active == 0 &&
           r.owner.resources().queued == 0 && r.owner.resources().reservations == 2);
-    E::Diagnostic diagnostic;
+    O::Diagnostic diagnostic;
     unsigned count = 0, terminals = 0;
     uint64_t previous = 0;
     while (r.owner.takeDiagnostic(diagnostic)) {
         ++count;
         CHECK(diagnostic.processedUs >= previous);
         previous = diagnostic.processedUs;
-        terminals += diagnostic.kind == E::DiagnosticKind::TERMINAL ? 1 : 0;
+        terminals += diagnostic.kind == O::DiagnosticKind::TERMINAL ? 1 : 0;
     }
-    CHECK(count == E::CanBusOwner::TRACE_CAPACITY && terminals == 2);
-    const Saved<E::Diagnostic> unchanged(diagnostic);
+    CHECK(count == O::CanBusOwner::TRACE_CAPACITY && terminals == 2);
+    const Saved<O::Diagnostic> unchanged(diagnostic);
     CHECK(!r.owner.takeDiagnostic(diagnostic));
     unchanged.unchanged(diagnostic);
     CHECK(r.owner.resources().traceUsed == 0 && r.owner.result(a) && r.owner.result(b));
@@ -711,11 +711,11 @@ void configurationHistoryAndBindingReset() {
     r.fake.push(reply(), 1);
     r.turn(1, budget(1, 0, 8, 0));
     CHECK(r.owner.release(read));
-    const E::Health before = r.health();
+    const O::Health before = r.health();
     M::Binding changed = route().binding;
     ++changed.configurationGeneration;
     CHECK(r.owner.advanceConfiguration(sequence, changed, 1));
-    E::Health h;
+    O::Health h;
     CHECK(!r.owner.health(route().binding, h));
     CHECK(r.owner.health(changed, h));
     CHECK(h.totalSuccess == before.totalSuccess && h.lastOkKnown && h.lastOkUs == before.lastOkUs);
@@ -729,23 +729,23 @@ void configurationHistoryAndBindingReset() {
     r.turn(2, budget(1, 0, 8, 0));
     CHECK(r.owner.health(changed, h) && h.totalSuccess == 1 && h.totalFailures == 1);
     CHECK(h.lastErrorKnown && h.consecutiveFailures == 1);
-    const Saved<E::Completion> failed(r.done(failure));
-    E::RecoveryId recovery;
+    const Saved<O::Completion> failed(r.done(failure));
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(2, 10, recovery));
-    r.fake.progress = E::RecoveryProgress::RETIRED;
+    r.fake.progress = O::RecoveryProgress::RETIRED;
     r.turn(3, budget(0, 0, 0, 0, 1));
     CHECK(r.owner.releaseRecovery(recovery));
-    const E::Stats interfaceBefore = r.owner.stats();
+    const O::Stats interfaceBefore = r.owner.stats();
     r.retireSyntheticServerAndReconstruct(13, 4);
     M::Binding rebound = route().binding;
     rebound.bindingGeneration = 4;
     CHECK(!r.owner.health(changed, h) && r.owner.health(rebound, h));
-    r.turn(3, E::ServiceBudget());
+    r.turn(3, O::ServiceBudget());
     CHECK(r.owner.health(rebound, h));
-    CHECK(h.state == E::DriverState::UNINIT && !h.lastOkKnown && !h.lastErrorKnown &&
+    CHECK(h.state == O::DriverState::UNINIT && !h.lastOkKnown && !h.lastErrorKnown &&
           !h.lastSeenKnown);
     CHECK(h.totalSuccess == 0 && h.totalFailures == 0 && h.consecutiveFailures == 0);
-    CHECK(h.lastError.code == E::Health().lastError.code);
+    CHECK(h.lastError.code == O::Health().lastError.code);
     CHECK(r.owner.stats().txFrames == interfaceBefore.txFrames &&
           r.owner.stats().rxFrames == interfaceBefore.rxFrames &&
           r.owner.stats().recoveries == interfaceBefore.recoveries);
@@ -754,7 +754,7 @@ void configurationHistoryAndBindingReset() {
     // while preserving the binding's historical observation time.
     C::SdoClient services;
     Fake fake;
-    E::CanBusOwner owner(services, fake.transport(), 74);
+    O::CanBusOwner owner(services, fake.transport(), 74);
     C::NetworkRoute network;
     network.binding = route().binding;
     network.generation = 1;
@@ -765,8 +765,8 @@ void configurationHistoryAndBindingReset() {
     CHECK(owner.service(0, budget(1, 0, 0, 0)));
     CHECK(owner.health(network.binding, h) && h.lastSeenKnown);
     CHECK(services.invalidateNetwork(0, C::NetworkInvalidation::BINDING, 1));
-    CHECK(owner.service(1, E::ServiceBudget()));
-    CHECK(owner.health(network.binding, h) && h.state == E::DriverState::UNINIT);
+    CHECK(owner.service(1, O::ServiceBudget()));
+    CHECK(owner.health(network.binding, h) && h.state == O::DriverState::UNINIT);
     CHECK(
         h.lastSeenKnown); // Same logical binding preserves historical times; epoch withdraws freshness.
 }
@@ -795,24 +795,24 @@ void requalifiedPdoDoesNotPromoteRetainedSample() {
     CHECK(r.services.qualifyPdo(0, proof, 0));
     r.fake.push(frame(0x281), 1);
     r.turn(1, budget(1, 0, 0, 0));
-    CHECK(r.services.pdo(0)->samplePresent && r.health().state == E::DriverState::READY);
+    CHECK(r.services.pdo(0)->samplePresent && r.health().state == O::DriverState::READY);
     const C::PdoObservation old = r.services.pdo(0)->observation;
     CHECK(r.services.invalidatePdo(0, false, 2));
-    r.turn(2, E::ServiceBudget());
-    CHECK(r.health().state == E::DriverState::UNINIT);
+    r.turn(2, O::ServiceBudget());
+    CHECK(r.health().state == O::DriverState::UNINIT);
     proof.evidenceId = 102;
     proof.establishedUs = 3;
     CHECK(r.services.qualifyPdo(0, proof, 3));
-    r.turn(3, E::ServiceBudget());
+    r.turn(3, O::ServiceBudget());
     CHECK(r.services.pdo(0)->samplePresent && r.services.pdo(0)->qualified);
     CHECK(r.services.pdo(0)->observation.evidenceId == old.evidenceId);
-    CHECK(r.health().state == E::DriverState::UNINIT && r.health().lastSeenUs == 1);
+    CHECK(r.health().state == O::DriverState::UNINIT && r.health().lastSeenUs == 1);
     r.fake.push(frame(0x281), 2);
     r.turn(3, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::UNINIT);
+    CHECK(r.health().state == O::DriverState::UNINIT);
     r.fake.push(frame(0x281), 4);
     r.turn(4, budget(1, 0, 0, 0));
-    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 4);
+    CHECK(r.health().state == O::DriverState::READY && r.health().lastSeenUs == 4);
     CHECK(r.services.pdo(0)->observation.evidenceId == 102);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
 
@@ -824,7 +824,7 @@ void requalifiedPdoDoesNotPromoteRetainedSample() {
     CHECK(r.services.pdo(0)->observation.time.receivedUs == 5 &&
           r.services.pdo(0)->observation.time.processedUs == 11);
     CHECK(r.health().lastSeenKnown && r.health().lastSeenUs == 11);
-    CHECK(r.health().state == E::DriverState::UNINIT && r.health().totalSuccess == 0 &&
+    CHECK(r.health().state == O::DriverState::UNINIT && r.health().totalSuccess == 0 &&
           r.health().totalFailures == 0);
     const uint32_t unmatched = r.owner.stats().unmatchedFrames;
     r.fake.push(frame(0x281, 7), 12); // Wrong mapped payload length.
@@ -833,19 +833,19 @@ void requalifiedPdoDoesNotPromoteRetainedSample() {
     r.turn(13, budget(1, 0, 0, 0));
     CHECK(r.owner.stats().unmatchedFrames == unmatched + 2);
     CHECK(r.health().lastSeenKnown && r.health().lastSeenUs == 11 &&
-          r.health().state == E::DriverState::UNINIT);
+          r.health().state == O::DriverState::UNINIT);
     r.fake.push(frame(0x281), 14);
     r.turn(14, budget(1, 0, 0, 0));
-    CHECK(r.health().lastSeenUs == 14 && r.health().state == E::DriverState::READY);
+    CHECK(r.health().lastSeenUs == 14 && r.health().state == O::DriverState::READY);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
 }
 
 void recoveryTimeoutAndCounterSaturation() {
     Rig r;
-    E::RecoveryId recovery;
+    O::RecoveryId recovery;
     CHECK(r.owner.recover(0, 5, recovery));
-    r.turn(5, E::ServiceBudget());
-    CHECK(r.owner.recoveryResult(recovery)->outcome == E::RecoveryOutcome::TIMEOUT);
+    r.turn(5, O::ServiceBudget());
+    CHECK(r.owner.recoveryResult(recovery)->outcome == O::RecoveryOutcome::TIMEOUT);
     CHECK(r.owner.stats().timeouts == 1 && r.owner.stats().recoveries == 0);
     CHECK(r.fake.pollCalls == 0 && r.health().totalFailures == 0);
     CHECK(r.owner.receiveOverflow(5, UINT32_MAX));
@@ -854,29 +854,29 @@ void recoveryTimeoutAndCounterSaturation() {
     CHECK(r.owner.clearStats() && r.owner.stats().rxDropped == 0);
     CHECK(r.owner.resources().inhibited && r.owner.recoveryResult(recovery));
     uint32_t count = UINT32_MAX - 1;
-    E::detail::add(count);
+    O::detail::add(count);
     CHECK(count == UINT32_MAX);
-    E::detail::add(count);
+    O::detail::add(count);
     CHECK(count == UINT32_MAX);
     count = UINT32_MAX - 3;
-    E::detail::add(count, 4);
+    O::detail::add(count, 4);
     CHECK(count == UINT32_MAX);
     count = 0;
-    E::detail::add(count, UINT32_MAX);
+    O::detail::add(count, UINT32_MAX);
     CHECK(count == UINT32_MAX);
-    E::detail::add(count, UINT32_MAX);
+    O::detail::add(count, UINT32_MAX);
     CHECK(count == UINT32_MAX);
     uint8_t streak = UINT8_MAX - 1;
-    E::detail::add(streak);
+    O::detail::add(streak);
     CHECK(streak == UINT8_MAX);
     Rig gaps;
-    gaps.turn(0, E::ServiceBudget());
-    gaps.turn(UINT64_MAX, E::ServiceBudget());
+    gaps.turn(0, O::ServiceBudget());
+    gaps.turn(UINT64_MAX, O::ServiceBudget());
     CHECK(gaps.owner.stats().maxServiceGapUs == UINT64_MAX);
     CHECK(gaps.owner.clearStats());
-    gaps.turn(UINT64_MAX, E::ServiceBudget());
+    gaps.turn(UINT64_MAX, O::ServiceBudget());
     CHECK(gaps.owner.stats().maxServiceGapUs == 0);
-    E::detail::add(streak);
+    O::detail::add(streak);
     CHECK(streak == UINT8_MAX);
 }
 
@@ -899,7 +899,7 @@ void discoveredUnsupportedServiceIsHealthNeutral() {
     const auto h = r.health();
     CHECK(h.totalSuccess == 0 && h.totalFailures == 0 && h.consecutiveFailures == 0);
     CHECK(!h.lastOkKnown && !h.lastErrorKnown && h.lastSeenKnown && h.lastSeenUs == 1);
-    CHECK(h.state == E::DriverState::READY && r.services.unresolved(0));
+    CHECK(h.state == O::DriverState::READY && r.services.unresolved(0));
     CHECK(r.owner.stats().txFrames == 1 && r.owner.stats().timeouts == 0 &&
           r.owner.stats().cancelled == 0);
 }
@@ -916,10 +916,10 @@ void malformedReplyAndCleanupTransmissionCountSeparately() {
     r.turn(1, budget(1, 1, 1, 0));
     CHECK(r.done(id).service.outcome == C::SdoOutcome::CLIENT_ABORT);
     CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x80);
-    const Saved<E::Completion> terminal(r.done(id));
+    const Saved<O::Completion> terminal(r.done(id));
     const auto h = r.health();
     CHECK(h.totalSuccess == 0 && h.totalFailures == 1 && h.consecutiveFailures == 1);
-    CHECK(h.lastErrorKnown && h.lastErrorUs == 1 && h.state == E::DriverState::DEGRADED);
+    CHECK(h.lastErrorKnown && h.lastErrorUs == 1 && h.state == O::DriverState::DEGRADED);
     CHECK(r.owner.stats().txFrames == 1 && r.owner.stats().txRejected == 0);
     r.fake.reportTx(1);
     r.fake.reportTx(1);
@@ -930,25 +930,25 @@ void malformedReplyAndCleanupTransmissionCountSeparately() {
     CHECK(after.totalSuccess == 0 && after.totalFailures == 1 && after.consecutiveFailures == 1);
     CHECK(after.lastErrorKnown && after.lastErrorUs == h.lastErrorUs &&
           after.lastError.code == h.lastError.code && after.lastError.detail == h.lastError.detail);
-    CHECK(after.state == E::DriverState::DEGRADED && !after.lastOkKnown);
+    CHECK(after.state == O::DriverState::DEGRADED && !after.lastOkKnown);
 }
 
 void deadlineWinsCancellationAtSameCutoff() {
     for (unsigned transmitted = 0; transmitted < 2; ++transmitted) {
         Rig r;
-        E::SequenceId sequence;
+        O::SequenceId sequence;
         CHECK(r.owner.beginSequence(route().binding, 1, 0, sequence));
         CHECK(r.owner.beginOperation(sequence, 1, 5, 0));
         const auto id = r.admit(r.request(sequence));
         if (transmitted)
             r.turn(0);
-        CHECK(r.owner.cancel(id, 5) == E::Cancel::ALREADY_TERMINAL);
+        CHECK(r.owner.cancel(id, 5) == O::Cancel::ALREADY_TERMINAL);
         CHECK(r.done(id).service.outcome == C::SdoOutcome::TIMEOUT);
         CHECK(r.owner.stats().timeouts == 1 && r.owner.stats().cancelled == 0);
         CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == transmitted &&
               r.health().consecutiveFailures == transmitted);
-        const Saved<E::Completion> terminal(r.done(id));
-        CHECK(r.owner.cancel(id, 5) == E::Cancel::ALREADY_TERMINAL);
+        const Saved<O::Completion> terminal(r.done(id));
+        CHECK(r.owner.cancel(id, 5) == O::Cancel::ALREADY_TERMINAL);
         CHECK(r.owner.stats().timeouts == 1 && r.owner.stats().cancelled == 0);
         terminal.unchanged(r.done(id));
     }
@@ -967,8 +967,8 @@ void exactRetirementAlsoRetiresFinalReports() {
         CHECK(r.fake.ids[0].sdo.request.channel == 0 && r.fake.ids[1].sdo.request.channel == 1);
         r.fake.reportTx(0);
         r.fake.reportTx(1);
-        CHECK(r.owner.cancel(cancelled, 1) == E::Cancel::CANCELLED);
-        const Saved<E::Completion> terminal(r.done(cancelled));
+        CHECK(r.owner.cancel(cancelled, 1) == O::Cancel::CANCELLED);
+        const Saved<O::Completion> terminal(r.done(cancelled));
         CHECK(r.fake.retireCalls == 1 && r.fake.reportWrite - r.fake.reportRead == 2 - accepted);
         CHECK(r.fake.reportsRetired[0] == bool(accepted) && !r.fake.reportsRetired[1]);
         if (accepted)
@@ -1010,6 +1010,6 @@ int main() {
     std::printf("CAN owner health: %u checks passed\n", checks);
     std::printf(
         "host bytes: CanBusOwner=%zu Health=%zu Stats=%zu Diagnostic=%zu OwnerResources=%zu\n",
-        sizeof(E::CanBusOwner), sizeof(E::Health), sizeof(E::Stats), sizeof(E::Diagnostic),
-        sizeof(E::OwnerResources));
+        sizeof(O::CanBusOwner), sizeof(O::Health), sizeof(O::Stats), sizeof(O::Diagnostic),
+        sizeof(O::OwnerResources));
 }

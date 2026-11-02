@@ -2,6 +2,9 @@
 #include "RawEvidence.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::BusRequest;
+using MotorControlCANOwner::DiagnosticKind;
+using MotorControlCANOwner::Diagnostic;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {

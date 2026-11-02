@@ -23,7 +23,7 @@ SHARED_SOURCES = [
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.cpp",
     "examples/common/DeviceEvidence.cpp",
-    "examples/common/CanBusOwner.cpp",
+    "adapters/owner/CanBusOwner.cpp",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/EspProbePlatform.cpp",
     "examples/common/EspProbeMain.cpp",

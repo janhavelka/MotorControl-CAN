@@ -6,7 +6,7 @@ declarations are buildable C++11. Prompt 7 moved stable status, endpoint/binding
 and Classical frame validation into the [native package](getting_started.md).
 Prompt 9 supplies production [exact units and quantization](units_status.md).
 Synthetic operations remain test support; pure axis/reference policy is installed,
-and prompt 23 now supplies the ordinary application owner in examples/common.
+and prompt 23 now supplies the ordinary application owner, now in adapters/owner.
 No installed driver, hardware support or complete motion implementation
 is claimed. The [architecture plan](architecture_plan.md) remains
 the target repository layout; this document governs the narrower proven boundary.
@@ -92,7 +92,7 @@ owns integration rules; hardware qualification remains separate.
 
 ## Application scheduling and local recovery
 
-[CanBusOwner](../examples/common/CanBusOwner.h) borrows the sole existing
+[CanBusOwner](../adapters/owner/CanBusOwner.h) borrows the sole existing
 SdoClient and narrow synchronous controller callbacks. Six ordinary copied
 request/result slots, one urgent slot and two reservations add scheduling without another node table or CAN
 receiver. Logical-axis/physical-peer exclusion spans multiple operations;

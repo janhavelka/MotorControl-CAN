@@ -9,6 +9,7 @@
 #include "freertos/task.h"
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::ReceivedFrame;
 /** Stationary internal-RAM driver; construct on a pinned task's internal stack or
  * in static internal RAM. Construction has no I/O; explicit start occurs through
  * TwaiAdapter. The same pinned task owns all cooperative calls and destruction.

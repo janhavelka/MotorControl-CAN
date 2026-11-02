@@ -1,7 +1,7 @@
 {
   "sources": [
-    "examples/common/CanBusOwner.cpp",
-    "examples/common/CanBusDiagnostics.cpp",
+    "adapters/owner/CanBusOwner.cpp",
+    "adapters/owner/CanBusDiagnostics.cpp",
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.cpp",
     "examples/common/DeviceEvidence.cpp",
@@ -22,6 +22,7 @@
   ],
   "include_dirs": [
     "examples/common",
+    "adapters/owner",
     "adapters/twai",
     "adapters/canopennode",
     "experiments/canopen_service_fit/vendor/CANopenNode"

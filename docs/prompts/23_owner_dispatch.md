@@ -14,7 +14,7 @@ Refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty state. Read RS `
 
 ## Implement
 
-1. Implement `examples/common/CanBusOwner.h/.cpp` and its narrow existing transport/service interface. One cooperative application context owns controller/stack state, receive dispatch, bounded queues, bindings and caches. Passive heartbeat/PDO/EMCY processing continues during SDO transfers.
+1. Implement `adapters/owner/CanBusOwner.h/.cpp` (moved from `examples/common/` by audit W2) and its narrow existing transport/service interface. One cooperative application context owns controller/stack state, receive dispatch, bounded queues, bindings and caches. Passive heartbeat/PDO/EMCY processing continues during SDO transfers.
 2. Use actual RS role names `admit`, `service`, `result` and `release`, with selected `RequestId`, `SequenceId`, `BusAdmission` and `Completion` meanings. Freeze CAN-specific signatures without UART parameters or synonymous submit/poll APIs. Admission rejection leaves the caller's ID and queued work unchanged.
 3. Copy admitted input and reserve its terminal result slot before TX. Define non-consuming result lifetime, explicit release, foreign/stale ID rejection and generation/ID exhaustion. Never evict unread uncertainty to admit another request.
 4. Implement bounded ordinary scheduling, producer fairness, per-channel SDO serialization and per-axis sequence reservation where needed. Reservation cannot block unrelated nodes or passive events. Declare queue/channel/binding/result capacities and per-turn RX/TX/event budgets, including zero-budget behavior.

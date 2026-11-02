@@ -23,7 +23,8 @@ record why in the stage report. Do not create competing synonyms quietly.
 | Public code | `include/MotorControlCAN/`, `src/`, profile subdirectories | RS structure; install/export only portable code and required generated headers |
 | Types and functions | `PascalCase` types; `camelCase` functions/fields; uppercase enum values | Actual RS public API; do not import FieldCore's PascalCase enum values |
 | Tests and tooling | `test/`, `scripts/`, `.github/workflows/verify.yml` | Actual RS names; do not introduce parallel `tests/` and `tools/` trees by copying a sensor template |
-| Application and console | `examples/common/`, `examples/probe_cli/`, `examples/probe_idf/` | Shared owner/application/CLI with thin framework adapters; native usage remains independent |
+| Application owner | `adapters/owner/`, namespace `MotorControlCANOwner`, optional target `MotorControlCAN::CanBusOwner` | Reusable scheduling outside the installed core and the examples (DEC-5) |
+| Application and console | `examples/common/`, `examples/probe_cli/`, `examples/probe_idf/` | Shared application/CLI with thin framework adapters; native usage remains independent |
 | Language floor | Installed C++11, proven by source and installed consumers | RS CMake explicitly sets C++11 for its standalone test consumers |
 
 Use short files for real responsibilities. The architecture tree is a plan, not
@@ -151,8 +152,8 @@ the first position/velocity servo contract.
 
 ## 4. One application CAN owner
 
-Select `CanBusOwner` as the example application owner type in
-`MotorControlCANExample`. This name is proposed. Its selected method vocabulary
+`CanBusOwner` is the application owner type, in `MotorControlCANOwner` under
+`adapters/owner/`. Its selected method vocabulary
 follows the actual RS `BusOwner`: `admit`, `admitUrgent`, `service`, `result`,
 `release`, `cancel`, `recover`, `recoveryResult`, `releaseRecovery`,
 `beginSequence`, `invalidate` and `invalidateProducer` where those contracts

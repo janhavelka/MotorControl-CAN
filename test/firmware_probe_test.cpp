@@ -10,6 +10,7 @@ namespace M = MotorControlCAN;
 namespace C = M::CANOPEN;
 namespace L = M::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(c)                                                                                   \
@@ -90,7 +91,7 @@ struct Bytes {
 };
 struct Driver {
     E::TwaiEvents pending;
-    E::ReceivedFrame incoming[16];
+    O::ReceivedFrame incoming[16];
     M::Frame sent[16];
     unsigned starts = 0, stops = 0, submits = 0, receives = 0, eventCalls = 0;
     unsigned head = 0, count = 0;
@@ -129,7 +130,7 @@ struct Driver {
         d.pending = E::TwaiEvents();
         return copy;
     }
-    static bool receive(void* context, E::ReceivedFrame& output, uint64_t cutoffUs) {
+    static bool receive(void* context, O::ReceivedFrame& output, uint64_t cutoffUs) {
         Driver& d = *static_cast<Driver*>(context);
         ++d.receives;
         if (!d.count || (d.incoming[d.head].receiveBoundsKnown &&
@@ -152,7 +153,7 @@ struct Driver {
     }
     void push(const M::Frame& value) {
         CHECK(count < 16);
-        E::ReceivedFrame& next = incoming[(head + count++) % 16];
+        O::ReceivedFrame& next = incoming[(head + count++) % 16];
         next.frame = value;
         next.controllerEpoch = epoch;
         next.receivedTimeKnown = false;
@@ -274,7 +275,7 @@ void clockBoundariesAndRetirement() {
         r.turn(0);
         r.turn(1);
         CHECK(r.driver.submits == 1 && r.driver.active);
-        const E::RequestId id = r.firmware.app().pendingRequest();
+        const O::RequestId id = r.firmware.app().pendingRequest();
         r.driver.stopOk = variant < 2;
         r.bytes.clockOk = (variant % 2) == 0;
         r.bytes.now = 0;
@@ -284,7 +285,7 @@ void clockBoundariesAndRetirement() {
         CHECK(r.firmware.faultRetired() == r.driver.stopOk);
         CHECK(r.firmware.transport().diagnostics().inhibited);
         CHECK(r.driver.active == !r.driver.stopOk);
-        const E::Completion* terminal = r.firmware.owner().result(id);
+        const O::Completion* terminal = r.firmware.owner().result(id);
         CHECK(terminal && terminal->service.outcome != C::SdoOutcome::SUCCESS);
         const unsigned clocks = r.bytes.clocks, receives = r.driver.receives;
         r.bytes.clockOk = true;
@@ -332,12 +333,12 @@ void typedReadUnderPressure() {
             r.driver.reply();
             ++answered;
         }
-        const E::RequestId id = r.firmware.app().pendingRequest();
-        const E::Completion* terminal = r.firmware.owner().result(id);
+        const O::RequestId id = r.firmware.app().pendingRequest();
+        const O::Completion* terminal = r.firmware.owner().result(id);
         if (!terminal)
             continue;
         CHECK(terminal->service.outcome == C::SdoOutcome::SUCCESS);
-        unsigned char copy[sizeof(E::Completion)];
+        unsigned char copy[sizeof(O::Completion)];
         std::memcpy(copy, terminal, sizeof copy);
         CHECK(!r.firmware.app().releaseRead());
         const unsigned submitted = r.driver.submits;
@@ -370,10 +371,10 @@ void typedReadUnderPressure() {
 void saturationAndExplicitRecovery() {
     Rig r;
     CHECK(r.firmware.begin(config()));
-    E::SequenceId sequence;
+    O::SequenceId sequence;
     CHECK(r.firmware.owner().beginSequence(target().channel.binding, 1, 0, sequence));
     CHECK(r.firmware.owner().beginOperation(sequence, 1, 1000, 0));
-    E::BusRequest work;
+    O::BusRequest work;
     work.sequence = sequence;
     work.transfer.channel = target().channel;
     work.transfer.operation = 1;
@@ -382,38 +383,38 @@ void saturationAndExplicitRecovery() {
     work.transfer.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING;
     work.transfer.queueTimeoutUs = work.transfer.responseTimeoutUs = 100;
     work.transfer.deadlineUs = 1000;
-    E::RequestId ids[E::CanBusOwner::REQUESTS];
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i) {
+    O::RequestId ids[O::CanBusOwner::REQUESTS];
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
         work.transfer.request = work.transfer.step = i + 1;
-        CHECK(r.firmware.owner().admit(work, 0, ids[i]) == E::BusAdmission::ACCEPTED);
+        CHECK(r.firmware.owner().admit(work, 0, ids[i]) == O::BusAdmission::ACCEPTED);
     }
-    E::RequestId rejected;
+    O::RequestId rejected;
     ++work.transfer.request;
     ++work.transfer.step;
-    CHECK(r.firmware.owner().admit(work, 0, rejected) == E::BusAdmission::RESULTS_FULL);
+    CHECK(r.firmware.owner().admit(work, 0, rejected) == O::BusAdmission::RESULTS_FULL);
     CHECK(!rejected.owner && r.driver.submits == 0);
     r.turn(0);
     CHECK(r.driver.submits == 1);
     r.driver.pending.busOff = true;
     r.turn(1);
     CHECK(r.firmware.owner().resources().inhibited);
-    CHECK(r.firmware.owner().resources().retained == E::CanBusOwner::REQUESTS);
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i)
+    CHECK(r.firmware.owner().resources().retained == O::CanBusOwner::REQUESTS);
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i)
         CHECK(r.firmware.owner().result(ids[i]));
     r.turn(2);
     CHECK(r.driver.starts == 1 && r.driver.submits == 1);
-    E::RecoveryId recovery;
+    O::RecoveryId recovery;
     CHECK(r.firmware.owner().recover(3, 100, recovery));
     r.turn(3);
     CHECK(r.driver.stops == 1 && !r.firmware.owner().recoveryResult(recovery));
     r.turn(4);
-    const E::RecoveryCompletion* result = r.firmware.owner().recoveryResult(recovery);
-    CHECK(result && result->outcome == E::RecoveryOutcome::RETIRED);
+    const O::RecoveryCompletion* result = r.firmware.owner().recoveryResult(recovery);
+    CHECK(result && result->outcome == O::RecoveryOutcome::RETIRED);
     CHECK(r.driver.starts == 2 && r.driver.epoch == 2);
     r.turn(5);
     CHECK(r.driver.submits == 1 && !r.driver.active);
     CHECK(!r.firmware.transport().diagnostics().inhibited);
-    for (unsigned i = 0; i < E::CanBusOwner::REQUESTS; ++i) {
+    for (unsigned i = 0; i < O::CanBusOwner::REQUESTS; ++i) {
         CHECK(r.firmware.owner().result(ids[i]));
         CHECK(r.firmware.owner().release(ids[i]));
     }
@@ -518,7 +519,7 @@ void firmwareEvidenceFailuresNeverReplay() {
             bool controllerRecorded = false;
             for (unsigned i = 0; i < record.trafficCount; ++i)
                 controllerRecorded |=
-                    record.traffic[i].kind == E::DiagnosticKind::CONTROLLER &&
+                    record.traffic[i].kind == O::DiagnosticKind::CONTROLLER &&
                     record.traffic[i].controller == C::ControllerState::RECOVERING;
             CHECK(controllerRecorded);
         }
@@ -543,6 +544,6 @@ int main() {
     firmwareEvidenceFailuresNeverReplay();
     std::printf("firmware_probe_test: %u checks; sizeof FirmwareProbe=%zu, CanBusOwner=%zu, "
                 "TwaiAdapter=%zu, ProbeApp=%zu, ProbePlatform=%zu, SdoClient=%zu\n",
-                checks, sizeof(E::FirmwareProbe), sizeof(E::CanBusOwner), sizeof(E::TwaiAdapter),
+                checks, sizeof(E::FirmwareProbe), sizeof(O::CanBusOwner), sizeof(E::TwaiAdapter),
                 sizeof(E::ProbeApp), sizeof(E::ProbePlatform), sizeof(C::SdoClient));
 }

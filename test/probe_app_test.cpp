@@ -10,6 +10,7 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 namespace {
 unsigned checks = 0;
 #define CHECK(condition)                                                                           \
@@ -86,7 +87,7 @@ struct Rig {
     E::FakeTransport fake;
     Bytes bytes;
     E::ProbePlatform platform;
-    E::CanBusOwner owner;
+    O::CanBusOwner owner;
     E::ProbeApp app;
     uint64_t now = 0;
     explicit Rig(E::FakeTransport::Mode mode = E::FakeTransport::Mode::SUCCESS)
@@ -114,11 +115,11 @@ struct Rig {
     void finish(bool inspectLifetime = false) {
         for (unsigned i = 0; i < 100 && app.readContext().state == M::ReadState::ACTIVE; ++i) {
             turn(now + 1);
-            const E::RequestId id = app.pendingRequest();
-            const E::Completion* terminal = owner.result(id);
+            const O::RequestId id = app.pendingRequest();
+            const O::Completion* terminal = owner.result(id);
             if (!terminal)
                 continue;
-            const Saved<E::Completion> retained(*terminal);
+            const Saved<O::Completion> retained(*terminal);
             CHECK(owner.result(id) == terminal);
             if (inspectLifetime) {
                 const unsigned transmitted = fake.transmitted();
@@ -140,8 +141,8 @@ void startupAndSuccess() {
     CHECK(!rig.app.selected() && !rig.fake.transmitCalls() && !rig.fake.receiveCalls());
     CHECK(!rig.app.requestIdentity(0, 1000, options()));
     rig.select();
-    E::Health health;
-    CHECK(rig.app.health(health) && health.state == E::DriverState::UNINIT);
+    O::Health health;
+    CHECK(rig.app.health(health) && health.state == O::DriverState::UNINIT);
     L::IdentityObservation identity;
     identity.deviceType = 0xffffffff;
     const Saved<L::IdentityObservation> noIdentity(identity);
@@ -273,12 +274,12 @@ void cancellationAndQueueCutoff() {
     rig.select();
     CHECK(rig.app.requestIdentity(0, 1000, options()));
     rig.turn(0); // Admit after owner service; request is queued and has not crossed TX.
-    const E::RequestId id = rig.app.pendingRequest();
+    const O::RequestId id = rig.app.pendingRequest();
     CHECK(id.owner && !rig.fake.transmitted());
-    CHECK(rig.owner.cancel(id, 10) == E::Cancel::CANCELLED);
-    const E::Completion* terminal = rig.owner.result(id);
-    CHECK(terminal && terminal->reason == E::CompletionReason::CANCELLED);
-    const Saved<E::Completion> retained(*terminal);
+    CHECK(rig.owner.cancel(id, 10) == O::Cancel::CANCELLED);
+    const O::Completion* terminal = rig.owner.result(id);
+    CHECK(terminal && terminal->reason == O::CompletionReason::CANCELLED);
+    const Saved<O::Completion> retained(*terminal);
     CHECK(!rig.app.advanceRead(0) && rig.owner.result(id) == terminal);
     retained.unchanged(*terminal);
     CHECK(rig.app.advanceRead(10) && !rig.owner.result(id));
@@ -288,10 +289,10 @@ void cancellationAndQueueCutoff() {
     delayed.select();
     CHECK(delayed.app.requestConfig(0, 1000, options()));
     delayed.turn(0);
-    const E::RequestId queued = delayed.app.pendingRequest();
+    const O::RequestId queued = delayed.app.pendingRequest();
     delayed.turn(50); // Exact initial queue cutoff, before the overall cutoff.
     CHECK(delayed.fake.transmitted() == 0);
-    CHECK(delayed.owner.result(queued)->reason == E::CompletionReason::QUEUE_EXPIRED);
+    CHECK(delayed.owner.result(queued)->reason == O::CompletionReason::QUEUE_EXPIRED);
     CHECK(delayed.app.advanceRead(50));
     CHECK(delayed.app.readContext().evidence.outcome == C::SdoOutcome::TIMEOUT);
     CHECK(!delayed.app.readContext().uncertain && delayed.app.releaseRead());
@@ -316,7 +317,7 @@ void resetInvalidatesCurrentEvidence() {
     pending.select();
     CHECK(pending.app.requestConfig(0, 1000, options()));
     pending.turn(0);
-    const E::RequestId id = pending.app.pendingRequest();
+    const O::RequestId id = pending.app.pendingRequest();
     CHECK(pending.fake.push(heartbeat(0)));
     pending.turn(1);
     CHECK(pending.owner.result(id) && !pending.fake.transmitted());
@@ -325,7 +326,7 @@ void resetInvalidatesCurrentEvidence() {
 }
 void fakeBoundsAndAtomicRefusals() {
     E::FakeTransport fake;
-    E::Transport callbacks = fake.callbacks();
+    O::Transport callbacks = fake.callbacks();
     M::Frame request;
     request.id = 0x605;
     request.dlc = request.payloadLength = 8;
@@ -334,40 +335,40 @@ void fakeBoundsAndAtomicRefusals() {
     C::SdoTxId id;
     // Malformed/unknown uploads and all writes are refused before queue mutation.
     request.data[0] = 0x2b;
-    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
+    CHECK(!callbacks.transmit(&fake, request, O::TransportTxId::fromSdo(id), 1));
     CHECK(!fake.ingressUsed() && !fake.reportsUsed() && !fake.transmitted());
     request.data[0] = 0x40;
     request.data[1] = 0xff;
-    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
+    CHECK(!callbacks.transmit(&fake, request, O::TransportTxId::fromSdo(id), 1));
     request.data[1] = 0;
     for (unsigned i = 0; i < E::FakeTransport::INGRESS_CAPACITY - 3; ++i)
         CHECK(fake.push(heartbeat(5)));
     const unsigned ingress = fake.ingressUsed();
-    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
+    CHECK(!callbacks.transmit(&fake, request, O::TransportTxId::fromSdo(id), 1));
     CHECK(fake.ingressUsed() == ingress && !fake.reportsUsed() && !fake.transmitted());
     while (fake.ingressUsed()) {
-        E::ReceivedFrame value;
+        O::ReceivedFrame value;
         CHECK(callbacks.receive(&fake, value));
     }
-    E::ReceivedFrame empty;
-    const Saved<E::ReceivedFrame> kept(empty);
+    O::ReceivedFrame empty;
+    const Saved<O::ReceivedFrame> kept(empty);
     CHECK(!callbacks.receive(&fake, empty));
     kept.unchanged(empty);
     // Fill report storage while explicitly draining only synthetic ingress.
     for (unsigned i = 0; i < E::FakeTransport::REPORT_CAPACITY; ++i) {
-        CHECK(callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
-        E::ReceivedFrame value;
+        CHECK(callbacks.transmit(&fake, request, O::TransportTxId::fromSdo(id), 1));
+        O::ReceivedFrame value;
         while (fake.ingressUsed())
             CHECK(callbacks.receive(&fake, value));
     }
-    CHECK(!callbacks.transmit(&fake, request, E::TransportTxId::fromSdo(id), 1));
+    CHECK(!callbacks.transmit(&fake, request, O::TransportTxId::fromSdo(id), 1));
     CHECK(!fake.ingressUsed() && fake.reportsUsed() == E::FakeTransport::REPORT_CAPACITY);
     for (unsigned i = 0; i < E::FakeTransport::REPORT_CAPACITY; ++i) {
-        E::TxReport report;
+        O::TxReport report;
         CHECK(callbacks.takeTxReport(&fake, report) && report.transmitted);
     }
-    E::TxReport emptyReport;
-    const Saved<E::TxReport> retained(emptyReport);
+    O::TxReport emptyReport;
+    const Saved<O::TxReport> retained(emptyReport);
     CHECK(!callbacks.takeTxReport(&fake, emptyReport));
     retained.unchanged(emptyReport);
     for (unsigned i = 0; i < E::FakeTransport::INGRESS_CAPACITY; ++i)

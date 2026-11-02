@@ -151,8 +151,8 @@ def check_package(args, work, summary):
     # headers/library must come from the relocated install, never the checkout.
     probe = work / "native probe consumer"
     copied = {
-        "common": ("examples/common", ["CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp",
-                    "OwnerCounters.h", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+        "owner": ("adapters/owner", ["CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
+        "common": ("examples/common", ["ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
         "evidence": ("examples/device_evidence", ["main.cpp"]),
@@ -176,9 +176,12 @@ target_include_directories(stack PUBLIC stack adapter)
 add_library(adapter STATIC adapter/SdoClient.cpp adapter/Network.cpp adapter/Nmt.cpp adapter/Pdo.cpp)
 target_include_directories(adapter PUBLIC adapter)
 target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
-add_library(app STATIC common/CanBusOwner.cpp common/CanBusDiagnostics.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp)
+add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
+target_include_directories(owner PUBLIC owner)
+target_link_libraries(owner PUBLIC adapter)
+add_library(app STATIC common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp)
 target_include_directories(app PUBLIC common)
-target_link_libraries(app PUBLIC adapter)
+target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)
 target_link_libraries(native_probe PRIVATE app)
 add_executable(device_evidence evidence/main.cpp native/FakeTransport.cpp)
@@ -195,7 +198,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePla
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter app native_probe device_evidence units_preview position_preview reads_preview probe_headers)
+foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview reads_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4;/WX>)

@@ -5,7 +5,7 @@ This application adapter uses the ESP-IDF v5.5.5 node API, pinned to
 55.03.311 supplies the same SDK. Read the [SDK evidence and limitations](../../docs/adapters/twai_sdk.md)
 before changing SDK versions or lifecycle behavior.
 
-The adapter belongs outside the installed portable core. One application owner
+The adapter belongs outside the installed portable core. One [application owner](../owner/README.md)
 receives and dispatches the physical interface's traffic. CANopen service and
 motor semantics stay in the existing shared owner/application. The adapter does
 not depend on the Lichuan object dictionary.

@@ -8,6 +8,10 @@
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 
 namespace MotorControlCANExample {
+using MotorControlCANOwner::Health;
+using MotorControlCANOwner::RequestId;
+using MotorControlCANOwner::SequenceId;
+using MotorControlCANOwner::CanBusOwner;
 /** One selected target and one finite typed read. No startup request, command
  * parser, firmware startup, discovery, motion or retry engine. The application
  * owns read stepping; the owner alone receives and retains service terminals.

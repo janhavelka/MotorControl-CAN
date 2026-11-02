@@ -6,15 +6,15 @@
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
-namespace E = MotorControlCANExample;
+namespace O = MotorControlCANOwner;
 
 namespace {
 // One bounded fake ingress queue and one bounded fake controller-report queue.
 // No callback consumes the adapter's normal receive path or reads a clock.
 struct FakeTransport {
     enum { CAPACITY = 4 };
-    E::ReceivedFrame incoming[CAPACITY];
-    E::TxReport reports[CAPACITY];
+    O::ReceivedFrame incoming[CAPACITY];
+    O::TxReport reports[CAPACITY];
     unsigned rxHead = 0, rxCount = 0, reportHead = 0, reportCount = 0;
     unsigned transmitted = 0, receiveCalls = 0, reportCalls = 0;
     uint64_t nowUs = 0;
@@ -22,14 +22,14 @@ struct FakeTransport {
     bool push(const M::Frame& frame) {
         if (rxCount == CAPACITY)
             return false;
-        E::ReceivedFrame& item = incoming[(rxHead + rxCount) % CAPACITY];
+        O::ReceivedFrame& item = incoming[(rxHead + rxCount) % CAPACITY];
         item.frame = frame;
         item.receivedTimeKnown = true;
         item.receivedUs = nowUs;
         ++rxCount;
         return true;
     }
-    static bool receive(void* context, E::ReceivedFrame& output) {
+    static bool receive(void* context, O::ReceivedFrame& output) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
         ++fake.receiveCalls;
         if (!fake.rxCount)
@@ -39,7 +39,7 @@ struct FakeTransport {
         --fake.rxCount;
         return true;
     }
-    static bool takeReport(void* context, E::TxReport& output) {
+    static bool takeReport(void* context, O::TxReport& output) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
         ++fake.reportCalls;
         if (!fake.reportCount)
@@ -49,7 +49,7 @@ struct FakeTransport {
         --fake.reportCount;
         return true;
     }
-    static bool transmit(void* context, const M::Frame& request, E::TransportTxId id, uint32_t epoch) {
+    static bool transmit(void* context, const M::Frame& request, O::TransportTxId id, uint32_t epoch) {
         FakeTransport& fake = *static_cast<FakeTransport*>(context);
         // This fixture implements only the two explicit expedited uploads below.
         if (request.id != 0x605 || request.payloadLength != 8 || request.data[0] != 0x40 ||
@@ -75,7 +75,7 @@ struct FakeTransport {
         reply.data[5] = static_cast<uint8_t>(raw >> 8);
         if (!fake.push(heartbeat) || !fake.push(emcy) || !fake.push(reply))
             return false;
-        E::TxReport& report = fake.reports[(fake.reportHead + fake.reportCount) % CAPACITY];
+        O::TxReport& report = fake.reports[(fake.reportHead + fake.reportCount) % CAPACITY];
         report.id = id;
         report.controllerEpoch = epoch;
         report.transmitted = true; // Explicit fake actual-TX evidence, separate from return true.
@@ -83,8 +83,8 @@ struct FakeTransport {
         ++fake.transmitted;
         return true;
     }
-    E::Transport callbacks() {
-        E::Transport transport;
+    O::Transport callbacks() {
+        O::Transport transport;
         transport.context = this;
         transport.receive = receive;
         transport.transmit = transmit;
@@ -118,8 +118,8 @@ int main() {
         !services.configureNetwork(0, network, C::NetworkObserver(), 0))
         return 1;
     FakeTransport fake;
-    E::CanBusOwner owner(services, fake.callbacks(), 17);
-    E::SequenceId sequence;
+    O::CanBusOwner owner(services, fake.callbacks(), 17);
+    O::SequenceId sequence;
     if (!owner.beginSequence(target.channel.binding, 1, 0, sequence) ||
         !owner.beginOperation(sequence, 1, 1000, 0))
         return 1;
@@ -129,7 +129,7 @@ int main() {
     L::DriverContext context;
     if (!L::prepareControlRead(context, target, 1, 0, 1000, options))
         return 1;
-    E::ServiceBudget budget;
+    O::ServiceBudget budget;
     budget.rx = 4;
     budget.tx = 1;
     budget.events = 4;
@@ -141,21 +141,21 @@ int main() {
             return 1;
         if (!prepared.ready)
             break;
-        E::BusRequest request;
+        O::BusRequest request;
         request.sequence = sequence;
         request.transfer = prepared.transfer;
-        E::RequestId id;
-        if (owner.admit(request, nowUs, id) != E::BusAdmission::ACCEPTED)
+        O::RequestId id;
+        if (owner.admit(request, nowUs, id) != O::BusAdmission::ACCEPTED)
             return 1;
         // Admission copied this transfer. The owner retains its terminal until release.
-        const E::Completion* retained = nullptr;
+        const O::Completion* retained = nullptr;
         for (unsigned turn = 0; turn < 20 && !retained; ++turn) {
             fake.nowUs = ++nowUs;
             if (!owner.service(nowUs, budget))
                 return 1;
             retained = owner.result(id);
         }
-        if (!retained || retained->reason != E::CompletionReason::SERVICE)
+        if (!retained || retained->reason != O::CompletionReason::SERVICE)
             return 1;
         const C::SdoCompletion copied = retained->service;
         // Typed stepping belongs to the application, outside owner callbacks.
@@ -178,11 +178,11 @@ int main() {
 
     // Cached diagnostics copy owner evidence without another service turn or callback.
     const unsigned receiveCalls = fake.receiveCalls, reportCalls = fake.reportCalls;
-    E::Health health;
-    E::DriverState state = E::DriverState::UNINIT;
-    const E::Stats stats = owner.stats();
+    O::Health health;
+    O::DriverState state = O::DriverState::UNINIT;
+    const O::Stats stats = owner.stats();
     if (!owner.health(target.channel.binding, health) ||
-        !owner.driverState(target.channel.binding, state) || state != E::DriverState::READY ||
+        !owner.driverState(target.channel.binding, state) || state != O::DriverState::READY ||
         health.totalSuccess != 2 || health.totalFailures || health.consecutiveFailures ||
         !health.lastOkKnown || !health.lastSeenKnown || stats.txFrames != 2 || stats.rxFrames != 6)
         return 1;
@@ -190,17 +190,17 @@ int main() {
                 static_cast<unsigned>(health.totalSuccess),
                 static_cast<unsigned>(health.totalFailures), static_cast<unsigned>(stats.txFrames),
                 static_cast<unsigned>(stats.rxFrames));
-    const E::OwnerResources before = owner.resources();
-    E::Diagnostic diagnostic;
+    const O::OwnerResources before = owner.resources();
+    O::Diagnostic diagnostic;
     unsigned copied = 0;
     // A real console uses its own output budget and leaves transport service scheduled.
     while (copied < 3 && owner.takeDiagnostic(diagnostic))
         ++copied;
-    if (copied != 3 || before.traceUsed != E::CanBusOwner::TRACE_CAPACITY ||
+    if (copied != 3 || before.traceUsed != O::CanBusOwner::TRACE_CAPACITY ||
         owner.resources().traceUsed != before.traceUsed - copied || !stats.traceOverwritten ||
         !owner.clearStats())
         return 1;
-    E::Health after;
+    O::Health after;
     if (!owner.health(target.channel.binding, after) || after.totalSuccess || after.totalFailures ||
         after.state != health.state || after.consecutiveFailures != health.consecutiveFailures ||
         after.lastOkKnown != health.lastOkKnown || after.lastOkUs != health.lastOkUs ||

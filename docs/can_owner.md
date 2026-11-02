@@ -6,14 +6,14 @@ results available for inspection until explicit advancement/release and provides
 no additional CAN receive path.
 
 The working application owner is
-[`MotorControlCANExample::CanBusOwner`](../examples/common/CanBusOwner.h),
-implemented in [CanBusOwner.cpp](../examples/common/CanBusOwner.cpp).
+[`MotorControlCANOwner::CanBusOwner`](../adapters/owner/CanBusOwner.h),
+implemented in [CanBusOwner.cpp](../adapters/owner/CanBusOwner.cpp).
 It schedules copied CANopen SDO work from existing typed reads/settings, routes
 all ingress once and retains immutable results. It provides reserved urgent
 admission, explicit cancellation/invalidation and bounded host/controller
 recovery. It is application code, excluded from the installed/exported core.
 Cached communication health, statistics and bounded diagnostic copies are
-implemented in [CanBusDiagnostics.cpp](../examples/common/CanBusDiagnostics.cpp).
+implemented in [CanBusDiagnostics.cpp](../adapters/owner/CanBusDiagnostics.cpp).
 Actual drive stop operations remain prompt 31 work; no motion context is imported.
 
 The [offline consumer](../examples/owner_preview/README.md) needs no controller
