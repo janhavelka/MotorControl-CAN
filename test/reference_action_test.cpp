@@ -810,6 +810,114 @@ void conservativeNoticeThenDefiniteNoTransmission() {
     r.checkWithdrawn();
 }
 
+void failedCounterActionThenExplicitNewEpochRead() {
+    Rig r;
+    r.acquire(0);
+    L::ActionContext action;
+    r.prepare(action, true);
+    r.command(action, 0x2302, 0);
+    r.command(action, 0x2302, 1);
+    const auto rearm = r.next(action);
+    const auto id = r.admit(rearm.transfer);
+    const unsigned sent = r.wire.sentCount;
+    CHECK(r.owner.cancel(id, r.now) == E::Cancel::CANCELLED);
+    const auto terminal = r.result(id, false);
+    CHECK(!terminal.transmissionPossible && !r.services.unresolved(0));
+    CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
+    CHECK(action.outcome == M::ActionOutcome::CANCELLED &&
+          action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain);
+    const Saved<L::ActionContext> failed(action);
+    const Saved<E::Completion> retained(*r.owner.result(id));
+    r.checkWithdrawn();
+    // Even a definite no-TX rearm failure keeps the trigger's coordinate loss.
+    // An unread old-epoch result prevents synchronization, without erasing it.
+    CHECK(!r.owner.advanceConfiguration(r.sequence, r.current.channel.binding, r.now));
+    retained.unchanged(*r.owner.result(id));
+    CHECK(r.owner.release(id));
+    r.synchronize();
+    r.begin();
+    L::ReadContext read;
+    CHECK(L::prepareState(read, r.current, r.operation, r.now, r.deadline, options(),
+                          uint8_t(1u << unsigned(L::StateBlock::FEEDBACK))));
+    L::PreparedRead fresh;
+    CHECK(L::nextRead(read, r.now, fresh) && fresh.ready);
+    E::BusRequest stale;
+    stale.sequence = r.sequence;
+    stale.transfer = fresh.transfer;
+    stale.transfer.channel.binding = target().channel.binding;
+    E::RequestId rejected;
+    const Saved<E::RequestId> unchanged(rejected);
+    CHECK(r.owner.admit(stale, r.now, rejected) == E::BusAdmission::INVALID);
+    unchanged.unchanged(rejected);
+    CHECK(r.wire.sentCount == sent);
+    while (read.state == M::ReadState::ACTIVE) {
+        CHECK(L::nextRead(read, r.now, fresh) && fresh.ready);
+        const auto observed = r.exchange(fresh.transfer);
+        CHECK(L::advanceRead(read, observed, r.now));
+    }
+    L::StateObservation feedback;
+    CHECK(L::getStateBlock(read, L::StateBlock::FEEDBACK, r.current, r.now, 1000, feedback));
+    CHECK(feedback.actualPosition == 0 && r.wire.sentCount == sent + 2);
+    failed.unchanged(action); // A later zero observation cannot settle failed rearm.
+    r.checkWithdrawn();       // Nor can it synthesize an origin or home witness.
+}
+
+void uncertainCounterTriggerCannotReopenThroughEpochSync() {
+    Rig r;
+    r.acquire(0);
+    L::ActionContext action;
+    r.prepare(action, true);
+    r.command(action, 0x2302, 0);
+    const auto trigger = r.next(action);
+    const auto id = r.admit(trigger.transfer);
+    r.wire.autoReport = r.wire.retirement = false;
+    const unsigned sent = r.wire.sentCount;
+    r.turn(r.now);
+    r.checkWithdrawn();
+    CHECK(r.wire.pending[sent]);
+    r.turn(r.now + 101, budget(0, 0, 8, 0));
+    const auto terminal = r.result(id, false);
+    CHECK(terminal.outcome == C::SdoOutcome::TIMEOUT && terminal.effectUncertain &&
+          r.services.unresolved(0) && r.wire.retireCalls == 1);
+    CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
+    CHECK(action.execution == M::ActionExecution::UNKNOWN && action.uncertain);
+    const Saved<L::ActionContext> failed(action);
+    const Saved<E::Completion> retained(*r.owner.result(id));
+    CHECK(!r.owner.advanceConfiguration(r.sequence, r.current.channel.binding, r.now));
+    CHECK(!r.owner.beginOperation(r.sequence, r.operation + 1, r.deadline, r.now));
+    // Retiring the local controller frame and receiving a late ACK still do
+    // not qualify the ambiguous remote SDO channel or replay the trailing zero.
+    r.wire.report(sent);
+    r.wire.push(reply(trigger.transfer), r.now + 1);
+    r.turn(r.now + 1, budget(8, 0, 8, 0));
+    retained.unchanged(*r.owner.result(id));
+    CHECK(r.owner.release(id));
+    CHECK(r.services.unresolved(0) && !r.owner.sequence(r.sequence));
+    CHECK(!r.owner.advanceConfiguration(r.sequence, r.current.channel.binding, r.now));
+    E::BusRequest request;
+    request.sequence = r.sequence;
+    request.transfer = trigger.transfer;
+    ++request.transfer.step;
+    E::RequestId rejected;
+    for (unsigned epoch = 0; epoch < 2; ++epoch) {
+        request.transfer.channel.binding =
+            epoch ? r.current.channel.binding : target().channel.binding;
+        CHECK(r.owner.admit(request, r.now, rejected) == E::BusAdmission::INVALID);
+    }
+    // Remove reservation occupancy as an alternative rejection cause. A new
+    // local token still cannot establish a fresh remote transaction boundary.
+    CHECK(r.owner.releaseSequence(r.sequence));
+    CHECK(M::sameBinding(r.services.channel(0)->binding, target().channel.binding));
+    E::SequenceId replacement;
+    const Saved<E::SequenceId> unchanged(replacement);
+    CHECK(!r.owner.beginSequence(target().channel.binding, 1, r.now, replacement));
+    unchanged.unchanged(replacement);
+    CHECK(r.services.unresolved(0));
+    CHECK(r.wire.sentCount == sent + 1 && !r.wire.pending[sent] && r.invalidations == 0);
+    failed.unchanged(action);
+    r.checkWithdrawn();
+}
+
 } // namespace
 int main() {
     successfulActionsRetainEvidence();
@@ -820,5 +928,7 @@ int main() {
     interruptedResultSurvivesClear();
     deadlinesFaultsAndRebootKeepOriginalTerminals();
     conservativeNoticeThenDefiniteNoTransmission();
+    failedCounterActionThenExplicitNewEpochRead();
+    uncertainCounterTriggerCannotReopenThroughEpochSync();
     std::printf("reference actions: %u checks passed\n", checks);
 }

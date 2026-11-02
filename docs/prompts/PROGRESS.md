@@ -1,5 +1,11 @@
 # Prompt execution progress
 
+A [fresh independent audit of prompts 31/32](../reports/prompts_31_32_audit.md)
+found no confirmed runtime or vendor-value defect in their implemented subsets.
+It adds owner-admission regressions after failed/uncertain counter clearing and
+simplifies private observation checks. Both stages retain their precise Partial
+status; host evidence does not resolve the firmware gates.
+
 Prompt 32 implements [conditional fault clearing and device zero](../fault_reference_actions.md)
 through the existing action/owner path. Original errors, command prefixes and
 coordinate invalidation remain independent of reported completion. It stays

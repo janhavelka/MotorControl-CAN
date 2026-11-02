@@ -1,5 +1,9 @@
 # Prompt 31: conditional stop operations and owner integration
 
+Subsequent [independent audit of prompts 31/32](prompts_31_32_audit.md) rechecked
+the actual implementation, source evidence, owner paths and tests. The original
+scope and firmware gates below remain in effect.
+
 Date: 2026-11-02. Promptset v2 continues on `promptset/motorcontrol-can`, upstream
 `origin/promptset/motorcontrol-can`, base `7878f7c`. Entry HEAD was
 `9b3088abb4e28b3952d9c6d2548c0e5f278bae89`; fetched upstream was 0 ahead/0 behind.
