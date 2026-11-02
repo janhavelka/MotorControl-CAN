@@ -4,6 +4,7 @@
     "examples/common/CanBusDiagnostics.cpp",
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.cpp",
+    "examples/common/DeviceEvidence.cpp",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/EspProbePlatform.cpp",
     "examples/common/EspProbeMain.cpp",

@@ -23,7 +23,7 @@ These are obligations for the future implementation, not current feature claims.
 | R17 | Native plus shared Arduino/ESP-IDF examples | 26-28, 40-42, 49-50 | Common app/CLI/public APIs, compiled adapters with explicit pins/SDK and fake transport |
 | R18 | Consistent CLI and machine protocol | 40-44 | One inventory/help, strict parser, request/operation IDs, schema/version tests, no private motion path |
 | R19 | Python finite runners and retained evidence | 29, 43-44, 47-48 | Offline parser/campaign failures/no replay, explicit connection/setup, logs and summaries |
-| R20 | Native/fault/consumer/package/CI gates | 7-28, 30-46, 49-50 | Registered *_test.cpp/*_test.py, GCC/Clang, package users, exact-commit CI when available |
+| R20 | Native/fault/consumer/package/CI gates | 7-46, 49-50 | Registered *_test.cpp/*_test.py, GCC/Clang, package users, exact-commit CI when available |
 | R21 | FieldCore-like suitability without dependence | 1-2, 5-6, 23-25, 45-46 | Read-only current dormant module audit, fake consumer, handoff; no imported app types |
 | R22 | Agent guidance and resumable delivery | All | One new branch per new promptset execution, reused across all stages/sessions; commit and sync each prompt/coherent checkpoint; reports preserve evidence and open obligations |
 | R23 | Documentation and release honesty | All; final 49-50 | Documentation accompanies changes; supported versus known/implemented/tested/qualified matrix; no fabricated firmware/HIL |

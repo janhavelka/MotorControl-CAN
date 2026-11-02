@@ -1,6 +1,6 @@
 # API and CLI naming map
 
-This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The API names below are proposed for MotorControlCAN, not implemented promises.
+This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The stage notes identify implemented APIs; remaining inventory entries are planned contracts.
 
 Prompt 6 now demonstrates `prepareIdentity/nextRead/advanceRead/getIdentity`,
 `prepareMoveAbsolute/nextMove/advanceMove` and the owner admission/result lifecycle
@@ -20,6 +20,20 @@ The selected detailed vocabulary is centralized in [CONVENTIONS.md](prompts/CONV
 The [multi-drive decision](multidrive_decision.md) makes these common motion names apply to both stepper and servo drives. CANopen and Lichuan are the first concrete backend/profile, not mandatory public axis semantics. Future families have their own namespaces and typed contexts; test-only N5/EPOS4/proprietary contrasts must not appear as installed drivers.
 
 ## Style and status
+
+Prompt 29 extends example `ProbeApp` with explicit `requestState`, checked
+`getStateBlock` and local `cancelRead`. The application-only
+[`DeviceEvidence`](../examples/common/DeviceEvidence.h) provides `request`,
+`requestExperiment`, `service`, `interrupt`, cached `record` and terminal
+`release`. Its exact finite plan selects existing typed identity/configuration/
+state reads; it exposes no arbitrary object command or CLI route.
+`FirmwareProbe::evidence()` has fixed DEVICE provenance and is serviced by the
+ordinary firmware turn. Ordinary DEVICE acquisition remains Q20 rejected;
+explicit reviewed unqualified-read experiments retain possible/uncertain effects.
+The [offline procedure](../examples/device_evidence/README.md) demonstrates the
+path with synthetic records. State-changing experimental sequences remain
+unimplemented and capability-gated; fixture and review strings alone grant no
+physical authorization.
 
 Prompt 26 adds example `ProbeApp` selection, explicit `requestIdentity` and
 `requestConfig`, `service`, `advanceRead`, checked `getIdentity/getConfig`,

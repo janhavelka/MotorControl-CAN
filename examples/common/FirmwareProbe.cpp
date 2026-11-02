@@ -5,7 +5,7 @@ namespace MotorControlCANExample {
 FirmwareProbe::FirmwareProbe(MotorControlCAN::CANOPEN::SdoClient& services, TwaiDriver driver,
                              const ProbeCallbacks& callbacks) noexcept
     : transport_(services, driver), owner_(services, transport_.transport(), 28),
-      platform_(callbacks), app_(owner_, platform_),
+      platform_(callbacks), app_(owner_, platform_), evidence_(app_, owner_),
       callbacksValid_(callbacks.nowUs && !callbacks.idle) {}
 bool FirmwareProbe::begin(const FirmwareConfig& config) noexcept {
     if (attempted_)
@@ -24,19 +24,24 @@ bool FirmwareProbe::service() noexcept {
         return false;
     }
     uint64_t now = 0;
-    if (!platform_.nowUs(now) || now < lastUs_ || !app_.service(now)) {
+    bool progressed = platform_.nowUs(now) && now >= lastUs_ && app_.service(now);
+    if (progressed) {
+        lastUs_ = now;
+        transport_.service(owner_, now);
+        progressed = evidence_.service(now);
+    }
+    if (!progressed) {
         running_ = false;
         clockFailed_ = true;
         const bool invalidated = owner_.reportController(
             MotorControlCAN::CANOPEN::ControllerState::RECOVERING, owner_.lastTimeUs());
+        evidence_.interrupt(owner_.lastTimeUs());
         // Public app/owner calls can advance time between firmware turns. Never
         // report a clock failure at an older timestamp or invent a newer one.
         const bool retired = transport_.shutdown();
         faultRetired_ = invalidated && retired;
         return false;
     }
-    lastUs_ = now;
-    transport_.service(owner_, now);
     return true;
 }
 } // namespace MotorControlCANExample

@@ -418,12 +418,128 @@ void saturationAndExplicitRecovery() {
     }
     CHECK(r.firmware.owner().releaseRecovery(recovery));
 }
+E::ReadExperiment syntheticEvidenceReview() {
+    E::ReadExperiment review;
+    review.plan.id = 1;
+    std::strcpy(review.plan.fixtureId, "firmware-host-driver-fake-only");
+    std::strcpy(review.plan.softwareRevision, "0123456789abcdef0123456789abcdef01234567");
+    std::strcpy(review.plan.firmware, "synthetic test replies; no running device");
+    std::strcpy(review.plan.dialect, "raw unresolved");
+    std::strcpy(review.plan.authorization, "host test only; no actual bench permission");
+    std::strcpy(review.plan.observations,
+                "scripted frames and retained terminals; no physical observations");
+    review.plan.target = target();
+    review.plan.kind = L::ReadKind::CONFIG;
+    review.plan.options = options();
+    review.plan.deadlineUs = 1000;
+    std::strcpy(review.sourceReview, "synthetic configuration words only; Q20 remains unresolved");
+    std::strcpy(review.independentReview,
+                "host test fixture assertions; no physical review claimed");
+    std::strcpy(review.fixtureReview, "Driver and Bytes fakes; no physical controller");
+    std::strcpy(review.independentControl,
+                "no device; finite supplied clock and bounded caller loop");
+    std::strcpy(review.failurePlan, "retain terminal and raw prefix; no retries or new work");
+    std::strcpy(review.reconciliation,
+                "inspect unknown effects; no physical reconciliation claimed");
+    return review;
+}
+void firmwareEvidenceAdmissionAndCollection() {
+    Rig r;
+    CHECK(!r.firmware.evidence().record() && r.driver.submits == 0);
+    CHECK(r.firmware.begin(config()) && r.firmware.app().select(target()));
+    r.turn(0);
+    const E::ReadExperiment review = syntheticEvidenceReview();
+    CHECK(r.firmware.evidence().request(review.plan, 0) ==
+          E::EvidenceAdmission::READ_EFFECT_UNQUALIFIED);
+    CHECK(!r.firmware.evidence().record() && r.driver.submits == 0);
+    CHECK(r.firmware.app().readContext().state == M::ReadState::EMPTY);
+    CHECK(r.firmware.evidence().requestExperiment(review, 0) == E::EvidenceAdmission::ACCEPTED);
+    CHECK(r.driver.submits == 0); // Admission is not transmission.
+    unsigned answered = 0;
+    for (uint64_t now = 1; now < 100 && !r.firmware.evidence().record()->terminal; ++now) {
+        r.turn(now); // Firmware alone services the owner and collects each terminal.
+        if (r.driver.submits != answered) {
+            CHECK(r.driver.submits == answered + 1);
+            r.driver.reply();
+            ++answered;
+        }
+    }
+    const E::AcquisitionRecord& record = *r.firmware.evidence().record();
+    CHECK(record.environment == E::EvidenceEnvironment::DEVICE && record.experimental);
+    CHECK(record.terminal && record.read.state == M::ReadState::SUCCEEDED);
+    CHECK(record.intendedCount == 6 && record.terminalCount == 6 && answered == 6);
+    CHECK(!record.evidenceLost && record.trafficCount > 0);
+    CHECK(record.initialStats.txFrames == 0 && record.finalStats.txFrames > 0 &&
+          record.finalStats.txFrames <= answered);
+    // The last adapter report may follow SDO delivery; counters record only the
+    // reports actually consumed by the owner before this terminal snapshot.
+    CHECK(record.initialStats.rxFrames == 0 && record.finalStats.rxFrames == 18);
+    CHECK(record.initialResources.reservations == 1 && record.finalResources.retained == 0);
+    for (unsigned i = 0; i < record.terminalCount; ++i) {
+        CHECK(record.terminals[i].service.outcome == C::SdoOutcome::SUCCESS);
+        CHECK(record.terminals[i].service.replyValid);
+        CHECK(record.terminals[i].service.effectPossible);
+    }
+    CHECK(r.firmware.owner().resources().retained == 0);
+    CHECK(r.firmware.evidence().release());
+}
+void firmwareEvidenceFailuresNeverReplay() {
+    for (unsigned variant = 0; variant < 2; ++variant) {
+        Rig r;
+        CHECK(r.firmware.begin(config()) && r.firmware.app().select(target()));
+        const E::ReadExperiment review = syntheticEvidenceReview();
+        CHECK(r.firmware.evidence().requestExperiment(review, 0) == E::EvidenceAdmission::ACCEPTED);
+        r.turn(0);
+        r.turn(1);
+        CHECK(r.driver.submits == 1 && r.driver.active);
+        if (variant == 0) {
+            // Confirm only controller TX; no SDO response is synthesized.
+            r.driver.pending.txDone = r.driver.pending.transmitted = true;
+            r.driver.pending.serial = r.driver.serial;
+            r.driver.active = false;
+            for (uint64_t now = 2; now < 150 && !r.firmware.evidence().record()->terminal; ++now)
+                r.turn(now);
+        } else {
+            r.bytes.clockOk = false;
+            CHECK(!r.firmware.service());
+            CHECK(r.firmware.clockFailed() && r.firmware.faultRetired());
+        }
+        const E::AcquisitionRecord& record = *r.firmware.evidence().record();
+        CHECK(record.environment == E::EvidenceEnvironment::DEVICE && record.experimental);
+        CHECK(record.terminal && record.read.state == M::ReadState::FAILED &&
+              record.read.uncertain);
+        CHECK(record.terminalCount == 1 && record.terminals[0].service.effectUncertain);
+        CHECK(!record.terminals[0].service.protocolAcknowledged && !record.evidenceLost);
+        if (variant == 0)
+            CHECK(record.terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
+        else {
+            CHECK(record.interrupted);
+            bool controllerRecorded = false;
+            for (unsigned i = 0; i < record.trafficCount; ++i)
+                controllerRecorded |=
+                    record.traffic[i].kind == E::DiagnosticKind::CONTROLLER &&
+                    record.traffic[i].controller == C::ControllerState::RECOVERING;
+            CHECK(controllerRecorded);
+        }
+        const uint64_t completedUs = record.completedUs;
+        for (uint64_t now = 200; now < 204; ++now) {
+            r.bytes.now = now;
+            CHECK(r.firmware.service() == (variant == 0));
+        }
+        CHECK(r.driver.submits == 1 && r.firmware.evidence().record()->terminalCount == 1);
+        CHECK(r.firmware.evidence().record()->completedUs == completedUs);
+        CHECK(r.firmware.evidence().record()->read.uncertain);
+        CHECK(r.firmware.evidence().release());
+    }
+}
 } // namespace
 int main() {
     startup();
     clockBoundariesAndRetirement();
     typedReadUnderPressure();
     saturationAndExplicitRecovery();
+    firmwareEvidenceAdmissionAndCollection();
+    firmwareEvidenceFailuresNeverReplay();
     std::printf("firmware_probe_test: %u checks; sizeof FirmwareProbe=%zu, CanBusOwner=%zu, "
                 "TwaiAdapter=%zu, ProbeApp=%zu, ProbePlatform=%zu, SdoClient=%zu\n",
                 checks, sizeof(E::FirmwareProbe), sizeof(E::CanBusOwner), sizeof(E::TwaiAdapter),

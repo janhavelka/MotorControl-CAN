@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 #pragma once
+#include "DeviceEvidence.h"
 #include "ProbeApp.h"
 #include "TwaiAdapter.h"
 
@@ -56,6 +57,11 @@ class FirmwareProbe {
     bool faultRetired() const noexcept { return faultRetired_; }
     /** @return Existing concrete application; calls are explicit, never startup actions. */
     ProbeApp& app() noexcept { return app_; }
+    /** @return Same typed application evidence collector, fixed DEVICE provenance.
+     * Requests require explicit fixture/authorization review; construction/startup
+     * never selects a drive or starts acquisition. Service collects after ordinary work.
+     */
+    DeviceEvidence& evidence() noexcept { return evidence_; }
     /** @return Sole existing owner for explicit requests, recovery and retained results. */
     CanBusOwner& owner() noexcept { return owner_; }
     /** @return Bounded byte buffers/counters; no command parser exists. */
@@ -68,6 +74,7 @@ class FirmwareProbe {
     CanBusOwner owner_;
     ProbePlatform platform_;
     ProbeApp app_;
+    DeviceEvidence evidence_;
     uint64_t lastUs_ = 0;
     bool callbacksValid_ = false, attempted_ = false, running_ = false, clockFailed_ = false;
     bool faultRetired_ = false;

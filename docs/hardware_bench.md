@@ -1,10 +1,11 @@
 # CAN bench facts and evidence gaps
 
-As of 2026-10-28, this assignment has no established CAN bench and has performed
-no CAN traffic, firmware flashing or motor activity. The selected initial
-product is the Lichuan CL86-C finished drive. Its installed firmware, motor and
-internal IC are not identified. The RS bench, COM port and motion authorization
-do not transfer to this project.
+As of 2026-11-02, prompt 29 has no established live CAN fixture and has performed
+no CAN traffic, firmware flashing, port access or motor activity. The selected
+initial product is the Lichuan CL86-C finished drive. Its installed firmware,
+motor and internal IC are not identified. The RS bench, COM port and motion
+authorization do not transfer to this project. Host evidence readiness,
+firmware compilation, acquisition and physical qualification are separate facts.
 
 ## Actual fixture record
 
@@ -12,20 +13,30 @@ do not transfer to this project.
 | --- | --- | --- |
 | Drive | CL86-C is the requested target; no physical specimen identified | Exact label/model, serial if available, firmware and raw identity; selected manual/dialect |
 | Motor and feedback | Unknown | Motor ratings, wiring, load, encoder configuration and command/feedback scale |
-| Controller and SDK | Unknown | Board/controller, SDK version, adapter capabilities and timestamp/queue semantics |
-| Transceiver | Unknown | Part, supply, isolation if present, standby/enable controls and electrical compatibility |
-| Interface and pins | Unknown | Actual host device, controller pins, CAN_H/CAN_L/reference wiring; no inferred RS COM port |
+| PC interface | User reports PCAN-USB opto IPEH-002022 available; not inspected or exercised | Exact connected interface, driver/version, timestamp and queue behavior, wiring and applicable authorization; availability is not adapter integration or qualification |
+| Embedded controller and SDK | User reports ESP32-S2 PCB; existing compile example targets ESP32-S3 with ESP-IDF 5.5.5 | Actual S2 board revision, SDK/build configuration and compiled pin/driver compatibility; S3 compilation does not validate the S2 PCB |
+| Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
+| Interface and pins | User confirms CAN RX GPIO16, TX GPIO17, silent GPIO18; no physical signal verification | Pin orientation and actual board/firmware routing, CAN_H/CAN_L/reference wiring; no inferred RS COM port |
+| Debug/programming | User reports ESP-Prog/2 JTAG and UART with EN/BOOT | Exact connector wiring, target voltage, reset/boot behavior and separately authorized flashing/debugging; no port was opened |
 | Bus topology | Unknown | Cable, connectors, reference/ground arrangement, termination at physical ends and other nodes |
 | Node and bitrate | Unknown | Actual DIP positions and effective configuration; no trial writes or guessed default |
 | Power | Unknown | Actual drive/motor supply, rating and fixture controls |
 | External I/O | Unknown; it may be unused | Actual assignments, electrical levels and connected limits/home/stop inputs needed by the chosen operation |
 | Mechanics | Unknown | Load, permitted travel/direction/speed, mounting and independent observation/stop provisions |
-| Authorization | This assignment authorizes source audit only | Applicable authorization for a specific finite live procedure and its bounds |
-| Evidence | Documentary and host planning checks only | Fixture ID, exact software revision, request/response traffic, timestamps, failed/uncertain outcomes and observations |
+| Authorization | Host software/evidence-readiness work authorized; no live CAN/motion procedure established | Applicable authorization for one specific finite acquisition or experiment and its bounds |
+| Evidence | Documentary review and host software checks; no acquired device record | Fixture ID, exact software revision, request/response traffic, timestamps, failed/uncertain outcomes and independent observations |
 
 An unconnected input does not mean its protective or enabling function is
 disabled. An SDO acknowledgement does not prove physical standstill, a valid
 position reference or a cleared fault cause.
+
+These user-reported parts and pins are useful fixture intake, not evidence of
+electrical correctness, live firmware, active bitrate/node or a safe motion
+envelope. A PCAN interface and an embedded interface do not imply permission for
+two active controllers. One designated operator and one application owner
+control the selected physical interface. An independently configured observer
+must not transmit or change the bus; its presence and electrical effect belong
+in the fixture record.
 
 ## Documentary wiring facts, not fixture settings
 
@@ -40,6 +51,133 @@ one-based PDF pages. The independent page review is recorded in
 | EN86 pp9-10 | SW6/7 choices 125/250/500/1000 kbit/s; SW8 ON connects 120 ohms | Actual bitrate and total installed termination remain unknown; EDS also advertises 50 kbit/s without a documented DIP choice |
 | EN86 p3 | CL encoder specification 1000 lines; OL entry N/A | Does not establish actual-position units, quadrature conversion or command-pulse scale |
 | OP86 pp3/10 | Cover says 86C; internal headers say 57C and p3 pin table says RS485 despite CAN labels | Preserve source inconsistency; do not substitute its labels for an inspected fixture |
+
+The supply disagreement within EN86 (p3 versus pp6-7) is an unresolved Q19
+fixture prerequisite. No voltage is selected from those conflicting ranges.
+Use the actual nameplate and applicable manufacturer evidence.
+
+## Finite acquisition and interpretation
+
+The [conflict guide](device_conflicts.md) lists the exact source claims,
+observations and per-feature gates. The canonical ledger's Q20 remains open:
+none of the currently reviewed upload descriptors has established non-consuming
+effects. Starting with reviewed non-changing reads therefore means rejecting a
+device acquisition whose rows have no such evidence. An identity or RO label
+does not waive this gate, and a successful upload does not resolve it.
+
+The evidence harness uses the ordinary application and typed identity,
+configuration and selected state reads through the same `CanBusOwner`. Startup,
+cached inspection and construction are passive. Host fake mode demonstrates
+request/response ownership and failure recording only. A real acquisition
+requires an explicit request and an exact finite plan; there is no discovery
+sweep, unsolicited polling, command parser or raw write sender.
+
+The application-side API is
+[`DeviceEvidence`](../examples/common/DeviceEvidence.h). `request(plan, nowUs)`
+copies one `AcquisitionPlan` only after admission; `DEVICE` is the default
+environment and currently returns `READ_EFFECT_UNQUALIFIED` for the Q20 gap.
+`requestExperiment(review, nowUs)` takes a `ReadExperiment` containing the exact
+plan and the source, independent review, fixture, control, failure and
+reconciliation references. It does not authenticate those references or grant a
+production capability. `HOST_FAKE` is construction-time test provenance and must
+only be paired with an offline fake controller.
+
+Run the ordinary application/owner service turn before `DeviceEvidence::service`.
+The collector copies owner diagnostics and each retained completion before
+advancing the ordinary typed read; it never receives or services the bus itself.
+Inspect `record()` without I/O and explicitly `release()` the terminal record
+after retaining it. `interrupt()` cancels local acquisition and preserves
+evidence; it does not stop a motor. Do not independently advance/release the
+borrowed application or drain owner diagnostics during an acquisition. Storage
+is bounded to 64 traffic entries plus the typed field/terminal capacities;
+overflow marks lost evidence and interrupts further acquisition.
+
+The [native evidence example](../examples/device_evidence/README.md) documents
+the build and runs as `device_evidence --fake-only`. It accepts no live mode or
+controller arguments. It demonstrates ordinary `DEVICE` rejection, nine fake
+identity and six fake communication reads, then a separate non-replayed timeout
+with unknown effects. Its fixed revision label and review references are
+explicitly synthetic. Retain its printed output as host evidence only.
+
+The record also retains controller/recovery events, initial and final owner
+statistics/resource snapshots, and the largest collector-service interval during
+the acquisition. Owner statistics are cumulative; resource snapshots are not
+peak or stack measurements. `rxLost` counts explicitly reported missing ingress;
+`rxDropped` also includes rejected frames whose raw traffic may remain present.
+Missing ingress, overwritten diagnostics, local trace capacity exhaustion and
+untrustworthy loss counters mark incomplete evidence. Do not clear statistics
+or independently drain diagnostics during acquisition. These observations do
+not establish a device response deadline or a physically measured service rate.
+
+Firmware uses the same collector through `FirmwareProbe::evidence()`, fixed to
+the `DEVICE` environment. Its service turn runs the ordinary application/owner,
+then the transport and collector. A clock/progression failure invalidates owner
+evidence, interrupts acquisition and attempts local controller shutdown; it
+does not reset, stop or re-enable a drive. This integration is not S2 hardware
+qualification or live experiment authorization.
+
+Use these review steps before a future device run:
+
+1. Complete the fixture record above, choose the single interface/owner and
+   preserve the exact software commit, build/SDK and board configuration. Record
+   profile/model selection as unqualified until Q01 is actually satisfied;
+   status dialect remains unknown until Q02 is satisfied.
+2. Name every intended read, object/subindex and native width. The nine identity
+   candidates are `1000:00`, `1009:00`, `100A:00`, `1018:00..03`, `2000:00` and
+   `2001:00`. No `1018:04` is present in the retained EDS. Configuration/state
+   acquisition is a separately selected plan, never an implicit follow-up.
+3. Establish the per-row non-changing evidence and authorization. If Q20 cannot
+   be satisfied, normal device acquisition remains rejected. A separately
+   reviewed, explicitly authorized read-effects experiment may request the exact
+   finite typed plan with effects still unknown; it is not ordinary probing and
+   does not grant future polling permission.
+4. Specify route IDs/node, binding/configuration generations, deadline,
+   service/observation interval policy, exact step/frame/storage bounds and
+   expected observations. These are host policies, not manufacturer response
+   guarantees. Retain the independent stop/control, observation, failure and
+   reconciliation provisions and their review/authorization references.
+5. Preserve raw traffic and terminal records, including failed, aborted,
+   stale, interrupted and uncertain acquisition. Record timestamp basis,
+   controller TX outcomes, matching object/route identity, owner request/step
+   identity, boot-up/EMCY/heartbeat events, service gaps and capture overflow.
+   Copy owner traffic without consuming frames from ordinary dispatch. A
+   truncated capture is explicitly incomplete evidence.
+
+An acquisition record needs fixture/experiment ID, exact software revision,
+source/ledger revision, selected profile and dialect status, route/configuration,
+intended rows and bounds, admission evidence references, raw requests/replies
+and events, successful typed values with provenance, terminal outcome and
+independent observations. Each record distinguishes **documented**,
+**implemented**, **host-tested**, **physically observed** and
+**hardware-qualified**. A matched SDO response establishes the service result
+for that exchange, not motion, units, terminal state or a harmless read.
+
+Read-experiment review applies only to the exact captured plan/binding and
+bounds. References document the external decision; software cannot verify that
+a physical fixture or authorization is true. Effects remain unknown on success
+and potentially uncertain after an interrupted submitted request. Do not turn
+local cancellation/recovery into a motor stop or replay a request automatically.
+Boot-up, bus-off, rebind or configuration change invalidates dependent current
+evidence while the failed historical acquisition remains retained.
+
+## Conditional state-changing evidence
+
+Some questions cannot be settled by readback: velocity start, target rearm,
+zero ramps, stop behavior, clear/save effects and DO truth tables need applicable
+manufacturer evidence or a scoped physical experiment. The exact gates and
+[experiment prerequisites](device_conflicts.md#conditional-experiment-prerequisites)
+remain owned by prompt 29 and can be resumed before completed motion APIs or the
+later CLI exist.
+
+No state-changing experiment has been selected or authorized. Before one runs,
+specify and independently review a single exact finite sequence through the
+checked public codec/service path and the same owner, implement its isolated
+harness support, and fake-test its bytes and failure/uncertainty branches.
+Independent observation/control must bound the experiment without relying on
+the disputed stop/completion semantics. No hidden enable, NMT start/reset,
+fault clear, parameter save, I/O reassignment or PDO reconfiguration is allowed.
+Never try both disputed output addresses or motion recipes to discover which
+one works. Incomplete prerequisites keep only the dependent feature blocked.
 
 ## When hardware is needed
 

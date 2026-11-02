@@ -21,21 +21,28 @@ const L::ReadTarget* ProbeApp::selected() const noexcept {
 }
 bool ProbeApp::requestIdentity(uint64_t now, uint64_t deadline,
                                const L::ReadOptions& options) noexcept {
-    return request(true, now, deadline, options);
+    return request(L::ReadKind::IDENTITY, now, deadline, options);
 }
 bool ProbeApp::requestConfig(uint64_t now, uint64_t deadline,
                              const L::ReadOptions& options) noexcept {
-    return request(false, now, deadline, options);
+    return request(L::ReadKind::CONFIG, now, deadline, options);
 }
-bool ProbeApp::request(bool identity, uint64_t now, uint64_t deadline,
-                       const L::ReadOptions& options) noexcept {
+bool ProbeApp::requestState(uint64_t now, uint64_t deadline, const L::ReadOptions& options,
+                            uint8_t mask) noexcept {
+    return request(L::ReadKind::STATE, now, deadline, options, mask);
+}
+bool ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
+                       const L::ReadOptions& options, uint8_t mask) noexcept {
     if (!selected_ || read_.state != M::ReadState::EMPTY || now < lastUs_ ||
         operation_ == UINT32_MAX)
         return false;
     L::ReadContext candidate;
     const M::Status prepared =
-        identity ? L::prepareIdentity(candidate, target_, operation_ + 1, now, deadline, options)
-                 : L::prepareConfig(candidate, target_, operation_ + 1, now, deadline, options);
+        kind == L::ReadKind::IDENTITY
+            ? L::prepareIdentity(candidate, target_, operation_ + 1, now, deadline, options)
+        : kind == L::ReadKind::CONFIG
+            ? L::prepareConfig(candidate, target_, operation_ + 1, now, deadline, options)
+            : L::prepareState(candidate, target_, operation_ + 1, now, deadline, options, mask);
     if (!prepared)
         return false;
     SequenceId sequence;
@@ -50,6 +57,17 @@ bool ProbeApp::request(bool identity, uint64_t now, uint64_t deadline,
     sequence_ = sequence;
     read_ = candidate;
     ++operation_;
+    lastUs_ = now;
+    return true;
+}
+bool ProbeApp::cancelRead(uint64_t now) noexcept {
+    if (read_.state != M::ReadState::ACTIVE || now < lastUs_ || now < owner_.lastTimeUs())
+        return false;
+    if (pending_.owner) {
+        if (owner_.cancel(pending_, now) == Cancel::INVALID)
+            return false;
+    } else if (!L::advanceRead(read_, M::ReadOutcome::CANCELLED, now))
+        return false;
     lastUs_ = now;
     return true;
 }
@@ -113,6 +131,11 @@ bool ProbeApp::getIdentity(uint64_t now, uint64_t age,
 }
 bool ProbeApp::getConfig(uint64_t now, uint64_t age, L::ConfigObservation& output) const noexcept {
     return now >= lastUs_ && current() && L::getConfig(read_, target_, now, age, output).isOk();
+}
+bool ProbeApp::getStateBlock(L::StateBlock block, uint64_t now, uint64_t age,
+                             L::StateObservation& output) const noexcept {
+    return now >= lastUs_ && current() &&
+           L::getStateBlock(read_, block, target_, now, age, output).isOk();
 }
 bool ProbeApp::health(Health& output) const noexcept {
     return selected_ && owner_.health(target_.channel.binding, output);

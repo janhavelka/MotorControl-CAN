@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Finite device evidence readiness
+
+- Add a bounded acquisition collector around the ordinary typed application and
+  CAN owner, shared by native and firmware examples. Record exact plans,
+  raw traffic, all consumed terminals, controller events, timing and resources.
+- Keep ordinary DEVICE acquisition behind Q20. Explicit reviewed unknown-effect
+  read experiments retain their exact admission references without granting
+  production permission or retrying an uncertain request.
+- Interrupt on trace loss or reported RX overflow, distinguish missing ingress
+  from captured rejected frames, and preserve prior successful fields on cancel.
+- Add offline success/failure demonstrations, adversarial harness and firmware
+  regressions, isolated consumers and strict documentation/build registration.
+- Recheck original manuals/EDS, retain all conflicts and record user-reported
+  fixture facts with precise conditional measurement gates. No live qualification.
+
 ### Independent TWAI and firmware audit
 
 - Keep the final captured-RX/fault guard and SDK submission in one critical

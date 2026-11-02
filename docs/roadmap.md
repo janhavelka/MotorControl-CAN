@@ -54,7 +54,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 26 | Shared native application and fake/offline examples | Owned software implemented/tested; Partial only on inherited 19/25/Q20. [Application contract](native_application.md), [report](reports/prompt_26.md). |
 | 27 | Pinned TWAI adapter | Owned software and ESP-IDF 5.5.5 S3 compile delivered; Partial on inherited 24/26/Q20. [Report](reports/prompt_27.md). No physical qualification. |
 | 28 | Shared Arduino/ESP-IDF application | Owned software and three real compile/link gates delivered; Partial only on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). Board configuration stays explicit; no physical qualification. |
-| 29 | Evidence harness, fixture record and conflict acquisition | Software readiness can finish offline; physical acquisition is conditional and separately authorized |
+| 29 | Evidence harness, fixture record and conflict acquisition | Owned software readiness implemented and host/firmware checked; Partial on inherited 19/28 Q20 and conditional acquisition. [Report](reports/prompt_29.md), [exact measurement gates](device_conflicts.md). No live qualification or selected state-changing experiment. |
 | 30-32 | Enable/release, stop, fault/reference actions | Pending; use qualified current-state transitions, never enable as a stop/reset preamble |
 | 33-36 | Position, angles, finite velocity and homing | Pending; explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |

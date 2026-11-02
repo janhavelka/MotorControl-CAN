@@ -680,6 +680,7 @@ bool CanBusOwner::receiveOverflow(uint64_t now, uint32_t droppedFrames) noexcept
     if (!droppedFrames || !reportController(C::ControllerState::RECOVERING, now))
         return false;
     detail::add(stats_.rxDropped, droppedFrames);
+    detail::add(stats_.rxLost, droppedFrames);
     return true;
 }
 bool CanBusOwner::advanceConfiguration(SequenceId id, const Binding& current,

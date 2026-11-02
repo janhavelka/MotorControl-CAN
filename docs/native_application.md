@@ -3,14 +3,16 @@
 The [offline units preview](../examples/units_preview/README.md) uses only the
 installed pure Axis/Units API. The [fake native probe](../examples/native_probe/README.md)
 adds the optional CANopenNode adapter, ordinary CanBusOwner and shared ProbeApp.
-Both run without a framework, CLI, physical controller or sibling repositories.
+The [finite evidence procedure](../examples/device_evidence/README.md) adds the
+same application's bounded acquisition collector. These examples run without a framework, CLI, physical controller or sibling repositories.
 They do not qualify hardware or create motion APIs.
 
 ## Responsibilities and explicit read flow
 
 | Component | Responsibility |
 | --- | --- |
-| [ProbeApp](../examples/common/ProbeApp.h) | One copied selection, one concrete typed read context, explicit identity/config requests and checked getters. No command parser, transport callbacks or firmware startup. |
+| [ProbeApp](../examples/common/ProbeApp.h) | One copied selection, one concrete typed read context, explicit identity/configuration/state requests, local cancellation and checked getters. No command parser, transport callbacks or firmware startup. |
+| [DeviceEvidence](../examples/common/DeviceEvidence.h) | Explicit finite acquisition, copied native terminals and bounded diagnostic traffic from this application/owner. No protocol engine, hardware receiver or parser. |
 | [ProbePlatform](../examples/common/ProbePlatform.h) | External time acquisition, bounded byte input/output and one optional bounded idle/diagnostic callback. No CAN receive or operation stepping. |
 | [CanBusOwner](can_owner.md) | Sole receive/dispatch path, copied admission, scheduling, passive events and retained terminals. Existing service/node storage is reused. |
 | [FakeTransport](../examples/native_probe/FakeTransport.h) | Native-only synthetic server and fixed ingress/TX-report queues. Explicitly supplied time and events; no physical driver. |
@@ -26,7 +28,7 @@ premise explicitly. That premise is not inferred for a connected drive.
 1. Configure the existing service route and lifecycle/network anchor outside the
    application, with applicable session and service evidence.
 2. `select` copies a valid target with a known binding. `requestIdentity` or
-   `requestConfig` prepares a whole finite raw read and reserves its axis. No TX
+   `requestConfig` or `requestState` prepares a whole finite raw read and reserves its axis. State reads require explicit nonzero block selection. No TX
    occurs in either call. Operation identities never wrap.
 3. Acquire time through `ProbePlatform::nowUs` or supply monotonic microseconds
    directly. `ProbeApp::service(nowUs)` runs the owner first, admits at most one
@@ -36,11 +38,42 @@ premise explicitly. That premise is not inferred for a connected drive.
    `app.advanceRead(nowUs)` to consume that canonical terminal and release its
    owner slot. The concrete read context retains copied raw evidence, including
    abort/timeout/uncertain effects. This call can validly advance to failure.
-5. After all fields, use `getIdentity` or `getConfig`. They reject wrong kind,
+5. Use `getIdentity`, `getConfig` or `getStateBlock` for the applicable publication
+   boundary; a completed state block can survive failure of a later block. They reject wrong kind,
    incomplete, stale or invalidated evidence without changing output. No route,
    heartbeat policy or status dialect is adopted from raw readback.
 6. `releaseRead` explicitly releases terminal context/history and reservation.
    It cannot cancel live work, clear channel quarantine or replay a failed read.
+
+`cancelRead(nowUs)` withdraws a live read locally and retains any pending owner
+terminal for normal advancement. Earlier terminal/deadline evidence wins.
+Cancellation is not a motor stop and does not settle unknown read effects.
+
+## Finite acquisition collector
+
+`DeviceEvidence::request` copies an exact typed plan and its fixture/revision/
+observation references. Default DEVICE provenance rejects ordinary acquisition
+while Q20 read effects are unqualified. `requestExperiment` admits only the
+separate reviewed unqualified-read path; references record external assertions,
+not authenticated permission or a harmless-read claim. HOST_FAKE provenance is
+fixed at construction and applies only to offline fake transports.
+
+During acquisition, service the application first, then the collector. The
+collector owns diagnostic draining and typed advancement until terminal release;
+do not advance the app, drain diagnostics or reset statistics independently.
+`record()` is a passive borrowed view of owned history: intended descriptors,
+raw typed values, up to 15 full terminals and 64 traffic copies, initial/final
+owner statistics/resources and observed service gaps. Trace or reported RX loss
+interrupts further acquisition and remains visible. Timeouts, aborts, boot-up,
+local interruption and unknown effects retain their failed evidence without retry.
+
+The [fake procedure](../examples/device_evidence/README.md) documents build/run
+commands and bounded output. [Harness tests](../test/device_evidence_test.cpp)
+exercise failures and provenance; [firmware tests](../test/firmware_probe_test.cpp)
+prove automatic collection through the ordinary assembly. Applicable source
+questions and physical prerequisites remain in the [conflict gates](device_conflicts.md)
+and [bench guide](hardware_bench.md). No state-changing experiment executor or
+physical qualification is implemented.
 
 Time zero is valid. Backward time is rejected; cutoffs are exclusive. Waiting
 for owner result capacity never extends the immutable overall deadline. A

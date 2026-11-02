@@ -1,5 +1,15 @@
 # MotorControl-CAN
 
+**Device evidence readiness:** the [finite acquisition harness](examples/device_evidence/README.md)
+uses public typed reads, ProbeApp and the same CAN owner in native and firmware
+examples. It retains exact requests/replies, failures, controller events and
+capture-loss diagnostics. Startup and cached inspection remain passive. The
+[conflict table](docs/device_conflicts.md) specifies measurements for every open
+Lichuan gate; ordinary live acquisition remains blocked by unqualified read
+effects (Q20). Host fakes and firmware builds pass; no drive was connected or
+qualified. [Prompt 29's report](docs/reports/prompt_29.md) separates delivered
+software from conditional acquisition.
+
 **TWAI transport:** the optional [ESP32-S3 adapter](adapters/twai/README.md)
 uses pinned ESP-IDF 5.5.5, copied bounded queues and identifiable TX callbacks.
 Host fakes and an SDK compile check cover explicit retirement/recovery without

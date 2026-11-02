@@ -52,6 +52,21 @@ to the same driver/adapter and focused tests above.
 [The firmware guide](firmware_examples.md) owns configuration, capacity and timing
 semantics; [report 28](reports/prompt_28.md) records actual builds and limitations.
 
+## Device evidence readiness (prompt 29)
+
+| Responsibility | Declaration / implementation | Caller / focused check | Boundary |
+| --- | --- | --- | --- |
+| Explicit typed acquisition and retained record | [DeviceEvidence.h](../examples/common/DeviceEvidence.h), [implementation](../examples/common/DeviceEvidence.cpp) | [Offline finite procedure](../examples/device_evidence/main.cpp), [harness tests](../test/device_evidence_test.cpp) | Existing typed identity/configuration/state path; up to 15 full terminals and 64 diagnostic copies, no protocol engine or parser |
+| State blocks and local read withdrawal | [ProbeApp.h](../examples/common/ProbeApp.h), [implementation](../examples/common/ProbeApp.cpp) | Collector above, existing [application tests](../test/probe_app_test.cpp) | `requestState/getStateBlock/cancelRead`; cancellation does not stop a motor or resolve unknown effects |
+| Firmware collection | [FirmwareProbe.h](../examples/common/FirmwareProbe.h), [implementation](../examples/common/FirmwareProbe.cpp) | [Actual assembly tests](../test/firmware_probe_test.cpp), shared Arduino/IDF source inventory above | `evidence()` remains DEVICE; service collects automatically after ordinary application/transport work; clock fault interrupts without replay |
+| Evidence-loss classification | [CanBusOwner.h](../examples/common/CanBusOwner.h), [owner implementation](../examples/common/CanBusOwner.cpp), [diagnostics](../examples/common/CanBusDiagnostics.cpp) | Harness and owner tests | `Stats::rxLost` counts reported missing frames separately from retained rejected ingress; collector retains loss, statistics and resource snapshots |
+| Source conflicts and live prerequisites | [Conflict gates](device_conflicts.md), [bench record](hardware_bench.md) | [Original source manifest](reference/SOURCES.json), [reviewed ledger](reference/lichuan_objects.json) | No source ambiguity, Q20 permission or physical capability is inferred from a matched fake reply |
+
+The [native guide](native_application.md#finite-acquisition-collector) owns service
+order and collection lifetime. The [example README](../examples/device_evidence/README.md)
+owns runnable commands and output interpretation. State-changing experiments and
+live acquisition remain gated; firmware build success is separate evidence.
+
 ## Typed raw reads (prompt 19)
 
 Prompt 26 layers the [shared native application](native_application.md) over these

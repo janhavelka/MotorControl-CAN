@@ -40,6 +40,8 @@ struct Stats {
     uint32_t rxFrames = 0; ///< Frames returned by the receive callback, including rejected ingress.
     uint32_t txRejected = 0; ///< Refused enqueue or negative final report, once per frame.
     uint32_t rxDropped = 0;  ///< Invalid/stale/future ingress plus explicitly reported lost frames.
+    uint32_t rxLost =
+        0; ///< Subset explicitly reported missing by receiveOverflow; no raw frame exists.
     uint32_t unmatchedFrames = 0; ///< Valid ingress not accepted by normal protocol dispatch.
     uint32_t queueRejected =
         0; ///< Rejected ordinary/urgent admission attempts, including invalid input.

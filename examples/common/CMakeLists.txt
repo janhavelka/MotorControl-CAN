@@ -8,7 +8,7 @@ set_target_properties(MotorControlCANExampleOwner PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
 
 # Application/platform code is optional and never installed with the portable core.
-add_library(MotorControlCANProbeApp STATIC ProbeApp.cpp ProbePlatform.cpp)
+add_library(MotorControlCANProbeApp STATIC ProbeApp.cpp ProbePlatform.cpp DeviceEvidence.cpp)
 target_link_libraries(MotorControlCANProbeApp PUBLIC MotorControlCANExampleOwner)
 set_target_properties(MotorControlCANProbeApp PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)

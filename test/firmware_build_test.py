@@ -22,6 +22,7 @@ import check_twai_sdk as twai_checker
 SHARED_SOURCES = [
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.cpp",
+    "examples/common/DeviceEvidence.cpp",
     "examples/common/CanBusOwner.cpp",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/EspProbePlatform.cpp",
@@ -148,8 +149,8 @@ class FirmwareBuildTests(unittest.TestCase):
         (self.database.parent / "build.log").write_text("Build complete: SUCCESS\n", encoding="utf-8")
         (self.database.parent / "firmware.elf").write_bytes(b"synthetic ELF fixture")
         (self.database.parent / "firmware.bin").write_bytes(b"synthetic BIN fixture")
-        entries = self.entries()
-        entries.pop(3)  # FirmwareProbe is still required after an apparently successful build.
+        entries = [entry for entry in self.entries()
+                   if entry["file"] != "examples/common/FirmwareProbe.cpp"]
         self.write_database(entries)
         with self.assertRaisesRegex(ValueError, "Actual build omitted required inputs:.*FirmwareProbe"):
             checker.check_inputs(self.database, self.expected())

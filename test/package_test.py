@@ -148,8 +148,10 @@ def check_package(args, work, summary):
     probe = work / "native probe consumer"
     copied = {
         "common": ("examples/common", ["CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp",
-                    "OwnerCounters.h", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp"]),
+                    "OwnerCounters.h", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+                    "DeviceEvidence.h", "DeviceEvidence.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
+        "evidence": ("examples/device_evidence", ["main.cpp"]),
         "units": ("examples/units_preview", ["main.cpp"]),
         "adapter": ("adapters/canopennode", ["SdoClient.h", "SdoClient.cpp", "NetworkState.h", "Network.cpp",
                      "Nmt.h", "Nmt.cpp", "PdoState.h", "Pdo.cpp", "CO_driver_target.h", "Driver.cpp"]),
@@ -168,11 +170,14 @@ target_include_directories(stack PUBLIC stack adapter)
 add_library(adapter STATIC adapter/SdoClient.cpp adapter/Network.cpp adapter/Nmt.cpp adapter/Pdo.cpp)
 target_include_directories(adapter PUBLIC adapter)
 target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
-add_library(app STATIC common/CanBusOwner.cpp common/CanBusDiagnostics.cpp common/ProbeApp.cpp common/ProbePlatform.cpp)
+add_library(app STATIC common/CanBusOwner.cpp common/CanBusDiagnostics.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC adapter)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)
 target_link_libraries(native_probe PRIVATE app)
+add_executable(device_evidence evidence/main.cpp native/FakeTransport.cpp)
+target_include_directories(device_evidence PRIVATE native)
+target_link_libraries(device_evidence PRIVATE app)
 add_executable(units_preview units/main.cpp)
 target_link_libraries(units_preview PRIVATE MotorControlCAN::MotorControlCAN)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp" "#include <ProbeApp.h>\\n")
@@ -180,7 +185,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePla
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter app native_probe units_preview probe_headers)
+foreach(target stack adapter app native_probe device_evidence units_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4;/WX>)
@@ -190,8 +195,9 @@ foreach(target stack adapter app native_probe units_preview probe_headers)
 endforeach()
 enable_testing()
 add_test(NAME native_probe COMMAND native_probe --fake)
+add_test(NAME device_evidence COMMAND device_evidence --fake-only)
 add_test(NAME units_preview COMMAND units_preview)
-set_tests_properties(native_probe units_preview PROPERTIES TIMEOUT 10)
+set_tests_properties(native_probe device_evidence units_preview PROPERTIES TIMEOUT 10)
 ''', encoding="utf-8")
     probe_build = work / "native probe build"
     run(*base, "-S", str(probe), "-B", str(probe_build), "-DCMAKE_PREFIX_PATH=" + str(relocated))

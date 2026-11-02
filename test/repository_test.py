@@ -85,6 +85,9 @@ FILES = {
     "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
     "examples/common/CanBusOwner.h", "examples/common/CanBusOwner.cpp", "examples/common/CMakeLists.txt",
     "examples/common/CanBusDiagnostics.cpp", "examples/common/OwnerCounters.h", "test/can_bus_health_test.cpp",
+    "examples/common/DeviceEvidence.h", "examples/common/DeviceEvidence.cpp",
+    "examples/device_evidence/CMakeLists.txt", "examples/device_evidence/main.cpp", "examples/device_evidence/README.md",
+    "test/device_evidence_test.cpp",
     "examples/common/ProbeApp.h", "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.h", "examples/common/ProbePlatform.cpp", "test/probe_app_test.cpp",
     "examples/native_probe/CMakeLists.txt", "examples/native_probe/main.cpp", "examples/native_probe/README.md",
@@ -138,7 +141,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

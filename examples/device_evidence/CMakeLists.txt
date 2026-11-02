@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.19)
+if(NOT TARGET MotorControlCANFakeProbe)
+    message(FATAL_ERROR "Build device_evidence from the root with examples and CANopenNode enabled")
+endif()
+add_executable(device_evidence main.cpp)
+target_link_libraries(device_evidence PRIVATE MotorControlCANFakeProbe)
+set_target_properties(device_evidence PROPERTIES
+    CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+if(MSVC)
+    target_compile_options(device_evidence PRIVATE /W4 /WX)
+else()
+    target_compile_options(device_evidence PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()

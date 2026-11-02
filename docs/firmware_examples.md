@@ -1,7 +1,7 @@
 # Shared Arduino and ESP-IDF firmware
 
 Both firmware systems compile the same [source inventory](../examples/common/firmware_sources.json),
-`ProbeApp`, `CanBusOwner`, TWAI node driver and USB platform. The installed core
+`ProbeApp`, `DeviceEvidence`, `CanBusOwner`, TWAI node driver and USB platform. The installed core
 remains SDK-free C++11. These examples have no command parser or motion operations;
 console parity belongs to prompt 42. [Native examples](native_application.md)
 remain independent of either SDK. SocketCAN is deliberately omitted: the current
@@ -34,7 +34,8 @@ is made. `firmwareBootStatus()` exposes cached startup failure as well as runnin
 or configuration-required status; RUNNING means local progression only.
 
 Each turn obtains checked signed-64-bit `esp_timer_get_time()` microseconds, runs
-`ProbeApp::service` (and its sole receive owner), then TWAI promotion, then yields
+`ProbeApp::service` (and its sole receive owner), then TWAI promotion, then
+`DeviceEvidence::service`, then yields
 one scheduler tick. The platform callback's `idle` is null. Unread CAN ingress
 defers TX. Time zero/equality and crossing the 32-bit microsecond boundary are
 valid. Negative/backward/failed time latches a fatal local fault: owner evidence
@@ -50,6 +51,18 @@ read-effect gate is unresolved; these examples do not manufacture a fresh sessio
 or issue an automatic discovery read. A successful SDO/host recovery still cannot
 qualify a drive model, motion completion or an ambiguous reused route.
 
+`FirmwareProbe::evidence()` exposes the same bounded collector with fixed DEVICE
+provenance. Startup and service do not admit acquisition. An explicit exact plan
+still encounters Q20 for ordinary reads; the separately reviewed experiment path
+permits only finite unqualified typed reads and retains their possible effects.
+Once admitted, firmware service collects terminals automatically; callers must
+not also advance the app or drain owner diagnostics. A clock fault interrupts
+the acquisition at the owner's last accepted time, preserving failed terminals
+and uncertainty. [Assembly tests](../test/firmware_probe_test.cpp) exercise this
+using synthetic fixtures. The [native evidence procedure](../examples/device_evidence/README.md)
+documents the offline demonstration; [bench requirements](hardware_bench.md)
+own actual fixture and physical admission facts.
+
 ## Bounded I/O and resources
 
 | Resource | Current bound / evidence |
@@ -61,6 +74,7 @@ qualify a drive model, motion completion or an ambiguous reused route.
 | CAN ingress/TX | Application-selected RX depth 1..16; two total copied TX slots, one active SDK frame |
 | Owner turn | RX 8, TX 2, reports 8, starts 2, recovery poll 1 maximum |
 | Diagnostics | Existing eight copied owner records; no second authoritative receive path |
+| Acquisition history | One retained record: up to 15 full terminals / 64 traffic copies, initial/final owner counters/resources and observed service gaps; loss interrupts acquisition |
 
 Full output preserves queued suffixes and increments SDK-byte refusal accounting.
 Full input drops newest consumed bytes with `ProbeIoStats::inputDropped`; it

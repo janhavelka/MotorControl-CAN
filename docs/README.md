@@ -2,13 +2,17 @@
 
 For native callers, start with the [shared application](native_application.md),
 [offline units preview](../examples/units_preview/README.md) and
-[fake native probe](../examples/native_probe/README.md). They exercise current
+[fake native probe](../examples/native_probe/README.md). The
+[finite evidence example](../examples/device_evidence/README.md) adds retained
+acquisition records and an explicit unknown-effect read experiment using fakes.
+These exercise current
 public APIs without a framework, command parser or physical controller.
 
 Execution has completed prompts 1-17, including the [native service fit experiment](reports/prompt_5.md) and [common API/ownership proof](reports/prompt_6.md), on the recorded execution branch. The [minimal native package](getting_started.md) provides status, exact units/quantization, pure axis/reference targets, endpoint, Classical frame validation and pure checked CANopen SDO/network envelopes. Reviewed Lichuan descriptors are available as metadata; no operational drive profile exists yet. The [verification guide](verification.md) documents working local/CI gates; gate results are recorded in the [prompt 8 report](reports/prompt_8.md), with production API results in the [prompt 9 report](reports/prompt_9.md), [axis report](reports/prompt_10.md) and [CAN/SDO report](reports/prompt_11.md). Read [the roadmap](roadmap.md), [progress](prompts/PROGRESS.md), [promptset index](prompts/README.md) and [copyable assignment](prompts/START_HERE.md) before the next assignment. The pasted former Stage 00 is archived; its source audit and original-byte checks are recorded in prompt 1.
 
 | Material | Purpose |
 | --- | --- |
+| [Device evidence conflicts](device_conflicts.md) and [offline evidence procedure](../examples/device_evidence/README.md) | Prompt 29 source questions, capability gates and the bounded typed-read collector; no live qualification |
 | [Firmware examples](firmware_examples.md) | Shared Arduino/IDF startup, explicit configuration, bounded USB/time and three real compile gates |
 | [TWAI adapter](../adapters/twai/README.md) and [SDK evidence](adapters/twai_sdk.md) | Pinned S3 controller boundary, capacities, completion/retirement evidence and compile-only checks |
 | [Application CAN owner](can_owner.md) | Ordinary/urgent scheduling, one receiver, retained results, explicit local recovery, cached health/statistics and bounded diagnostic copies |
@@ -24,7 +28,7 @@ Execution has completed prompts 1-17, including the [native service fit experime
 | [Verification](verification.md), [contributing](../CONTRIBUTING.md), [security](../SECURITY.md) | Working commands, required tools, retained evidence, current versus planned checks and development reporting limits |
 | [Executable backlog](backlog.md) and [roadmap](roadmap.md) | Separate documentary gates, software, integration and physical qualification with current owners |
 | [Requirement coverage](coverage.md) | All 35 requirements tracked without turning audit evidence into implemented support |
-| [CAN bench facts](hardware_bench.md) | Known documentary facts and missing actual fixture/authorization details |
+| [CAN bench facts](hardware_bench.md) | User-reported fixture intake, documentary wiring facts and remaining acquisition/authorization requirements |
 | [Execution report](reports/prompt_1.md) and [source/tool inputs](reports/prompt_1_inputs.json) | Fresh revisions, scope, deltas, verification and handoff |
 | [Stepper and servo scope decision](multidrive_decision.md) | One multi-vendor library; CANopen first and protocol-specific extensions |
 | [CANopen drive survey](audit/CANOPEN_DRIVE_SURVEY.md) | Concrete stepper/servo candidates, manuals and recommended order |

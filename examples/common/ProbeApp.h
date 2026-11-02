@@ -47,6 +47,22 @@ class ProbeApp {
      */
     bool requestConfig(uint64_t nowUs, uint64_t deadlineUs,
                        const MotorControlCAN::LICHUAN_C::ReadOptions& options) noexcept;
+    /** Prepare explicit raw state blocks, with no status dialect or harmless-read inference.
+     * @param nowUs Same supplied monotonic microseconds.
+     * @param deadlineUs Exclusive immutable future cutoff.
+     * @param options Copied nonzero queue/response budgets.
+     * @param blockMask Nonzero StateBlock bits 0..5, no implicit selection.
+     * @return Same atomic preparation contract as requestIdentity; no traffic yet.
+     */
+    bool requestState(uint64_t nowUs, uint64_t deadlineUs,
+                      const MotorControlCAN::LICHUAN_C::ReadOptions& options,
+                      uint8_t blockMask) noexcept;
+    /** Cancel the current read locally, retaining any pending owner terminal for advanceRead.
+     * @param nowUs Nondecreasing supplied microseconds; earlier terminal/deadline wins.
+     * @return False for no active read or invalid time; true performs no receive/new TX.
+     * Between fields, settles the typed context directly; never means motor stop.
+     */
+    bool cancelRead(uint64_t nowUs) noexcept;
     /** Run owner first with fixed nonzero budgets, then bounded platform I/O.
      * @param[in] nowUs Supplied nondecreasing us; callers may acquire it via platform.nowUs.
      * @return False for backward time/owner rejection, with no platform callbacks.
@@ -84,6 +100,16 @@ class ProbeApp {
      */
     bool getConfig(uint64_t nowUs, uint64_t maximumAgeUs,
                    MotorControlCAN::LICHUAN_C::ConfigObservation& output) const noexcept;
+    /** Publish one complete current raw state block without interpreted motion semantics.
+     * @param block Exact selected StateBlock.
+     * @param nowUs Supplied nondecreasing microseconds.
+     * @param maximumAgeUs Nonzero inclusive per-field age.
+     * @param output Owned result, unchanged on incomplete/stale/wrong evidence.
+     * @return True only for checked typed evidence and a still-current reservation.
+     */
+    bool getStateBlock(MotorControlCAN::LICHUAN_C::StateBlock block, uint64_t nowUs,
+                       uint64_t maximumAgeUs,
+                       MotorControlCAN::LICHUAN_C::StateObservation& output) const noexcept;
     /** @param[out] output Cached selected-binding health; unchanged without a current binding.
      * @return Owner cached health result; no clock, I/O or service progress.
      */
@@ -104,8 +130,8 @@ class ProbeApp {
     uint64_t lastUs_ = 0;
     uint32_t operation_ = 0;
     bool selected_ = false;
-    bool request(bool identity, uint64_t nowUs, uint64_t deadlineUs,
-                 const MotorControlCAN::LICHUAN_C::ReadOptions& options) noexcept;
+    bool request(MotorControlCAN::LICHUAN_C::ReadKind kind, uint64_t nowUs, uint64_t deadlineUs,
+                 const MotorControlCAN::LICHUAN_C::ReadOptions& options, uint8_t mask = 0) noexcept;
     bool current() const noexcept;
 };
 } // namespace MotorControlCANExample

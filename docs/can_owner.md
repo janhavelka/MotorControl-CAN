@@ -408,6 +408,7 @@ observed maximum. There are no duplicate binding-service totals in `Stats`.
 | `rxFrames` | One frame is returned by the owner receive callback, including ingress later rejected by owner or protocol validation. Empty receive calls do not count. |
 | `txRejected` | One enqueue callback refuses a frame, or that exact frame's matching final report is negative. A refusal followed by a negative report counts once; a later positive report can independently prove actual TX. |
 | `rxDropped` | Owner rejects invalid, old-controller-epoch or future-capture ingress; also adds the nonzero reported lost-frame minimum accepted by `receiveOverflow(nowUs, droppedFrames)`. These lost frames need not have reached the receive callback. |
+| `rxLost` | Subset of `rxDropped` added only by accepted `receiveOverflow` reports. No raw frame exists for these reported losses; retained rejected/unmatched frames do not increment it. |
 | `unmatchedFrames` | Structurally valid current-epoch ingress is not accepted by normal PDO/network/SDO dispatch. This includes unrelated frames and protocol-route rejects; use retained native dispositions to distinguish them. |
 | `queueRejected` | Each non-reentrant rejected `admit` or `admitUrgent` call, including local invalid input, expired input, inhibition and exhausted IDs. Reentrant rejection leaves all storage unchanged. Sequence/operation/recovery refusal is not a request admission. |
 | `resultsRejected` | Subset of `queueRejected` where admission returns `RESULTS_FULL`, including occupied urgent capacity. |
@@ -457,6 +458,19 @@ running. Taking a diagnostic does not release the canonical terminal. Clearing
 statistics preserves buffered records; consuming records is the explicit owner
 history retirement policy. Exported copies are application-owned. Larger traces
 and console/output queues belong in application storage with their own bounds.
+
+The application [DeviceEvidence collector](../examples/common/DeviceEvidence.h)
+uses this existing drain while an explicit typed acquisition is active. It
+retains terminals before advancing the app and keeps up to 64 wire/controller/
+recovery copies. Trace overwrite, increased `rxLost`, observed decrease or
+saturation of either monitored loss counter, or exhausted collector capacity
+marks evidence loss and interrupts further acquisition. A retained rejected frame
+alone is diagnostic evidence, not an unrecorded RX loss. Initial/final cumulative
+statistics and resource snapshots preserve their owner meanings; a late TX report
+can arrive after the acquisition terminal and need not appear in its frozen
+snapshot. Do not reset statistics or independently drain diagnostics during this
+collector's ownership. See [the application flow](native_application.md#finite-acquisition-collector)
+for admission and release; the owner remains the only physical receive path.
 
 One service turn still uses the RX/TX/event/start/recovery budgets above.
 Diagnostic publication adds fixed copied records and fixed scans over two
