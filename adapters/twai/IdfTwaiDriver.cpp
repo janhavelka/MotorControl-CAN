@@ -81,7 +81,9 @@ bool IdfTwaiDriver::start(const TwaiConfig& config, uint32_t epoch) noexcept {
     configNative.io_cfg.bus_off_indicator = static_cast<gpio_num_t>(-1);
     configNative.bit_timing.bitrate = config.bitrate;
     configNative.bit_timing.sp_permill = config.samplePointPermill;
-    configNative.fail_retry_cnt = 0;
+    // Hardware retransmits until ACK (DEC-4). Not an application replay; a pending
+    // frame is retired only by deleting the node.
+    configNative.fail_retry_cnt = -1;
     configNative.tx_queue_depth = 1;
     // Timestamp disabled: the reviewed S2/S3 HAL has no wire-arrival timestamp.
     lastError_ = twai_new_node_onchip(&configNative, &node_);
@@ -123,8 +125,20 @@ bool IdfTwaiDriver::stop() noexcept {
             return false;
         if (status.state != TWAI_ERROR_BUS_OFF) {
             lastError_ = twai_node_disable(node_);
-            if (lastError_ != ESP_OK)
+            // Bus-off can arrive after the query, and retransmission makes that a
+            // normal path. Deletion accepts this state, so it is not a failed stop.
+            if (lastError_ == ESP_ERR_INVALID_STATE) {
+                const esp_err_t disabled = lastError_;
+                lastError_ = twai_node_get_info(node_, &status, nullptr);
+                if (lastError_ != ESP_OK)
+                    return false;
+                if (status.state != TWAI_ERROR_BUS_OFF) {
+                    lastError_ = disabled;
+                    return false;
+                }
+            } else if (lastError_ != ESP_OK) {
                 return false;
+            }
         }
         enabled_ = false;
         // Exact S2/S3 same-core proof: HAL masks peripheral interrupts before
@@ -143,13 +157,18 @@ bool IdfTwaiDriver::stop() noexcept {
     head_ = count_ = 0;
     return true;
 }
-bool IdfTwaiDriver::submit(const MotorControlCAN::Frame& frame, uint32_t serial) noexcept {
+TwaiSubmit IdfTwaiDriver::submit(const MotorControlCAN::Frame& frame, uint32_t serial) noexcept {
     if (!taskValid() || !node_ || !enabled_ || !serial || !MotorControlCAN::validateFrame(frame))
-        return false;
+        return TwaiSubmit::FAILED_UNSENT;
     portENTER_CRITICAL(&mux_);
-    if (retiring_ || pending_ || events_.fault || events_.rxDropped || busOff_ || count_) {
+    if (retiring_ || pending_ || events_.fault || events_.rxDropped || busOff_) {
         portEXIT_CRITICAL(&mux_);
-        return false;
+        return TwaiSubmit::FAILED_UNSENT;
+    }
+    if (count_) {
+        // Captured RX was not routed yet: a reply can settle this request first.
+        portEXIT_CRITICAL(&mux_);
+        return TwaiSubmit::DEFERRED;
     }
     // Keep the final captured-RX/fault guard and SDK handoff indivisible to this
     // core's ISR. The pinned SDK's single-outstanding path only nests its event
@@ -169,7 +188,7 @@ bool IdfTwaiDriver::submit(const MotorControlCAN::Frame& frame, uint32_t serial)
     if (lastError_ != ESP_OK)
         pending_ = false;
     portEXIT_CRITICAL(&mux_);
-    return lastError_ == ESP_OK;
+    return lastError_ == ESP_OK ? TwaiSubmit::SENT : TwaiSubmit::FAILED_UNSENT;
 }
 TwaiEvents IdfTwaiDriver::events() noexcept {
     if (!taskValid()) {
@@ -251,9 +270,11 @@ bool IdfTwaiDriver::rxDone(twai_node_handle_t node, const twai_rx_done_event_dat
     received.frame.fd = native.header.fdf;
     received.frame.brs = native.header.brs;
     received.frame.esi = native.header.esi;
-    const bool validDlc = native.header.dlc <= 8;
+    // Classical DLC 9..15 carries eight bytes and the SDK copies at most eight. Accept it:
+    // dropping would latch loss and inhibit. Source conflict: see docs/adapters/twai_sdk.md.
+    const bool validDlc = native.header.dlc <= 15;
     if (validDlc) {
-        received.frame.dlc = static_cast<uint8_t>(native.header.dlc);
+        received.frame.dlc = static_cast<uint8_t>(native.header.dlc > 8 ? 8 : native.header.dlc);
         received.frame.payloadLength = received.frame.rtr ? 0 : received.frame.dlc;
         for (unsigned i = 0; i < received.frame.payloadLength; ++i)
             received.frame.data[i] = bytes[i];

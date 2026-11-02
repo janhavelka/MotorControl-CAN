@@ -177,7 +177,7 @@ traffic renews it.
 | --- | --- | --- |
 | `rx` | 8 receive callback calls, stop on empty | No controller receive calls |
 | `events` | 8 actual TX-report callback calls, stop on empty; nonzero also permits at most one retirement attempt per channel | No report or retirement callbacks from `service` |
-| `tx` | 2 one-shot controller enqueue attempts | No enqueue and no new dispatch |
+| `tx` | 2 controller enqueue attempts, none replayed | No enqueue and no new dispatch |
 | `starts` | 2 new native admissions, also needs TX budget | No new native admission |
 | `recovery` | 1 recovery poll, regardless of a larger nonzero value | No recovery poll; recovery deadline still expires |
 

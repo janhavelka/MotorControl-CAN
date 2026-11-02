@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### TWAI transport (audit W3)
+
+- `TwaiDriver::submit` returns `TwaiSubmit` instead of `bool`: SENT, DEFERRED, FAILED_UNSENT or FAILED_UNCERTAIN. A receive interrupt during promotion now defers instead of quarantining the route.
+- Replace `TwaiAdapter::service` with `pollEvents` before `owner.service` and `promote` after it.
+- The adapter holds a queued handoff, so its possible effect and response clock start at actual SDK submission. A frame proved unsent ends without quarantine: `TxReport::provedUnsent`, `SdoClient::holdHandoff`, `noteSubmitted`, `withdrawUnsent`, `withdrawNmtUnsent`.
+- Set `fail_retry_cnt=-1` (DEC-4): hardware retransmits, so a no-ACK frame stays pending until an application-started recovery. See [the consequences](docs/adapters/twai_sdk.md).
+- Accept a received Classical DLC of 9..15 as eight bytes. `FirmwareProbe::clockFailed()` becomes `progressionFailed()` plus `failure()`, which reports the real cause.
+
 ### Owner placement (audit W2)
 
 - Move `CanBusOwner`, its diagnostics and counters from `examples/common/` to `adapters/owner/`, in namespace `MotorControlCANOwner`, with optional target `MotorControlCAN::CanBusOwner`. Runtime behavior is unchanged and the target is still not installed.

@@ -15,7 +15,7 @@ enum class FirmwareBootStatus : uint8_t {
     CONFIGURATION_REQUIRED, ///< Compile fixture; console available, CAN disabled.
     CONTROLLER_FAILED,      ///< Local initialization failed; no automatic retry.
     RUNNING,     ///< Shared local service loop running; no selected drive/request implied.
-    CLOCK_FAILED ///< Clock/progression failure inhibited work and attempted retirement.
+    PROGRESSION_FAILED ///< Clock/progression failure inhibited work and attempted retirement.
 };
 enum {
     FIRMWARE_STACK_BYTES =

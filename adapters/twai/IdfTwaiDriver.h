@@ -52,7 +52,7 @@ class IdfTwaiDriver {
     bool taskValid() const noexcept;
     bool start(const TwaiConfig&, uint32_t) noexcept;
     bool stop() noexcept;
-    bool submit(const MotorControlCAN::Frame&, uint32_t) noexcept;
+    TwaiSubmit submit(const MotorControlCAN::Frame&, uint32_t) noexcept;
     TwaiEvents events() noexcept;
     bool receive(ReceivedFrame&, uint64_t cutoffUs) noexcept;
     void refreshReceiveBoundary() noexcept; // Caller holds mux_; reads time before empty FIFO proof.

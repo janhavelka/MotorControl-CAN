@@ -114,13 +114,16 @@ struct Driver {
         d.pending = E::TwaiEvents();
         return true;
     }
-    static bool submit(void* context, const M::Frame& value, uint32_t serial) {
+    static E::TwaiSubmit submit(void* context, const M::Frame& value, uint32_t serial) {
         Driver& d = *static_cast<Driver*>(context);
         CHECK(d.live && !d.active && d.submits < 16);
+        // Same rule as IdfTwaiDriver::submit: captured RX defers with no SDK contact.
+        if (d.count)
+            return E::TwaiSubmit::DEFERRED;
         d.sent[d.submits++] = value;
         d.active = true;
         d.serial = serial;
-        return true;
+        return E::TwaiSubmit::SENT;
     }
     static E::TwaiEvents events(void* context) {
         Driver& d = *static_cast<Driver*>(context);
@@ -257,7 +260,7 @@ void startup() {
     CHECK(valid.firmware.app().select(target()));
     valid.turn(0);
     valid.turn(0);
-    CHECK(valid.firmware.running() && !valid.firmware.clockFailed());
+    CHECK(valid.firmware.running() && !valid.firmware.progressionFailed());
     CHECK(valid.driver.starts == 1 && valid.driver.submits == 0);
 }
 void clockBoundariesAndRetirement() {
@@ -267,7 +270,7 @@ void clockBoundariesAndRetirement() {
     wide.turn(UINT32_MAX);
     wide.turn(UINT64_C(4294967296));
     wide.turn(UINT64_C(4294967296));
-    CHECK(!wide.firmware.clockFailed() && wide.driver.submits == 0);
+    CHECK(!wide.firmware.progressionFailed() && wide.driver.submits == 0);
     for (unsigned variant = 0; variant < 4; ++variant) {
         Rig r;
         CHECK(r.firmware.begin(config()) && r.firmware.app().select(target()));
@@ -280,7 +283,7 @@ void clockBoundariesAndRetirement() {
         r.bytes.clockOk = (variant % 2) == 0;
         r.bytes.now = 0;
         CHECK(!r.firmware.service());
-        CHECK(!r.firmware.running() && r.firmware.clockFailed());
+        CHECK(!r.firmware.running() && r.firmware.progressionFailed());
         CHECK(r.firmware.owner().resources().inhibited && r.driver.stops == 1);
         CHECK(r.firmware.faultRetired() == r.driver.stopOk);
         CHECK(r.firmware.transport().diagnostics().inhibited);
@@ -311,7 +314,7 @@ void clockBoundariesAndRetirement() {
     CHECK(advanced.services.controllerState() == C::ControllerState::RECOVERING);
     CHECK(advanced.services.node(0)->route.generation > generation);
     CHECK(advanced.services.node(0)->boundaryUs == 200);
-    CHECK(advanced.firmware.clockFailed() && advanced.firmware.faultRetired());
+    CHECK(advanced.firmware.progressionFailed() && advanced.firmware.faultRetired());
     CHECK(advanced.firmware.owner().resources().inhibited && advanced.driver.stops == 1);
     CHECK(advanced.driver.submits == 0);
 }
@@ -471,10 +474,9 @@ void firmwareEvidenceAdmissionAndCollection() {
     CHECK(record.terminal && record.read.state == M::ReadState::SUCCEEDED);
     CHECK(record.intendedCount == 6 && record.terminalCount == 6 && answered == 6);
     CHECK(!record.evidenceLost && record.trafficCount > 0);
-    CHECK(record.initialStats.txFrames == 0 && record.finalStats.txFrames > 0 &&
-          record.finalStats.txFrames <= answered);
-    // The last adapter report may follow SDO delivery; counters record only the
-    // reports actually consumed by the owner before this terminal snapshot.
+    // Each scripted report is in the mailbox before its reply, and pollEvents precedes
+    // the owner, so every report is consumed before this terminal snapshot.
+    CHECK(record.initialStats.txFrames == 0 && record.finalStats.txFrames == answered);
     CHECK(record.initialStats.rxFrames == 0 && record.finalStats.rxFrames == 18);
     CHECK(record.initialResources.reservations == 1 && record.finalResources.retained == 0);
     for (unsigned i = 0; i < record.terminalCount; ++i) {
@@ -504,7 +506,7 @@ void firmwareEvidenceFailuresNeverReplay() {
         } else {
             r.bytes.clockOk = false;
             CHECK(!r.firmware.service());
-            CHECK(r.firmware.clockFailed() && r.firmware.faultRetired());
+            CHECK(r.firmware.progressionFailed() && r.firmware.faultRetired());
         }
         const E::AcquisitionRecord& record = *r.firmware.evidence().record();
         CHECK(record.environment == E::EvidenceEnvironment::DEVICE && record.experimental);
@@ -534,6 +536,64 @@ void firmwareEvidenceFailuresNeverReplay() {
         CHECK(r.firmware.evidence().release());
     }
 }
+// A firmware failure names the step that latched it, never a blanket clock fault (C-13).
+void failureReportsTheRealReason() {
+    const auto retiredAndLatched = [](Rig& r, E::FirmwareFailure reason) {
+        CHECK(!r.firmware.running() && r.firmware.progressionFailed());
+        CHECK(r.firmware.failure() == reason);
+        CHECK(r.firmware.faultRetired() && r.driver.stops == 1);
+        CHECK(r.firmware.owner().resources().inhibited);
+        CHECK(r.firmware.transport().diagnostics().inhibited);
+        const unsigned clocks = r.bytes.clocks, submits = r.driver.submits;
+        r.bytes.clockOk = true;
+        r.bytes.now = UINT64_C(1000000);
+        for (unsigned i = 0; i < 3; ++i)
+            CHECK(!r.firmware.service());
+        CHECK(r.firmware.failure() == reason); // A later turn cannot rewrite the first cause.
+        CHECK(r.bytes.clocks == clocks && r.driver.submits == submits && r.driver.stops == 1);
+    };
+    {
+        Rig r;
+        CHECK(r.firmware.begin(config()));
+        CHECK(!r.firmware.progressionFailed());
+        CHECK(r.firmware.failure() == E::FirmwareFailure::NONE);
+        r.turn(10);
+        CHECK(r.firmware.failure() == E::FirmwareFailure::NONE);
+        r.bytes.clockOk = false;
+        CHECK(!r.firmware.service());
+        retiredAndLatched(r, E::FirmwareFailure::CLOCK);
+    }
+    {
+        Rig r; // Supplied time moved backward; the clock read itself succeeded.
+        CHECK(r.firmware.begin(config()));
+        r.turn(10);
+        r.bytes.now = 9;
+        CHECK(!r.firmware.service());
+        retiredAndLatched(r, E::FirmwareFailure::CLOCK);
+    }
+    {
+        Rig r; // Clock is valid and monotonic; the owner refuses a time behind its own.
+        CHECK(r.firmware.begin(config()));
+        r.turn(100);
+        CHECK(r.firmware.owner().reportController(C::ControllerState::AVAILABLE, 200));
+        r.bytes.now = 150;
+        CHECK(!r.firmware.service());
+        CHECK(r.firmware.owner().lastTimeUs() == 200);
+        retiredAndLatched(r, E::FirmwareFailure::APPLICATION);
+    }
+    {
+        Rig r; // Clock, owner and application all progress; only evidence refuses this time.
+        CHECK(r.firmware.begin(config()) && r.firmware.app().select(target()));
+        r.turn(0);
+        const E::ReadExperiment review = syntheticEvidenceReview();
+        CHECK(r.firmware.evidence().requestExperiment(review, 0) == E::EvidenceAdmission::ACCEPTED);
+        CHECK(r.firmware.evidence().service(50)); // A public call ahead of the firmware turn.
+        r.bytes.now = 40;
+        CHECK(!r.firmware.service());
+        CHECK(r.firmware.owner().lastTimeUs() == 40);
+        retiredAndLatched(r, E::FirmwareFailure::EVIDENCE);
+    }
+}
 } // namespace
 int main() {
     startup();
@@ -542,6 +602,7 @@ int main() {
     saturationAndExplicitRecovery();
     firmwareEvidenceAdmissionAndCollection();
     firmwareEvidenceFailuresNeverReplay();
+    failureReportsTheRealReason();
     std::printf("firmware_probe_test: %u checks; sizeof FirmwareProbe=%zu, CanBusOwner=%zu, "
                 "TwaiAdapter=%zu, ProbeApp=%zu, ProbePlatform=%zu, SdoClient=%zu\n",
                 checks, sizeof(E::FirmwareProbe), sizeof(O::CanBusOwner), sizeof(E::TwaiAdapter),

@@ -9,6 +9,13 @@
 
 namespace MotorControlCANExample {
 using MotorControlCANOwner::CanBusOwner;
+/** Which step of a firmware turn latched the failure. */
+enum class FirmwareFailure : uint8_t {
+    NONE,        ///< Still progressing.
+    CLOCK,       ///< Failed or backward supplied time.
+    APPLICATION, ///< ProbeApp service, which includes the owner turn, was rejected.
+    EVIDENCE     ///< DeviceEvidence service was rejected.
+};
 /** Explicit local controller configuration; default leaves CAN disabled.
  * Applies to the S3 USB Serial/JTAG examples, which reserve GPIO19/20 for USB.
  * No node, drive, model, firmware, session or physical presence is inferred.
@@ -50,10 +57,12 @@ class FirmwareProbe {
     bool service() noexcept;
     /** @return Local controller/application progression only; never drive readiness. */
     bool running() const noexcept { return running_; }
-    /** @return Latched failure of supplied time/progression, independent of USB pressure. */
-    bool clockFailed() const noexcept { return clockFailed_; }
-    /** @return Clock-failure invalidation and local TX retirement both confirmed.
-     * Meaningful only after clockFailed; false retains local retirement uncertainty.
+    /** @return Latched failure of supplied time or progression, independent of USB pressure. */
+    bool progressionFailed() const noexcept { return failure_ != FirmwareFailure::NONE; }
+    /** @return Which step latched the failure; NONE while progressing. */
+    FirmwareFailure failure() const noexcept { return failure_; }
+    /** @return Failure invalidation and local TX retirement both confirmed.
+     * Meaningful only after progressionFailed; false retains local retirement uncertainty.
      */
     bool faultRetired() const noexcept { return faultRetired_; }
     /** @return Existing concrete application; calls are explicit, never startup actions. */
@@ -77,7 +86,8 @@ class FirmwareProbe {
     ProbeApp app_;
     DeviceEvidence evidence_;
     uint64_t lastUs_ = 0;
-    bool callbacksValid_ = false, attempted_ = false, running_ = false, clockFailed_ = false;
+    bool callbacksValid_ = false, attempted_ = false, running_ = false;
     bool faultRetired_ = false;
+    FirmwareFailure failure_ = FirmwareFailure::NONE;
 };
 } // namespace MotorControlCANExample

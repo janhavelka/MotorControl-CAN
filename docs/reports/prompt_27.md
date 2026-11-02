@@ -2,6 +2,8 @@
 
 ## Scope and status
 
+**Reopened by audit W3.** [Packet 3](handoff_19_33/packet_3.md) changed the submit contract, the service split and `fail_retry_cnt`, which this report describes at their earlier values. The S2 half stays reopened under G-04 and W9.
+
 Owned transport software is implemented. Stage status is **Partial only on the
 inherited prerequisite 24/26/19 Q20 non-consuming-probe evidence gate**. The
 already verified owner, recovery, service storage and shared application are

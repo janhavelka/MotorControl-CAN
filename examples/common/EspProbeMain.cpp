@@ -38,14 +38,21 @@ void ownerTask(void*) {
     while (message[length])
         ++length; // Three fixed bounded messages, each shorter than 96 bytes.
     firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(message), length);
-    bool clockReported = false;
+    bool failureReported = false;
     for (;;) {
         firmware.service();
-        if (firmware.clockFailed() && !clockReported) {
-            clockReported = true;
-            boot.store(FirmwareBootStatus::CLOCK_FAILED);
-            const uint8_t fault[] = "MotorControl-CAN: clock fault; controller inhibited.\n";
-            firmware.platform().writeOutput(fault, sizeof(fault) - 1);
+        if (firmware.progressionFailed() && !failureReported) {
+            failureReported = true;
+            boot.store(FirmwareBootStatus::PROGRESSION_FAILED);
+            const char* fault = firmware.failure() == FirmwareFailure::CLOCK
+                                    ? "MotorControl-CAN: clock fault; controller inhibited.\n"
+                                    : firmware.failure() == FirmwareFailure::APPLICATION
+                                          ? "MotorControl-CAN: application service rejected; controller inhibited.\n"
+                                          : "MotorControl-CAN: evidence service rejected; controller inhibited.\n";
+            size_t length = 0;
+            while (fault[length])
+                ++length;
+            firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(fault), length);
         }
         // ProbeCallbacks.idle is null. Scheduling follows owner + transport.
         if (platformReady)

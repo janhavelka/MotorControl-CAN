@@ -26,7 +26,7 @@ application-owned; the portable API requires no PSRAM. The
 target GPIO restrictions and controller/interrupt retirement. P4 remains pending.
 
 Use normal acknowledgement semantics: self-test and loopback are disabled.
-Set `fail_retry_cnt=0`. Configure the SDK TX queue depth to one and submit only
+Set `fail_retry_cnt=-1`: hardware retransmits until ACK. This is not an application replay. Configure the SDK TX queue depth to one and submit only
 one active SDK frame. Use a full-open acceptance filter to preserve standard and
 extended asynchronous traffic for normal owner routing. Reject FD, BRS, invalid
 identifiers/DLC and unsupported frame metadata before SDK admission.
@@ -113,7 +113,8 @@ controller. It does not submit a device frame. One initial attempt is allowed;
 subsequent restarts go through `CanBusOwner::recover`, not a second `start`.
 
 On each cooperative turn, supply the same nondecreasing microsecond value to
-`owner.service(nowUs, budget)` **first**, then `adapter.service(owner, nowUs)`.
+`adapter.pollEvents(owner, nowUs)` **first**, then `owner.service(nowUs, budget)`, then
+`adapter.promote(owner, nowUs)`.
 The latter processes sticky controller evidence and submits at most one frame.
 Unread authoritative RX postpones submission, including when the owner RX budget
 is exhausted. Repeated zero RX budgets can consume a request's deadline; they do

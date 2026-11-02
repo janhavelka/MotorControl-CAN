@@ -404,10 +404,14 @@ bool CanBusOwner::service(uint64_t now, const ServiceBudget& budget) noexcept {
             if (report.id.kind == TransportTxId::Kind::NMT) {
                 if (report.transmitted)
                     services_.confirmNmtTx(report.id.nmt, now);
+                else if (report.provedUnsent)
+                    services_.withdrawNmtUnsent(report.id.nmt, now);
                 else if (services_.canTransmitNmt(report.id.nmt, now))
                     services_.transportFailureNmt(report.id.nmt, now);
             } else if (report.transmitted)
                 services_.confirmTx(report.id.sdo, now);
+            else if (report.provedUnsent)
+                services_.withdrawUnsent(report.id.sdo, now);
             else if (services_.canTransmit(report.id.sdo, now))
                 services_.transportFailure(report.id.sdo.request, now);
             collect();

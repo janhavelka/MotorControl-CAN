@@ -108,7 +108,7 @@ bool SdoClient::admitNmt(const NmtTransfer& input, uint64_t now, NmtRequestId& i
     }
     if (!found) return false;
     nmtCompletion_ = candidate;
-    nmtOccupied_ = true; nmtTerminal_ = false; ++nmtGeneration_;
+    nmtOccupied_ = true; nmtTerminal_ = false; nmtHeld_ = false; ++nmtGeneration_;
     nmtQueueCutoff_ = now + ((work.deadlineUs - now < work.queueTimeoutUs) ?
                            work.deadlineUs - now : work.queueTimeoutUs);
     // Pin-specific producer-only initialization: sendCommand accesses just these
@@ -126,6 +126,7 @@ void SdoClient::finishNmt(NmtOutcome outcome, uint64_t now) {
     nmtCompletion_.outcome = outcome;
     nmtCompletion_.completedUs = now;
     nmtTerminal_ = true;
+    nmtHeld_ = false;
     nmtPort_.queueOccupied = false; nmtPort_.tx.bufferFull = false;
 }
 void SdoClient::expireNmt(uint64_t now) {
@@ -151,17 +152,28 @@ void SdoClient::serviceNmt(uint64_t now) {
     else nmtCompletion_.queued = true;
 }
 
-void SdoClient::applyNmt(uint64_t now) {
+void SdoClient::recordNmtIntent(uint64_t now, bool present) {
     const NmtTransfer& work = nmtCompletion_.transfer;
     for (unsigned i = 0; i < CHANNELS; ++i) {
         Channel& anchor = channels_[i];
         if (!anchor.networkConfigured || (!work.broadcast &&
             !sameNode(anchor.network.route.binding, work.target.binding))) continue;
         NodeSnapshot& state = anchor.network;
-        state.intentPresent = true; state.requestedCommand = work.command; state.requestedId = work.request;
+        state.intentPresent = state.transitionPending = present;
+        state.requestedCommand = work.command; state.requestedId = work.request;
         state.transitionUs = now; state.transitionDeadlineUs = work.deadlineUs;
-        state.transitionPending = true; state.transitionExpired = state.transitionConflict = false;
+        state.transitionExpired = state.transitionConflict = false;
         state.transitionObserved = state.transitionInvalidated = false;
+    }
+}
+void SdoClient::applyNmt(uint64_t now) {
+    const NmtTransfer& work = nmtCompletion_.transfer;
+    recordNmtIntent(now, true);
+    for (unsigned i = 0; i < CHANNELS; ++i) {
+        Channel& anchor = channels_[i];
+        if (!anchor.networkConfigured || (!work.broadcast &&
+            !sameNode(anchor.network.route.binding, work.target.binding))) continue;
+        NodeSnapshot& state = anchor.network;
         if (reset(work.command)) {
             const ObservationTime previous = state.nmtTime, previousSdo = state.sdo;
             const NmtState previousState = state.nmt;
@@ -216,8 +228,8 @@ bool SdoClient::nextNmtTx(NmtRequestId id, uint64_t now, Frame& frame) {
     return true;
 }
 bool SdoClient::canTransmitNmt(NmtRequestId id, uint64_t now) const {
-    return validNmt(id) && !nmtTerminal_ && nmtCompletion_.transmissionPossible && now >= lastUs_ &&
-        now < nmtCompletion_.transfer.deadlineUs;
+    return validNmt(id) && !nmtTerminal_ && (nmtCompletion_.transmissionPossible || nmtHeld_) &&
+        now >= lastUs_ && now < nmtCompletion_.transfer.deadlineUs;
 }
 bool SdoClient::confirmNmtTx(NmtRequestId id, uint64_t now) {
     if (!validNmt(id) || now < lastUs_) return false;
@@ -231,6 +243,30 @@ bool SdoClient::transportFailureNmt(NmtRequestId id, uint64_t now) {
     if (!validNmt(id) || now < lastUs_) return false;
     service(now);
     if (nmtTerminal_ || !nmtCompletion_.transmissionPossible) return false;
+    finishNmt(NmtOutcome::TRANSPORT_ERROR, now);
+    return true;
+}
+bool SdoClient::holdNmtHandoff(NmtRequestId id) {
+    if (!validNmt(id) || nmtTerminal_ || !nmtCompletion_.transmissionPossible || nmtHeld_) return false;
+    nmtHeld_ = true;
+    nmtCompletion_.transmissionPossible = false;
+    // Evidence withdrawn at handoff stays withdrawn. Only the claim of a command goes,
+    // so no later heartbeat can confirm a frame that never left.
+    recordNmtIntent(lastUs_, false);
+    return true;
+}
+bool SdoClient::noteNmtSubmitted(NmtRequestId id, uint64_t now) {
+    if (!canTransmitNmt(id, now) || !nmtHeld_) return false;
+    lastUs_ = now;
+    nmtHeld_ = false;
+    nmtCompletion_.transmissionPossible = true;
+    recordNmtIntent(now, true);
+    return true;
+}
+bool SdoClient::withdrawNmtUnsent(NmtRequestId id, uint64_t now) {
+    if (!validNmt(id) || now < lastUs_) return false;
+    service(now);
+    if (nmtTerminal_ || !nmtHeld_) return false;
     finishNmt(NmtOutcome::TRANSPORT_ERROR, now);
     return true;
 }

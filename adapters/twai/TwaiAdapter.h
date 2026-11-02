@@ -32,7 +32,14 @@ struct TwaiEvents {
         0; ///< Saturating observed ring/format drops, not hidden hardware overruns.
     uint32_t busErrors = 0;  ///< Saturating raw SDK error callbacks, not failed logical services.
     uint32_t errorFlags = 0; ///< Bitwise union of raw SDK error flags in this snapshot.
-    bool rxPending = false;  ///< Unread authoritative RX exists at this snapshot; defer new TX.
+    bool rxPending = false;  ///< Unread authoritative RX exists at this snapshot.
+};
+/** Result of one submission attempt at the SDK boundary. */
+enum class TwaiSubmit : uint8_t {
+    SENT,             ///< SDK accepted the frame; a later final report owns its outcome.
+    DEFERRED,         ///< Proved no SDK contact, transient; the frame stays queued.
+    FAILED_UNSENT,    ///< Proved no SDK acceptance, future TX or callback; terminal.
+    FAILED_UNCERTAIN  ///< SDK may have accepted it; effects stay possible; terminal.
 };
 /** Small projection of the selected SDK API, injectable for host tests.
  * RX/TX use zero-wait calls in the sole cooperative owner task. Each lifecycle
@@ -47,8 +54,8 @@ struct TwaiDriver {
     bool (*start)(void*, const TwaiConfig&, uint32_t) = nullptr; ///< Create fresh node for epoch.
     bool (*stop)(void*) =
         nullptr; ///< No future old TX/callbacks only on true; never re-enable old node.
-    bool (*submit)(void*, const MotorControlCAN::Frame&, uint32_t) = nullptr;
-    ///< Copy frame; one outstanding. False proves no borrowing, future TX or callback for this attempt.
+    TwaiSubmit (*submit)(void*, const MotorControlCAN::Frame&, uint32_t) = nullptr;
+    ///< Copy frame; one outstanding. Only SENT and FAILED_UNCERTAIN can borrow or transmit.
     TwaiEvents (*events)(void*) = nullptr; ///< One bounded atomic mailbox/counter snapshot.
     bool (*receive)(void*, ReceivedFrame&, uint64_t) = nullptr;
     ///< One copied ingress stamped at ISR enqueue; final argument is inclusive
@@ -63,16 +70,24 @@ struct TwaiDiagnostics {
     bool inhibited = true; ///< Local transport cannot accept new work.
 };
 /** Application-only bounded TWAI transport; no installed core dependency on an SDK.
- * Construct without I/O, then explicitly start. Call service(owner, nowUs) after
- * owner.service at the same supplied monotonic microseconds. It copies ISR facts,
- * reports controller faults outside owner callbacks, and submits at most one
- * queued frame after rechecking the same SDO store. Owner remains sole RX router.
+ * Construct without I/O, then explicitly start. In each turn call pollEvents before
+ * owner.service and promote after it, at the same supplied monotonic microseconds.
+ * pollEvents copies ISR facts and reports controller faults outside owner callbacks,
+ * so a TX report normally precedes its reply. A frame can still complete after the
+ * poll: the owner's blocked handling for that race stays required. promote submits at
+ * most one queued frame after rechecking the same SDO store, and starts the frame's
+ * response clock only at SDK submission. Owner remains sole RX router.
+ * Hardware retransmits until ACK, so a no-ACK frame stays ACTIVE and stalls this
+ * interface until an application-started owner recovery deletes the node. That is
+ * not an application retry, and its external effects stay uncertain.
  * No automatic retry/recovery, clocks, device commands or heap allocation here.
  */
 class TwaiAdapter {
   public:
     enum {
-        TX_CAPACITY = 2 ///< Total waiting/active/report slots; no unread report eviction.
+        /// Total waiting/active/report slots: one per SDO channel plus the one NMT frame,
+        /// the most the owner can have outstanding. No unread report eviction.
+        TX_CAPACITY = MotorControlCAN::CANOPEN::SdoClient::CHANNELS + 1
     };
     /** Borrow stationary resources; construction performs no I/O.
      * @param services Same exclusive service store as the CAN owner.
@@ -95,13 +110,19 @@ class TwaiAdapter {
     bool shutdown() noexcept;
     /** @return Copied callbacks borrowing this stationary adapter for owner lifetime. */
     Transport transport() noexcept;
-    /** Bounded cooperative progression, supplied time only; backward time inhibits
-     * and invalidates owner evidence at its last accepted supplied time. It cannot
-     * retire an active SDK frame or settle that frame's remote effect.
+    /** First half of a turn, before owner.service: copy ISR facts and publish TX reports.
+     * Backward time inhibits and invalidates owner evidence at its last accepted
+     * supplied time. It cannot retire an active SDK frame or settle its remote effect.
      * @param owner Sole owner using transport() and the same service storage.
      * @param nowUs Nondecreasing monotonic microseconds, zero valid.
      */
-    void service(CanBusOwner& owner, uint64_t nowUs) noexcept;
+    void pollEvents(CanBusOwner& owner, uint64_t nowUs) noexcept;
+    /** Second half of a turn, after owner.service: submit at most one queued frame.
+     * A deferred frame stays queued and keeps no response clock. Nothing is resent.
+     * @param owner Sole owner using transport() and the same service storage.
+     * @param nowUs Same supplied time as this turn's pollEvents.
+     */
+    void promote(CanBusOwner& owner, uint64_t nowUs) noexcept;
     /** @return Cached saturating diagnostics, without I/O. */
     TwaiDiagnostics diagnostics() const noexcept { return diagnostics_; }
 
@@ -120,6 +141,7 @@ class TwaiAdapter {
     uint32_t epoch_ = 0, serial_ = 0, recoveryEpoch_ = 0;
     uint64_t now_ = 0;
     bool initialized_ = false, attempted_ = false, haveTime_ = false;
+    bool acceptTime(CanBusOwner& owner, uint64_t nowUs) noexcept;
     enum class Recovery : uint8_t { IDLE, STOP, START, FAILED } recovery_ = Recovery::IDLE;
     bool enqueue(const MotorControlCAN::Frame&, TransportTxId,
                  uint32_t) noexcept;
