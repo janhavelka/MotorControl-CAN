@@ -141,7 +141,8 @@ struct Rig {
         CHECK(L::nextRead(read, now, work) && work.ready);
         CHECK(work.transfer.index == index && work.transfer.subindex == 0 &&
               work.transfer.size == width && work.transfer.direction == C::SdoDirection::UPLOAD);
-        CHECK(work.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED);
+        // Interpretation inputs are all DEC-1 rows; acceptance is not evidence of no effect.
+        CHECK(work.transfer.readEffect == C::SdoReadEffect::ACCEPTED_UNQUALIFIED);
         O::BusRequest request;
         request.sequence = sequence;
         request.transfer = work.transfer;

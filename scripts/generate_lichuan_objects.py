@@ -164,7 +164,8 @@ enum class SdoAccess : uint8_t {
 
 /** @brief Read-side effects are unresolved independently of the EDS access flag. */
 enum class ReadEffect : uint8_t {
-    UNQUALIFIED ///< Non-consuming or non-changing reads have not been established.
+    UNQUALIFIED,         ///< Effects unknown and not accepted for polling.
+    ACCEPTED_UNQUALIFIED ///< Owner accepted the risk (DEC-1). Effects stay unknown.
 };
 
 /** @brief Documentary write restriction; no member means an enabled raw write route. */
@@ -264,11 +265,17 @@ def objects_header(rows):
                   "    0x{:04X}, 0x{:02X}, ScalarType::{}, {}, {}, SdoAccess::{},\n".format(
                     row["index"], row["subindex"], native["name"], native["width_bytes"],
                     "true" if native["signed"] else "false", access[row["access_reviewed"]]),
-                  "    ReadEffect::UNQUALIFIED, WritePolicy::{}, PdoPolicy::{},\n".format(write, pdo),
+                  "    ReadEffect::{}, WritePolicy::{}, PdoPolicy::{},\n".format(read_effect(row), write, pdo),
                   "    {}, 0x{:08X}u, SourceScope::EDS_FAMILY_UNBOUND\n}};\n\n".format(
                     row["owner_prompt"], mask)]
     lines.append(read_descriptor_function(rows))
     return "".join(lines) + CLOSE_NAMESPACE
+
+
+def read_effect(row):
+    """Only the owner's accepted list changes polling; the effect itself stays unknown."""
+    return ("ACCEPTED_UNQUALIFIED" if row.get("read_disposition") == "accepted_not_qualified"
+            else "UNQUALIFIED")
 
 
 def read_descriptor_function(rows):
@@ -294,9 +301,9 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         lines.append("    static const ReadDescriptor rows[] = {\n")
         for row in selected:
             lines.append("        {{0x{:04X}, 0x{:02X}, {}, ReadRepresentation::{}, "
-                         "ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND}},\n".format(
+                         "ReadEffect::{}, SourceScope::EDS_FAMILY_UNBOUND}},\n".format(
                              row["index"], row["subindex"], row["type"]["width_bytes"],
-                             read_descriptor_representation(row)))
+                             read_descriptor_representation(row), read_effect(row)))
         lines += ["    };\n", "    for (uint8_t i = 0; i < {}; ++i) {{\n".format(len(selected)),
                   "        if (rows[i].index == index && rows[i].subindex == subindex) {\n",
                   "            output = rows[i];\n            return true;\n        }\n    }\n"]

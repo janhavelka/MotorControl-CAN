@@ -2,8 +2,10 @@
 // Literal native fields come from the retained EDS; host times/provenance are
 // synthetic fixtures. These exchanges qualify software, never a physical drive.
 #include "SdoClient.h"
+#include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -109,9 +111,28 @@ const Field states[] = {
     {0x1003, 4, 4, 0},          {0x2100, 0, 2, 0xffff},     {0x2101, 0, 2, 0x8080},
     {0x2102, 0, 2, 0xf008},     {0x6041, 0, 2, 0xffff},     {0x6061, 0, 1, 0xff},
     {0x6064, 0, 4, 0x80000000}, {0x606c, 0, 4, 0xffffffff}, {0x60fd, 0, 4, 0x87654321}};
+// DEC-1 accepted polling list, transcribed from the repair audit rather than read from the ledger
+// or generated header, so a mistake there cannot also change this oracle. It is the owner's risk
+// acceptance. Nothing here is evidence that an upload has no effect.
+struct Address {
+    uint16_t index;
+    uint8_t subindex;
+};
+const Address acceptedReads[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0},
+                                 {0x1018, 1}, {0x1018, 2}, {0x1018, 3}, {0x2000, 0},
+                                 {0x2001, 0}, {0x2100, 0}, {0x2101, 0}, {0x2102, 0},
+                                 {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}};
+bool accepted(uint16_t index, uint8_t subindex) {
+    for (const Address& address : acceptedReads)
+        if (address.index == index && address.subindex == subindex)
+            return true;
+    return false;
+}
 void expected(const C::SdoTransfer& w, const Field& f) {
     CHECK(w.index == f.index && w.subindex == f.subindex && w.size == f.width);
-    CHECK(w.direction == C::SdoDirection::UPLOAD && w.readEffect == C::SdoReadEffect::UNQUALIFIED);
+    CHECK(w.direction == C::SdoDirection::UPLOAD);
+    CHECK(w.readEffect == (accepted(f.index, f.subindex) ? C::SdoReadEffect::ACCEPTED_UNQUALIFIED
+                                                         : C::SdoReadEffect::UNQUALIFIED));
     CHECK(w.deadlineUs == 10000 && w.queueTimeoutUs == 100 && w.responseTimeoutUs == 100);
     CHECK(M::sameBinding(w.channel.binding, target().channel.binding));
     for (unsigned i = 0; i < sizeof w.data; ++i)
@@ -198,7 +219,9 @@ void allRowsAndRealOwner() {
                                               : f.index == 0x6064 || f.index == 0x606c
                                                   ? L::ReadRepresentation::SIGNED
                                                   : L::ReadRepresentation::UNSIGNED;
-            CHECK(d.representation == rep && d.readEffect == L::ReadEffect::UNQUALIFIED);
+            CHECK(d.representation == rep);
+            CHECK(d.readEffect == (accepted(f.index, f.subindex) ? L::ReadEffect::ACCEPTED_UNQUALIFIED
+                                                                 : L::ReadEffect::UNQUALIFIED));
             CHECK(d.scope == L::SourceScope::EDS_FAMILY_UNBOUND);
             ++seen;
         }
@@ -309,9 +332,12 @@ void preparationAndGetters() {
     before.unchanged(c);
     CHECK(!L::prepareState(c, target(), 8, 0, 10000, options(), 0x80));
     before.unchanged(c);
-    const M::Status probe = L::prepareProbe(c, target(), 8, 0, 10000, options());
-    CHECK(probe.code == M::Err::UNSUPPORTED &&
-          probe.detail == static_cast<int32_t>(M::ReadError::READ_EFFECT));
+    // Probe permission and atomic failure: see probeIsOneAcceptedUpload for the wire behavior.
+    L::ReadContext probe;
+    CHECK(L::prepareProbe(probe, target(), 8, 0, 10000, options()));
+    CHECK(probe.kind == L::ReadKind::PROBE && probe.count == 1);
+    CHECK(probe.values[0].object.index == 0x1000 &&
+          probe.values[0].object.readEffect == L::ReadEffect::ACCEPTED_UNQUALIFIED);
     before.unchanged(c);
     L::IdentityObservation id;
     id.modelCode = 0xa55a;
@@ -400,7 +426,7 @@ void wrongServiceAndTime() {
     L::ReadContext c;
     CHECK(L::prepareIdentity(c, target(), 9, 10, 10000, options()));
     C::SdoCompletion good = success(c, 0x12340192, 11, 12);
-    for (unsigned i = 0; i < 38; ++i) {
+    for (unsigned i = 0; i < 41; ++i) {
         C::SdoCompletion e = good;
         switch (i) {
         case 0:
@@ -517,6 +543,18 @@ void wrongServiceAndTime() {
         case 37:
             // Matching bytes/count do not turn raw experiment evidence into a typed read.
             e.transfer.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+            break;
+        case 38:
+            // 1000 is accepted: an unlisted effect is a different request, not the same evidence.
+            e.transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
+            break;
+        case 39:
+            e.transfer.readEffect = static_cast<C::SdoReadEffect>(255);
+            break;
+        case 40:
+            // An accepted read keeps its unknown effect. It cannot report the effect as absent.
+            e.transfer.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING;
+            e.effectPossible = false;
             break;
         }
         const Saved<L::ReadContext> before(c);
@@ -769,6 +807,475 @@ C::PdoMapEvidence mapEvidence() {
     e.evidenceId = 22;
     return e;
 }
+// Every readable descriptor is swept, so an extra accepted row cannot go unnoticed. The generator
+// test pins the table at 95 rows; finding all 95 proves no row lies outside this finite range.
+void acceptedListIsExact() {
+    unsigned readable = 0, effective = 0;
+    for (uint32_t index = 0x1000; index <= 0x6fff; ++index)
+        for (uint32_t subindex = 0; subindex <= 0x1f; ++subindex) {
+            L::ReadDescriptor d = {};
+            if (!L::readDescriptor(uint16_t(index), uint8_t(subindex), d))
+                continue;
+            ++readable;
+            const bool listed = accepted(uint16_t(index), uint8_t(subindex));
+            CHECK(d.readEffect == (listed ? L::ReadEffect::ACCEPTED_UNQUALIFIED
+                                          : L::ReadEffect::UNQUALIFIED));
+            effective += d.readEffect == L::ReadEffect::ACCEPTED_UNQUALIFIED;
+        }
+    CHECK(readable == 95 && effective == 16);
+    for (const Address& address : acceptedReads) {
+        L::ReadDescriptor d = {};
+        CHECK(L::readDescriptor(address.index, address.subindex, d));
+        CHECK(d.readEffect == L::ReadEffect::ACCEPTED_UNQUALIFIED);
+    }
+    // Named because they are explicit single reads (DEC-1), or sit in a fixed plan beside accepted
+    // rows, or are ordinary settings that keep their existing disposition.
+    const Address never[] = {{0x603f, 0}, {0x1001, 0}, {0x1003, 0}, {0x1003, 1}, {0x1003, 2},
+                             {0x1003, 3}, {0x1003, 4}, {0x60fd, 0}, {0x1005, 0}, {0x1017, 0},
+                             {0x2200, 0}, {0x2500, 0}};
+    for (const Address& address : never) {
+        L::ReadDescriptor d = {};
+        CHECK(L::readDescriptor(address.index, address.subindex, d));
+        CHECK(d.readEffect == L::ReadEffect::UNQUALIFIED);
+    }
+}
+// Measured replies, retained on two CL86-C specimens (docs/bench/20261102-nmt-pdo-node1/rx.txt and
+// its node 2 record). They contradict the EDS, and they are a labelled fixture: not a default, not
+// a claim about another drive or firmware, and not a reason to relax typed width checks.
+const uint8_t measuredIdentity[9][8] = {
+    {0x43, 0x00, 0x10, 0x00, 0x92, 0x01, 0x04, 0x00}, {0x4f, 0x09, 0x10, 0x00, 0x0c, 0, 0, 0},
+    {0x4f, 0x0a, 0x10, 0x00, 0x20, 0, 0, 0},          {0x4f, 0x18, 0x10, 0x00, 0x05, 0, 0, 0},
+    {0x43, 0x18, 0x10, 0x01, 0x00, 0x10, 0, 0},       {0x43, 0x18, 0x10, 0x02, 0x01, 0, 0, 0},
+    {0x43, 0x18, 0x10, 0x03, 0, 0, 0, 0},             {0x4b, 0x00, 0x20, 0x00, 0x00, 0x04, 0, 0},
+    {0x4b, 0x01, 0x20, 0x00, 0x00, 0x02, 0, 0}};
+// Two-byte forms of the EDS U16 declaration. Synthetic: no retained specimen replied this way.
+const uint8_t declared1009[8] = {0x4b, 0x09, 0x10, 0x00, 0x08, 0x26, 0, 0};
+const uint8_t declared100a[8] = {0x4b, 0x0a, 0x10, 0x00, 0x01, 0x00, 0, 0};
+// One exchange through the real service client, checking the exact request bytes. The caller
+// supplies literal reply bytes, so a wrong width reaches the client's own reply checks.
+C::SdoCompletion exchange(C::SdoClient& owner, L::ReadContext& c, const uint8_t (&bytes)[8],
+                          uint64_t& now) {
+    const L::PreparedRead p = next(c, now);
+    C::SdoRequestId id;
+    CHECK(owner.admit(0, p.transfer, now, id));
+    CHECK(owner.service(now));
+    M::Frame tx;
+    C::SdoTxId txId;
+    CHECK(owner.nextTx(0, now, tx, txId));
+    const uint8_t request[8] = {0x40, uint8_t(p.transfer.index), uint8_t(p.transfer.index >> 8),
+                                p.transfer.subindex, 0, 0, 0, 0};
+    CHECK(tx.id == 0x625 && tx.payloadLength == 8 && std::memcmp(tx.data, request, 8) == 0);
+    CHECK(owner.canTransmit(txId, now) && owner.confirmTx(txId, now));
+    M::Frame reply = frame(0x5a5, 8);
+    std::memcpy(reply.data, bytes, 8);
+    ++now;
+    CHECK(owner.receive(reply, now, now));
+    const C::SdoCompletion* done = owner.result(id);
+    CHECK(done != nullptr);
+    const C::SdoCompletion copy = *done;
+    CHECK(copy.replyValid && std::memcmp(copy.reply.data, bytes, 8) == 0);
+    CHECK(L::advanceRead(c, copy, now));
+    CHECK(owner.release(id));
+    return copy;
+}
+void noFrameLeft(C::SdoClient& owner, uint64_t now) {
+    M::Frame tx;
+    C::SdoTxId id;
+    CHECK(!owner.nextTx(0, now, tx, id));
+}
+void probeIsOneAcceptedUpload() {
+    for (unsigned confirmed = 0; confirmed < 2; ++confirmed) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, target().channel, confirmed != 0, true));
+        CHECK(owner.configureNetwork(0, network(), C::NetworkObserver(), 0));
+        L::ReadContext c;
+        CHECK(L::prepareProbe(c, target(), 1, 0, 10000, options()));
+        // Preparation is pure: nothing is queued, and repeating nextRead stages nothing.
+        CHECK(owner.port(0)->handedOff == 0 && owner.nmtPort()->accepted == 0);
+        L::PreparedRead p = next(c, 0);
+        CHECK(p.transfer.readEffect == C::SdoReadEffect::ACCEPTED_UNQUALIFIED);
+        CHECK(p.transfer.direction == C::SdoDirection::UPLOAD && p.transfer.size == 4 &&
+              !p.transfer.requirePreOperational);
+        noFrameLeft(owner, 0);
+        uint64_t now = 0;
+        const C::SdoCompletion done = exchange(owner, c, measuredIdentity[0], now);
+        CHECK(done.outcome == C::SdoOutcome::SUCCESS && done.effectPossible &&
+              !done.effectUncertain);
+        CHECK(c.state == M::ReadState::SUCCEEDED && c.outcome == M::ReadOutcome::SUCCESS);
+        CHECK(c.count == 1 && c.values[0].valid && c.values[0].raw == 0x00040192u);
+        // Exactly one frame on the SDO route, and no NMT command. A probe sets no setting.
+        CHECK(owner.port(0)->handedOff == 1);
+        CHECK(owner.nmtPort()->accepted == 0 && owner.nmtPort()->handedOff == 0);
+        CHECK(!owner.node(0)->intentPresent && !owner.node(0)->transitionPending);
+        noFrameLeft(owner, now);
+        L::PreparedRead terminal;
+        CHECK(L::nextRead(c, now, terminal) && !terminal.ready);
+        // A probe is its own intent. No typed getter publishes it as identity or configuration.
+        L::IdentityObservation id;
+        id.modelCode = 0xa55a;
+        const Saved<L::IdentityObservation> oldId(id);
+        CHECK(!L::getIdentity(c, target(), now, 1000, id));
+        oldId.unchanged(id);
+        L::ConfigObservation cfg;
+        cfg.syncCobId = 0xa55a;
+        const Saved<L::ConfigObservation> oldCfg(cfg);
+        CHECK(!L::getConfig(c, target(), now, 1000, cfg));
+        oldCfg.unchanged(cfg);
+    }
+    // There is no selection through which another object could arrive, and failure is atomic.
+    L::ReadContext c;
+    c.operation = 0xa55a;
+    const Saved<L::ReadContext> before(c);
+    L::ReadTarget bad = target();
+    bad.nodeGeneration = 0;
+    CHECK(!L::prepareProbe(c, bad, 1, 0, 10000, options()));
+    before.unchanged(c);
+    CHECK(!L::prepareProbe(c, target(), 0, 0, 10000, options()));
+    before.unchanged(c);
+}
+void acceptedEffectsStayUnknown() {
+    // A successful accepted read keeps a possible effect, recorded in the retained evidence.
+    {
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::ReadContext c;
+        CHECK(L::prepareState(c, target(), 1, 0, 10000, options(), mask(L::StateBlock::STATUS)));
+        const uint8_t status[8] = {0x4b, 0x41, 0x60, 0x00, 0x37, 0x80, 0, 0};
+        const C::SdoCompletion done = exchange(owner, c, status, now);
+        CHECK(done.transfer.readEffect == C::SdoReadEffect::ACCEPTED_UNQUALIFIED);
+        CHECK(done.effectPossible && !done.effectUncertain);
+        CHECK(c.evidencePresent && c.evidence.effectPossible && !c.uncertain);
+    }
+    // A lost reply leaves the effect uncertain and quarantines the route: no silent replay.
+    {
+        C::SdoClient owner;
+        configure(owner);
+        L::ReadContext c;
+        CHECK(L::prepareState(c, target(), 1, 0, 100, options(), mask(L::StateBlock::STATUS)));
+        const L::PreparedRead p = next(c, 0);
+        C::SdoRequestId id;
+        CHECK(owner.admit(0, p.transfer, 0, id));
+        CHECK(owner.service(0));
+        M::Frame tx;
+        C::SdoTxId txId;
+        CHECK(owner.nextTx(0, 0, tx, txId) && owner.confirmTx(txId, 0));
+        CHECK(owner.service(100));
+        const C::SdoCompletion* lost = owner.result(id);
+        CHECK(lost && lost->outcome == C::SdoOutcome::TIMEOUT);
+        CHECK(lost->transfer.readEffect == C::SdoReadEffect::ACCEPTED_UNQUALIFIED);
+        CHECK(lost->effectPossible && lost->effectUncertain && !lost->protocolAcknowledged);
+        CHECK(L::advanceRead(c, *lost, 100));
+        CHECK(c.state == M::ReadState::FAILED && c.outcome == M::ReadOutcome::DEADLINE);
+        CHECK(c.uncertain && !c.values[0].valid);
+        CHECK(owner.release(id) && owner.unresolved(0));
+        L::ReadContext again;
+        CHECK(L::prepareState(again, target(), 2, 100, 200, options(),
+                              mask(L::StateBlock::STATUS)));
+        C::SdoRequestId refused;
+        CHECK(!owner.admit(0, next(again, 100).transfer, 100, refused));
+    }
+    // A local withdrawal of accepted work conservatively keeps uncertainty too.
+    {
+        L::ReadContext c;
+        CHECK(L::prepareProbe(c, target(), 1, 0, 100, options()));
+        CHECK(L::advanceRead(c, M::ReadOutcome::CANCELLED, 1));
+        CHECK(c.state == M::ReadState::FAILED && c.uncertain);
+    }
+}
+void identityWidthVariants() {
+    CHECK(L::ReadOptions().identityWidths == L::IdentityWidths::DECLARED_U16);
+    L::IdentityObservation untouched;
+    untouched.modelCode = 0xa55a;
+    untouched.hardwareVersionWidth = 0x7f;
+    const Saved<L::IdentityObservation> old(untouched);
+    // DECLARED_U16 with the measured one-byte reply: a width failure, and nothing is published.
+    {
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::ReadContext c;
+        CHECK(L::prepareIdentity(c, target(), 1, 0, 10000, options()));
+        CHECK(exchange(owner, c, measuredIdentity[0], now).outcome == C::SdoOutcome::SUCCESS);
+        CHECK(next(c, now).transfer.size == 2);
+        const C::SdoCompletion failed = exchange(owner, c, measuredIdentity[1], now);
+        CHECK(failed.outcome == C::SdoOutcome::CLIENT_ABORT && failed.abortValid);
+        CHECK(failed.abortCode == 0x06070010u && failed.size == 0);
+        CHECK(failed.effectPossible && failed.effectUncertain && failed.clientAbortQueued);
+        CHECK(c.state == M::ReadState::FAILED && c.outcome == M::ReadOutcome::REPLY_ERROR);
+        CHECK(c.uncertain && c.values[0].valid && !c.values[1].valid && c.values[1].raw == 0);
+        CHECK(!L::getIdentity(c, target(), now, 1000, untouched));
+        old.unchanged(untouched);
+        M::Frame abort;
+        C::SdoTxId abortId;
+        CHECK(owner.nextTx(0, now, abort, abortId));
+        const uint8_t literal[8] = {0x80, 0x09, 0x10, 0x00, 0x10, 0x00, 0x07, 0x06};
+        CHECK(std::memcmp(abort.data, literal, 8) == 0 && owner.unresolved(0));
+        // Nothing learned the width from that reply. The next default read still declares U16.
+        L::ReadContext again;
+        CHECK(L::prepareIdentity(again, target(), 2, now, 10000, options()));
+        CHECK(again.values[1].object.widthBytes == 2 && again.values[2].object.widthBytes == 2);
+    }
+    L::ReadOptions measuredOptions = options();
+    measuredOptions.identityWidths = L::IdentityWidths::MEASURED_U8;
+    // MEASURED_U8 with the measured replies publishes raw values and actual widths.
+    {
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::ReadContext c;
+        CHECK(L::prepareIdentity(c, target(), 1, 0, 10000, measuredOptions));
+        const uint8_t widths[9] = {4, 1, 1, 1, 4, 4, 4, 2, 2};
+        for (unsigned i = 0; i < 9; ++i) {
+            CHECK(c.values[i].object.widthBytes == widths[i]);
+            const C::SdoCompletion done = exchange(owner, c, measuredIdentity[i], now);
+            CHECK(done.outcome == C::SdoOutcome::SUCCESS && done.size == widths[i]);
+            CHECK(done.transfer.size == widths[i] && done.effectPossible && !done.effectUncertain);
+            CHECK(done.transfer.readEffect == C::SdoReadEffect::ACCEPTED_UNQUALIFIED);
+        }
+        CHECK(c.state == M::ReadState::SUCCEEDED);
+        L::IdentityObservation id = untouched;
+        CHECK(L::getIdentity(c, target(), now, 1000, id));
+        CHECK(id.deviceType == 0x00040192u);
+        CHECK(id.hardwareVersion == 0x0c && id.hardwareVersionWidth == 1);
+        CHECK(id.softwareVersion == 0x20 && id.softwareVersionWidth == 1);
+        // 1018:00=5 exceeds the EDS limit of 4 and stays raw. It adds no 1018:04 upload.
+        CHECK(id.identityEntries == 5 && owner.port(0)->handedOff == 9);
+        CHECK(id.vendorId == 0x1000 && id.productCode == 1 && id.revision == 0);
+        CHECK(id.modelCode == 0x0400 && id.firmwareCode == 0x0200 && !id.modelMatched);
+        CHECK(id.fields[1].index == 0x1009 && id.fields[2].index == 0x100a);
+        CHECK(!id.fields[1].captureKnown && id.fields[0].earliestUs == 0);
+        // The descriptor table is untouched: the option narrows this one context only.
+        L::ReadDescriptor table = {};
+        CHECK(L::readDescriptor(0x1009, 0, table) && table.widthBytes == 2);
+        // A public context cannot swap its width or option after preparation.
+        for (unsigned variant = 0; variant < 3; ++variant) {
+            L::ReadContext forged;
+            CHECK(L::prepareIdentity(forged, target(), 9, now, 10000, measuredOptions));
+            if (variant == 0)
+                forged.options.identityWidths = L::IdentityWidths::DECLARED_U16;
+            else if (variant == 1)
+                forged.values[1].object.widthBytes = 2;
+            else
+                forged.values[3].object.widthBytes = 2; // 1018:00 is outside the option.
+            L::PreparedRead p;
+            CHECK(!L::nextRead(forged, now, p) && !p.ready);
+        }
+        L::ReadContext forged;
+        CHECK(L::prepareIdentity(forged, target(), 9, now, 10000, options()));
+        forged.values[1].object.widthBytes = 1;
+        L::PreparedRead p;
+        CHECK(!L::nextRead(forged, now, p) && !p.ready);
+    }
+    // MEASURED_U8 with a two-byte reply fails, at either object.
+    for (unsigned failing = 1; failing <= 2; ++failing) {
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::ReadContext c;
+        CHECK(L::prepareIdentity(c, target(), 1, 0, 10000, measuredOptions));
+        for (unsigned i = 0; i < failing; ++i)
+            CHECK(exchange(owner, c, measuredIdentity[i], now).outcome == C::SdoOutcome::SUCCESS);
+        const C::SdoCompletion failed =
+            exchange(owner, c, failing == 1 ? declared1009 : declared100a, now);
+        CHECK(failed.outcome == C::SdoOutcome::CLIENT_ABORT && failed.abortCode == 0x06070010u);
+        CHECK(c.outcome == M::ReadOutcome::REPLY_ERROR && !c.values[failing].valid);
+        CHECK(!L::getIdentity(c, target(), now, 1000, untouched));
+        old.unchanged(untouched);
+    }
+    // MEASURED_U8 evidence claiming two bytes cannot bypass the width check.
+    {
+        L::ReadContext c;
+        CHECK(L::prepareIdentity(c, target(), 1, 0, 10000, measuredOptions));
+        accept(c, 0x00040192u, 0);
+        C::SdoCompletion e = success(c, 0x0c, 1, 1);
+        e.size = 2;
+        const Saved<L::ReadContext> before(c);
+        CHECK(!L::advanceRead(c, e, 1));
+        before.unchanged(c);
+    }
+    // DECLARED_U16 with two-byte replies publishes width 2.
+    {
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::ReadContext c;
+        CHECK(L::prepareIdentity(c, target(), 1, 0, 10000, options()));
+        for (unsigned i = 0; i < 9; ++i) {
+            const uint8_t (&reply)[8] =
+                i == 1 ? declared1009 : i == 2 ? declared100a : measuredIdentity[i];
+            CHECK(exchange(owner, c, reply, now).outcome == C::SdoOutcome::SUCCESS);
+        }
+        L::IdentityObservation id;
+        CHECK(L::getIdentity(c, target(), now, 1000, id));
+        CHECK(id.hardwareVersion == 0x2608 && id.hardwareVersionWidth == 2);
+        CHECK(id.softwareVersion == 0x0001 && id.softwareVersionWidth == 2);
+    }
+}
+void checkArgument(const M::Status& status) {
+    CHECK(status.code == M::Err::INVALID_CONFIG &&
+          status.detail == static_cast<int32_t>(M::ReadError::ARGUMENT));
+}
+void identityWidthOptionRejectsAtomically() {
+    const C::PdoMapEvidence map = mapEvidence();
+    const L::IdentityWidths values[] = {L::IdentityWidths::MEASURED_U8,
+                                        static_cast<L::IdentityWidths>(2),
+                                        static_cast<L::IdentityWidths>(255)};
+    L::ReadContext c;
+    CHECK(L::prepareConfig(c, target(), 1, 0, 10000, options()));
+    const Saved<L::ReadContext> before(c);
+    L::DriverContext driver;
+    CHECK(L::prepareDriverRead(driver, target(), 1, 0, 10000, options(), L::DriverGroup::DRIVER));
+    const Saved<L::DriverContext> beforeDriver(driver);
+    for (L::IdentityWidths value : values) {
+        L::ReadOptions o = options();
+        o.identityWidths = value;
+        checkArgument(L::prepareProbe(c, target(), 2, 0, 10000, o));
+        before.unchanged(c);
+        checkArgument(L::prepareConfig(c, target(), 2, 0, 10000, o));
+        before.unchanged(c);
+        checkArgument(L::prepareState(c, target(), 2, 0, 10000, o, mask(L::StateBlock::STATUS)));
+        before.unchanged(c);
+        checkArgument(L::prepareState(c, target(), 2, 0, 10000, o, mask(L::StateBlock::FEEDBACK),
+                                      &map.route));
+        before.unchanged(c);
+        checkArgument(L::prepareDriverRead(driver, target(), 2, 0, 10000, o,
+                                           L::DriverGroup::SOFT_LIMITS));
+        beforeDriver.unchanged(driver);
+        checkArgument(L::prepareControlRead(driver, target(), 2, 0, 10000, o));
+        beforeDriver.unchanged(driver);
+        checkArgument(L::prepareTuningRead(driver, target(), 2, 0, 10000, o,
+                                           L::TuningGroup::EDS_GAINS));
+        beforeDriver.unchanged(driver);
+        if (value != L::IdentityWidths::MEASURED_U8) {
+            checkArgument(L::prepareIdentity(c, target(), 2, 0, 10000, o));
+            before.unchanged(c);
+        }
+    }
+}
+// Existing coverage kept as is: wrong-kind and unfinished getters, stale targets and age limits
+// (preparationAndGetters), timestamp zero (wrongServiceAndTime), full history counts and synthetic
+// reboot/binding/bus-off evidence (partialFailuresAndHistory, cutoffDoesNotEraseInvalidation).
+// The functions below add what those do not reach.
+void mixedAgeBlocks() {
+    L::ReadContext c;
+    CHECK(L::prepareState(c, target(), 1, 0, 10000, options(),
+                          uint8_t(mask(L::StateBlock::ERRORS) | mask(L::StateBlock::STATUS))));
+    accept(c, 0x80, 0);
+    accept(c, 0x1234, 400); // Mixed ages inside the ERRORS block itself.
+    accept(c, 0x8037, 500);
+    accept(c, 0, 510);
+    L::StateObservation s;
+    s.monitor = 0xa55a;
+    const Saved<L::StateObservation> old(s);
+    // The older block expires on its oldest field, while the newer block stays current.
+    CHECK(!L::getStateBlock(c, L::StateBlock::ERRORS, target(), 1000, 999, s));
+    old.unchanged(s);
+    CHECK(L::getStateBlock(c, L::StateBlock::STATUS, target(), 1000, 500, s));
+    CHECK(s.statusword == 0x8037 && s.modeRaw == 0 && s.fieldCount == 2 && !s.interpreted);
+    CHECK(s.window.earliestUs == 500 && s.window.latestUs == 510 && s.window.skewUs == 10);
+    const Saved<L::StateObservation> status(s);
+    CHECK(!L::getStateBlock(c, L::StateBlock::STATUS, target(), 1000, 499, s));
+    status.unchanged(s);
+    // Age is inclusive, and a block reports its own window rather than the whole operation's.
+    CHECK(L::getStateBlock(c, L::StateBlock::ERRORS, target(), 1000, 1000, s));
+    CHECK(s.errorRegister == 0x80 && s.errorCode == 0x1234);
+    CHECK(s.window.earliestUs == 0 && s.window.latestUs == 400 && s.window.skewUs == 400);
+}
+void partialHistory() {
+    // A count of three, then a lost second entry: nothing is published, and the prefix stays
+    // readable only as history.
+    L::ReadContext c;
+    CHECK(L::prepareState(c, target(), 1, 0, 10000, options(),
+                          mask(L::StateBlock::ERROR_HISTORY)));
+    accept(c, 3, 0);
+    accept(c, 0x80000001u, 1);
+    C::SdoCompletion e = success(c, 0, 2, 3);
+    CHECK(e.transfer.subindex == 2);
+    e.outcome = C::SdoOutcome::TRANSPORT_ERROR;
+    e.protocolAcknowledged = false;
+    e.size = 0;
+    e.effectUncertain = true;
+    CHECK(L::advanceRead(c, e, 3));
+    CHECK(c.state == M::ReadState::FAILED && c.uncertain);
+    CHECK(c.values[0].raw == 3 && c.values[1].raw == 0x80000001u && !c.values[2].valid);
+    L::StateObservation s;
+    s.errorCount = 0x7f;
+    const Saved<L::StateObservation> old(s);
+    CHECK(!L::getStateBlock(c, L::StateBlock::ERROR_HISTORY, target(), 3, 100, s));
+    old.unchanged(s);
+    // Entries past the reported count are never requested, and read as zero rather than stale.
+    L::ReadContext two;
+    CHECK(L::prepareState(two, target(), 2, 0, 10000, options(),
+                          mask(L::StateBlock::ERROR_HISTORY)));
+    accept(two, 2, 0);
+    accept(two, 0xa, 1);
+    accept(two, 0xb, 2);
+    CHECK(two.state == M::ReadState::SUCCEEDED && !two.values[3].valid && !two.values[4].valid);
+    L::PreparedRead done;
+    CHECK(L::nextRead(two, 2, done) && !done.ready);
+    CHECK(L::getStateBlock(two, L::StateBlock::ERROR_HISTORY, target(), 2, 100, s));
+    CHECK(s.errorCount == 2 && s.fieldCount == 3 && s.errorHistory[1] == 0xb);
+    CHECK(s.errorHistory[2] == 0 && s.errorHistory[3] == 0);
+}
+void realLifecycleInvalidation() {
+    // A completed read through the real client, then a real boot-up or configuration advance.
+    for (unsigned cause = 0; cause < 2; ++cause) {
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::ReadContext c;
+        CHECK(L::prepareIdentity(c, target(), 1, 0, 10000, options()));
+        runOwner(owner, c, identity, 9, now);
+        L::IdentityObservation id;
+        CHECK(L::getIdentity(c, target(), now, 1000, id));
+        const Saved<L::IdentityObservation> good(id);
+        L::ReadTarget current = target();
+        if (cause == 0) {
+            CHECK(owner.receive(frame(0x705, 1), now, now));
+            CHECK(owner.node(0)->route.generation != current.nodeGeneration);
+            current.nodeGeneration = owner.node(0)->route.generation;
+        } else {
+            M::Binding advanced = current.channel.binding;
+            ++advanced.configurationGeneration;
+            CHECK(owner.advanceConfiguration(0, current.channel.binding, advanced, now));
+            current.channel.binding = advanced;
+        }
+        CHECK(!L::getIdentity(c, current, now, 1000, id));
+        good.unchanged(id);
+        CHECK(c.values[0].valid && c.values[0].raw == identity[0].raw); // History survives.
+    }
+    // Boot-up while an accepted upload is in flight: the terminal withdraws the earlier block too.
+    C::SdoClient owner;
+    configure(owner);
+    uint64_t now = 0;
+    L::ReadContext c;
+    CHECK(L::prepareState(c, target(), 1, 0, 10000, options(),
+                          uint8_t(mask(L::StateBlock::MONITORS) | mask(L::StateBlock::STATUS))));
+    const uint8_t monitors[3][8] = {{0x4b, 0x00, 0x21, 0, 0x10, 0, 0, 0},
+                                    {0x4b, 0x01, 0x21, 0, 0x80, 0xa5, 0, 0},
+                                    {0x4b, 0x02, 0x21, 0, 0x08, 0xf0, 0, 0}};
+    for (const auto& reply : monitors)
+        CHECK(exchange(owner, c, reply, now).outcome == C::SdoOutcome::SUCCESS);
+    L::StateObservation s;
+    CHECK(L::getStateBlock(c, L::StateBlock::MONITORS, target(), now, 1000, s));
+    const Saved<L::StateObservation> prior(s);
+    C::SdoRequestId id;
+    CHECK(owner.admit(0, next(c, now).transfer, now, id));
+    CHECK(owner.service(now));
+    M::Frame tx;
+    C::SdoTxId txId;
+    CHECK(owner.nextTx(0, now, tx, txId) && owner.confirmTx(txId, now));
+    ++now;
+    CHECK(owner.receive(frame(0x705, 1), now, now));
+    const C::SdoCompletion* lost = owner.result(id);
+    CHECK(lost && lost->outcome == C::SdoOutcome::REBOOT && lost->effectUncertain);
+    CHECK(L::advanceRead(c, *lost, now));
+    CHECK(c.state == M::ReadState::FAILED && c.outcome == M::ReadOutcome::INVALIDATED);
+    CHECK(c.invalidated && c.uncertain && c.values[0].valid);
+    CHECK(!L::getStateBlock(c, L::StateBlock::MONITORS, target(), now, 1000, s));
+    prior.unchanged(s);
+}
 void passiveProvenance() {
     C::SdoClient owner;
     configure(owner);
@@ -936,6 +1443,14 @@ int main() {
     partialFailuresAndHistory();
     cutoffDoesNotEraseInvalidation();
     passiveProvenance();
+    acceptedListIsExact();
+    probeIsOneAcceptedUpload();
+    acceptedEffectsStayUnknown();
+    identityWidthVariants();
+    identityWidthOptionRejectsAtomically();
+    mixedAgeBlocks();
+    partialHistory();
+    realLifecycleInvalidation();
     std::printf("reads: %u checks passed\n", checks);
     return 0;
 }

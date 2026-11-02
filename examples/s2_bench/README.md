@@ -37,7 +37,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `p` / runner `ping` | Cached image/base/SDK identity and local startup facts |
 | `c` / `start` | One local CAN initialization attempt; lower S18 on success, no device request |
 | `s` / `stats` | Cached controller/owner counters and task stack high-water mark |
-| `1`, `2` / `identity1`, `identity2` | Strict typed nine-field identity plan; retained EDS widths apply |
+| `1`, `2` / `identity1`, `identity2` | Typed nine-field identity plan; default `DECLARED_U16` EDS widths apply and fail on these specimens, `MEASURED_U8` is an explicit option |
 | `3`, `4` / `raw1`, `raw2` | Upload-only raw experiment on node 1/2, with the fixed 26-field inventory below |
 | `v`, `b` / `motion-readiness1`, `motion-readiness2` | Separate finite 30-field upload-only readiness inventory on node 1/2; no motion command |
 | `h`, `j` / `heartbeat1`, `heartbeat2` | Separate exact1017 experiment: require zero, write1000ms, read back; one attempt per node |
@@ -114,9 +114,11 @@ The earlier connection checkpoint
 [node-1](../../docs/bench/20261102-s2-raw-fixed-node1/rx.txt) and
 [node-2](../../docs/bench/20261102-s2-raw-fixed-node2/rx.txt) records each contain
 20 successful raw uploads. Both indicate one byte for `1009=0x0C` and
-`100A=0x20`, versus the retained EDS U16 widths. The strict typed identity path
-correctly rejected the width mismatch; raw success does not revise that metadata
-or establish a human firmware version. Raw `6041/6061` values establish neither
+`100A=0x20`, versus the retained EDS U16 widths. The default typed identity path
+(`DECLARED_U16`) rejects the width mismatch; an application that has established
+its fixture selects `IdentityWidths::MEASURED_U8` explicitly, and nothing detects
+it. Raw success does not revise the EDS metadata or establish a human firmware
+version. Raw `6041/6061` values establish neither
 operation-mode meaning nor physical standstill.
 The [post-run counters](../../docs/bench/20261102-s2-raw-fixed-stats/rx.txt)
 report 40 RX/40 TX, zero errors/drops and 9852 bytes minimum remaining stack.

@@ -25,10 +25,11 @@ values. `modelMatched` remains false. The conservative interval includes each
 service's admission and completion: `[0, 83]` microseconds with 83 microseconds
 of skew. These supplied times do not form an atomic device snapshot.
 
-Read effects remain unqualified. Successful synthetic uploads retain
+Read effects remain unestablished. Successful synthetic uploads retain
 `effectPossible=true` and `effectUncertain=false`; success does not establish a
-harmless read. `prepareProbe` reports `UNSUPPORTED` with the Q20 read-effect
-blocker and yields no work. The preview does not close that evidence gap.
+harmless read. `prepareProbe` works on `1000:00`, which is
+`ACCEPTED_UNQUALIFIED` (the owner's DEC-1 risk acceptance, not evidence), and
+has no NMT or settings effect. The preview does not close the Q20 evidence gap.
 
 ## Build from the source tree
 

@@ -31,7 +31,8 @@ enum class SdoAccess : uint8_t {
 
 /** @brief Read-side effects are unresolved independently of the EDS access flag. */
 enum class ReadEffect : uint8_t {
-    UNQUALIFIED ///< Non-consuming or non-changing reads have not been established.
+    UNQUALIFIED,         ///< Effects unknown and not accepted for polling.
+    ACCEPTED_UNQUALIFIED ///< Owner accepted the risk (DEC-1). Effects stay unknown.
 };
 
 /** @brief Documentary write restriction; no member means an enabled raw write route. */

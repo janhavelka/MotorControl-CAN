@@ -1,8 +1,9 @@
 /** @file Reads.h
  * @brief Finite raw Lichuan reads with checked current publication and no I/O.
  * Source applicability, interpretation and read effects remain independent.
- * Ordinary uploads carry UNQUALIFIED effects. They require an already usable
- * service/channel; no non-changing probe is inferred from a read-only flag.
+ * Uploads carry UNQUALIFIED effects, or ACCEPTED_UNQUALIFIED for the owner's DEC-1
+ * list, whose effects also stay unknown. UNQUALIFIED uploads require an already
+ * usable service/channel. Nothing is inferred from a read-only flag.
  * Contexts/results own all bytes; one cooperative caller serializes mutation.
  * SPDX-License-Identifier: MIT
  */
@@ -20,7 +21,7 @@ enum {
 };
 /** Concrete intent; these are raw reads, not model discovery or motion. */
 enum class ReadKind : uint8_t {
-    PROBE,              ///< Single candidate 1000 upload, requires reviewed non-changing effect.
+    PROBE,              ///< Single 1000 upload, on the accepted read list; effect stays unknown.
     IDENTITY,           ///< Nine identity fields; no absent 1018:04.
     STATE,              ///< Explicit selected state blocks.
     CONFIG,             ///< Six communication configuration fields, no mutations.
@@ -57,10 +58,18 @@ struct ReadTarget {
         channel; ///< Explicit configured channel and complete binding/configuration epochs.
     Generation nodeGeneration = 0; ///< Nonzero lifecycle epoch; reset invalidates getters and work.
 };
+/** Reply width of 1009 and 100A in a typed identity read. The EDS and measured specimens disagree.
+ * Nothing detects this: an application selects it once it has established its fixture.
+ */
+enum class IdentityWidths : uint8_t {
+    DECLARED_U16, ///< EDS U16. A one-byte reply fails as a wrong width.
+    MEASURED_U8   ///< One byte, as two CL86-C specimens replied. A two-byte reply fails.
+};
 /** Explicit staging/response budgets, clamped by the immutable operation deadline. */
 struct ReadOptions {
     uint32_t queueTimeoutUs = 0;    ///< Nonzero caller policy, not a vendor delay.
     uint32_t responseTimeoutUs = 0; ///< Nonzero caller policy, not producer heartbeat timing.
+    IdentityWidths identityWidths = IdentityWidths::DECLARED_U16; ///< Identity reads only.
 };
 /** Conservative acquisition interval, never an atomic device snapshot. */
 struct ReadWindow {
@@ -131,8 +140,10 @@ struct PreparedRead {
 struct IdentityObservation {
     ReadTarget target;            ///< Frozen target, checked against supplied current provenance.
     uint32_t deviceType = 0;      ///< 1000 raw U32.
-    uint16_t hardwareVersion = 0; ///< 1009 U16, not a string.
-    uint16_t softwareVersion = 0; ///< 100A U16, not a string.
+    uint16_t hardwareVersion = 0; ///< 1009 raw value, not a string or a version.
+    uint8_t hardwareVersionWidth = 0; ///< Actual 1009 reply bytes under the selected widths.
+    uint16_t softwareVersion = 0; ///< 100A raw value, not a string or a version.
+    uint8_t softwareVersionWidth = 0; ///< Actual 100A reply bytes under the selected widths.
     uint8_t identityEntries = 0;  ///< 1018:00 raw count; never implies absent :04.
     uint32_t vendorId = 0;        ///< 1018:01 raw vendor code.
     uint32_t productCode = 0;     ///< 1018:02 raw product code.
@@ -181,15 +192,15 @@ struct ConfigObservation {
     ReadWindow window;           ///< Conservative aggregate interval/skew.
 };
 
-/** Prepare the single 1000 candidate only if its ledger effect is non-changing.
+/** Prepare the single 1000 upload, on the owner's accepted read list (DEC-1).
+ * The upload's effect stays unknown: acceptance is risk acceptance, not evidence.
  * @param[out] output Context, unchanged on failure; no overlap with target/options.
  * @param[in] target Valid explicit CANopen channel and nonzero node epoch.
  * @param[in] operation Nonzero local identity, not a wire transaction identifier.
  * @param[in] nowUs Nonwrapping monotonic preparation microseconds, zero valid.
  * @param[in] deadlineUs Immutable cutoff, strictly after nowUs; `now >= deadlineUs` expires.
  * @param[in] options Nonzero caller queue/response budgets.
- * @return Current Q20 yields UNSUPPORTED/READ_EFFECT without work; this is an
- * explicit evidence blocker, not completed probe support or permission to poll.
+ * @return UNSUPPORTED/READ_EFFECT without work if the ledger stops listing 1000.
  */
 Status prepareProbe(ReadContext& output, const ReadTarget& target, uint32_t operation,
                     uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options) noexcept;

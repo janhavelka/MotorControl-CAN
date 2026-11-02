@@ -160,14 +160,21 @@ same physical SDO route; constructing a new object does not retire old traffic.
 The EDS `1200:01/:02` defaults are the literal `$NODEID+0x600` and
 `$NODEID+0x580`; they establish source metadata, not live configuration. No IDs
 are derived, probed with writes or silently installed. `externallyConfirmed`
-means bounded, applicable, reviewed non-changing confirmation already occurred
-under the fresh-session premise. If false, ordinary admission requires an
-explicitly reviewed non-changing upload until one completes. Its success confirms
+means a bounded, applicable upload already completed under the fresh-session
+premise (a reviewed or owner-accepted one; see below). If false, ordinary
+admission requires such a probe upload until one completes. Its success confirms
 the selected route but cannot establish freshness retrospectively. The finite
 experimental exception below grants one unknown-effect upload without promoting
-that route to ordinary service eligibility. Current
-Lichuan read-effect gates remain unresolved; the synthetic host fixture's
-non-changing read is not manufacturer qualification.
+that route to ordinary service eligibility.
+
+Read-effect policy has three members. `REVIEWED_NON_CHANGING` needs an actual
+source review; no Lichuan row uses it today. `ACCEPTED_UNQUALIFIED` is the
+repository owner's risk acceptance of 2026-11-02 (DEC-1) for a fixed object
+list, with the fixture not yet run. It is not evidence that a read has no
+effect: `effectPossible` stays true and the ledger `read_effect` stays
+`not_established`. A first accepted upload can confirm an unconfirmed channel;
+it cannot establish freshness. Everything else is `UNQUALIFIED` (Q20). The
+synthetic host fixture's reviewed read is not manufacturer qualification.
 
 `admit` validates the complete candidate and reserves its result before copying
 all work. It records full target/binding/configuration generations, operation,
@@ -219,8 +226,8 @@ the owner must cancel that work explicitly when ending an experiment.
 
 Experimental success retains SDO observation and unknown-effect evidence. It
 does not establish a new channel confirmation or `serviceQualification`, change
-`UNQUALIFIED` to `REVIEWED_NON_CHANGING`, authorize a download, or admit another
-upload. An already established confirmation remains separate. No grant or failed
+`UNQUALIFIED` to `REVIEWED_NON_CHANGING` or `ACCEPTED_UNQUALIFIED`, authorize a
+download, or admit another upload. An already established confirmation remains separate. No grant or failed
 attempt is automatically replayed. Reboot, binding withdrawal, bus-off, expiry
 and uncertain completion retain their ordinary invalidation/quarantine rules.
 
@@ -353,9 +360,11 @@ retains admission intent, local queueing, possible and confirmed TX, matching
 protocol success, raw server/client abort, cause, supplied terminal time, raw
 reply and owned upload value. `effectPossible` remains true for a transmitted
 download or unqualified upload, even on service success. `effectUncertain`
-retains possible changing effects on failure. Only source-reviewed non-changing
-uploads can have no changing effect; even their late replies can corrupt
-correlation and therefore quarantine the channel on uncertain failure.
+retains possible changing effects on failure. Only an upload with an actual
+source review (`REVIEWED_NON_CHANGING`) could be treated as having no changing
+effect; even its late replies can corrupt correlation and therefore quarantine
+the channel on uncertain failure. An `ACCEPTED_UNQUALIFIED` upload keeps
+`effectPossible` true.
 
 Any unsuccessful possibly transmitted request makes the physical channel
 unresolved; transport failure, reboot and bus-off also invalidate it. Release,
@@ -369,9 +378,17 @@ distinct identifiers and a separate fixed slot. Relabeling the same peer channel
 with different IDs, logical axes or host generations is rejected. This is not a
 claim that CL86-C has a second server channel or an alternate stop route.
 
-All 202 reviewed Lichuan entries have unestablished read effects (Q20); all 194
-generated descriptors remain `UNQUALIFIED`. No read is asserted destructive,
-but no discovery/reconciliation upload is promoted to non-changing from access
+All 202 reviewed Lichuan entries have unestablished read effects (Q20); the
+ledger `read_effect` is `not_established` for every one. Thirteen object groups
+(`1000`, `1018:00..03`, `1009`, `100A`, `2000`, `2001`, `6041`, `6061`, `6064`,
+`606C`, `2100`, `2101`, `2102`) carry `ACCEPTED_UNQUALIFIED` by owner decision
+DEC-1; this is risk acceptance, not evidence of no effect. `603F`, `1001` and
+`1003` stay `UNQUALIFIED` explicit single reads, never polled, reached only
+through `requestExperiment` or an action's prerequisites; the first bench read of
+each records LED fault state before and after. Naming a fault code as the most
+plausible read-to-clear object is an audit judgment, not a source claim. All
+other descriptors stay `UNQUALIFIED` under Q20 (owner prompts 19, 29, 37, 41, 44,
+47). No read is asserted destructive, and no upload is promoted from access
 flags. Multi-write callers keep each prior success and later possible effect;
 a matching server abort on a later request does not undo an earlier write.
 
@@ -389,7 +406,7 @@ stack, Lichuan documents and installed controller API inspected.
 | Heartbeat or boot-up alone | Proves only the observed network event; need matched firmware reset/session semantics and ordering against retained TX/RX and other clients |
 | Controller stop/recovery/start | Inspected TWAI queue clearing concerns local driver storage; need application/cache/active-frame retirement and independent remote-server settlement, not just queue acceptance |
 | Reconstruct adapter or rebind same server | Local tokens do not tag wire data; need externally established old-session exclusion before constructing any replacement |
-| Read to reconcile an uncertain write | Need Q20 effect permission, applicable value semantics and fresh correlation; equal readback does not prove which write happened |
+| Read to reconcile an uncertain write | Need read-effect permission (Q20 or the DEC-1 list), applicable value semantics and fresh correlation; equal readback does not prove which write happened |
 
 Q18 retains server/timing evidence, Q16 altered-route activation, Q01 selected
 model/firmware provenance, and Q20 read effects. These remain precise device
@@ -635,7 +652,7 @@ are additional requirements. SDO admission **and each frame handoff/enqueue
 check** apply it. A finite evidence-age policy can therefore end further
 ordinary TX during an admitted transfer; it never renews the overall deadline.
 
-| Qualified current evidence | Ordinary SDO | Reviewed non-changing probe | PDO transmit | Configured TPDO receive validation |
+| Qualified current evidence | Ordinary SDO | Probe upload (reviewed or accepted) | PDO transmit | Configured TPDO receive validation |
 | --- | --- | --- | --- | --- |
 | Pre-operational | Allowed | Allowed | Denied | Denied |
 | Operational | Allowed | Allowed | Allowed | Allowed |
@@ -645,8 +662,10 @@ ordinary TX during an admitted transfer; it never renews the overall deadline.
 | Exhausted lifecycle provenance | Denied | Denied | Denied | Denied |
 
 The probe column also bounds the state eligibility of a specifically granted
-unknown-effect upload. The grant does not reclassify that upload as reviewed
-non-changing, and its result cannot promote ordinary service eligibility.
+unknown-effect upload. The grant does not reclassify that upload as reviewed or
+accepted, and its result cannot promote ordinary service eligibility. The column
+is `ServiceEligibility::probeUpload`: an upload whose read-effect policy is
+`REVIEWED_NON_CHANGING` or `ACCEPTED_UNQUALIFIED`.
 
 `setServiceAge(slot, maximumAgeUs, nowUs)` selects a nonzero inclusive age cap
 for exact NMT and SDO service evidence; it does not refresh either fact. The
@@ -668,10 +687,12 @@ confirmation bound; attaching passive routing later cannot renew that bound.
 
 Effective heartbeat disabled/unknown is independent of this table. With no
 current exact state or service fact, explicitly request a bounded, reviewed
-non-changing upload on a qualified fresh channel. Once it succeeds, a reviewed
+probe upload (reviewed or accepted, for example `1000:00` through `prepareProbe`)
+on a qualified fresh channel. Once it succeeds, a reviewed
 producer-setting SDO write can be admitted without requiring heartbeat first.
 It still needs actual object/drive prerequisites and explicit caller intent;
-no current Lichuan read is newly declared non-changing here. The separate
+`prepareProbe` has no NMT or settings effect, and no Lichuan read is declared
+non-changing here. The separate
 one-use experiment can collect raw observations while retaining unknown effects;
 it cannot establish this write-enabling service qualification. A current Stopped
 observation blocks that probe. An explicit transition that may have transmitted

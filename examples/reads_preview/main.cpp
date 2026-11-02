@@ -57,13 +57,31 @@ int main() {
     options.queueTimeoutUs = 100;
     options.responseTimeoutUs = 100;
 
+    // One upload of 1000:00 on the owner's accepted list. Acceptance is recorded risk, so the
+    // terminal still reports a possible effect. These bytes are the same synthetic value as below.
     Reads::ReadContext probe;
-    const Core::Status probeStatus = Reads::prepareProbe(probe, target, 1, 0, 1000, options);
-    if (probeStatus.code != Core::Err::UNSUPPORTED ||
-        probeStatus.detail != static_cast<int32_t>(Core::ReadError::READ_EFFECT))
+    if (!checked(Reads::prepareProbe(probe, target, 1, 0, 1000, options), "probe preparation"))
+        return 1;
+    Reads::PreparedRead probeWork;
+    if (!checked(Reads::nextRead(probe, 0, probeWork), "probe work") || !probeWork.ready ||
+        probeWork.transfer.index != 0x1000 || probeWork.transfer.subindex != 0 ||
+        probeWork.transfer.readEffect != Service::SdoReadEffect::ACCEPTED_UNQUALIFIED)
         return 2;
-    std::printf("Probe: %s (%" PRId32 "): %s\n", Core::errToString(probeStatus.code),
-                probeStatus.detail, probeStatus.msg);
+    Service::SdoCompletion probeTerminal;
+    probeTerminal.transfer = probeWork.transfer;
+    probeTerminal.outcome = Service::SdoOutcome::SUCCESS;
+    probeTerminal.nodeGeneration = target.nodeGeneration;
+    probeTerminal.completedUs = 3;
+    probeTerminal.queued = probeTerminal.transmissionPossible = true;
+    probeTerminal.protocolAcknowledged = probeTerminal.effectPossible = true;
+    probeTerminal.size = identity[0].width;
+    for (unsigned i = 0; i < identity[0].width; ++i)
+        probeTerminal.data[i] = identity[0].bytes[i];
+    if (!checked(Reads::advanceRead(probe, probeTerminal, 4), "probe completion") ||
+        probe.state != Core::ReadState::SUCCEEDED || !probe.evidence.effectPossible)
+        return 2;
+    std::printf("Probe: 1000:00 raw U32=0x%08" PRIX32 "; effect possible=%s\n", probe.values[0].raw,
+                probe.evidence.effectPossible ? "true" : "false");
 
     Reads::ReadContext context;
     if (!checked(Reads::prepareIdentity(context, target, 2, 0, 1000, options),
@@ -90,7 +108,7 @@ int main() {
         terminal.queued = true;
         terminal.transmissionPossible = true;
         terminal.protocolAcknowledged = true;
-        terminal.effectPossible = next.transfer.readEffect == Service::SdoReadEffect::UNQUALIFIED;
+        terminal.effectPossible = next.transfer.readEffect != Service::SdoReadEffect::REVIEWED_NON_CHANGING;
         terminal.effectUncertain = false;
         terminal.size = value.width;
         for (unsigned i = 0; i < value.width; ++i)

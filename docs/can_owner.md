@@ -23,8 +23,9 @@ loop-setting sequence. The [recovery suite](../test/can_bus_recovery_test.cpp)
 adds external pending queues, missing adapter hooks, cancellation timelines and
 two abstract vendor-profile bindings through that same backend. Host fixtures
 do not qualify a drive. Prompt 23's owned
-software is delivered; its status remains Partial solely while prerequisite
-19's non-consuming probe evidence Q20 remains unresolved.
+software is delivered; its status remains Partial while Q20 read-effect evidence
+remains unresolved as a device fact (the DEC-1 accepted list is a project risk
+acceptance only).
 
 ## One storage table
 
@@ -349,8 +350,9 @@ firmware behavior or hardware service-gap guarantee is claimed by host fixtures.
 
 The [reconciliation evidence contract](canopen_services.md#unsupported-reopening-and-required-evidence)
 still requires actual retirement/freshness evidence; local tokens cannot resolve
-identical delayed SDO replies. Q20 leaves current Lichuan uploads unqualified,
-including the standalone preview; reads are not automatically harmless.
+identical delayed SDO replies. Q20 leaves Lichuan read effects unestablished.
+The DEC-1 accepted list is owner risk acceptance, not evidence; reads are not
+automatically harmless.
 
 ## Native settings exclusion and configuration epochs
 

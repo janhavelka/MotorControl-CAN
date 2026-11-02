@@ -55,7 +55,7 @@ struct ServiceEligibility {
     bool exactNmtKnown = false; ///< Qualified current heartbeat/boot-up observation, never inferred from SDO/TX.
     NmtState state = NmtState::INITIALIZING; ///< Meaningful only when exactNmtKnown.
     bool ordinarySdo = false; ///< Still requires reviewed object/drive prerequisites and a usable SDO channel.
-    bool nonChangingProbe = false; ///< Explicit bounded reviewed upload may establish serviceability.
+    bool probeUpload = false; ///< Explicit bounded reviewed upload may establish serviceability.
     bool pdoTransmit = false; ///< Requires current Operational plus separately qualified map/configuration.
     bool tpdoReceive = false; ///< May enter configured-map validation even with unknown exact NMT; not itself qualification.
 };
@@ -65,7 +65,7 @@ struct ServiceEligibility {
  * @param[out] output Published atomically; may not overlap node.
  * @return False for future time/invalid age policy/overlap; output unchanged.
  * Known-current Stopped/Initializing blocks ordinary services and probes. Unknown
- * exact state permits a reviewed non-changing probe. No TPDO inference is made.
+ * exact state permits a probe upload (reviewed or owner-accepted). No TPDO inference is made.
  */
 bool serviceEligibility(const NodeSnapshot& node, uint64_t nowUs, ServiceEligibility& output);
 } // namespace CANOPEN

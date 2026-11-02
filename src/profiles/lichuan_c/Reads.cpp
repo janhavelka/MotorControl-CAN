@@ -147,11 +147,18 @@ bool plan(ReadContext& c) {
         return false;
     return true;
 }
+// Slots 1 and 2 of the identity plan are 1009 and 100A. Only an explicit option selects this.
+bool measuredIdentityWidth(const ReadContext& c, unsigned slot) {
+    return c.kind == ReadKind::IDENTITY && (slot == 1 || slot == 2) &&
+           c.options.identityWidths == IdentityWidths::MEASURED_U8;
+}
 bool shape(const ReadContext& c) {
     if (!validTarget(c.target) || !c.operation || !c.count || c.count > READ_FIELDS ||
         c.cursor > c.count || c.state == ReadState::EMPTY || c.state > ReadState::FAILED ||
         c.source > ReadSource::TPDO || c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs ||
         !c.options.queueTimeoutUs || !c.options.responseTimeoutUs ||
+        c.options.identityWidths > IdentityWidths::MEASURED_U8 ||
+        (c.options.identityWidths != IdentityWidths::DECLARED_U16 && c.kind != ReadKind::IDENTITY) ||
         (c.kind != ReadKind::STATE && c.blockMask))
         return false;
     unsigned cursor = 0;
@@ -188,8 +195,11 @@ bool shape(const ReadContext& c) {
             if (cursor >= c.count)
                 return false;
             ReadDescriptor expected;
-            if (!readDescriptor(addresses[i].index, addresses[i].subindex, expected) ||
-                !sameDescriptor(expected, c.values[cursor++].object))
+            if (!readDescriptor(addresses[i].index, addresses[i].subindex, expected))
+                return false;
+            if (measuredIdentityWidth(c, i))
+                expected.widthBytes = 1;
+            if (!sameDescriptor(expected, c.values[cursor++].object))
                 return false;
         }
     }
@@ -221,9 +231,10 @@ CANOPEN::SdoTransfer work(const ReadContext& c) {
     out.index = object.index;
     out.subindex = object.subindex;
     out.size = object.widthBytes;
-    out.readEffect = object.readEffect == ReadEffect::UNQUALIFIED
-                         ? CANOPEN::SdoReadEffect::UNQUALIFIED
-                         : CANOPEN::SdoReadEffect::REVIEWED_NON_CHANGING;
+    // One to one: no descriptor value may ever claim the absence of an effect.
+    out.readEffect = object.readEffect == ReadEffect::ACCEPTED_UNQUALIFIED
+                         ? CANOPEN::SdoReadEffect::ACCEPTED_UNQUALIFIED
+                         : CANOPEN::SdoReadEffect::UNQUALIFIED;
     out.deadlineUs = c.deadlineUs;
     out.queueTimeoutUs = c.options.queueTimeoutUs;
     out.responseTimeoutUs = c.options.responseTimeoutUs;
@@ -275,7 +286,9 @@ Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation
         return invalid(ReadError::OVERLAP, "read preparation overlaps input");
     if (!validTarget(target))
         return invalid(ReadError::TARGET, "invalid read target or node epoch");
-    if (!operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs)
+    if (!operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs ||
+        options.identityWidths > IdentityWidths::MEASURED_U8 ||
+        (options.identityWidths != IdentityWidths::DECLARED_U16 && kind != ReadKind::IDENTITY))
         return invalid(ReadError::ARGUMENT, "invalid read identity or budgets");
     ReadContext candidate;
     candidate.target = target;
@@ -288,9 +301,13 @@ Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation
     candidate.blockMask = mask;
     if (!plan(candidate))
         return invalid(ReadError::ARGUMENT, "invalid read selection");
-    if (kind == ReadKind::PROBE && candidate.values[0].object.readEffect == ReadEffect::UNQUALIFIED)
+    for (unsigned i = 0; i < candidate.count; ++i)
+        if (measuredIdentityWidth(candidate, i))
+            candidate.values[i].object.widthBytes = 1;
+    if (kind == ReadKind::PROBE &&
+        candidate.values[0].object.readEffect != ReadEffect::ACCEPTED_UNQUALIFIED)
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::READ_EFFECT),
-                      "Q20: non-changing probe is not established");
+                      "Q20: probe object is not on the accepted read list");
     if (route) {
         CANOPEN::PdoLayout checked;
         if (kind != ReadKind::STATE || !CANOPEN::validatePdoRoute(*route) ||
@@ -437,8 +454,7 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
         now < c.servicedUs)
         return invalid(ReadError::TIME, "invalid read admission or completion time");
     const bool success = evidence.outcome == CANOPEN::SdoOutcome::SUCCESS;
-    const bool possible =
-        evidence.transmissionPossible && expected.readEffect == CANOPEN::SdoReadEffect::UNQUALIFIED;
+    const bool possible = evidence.transmissionPossible;
     if (evidence.outcome > CANOPEN::SdoOutcome::UNSUPPORTED ||
         (evidence.transmissionPossible && !evidence.queued) ||
         (evidence.transmissionConfirmed && !evidence.transmissionPossible) ||
@@ -572,7 +588,9 @@ Status getIdentity(const ReadContext& c, const ReadTarget& target, uint64_t now,
         return status;
     candidate.deviceType = c.values[0].raw;
     candidate.hardwareVersion = uint16_t(c.values[1].raw);
+    candidate.hardwareVersionWidth = c.values[1].object.widthBytes;
     candidate.softwareVersion = uint16_t(c.values[2].raw);
+    candidate.softwareVersionWidth = c.values[2].object.widthBytes;
     candidate.identityEntries = uint8_t(c.values[3].raw);
     candidate.vendorId = c.values[4].raw;
     candidate.productCode = c.values[5].raw;

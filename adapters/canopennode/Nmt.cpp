@@ -44,7 +44,7 @@ bool serviceEligibility(const NodeSnapshot& node, uint64_t now, ServiceEligibili
         result.ordinarySdo = (result.exactNmtKnown &&
             (node.nmt == NmtState::PRE_OPERATIONAL || node.nmt == NmtState::OPERATIONAL)) ||
             current(node, node.serviceQualification, now);
-        result.nonChangingProbe = true;
+        result.probeUpload = true;
         result.pdoTransmit = result.exactNmtKnown && node.nmt == NmtState::OPERATIONAL;
         result.tpdoReceive = !result.exactNmtKnown || node.nmt == NmtState::OPERATIONAL;
     }
@@ -68,8 +68,8 @@ bool SdoClient::eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t now)
     return serviceEligibility(channels_[anchor].network, now, eligibility) &&
         (!work.requirePreOperational || (eligibility.exactNmtKnown &&
             eligibility.state == NmtState::PRE_OPERATIONAL)) &&
-        (eligibility.ordinarySdo || (eligibility.nonChangingProbe &&
-            ((work.direction == SdoDirection::UPLOAD && work.readEffect == SdoReadEffect::REVIEWED_NON_CHANGING) ||
+        (eligibility.ordinarySdo || (eligibility.probeUpload &&
+            ((work.direction == SdoDirection::UPLOAD && work.readEffect != SdoReadEffect::UNQUALIFIED) ||
              experimentMatches(slot, work, now, false) || experimentMatches(slot, work, now, true))));
 }
 

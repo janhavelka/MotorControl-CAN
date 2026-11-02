@@ -695,6 +695,92 @@ void unsupportedAndEffects() {
     CHECK(client.release(id)); CHECK(client.admit(0, work(2, true), 2, id));
 }
 
+// DEC-1. The effect stays possible on every path; only channel admission differs from UNQUALIFIED.
+void acceptedUploads() {
+    for (unsigned lost = 0; lost < 2; ++lost) {
+        C::SdoClient client; CHECK(client.configure(0, route(), true, true));
+        C::SdoTransfer transfer = work();
+        transfer.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        const C::SdoRequestId id = admit(client, transfer); take(client, 0);
+        if (lost) { CHECK(client.service(1000)); terminal(client, id, C::SdoOutcome::TIMEOUT); }
+        else { CHECK(client.cancel(id, 1)); terminal(client, id, C::SdoOutcome::CANCELLED); }
+        CHECK(client.result(id)->effectPossible && client.result(id)->effectUncertain);
+        CHECK(!client.result(id)->protocolAcknowledged && client.unresolved(0));
+    }
+    // With no network anchor, admission alone keeps acceptance to uploads.
+    {
+        C::SdoClient client; CHECK(client.configure(0, route(), false, true));
+        C::SdoTransfer download = work(2, true);
+        download.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        C::SdoRequestId id;
+        CHECK(!client.admit(0, download, 0, id));
+        C::SdoTransfer upload = work();
+        upload.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        CHECK(client.checkAdmission(0, upload, 0));
+    }
+    // Each receive-time representation confirms the route. Today only an exact time qualifies
+    // ordinary work: the service record keeps neither an unknown time nor an ingress interval.
+    enum { UNKNOWN_TIME, EXACT_TIME, INTERVAL_TIME };
+    for (unsigned known = UNKNOWN_TIME; known <= INTERVAL_TIME; ++known) {
+        C::SdoClient client; CHECK(client.configure(0, route(), false, true));
+        C::NetworkRoute network;
+        network.binding = route().binding;
+        network.generation = 1;
+        network.heartbeatId = 0x701;
+        network.emcyId = 0x81;
+        CHECK(client.configureNetwork(0, network, C::NetworkObserver(), 0));
+        C::SdoTransfer accepted = work();
+        accepted.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+        // Nothing else starts on an unconfirmed route. Acceptance covers an upload, never a download.
+        C::SdoRequestId id;
+        CHECK(!client.admit(0, work(), 0, id));
+        CHECK(!client.admit(0, work(2, true), 0, id));
+        C::SdoTransfer bad = accepted; bad.direction = C::SdoDirection::DOWNLOAD;
+        CHECK(!client.admit(0, bad, 0, id));
+        bad = accepted; bad.readEffect = static_cast<C::SdoReadEffect>(3);
+        CHECK(!client.admit(0, bad, 0, id));
+        bad = accepted; bad.uploadSize = C::SdoUploadSize::SERVER_INDICATED; bad.size = 4;
+        CHECK(!client.admit(0, bad, 0, id));
+        CHECK(client.port(0)->handedOff == 0);
+        id = admit(client, accepted);
+        const M::Frame request = take(client, 0);
+        const uint8_t upload[8] = {0x40, 0x41, 0x60, 0, 0, 0, 0, 0};
+        CHECK(request.id == 0x601 && std::memcmp(request.data, upload, 8) == 0);
+        M::Frame answer = reply(0x4b); answer.data[4] = 0x37; answer.data[5] = 0x80;
+        CHECK(known == EXACT_TIME      ? client.receive(answer, 1, 1)
+              : known == INTERVAL_TIME ? client.receive(answer, 0, 1, 1)
+                                       : client.receive(answer, 1));
+        terminal(client, id, C::SdoOutcome::SUCCESS);
+        CHECK(client.result(id)->effectPossible && !client.result(id)->effectUncertain);
+        CHECK(client.result(id)->size == 2 && client.result(id)->data[0] == 0x37);
+        CHECK(client.release(id));
+        // Confirmed, which claims no NMT state, heartbeat or other freshness.
+        CHECK(client.node(0)->serviceQualification.present && client.node(0)->serviceFromSdo);
+        CHECK(!client.node(0)->nmtTime.present && !client.unresolved(0));
+        C::ServiceEligibility now;
+        CHECK(C::serviceEligibility(*client.node(0), 1, now));
+        CHECK(!now.exactNmtKnown && now.probeUpload && !now.pdoTransmit);
+        CHECK(now.ordinarySdo == (known == EXACT_TIME));
+        CHECK(client.node(0)->serviceQualification.receivedTimeKnown == (known == EXACT_TIME));
+        C::HeartbeatFreshness heartbeat = C::HeartbeatFreshness::FRESH;
+        CHECK(C::heartbeatFreshness(*client.node(0), 1, 1000, heartbeat));
+        CHECK(heartbeat == C::HeartbeatFreshness::PRODUCER_UNKNOWN);
+        CHECK(client.checkAdmission(0, work(2, true), 1) == (known == EXACT_TIME));
+        CHECK(client.checkAdmission(0, work(), 1) == (known == EXACT_TIME));
+        CHECK(client.checkAdmission(0, accepted, 1));
+        // Once the application's service age passes, ordinary work needs fresh evidence. An accepted
+        // upload remains available to obtain it, because confirmation itself was never freshness.
+        CHECK(client.setServiceAge(0, 5, 1));
+        CHECK(C::serviceEligibility(*client.node(0), 7, now) && !now.ordinarySdo && now.probeUpload);
+        CHECK(!client.checkAdmission(0, work(2, true), 7) && !client.checkAdmission(0, work(), 7));
+        CHECK(client.checkAdmission(0, accepted, 7));
+        // A node observed stopped refuses even the accepted upload.
+        M::Frame stopped; stopped.id = 0x701; stopped.dlc = stopped.payloadLength = 1; stopped.data[0] = 4;
+        CHECK(client.receive(stopped, 7, 7));
+        CHECK(!client.checkAdmission(0, accepted, 7));
+    }
+}
+
 void channelsAndFailure() {
     // Explicit controller refusal/failure preserves whether a handoff ever occurred.
     for (unsigned handedOff = 0; handedOff < 2; ++handedOff) {
@@ -827,6 +913,7 @@ int main() {
     abortWhileStaged(); confirmationAfterReply(); malformedAndAbort();
     deadlinesAndCancellation();
     unsupportedAndEffects();
+    acceptedUploads();
     channelsAndFailure();
     outerQueueDeadline();
     std::printf("SDO transfer vectors passed: %u checks\n", checks);

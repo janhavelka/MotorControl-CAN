@@ -73,8 +73,9 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
     }
     if (!configured) {
         // Explicit bench premise: exclusive, initially unused server session.
-        // This is NOT service confirmation. Unknown-effect uploads still need
-        // an exact finite experiment grant before ordinary owner admission.
+        // This is NOT service confirmation. An accepted upload (DEC-1) can confirm
+        // the route when it succeeds. Any other upload needs an exact finite
+        // experiment grant before ordinary owner admission.
         if (!services.configure(node - 1, selected.channel, false, true))
             return false;
         C::NetworkRoute route;
@@ -422,8 +423,9 @@ void ownerTask(void*) {
                 L::PreparedRead next;
                 if (L::nextRead(read, now, next) && next.ready) {
                     const unsigned slot = read.target.channel.binding.endpoint.address - 1;
-                    if (slot < 2 && (next.transfer.operation != grantedOperation[slot] ||
-                                     next.transfer.step != grantedStep[slot])) {
+                    if (slot < 2 && next.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED &&
+                        (next.transfer.operation != grantedOperation[slot] ||
+                         next.transfer.step != grantedStep[slot])) {
                         if (grants[slot] == UINT32_MAX ||
                             !services.authorizeUploadExperiment(slot, next.transfer,
                                                                 read.target.nodeGeneration,

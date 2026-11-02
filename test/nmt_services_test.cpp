@@ -233,7 +233,7 @@ void transitionObservations() {
     CHECK(owner.confirmNmtTx(id, 11));
     CHECK(owner.node(0)->nmt == C::NmtState::STOPPED);
     CHECK(owner.node(0)->transitionPending && !eligibility(owner, 11).ordinarySdo);
-    CHECK(eligibility(owner, 11).nonChangingProbe && eligibility(owner, 11).tpdoReceive);
+    CHECK(eligibility(owner, 11).probeUpload && eligibility(owner, 11).tpdoReceive);
     // A timestamp no later than handoff cannot establish the requested state.
     CHECK(owner.receiveNetwork(heartbeat(1, 5), route(), 9, 12));
     CHECK(owner.node(0)->transitionPending && !eligibility(owner, 12).exactNmtKnown);
@@ -259,7 +259,7 @@ void serviceStatesAndAges() {
         CHECK(owner.receiveNetwork(heartbeat(1, states[i]), route(), 1, 1));
         const auto e = eligibility(owner, 1);
         CHECK(e.exactNmtKnown && static_cast<uint8_t>(e.state) == states[i]);
-        CHECK(e.ordinarySdo == (i != 2)); CHECK(e.nonChangingProbe == (i != 2));
+        CHECK(e.ordinarySdo == (i != 2)); CHECK(e.probeUpload == (i != 2));
         CHECK(e.pdoTransmit == (i == 1) && e.tpdoReceive == (i == 1));
         C::SdoRequestId id;
         CHECK(owner.admit(0, transfer(true), 2, id) == (i != 2));
@@ -267,14 +267,14 @@ void serviceStatesAndAges() {
     }
     C::SdoClient owner; setup(owner, true, false);
     auto e = eligibility(owner, 0);
-    CHECK(!e.exactNmtKnown && !e.ordinarySdo && e.nonChangingProbe && !e.pdoTransmit && e.tpdoReceive);
+    CHECK(!e.exactNmtKnown && !e.ordinarySdo && e.probeUpload && !e.pdoTransmit && e.tpdoReceive);
     CHECK(owner.setProducerInterval(0, route(), 0, 0));
     CHECK(owner.nmtPort()->accepted == 0 && owner.port(0)->accepted == 0);
     CHECK(owner.setServiceAge(0, 5, 0));
     CHECK(owner.receiveNetwork(heartbeat(1, 5), route(), 1, 1));
     CHECK(eligibility(owner, 6).exactNmtKnown && eligibility(owner, 6).ordinarySdo);
     e = eligibility(owner, 7);
-    CHECK(!e.exactNmtKnown && !e.ordinarySdo && e.nonChangingProbe && e.tpdoReceive);
+    CHECK(!e.exactNmtKnown && !e.ordinarySdo && e.probeUpload && e.tpdoReceive);
     C::ServiceEligibility output; output.ordinarySdo = true;
     const Saved<C::ServiceEligibility> saved(output);
     CHECK(!C::serviceEligibility(*owner.node(0), 0, output)); CHECK(saved.unchanged(output));
@@ -601,7 +601,7 @@ void networkAttachmentPreservesServiceProof() {
         CHECK(owner.setServiceAge(0, 5, now));
         const auto e = eligibility(owner, now);
         CHECK(e.ordinarySdo == (known && !delayed));
-        CHECK(!e.exactNmtKnown && !e.pdoTransmit && e.nonChangingProbe);
+        CHECK(!e.exactNmtKnown && !e.pdoTransmit && e.probeUpload);
         CHECK(owner.node(0)->serviceFromSdo);
         CHECK(owner.node(0)->serviceQualification.receivedTimeKnown == (known != 0));
         CHECK(owner.node(0)->serviceQualification.processedUs == 3);
@@ -667,7 +667,7 @@ void networkAttachmentSelectsUsableChannelProof() {
         CHECK(owner.reportController(C::ControllerState::AVAILABLE, 2));
         CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 3));
         CHECK(!owner.node(0)->serviceQualification.present);
-        CHECK(!eligibility(owner, 3).ordinarySdo && eligibility(owner, 3).nonChangingProbe);
+        CHECK(!eligibility(owner, 3).ordinarySdo && eligibility(owner, 3).probeUpload);
         CHECK(owner.unresolved(0));
     }
 }

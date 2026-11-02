@@ -201,11 +201,11 @@ bool successAndGate() {
     if (!f.initialize())
         return false;
     E::DeviceEvidence device(f.app, f.owner); // DEVICE is the default environment.
-    if (device.request(plan(1, L::ReadKind::IDENTITY, 0), 0) !=
+    if (device.request(plan(1, L::ReadKind::CONFIG, 0), 0) !=
             E::EvidenceAdmission::READ_EFFECT_UNQUALIFIED ||
         device.record() || f.fake.transmitCalls())
         return false;
-    std::puts("Default DEVICE acquisition rejected by Q20; zero CAN handoffs.");
+    std::puts("Default DEVICE configuration read is outside the accepted list; zero CAN handoffs.");
     const L::ReadKind kinds[] = {L::ReadKind::IDENTITY, L::ReadKind::CONFIG};
     const unsigned counts[] = {9, 6};
     for (unsigned i = 0; i < 2; ++i) {
