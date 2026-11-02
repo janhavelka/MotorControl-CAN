@@ -367,6 +367,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -1065,6 +1066,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -1164,6 +1166,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -1462,6 +1465,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -1537,6 +1541,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -1612,6 +1617,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -1687,6 +1693,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -8532,6 +8539,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -8639,6 +8647,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -8749,6 +8758,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -8858,6 +8868,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -8967,6 +8978,7 @@
             "generation_type": "resolved"
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -16076,6 +16088,7 @@
             }
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -16502,6 +16515,7 @@
             }
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -16672,6 +16686,7 @@
             }
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -16840,6 +16855,7 @@
             }
           },
           "read_owner_prompt": 19,
+          "read_disposition": "accepted_not_qualified",
           "read_coverage": {
             "documented": true,
             "implemented": true,
@@ -22514,6 +22530,19 @@
     }
   ],
   "semantic_review": {
+    "read_acceptance": {
+      "decision": "DEC-1",
+      "selected_by": "repository owner",
+      "selected_on": "2026-11-02",
+      "fixture_status": "fixture not yet run",
+      "meaning": "Risk acceptance for bounded polling of the listed rows, not evidence that an upload has no effect. Results keep effectPossible true. 603F, 1001 and 1003 history stay unqualified explicit single reads and are never polled."
+    },
+    "identity_width_binding": {
+      "selected_by_application": "IdentityWidths::MEASURED_U8",
+      "source_claim": "EDS declares 1009 and 100A as U16 with defaults 0x2608 and 1.",
+      "measurement": "Two user-labelled CL86-C specimens returned one-byte 1009=0x0C and 100A=0x20, retained in docs/bench/20261102-nmt-pdo-node1 and node2.",
+      "decision": "The EDS and declared widths stay unchanged. An application that established these specimens selects the measured widths explicitly; nothing detects them. No version text is inferred."
+    },
     "status": "complete",
     "date": "2026-10-28",
     "scope": "All 99 EDS headers, 202 typed entries, 53 manual semantic functions and 24 conflicts; documentary review only.",
@@ -22839,7 +22868,12 @@
         "feature": "Read side effects / polling",
         "required_evidence": "For each candidate polled observation establish whether upload consumes or clears state and whether repeated reads affect diagnostics. Preserve an explicit unknown until a manufacturer statement or matched-firmware observation supports non-consuming use.",
         "owner_prompts": [
-          19
+          19,
+          29,
+          37,
+          41,
+          44,
+          47
         ],
         "status": "open",
         "models": [

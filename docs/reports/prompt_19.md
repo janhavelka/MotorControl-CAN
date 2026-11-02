@@ -1,3 +1,5 @@
+**Packet 4 update.** W4 closes the probe gate for the DEC-1 accepted list only, as a project decision: `prepareProbe` on `1000:00` and accepted typed reads now run, with effects still unknown. See [packet 4](handoff_19_33/packet_4.md). Packet 1 also moved 12 read rows out of prompt 38, so the 101 below is historical; 38 now holds 89.
+
 # Prompt 19: typed identity, state and configuration reads
 
 ## Status and owned scope

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Accepted reads and identity widths (audit W4)
+
+- Add `ReadEffect::ACCEPTED_UNQUALIFIED` and `SdoReadEffect::ACCEPTED_UNQUALIFIED` for the owner's DEC-1 list, driven by the ledger's `read_disposition`. This records risk acceptance, not evidence: `effectPossible` stays true.
+- `prepareProbe` on `1000:00` now works. A first accepted upload can confirm a channel without claiming freshness. `DeviceEvidence` admits a plan only when every object is accepted. `603F`, `1001`, `1003` and all unlisted objects keep their gates.
+- Add `ReadOptions::identityWidths`. `MEASURED_U8` reads `1009` and `100A` as the one byte two specimens returned; nothing selects it automatically, and the default stays the EDS U16. `IdentityObservation` reports the widths.
+- Rename `ServiceEligibility::nonChangingProbe` to `probeUpload`.
+
 ### TWAI transport (audit W3)
 
 - `TwaiDriver::submit` returns `TwaiSubmit` instead of `bool`: SENT, DEFERRED, FAILED_UNSENT or FAILED_UNCERTAIN. A receive interrupt during promotion now defers instead of quarantining the route.

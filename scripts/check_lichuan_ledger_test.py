@@ -18,6 +18,12 @@ def entry(data, key):
                 if value["key"] == key)
 
 
+# DEC-1, transcribed from the repair audit so a ledger or checker edit cannot change this oracle.
+ACCEPTED = {"0x1000:00", "0x1018:00", "0x1018:01", "0x1018:02", "0x1018:03", "0x1009:00",
+            "0x100A:00", "0x2000:00", "0x2001:00", "0x6041:00", "0x6061:00", "0x6064:00",
+            "0x606C:00", "0x2100:00", "0x2101:00", "0x2102:00"}
+
+
 class LedgerTests(unittest.TestCase):
     def changed(self):
         return copy.deepcopy(LEDGER)
@@ -282,6 +288,71 @@ class LedgerTests(unittest.TestCase):
                            ("0x6099:02", 36), ("0x609A:00", 36), ("0x2300:00", 39)):
             self.assertEqual(entry(LEDGER, key)["read_owner_prompt"], owner, key)
             self.assertEqual(entry(LEDGER, key)["owner_prompt"], owner, key)
+
+    def test_read_ownership_accounts_for_every_row(self):
+        # The corrected ledger after G-07, not the baseline's 101 rows with Prompt 38.
+        counts = {}
+        for obj in LEDGER["objects"]:
+            for row in obj["entries"]:
+                owner = row.get("read_owner_prompt")
+                counts[owner] = counts.get(owner, 0) + 1
+        self.assertEqual(counts, {19: 30, 20: 9, 21: 23, 22: 33, 31: 1, 32: 2, 33: 1, 35: 1,
+                                  36: 6, 38: 89, 39: 1, None: 6})
+        self.assertEqual(sum(counts.values()), 202)
+        # The six rows with no read owner are the write-only and reserved ones, named here.
+        unowned = sorted(row["key"] for obj in LEDGER["objects"] for row in obj["entries"]
+                         if row.get("read_owner_prompt") is None)
+        for row in unowned:
+            data = entry(LEDGER, row)
+            self.assertTrue(data["access_reviewed"] == "WO" or data["role"] == "reserved", row)
+        for key in ("0x6040:00", "0x6060:00", "0x2400:09"):
+            self.assertIn(key, unowned)
+        self.assertEqual(len(unowned), 6)
+
+    def test_accepted_read_list_is_exact_and_changes_no_other_policy(self):
+        actual = {row["key"] for obj in LEDGER["objects"] for row in obj["entries"]
+                  if "read_disposition" in row}
+        self.assertEqual(actual, ACCEPTED)
+        for key in ACCEPTED:
+            row = entry(LEDGER, key)
+            self.assertEqual(row["read_disposition"], "accepted_not_qualified", key)
+            # Acceptance is recorded risk: the effect itself and the gate stay open.
+            self.assertEqual(row["review"]["read_effect"], "not_established", key)
+            self.assertIn("Q20", row["review"]["gate_ids"], key)
+            self.assertFalse(row.get("read_coverage", {}).get("hardware_qualified"), key)
+        acceptance = LEDGER["semantic_review"]["read_acceptance"]
+        self.assertEqual((acceptance["decision"], acceptance["selected_on"],
+                          acceptance["fixture_status"]),
+                         ("DEC-1", "2026-11-02", "fixture not yet run"))
+        q20 = next(gate for gate in LEDGER["semantic_review"]["gates"] if gate["id"] == "Q20")
+        self.assertEqual(q20["status"], "open")
+        self.assertEqual(q20["owner_prompts"], [19, 29, 37, 41, 44, 47])
+
+    def test_extra_accepted_row_is_rejected(self):
+        # Fault and history first, then neighbours of accepted rows and an ordinary setting.
+        for key in ("0x603F:00", "0x1001:00", "0x1003:00", "0x1003:01", "0x60FD:00",
+                    "0x1005:00", "0x2200:00", "0x1400:00"):
+            with self.subTest(key=key):
+                data = self.changed()
+                entry(data, key)["read_disposition"] = "accepted_not_qualified"
+                self.reject(data, "read disposition must match the DEC-1 accepted list")
+
+    def test_missing_accepted_row_is_rejected(self):
+        for key in sorted(ACCEPTED):
+            with self.subTest(key=key):
+                data = self.changed()
+                del entry(data, key)["read_disposition"]
+                self.reject(data, "read disposition must match the DEC-1 accepted list")
+
+    def test_unknown_read_disposition_is_rejected(self):
+        for value in ("accepted", "qualified", "reviewed_non_changing", "ACCEPTED_NOT_QUALIFIED",
+                      "", None, True, 1, [], {}):
+            # On a listed row the value is not the accepted one. On an unlisted row it is not absent.
+            for key in ("0x1000:00", "0x603F:00"):
+                with self.subTest(key=key, value=value):
+                    data = self.changed()
+                    entry(data, key)["read_disposition"] = value
+                    self.reject(data, "read disposition must match the DEC-1 accepted list")
 
     def test_pdo_observation_is_exactly_ten_passive_default_targets(self):
         facts = [value for obj in LEDGER["objects"] for value in obj["entries"]

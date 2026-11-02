@@ -30,8 +30,9 @@ attestation**. A real acquisition must supply its actual software revision and
 fixture/authorization records; this executable supplies no physical admission.
 
 Startup and target selection are passive. An ordinary acquisition using the
-default `DEVICE` environment first demonstrates Q20 rejection without a CAN
-handoff. A separate `HOST_FAKE` collector explicitly acquires nine identity fields
+default `DEVICE` environment first expects `READ_EFFECT_UNQUALIFIED` rejection
+without a CAN handoff. An ordinary `DEVICE` plan is admitted only when every
+object is on the owner's DEC-1 accepted list (risk acceptance, not evidence). A separate `HOST_FAKE` collector explicitly acquires nine identity fields
 and six communication configuration fields. Each turn services the ordinary
 application first and the collector second. One owner receives all frames,
 including interleaved heartbeat/EMCY and unrelated traffic. Invented identity

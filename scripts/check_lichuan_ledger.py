@@ -323,6 +323,12 @@ MANUAL_REQUIREMENTS = {
 }
 
 
+# DEC-1, the owner's risk acceptance. Not evidence that any upload has no effect.
+ACCEPTED_READS = {(0x1000, 0), (0x1009, 0), (0x100A, 0), (0x1018, 0), (0x1018, 1), (0x1018, 2), (0x1018, 3),
+                  (0x2000, 0), (0x2001, 0), (0x6041, 0), (0x6061, 0), (0x6064, 0), (0x606C, 0),
+                  (0x2100, 0), (0x2101, 0), (0x2102, 0)}
+
+
 def entry_requirements(index, sub):
     """Return the assigned owner and feature gates; source facts stay in the ledger."""
     if 0x1400 <= index <= 0x1403 or 0x1800 <= index <= 0x1803:
@@ -803,6 +809,10 @@ def validate_ledger(data, root=ROOT):
                     elabel + ": reviewed semantics missing")
             selected_gates = check_review(entry.get("review"), elabel,
                                           ("type_policy", "value_policy", "read_effect", "write_policy"))
+            accepted = entry.get("read_disposition") == "accepted_not_qualified"
+            require(accepted == ((index, sub) in ACCEPTED_READS) and
+                    entry.get("read_disposition", "accepted_not_qualified") == "accepted_not_qualified",
+                    elabel + ": read disposition must match the DEC-1 accepted list")
             required_gates = {"Q01"} | set(feature_gates.split())
             if raw.get("AccessType") != "WO":
                 required_gates.add("Q20")

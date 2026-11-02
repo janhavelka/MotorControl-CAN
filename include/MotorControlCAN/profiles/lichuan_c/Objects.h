@@ -16,7 +16,7 @@ namespace LICHUAN_C {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_1000_00 = {
     0x1000, 0x00, ScalarType::U32, 4, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -80,7 +80,7 @@ constexpr ObjectDescriptor OBJECT_1005_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_1009_00 = {
     0x1009, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -88,7 +88,7 @@ constexpr ObjectDescriptor OBJECT_1009_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_100A_00 = {
     0x100A, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -112,7 +112,7 @@ constexpr ObjectDescriptor OBJECT_1017_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_1018_00 = {
     0x1018, 0x00, ScalarType::U8, 1, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -120,7 +120,7 @@ constexpr ObjectDescriptor OBJECT_1018_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_1018_01 = {
     0x1018, 0x01, ScalarType::U32, 4, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -128,7 +128,7 @@ constexpr ObjectDescriptor OBJECT_1018_01 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_1018_02 = {
     0x1018, 0x02, ScalarType::U32, 4, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -136,7 +136,7 @@ constexpr ObjectDescriptor OBJECT_1018_02 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_1018_03 = {
     0x1018, 0x03, ScalarType::U32, 4, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::FORBIDDEN,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -872,7 +872,7 @@ constexpr ObjectDescriptor OBJECT_1A03_04 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2000_00 = {
     0x2000, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -880,7 +880,7 @@ constexpr ObjectDescriptor OBJECT_2000_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2001_00 = {
     0x2001, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -888,7 +888,7 @@ constexpr ObjectDescriptor OBJECT_2001_00 = {
  * No operation is implemented or authorized; gates Q01, Q02, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2100_00 = {
     0x2100, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080003u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -896,7 +896,7 @@ constexpr ObjectDescriptor OBJECT_2100_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2101_00 = {
     0x2101, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -904,7 +904,7 @@ constexpr ObjectDescriptor OBJECT_2101_00 = {
  * No operation is implemented or authorized; gates Q01, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2102_00 = {
     0x2102, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -1408,7 +1408,7 @@ constexpr ObjectDescriptor OBJECT_6040_00 = {
  * No operation is implemented or authorized; gates Q01, Q02, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_6041_00 = {
     0x6041, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080003u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -1424,7 +1424,7 @@ constexpr ObjectDescriptor OBJECT_605D_00 = {
  * No operation is implemented or authorized; gates Q01, Q04, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_6064_00 = {
     0x6064, 0x00, ScalarType::I32, 4, true, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080009u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -1432,7 +1432,7 @@ constexpr ObjectDescriptor OBJECT_6064_00 = {
  * No operation is implemented or authorized; gates Q01, Q04, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_606C_00 = {
     0x606C, 0x00, ScalarType::I32, 4, true, SdoAccess::READ_ONLY,
-    ReadEffect::UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN, PdoPolicy::UNQUALIFIED,
     19, 0x00080009u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
@@ -1578,7 +1578,7 @@ constexpr ObjectDescriptor OBJECT_60FE_02 = {
  */
 inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& output) noexcept {
     static const ReadDescriptor rows[] = {
-        {0x1000, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1000, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1001, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1003, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1003, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
@@ -1586,22 +1586,22 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x1003, 0x03, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1003, 0x04, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1005, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x1009, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x100A, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1009, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x100A, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1014, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1017, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x1018, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x1018, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x1018, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x1018, 0x03, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x1018, 0x03, 4, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1200, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1200, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x1200, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x2000, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x2001, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x2100, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x2101, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x2102, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2000, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2001, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2100, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2101, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x2102, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2200, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2201, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2202, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
@@ -1659,10 +1659,10 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x251F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x2520, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x603F, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x6041, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x6064, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
-        {0x606C, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6041, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6064, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x606C, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x607D, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x607D, 0x01, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x607D, 0x02, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},

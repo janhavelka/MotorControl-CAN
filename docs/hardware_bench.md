@@ -77,10 +77,15 @@ Use the actual nameplate and applicable manufacturer evidence.
 ## Finite acquisition and interpretation
 
 The [conflict guide](device_conflicts.md) lists the exact source claims,
-observations and per-feature gates. The canonical ledger's Q20 remains open:
-none of the currently reviewed upload descriptors has established non-consuming
-effects. Starting with reviewed non-changing reads therefore means rejecting a
-device acquisition whose rows have no such evidence. An identity or RO label
+observations and per-feature gates. The canonical ledger's Q20 remains open as
+a device fact: no reviewed upload descriptor has established non-consuming
+effects, and `read_effect` stays `not_established`. The owner's DEC-1 acceptance
+of 2026-11-02 (`1000`, `1018:00..03`, `1009`, `100A`, `2000`, `2001`, `6041`,
+`6061`, `6064`, `606C`, `2100`, `2101`, `2102`) is risk acceptance with the
+fixture not yet run, not evidence that those reads have no effect. An ordinary
+device plan is admitted only when every object is accepted; any other row is
+rejected. `603F`, `1001` and `1003` stay unqualified explicit single reads (first
+bench read records LED fault state before and after). An identity or RO label
 does not waive this gate, and a successful upload does not resolve it.
 
 The evidence harness uses the ordinary application and typed identity,
@@ -93,7 +98,8 @@ sweep, unsolicited polling, command parser or raw write sender.
 The application-side API is
 [`DeviceEvidence`](../examples/common/DeviceEvidence.h). `request(plan, nowUs)`
 copies one `AcquisitionPlan` only after admission; `DEVICE` is the default
-environment and currently returns `READ_EFFECT_UNQUALIFIED` for the Q20 gap.
+environment and returns `READ_EFFECT_UNQUALIFIED` unless every object in the plan
+is on the DEC-1 accepted list.
 `requestExperiment(review, nowUs)` takes a `ReadExperiment` containing the exact
 plan and the source, independent review, fixture, control, failure and
 reconciliation references. It does not authenticate those references or grant a
@@ -144,8 +150,8 @@ Use these review steps before a future device run:
    candidates are `1000:00`, `1009:00`, `100A:00`, `1018:00..03`, `2000:00` and
    `2001:00`. No `1018:04` is present in the retained EDS. Configuration/state
    acquisition is a separately selected plan, never an implicit follow-up.
-3. Establish the per-row non-changing evidence and authorization. If Q20 cannot
-   be satisfied, normal device acquisition remains rejected. A separately
+3. Confirm each row is on the DEC-1 accepted list or has its own evidence and
+   authorization. Otherwise normal device acquisition remains rejected. A separately
    reviewed, explicitly authorized read-effects experiment may request the exact
    finite typed plan with effects still unknown; it is not ordinary probing and
    does not grant future polling permission.

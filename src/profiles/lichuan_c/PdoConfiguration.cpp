@@ -75,7 +75,7 @@ uint32_t raw(const CANOPEN::SdoCompletion& e) {
 bool consistent(const CANOPEN::SdoCompletion& e) {
     const bool success = e.outcome == CANOPEN::SdoOutcome::SUCCESS;
     const bool upload = e.transfer.direction == CANOPEN::SdoDirection::UPLOAD;
-    const bool effecting = !upload || e.transfer.readEffect == CANOPEN::SdoReadEffect::UNQUALIFIED;
+    const bool effecting = !upload || e.transfer.readEffect != CANOPEN::SdoReadEffect::REVIEWED_NON_CHANGING;
     return e.outcome <= CANOPEN::SdoOutcome::UNSUPPORTED && (!e.transmissionPossible || e.queued) &&
            (!e.transmissionConfirmed || e.transmissionPossible) &&
            e.effectPossible == (effecting && e.transmissionPossible) &&
@@ -94,7 +94,7 @@ bool validBaseline(const CANOPEN::SdoCompletion& e, const SettingsReservation& r
            t.index == kReadIndex[slot] && t.subindex == kReadSub[slot] &&
            t.size == kReadWidth[slot] && t.direction == CANOPEN::SdoDirection::UPLOAD &&
            t.requirePreOperational && t.uploadSize == CANOPEN::SdoUploadSize::EXACT &&
-           t.readEffect <= CANOPEN::SdoReadEffect::REVIEWED_NON_CHANGING && t.queueTimeoutUs &&
+           t.readEffect <= CANOPEN::SdoReadEffect::ACCEPTED_UNQUALIFIED && t.queueTimeoutUs &&
            t.responseTimeoutUs && e.admittedUs >= earliest && e.admittedUs <= e.completedUs &&
            e.completedUs <= now && e.completedUs < t.deadlineUs && now - e.admittedUs <= age &&
            e.outcome == CANOPEN::SdoOutcome::SUCCESS && consistent(e);

@@ -218,7 +218,7 @@ bool SdoClient::authorizeExperiment(uint8_t slot, const SdoTransfer& input,
          (input.operation == c.experimentUpload.operation && input.step <= c.experimentUpload.step))) ||
         !nodeGeneration || anchor < 0 || channels_[anchor].network.route.generation != nodeGeneration ||
         controllerState_ == ControllerState::BUS_OFF || controllerState_ == ControllerState::RECOVERING ||
-        !serviceEligibility(channels_[anchor].network, now, eligibility) || !eligibility.nonChangingProbe ||
+        !serviceEligibility(channels_[anchor].network, now, eligibility) || !eligibility.probeUpload ||
         !validateSdoChannel(input.channel) || !sameBinding(input.channel.binding, c.route.binding) ||
         input.channel.clientToServerId != c.route.clientToServerId ||
         input.channel.serverToClientId != c.route.serverToClientId ||
@@ -264,11 +264,10 @@ bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t n
         (work.uploadSize != SdoUploadSize::EXACT && work.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
         (work.uploadSize == SdoUploadSize::SERVER_INDICATED &&
          !experimentMatches(slot, work, now, false)) ||
-        (work.readEffect != SdoReadEffect::UNQUALIFIED &&
-         work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING) ||
+        work.readEffect > SdoReadEffect::ACCEPTED_UNQUALIFIED ||
         (!c.confirmed && !experimentMatches(slot, work, now, false) &&
          (work.direction != SdoDirection::UPLOAD ||
-          work.readEffect != SdoReadEffect::REVIEWED_NON_CHANGING)))
+          work.readEffect == SdoReadEffect::UNQUALIFIED)))
         return false;
     return true;
 }

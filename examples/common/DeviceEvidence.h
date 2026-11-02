@@ -17,7 +17,7 @@ using MotorControlCANOwner::OwnerResources;
 using MotorControlCANOwner::CanBusOwner;
 /** Provenance fixed at construction, not a per-request permission switch. */
 enum class EvidenceEnvironment : uint8_t {
-    DEVICE,   ///< Physical controller; ordinary acquisition requires reviewed read effects.
+    DEVICE,   ///< Physical controller; ordinary acquisition requires every object accepted (DEC-1).
     HOST_FAKE ///< Only an offline fake transport; never qualifies a physical capability.
 };
 /** Local request disposition; no value claims device success or safe read effects. */
@@ -25,7 +25,7 @@ enum class EvidenceAdmission : uint8_t {
     ACCEPTED,               ///< Exact finite plan copied; service is still explicit.
     INVALID,                ///< Invalid metadata, time, selection or review; no work admitted.
     BUSY,                   ///< An acquisition/result is retained or the application is occupied.
-    READ_EFFECT_UNQUALIFIED ///< Q20: no ordinary non-changing acquisition permission.
+    READ_EFFECT_UNQUALIFIED ///< Q20: a plan object is not on the accepted read list.
 };
 /** Fixed finite request. Strings are required nonempty, NUL-terminated references.
  * The caller retains the referenced fixture/authorization/observation documents.
@@ -137,7 +137,7 @@ class DeviceEvidence {
                    EvidenceEnvironment environment = EvidenceEnvironment::DEVICE) noexcept;
     DeviceEvidence(const DeviceEvidence&) = delete; ///< No copying live ownership/history.
     DeviceEvidence& operator=(const DeviceEvidence&) = delete; ///< Stationary storage.
-    /** Explicit ordinary acquisition; DEVICE currently rejects Q20 before app work.
+    /** Explicit ordinary acquisition; DEVICE rejects a plan with an unlisted object before app work.
      * @param plan Borrowed only during call; target must equal the application's explicit selection.
      * @param nowUs Nondecreasing nonwrapping microseconds, zero valid, before deadline.
      * @return Atomic local admission; no record/selection/traffic change on rejection.

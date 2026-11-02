@@ -12,7 +12,8 @@ namespace CANOPEN {
 /** Explicit upload effect policy; an EDS upload/access flag is insufficient evidence. */
 enum class SdoReadEffect : uint8_t {
     UNQUALIFIED, ///< Upload may change/consume device state; preserve possible effects.
-    REVIEWED_NON_CHANGING ///< Applicable source review establishes no drive-changing effect.
+    REVIEWED_NON_CHANGING, ///< Applicable source review establishes no drive-changing effect.
+    ACCEPTED_UNQUALIFIED ///< Owner accepted the risk (DEC-1). Effects stay unknown and possible.
 };
 /** Upload representation policy; no policy establishes an object's native type. */
 enum class SdoUploadSize : uint8_t {

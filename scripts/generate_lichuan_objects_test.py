@@ -184,6 +184,35 @@ class ProjectionTests(unittest.TestCase):
         entry["review"]["write_policy"] = "qualification_required"
         self.reject(entry, "read owner requires a nonreserved readable")
 
+    def test_accepted_read_effect_comes_only_from_the_ledger_field(self):
+        entry = fixture_entry()
+        entry["read_owner_prompt"] = 19
+        for present, effect in ((False, "UNQUALIFIED"), (True, "ACCEPTED_UNQUALIFIED")):
+            with self.subTest(present=present):
+                if present:
+                    entry["read_disposition"] = "accepted_not_qualified"
+                header = objects_header(projected_rows(fixture_objects(entry)))
+                self.assertIn("ScalarType::U16, 2, false, SdoAccess::READ_ONLY,\n"
+                              "    ReadEffect::{}, WritePolicy::FORBIDDEN".format(effect), header)
+                self.assertIn("{{0x1009, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::{}, "
+                              "SourceScope::EDS_FAMILY_UNBOUND}}".format(effect), header)
+                self.assertNotIn("REVIEWED_NON_CHANGING", header)
+        # Any other value, or an address that happens to be on the list, does not select it.
+        for value in ("accepted", "ACCEPTED_NOT_QUALIFIED", True, None):
+            entry["read_disposition"] = value
+            self.assertNotIn("ACCEPTED_UNQUALIFIED",
+                             objects_header(projected_rows(fixture_objects(entry))))
+        del entry["read_disposition"]
+        for address in (0x1000, 0x6041):
+            self.assertNotIn("ACCEPTED_UNQUALIFIED",
+                             objects_header(projected_rows(fixture_objects(fixture_entry(address)))))
+        # The field never widens write or PDO policy.
+        entry = fixture_entry()
+        plain = objects_header(projected_rows(fixture_objects(entry)))
+        entry["read_disposition"] = "accepted_not_qualified"
+        self.assertEqual(objects_header(projected_rows(fixture_objects(entry))),
+                         plain.replace("ReadEffect::UNQUALIFIED", "ReadEffect::ACCEPTED_UNQUALIFIED"))
+
     def test_read_projection_cannot_silently_drop_read_ownership(self):
         for missing in (True, False):
             with self.subTest(missing=missing):
@@ -290,7 +319,7 @@ class GenerationTests(unittest.TestCase):
     def test_read_table_has_exact_reviewed_scope_widths_and_raw_representation(self):
         rows = projected_rows(self.ledger["objects"])
         header = objects_header(rows)
-        actual = re.findall(r"\{0x([0-9A-F]{4}), 0x([0-9A-F]{2}), ([124]), ReadRepresentation::(UNSIGNED|SIGNED|RAW), ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND\}", header)
+        actual = re.findall(r"\{0x([0-9A-F]{4}), 0x([0-9A-F]{2}), ([124]), ReadRepresentation::(UNSIGNED|SIGNED|RAW), ReadEffect::(UNQUALIFIED|ACCEPTED_UNQUALIFIED), SourceScope::EDS_FAMILY_UNBOUND\}", header)
         # Literal address/shape oracle reviewed independently of the ledger and selection helpers.
         source_shapes = """
 1000:00 4 UNSIGNED
@@ -398,7 +427,14 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual(len(expected), 95)
         self.assertEqual(len(actual), 95)
         self.assertEqual({(int(index, 16), int(sub, 16)): (int(width), sign)
-                          for index, sub, width, sign in actual}, expected)
+                          for index, sub, width, sign, _ in actual}, expected)
+        # DEC-1, transcribed from the repair audit. Every other row in this table stays unqualified.
+        accepted = {(0x1000, 0), (0x1009, 0), (0x100A, 0), (0x1018, 0), (0x1018, 1), (0x1018, 2),
+                    (0x1018, 3), (0x2000, 0), (0x2001, 0), (0x2100, 0), (0x2101, 0), (0x2102, 0),
+                    (0x6041, 0), (0x6061, 0), (0x6064, 0), (0x606C, 0)}
+        self.assertEqual({(int(index, 16), int(sub, 16)) for index, sub, _, _, effect in actual
+                          if effect == "ACCEPTED_UNQUALIFIED"}, accepted)
+        self.assertNotIn("REVIEWED_NON_CHANGING", header)
         self.assertIn("i < 95", header)
         self.assertNotIn("Catalogue.h", header)
         self.assertNotIn("OBJECT_6061_00", header)
@@ -580,6 +616,25 @@ class GenerationTests(unittest.TestCase):
             entry = next(entry for obj in data["objects"] for entry in obj["entries"] if entry["key"] == key)
             entry["review"]["generation_type"] = value
             self.assertTrue(any("generation type disposition" in error for error in validate_ledger(data)))
+
+    def test_full_validator_and_generation_reject_accepted_list_forgery(self):
+        def accept_fault_code(data):
+            next(entry for obj in data["objects"] for entry in obj["entries"]
+                 if entry["key"] == "0x603F:00")["read_disposition"] = "accepted_not_qualified"
+        def drop_identity(data):
+            del next(entry for obj in data["objects"] for entry in obj["entries"]
+                     if entry["key"] == "0x1009:00")["read_disposition"]
+        generate(ROOT / LEDGER_PATH, self.root)
+        before = self.snapshot()
+        for mutate in (accept_fault_code, drop_identity):
+            with self.subTest(mutate=mutate.__name__):
+                data = copy.deepcopy(self.ledger)
+                mutate(data)
+                self.assertTrue(any("read disposition must match" in error
+                                    for error in validate_ledger(data)))
+                with self.assertRaises(ValueError):
+                    generate(self.changed_ledger(mutate), self.root)
+                self.assertEqual(self.snapshot(), before)
 
     def test_coverage_preserves_model_specific_gates_and_family_binding(self):
         data = copy.deepcopy(self.ledger)

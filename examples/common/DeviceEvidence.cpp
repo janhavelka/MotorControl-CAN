@@ -85,13 +85,13 @@ EvidenceAdmission DeviceEvidence::start(const AcquisitionPlan& plan, const ReadE
     if (!prepare(plan, now, candidate))
         return EvidenceAdmission::INVALID;
     if (environment_ == EvidenceEnvironment::DEVICE && !review) {
-        // The current generated vocabulary has no reviewed non-changing member.
-        // Do not make unknown/future enum values permission. Q20 must be resolved
-        // in the canonical ledger and typed policy before ordinary live acquisition.
+        // Only the owner's accepted list (DEC-1) runs without a reviewed experiment.
+        // Unknown or future enum values are not permission.
         for (unsigned i = 0; i < candidate.count; ++i)
             if (candidate.values[i].object.readEffect == L::ReadEffect::UNQUALIFIED)
                 return EvidenceAdmission::READ_EFFECT_UNQUALIFIED;
-        return EvidenceAdmission::INVALID;
+            else if (candidate.values[i].object.readEffect != L::ReadEffect::ACCEPTED_UNQUALIFIED)
+                return EvidenceAdmission::INVALID;
     }
     const bool accepted =
         plan.kind == L::ReadKind::IDENTITY

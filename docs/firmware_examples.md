@@ -70,14 +70,16 @@ another field, within the original deadline. It does not retry a refused grant.
 
 Explicit C++ application work uses the existing `FirmwareProbe::app()` public
 read functions and `owner()` retained-result/recovery APIs. Establish actual
-binding, profile, current epochs and peer/service premises first. The Q20 probe
-read-effect gate is unresolved; these examples do not manufacture a fresh session
+binding, profile, current epochs and peer/service premises first. Q20 read
+effects are unestablished (the DEC-1 accepted list is owner risk acceptance
+only); these examples do not manufacture a fresh session
 or issue an automatic discovery read. A successful SDO/host recovery still cannot
 qualify a drive model, motion completion or an ambiguous reused route.
 
 `FirmwareProbe::evidence()` exposes the same bounded collector with fixed DEVICE
 provenance. Startup and service do not admit acquisition. An explicit exact plan
-still encounters Q20 for ordinary reads; the separately reviewed experiment path
+is admitted as an ordinary device plan only when every object is on the DEC-1
+accepted list, else `READ_EFFECT_UNQUALIFIED`; the separately reviewed experiment path
 permits only finite unqualified typed reads and retains their possible effects.
 Once admitted, firmware service collects terminals automatically; callers must
 not also advance the app or drain owner diagnostics. A clock fault interrupts
@@ -114,8 +116,9 @@ The [two-node S2 capture](reports/2026-11-02_s2_live_connection.md) completed
 20 raw uploads per node, with 40 RX/40 TX, zero reported CAN errors/drops and
 9852 bytes minimum remaining stack. Those are short-run observations of this
 image and fixture. Both `1009` and `100A` indicated one byte rather than EDS
-U16; the raw collector retains `0x0C` and `0x20` without changing typed widths
-or inferring version, operation mode or standstill. No PDO write was performed.
+U16; the raw collector retains `0x0C` and `0x20` without inferring version,
+operation mode or standstill. The typed identity read defaults to the EDS U16
+widths and fails there; `IdentityWidths::MEASURED_U8` is an explicit option. No PDO write was performed.
 
 ## Build and inspect
 

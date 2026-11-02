@@ -12,18 +12,28 @@ do not select or qualify a firmware interpretation.
 ## Read effects and the probe gate
 
 The retained sources establish raw widths and read directions for the rows
-below. They do **not** establish that these uploads are non-consuming. Their
-generated read effect remains `UNQUALIFIED`, including read-only objects.
-Ordinary reads therefore need an already usable SDO channel and the owner's
-ordinary admission policy. They cannot bootstrap service reconciliation.
+below. They do **not** establish that these uploads are non-consuming. The
+ledger `read_effect` stays `not_established` and `effectPossible` stays true for
+every row, including read-only objects.
 
-`prepareProbe` checks the single `1000:00` U32 candidate against that policy.
-It currently returns `Err::UNSUPPORTED` with `ReadError::READ_EFFECT`, leaving
-the context unchanged and yielding no work. Q20 in the
-[review decision](reference/lichuan_review.md) needs applicable manufacturer
-read-effect evidence or a separately authorized, identified firmware experiment.
-The non-changing probe obligation in prompt 19 remains open. An access flag or
-a successful upload cannot close it.
+On 2026-11-02 the repository owner accepted the risk (DEC-1) for these objects:
+`1000`, `1018:00..03`, `1009`, `100A`, `2000`, `2001`, `6041`, `6061`, `6064`,
+`606C`, `2100`, `2101`, `2102`. They carry `ACCEPTED_UNQUALIFIED`. That is a
+project decision with the fixture not yet run; it is not evidence about the
+device, and these reads are not called non-changing or harmless. `603F`, `1001`
+and `1003` stay `UNQUALIFIED`: explicit single reads, never polled, reached
+through `requestExperiment` or an action's prerequisites. The first bench read
+of each records LED fault state before and after. Every other row stays gated by
+Q20 (owner prompts 19, 29, 37, 41, 44, 47). Ordinary reads need an already
+usable SDO channel and the owner's ordinary admission policy. They cannot
+bootstrap service reconciliation.
+
+`prepareProbe` checks the single `1000:00` U32 candidate. It succeeds with
+`ACCEPTED_UNQUALIFIED`, produces one upload intent and has no NMT or settings
+effect. A first accepted upload can confirm an unconfirmed channel; it cannot
+establish freshness. Q20 in the [review decision](reference/lichuan_review.md)
+is closed for the accepted list only as a project decision, not as a device
+fact. An access flag or a successful upload cannot close it.
 
 ## Lifecycle
 
@@ -63,7 +73,7 @@ installed supported model or firmware.
 
 | Read / block | Objects | Representation and interpretation |
 | --- | --- | --- |
-| Identity (9) | `1000`, `1009`, `100A`, `1018:00..03`, `2000`, `2001` | U32 device type; U16 hardware/software/model/firmware; U8 identity count; U32 vendor/product/revision. Raw fields, `modelMatched=false`. |
+| Identity (9) | `1000`, `1009`, `100A`, `1018:00..03`, `2000`, `2001` | U32 device type; `1009`/`100A` raw value with reply width (see below); U16 model/firmware; U8 identity count; U32 vendor/product/revision. Raw fields, `modelMatched=false`. |
 | State: errors (2) | `1001`, `603F` | U8 error register and U16 raw error code. |
 | State: history (5) | `1003:00..04` | U8 active count, at most four U32 entries. Read only active entries; reject count above four. Ordering/coherency/consumption remain unknown. |
 | State: monitors (3) | `2100..2102` | U16 raw monitors, despite EDS RW/manual RO conflicts. |
@@ -71,6 +81,13 @@ installed supported model or firmware.
 | State: feedback (2) | `6064`, `606C` | Exact I32 native position/velocity. Physical coordinate scale remains unknown. |
 | State: inputs (1) | `60FD` | U32 raw inputs; no assumed equivalence to `2101` bit layout. |
 | Configuration (6) | `1005`, `1014`, `1017`, `1200:00..02` | U32 SYNC/EMCY routes, U16 producer interval, U8 record count, U32 client/server SDO routes. Observations do not reconfigure routes. |
+
+`ReadOptions::identityWidths` selects the `1009`/`100A` reply width. The EDS
+declares U16; two specimens measured U8 (`1009=0x0C`, `100A=0x20`). The default
+`DECLARED_U16` fails on those specimens as a wrong width. An application that has
+established its own fixture selects `MEASURED_U8` explicitly; nothing detects it.
+`1018:00=5` stays raw. No version text is inferred, and
+`hardwareVersionWidth`/`softwareVersionWidth` report the actual reply bytes.
 
 There is no `1018:04` serial field in this EDS and no established actual
 following-error read. Driver, I/O configuration and tuning reads retain owners

@@ -131,7 +131,7 @@ struct Rig {
     }
 };
 void exactCopiedGrantAndAtomicMismatch() {
-    for (unsigned variant = 0; variant < 18; ++variant) {
+    for (unsigned variant = 0; variant < 19; ++variant) {
         Rig r;
         const C::SdoTransfer exact = transfer();
         CHECK(r.grant(exact));
@@ -154,7 +154,8 @@ void exactCopiedGrantAndAtomicMismatch() {
         case 14: changed.uploadSize = C::SdoUploadSize::SERVER_INDICATED; break;
         case 15: changed.allowSegmentedUpload = false; break;
         case 16: changed.direction = C::SdoDirection::UPLOAD; break;
-        default: changed.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING; break;
+        case 17: changed.readEffect = C::SdoReadEffect::REVIEWED_NON_CHANGING; break;
+        default: changed.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED; break;
         }
         CHECK(!r.services.checkAdmission(0, changed, 0));
         CHECK(r.services.checkAdmission(0, exact, 0)); // Invalid candidate did not consume grant.
@@ -342,6 +343,44 @@ void preOperationalPrerequisiteCannotBeStrippedOrAssumed() {
         CHECK(!r.services.canTransmit(handedOff, 2)); // Exact copied TX remains subject to premise.
     }
 }
+// A grant never confirms a route (readbackAndConfiguration... above). An accepted upload may.
+void acceptedUploadConfirmsWithoutFreshness() {
+    Rig r;
+    C::SdoTransfer unlisted = transfer(C::SdoDirection::UPLOAD);
+    C::SdoTransfer write = transfer();
+    CHECK(!r.services.checkAdmission(0, unlisted, 0));
+    CHECK(!r.services.checkAdmission(0, write, 0));
+    C::SdoTransfer accepted = unlisted;
+    accepted.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    CHECK(r.services.checkAdmission(0, accepted, 0));
+    const auto id = r.admit(accepted);
+    r.turn(1);
+    CHECK(r.wire.count == 1);
+    const uint8_t upload[8] = {0x40, 0x17, 0x10, 0, 0, 0, 0, 0};
+    CHECK(r.wire.sent[0].id == 0x601 && !std::memcmp(r.wire.sent[0].data, upload, 8));
+    r.turn(2);
+    const C::SdoCompletion& done = r.owner.result(id)->service;
+    CHECK(done.outcome == C::SdoOutcome::SUCCESS && done.effectPossible && !done.effectUncertain);
+    CHECK(done.size == 2 && done.data[0] == 0xfa);
+    CHECK(r.services.node(0)->serviceQualification.present && r.services.node(0)->serviceFromSdo);
+    CHECK(!r.services.node(0)->nmtTime.present);
+    C::ServiceEligibility eligibility;
+    CHECK(C::serviceEligibility(*r.services.node(0), 2, eligibility));
+    CHECK(eligibility.ordinarySdo && !eligibility.exactNmtKnown && !eligibility.pdoTransmit);
+    CHECK(r.owner.release(id));
+    CHECK(r.services.checkAdmission(0, write, 2));
+    // A lost accepted reply does not confirm the route, and quarantines it.
+    Rig silent;
+    silent.wire.respond = false;
+    const auto lost = silent.admit(accepted);
+    silent.turn(1);
+    CHECK(silent.wire.count == 1 && !silent.owner.result(lost));
+    CHECK(silent.owner.cancel(lost, 2) == O::Cancel::CANCELLED);
+    CHECK(silent.owner.result(lost)->service.effectUncertain);
+    CHECK(silent.services.unresolved(0) && !silent.services.node(0)->serviceQualification.present);
+    CHECK(silent.owner.release(lost));
+    CHECK(!silent.services.checkAdmission(0, accepted, 3));
+}
 void lifecycleRevokesUnusedGrant() {
     Rig r;
     const auto exact = transfer();
@@ -360,6 +399,7 @@ int main() {
     cancellationConsumesNativeGrantWithoutReplay();
     readbackAndConfigurationNeverPromoteWritePermission();
     lifecycleRevokesUnusedGrant();
+    acceptedUploadConfirmsWithoutFreshness();
     preOperationalPrerequisiteCannotBeStrippedOrAssumed();
     std::printf("Service experiments: %u checks passed\n", checks);
 }
