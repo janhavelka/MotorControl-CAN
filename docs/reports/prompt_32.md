@@ -1,5 +1,9 @@
 # Prompt 32: explicit fault clear and device-position zero
 
+Subsequent [independent audit of prompts 31/32](prompts_31_32_audit.md) adds
+failure-to-later-admission coverage through the real owner. The original scope
+and firmware gates below remain in effect.
+
 Date: 2026-11-02. Promptset v2 continues on `promptset/motorcontrol-can`, upstream
 `origin/promptset/motorcontrol-can`, original base `7878f7c`. Entry HEAD was
 `1cb0d54b45591320ffb6285e098b7d14562d6f7f`; fresh fetch showed 0 ahead/0 behind.

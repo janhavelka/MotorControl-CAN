@@ -4,6 +4,10 @@
 namespace MotorControlCAN {
 namespace LICHUAN_C {
 namespace {
+// Object 2100: EN86 p17 and ZH86 p18 agree; these are not 6041 dialect bits.
+constexpr uint16_t monitorRunning = 0x0004;
+constexpr uint16_t monitorAlarm = 0x0008;
+constexpr uint16_t monitorReleased = 0x0010;
 Status error(ActionError reason, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(reason), message);
 }
@@ -225,16 +229,25 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         c.feedbackObservation = extra;
     c.observationKnown = true;
     ++c.observations; // Distinct external identities per cycle bound this below UINT32_MAX.
-    const bool scope =
-        status.modeRaw != 1 ||
-        (c.actionKind == ActionKind::STOP
-             ? (monitors.monitor & 0x18u) != 0
-             : (monitors.monitor & 4u) != 0 ||
-                   (c.actionKind == ActionKind::SET_DEVICE_POSITION && (monitors.monitor & 8u)));
-    const bool done = c.actionKind == ActionKind::STOP          ? !(monitors.monitor & 4u)
-                      : c.actionKind == ActionKind::CLEAR_ALARM ? !(monitors.monitor & 8u)
-                                                                : extra.actualPosition == 0;
-    if (scope)
+    const bool running = (monitors.monitor & monitorRunning) != 0;
+    const bool alarm = (monitors.monitor & monitorAlarm) != 0;
+    bool outsideScope = status.modeRaw != 1;
+    bool done = false;
+    switch (c.actionKind) {
+    case ActionKind::STOP:
+        outsideScope |= alarm || (monitors.monitor & monitorReleased) != 0;
+        done = !running;
+        break;
+    case ActionKind::CLEAR_ALARM:
+        outsideScope |= running;
+        done = !alarm;
+        break;
+    case ActionKind::SET_DEVICE_POSITION:
+        outsideScope |= running || alarm;
+        done = extra.actualPosition == 0;
+        break;
+    }
+    if (outsideScope)
         fail(c, ActionOutcome::OBSERVATION_SCOPE, now,
              "drive report outside this action's supported observation scope");
     else if (done) {
@@ -270,10 +283,10 @@ Status prepareExplicit(ActionContext& c, const SettingsReservation& r, const Rea
         !getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs,
                        monitors) ||
         !after(status, r.acquiredUs) || !after(monitors, r.acquiredUs) || status.modeRaw != 1 ||
-        (monitors.monitor & 4u))
+        (monitors.monitor & monitorRunning))
         return error(ActionError::STATE, "fresh mode 1 not-running SDO evidence required");
     if (kind == ActionKind::CLEAR_ALARM) {
-        if (!(monitors.monitor & 8u) ||
+        if (!(monitors.monitor & monitorAlarm) ||
             !getStateBlock(state, StateBlock::ERRORS, r.target, now, options.maximumAgeUs,
                            errors) ||
             !getStateBlock(state, StateBlock::ERROR_HISTORY, r.target, now, options.maximumAgeUs,
@@ -282,7 +295,7 @@ Status prepareExplicit(ActionContext& c, const SettingsReservation& r, const Rea
             errors.errorCode != 0xff05)
             return error(ActionError::STATE,
                          "retained history and documented resettable FF05 alarm required");
-    } else if (monitors.monitor & 8u)
+    } else if (monitors.monitor & monitorAlarm)
         return error(ActionError::STATE, "counter clear requires no reported alarm");
     c.reservation = r;
     c.actionKind = kind;
@@ -318,7 +331,8 @@ Status prepareStop(ActionContext& output, const SettingsReservation& r, const Re
         !getStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, status) ||
         !getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs,
                        monitors) ||
-        status.modeRaw != 1 || (status.statusword & 7u) != 7 || (monitors.monitor & 0x18u) ||
+        status.modeRaw != 1 || (status.statusword & 7u) != 7 ||
+        (monitors.monitor & (monitorAlarm | monitorReleased)) ||
         !after(status, control.completedUs) || !after(monitors, control.completedUs))
         return error(ActionError::STATE,
                      "continuous acknowledged 000F and fresh mode 1 state required");

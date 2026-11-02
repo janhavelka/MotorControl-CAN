@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Stop and reference-action audit
+
+- Add real-owner regressions for admission after failed or uncertain device
+  counter clears, including retained results, coordinate epochs and attempted
+  replacement of a quarantined reservation.
+- Name the reviewed monitor masks and make the three action completion checks
+  explicit. Wire values, public APIs and firmware gates are unchanged.
+
 ### Fault clear and device-position zero
 
 - Add conditional `prepareClearAlarm` and zero-only `prepareSetDevicePosition`

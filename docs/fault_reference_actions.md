@@ -97,6 +97,14 @@ configuration callback revokes PDO/cache provenance but must recognize this as
 synchronization of an already withdrawn axis, **not** increment the axis a
 second time. See [owner guidance](can_owner.md).
 
+A failed final-zero write with definite retirement still permits explicit
+synchronization after its retained old-epoch result is released, provided the
+SDO channel is resolved. Any later read is a new operation using the new epoch.
+It neither completes the failed action nor restores an origin or home. An
+uncertain trigger is different: releasing its result or sequence, a late TX
+report and a late acknowledgement do not permit a fresh reservation on the
+unresolved channel.
+
 If a trigger/rearm reply is lost or retirement is unproved, the existing SDO
 quarantine remains. No trailing cleanup, write replay, reset, new reservation or
 alternate receiver bypasses it. Later observations belong to a new explicitly
