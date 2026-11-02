@@ -21,7 +21,7 @@ FILES = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
     "docs/native_application.md",
     "platformio.ini",
     "scripts/check_firmware.py",
@@ -83,6 +83,7 @@ FILES = {
     "include/MotorControlCAN/canopen/Pdo.h", "src/canopen/Pdo.cpp",
     "include/MotorControlCAN/canopen/PdoState.h", "include/MotorControlCAN/ReadOperation.h",
     "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
+    "include/MotorControlCAN/profiles/lichuan_c/State.h", "src/profiles/lichuan_c/State.cpp", "test/drive_state_test.cpp",
     "examples/common/CanBusOwner.h", "examples/common/CanBusOwner.cpp", "examples/common/CMakeLists.txt",
     "examples/common/CanBusDiagnostics.cpp", "examples/common/OwnerCounters.h", "test/can_bus_health_test.cpp",
     "examples/common/DeviceEvidence.h", "examples/common/DeviceEvidence.cpp",
@@ -122,7 +123,7 @@ FILES = {
     "test/installed_consumer/main.cpp", "experiments/canopen_service_fit/CMakeLists.txt",
 }
 EXPORTS = ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"]
+           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"]
 
 
 class RepositoryTests(unittest.TestCase):
@@ -141,7 +142,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

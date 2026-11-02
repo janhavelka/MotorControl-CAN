@@ -3,8 +3,9 @@
 As of 2026-11-02, the user reports an attached ESP-Prog2, an ESP32-S2 PCB and two
 CL86 drives with free-shaft motors bolted to a table, and authorizes board testing.
 Windows USB enumeration and read-only EasyEDA schematic/PCB net inspection are
-recorded in [the board intake](reports/2026-11-02_s2_bench_intake.md). Target power,
-physical cabling and termination still need confirmation. No target UART/JTAG
+recorded in [the board intake](reports/2026-11-02_s2_bench_intake.md). The user now
+reports 3.25 V/4.75 V rails, bridged PCB JP1 and last-drive SW8 ON. Cable continuity,
+reference ground and transient power behavior remain unmeasured. No target UART/JTAG
 session, flash, CAN acquisition or motor action has been performed. The installed
 drive firmware and exact motor ratings remain unknown. Host readiness, firmware
 builds, acquisition and physical qualification remain separate facts.
@@ -19,10 +20,10 @@ builds, acquisition and physical qualification remain separate facts.
 | Embedded controller and SDK | EasyEDA OPTAK_FGI_2025 / FirstPrototype specifies U13 ESP32-S2-MINI-2-N4; existing firmware targets S3 / IDF 5.5.5 | Confirm assembled module and physical revision; S2 firmware needs single-core, UART and target-specific TWAI support. Requested P4 support is also separate from current S3 builds |
 | Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
 | Interface and pins | User confirms CAN RX GPIO16, TX GPIO17, silent GPIO18; no physical signal verification | Pin orientation and actual board/firmware routing, CAN_H/CAN_L/reference wiring; no inferred RS COM port |
-| Debug/programming | Windows identifies ESP-Prog-2 303A:1002; CDC advertises COM15, JTAG uses WinUSB. Both cables attached per user; inspected design pin nets match official mapping | Resolve duplicate active COM15 assignment; verify actual cable orientation/continuity, stable power and reset/boot levels before target access |
+| Debug/programming | ESP-Prog-2 303A:1002 serial 94A990398B40 is uniquely COM15 after disconnecting other boards and reconnecting probe USB; mapping is now USBSER000. Probe-only UART open/read/close succeeded with PCB detached, no data written | User detached PCB; reconnect UART/programming cable for bounded target-ROM/EN/BOOT checks. Earlier missing DOS mapping prevented ROM access; no target identity or JTAG session established |
 | Bus topology | User reports PCB to drive to drive daisy chain; CN2 pin1 L, pin2 H in both design netlists | Physical cable/reference continuity and endpoint termination. Drive RJ45 pin1 is H, pin2 L, pin3 GND; CN2 is only two pins |
-| Node and bitrate | User reports drive A SW2 ON only; drive B SW1 ON only. EN86 pp9-10 map these to nodes 2/1 at 1 Mbit/s, both internal terminators OFF | Confirm label/orientation and effective on-wire settings; PCB JP1 and external termination remain unverified |
-| Power | User reports both ESP-Prog2 selectors and PCB power jumpers at 5 V. Design routes these to U14 LDO input, with 3.3 V output to MCU; U3 needs 5 V VCC and 3.3 V VIO | Identify flickering LED, measure 5V/3V_SENSE/EN, confirm all other attached supplies. Design correctness does not prove rail stability or assembly |
+| Node and bitrate | User reports drive A SW2 ON and drive B SW1 ON, SW6/7 OFF: documentary nodes 2/1 at 1 Mbit/s. User subsequently bridged JP1 and set last-drive SW8 ON | Reported endpoint termination; verify bridges, about 60-ohm unpowered bus resistance, cable/reference continuity and effective on-wire settings |
+| Power | User reports both probe selectors and PCB jumpers at 5 V, measured rails 4.75 V and 3.25 V on probe/PCB; green VPROG LED blinks. Design supplies MCU through U14; U3 uses separate VCC/VIO | These are user measurements, not captured rail traces. Green activity indication alone is not a power diagnosis; transient behavior, EN and other attached supplies remain unconfirmed |
 | External I/O | Unknown; it may be unused | Actual assignments, electrical levels and connected limits/home/stop inputs needed by the chosen operation |
 | Mechanics | User reports free shafts, motors bolted to table and safe to test | Actual ratings, permitted finite motion bounds and independent observation/control for the chosen experiment |
 | Authorization | User explicitly authorizes starting board testing; no repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |

@@ -13,6 +13,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <MotorControlCAN/profiles/lichuan_c/Types.h>
 
@@ -68,4 +69,15 @@ extern "C" void app_main() {
     if (validateFrame(frame).code != Err::FRAME_ERROR)
         std::abort();
     retainedChecks = 7;
+
+    // Check the installed interpretation symbol and atomic rejection without I/O.
+    LICHUAN_C::ReadContext incomplete;
+    LICHUAN_C::ReadTarget current;
+    LICHUAN_C::StateInterpretation observation;
+    observation.statusword = 0x1357;
+    const Status interpretation = LICHUAN_C::getStateInterpretation(
+        incomplete, current, 0, 1, LICHUAN_C::StatusLayout::EN86, observation);
+    if (interpretation.code != Err::INVALID_CONFIG || observation.statusword != 0x1357)
+        std::abort();
+    retainedChecks = 15;
 }

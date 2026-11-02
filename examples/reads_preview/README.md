@@ -7,6 +7,14 @@ qualified successful `SdoCompletion` records are explicit fixture premises,
 not captured traffic, device defaults or manufacturer capability evidence.
 No controller, CANopen stack, clock, SDK or hardware is accessed.
 
+It then acquires five synthetic STATUS/MONITORS fields and calls the checked
+`getStateInterpretation` with an explicit EN86 document comparison. The fixture
+sets the EN86 status alarm while the monitor alarm stays clear; the result keeps
+both raw words and reports their disagreement without selecting a winner.
+The five fields span 43 supplied microseconds. This demonstrates passive
+interpretation, not firmware applicability, enable/release support, action
+completion or physical safety. See [drive state and action scope](../../docs/drive_actions.md).
+
 A real application obtains retained completions from its sole qualified service
 owner. Copying a host operation or generation does not qualify an indistinguishable
 late wire reply. This example supplies that premise to demonstrate only the public

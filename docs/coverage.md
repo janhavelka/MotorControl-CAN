@@ -1,5 +1,12 @@
 # Requirement coverage after pure CAN/SDO checks
 
+[Prompt 30](reports/prompt_30.md) adds checked documentary state interpretation
+to R08/R10/R20: explicit layouts, raw values and acquisition provenance, unknown
+bits and disagreement. It does not close action coverage R06/R13 or firmware
+qualification. The documented position-enable sequence still lacks producible
+initial/no-pending-motion provenance; no reviewed source defines release's CAN
+command/effects. Both lifecycles and their action-specific tests remain pending.
+
 The [connected-board intake](reports/2026-11-02_s2_bench_intake.md) adds actual
 USB/design facts to R19 and S2/P4 isolated core compile/link evidence to R04/R20.
 It does not establish target communication, complete S2/P4 firmware support or

@@ -17,13 +17,13 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
 }
 REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
     "docs/native_application.md",
     "platformio.ini",
     "scripts/check_firmware.py",
@@ -85,6 +85,7 @@ REQUIRED = {
     "include/MotorControlCAN/canopen/Pdo.h", "src/canopen/Pdo.cpp",
     "include/MotorControlCAN/canopen/PdoState.h", "include/MotorControlCAN/ReadOperation.h",
     "include/MotorControlCAN/profiles/lichuan_c/Reads.h", "src/profiles/lichuan_c/Reads.cpp",
+    "include/MotorControlCAN/profiles/lichuan_c/State.h", "src/profiles/lichuan_c/State.cpp", "test/drive_state_test.cpp",
     "examples/common/CanBusOwner.h", "examples/common/CanBusOwner.cpp", "examples/common/CMakeLists.txt",
     "examples/common/CanBusDiagnostics.cpp", "examples/common/OwnerCounters.h", "test/can_bus_health_test.cpp",
     "examples/common/DeviceEvidence.h", "examples/common/DeviceEvidence.cpp",

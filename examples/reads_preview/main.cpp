@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-#include <MotorControlCAN/profiles/lichuan_c/Reads.h>
+#include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <cinttypes>
 #include <cstdio>
 
@@ -120,5 +120,48 @@ int main() {
                 observed.modelMatched ? "true" : "false");
     std::puts("Raw success does not establish model applicability, an atomic snapshot or harmless "
               "read effects.");
-    return context.state == Core::ReadState::SUCCEEDED && !observed.modelMatched ? 0 : 2;
+    if (context.state != Core::ReadState::SUCCEEDED || observed.modelMatched)
+        return 2;
+
+    Reads::ReadContext state;
+    const uint8_t blocks = (1u << static_cast<unsigned>(Reads::StateBlock::STATUS)) |
+                           (1u << static_cast<unsigned>(Reads::StateBlock::MONITORS));
+    if (!checked(Reads::prepareState(state, target, 3, nowUs, 1000, options, blocks),
+                 "state preparation"))
+        return 1;
+    // These independent bytes deliberately disagree between the selected EN86
+    // alarm bit and monitor alarm bit. A document comparison selects no winner.
+    for (unsigned i = 0; i < 5; ++i) {
+        Reads::PreparedRead next;
+        if (!checked(Reads::nextRead(state, nowUs, next), "next state field") || !next.ready)
+            return 1;
+        Service::SdoCompletion terminal;
+        terminal.transfer = next.transfer;
+        terminal.outcome = Service::SdoOutcome::SUCCESS;
+        terminal.nodeGeneration = target.nodeGeneration;
+        terminal.admittedUs = nowUs;
+        terminal.completedUs = nowUs + 3;
+        terminal.queued = terminal.transmissionPossible = terminal.protocolAcknowledged = true;
+        terminal.effectPossible = true;
+        terminal.size = next.transfer.size;
+        if (next.transfer.index == 0x6041) { terminal.data[0] = 0x87; terminal.data[1] = 4; }
+        if (next.transfer.index == 0x6061) terminal.data[0] = 1;
+        if (!checked(Reads::advanceRead(state, terminal, nowUs + 4), "state completion"))
+            return 1;
+        nowUs += 10;
+    }
+    Reads::StateInterpretation interpreted;
+    if (!checked(Reads::getStateInterpretation(state, target, nowUs, 1000,
+                                              Reads::StatusLayout::EN86, interpreted),
+                 "state interpretation"))
+        return 1;
+    std::printf("EN86 document comparison: statusword=0x%04X, monitor=0x%04X, "
+                "alarm disagreement=%s, skew=%" PRIu64 " us\n",
+                static_cast<unsigned>(interpreted.statusword),
+                static_cast<unsigned>(interpreted.monitor),
+                interpreted.alarmDisagreement ? "true" : "false", interpreted.window.skewUs);
+    std::puts("The comparison qualifies no firmware, action admission, torque or physical safety.");
+    return interpreted.alarmDisagreement && interpreted.running == Reads::StateIndication::NO &&
+                   interpreted.mode == Reads::ObservedMode::PROFILE_POSITION
+               ? 0 : 2;
 }

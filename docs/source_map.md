@@ -1,5 +1,12 @@
 # Live source and responsibility map
 
+## Documentary drive-state interpretation (prompt 30)
+
+| Responsibility | Declaration / implementation | Caller / focused test | Boundary |
+| --- | --- | --- | --- |
+| Checked source-specific interpretation | [State.h](../include/MotorControlCAN/profiles/lichuan_c/State.h), [State.cpp](../src/profiles/lichuan_c/State.cpp) | [Native preview](../examples/reads_preview/main.cpp), [owner-path tests](../test/drive_state_test.cpp), [installed consumer](../test/installed_consumer/main.cpp) | Reuses `getStateBlock` validity; preserves all five fields/times, unknown meanings and disagreement; no firmware qualification |
+| Enable/release transitions | [Reviewed source and transition table](drive_actions.md), [stage report](reports/prompt_30.md) | Pending actual action API/owner tests | No produced initial motion-state provenance for enabling; no documented release command; no unsupported API stubs |
+
 For the connected custom board, [the intake report](reports/2026-11-02_s2_bench_intake.md)
 maps actual EasyEDA schematic/PCB nets, USB identity and S2/P4 core compile
 evidence to the [firmware boundary](firmware_examples.md). These are fixture and

@@ -2,6 +2,29 @@
 
 ## Scope and actual checks
 
+**Subsequent user update during prompt 30:** measured rails reported as 4.75 V
+and 3.25 V on PCB/probe; the green VPROG indicator blinks. The user reports JP1
+bridged and last-drive SW8 switched ON, and believes H/L wiring matches the
+documented mapping. Continuity/reference ground, bus resistance and transient
+power behavior have not been measured here. Other Espressif boards were removed.
+Fresh PnP/pyserial enumeration now shows only ESP-Prog2 serial `94A990398B40` at
+COM15, but `QueryDosDeviceW(COM15)` fails with error 2: its active DOS mapping is
+absent. A bounded ROM-identification attempt with existing esptool 4.12.0 failed
+before opening the port; a CDC-only `pnputil /restart-device` attempt was denied
+access. Reconnecting the probe USB was requested. No target reset, ROM command,
+flash or CAN transmission occurred. Retained local logs:
+`.build/board-check-20261102/s2_rom_identity_idf.log`; the first attempt's separate
+log records that the ordinary Python environment lacks esptool. The working tool
+is in the existing IDF Python environment. Earlier observations below remain
+the original intake; the live bench table contains the latest disposition.
+
+The user then reconnected ESP-Prog2 USB and detached the PCB from the probe.
+The unique COM15 mapping returned as `\\Device\\USBSER000`. A bounded 115200-baud
+probe-only UART open/read/close succeeded with DTR/RTS initially false, no received
+bytes and no data written. This resolves host port availability; it does not
+test the detached MCU. Reconnection of the target UART/programming cable was
+requested for the next bounded ROM/EN/BOOT check.
+
 The user authorized board testing and supplied a new fixture: PC, ESP-Prog2,
 OPTAK_FGI_2025 PCB, two daisy-chained CL86 drives and free-shaft motors bolted
 to the table. Both probe cables are attached. Probe and PCB power selectors are

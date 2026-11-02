@@ -21,6 +21,12 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming checked
+STATUS and MONITORS reads for explicit documentary comparison. Unknown bits and
+disagreement remain inspectable; no firmware is selected automatically. There is
+no CLI route or implemented `prepareEnable/prepareRelease/nextAction/advanceAction`
+yet. The [transition guide](drive_actions.md) records their exact remaining gates.
+
 Prompt 29 extends example `ProbeApp` with explicit `requestState`, checked
 `getStateBlock` and local `cancelRead`. The application-only
 [`DeviceEvidence`](../examples/common/DeviceEvidence.h) provides `request`,

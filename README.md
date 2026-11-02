@@ -1,5 +1,12 @@
 # MotorControl-CAN
 
+**Drive-state inspection:** [checked documentary interpretation](docs/drive_actions.md)
+now separates each manual's status layout, raw monitor values, unknown bits and
+disagreements. This does not qualify a firmware dialect or complete enable/release.
+Position enabling still needs established initial/retained-motion provenance;
+the sources do not specify a release command. [Prompt 30](docs/reports/prompt_30.md)
+records the implemented subset and precise remaining work.
+
 **Device evidence readiness:** the [finite acquisition harness](examples/device_evidence/README.md)
 uses public typed reads, ProbeApp and the same CAN owner in native and firmware
 examples. It retains exact requests/replies, failures, controller events and

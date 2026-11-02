@@ -10,6 +10,14 @@ admission requirements.
 
 ## Source and evidence boundaries
 
+Prompt 30's [state/action review](drive_actions.md) narrows enable and release
+questions without closing a gate. Position 6/7/15 order is documented; its missing
+input is established initial/retained-motion provenance, not the sequence itself.
+Release needs a sourced CAN command, starting states, new observations and
+torque/reference consequences. Neither low status bits zero nor an acknowledged
+`6040=0` supplies that contract. The new passive decoder cannot establish these
+facts by selecting a document layout.
+
 EN86, ZH86 and OP86 mean the retained
 [English manual](reference/vendor/86C_CANopen_user_manual_en.pdf),
 [Chinese manual](reference/vendor/86C_CANopen_user_manual_zh.pdf) and

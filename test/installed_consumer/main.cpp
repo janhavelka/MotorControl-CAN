@@ -8,6 +8,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstring>
 
@@ -237,5 +238,33 @@ int main() {
         !LICHUAN_C::nextDriver(tuning, 52, loopWork) || loopWork.transfer.index != 0x251a ||
         loopWork.transfer.direction != CANOPEN::SdoDirection::UPLOAD)
         return 50;
+    LICHUAN_C::ReadContext state;
+    const uint8_t stateBlocks = (1u << static_cast<unsigned>(LICHUAN_C::StateBlock::STATUS)) |
+                                (1u << static_cast<unsigned>(LICHUAN_C::StateBlock::MONITORS));
+    if (!LICHUAN_C::prepareState(state, readTarget, 13, 60, 100, readOptions, stateBlocks))
+        return 51;
+    for (unsigned i = 0; i < 5; ++i) {
+        LICHUAN_C::PreparedRead work;
+        if (!LICHUAN_C::nextRead(state, 60 + i, work) || !work.ready)
+            return 52;
+        CANOPEN::SdoCompletion e;
+        e.transfer = work.transfer;
+        e.nodeGeneration = readTarget.nodeGeneration;
+        e.admittedUs = e.completedUs = 60 + i;
+        e.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        e.queued = e.transmissionPossible = e.protocolAcknowledged = e.effectPossible = true;
+        e.size = work.transfer.size;
+        if (work.transfer.index == 0x6041) { e.data[0] = 7; e.data[1] = 4; }
+        if (work.transfer.index == 0x6061) e.data[0] = 1;
+        if (!LICHUAN_C::advanceRead(state, e, 60 + i))
+            return 53;
+    }
+    LICHUAN_C::StateInterpretation interpreted;
+    if (!LICHUAN_C::getStateInterpretation(state, readTarget, 64, 10,
+                                           LICHUAN_C::StatusLayout::EN86, interpreted) ||
+        interpreted.statusword != 0x0407 ||
+        interpreted.mode != LICHUAN_C::ObservedMode::PROFILE_POSITION ||
+        interpreted.running != LICHUAN_C::StateIndication::NO || interpreted.window.skewUs != 4)
+        return 54;
     return 0;
 }

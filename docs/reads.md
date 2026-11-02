@@ -4,7 +4,10 @@ Include `MotorControlCAN/profiles/lichuan_c/Reads.h` and use namespace
 `MotorControlCAN::LICHUAN_C`. This installed C++11 layer prepares finite reads
 and consumes copied evidence. It owns no controller, clock, scheduler or SDK.
 The [compiled offline example](../examples/reads_preview/README.md) exercises
-identity reads with synthetic replies; it establishes no device capability.
+identity and state reads with synthetic replies; it establishes no device capability.
+The separate [state interpretation getter](drive_actions.md) uses checked STATUS
+and MONITORS blocks to compare documentary layouts. Raw reads themselves still
+do not select or qualify a firmware interpretation.
 
 ## Read effects and the probe gate
 

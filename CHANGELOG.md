@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Documentary drive-state interpretation
+
+- Add checked `getStateInterpretation` over existing typed state reads, preserving
+  raw values, per-field provenance, unknown bits and status/monitor disagreements.
+- Keep EN86, ZH86, ZH57 and OP86 interpretations explicitly separate. Selecting
+  a source table does not qualify firmware or establish readiness/completion.
+- Record the documented position-enable sequence and its missing admission
+  provenance separately from the absent release command. No action stub, hidden
+  enable or generic CiA402 fallback is installed.
+
 ### Connected S2 board intake
 
 - Record ESP-Prog2 USB identity, duplicate COM15 assignments, inspected board
