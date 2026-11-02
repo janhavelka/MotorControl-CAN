@@ -564,8 +564,9 @@ def coverage_document(data, rows):
         lines += ["| {} | {} |\n".format(label, text(value)) for label, value in fields]
         lines.append("\n")
     lines += ["## Manual-only inventory\n\n",
-              "All source-reviewed manual items remain accounted for without declarations or "
-              "implemented semantic functions. No second dictionary is synthesized.\n\n"]
+              "Source-reviewed manual items retain their documentary claims and explicit "
+              "implementation scope where available. Conditional subsets do not imply "
+              "whole-function or hardware-qualified coverage. No second dictionary is synthesized.\n\n"]
     for item in data["manual_only"]:
         lines += ["### {}\n\n".format(item["key"]), "| Fact | Value |\n| --- | --- |\n"]
         lines += ["| {} | {} |\n".format(field, text(value)) for field, value in item.items()]

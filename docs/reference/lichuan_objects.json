@@ -19917,7 +19917,8 @@
           "Q14"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 32 implements zero-only prepareSetDevicePosition with acknowledged 2302 U16 values 0,1,0, coordinate/reference withdrawal before possible value-1 transmission, owner epoch synchronization and fresh raw 6064 zero observation. See docs/fault_reference_actions.md and test/reference_action_test.cpp. Arbitrary positions, physical home, exact affected counter mapping and firmware qualification remain unsupported/unqualified; whole-function coverage is not claimed."
     },
     {
       "key": "save_parameters",
@@ -20039,7 +20040,8 @@
           "Q13"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 32 keeps this route unimplemented: bit 7 assertion/manual clearing and full-word 15->128 do not establish an admitted current-state transition or equivalent 2301 behavior. No enabling preamble or fallback is installed. The separate vendor-object conditional path is documented in docs/fault_reference_actions.md."
     },
     {
       "key": "fault_reset_vendor_object",
@@ -20073,7 +20075,8 @@
           "Q13"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 32 implements a conditional CL86-C/OL86-C mode-1 FF05 alarm-clear attempt through prepareClearAlarm: 2301 U16 writes 1 then 0 (explicit ineffective-value policy, not a proved edge/rearm), new monitor alarm-clear observation, preserved raw 603F/history. See docs/fault_reference_actions.md and test/reference_action_test.cpp. Other fault classes, internal resume/rearm behavior and firmware qualification remain gated; whole-function coverage is not claimed."
     },
     {
       "key": "motion_monitor",

@@ -57,7 +57,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 29 | Evidence harness, fixture record and conflict acquisition | Owned software readiness implemented and host/firmware checked; Partial on inherited 19/28 Q20 and conditional acquisition. [Report](reports/prompt_29.md), [exact measurement gates](device_conflicts.md). No live qualification or selected state-changing experiment. |
 | 30 | State interpretation, enable/release | Partial: checked documentary decoder implemented. [Enable admission provenance and release command](drive_actions.md) remain unresolved; action lifecycles/tests pending. |
 | 31 | Stop actions and urgent owner integration | Partial: conditional 000F halt/quick-stop command and fresh not-running report implemented; [broader state/firmware gates](stop_actions.md) remain. No enabling preamble. |
-| 32 | Fault/reference actions | Pending; use reviewed current-state transitions, never enable as a reset preamble |
+| 32 | Fault/reference actions | Partial: conditional FF05 alarm clear and zero-only counter sequence implemented with exact owner/reference handoff. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
 | 33-36 | Position, angles, finite velocity and homing | Pending; explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |

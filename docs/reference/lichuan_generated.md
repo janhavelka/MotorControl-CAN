@@ -5857,7 +5857,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 
 ## Manual-only inventory
 
-All source-reviewed manual items remain accounted for without declarations or implemented semantic functions. No second dictionary is synthesized.
+Source-reviewed manual items retain their documentary claims and explicit implementation scope where available. Conditional subsets do not imply whole-function or hardware-qualified coverage. No second dictionary is synthesized.
 
 ### mode_selection
 
@@ -6200,6 +6200,7 @@ All source-reviewed manual items remain accounted for without declarations or im
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Explicit2302 rising edge followed by manual return0; reference effects require evidence.", "gate_ids": ["Q01", "Q14"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 32 implements zero-only prepareSetDevicePosition with acknowledged 2302 U16 values 0,1,0, coordinate/reference withdrawal before possible value-1 transmission, owner epoch synchronization and fresh raw 6064 zero observation. See docs/fault_reference_actions.md and test/reference_action_test.cpp. Arbitrary positions, physical home, exact affected counter mapping and firmware qualification remain unsupported/unqualified; whole-function coverage is not claimed. |
 
 ### save_parameters
 
@@ -6251,6 +6252,7 @@ All source-reviewed manual items remain accounted for without declarations or im
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "Set bit7, manually return0; trigger edge/pulse width not specified.", "gate_ids": ["Q01", "Q13"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 32 keeps this route unimplemented: bit 7 assertion/manual clearing and full-word 15-&gt;128 do not establish an admitted current-state transition or equivalent 2301 behavior. No enabling preamble or fallback is installed. The separate vendor-object conditional path is documented in docs/fault_reference_actions.md. |
 
 ### fault_reset_vendor_object
 
@@ -6268,6 +6270,7 @@ All source-reviewed manual items remain accounted for without declarations or im
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "2301 action kept separate from6040 reset; no replay.", "gate_ids": ["Q01", "Q13"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 32 implements a conditional CL86-C/OL86-C mode-1 FF05 alarm-clear attempt through prepareClearAlarm: 2301 U16 writes 1 then 0 (explicit ineffective-value policy, not a proved edge/rearm), new monitor alarm-clear observation, preserved raw 603F/history. See docs/fault_reference_actions.md and test/reference_action_test.cpp. Other fault classes, internal resume/rearm behavior and firmware qualification remain gated; whole-function coverage is not claimed. |
 
 ### motion_monitor
 

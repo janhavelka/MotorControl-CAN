@@ -97,6 +97,14 @@ produce consistent native failure evidence without claiming transmission.
 
 ## Scheduling and time
 
+The [counter-zero handoff](fault_reference_actions.md#coordinate-withdrawal-and-owner-synchronization)
+withdraws application coordinates at possible trigger TX. Its ordered writes
+retain the old wire epoch; after their results and external handoffs retire,
+`advanceConfiguration` synchronizes the already advanced application epoch for
+readback. The configuration invalidation callback must not increment the axis
+again. Failed/uncertain prefixes remain retained, with no automatic final-zero
+cleanup or channel reopening.
+
 The [Lichuan stop handoff](stop_actions.md#owner-handoff-and-retained-interruption)
 uses these same methods and reserved slots. Cancel every obsolete request before
 starting a newer stop operation; `admitUrgent` alone preserves FIFO and does not

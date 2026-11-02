@@ -6,6 +6,12 @@
 #include <MotorControlCAN/Status.h>
 
 namespace MotorControlCAN {
+/** Explicit intent; a device counter clear is distinct from host origin or home. */
+enum class ActionKind : uint8_t {
+    STOP,               ///< Profile-selected explicit stop.
+    CLEAR_ALARM,        ///< Documented fault-clear attempt, with fresh observations.
+    SET_DEVICE_POSITION ///< Only a profile's evidenced native counter operation.
+};
 /** Local concrete operation phase; OK from an advancing call is not completion. */
 enum class ActionState : uint8_t {
     EMPTY,     ///< No prepared work.
