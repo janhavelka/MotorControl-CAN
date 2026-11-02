@@ -44,8 +44,9 @@ struct TwaiDriver {
     bool (*submit)(void*, const MotorControlCAN::Frame&, uint32_t) = nullptr;
     ///< Copy frame; one outstanding. False proves no borrowing, future TX or callback for this attempt.
     TwaiEvents (*events)(void*) = nullptr; ///< One bounded atomic mailbox/counter snapshot.
-    bool (*receive)(void*,
-                    ReceivedFrame&) = nullptr; ///< One copied ingress stamped at ISR enqueue.
+    bool (*receive)(void*, ReceivedFrame&, uint64_t) = nullptr;
+    ///< One copied ingress stamped at ISR enqueue; final argument is inclusive
+    ///< processing cutoff. Leave a newer head frame queued until a later turn.
 };
 /** Cached adapter diagnostics; no hardware queries and no inferred wire completion. */
 struct TwaiDiagnostics {
@@ -114,9 +115,9 @@ class TwaiAdapter {
     uint64_t now_ = 0;
     bool initialized_ = false, attempted_ = false, haveTime_ = false;
     enum class Recovery : uint8_t { IDLE, STOP, START, FAILED } recovery_ = Recovery::IDLE;
-    bool enqueue(const MotorControlCAN::Frame&, MotorControlCAN::CANOPEN::SdoTxId,
+    bool enqueue(const MotorControlCAN::Frame&, TransportTxId,
                  uint32_t) noexcept;
-    bool retire(MotorControlCAN::CANOPEN::SdoTxId, uint32_t) noexcept;
+    bool retire(TransportTxId, uint32_t) noexcept;
     bool beginRecovery(uint32_t) noexcept;
     RecoveryProgress pollRecovery(uint32_t) noexcept;
 };

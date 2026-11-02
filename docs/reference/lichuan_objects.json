@@ -1353,7 +1353,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; never infer an active heartbeat or watchdog.",
+            "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5336,7 +5336,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7032,7 +7032,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7102,7 +7102,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7172,7 +7172,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -16947,7 +16947,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32.",
+            "value_policy": "I32, documented -1000000..1000000; EDS default5000 is not an initial move. I3C dictionary label is malformed, use EDS and position table I32. Post-cycle2026-11-02 both CL86-C specimens returned raw5000 in the finite30-field readiness inventory. This nonzero retained target is stale intent, not a new command or evidence that enabling/mode change is safe. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -18863,7 +18863,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Preserve EDS I32 and contradictory U32 claim. Decode raw wire data; no typed signed motion until binding resolves Q03.",
-            "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified.",
+            "value_policy": "Documentary common positive interval0..3000; negative encoding/start order unqualified. Post-cycle2026-11-02 both CL86-C specimens returned raw120 in the finite30-field readiness inventory. This nonzero retained target is stale intent, not a new command or evidence that enabling/mode change is safe. No write, read-effect promotion or motion qualification follows. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -22685,7 +22685,7 @@
       {
         "id": "Q11",
         "feature": "Enable / position trigger and ramp boundary",
-        "required_evidence": "For the current mode/state establish retained-target behavior, enable/release effect, bit-4 trigger/rearm and target-acceptance evidence. Verify zero ramp behavior before accepting it; approximate 10 ms between example transitions is not a response/completion deadline.",
+        "required_evidence": "For the current mode/state establish retained-target behavior, enable/release effect, bit-4 trigger/rearm and target-acceptance evidence. Verify zero ramp behavior before accepting it; approximate 10 ms between example transitions is not a response/completion deadline. Post-cycle2026-11-02 both specimens report retained607A=5000 and60FF=120, with6061=0; enabling/retained-target effect remains unresolved. Finite read-only readiness inventory and raw links: docs/reports/2026-11-02_nmt_pdo_checkpoint.md. No executable motion controller or blind enable sequence is qualified.",
         "owner_prompts": [
           20,
           30,
@@ -22782,7 +22782,7 @@
       {
         "id": "Q17",
         "feature": "PDO eligibility / remapping / freshness",
-        "required_evidence": "Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples. Physical readback 2026-11-02: both CL86-C fixtures have TPDO1 type255, inhibit raw100, event raw0, count3, words60410010/60610008/60640020, COB-ID181/182. These current values differ from the EDS default template; no factory-default claim follows. No NMT state, mutation, timer unit/effect, persistence or sample-retirement boundary was established. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
+        "required_evidence": "Read actual map counts and slots and verify direction/access for the selected model/firmware. Confirm applicability of CiA variable/dynamic mapping and any device-specific NMT/drive restrictions, COB-ID flags, activation and complete readback conditions for the selected remap subset; the standard disable/count-zero/entries/count/enable procedure is documented, not an unknown protocol order. Record persistence effects without assuming volatile-only writes. Gate changes to transmission mode, inhibit/event units, ranges and zero behavior separately for RPDO and TPDO; unchanged settings do not require every timer or SYNC capability. Qualify producer transition and queued RX/TX retirement, distinct route or observable marker before qualifying samples; that separate gate does not prevent confirmation of map contents. Map readback and host generation alone cannot qualify same-ID/same-DLC delayed samples. Physical readback 2026-11-02: both CL86-C fixtures have TPDO1 type255, inhibit raw100, event raw0, count3, words60410010/60610008/60640020, COB-ID181/182. These current values differ from the EDS default template; no factory-default claim follows. That earlier connection checkpoint established no NMT state or mutation. The later NMT/TPDO checkpoint establishes the fixed subset below; timer unit/effect, persistence and sample-retirement remain unresolved. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Q17 remains open for broader RPDO/TPDO routes and firmware scope; prompt18 is Partial, not wholly blocked on the already observed fixed subset. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
         "owner_prompts": [
           17,
           18
@@ -22798,7 +22798,7 @@
       {
         "id": "Q18",
         "feature": "Service / network event behavior",
-        "required_evidence": "Observe actual upload forms, NMT transitions, heartbeat/EMCY/SYNC behavior and reset recovery for the binding. No manufacturer host-loss stop guarantee follows from 1017=0 or absent 1016; obtain applicable drive reaction evidence separately.",
+        "required_evidence": "Observe actual upload forms, NMT transitions, heartbeat/EMCY/SYNC behavior and reset recovery for the binding. No manufacturer host-loss stop guarantee follows from 1017=0 or absent 1016; obtain applicable drive reaction evidence separately. The 2026-11-02 NMT/TPDO checkpoint observes node1 heartbeat1000 and addressed Pre-operational with fresh interval evidence; broader transitions, reset recovery, consumer reaction and firmware scope remain open. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
         "owner_prompts": [
           13,
           14,
@@ -22817,7 +22817,7 @@
       {
         "id": "Q19",
         "feature": "Physical electrical fixture",
-        "required_evidence": "Verify model label and applicable manufacturer electrical limits, board/transceiver/wiring/termination, motor/encoder, input assignments and authorization. Resolve 86C and 57C supply conflicts separately; do not use a document range as bench permission. Resolve only the selected model supply conflict. Establish the independent 60FD bit-to-function layout before decoding it; 2101 is not its mapping source.",
+        "required_evidence": "Verify model label and applicable manufacturer electrical limits, board/transceiver/wiring/termination, motor/encoder, input assignments and authorization. Resolve 86C and 57C supply conflicts separately; do not use a document range as bench permission. Resolve only the selected model supply conflict. Establish the independent 60FD bit-to-function layout before decoding it; 2101 is not its mapping source. User identifies motorLC60H2127 and imperfect paper shaft marker. Both specimens read2400:01=0,:02/:03/:04=1/2/3,:05..08=0 and2101/60FD=0; reportedly unconnected terminals do not disable configured functions. No reassignment occurred. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
         "owner_prompts": [
           29,
           47,

@@ -1,0 +1,6 @@
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=105295232 hi=105296055 p=105297960 dropped=5
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=5
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=97290960 exact=0 bounds=1 lo=97289226 hi=97289699
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=98291960 exact=0 bounds=1 lo=98290229 hi=98290494
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=99292960 exact=0 bounds=1 lo=99291049 hi=99291281
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=100293960 exact=0 bounds=1 lo=100291225 hi=100292088

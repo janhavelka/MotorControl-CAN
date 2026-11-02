@@ -270,6 +270,26 @@
       "origin": "manufacturer-hosted or manufacturer-linked CDN",
       "license": "No explicit redistribution license found; manufacturer copyright applies; excluded from future library source-code license.",
       "revision": "No explicit printed revision identified; metadata dates do not establish firmware applicability."
+    },
+    {
+      "id": "CIA_POSTER_2024",
+      "title": "CANopen poster 2024",
+      "path": "public/canopen_poster_2024.pdf",
+      "url": "https://member.can-cia.org/files/canopen_poster_2024.pdf",
+      "retrieved_on": "2026-11-02",
+      "retrieval_status": "downloaded_http_200",
+      "bytes": 9506706,
+      "sha256": "f7a498e61dbd45641748f6c1cd809cceb2e796504783afe36358f2cd77635ac0",
+      "language": "en",
+      "applicability": [
+        "CANopen protocol heartbeat producer time1017h unit; no model-specific firmware qualification"
+      ],
+      "firmware_match": "not established",
+      "origin": "CAN in Automation official member site",
+      "license": "CiA copyright; excluded from library software license and packages.",
+      "revision": "2024 poster; not the full normative CiA specification",
+      "pdf_pages": 1,
+      "reviewed_claim": "Page1 heartbeat producer diagram explicitly states1017h in ms. Reviewed original and retained crop; supports protocol units, not all device timing ranges or host-loss behavior."
     }
   ],
   "derived_artifacts": [
@@ -339,6 +359,13 @@
       "sha256": "53f82b09af3d3dc0b4c24706e41a2d6ad4b72380d051d4f236bcb24f6805d48e",
       "derived_from": "EDS",
       "method": "Lossless EDS field extraction with hexadecimal object addresses and one-based original line spans; independently checked against original strings. Not a reviewed firmware ledger."
+    },
+    {
+      "path": "public/cia_heartbeat_units.png",
+      "bytes": 27941,
+      "sha256": "c199f79374d793cc673e318ebd49c9de8f9e6ff7b976d90d81192bddd8fe18de",
+      "derived_from": "CIA_POSTER_2024",
+      "generation": "Derived visual review crop, PDF page1 heartbeat diagram, rendered with PyMuPDF"
     }
   ],
   "unavailable_sources": [
@@ -372,6 +399,12 @@
       "bytes": 132,
       "sha256": "98b4c4f666679bf661acadcc86e47b927721046ee4b060878afc3f4c62e08f40",
       "generation": "Manufacturer-page extracted URL list retained from initial local commit; not an original vendor manual"
+    },
+    {
+      "path": "public/cia_heartbeat_sources.json",
+      "bytes": 858,
+      "sha256": "67366f5fc0f448153b0c2e2e3570f8a6a9014fb904f4c4165dc19ad2c1bb5026",
+      "generation": "2026-11-02 retrieval and visual-review provenance for original CiA poster and derived crop"
     }
   ]
 }

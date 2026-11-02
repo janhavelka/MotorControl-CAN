@@ -54,7 +54,7 @@ class FakeTransport {
     unsigned rxHead_ = 0, rxCount_ = 0, reportHead_ = 0, reportCount_ = 0;
     unsigned transmitted_ = 0, transmitCalls_ = 0, observed_ = 0, receiveCalls_ = 0;
     static bool receive(void*, ReceivedFrame&) noexcept;
-    static bool transmit(void*, const MotorControlCAN::Frame&, MotorControlCAN::CANOPEN::SdoTxId,
+    static bool transmit(void*, const MotorControlCAN::Frame&, TransportTxId,
                          uint32_t) noexcept;
     static bool takeReport(void*, TxReport&) noexcept;
     static void observe(void*, const ReceivedFrame&, uint64_t) noexcept;

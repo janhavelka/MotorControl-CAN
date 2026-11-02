@@ -43,7 +43,7 @@ SdoExpectation expectation(const SdoTransfer& work) {
     out.direction = work.direction;
     return out;
 }
-bool sameUpload(const SdoTransfer& a, const SdoTransfer& b) {
+bool sameExperiment(const SdoTransfer& a, const SdoTransfer& b) {
     return sameBinding(a.channel.binding, b.channel.binding) &&
         a.channel.clientToServerId == b.channel.clientToServerId &&
         a.channel.serverToClientId == b.channel.serverToClientId &&
@@ -51,8 +51,10 @@ bool sameUpload(const SdoTransfer& a, const SdoTransfer& b) {
         a.index == b.index && a.subindex == b.subindex && a.size == b.size &&
         a.uploadSize == b.uploadSize &&
         a.direction == b.direction && a.readEffect == b.readEffect &&
-        a.allowSegmentedUpload == b.allowSegmentedUpload && a.deadlineUs == b.deadlineUs &&
-        a.queueTimeoutUs == b.queueTimeoutUs && a.responseTimeoutUs == b.responseTimeoutUs;
+        a.allowSegmentedUpload == b.allowSegmentedUpload &&
+        a.requirePreOperational == b.requirePreOperational && a.deadlineUs == b.deadlineUs &&
+        a.queueTimeoutUs == b.queueTimeoutUs && a.responseTimeoutUs == b.responseTimeoutUs &&
+        (a.direction != SdoDirection::DOWNLOAD || std::memcmp(a.data, b.data, a.size) == 0);
 }
 } // namespace
 
@@ -148,7 +150,7 @@ bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
             continue;
         // A shared physical node with another logical/channel binding needs an
         // explicit effect-scope policy; do not guess which interpretation changed.
-        if (!sameBinding(channel.route.binding, previous) || !channel.confirmed ||
+        if (!sameBinding(channel.route.binding, previous) ||
             channel.unresolved || channel.occupied || channel.cleanup ||
             channel.awaiting || channel.handoffLive || channel.port.queueOccupied ||
             channel.port.tx.bufferFull || channel.port.sendFault)
@@ -192,6 +194,19 @@ const SdoChannel* SdoClient::channel(uint8_t slot) const {
 bool SdoClient::authorizeUploadExperiment(uint8_t slot, const SdoTransfer& input,
                                          Generation nodeGeneration, uint32_t authorizationId,
                                          uint64_t now) {
+    return input.direction == SdoDirection::UPLOAD &&
+        authorizeExperiment(slot, input, nodeGeneration, authorizationId, now);
+}
+bool SdoClient::authorizeDownloadExperiment(uint8_t slot, const SdoTransfer& input,
+                                           Generation nodeGeneration, uint32_t authorizationId,
+                                           uint64_t now) {
+    return input.direction == SdoDirection::DOWNLOAD && input.size >= 1 && input.size <= 4 &&
+        input.uploadSize == SdoUploadSize::EXACT &&
+        authorizeExperiment(slot, input, nodeGeneration, authorizationId, now);
+}
+bool SdoClient::authorizeExperiment(uint8_t slot, const SdoTransfer& input,
+                                   Generation nodeGeneration, uint32_t authorizationId,
+                                   uint64_t now) {
     if (slot >= CHANNELS || now < lastUs_ ||
         overlap(&input, sizeof input, this, sizeof *this)) return false;
     Channel& c = channels_[slot];
@@ -208,7 +223,8 @@ bool SdoClient::authorizeUploadExperiment(uint8_t slot, const SdoTransfer& input
         input.channel.clientToServerId != c.route.clientToServerId ||
         input.channel.serverToClientId != c.route.serverToClientId ||
         !input.operation || !input.request || !input.step || !input.size || input.size > 32 ||
-        input.direction != SdoDirection::UPLOAD || input.readEffect != SdoReadEffect::UNQUALIFIED ||
+        (input.direction != SdoDirection::UPLOAD && input.direction != SdoDirection::DOWNLOAD) ||
+        input.readEffect != SdoReadEffect::UNQUALIFIED ||
         (input.uploadSize != SdoUploadSize::EXACT && input.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
         input.deadlineUs <= now || !input.queueTimeoutUs || !input.responseTimeoutUs)
         return false;
@@ -232,7 +248,7 @@ bool SdoClient::experimentMatches(uint8_t slot, const SdoTransfer& work, uint64_
         c.experimentNodeGeneration == channels_[anchor].network.route.generation &&
         now < c.experimentUpload.deadlineUs &&
         (admitted ? c.experimentActive && c.occupied && !c.terminal : c.experimentArmed) &&
-        sameUpload(work, c.experimentUpload);
+        sameExperiment(work, c.experimentUpload);
 }
 bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
     if (slot >= CHANNELS || now < lastUs_ || !eligibleSdo(slot, work, now))
@@ -436,8 +452,14 @@ bool SdoClient::receive(const Frame& f, uint64_t received, uint64_t now) {
     return receiveFrame(f, true, received, now);
 }
 
-bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t received, uint64_t now) {
-    if (now < lastUs_ || (timeKnown && received > now)) return false;
+bool SdoClient::receive(const Frame& f, uint64_t earliest, uint64_t latest, uint64_t now) {
+    return receiveFrame(f, false, 0, now, true, earliest, latest);
+}
+
+bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t received, uint64_t now,
+                           bool boundsKnown, uint64_t earliest, uint64_t latest) {
+    if (now < lastUs_ || (timeKnown && received > now) ||
+        (boundsKnown && (timeKnown || earliest > latest || latest > now))) return false;
     // A caller may return our borrowed observation frame; copy before replacing it.
     const Frame f = input;
     service(now);
@@ -448,7 +470,8 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
     for (const Channel& c : channels_)
         if (c.networkConfigured && (f.id == c.network.route.heartbeatId || f.id == c.network.route.emcyId))
             networkIdentifier = true;
-    const bool networkAccepted = dispatchNetwork(f, nullptr, timeKnown, received, now);
+    const bool networkAccepted = dispatchNetwork(f, nullptr, timeKnown, received, now,
+                                                 boundsKnown, earliest, latest);
     if (networkIdentifier) return networkAccepted;
     for (Channel& c : channels_) {
         if (!c.configured || f.id != c.route.serverToClientId) continue;
@@ -463,7 +486,7 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
         const bool serverAbort = c.possible && f.payloadLength == 8 && f.data[0] == 0x80;
         if (c.unresolved || !c.occupied || c.terminal ||
             (!serverAbort && (!c.awaiting || c.port.queueOccupied)) ||
-            (timeKnown && received < c.handoffUs)) {
+            (timeKnown && received < c.handoffUs) || (boundsKnown && latest < c.handoffUs)) {
             // Observed old/unsolicited traffic disproves the external reuse premise.
             // Host tokens cannot classify a later indistinguishable response safely.
             retire(c);

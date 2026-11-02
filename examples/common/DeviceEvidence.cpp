@@ -166,6 +166,9 @@ void DeviceEvidence::capture() noexcept {
         out.processedUs = input.processedUs;
         out.receivedUs = input.receivedUs;
         out.receivedTimeKnown = input.receivedTimeKnown;
+        out.receiveBoundsKnown = input.receiveBoundsKnown;
+        out.receivedEarliestUs = input.receivedEarliestUs;
+        out.receivedLatestUs = input.receivedLatestUs;
         out.accepted = input.accepted;
         out.controller = input.controller;
         out.recovery = input.recovery;

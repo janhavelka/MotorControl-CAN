@@ -1,5 +1,14 @@
 # MotorControl-CAN
 
+**Fixed TPDO1 and explicit NMT observed:** the [current S2 checkpoint](docs/reports/2026-11-02_nmt_pdo_checkpoint.md)
+records 26 uploads per node, node1 heartbeat acquisition, addressed
+Pre-operational and the implemented fixed TPDO1 map change with complete
+readback. Conservative receive bounds keep exact bus time unknown. Broader
+PDO/timers/SYNC, persistence, sample qualification and finite motion remain
+pending; no start/reset, motion, save or restore was sent. A later physical
+power cycle reverted node1's heartbeat/map in the observed cycle. New read-only
+inventories found nonzero retained targets and mode0; motion remains unqualified.
+
 **Position parameters:** [checked native preparation](docs/position_parameters.md) now retains exact absolute/relative host intent and validates the documented pulse/rpm/ms ranges. The [native example](examples/position_preview/README.md) performs no CAN I/O. Finite motion remains blocked on qualified acceptance/completion, relative-base and post-trigger stop evidence.
 
 **Explicit fault and counter actions:** [alarm clearing and device zero](docs/fault_reference_actions.md)
@@ -31,13 +40,13 @@ effects (Q20). Host fakes and firmware builds pass; physical qualification remai
 pending. [Prompt 29's report](docs/reports/prompt_29.md) separates delivered
 software from conditional acquisition.
 
-**Two-drive connection observed:** the [S2 bench](examples/s2_bench/README.md)
+**Earlier two-drive connection checkpoint:** the [S2 bench](examples/s2_bench/README.md)
 now runs on the OPTAK board through ESP-Prog2 UART. Each node completed 20
 explicit experimental uploads; [retained traffic and results](docs/reports/2026-11-02_s2_live_connection.md)
 record the actual one-byte `1009=0x0C` and `100A=0x20`, which disagree with the
 EDS's U16 widths. Production typed widths remain unchanged. This checkpoint
 establishes the connection; read effects, firmware interpretation, motion and
-PDO mutation remain unqualified. No PDO write was sent. P4 firmware support
+PDO mutation remained unqualified in that earlier record. No PDO write was sent in that checkpoint; the later fixed-subset result is above. P4 firmware support
 remains pending after its isolated core build.
 
 **TWAI transport:** the optional [ESP32-S2/S3 adapter](adapters/twai/README.md)

@@ -28,21 +28,51 @@ ObservationTime timeOf(bool known, uint64_t received, uint64_t now) {
 bool older(const ObservationTime& previous, bool known, uint64_t received) {
     return previous.present && previous.receivedTimeKnown && (!known || received < previous.receivedUs);
 }
+enum class Order { FOLLOWING, STALE, OVERLAPPING };
+Order order(const ObservationTime& previous, const ObservationTime& next) {
+    if (!previous.present) return Order::FOLLOWING;
+    uint64_t previousFirst = 0, previousLast = 0, nextFirst = 0, nextLast = 0;
+    const bool previousKnown = observationTimeBounds(previous, previousFirst, previousLast);
+    const bool nextKnown = observationTimeBounds(next, nextFirst, nextLast);
+    if (!previousKnown) return Order::FOLLOWING;
+    if (!nextKnown) return Order::STALE; // Unknown time cannot replace retained qualified evidence.
+    if (previous.receivedTimeKnown && next.receivedTimeKnown)
+        return nextFirst < previousLast ? Order::STALE : Order::FOLLOWING;
+    if (nextFirst > previousLast) return Order::FOLLOWING;
+    if (nextLast < previousFirst) return Order::STALE;
+    return Order::OVERLAPPING;
+}
 } // namespace
 
+bool observationTimeBounds(const ObservationTime& time, uint64_t& earliest, uint64_t& latest) {
+    if (!time.present || time.receivedTimeKnown == time.receiveBoundsKnown ||
+        &earliest == &latest || overlap(&time, sizeof time, &earliest, sizeof earliest) ||
+        overlap(&time, sizeof time, &latest, sizeof latest)) return false;
+    const uint64_t first = time.receivedTimeKnown ? time.receivedUs : time.receivedEarliestUs;
+    const uint64_t last = time.receivedTimeKnown ? time.receivedUs : time.receivedLatestUs;
+    if (first > last || last > time.processedUs) return false;
+    earliest = first; latest = last;
+    return true;
+}
+
 bool heartbeatFreshness(const NodeSnapshot& node, uint64_t now, uint64_t age, HeartbeatFreshness& output) {
+    uint64_t earliest = 0, latest = 0;
+    const bool timed = observationTimeBounds(node.heartbeat, earliest, latest);
     if (!age || now < node.boundaryUs ||
         (node.heartbeat.present && (now < node.heartbeat.processedUs ||
-         (node.heartbeat.receivedTimeKnown && now < node.heartbeat.receivedUs))) ||
+         (node.heartbeat.receivedTimeKnown && now < node.heartbeat.receivedUs) ||
+         (node.heartbeat.receiveBoundsKnown && (!timed || now < latest)))) ||
         overlap(&node, sizeof node, &output, sizeof output)) return false;
     HeartbeatFreshness result;
     if (node.exhausted) result = HeartbeatFreshness::UNQUALIFIED;
     else if (!node.producerKnown) result = HeartbeatFreshness::PRODUCER_UNKNOWN;
     else if (!node.producerTimeMs) result = HeartbeatFreshness::DISABLED;
     else if (!node.heartbeat.present) result = HeartbeatFreshness::NEVER_OBSERVED;
-    else if (!node.heartbeat.receivedTimeKnown || node.heartbeat.generation != node.route.generation)
+    else if (!timed || node.heartbeat.generation != node.route.generation)
         result = HeartbeatFreshness::UNQUALIFIED;
-    else result = now - node.heartbeat.receivedUs > age ? HeartbeatFreshness::EXPIRED : HeartbeatFreshness::FRESH;
+    else if (now - earliest <= age) result = HeartbeatFreshness::FRESH;
+    else if (now - latest > age) result = HeartbeatFreshness::EXPIRED;
+    else result = HeartbeatFreshness::UNQUALIFIED;
     output = result;
     return true;
 }
@@ -116,6 +146,14 @@ bool SdoClient::setProducerInterval(uint8_t slot, const NetworkRoute& source, ui
     lastUs_ = now;
     return true;
 }
+bool SdoClient::invalidateProducerInterval(uint8_t slot, const NetworkRoute& source, uint64_t now) {
+    const int anchor = networkAnchor(slot);
+    if (anchor < 0 || now < lastUs_ || channels_[anchor].network.exhausted ||
+        !sameRoute(source, channels_[anchor].network.route)) return false;
+    channels_[anchor].network.producerKnown = false;
+    lastUs_ = now;
+    return true;
+}
 
 void SdoClient::recordNetwork(const NetworkObservation& observation) {
     if (networkCount_ == NETWORK_HISTORY) {
@@ -155,6 +193,7 @@ void SdoClient::invalidateNode(unsigned anchor, NetworkInvalidation cause, uint6
     notification.generation = state.route.generation;
     state.boundaryUs = now; state.strictBoundary = true;
     state.heartbeat = state.nmtTime = state.sdo = ObservationTime();
+    state.nmtOrderingUncertain = false;
     state.serviceQualification = ObservationTime();
     revokeNodePdos(anchor, true, now);
     state.producerKnown = false; // Old readback/defaults cannot establish a new effective interval.
@@ -217,9 +256,14 @@ bool SdoClient::receiveNetwork(const Frame& input, const NetworkRoute& source, u
     return dispatchNetwork(frame, &provenance, true, received, now);
 }
 
-bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, bool known, uint64_t received, uint64_t now) {
+bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, bool known, uint64_t received, uint64_t now,
+                               bool boundsKnown, uint64_t earliest, uint64_t latest) {
     NetworkObservation observation;
     observation.frame = frame; observation.time = timeOf(known, received, now);
+    observation.time.receiveBoundsKnown = boundsKnown;
+    observation.time.receivedEarliestUs = earliest; observation.time.receivedLatestUs = latest;
+    uint64_t first = 0, last = 0;
+    const bool timed = observationTimeBounds(observation.time, first, last);
     for (unsigned i = 0; i < CHANNELS; ++i) {
         Channel& c = channels_[i];
         if (!c.networkConfigured || (frame.id != c.network.route.heartbeatId && frame.id != c.network.route.emcyId)) continue;
@@ -227,7 +271,7 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
         observation.route = source ? *source : state.route;
         observation.time.generation = observation.route.generation;
         if ((source && !sameRoute(*source, state.route)) || state.exhausted ||
-            (known && (received < state.boundaryUs || (state.strictBoundary && received == state.boundaryUs)))) {
+            (timed && (last < state.boundaryUs || (state.strictBoundary && last == state.boundaryUs)))) {
             observation.disposition = NetworkDisposition::STALE;
             recordNetwork(observation); return false;
         }
@@ -243,35 +287,57 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
             // A newer heartbeat cannot prove that older configuration survived this reset.
             const ObservationTime previous = state.nmtTime;
             const NmtState previousState = state.nmt;
-            invalidateNode(i, NetworkInvalidation::BOOTUP, now, known && received > state.transitionUs);
-            if (older(previous, known, received)) {
+            invalidateNode(i, NetworkInvalidation::BOOTUP, now, timed && first > state.transitionUs);
+            if (order(previous, observation.time) != Order::FOLLOWING) {
                 state.nmt = previousState; state.nmtTime = previous;
             } else {
                 state.nmt = NmtState::INITIALIZING; state.nmtTime = observation.time;
                 state.nmtTime.generation = state.route.generation;
             }
             observeNmt(state, observation.time, NmtState::INITIALIZING);
-        } else if (!known && state.strictBoundary) {
+        } else if ((!timed && state.strictBoundary) ||
+                   (timed && (first < state.boundaryUs || (state.strictBoundary && first == state.boundaryUs)))) {
             observation.disposition = NetworkDisposition::UNQUALIFIED;
             recordNetwork(observation); return false;
         } else if (event.kind == NetworkEventKind::HEARTBEAT) {
-            if (older(state.heartbeat, known, received)) {
+            const Order heartbeatOrder = order(state.heartbeat, observation.time);
+            const Order nmtOrder = order(state.nmtTime, observation.time);
+            if (heartbeatOrder == Order::STALE) {
                 observation.disposition = NetworkDisposition::STALE;
                 recordNetwork(observation); return false;
             }
-            state.heartbeat = observation.time;
-            if (!older(state.nmtTime, known, received)) {
+            if (heartbeatOrder == Order::FOLLOWING) state.heartbeat = observation.time;
+            if (nmtOrder == Order::FOLLOWING) {
                 state.nmt = event.state; state.nmtTime = observation.time;
+                state.nmtOrderingUncertain = false;
                 observeNmt(state, observation.time, event.state);
                 ServiceEligibility eligibility;
                 if (serviceEligibility(state, now, eligibility) && eligibility.exactNmtKnown &&
                     eligibility.state == NmtState::STOPPED) stopSdo(i, now);
                 if (eligibility.exactNmtKnown && eligibility.state != NmtState::OPERATIONAL)
                     revokeNodePdos(i, false, now);
+            } else if (nmtOrder == Order::OVERLAPPING &&
+                       (state.nmtOrderingUncertain || state.nmt != event.state)) {
+                // Neither state is demonstrably latest. Preserve the raw prior state,
+                // but fence later qualification beyond both possible receive windows.
+                uint64_t previousFirst = 0, previousLast = 0;
+                observationTimeBounds(state.nmtTime, previousFirst, previousLast);
+                ObservationTime fence = observation.time;
+                fence.receivedTimeKnown = false; fence.receivedUs = 0;
+                fence.receiveBoundsKnown = true;
+                fence.receivedEarliestUs = previousFirst < first ? previousFirst : first;
+                fence.receivedLatestUs = previousLast > last ? previousLast : last;
+                state.nmtTime = fence;
+                state.nmtOrderingUncertain = true;
+                state.serviceQualification = ObservationTime();
+                stopSdo(i, now);
+                revokeNodePdos(i, false, now);
             }
+            if (heartbeatOrder == Order::OVERLAPPING || nmtOrder == Order::OVERLAPPING)
+                observation.disposition = NetworkDisposition::UNQUALIFIED;
         } else {
             if (state.emcyCount != UINT32_MAX) ++state.emcyCount;
-            if (!older(state.emcyTime, known, received)) {
+            if (order(state.emcyTime, observation.time) == Order::FOLLOWING) {
                 state.emcy = event; state.emcyTime = observation.time;
             }
         }

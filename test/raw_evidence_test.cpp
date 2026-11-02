@@ -11,6 +11,15 @@ namespace L = MotorControlCAN::LICHUAN_C;
 namespace E = MotorControlCANExample;
 namespace {
 unsigned checks = 0;
+// Independent EDS width/address vectors; manual access disagreements remain raw.
+const uint16_t readinessIndexes[30] = {
+    0x1001, 0x603f, 0x6041, 0x6061, 0x2100, 0x2101, 0x6064, 0x606c, 0x607a, 0x6081,
+    0x6083, 0x6084, 0x605d, 0x60ff, 0x2200, 0x2201, 0x2202, 0x607d, 0x607d, 0x2500,
+    0x2501, 0x2400, 0x2400, 0x2400, 0x2400, 0x2400, 0x2400, 0x2400, 0x2400, 0x60fd};
+const uint8_t readinessSubindexes[30] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                         0, 0, 1, 2, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0};
+const uint8_t readinessWidths[30] = {1, 2, 2, 1, 2, 2, 4, 4, 4, 4, 4, 4, 2, 4, 2,
+                                     2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4};
 #define CHECK(value)                                                                               \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -48,6 +57,9 @@ struct Wire {
     bool holdReport = false;
     bool proveRetirement = false;
     unsigned retireCalls = 0;
+    bool heartbeat = false;
+    bool motionReadiness = false;
+    uint16_t heartbeatMs = 0;
     void push(const M::Frame& frame) {
         CHECK(rxCount < 32);
         auto& out = rx[(rxHead + rxCount++) % 32];
@@ -66,10 +78,11 @@ struct Wire {
         --w.rxCount;
         return true;
     }
-    static bool transmit(void* ptr, const M::Frame& request, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* ptr, const M::Frame& request, E::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(ptr);
         CHECK(request.id == 0x601 && epoch == 1 && request.payloadLength == 8);
-        CHECK(request.data[0] == 0x40 || request.data[0] == 0x80);
+        CHECK(request.data[0] == 0x40 || request.data[0] == 0x80 ||
+              (w.heartbeat && request.data[0] == 0x2b));
         CHECK(w.transmitted < 64 && w.reportCount < 4);
         w.sent[w.transmitted++] = request;
         auto& report = w.reports[(w.reportHead + w.reportCount++) % 4];
@@ -87,13 +100,43 @@ struct Wire {
         reply.dlc = reply.payloadLength = mode == Mode::BOOTUP ? 1 : 8;
         if (mode != Mode::BOOTUP) {
             // The second identity object deliberately responds with one byte.
-            const unsigned width = w.uploads == 2 ? 1 : w.uploads % 4 + 1;
+            unsigned width = w.uploads == 2 ? 1 : w.uploads % 4 + 1;
+            if (w.motionReadiness) {
+                CHECK(w.uploads <= 30 && request.data[0] == 0x40);
+                const unsigned field = w.uploads - 1;
+                CHECK((unsigned(request.data[1]) | unsigned(request.data[2]) << 8) ==
+                      readinessIndexes[field]);
+                CHECK(request.data[3] == readinessSubindexes[field]);
+                width = readinessWidths[field];
+            }
             reply.data[0] = uint8_t(0x43u | ((4u - width) << 2));
             reply.data[1] = request.data[1];
             reply.data[2] = request.data[2];
             reply.data[3] = request.data[3];
             for (unsigned i = 0; i < 4; ++i)
                 reply.data[4 + i] = uint8_t(0x30 + w.uploads + i);
+            if (w.motionReadiness) {
+                const unsigned field = w.uploads - 1;
+                const uint32_t value = field == 12   ? 0xffffu
+                                       : field == 8  ? 0xfffffff0u
+                                       : field == 15 ? 1000u
+                                                     : uint32_t(field);
+                for (unsigned i = 0; i < 4; ++i)
+                    reply.data[4 + i] = uint8_t(value >> (8 * i));
+            }
+            if (w.heartbeat) {
+                CHECK(request.data[1] == 0x17 && request.data[2] == 0x10 && request.data[3] == 0);
+                if (request.data[0] == 0x2b) {
+                    CHECK(request.data[4] == 0xe8 && request.data[5] == 3);
+                    w.heartbeatMs = 1000;
+                    reply.data[0] = 0x60;
+                } else {
+                    reply.data[0] = 0x4b;
+                    reply.data[4] = uint8_t(w.heartbeatMs);
+                    reply.data[5] = uint8_t(w.heartbeatMs >> 8);
+                }
+                reply.data[6] = reply.data[7] = 0;
+            }
             if (mode == Mode::WRONG_OBJECT)
                 ++reply.data[1];
             if (mode == Mode::SERVER_ABORT)
@@ -125,7 +168,7 @@ struct Wire {
         t.receive = receive;
         t.transmit = transmit;
         t.takeTxReport = report;
-        t.retire = [](void* ptr, C::SdoTxId, uint32_t) {
+        t.retire = [](void* ptr, E::TransportTxId, uint32_t) {
             Wire& w = *static_cast<Wire*>(ptr);
             ++w.retireCalls;
             if (!w.proveRetirement)
@@ -142,12 +185,15 @@ struct Rig {
     E::CanBusOwner owner;
     E::RawEvidence collector;
     uint64_t now = 0;
-    Rig() : owner(services, wire.callbacks(), 42), collector(owner, services) {
-        const L::ReadTarget t = target();
+    explicit Rig(M::Generation configuration = 1, M::Generation nodeGeneration = 1)
+        : owner(services, wire.callbacks(), 42), collector(owner, services) {
+        L::ReadTarget t = target();
+        t.channel.binding.configurationGeneration = configuration;
+        t.nodeGeneration = nodeGeneration;
         CHECK(services.configure(0, t.channel, false, true));
         C::NetworkRoute network;
         network.binding = t.channel.binding;
-        network.generation = 1;
+        network.generation = nodeGeneration;
         network.heartbeatId = 0x701;
         network.emcyId = 0x81;
         CHECK(services.configureNetwork(0, network, C::NetworkObserver(), 0));
@@ -157,7 +203,8 @@ struct Rig {
         auto& r = p.review;
         auto& a = r.plan;
         a.id = 100;
-        a.target = target();
+        a.target.channel = *services.channel(0);
+        a.target.nodeGeneration = services.node(0)->route.generation;
         a.deadlineUs = 5000000;
         a.options.queueTimeoutUs = a.options.responseTimeoutUs = 250000;
         label(a.fixtureId, "synthetic-only");
@@ -531,6 +578,127 @@ void capacityAndNoRetry() {
     CHECK(r.collector.record()->tailCount == E::RAW_EVIDENCE_TAIL &&
           r.collector.record()->tailOverflow);
 }
+void networkAndHeartbeat() {
+    {
+        Rig r;
+        auto plan = r.plan(true);
+        plan.includeNetwork = true;
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        r.finish();
+        const auto& record = *r.collector.record();
+        CHECK(record.failure == E::RawEvidenceFailure::NONE && record.terminalCount == 26);
+        const uint16_t extra[] = {0x1017, 0x2100, 0x603f, 0x6064, 0x2201, 0x606c};
+        for (unsigned i = 0; i < 6; ++i)
+            CHECK(record.terminals[20 + i].service.transfer.index == extra[i]);
+    }
+    for (unsigned initial = 0; initial < 2; ++initial) {
+        Rig r;
+        r.wire.heartbeat = true;
+        r.wire.heartbeatMs = initial ? 10 : 0;
+        auto plan = r.plan();
+        plan.enableHeartbeat = true;
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        r.finish();
+        const auto& record = *r.collector.record();
+        CHECK(record.failure ==
+              (initial ? E::RawEvidenceFailure::READBACK : E::RawEvidenceFailure::NONE));
+        CHECK(r.wire.transmitted == (initial ? 1u : 3u));
+        if (!initial) {
+            CHECK(record.terminals[1].service.transfer.direction == C::SdoDirection::DOWNLOAD);
+            CHECK(record.terminals[2].service.size == 2 && r.wire.heartbeatMs == 1000);
+        }
+        const unsigned sent = r.wire.transmitted;
+        r.turn(r.now + 10000000);
+        CHECK(r.wire.transmitted == sent); // No repeated write or restoration.
+    }
+    for (unsigned step = 1; step <= 3; ++step) {
+        Rig r;
+        r.wire.heartbeat = true;
+        r.wire.mode = Wire::Mode::SILENT;
+        r.wire.failureAt = step;
+        auto plan = r.plan();
+        plan.enableHeartbeat = true;
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        for (unsigned i = 0; i < 30 && !r.collector.record()->terminal; ++i)
+            r.turn(r.now + 20000);
+        CHECK(r.collector.record()->terminal);
+        CHECK(r.collector.record()->failure == E::RawEvidenceFailure::SERVICE);
+        CHECK(r.collector.record()->terminalCount == step);
+        const unsigned sent = r.wire.transmitted;
+        r.turn(r.now + 1000000);
+        CHECK(r.wire.transmitted == sent);
+    }
+}
+void motionReadinessUploadsOnly() {
+    Rig r(9, 7); // Current route/epochs, including a previous configuration change.
+    r.wire.motionReadiness = true;
+    auto plan = r.plan();
+    plan.inventory = E::RawEvidenceInventory::MOTION_READINESS;
+    plan.firstAuthorizationId = 4000;
+    CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+    CHECK(!r.wire.transmitted);
+    r.finish();
+    const auto* record = r.collector.record();
+    CHECK(record->failure == E::RawEvidenceFailure::NONE && record->intendedCount == 30);
+    CHECK(record->terminalCount == 30 && record->attemptedCount == 30 && r.wire.uploads == 30);
+    for (unsigned i = 0; i < 30; ++i) {
+        E::RawEvidenceField documentary;
+        CHECK(E::motionReadinessField(i, documentary));
+        CHECK(documentary.index == readinessIndexes[i] &&
+              documentary.subindex == readinessSubindexes[i]);
+        CHECK(documentary.documentedWidth == readinessWidths[i]);
+        const auto& result = record->terminals[i].service;
+        const auto& work = result.transfer;
+        CHECK(work.index == readinessIndexes[i] && work.subindex == readinessSubindexes[i]);
+        CHECK(work.direction == C::SdoDirection::UPLOAD && work.size == 4);
+        CHECK(work.uploadSize == C::SdoUploadSize::SERVER_INDICATED &&
+              result.size == readinessWidths[i]);
+        CHECK(work.readEffect == C::SdoReadEffect::UNQUALIFIED && result.effectPossible);
+        CHECK(work.channel.binding.configurationGeneration == 9 && result.nodeGeneration == 7);
+        CHECK(work.index != 0x6040 && work.index != 0x6060 && work.index != 0x2300);
+        CHECK(r.wire.sent[i].data[0] == 0x40);
+    }
+    CHECK(record->terminals[8].service.data[3] == 0xff); // Negative I32 bits remain raw.
+    CHECK(record->terminals[12].service.size == 2 && record->terminals[12].service.data[1] == 0xff);
+    CHECK(record->terminals[15].service.data[0] == 0xe8 &&
+          record->terminals[15].service.data[1] == 3);
+    CHECK(!record->evidenceLost && !record->tailOverflow);
+    r.turn(r.now + 1);
+    CHECK(record->trafficCount + record->tailCount == 90);
+    CHECK(r.collector.release());
+    E::RawEvidenceField sentinel(0x1234, 5, 3);
+    CHECK(!E::motionReadinessField(30, sentinel));
+    CHECK(sentinel.index == 0x1234 && sentinel.subindex == 5 && sentinel.documentedWidth == 3);
+    CHECK(r.collector.begin(plan, r.now) ==
+          E::EvidenceAdmission::INVALID); // Same operation never replayed.
+    for (unsigned flag = 0; flag < 4; ++flag) {
+        Rig rejected;
+        auto candidate = rejected.plan();
+        candidate.inventory = E::RawEvidenceInventory::MOTION_READINESS;
+        candidate.includeState = flag == 0;
+        candidate.includeNetwork = flag == 1;
+        candidate.enableHeartbeat = flag == 2;
+        if (flag == 3)
+            candidate.inventory = static_cast<E::RawEvidenceInventory>(255);
+        CHECK(rejected.collector.begin(candidate, 0) == E::EvidenceAdmission::INVALID);
+        CHECK(!rejected.collector.record() && !rejected.wire.transmitted);
+    }
+    for (unsigned at = 1; at <= 30; ++at) {
+        Rig failed;
+        failed.wire.motionReadiness = true;
+        failed.wire.mode = Wire::Mode::SERVER_ABORT;
+        failed.wire.failureAt = at;
+        auto candidate = failed.plan();
+        candidate.inventory = E::RawEvidenceInventory::MOTION_READINESS;
+        candidate.firstAuthorizationId = 4000;
+        CHECK(failed.collector.begin(candidate, 0) == E::EvidenceAdmission::ACCEPTED);
+        failed.finish();
+        CHECK(failed.collector.record()->failure == E::RawEvidenceFailure::SERVICE);
+        CHECK(failed.collector.record()->terminalCount == at && failed.wire.uploads == at);
+        failed.turn(failed.now + 1);
+        CHECK(failed.wire.uploads == at && failed.collector.release());
+    }
+}
 } // namespace
 int main() {
     passiveAndSuccess();
@@ -542,6 +710,8 @@ int main() {
     prefixAndInterruption();
     admissionAndGrantFailure();
     capacityAndNoRetry();
+    networkAndHeartbeat();
+    motionReadinessUploadsOnly();
     std::printf("raw evidence: %u checks passed\n", checks);
     return 0;
 }

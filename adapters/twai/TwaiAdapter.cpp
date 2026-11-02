@@ -6,10 +6,6 @@ namespace {
 uint32_t add(uint32_t a, uint32_t b) {
     return b > UINT32_MAX - a ? UINT32_MAX : a + b;
 }
-bool same(MotorControlCAN::CANOPEN::SdoTxId a, MotorControlCAN::CANOPEN::SdoTxId b) {
-    return a.request.owner == b.request.owner && a.request.channel == b.request.channel &&
-           a.request.generation == b.request.generation && a.frame == b.frame;
-}
 } // namespace
 TwaiAdapter::TwaiAdapter(MotorControlCAN::CANOPEN::SdoClient& services, TwaiDriver driver) noexcept
     : services_(services), driver_(driver) {}
@@ -42,10 +38,10 @@ Transport TwaiAdapter::transport() noexcept {
     result.receive = [](void* p, ReceivedFrame& frame) {
         auto& self = *static_cast<TwaiAdapter*>(p);
         return self.initialized_ && !self.diagnostics_.inhibited &&
-               self.driver_.receive(self.driver_.context, frame);
+               self.driver_.receive(self.driver_.context, frame, self.now_);
     };
     result.transmit = [](void* p, const MotorControlCAN::Frame& frame,
-                         MotorControlCAN::CANOPEN::SdoTxId id, uint32_t epoch) {
+                         TransportTxId id, uint32_t epoch) {
         return static_cast<TwaiAdapter*>(p)->enqueue(frame, id, epoch);
     };
     result.takeTxReport = [](void* p, TxReport& report) {
@@ -58,7 +54,7 @@ Transport TwaiAdapter::transport() noexcept {
             }
         return false;
     };
-    result.retire = [](void* p, MotorControlCAN::CANOPEN::SdoTxId id, uint32_t epoch) {
+    result.retire = [](void* p, TransportTxId id, uint32_t epoch) {
         return static_cast<TwaiAdapter*>(p)->retire(id, epoch);
     };
     result.beginRecovery = [](void* p, uint32_t epoch) {
@@ -69,13 +65,13 @@ Transport TwaiAdapter::transport() noexcept {
     };
     return result;
 }
-bool TwaiAdapter::enqueue(const MotorControlCAN::Frame& frame, MotorControlCAN::CANOPEN::SdoTxId id,
+bool TwaiAdapter::enqueue(const MotorControlCAN::Frame& frame, TransportTxId id,
                           uint32_t epoch) noexcept {
     if (!initialized_ || diagnostics_.inhibited || epoch != epoch_ || serial_ == UINT32_MAX ||
         !MotorControlCAN::validateFrame(frame))
         return false;
     for (const auto& slot : slots_)
-        if (slot.state != State::FREE && same(slot.report.id, id))
+        if (slot.state != State::FREE && sameTransportTxId(slot.report.id, id))
             return false;
     for (auto& slot : slots_)
         if (slot.state == State::FREE) {
@@ -88,9 +84,9 @@ bool TwaiAdapter::enqueue(const MotorControlCAN::Frame& frame, MotorControlCAN::
         }
     return false;
 }
-bool TwaiAdapter::retire(MotorControlCAN::CANOPEN::SdoTxId id, uint32_t epoch) noexcept {
+bool TwaiAdapter::retire(TransportTxId id, uint32_t epoch) noexcept {
     for (auto& slot : slots_)
-        if (slot.state != State::FREE && same(slot.report.id, id) &&
+        if (slot.state != State::FREE && sameTransportTxId(slot.report.id, id) &&
             slot.report.controllerEpoch == epoch) {
             if (slot.state == State::ACTIVE)
                 return false;
@@ -150,7 +146,11 @@ void TwaiAdapter::service(CanBusOwner& owner, uint64_t now) noexcept {
     }
     if (!next)
         return;
-    if (!services_.canTransmit(next->report.id, now)) {
+    const TransportTxId id = next->report.id;
+    const bool eligible = id.kind == TransportTxId::Kind::NMT
+        ? services_.canTransmitNmt(id.nmt, now)
+        : id.kind == TransportTxId::Kind::SDO && services_.canTransmit(id.sdo, now);
+    if (!eligible) {
         next->state = State::REPORT;
         return;
     }

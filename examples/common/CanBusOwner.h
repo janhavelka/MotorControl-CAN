@@ -47,13 +47,47 @@ struct Stats {
         0; ///< Rejected ordinary/urgent admission attempts, including invalid input.
     uint32_t resultsRejected = 0; ///< Subset of queueRejected refused for occupied result capacity.
     uint32_t cancelled = 0; ///< Winning local request withdrawals, including group/recovery/guard.
-    uint32_t timeouts = 0; ///< Request or recovery timeout terminals, including local queue expiry.
+    uint32_t timeouts = 0; ///< SDO request/recovery timeouts, including local SDO queue expiry.
     uint32_t busOffEvents =
         0;                   ///< Accepted transitions into reported BUS_OFF, not repeated reports.
     uint32_t recoveries = 0; ///< Successfully retired explicit host/controller recoveries.
     uint32_t traceOverwritten = 0; ///< Oldest diagnostic records replaced at fixed trace capacity.
     uint64_t maxServiceGapUs = 0;  ///< Largest gap between accepted service turns; not a guarantee.
 };
+/** Exact application transport identity; the selected payload alone is meaningful.
+ * SDO frame IDs and NMT admission IDs are local correlation, absent from CAN.
+ */
+struct TransportTxId {
+    /** Concrete service, never inferred from CAN frame bytes. */
+    enum class Kind : uint8_t {
+        SDO, ///< SDO admission plus exact frame number.
+        NMT  ///< One-shot explicit NMT manager admission.
+    };
+    Kind kind = Kind::SDO; ///< Selects sdo or nmt.
+    MotorControlCAN::CANOPEN::SdoTxId sdo; ///< Exact SDO admission/frame when kind is SDO.
+    MotorControlCAN::CANOPEN::NmtRequestId nmt; ///< One-shot NMT handoff when kind is NMT.
+    /** @param id Exact SDO handoff. @return Explicit tagged identity. */
+    static TransportTxId fromSdo(MotorControlCAN::CANOPEN::SdoTxId id) noexcept {
+        TransportTxId result;
+        result.sdo = id;
+        return result;
+    }
+    /** @param id Exact NMT handoff. @return Explicit tagged identity. */
+    static TransportTxId fromNmt(MotorControlCAN::CANOPEN::NmtRequestId id) noexcept {
+        TransportTxId result;
+        result.kind = Kind::NMT;
+        result.nmt = id;
+        return result;
+    }
+};
+/** @param a First identity. @param b Second identity. @return Exact selected-payload equality. */
+inline bool sameTransportTxId(TransportTxId a, TransportTxId b) noexcept {
+    return a.kind == b.kind && (a.kind == TransportTxId::Kind::NMT
+        ? a.nmt.owner == b.nmt.owner && a.nmt.generation == b.nmt.generation
+        : a.sdo.request.owner == b.sdo.request.owner &&
+          a.sdo.request.channel == b.sdo.request.channel &&
+          a.sdo.request.generation == b.sdo.request.generation && a.sdo.frame == b.sdo.frame);
+}
 /** Local retained-result identity; absent from the wire, invalid after owner destruction. */
 struct RequestId {
     const CanBusOwner* owner = nullptr; ///< Stationary originating owner.
@@ -151,7 +185,10 @@ struct Diagnostic {
     Frame frame;                    ///< RX/TX wire copy; RTR payload is not inspected.
     bool receivedTimeKnown = false; ///< RX only; capture was explicitly supplied.
     uint64_t receivedUs = 0; ///< RX capture microseconds, including stale/future diagnostics.
-    MotorControlCAN::CANOPEN::SdoTxId txId; ///< TX/TX_REPORT exact local frame identity.
+    bool receiveBoundsKnown = false; ///< RX conservative capture interval, independent of exact time.
+    uint64_t receivedEarliestUs = 0; ///< RX lower bound when receiveBoundsKnown; zero valid.
+    uint64_t receivedLatestUs = 0; ///< RX upper bound, no later than processing time for accepted RX.
+    TransportTxId txId; ///< TX/TX_REPORT exact local frame identity.
     bool accepted = false; ///< RX dispatch, TX queue acceptance or TX_REPORT actual TX, by kind.
     Completion completion; ///< TERMINAL only; survives original result release.
     MotorControlCAN::CANOPEN::ControllerState controller =
@@ -160,24 +197,30 @@ struct Diagnostic {
 };
 /** Cached resource usage, computed by fixed scans; no controller queries. */
 struct OwnerResources {
-    uint8_t queued = 0;           ///< Admitted requests not yet in the native service.
-    uint8_t active = 0;           ///< Native in-flight requests, at most CHANNELS.
-    uint8_t retained = 0;         ///< Unreleased request terminals, ordinary plus urgent.
+    uint8_t queued = 0;           ///< Admitted SDO requests not yet in the native service.
+    uint8_t active = 0;           ///< Native in-flight SDO requests, at most CHANNELS.
+    uint8_t retained = 0;         ///< Unreleased SDO terminals, ordinary plus urgent.
     uint8_t reservations = 0;     ///< Occupied logical sequence slots.
     uint8_t traceUsed = 0;        ///< Retained diagnostic copies, at most TRACE_CAPACITY.
     bool inhibited = false;       ///< Actual controller/recovery interlock, independent of Health.
     bool recoveryPending = false; ///< Explicit recovery awaiting its terminal.
+    bool nmtPending = false; ///< Sole explicit manager intent awaits its native terminal.
+    bool nmtRetained = false; ///< Sole native manager terminal is retained until releaseNmt.
+    bool nmtTxPending = false; ///< Manager handoff lacks exact final report/retirement proof.
 };
 /** One ingress copy; processing time is supplied separately to service(). */
 struct ReceivedFrame {
     Frame frame; ///< Complete owned frame, including standard/extended and data/RTR shape.
     bool receivedTimeKnown = false; ///< No invented capture timestamp when false.
     uint64_t receivedUs = 0;        ///< Qualified capture microseconds, zero valid, not future.
+    bool receiveBoundsKnown = false; ///< True for conservative capture bounds without an exact timestamp.
+    uint64_t receivedEarliestUs = 0; ///< Inclusive lower capture bound when known; zero valid.
+    uint64_t receivedLatestUs = 0; ///< Inclusive upper capture bound, at most processing time.
     uint32_t controllerEpoch = 1;   ///< Stamp at adapter ingress, before queuing; never on dequeue.
 };
 /** Actual controller report, never inferred from enqueue acceptance. */
 struct TxReport {
-    MotorControlCAN::CANOPEN::SdoTxId id; ///< Exact copied native handoff identity.
+    TransportTxId id; ///< Exact copied native handoff identity.
     bool transmitted = false; ///< True actual TX/ACK; false failure with uncertain effect.
     uint32_t controllerEpoch =
         1; ///< Original enqueue epoch. Both results prove no later TX of this frame.
@@ -189,7 +232,7 @@ struct TxReport {
 struct Transport {
     void* context = nullptr; ///< Borrowed stationary application/controller context.
     bool (*receive)(void*, ReceivedFrame&) = nullptr; ///< At most one frame per call; false empty.
-    bool (*transmit)(void*, const Frame&, MotorControlCAN::CANOPEN::SdoTxId, uint32_t) = nullptr;
+    bool (*transmit)(void*, const Frame&, TransportTxId, uint32_t) = nullptr;
     ///< One-shot enqueue, borrowing frame only during call; true is queue acceptance only.
     ///< Final argument is controller epoch; false conservatively permits uncertain acceptance.
     bool (*takeTxReport)(void*, TxReport&) = nullptr; ///< One copied actual controller report.
@@ -199,7 +242,7 @@ struct Transport {
     void (*observe)(void*, const ReceivedFrame&, uint64_t) = nullptr;
     ///< Optional raw copy after dispatch/rejection, including malformed/future diagnostics;
     ///< not qualified evidence and cannot consume authoritative input.
-    bool (*retire)(void*, MotorControlCAN::CANOPEN::SdoTxId, uint32_t) = nullptr;
+    bool (*retire)(void*, TransportTxId, uint32_t) = nullptr;
     ///< Bounded synchronous attempt: true proves this exact frame cannot leave any local
     ///< SDK/controller queue later, and retires all queued/future final reports for
     ///< this exact id/epoch. Earlier effects remain possible and may be unconfirmed.
@@ -220,7 +263,7 @@ struct ServiceBudget {
     uint8_t rx = 0;     ///< Max receive callbacks, clamped to RX_LIMIT; false stops draining.
     uint8_t tx = 0;     ///< Max one-shot enqueues, clamped to TX_LIMIT.
     uint8_t events = 0; ///< Max report callbacks, clamped to EVENT_LIMIT; nonzero also permits
-                        ///< at most CHANNELS one-shot retirement callbacks after invalidation.
+                        ///< at most CHANNELS+1 one-shot SDO/NMT retirement callbacks.
     uint8_t starts = 0; ///< Max new adapter admissions, clamped to START_LIMIT; needs TX budget.
     uint8_t recovery =
         0; ///< Max one recovery poll per turn; zero does not poll, deadline still expires.
@@ -386,6 +429,32 @@ class CanBusOwner {
      * Cached serialized inspection only; no I/O, clock, callback or mutation.
      */
     bool localTxRetired(uint8_t slot) const noexcept;
+    /** Admit one copied explicit NMT intent into the sole native manager slot.
+     * @param work Command, physical bus/address or explicit broadcast, finite budgets.
+     * @param nowUs Nondecreasing supplied microseconds.
+     * @param output Native retained handle; changed only on success, no overlap.
+     * @return False for occupied native result/unretired previous handoff, invalid
+     * target, expired budget or inhibited transport. No TX occurs during admission.
+     * NMT is independent of axis reservations; TX never confirms remote state.
+     */
+    bool admitNmt(const MotorControlCAN::CANOPEN::NmtTransfer& work, uint64_t nowUs,
+                  MotorControlCAN::CANOPEN::NmtRequestId& output) noexcept;
+    /** Withdraw one explicit NMT intent, preserving possible earlier effects.
+     * @param id Exact retained native admission.
+     * @param nowUs Nondecreasing processing microseconds; deadline wins at equality.
+     * @return True only when cancellation wins. Exact retirement may remain pending.
+     * Sends no motor stop, network command or replay; may attempt bounded local retirement.
+     */
+    bool cancelNmt(MotorControlCAN::CANOPEN::NmtRequestId id, uint64_t nowUs) noexcept;
+    /** @param id Exact owner-admitted native identity.
+     * @return Immutable terminal until releaseNmt/destruction, null pending/stale/foreign.
+     */
+    const MotorControlCAN::CANOPEN::NmtCompletion*
+        nmtResult(MotorControlCAN::CANOPEN::NmtRequestId id) const noexcept;
+    /** @param id Exact terminal identity.
+     * @return True releases result only; unretired transport still blocks NMT reuse.
+     */
+    bool releaseNmt(MotorControlCAN::CANOPEN::NmtRequestId id) noexcept;
     /** Non-consuming canonical result view.
      * @param[in] id Exact admitted request identity.
      * @return Immutable pointer until release/destruction; null pending/stale/foreign.
@@ -467,8 +536,11 @@ class CanBusOwner {
     struct ExternalTx {
         bool pending = false, blocked = false, retirementTried = false, rejected = false;
         uint32_t epoch = 0;
-        MotorControlCAN::CANOPEN::SdoTxId id;
-    } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS];
+        TransportTxId id;
+    } external_[MotorControlCAN::CANOPEN::SdoClient::CHANNELS], nmtExternal_;
+    MotorControlCAN::CANOPEN::NmtRequestId nmtId_;
+    bool nmtOccupied_ = false;
+    MotorControlCAN::CANOPEN::NmtTransfer nmtTransfer_;
     MotorControlCAN::CANOPEN::SdoClient& services_;
     Transport transport_;
     uint32_t identity_, lastId_;
@@ -503,6 +575,10 @@ class CanBusOwner {
     void expire(uint64_t nowUs) noexcept;
     void finish(unsigned slot, CompletionReason reason, uint64_t nowUs) noexcept;
     bool transmit(uint8_t channel, uint64_t nowUs) noexcept;
+    bool transmitNmt(uint64_t nowUs) noexcept;
+    bool canTransmit(TransportTxId id, uint64_t nowUs) const noexcept;
+    bool nmtBlocks(const Binding& binding) const noexcept;
+    void settle(ExternalTx& tx, uint64_t nowUs, bool allowCallback) noexcept;
     void cancelSlot(unsigned slot, CompletionReason reason, uint64_t nowUs) noexcept;
     void settleExternal(uint64_t nowUs, bool allowCallback) noexcept;
     void closeRecovery(RecoveryOutcome outcome, uint64_t nowUs) noexcept;

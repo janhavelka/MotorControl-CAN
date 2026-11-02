@@ -1,5 +1,15 @@
 # Live source and responsibility map
 
+## Fixed TPDO1 and observed NMT checkpoint
+
+| Responsibility | Implementation / test | Evidence boundary |
+| --- | --- | --- |
+| Fixed configuration lifecycle | [PdoConfiguration.h](../include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h), [implementation](../src/profiles/lichuan_c/PdoConfiguration.cpp), [tests](../test/pdo_configuration_test.cpp) | Exact baseline, six writes, nine final reads, immutable deadline and partial effects; no sample qualification |
+| Explicit experiment caller | [PdoExperiment.cpp](../examples/s2_bench/PdoExperiment.cpp), [tests](../test/pdo_experiment_test.cpp) | Same owner/SDO engine, copied exact grants, no rollback/retry |
+| Addressed NMT and bounds | [owner](../examples/common/CanBusOwner.cpp), [NMT](../adapters/canopennode/Nmt.cpp), [driver proof](adapters/twai_receive_time.md), [interval tests](../test/network_receive_time_test.cpp), [owner tests](../test/nmt_owner_test.cpp) | Tagged TX retirement and conservative receive interval; no exact-arrival claim |
+| Post-cycle/readiness acquisition | [RawEvidence.cpp](../examples/s2_bench/RawEvidence.cpp), [S2 controls](../examples/s2_bench/README.md) | 26 baseline plus30 readiness uploads/node; one-cycle map/heartbeat reversion, retained nonzero targets and mode0; no motion controller |
+| Specimen observation | [checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md), [raw TPDO trace](bench/20261102-nmt-pdo-tpdo1/rx.txt) | Node1 fixed map2 readback only; broader firmware/settings/persistence/samples remain gated |
+
 | Responsibility | Declaration / implementation | Real caller / test | Boundary |
 | --- | --- | --- | --- |
 | Native position parameters | `include/MotorControlCAN/profiles/lichuan_c/Position.h`; `src/profiles/lichuan_c/Position.cpp` | `examples/position_preview/main.cpp`; `test/position_parameters_test.cpp`; installed consumer | Reuses common exact axis math; native limits only, no service/lifecycle/firmware permission |
@@ -35,7 +45,7 @@ platform facts, not installed drive operations or motion qualification.
 | UART/core-0/TWAI board port | [Platform](../examples/common/EspProbePlatform.cpp), [S2 platform tests](../test/esp_s2_probe_platform_test.cpp), [retirement proof](adapters/twai_esp32s2.md) | IDF 5.5.5; UART0 TX43/RX44, same owner; no core SDK dependency |
 | Finite raw upload collection | [RawEvidence](../examples/s2_bench/RawEvidence.cpp), [owner-path tests](../test/raw_evidence_test.cpp), [one-use service grants](canopen_services.md#one-use-experimental-upload-grants) | Server-indicated bounded bytes and unknown effects; no typed/production qualification |
 | Explicit fixture controls and serial retention | [Bench entry](../examples/s2_bench/main/main.cpp), [runner](../scripts/s2_bench.py), [bench guide](../examples/s2_bench/README.md) | Silent startup; controls 3/4 acquire one finite plan per node without drive writes/retry |
-| Actual two-node exchange | [Live report](reports/2026-11-02_s2_live_connection.md), [node 1](bench/20261102-s2-raw-fixed-node1/rx.txt), [node 2](bench/20261102-s2-raw-fixed-node2/rx.txt) | 20 successful uploads per node; observed widths differ from EDS; no PDO mutation or motor qualification |
+| Earlier two-node connection exchange | [Live report](reports/2026-11-02_s2_live_connection.md), [node 1](bench/20261102-s2-raw-fixed-node1/rx.txt), [node 2](bench/20261102-s2-raw-fixed-node2/rx.txt) | 20 successful uploads per node; observed widths differ from EDS; no PDO mutation or motor qualification |
 
 Audited 2026-10-28 for [prompt 1](reports/prompt_1.md). This is navigation to
 current declarations, implementation, real callers and focused tests, not a

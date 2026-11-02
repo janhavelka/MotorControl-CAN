@@ -80,7 +80,7 @@ struct Fake {
     E::ReceivedFrame incoming[CAPACITY];
     E::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    C::SdoTxId sentId[CAPACITY];
+    E::TransportTxId sentId[CAPACITY];
     unsigned rxRead = 0, rxWrite = 0, reportRead = 0, reportWrite = 0, sentCount = 0;
     unsigned receives = 0, transmits = 0, reportCalls = 0, observations = 0, guards = 0;
     uint64_t now = 0;
@@ -107,7 +107,7 @@ struct Fake {
         out = f.incoming[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.transmits;
         f.recursiveCall();
@@ -280,7 +280,7 @@ struct Rig {
                 work.direction == C::SdoDirection::DOWNLOAD, work.size, work.subindex);
         const C::SdoCompletion copy = done(id).service;
         // The bridge terminal has already been copied/released, without consuming ours.
-        CHECK(!services.result(fake.sentId[sent].request));
+        CHECK(!services.result(fake.sentId[sent].sdo.request));
         CHECK(owner.result(id) == &done(id));
         CHECK(owner.release(id));
         return copy;
@@ -764,10 +764,10 @@ void boundedCallbacksAndOneShotTransportFailure() {
         bounded.fake.push(unknown, 1);
         CHECK(bounded.fake.reportWrite < Fake::CAPACITY);
         E::TxReport& report = bounded.fake.reports[bounded.fake.reportWrite++];
-        report.id.request.owner = &bounded.services;
-        report.id.request.channel = 0;
-        report.id.request.generation = 999;
-        report.id.frame = 999;
+        report.id.sdo.request.owner = &bounded.services;
+        report.id.sdo.request.channel = 0;
+        report.id.sdo.request.generation = 999;
+        report.id.sdo.frame = 999;
         report.transmitted = true;
     }
     bounded.turn(1, budget(255, 0, 255, 0));
@@ -904,7 +904,7 @@ void staleNegativeReportDoesNotFailNewSegment() {
     const auto id = r.admit(write);
     r.turn(0);
     CHECK(r.fake.sentCount == 1 && r.fake.sent[0].data[0] == 0x21);
-    const C::SdoTxId initiation = r.fake.sentId[0];
+    const E::TransportTxId initiation = r.fake.sentId[0];
     r.fake.reports[0].id = initiation;
     r.fake.reports[0].transmitted = true;
     r.fake.reportWrite = 1;
@@ -913,16 +913,16 @@ void staleNegativeReportDoesNotFailNewSegment() {
     CHECK(r.fake.sentCount == 2 && r.fake.sent[1].data[0] == 0x00);
     const uint8_t segment[] = {0, 1, 2, 3, 4, 5, 6, 7};
     CHECK(!std::memcmp(r.fake.sent[1].data, segment, sizeof segment));
-    const C::SdoTxId current = r.fake.sentId[1];
-    CHECK(initiation.request.generation == current.request.generation && initiation.frame == 1 &&
-          current.frame == 2);
-    CHECK(r.services.canTransmit(current, r.now));
+    const E::TransportTxId current = r.fake.sentId[1];
+    CHECK(initiation.sdo.request.generation == current.sdo.request.generation && initiation.sdo.frame == 1 &&
+          current.sdo.frame == 2);
+    CHECK(r.services.canTransmit(current.sdo, r.now));
     r.fake.reports[1].id = initiation;
     r.fake.reports[1].transmitted = false;
     r.fake.reportWrite = 2;
     r.turn(2, budget(0, 0, 1, 0));
     CHECK(!r.owner.result(id) && !r.services.unresolved(0));
-    CHECK(r.services.canTransmit(current, r.now) && r.fake.sentCount == 2);
+    CHECK(r.services.canTransmit(current.sdo, r.now) && r.fake.sentCount == 2);
     // The request generation matches both frames. Only the exact current
     // per-frame handoff can fail this segment; a delayed report cannot do so.
     r.fake.reports[2].id = current;
@@ -933,7 +933,7 @@ void staleNegativeReportDoesNotFailNewSegment() {
     CHECK(terminal.service.outcome == C::SdoOutcome::TRANSPORT_ERROR &&
           terminal.controllerAccepted && terminal.service.effectUncertain &&
           !terminal.service.protocolAcknowledged);
-    CHECK(!r.services.canTransmit(current, r.now) && r.fake.sentCount == 2);
+    CHECK(!r.services.canTransmit(current.sdo, r.now) && r.fake.sentCount == 2);
     const Saved<E::Completion> retained(terminal);
     r.turn(4, E::ServiceBudget());
     retained.unchanged(r.done(id));

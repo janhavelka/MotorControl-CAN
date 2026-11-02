@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
@@ -91,6 +91,7 @@ install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/State.h
     include/MotorControlCAN/profiles/lichuan_c/Actions.h
     include/MotorControlCAN/profiles/lichuan_c/Position.h
+    include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h
     include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h
     include/MotorControlCAN/profiles/lichuan_c/IoSettings.h
     include/MotorControlCAN/profiles/lichuan_c/Settings.h

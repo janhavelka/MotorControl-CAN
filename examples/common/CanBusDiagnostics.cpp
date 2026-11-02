@@ -34,8 +34,10 @@ bool attempted(const Completion& completion) {
     }
 }
 bool current(const C::ObservationTime& time, const C::NodeSnapshot& node, uint64_t now) {
+    uint64_t earliest = 0, latest = 0;
     return !node.exhausted && time.present && time.generation == node.route.generation &&
-           time.processedUs <= now && time.receivedTimeKnown && time.receivedUs <= now;
+           time.processedUs <= now && C::observationTimeBounds(time, earliest, latest) &&
+           latest <= now && now - earliest <= node.maximumEvidenceAgeUs;
 }
 } // namespace
 
@@ -67,15 +69,18 @@ void CanBusOwner::refreshHealth(uint64_t now) noexcept {
         Health& health = record.value;
         bool evidence = false;
         auto observe = [&](const C::ObservationTime& time) {
+            uint64_t earliest = 0, latest = 0;
             if (!node || node->exhausted || !time.present ||
                 time.generation != node->route.generation || time.processedUs > now ||
-                (time.receivedTimeKnown && time.receivedUs > now))
+                (time.receivedTimeKnown && time.receivedUs > now) ||
+                (time.receiveBoundsKnown &&
+                 (!C::observationTimeBounds(time, earliest, latest) || latest > now)))
                 return;
             if (!health.lastSeenKnown || time.processedUs > health.lastSeenUs) {
                 health.lastSeenUs = time.processedUs;
                 health.lastSeenKnown = true;
             }
-            if (current(time, *node, now) && now - time.receivedUs <= node->maximumEvidenceAgeUs)
+            if (current(time, *node, now))
                 evidence = true;
         };
         if (node) {
@@ -227,6 +232,9 @@ OwnerResources CanBusOwner::resources() const noexcept {
     value.traceUsed = traceCount_;
     value.inhibited = inhibited_;
     value.recoveryPending = recoveryOccupied_ && !recoveryTerminal_;
+    value.nmtRetained = nmtOccupied_ && services_.nmtResult(nmtId_);
+    value.nmtPending = nmtOccupied_ && !value.nmtRetained;
+    value.nmtTxPending = nmtExternal_.pending || nmtExternal_.blocked;
     return value;
 }
 } // namespace MotorControlCANExample

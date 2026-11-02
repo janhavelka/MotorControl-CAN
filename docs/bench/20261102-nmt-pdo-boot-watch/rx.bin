@@ -1,0 +1,231 @@
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=459577227 hi=459577559 p=459578962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=154335962 exact=0 bounds=1 lo=154334273 hi=154335033
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=155336962 exact=0 bounds=1 lo=155335255 hi=155335815
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=156337962 exact=0 bounds=1 lo=156336255 hi=156336620
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=157338960 exact=0 bounds=1 lo=157337255 hi=157337406
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=460578236 hi=460578362 p=460579960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=460579960 exact=0 bounds=1 lo=460578236 hi=460578362
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=461579053 hi=461579193 p=461580960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=461580960 exact=0 bounds=1 lo=461579053 hi=461579193
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=462579234 hi=462579941 p=462580962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=462580962 exact=0 bounds=1 lo=462579234 hi=462579941
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=463580234 hi=463580756 p=463581962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=463581962 exact=0 bounds=1 lo=463580234 hi=463580756
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=464581236 hi=464581532 p=464582962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=464582962 exact=0 bounds=1 lo=464581236 hi=464581532
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=465582053 hi=465582333 p=465583960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=465583960 exact=0 bounds=1 lo=465582053 hi=465582333
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=466582236 hi=466583124 p=466584962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=466584962 exact=0 bounds=1 lo=466582236 hi=466583124
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=467583234 hi=467583940 p=467584962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=467584962 exact=0 bounds=1 lo=467583234 hi=467583940
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=468584236 hi=468584730 p=468585962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=468585962 exact=0 bounds=1 lo=468584236 hi=468584730
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=469585236 hi=469585553 p=469586962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=469586962 exact=0 bounds=1 lo=469585236 hi=469585553
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=470586051 hi=470586307 p=470587960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=470587960 exact=0 bounds=1 lo=470586051 hi=470586307
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=471586236 hi=471587102 p=471588962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=471588962 exact=0 bounds=1 lo=471586236 hi=471587102
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=472587236 hi=472587912 p=472588962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=472588962 exact=0 bounds=1 lo=472587236 hi=472587912
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=473588236 hi=473588701 p=473589962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=473589962 exact=0 bounds=1 lo=473588236 hi=473588701
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=474589236 hi=474589525 p=474590962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=474590962 exact=0 bounds=1 lo=474589236 hi=474589525
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=475590053 hi=475590298 p=475591960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=475591960 exact=0 bounds=1 lo=475590053 hi=475590298
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=476590236 hi=476591076 p=476592962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=476592962 exact=0 bounds=1 lo=476590236 hi=476591076
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=477591234 hi=477591884 p=477592962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=477592962 exact=0 bounds=1 lo=477591234 hi=477591884
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=478592236 hi=478592664 p=478593962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=478593962 exact=0 bounds=1 lo=478592236 hi=478592664
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=479593236 hi=479593478 p=479594962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=479594962 exact=0 bounds=1 lo=479593236 hi=479593478
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=480594053 hi=480594297 p=480595960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=480595960 exact=0 bounds=1 lo=480594053 hi=480594297
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=481594236 hi=481595056 p=481595962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=481595962 exact=0 bounds=1 lo=481594236 hi=481595056
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=482595236 hi=482595846 p=482596962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=482596962 exact=0 bounds=1 lo=482595236 hi=482595846
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=483596234 hi=483596659 p=483597962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=483597962 exact=0 bounds=1 lo=483596234 hi=483596659
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=484597236 hi=484597454 p=484598962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=484598962 exact=0 bounds=1 lo=484597236 hi=484597454
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=485598053 hi=485598252 p=485599960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=485599960 exact=0 bounds=1 lo=485598053 hi=485598252
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=486598236 hi=486599024 p=486599962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=486599962 exact=0 bounds=1 lo=486598236 hi=486599024
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=487599236 hi=487599837 p=487600962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=487600962 exact=0 bounds=1 lo=487599236 hi=487599837
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=488600236 hi=488600631 p=488601962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=488601962 exact=0 bounds=1 lo=488600236 hi=488600631
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=489601236 hi=489601430 p=489602962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=489602962 exact=0 bounds=1 lo=489601236 hi=489601430
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=490602051 hi=490602209 p=490603960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=490603960 exact=0 bounds=1 lo=490602051 hi=490602209
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=491602234 hi=491603003 p=491603962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=491603962 exact=0 bounds=1 lo=491602234 hi=491603003
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=492603236 hi=492603807 p=492604962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=492604962 exact=0 bounds=1 lo=492603236 hi=492603807
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=493604236 hi=493604613 p=493605962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=493605962 exact=0 bounds=1 lo=493604236 hi=493604613
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=494605234 hi=494605398 p=494606962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=494606962 exact=0 bounds=1 lo=494605234 hi=494605398
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=495606053 hi=495606202 p=495607960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=495607960 exact=0 bounds=1 lo=495606053 hi=495606202
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=496606236 hi=496606977 p=496607962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=496607962 exact=0 bounds=1 lo=496606236 hi=496606977
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=497607236 hi=497607784 p=497608962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=497608962 exact=0 bounds=1 lo=497607236 hi=497607784
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=498608236 hi=498608564 p=498609962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=498609962 exact=0 bounds=1 lo=498608236 hi=498608564
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=499609236 hi=499609371 p=499610960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=499610960 exact=0 bounds=1 lo=499609236 hi=499609371
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=500610053 hi=500610201 p=500611960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=500611960 exact=0 bounds=1 lo=500610053 hi=500610201
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=501610234 hi=501610962 p=501611962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=501611962 exact=0 bounds=1 lo=501610234 hi=501610962
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=502611236 hi=502611794 p=502612962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=502612962 exact=0 bounds=1 lo=502611236 hi=502611794
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=503612234 hi=503612554 p=503613962 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=503613962 exact=0 bounds=1 lo=503612234 hi=503612554
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=504613234 hi=504613345 p=504614960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+EVENT id=701 dlc=1 data=7f00000000000000 disposition=0 decoded=1 kind=1 p=504614960 exact=0 bounds=1 lo=504613234 hi=504613345
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=504613234 hi=504613345 p=504614960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=504613234 hi=504613345 p=504614960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=504613234 hi=504613345 p=504614960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=504613234 hi=504613345 p=504614960 dropped=351
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=1 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+EVENT id=702 dlc=1 data=0000000000000000 disposition=0 decoded=1 kind=0 p=509793962 exact=0 bounds=1 lo=509792234 hi=509792806
+EVENT id=701 dlc=1 data=0000000000000000 disposition=0 decoded=1 kind=0 p=509803962 exact=0 bounds=1 lo=509801232 hi=509802077
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351
+NETWORK node=1 epoch=2 state=0 qualified=1 producerKnown=0 ms=1000 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=509801232 hi=509802077 p=509803962 dropped=351
+NETWORK node=2 epoch=2 state=0 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=1 lo=509792234 hi=509792806 p=509793962 dropped=351

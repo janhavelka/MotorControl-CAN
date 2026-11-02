@@ -7,7 +7,7 @@ idf_component_register(
          "${can_root}/adapters/canopennode" "${can_root}/adapters/twai"
          "${can_root}/experiments/canopen_service_fit"
          "${can_root}/experiments/canopen_service_fit/vendor/CANopenNode"
-    REQUIRES esp_driver_twai esp_driver_gpio)
+    REQUIRES esp_driver_twai esp_driver_gpio esp_timer)
 target_compile_options(${COMPONENT_LIB} PRIVATE -Wall -Wextra -Werror)
 set_target_properties(${COMPONENT_LIB} PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)

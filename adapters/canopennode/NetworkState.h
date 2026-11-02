@@ -53,13 +53,14 @@ struct NetworkObserver {
 struct NodeSnapshot {
     NetworkRoute route; ///< Current host event epoch; not an on-wire tag.
     uint64_t boundaryUs = 0; ///< Processing boundary of configuration or last invalidation.
-    bool strictBoundary = false; ///< After invalidation, capture must be strictly later.
+    bool strictBoundary = false; ///< After invalidation, exact capture or the entire receive interval must be strictly later.
     bool exhausted = false; ///< Epoch exhaustion permanently prevents current qualification.
     bool producerKnown = false; ///< Effective producer interval was externally established.
     uint16_t producerTimeMs = 0; ///< Effective interval, zero disabled; never inferred from cadence/EDS.
     ObservationTime heartbeat; ///< Last valid periodic heartbeat; boot-up is excluded.
     ObservationTime nmtTime; ///< Independent native NMT observation time.
     NmtState nmt = NmtState::INITIALIZING; ///< Raw observed state/history; use serviceEligibility for epoch, transition and age qualification.
+    bool nmtOrderingUncertain = false; ///< Contradictory overlapping receive intervals; nmtTime bounds fence further state qualification.
     ObservationTime sdo; ///< Last checked matching SDO evidence, including valid rejection.
     ObservationTime serviceQualification; ///< Explicit external confirmation or checked SDO response; never exact NMT.
     bool serviceFromSdo = false; ///< False identifies an explicit external route/service premise.
@@ -67,7 +68,7 @@ struct NodeSnapshot {
     bool intentPresent = false; ///< A possibly transmitted explicit NMT intent exists.
     NmtCommand requestedCommand = NmtCommand::START; ///< Requested command, never the observed state.
     uint32_t requestedId = 0; ///< Local application identity; absent from wire events.
-    uint64_t transitionUs = 0; ///< Possible-TX processing boundary; later evidence needs known capture strictly after it.
+    uint64_t transitionUs = 0; ///< Possible-TX processing boundary; exact capture or the entire receive interval must be strictly after it.
     uint64_t transitionDeadlineUs = 0; ///< Immutable wait cutoff; expiration cannot promote state.
     bool transitionPending = false; ///< Awaiting matching observation within its original budget.
     bool transitionExpired = false; ///< Deadline expired without matching observation.
@@ -83,10 +84,21 @@ enum class HeartbeatFreshness : uint8_t {
     PRODUCER_UNKNOWN, ///< No effective interval fact.
     DISABLED, ///< Effective interval is explicitly zero.
     NEVER_OBSERVED, ///< Nonzero producer interval, no qualified periodic heartbeat.
-    UNQUALIFIED, ///< Only unknown-capture or invalidated evidence exists.
-    FRESH, ///< Qualified capture age is within the supplied inclusive policy.
-    EXPIRED ///< Capture age exceeds that policy; no drive action is inferred.
+    UNQUALIFIED, ///< Unknown/invalidated time, or receive interval straddles the age policy.
+    FRESH, ///< Every possible receive time is within the supplied inclusive policy.
+    EXPIRED ///< Every possible receive time exceeds that policy; no drive action is inferred.
 };
+/** Obtain conservative receive bounds without substituting processing time.
+ * Exact capture gives equal bounds. An interval gives its recorded endpoints.
+ * @param time Borrowed observation; present, one time representation, and a
+ * nonfuture ordered interval are required. Zero timestamps are valid.
+ * @param earliestUs Lower completed-frame ingress bound; unchanged on failure.
+ * @param latestUs Upper bound; unchanged on failure. Outputs must be distinct
+ * and may not overlap time. No pointer or reference is retained.
+ * @return True only for valid exact capture or bounded receive evidence.
+ */
+bool observationTimeBounds(const ObservationTime& time, uint64_t& earliestUs,
+                           uint64_t& latestUs);
 /** Classify copied heartbeat evidence without clocks, I/O or mutation.
  * @param[in] node Stable snapshot borrowed only during this call.
  * @param[in] nowUs Monotonic processing microseconds, at least its known observations.

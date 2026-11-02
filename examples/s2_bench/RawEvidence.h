@@ -1,12 +1,31 @@
 /** @file RawEvidence.h
- * @brief Finite reviewed raw-upload experiment using the existing application owner.
+ * @brief Fixed reviewed identity/network and heartbeat experiments through one owner.
  * SPDX-License-Identifier: MIT
- * Application only: no I/O, clock, heap, retry, typed interpretation or writes.
+ * Application only: no I/O, clock, heap, retry or motion interpretation.
  */
 #pragma once
 #include "DeviceEvidence.h"
 
 namespace MotorControlCANExample {
+/** Fixed upload inventories; neither selection grants a general raw accessor. */
+enum class RawEvidenceInventory : uint8_t {
+    IDENTITY_NETWORK, ///< Existing identity/TPDO baseline with explicit optional network fields.
+    MOTION_READINESS  ///< Thirty fixed motion/configuration/DI uploads; no download option.
+};
+/** One exact documentary address/width; this does not qualify read effects. */
+struct RawEvidenceField {
+    /** Construct documentary metadata, without I/O or validation. */
+    constexpr RawEvidenceField(uint16_t i = 0, uint8_t s = 0, uint8_t w = 0) noexcept
+        : index(i), subindex(s), documentedWidth(w) {}
+    uint16_t index;          ///< Exact CANopen object index.
+    uint8_t subindex;        ///< Exact subindex.
+    uint8_t documentedWidth; ///< EDS bytes; raw intake still retains conflicting actual sizes.
+};
+/** Inspect the one fixed readiness inventory without traffic or mutation.
+ * @param ordinal Zero-based 0..29. @param output Owned field, unchanged on rejection.
+ * @return True for a complete documentary row; no pointer is retained.
+ */
+bool motionReadinessField(size_t ordinal, RawEvidenceField& output) noexcept;
 /** Exact fixed inventory and owned review assertions; not arbitrary object access.
  * review.plan supplies fixture metadata, target, operation id, deadline and budgets.
  * Its kind must be IDENTITY with stateMask zero; includeState explicitly appends
@@ -14,9 +33,16 @@ namespace MotorControlCANExample {
  */
 struct RawEvidencePlan {
     ReadExperiment review; ///< Copied review references; no assertion authenticates external facts.
+    RawEvidenceInventory inventory = RawEvidenceInventory::IDENTITY_NETWORK;
+    ///< Explicit fixed inventory; MOTION_READINESS rejects all three flags below.
     uint8_t slot = 0; ///< Existing adapter slot matching the entire target route and node epoch.
-    uint32_t firstAuthorizationId = 0; ///< First of 18 or 20 increasing one-use grant serials.
+    uint32_t firstAuthorizationId =
+        0;                     ///< First of the selected inventory's increasing one-use grants.
     bool includeState = false; ///< Explicit optional raw statusword and mode-display uploads.
+    bool includeNetwork =
+        false; ///< Requires includeState; append heartbeat, monitor, fault, position, subdivision and velocity.
+    bool enableHeartbeat =
+        false; ///< Separate exact three-step 1017:0 experiment: read zero, write1000ms, read1000. Incompatible with the inventory flags.
 };
 enum class RawEvidenceFailure : uint8_t {
     NONE,          ///< All selected uploads completed; no typed or physical qualification.
@@ -26,13 +52,22 @@ enum class RawEvidenceFailure : uint8_t {
     CORRELATION,   ///< Terminal identity/epoch differs from the sole pending field.
     EVIDENCE_LOSS, ///< Copied traffic overflow/loss; no further field is admitted.
     INVALIDATED,   ///< Binding/node lifecycle changed before the next field admission.
-    DEADLINE       ///< Immutable overall cutoff reached between fields.
+    DEADLINE,      ///< Immutable overall cutoff reached between fields.
+    READBACK       ///< Exact heartbeat baseline/readback differs; no retry or rollback.
 };
-enum { RAW_EVIDENCE_FIELDS = 20, RAW_EVIDENCE_TRAFFIC = 96, RAW_EVIDENCE_TAIL = 16 };
+enum { RAW_EVIDENCE_FIELDS = 30, RAW_EVIDENCE_TRAFFIC = 112, RAW_EVIDENCE_TAIL = 16 };
 /** Owned record; only count prefixes are valid. Raw widths are observations.
  * Inventory: 1000:0,1009:0,100A:0,1018:0..3,2000:0,2001:0,
  * 1800:1,2,3,5,1A00:0..4, optionally 6041:0,6061:0. Every upload has
- * four-byte capacity and UNQUALIFIED effects. No value confirms a typed service.
+ * four-byte capacity and UNQUALIFIED effects. Network appends 1017/2100/603F/6064/2201/606C.
+ * MOTION_READINESS is a separate upload-only inventory: 1001,603F,6041,6061,
+ * 2100,2101,6064,606C,607A,6081,6083,6084,605D,60FF,2200,2201,2202,
+ * 607D:1/2,2500,2501,2400:1..8,60FD (subindex zero unless stated).
+ * Its four-byte capacity preserves server-indicated widths, raw signed bits and
+ * access/type conflicts. Neither successful reads nor 2201 establish shaft scale.
+ * The separate heartbeat experiment uses exact U16 reads and one explicit1000ms
+ * download only after a zero baseline. It changes producer timing, never motor
+ * state, and makes no persistence or watchdog guarantee. No value confirms a typed service.
  * Terminal fields never change after publication. Cleanup traffic is appended
  * separately until explicit release and never rewrites the first terminal.
  */
@@ -73,7 +108,8 @@ class RawEvidence {
      * Admits at most one next exact grant/upload; never receives or services owner.
      * A preceding accepted TX awaiting its final report or exact retirement proof
      * delays the next grant within the original deadline without another attempt.
-     * Stops on the first failure; no automatic retries, recovery or device writes.
+     * Stops on the first failure; no automatic retries or recovery. Only the
+     * explicitly selected heartbeat experiment yields its fixed1017 download.
      * After terminal, only the bounded cleanup tail can change. Backward time
      * returns false without advancing this collector.
      */

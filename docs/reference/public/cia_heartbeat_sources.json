@@ -1,0 +1,21 @@
+{
+  "retrieved_on": "2026-11-02",
+  "publisher": "CAN in Automation (CiA)",
+  "url": "https://member.can-cia.org/files/canopen_poster_2024.pdf",
+  "purpose": "Primary protocol unit evidence: page1 heartbeat diagram says Heartbeat producer time (1017h) in ms; not Lichuan firmware qualification.",
+  "license": "CiA copyright; excluded from library software license and packages.",
+  "files": [
+    {
+      "path": "canopen_poster_2024.pdf",
+      "kind": "Original downloaded bytes",
+      "bytes": 9506706,
+      "sha256": "f7a498e61dbd45641748f6c1cd809cceb2e796504783afe36358f2cd77635ac0"
+    },
+    {
+      "path": "cia_heartbeat_units.png",
+      "kind": "Derived visual review crop, PDF page1 heartbeat diagram, rendered with PyMuPDF",
+      "bytes": 27941,
+      "sha256": "c199f79374d793cc673e318ebd49c9de8f9e6ff7b976d90d81192bddd8fe18de"
+    }
+  ]
+}

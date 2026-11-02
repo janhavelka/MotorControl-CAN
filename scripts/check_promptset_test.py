@@ -73,7 +73,7 @@ class PromptSequenceTests(unittest.TestCase):
         code, result = self.check_with()
         self.assertEqual(code, 0, result["errors"])
         self.assertEqual(result["counts"]["stages"], 50)
-        self.assertEqual(result["counts"]["hashed_artifacts"], 137)
+        self.assertEqual(result["counts"]["hashed_artifacts"], 140)
 
     def upstream_change(self, change):
         upstream = json.loads(UPSTREAM.read_text(encoding="utf-8"))

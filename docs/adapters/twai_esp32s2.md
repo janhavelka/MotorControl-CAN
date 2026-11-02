@@ -55,3 +55,9 @@ FIFO loss and service latency still require measurement. This target review does
 not establish Arduino-on-S2 support, S2 CI coverage, electrical qualification,
 bus-off recovery measurements or a live motor result. Record actual build and
 bench outcomes in the active stage/bench report.
+
+The later [receive-time extension](twai_receive_time.md) retains exact capture as
+unknown and adds conservative completed-frame intervals using a pinned read-only
+FIFO-count probe. It adds no reset or implicit device command. Its source proof,
+ordering rules and host checks are recorded separately from this target-enablement
+review.

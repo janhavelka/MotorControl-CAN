@@ -183,6 +183,16 @@ catalogue or advertised device capability. Block transfer is disabled.
 
 ### One-use experimental upload grants
 
+`authorizeDownloadExperiment` shares the same one-use grant storage and review
+serial for an independently reviewed exact scalar download of 1–4 bytes. It
+copies and matches the payload as well as the complete request identity, state
+prerequisites, node generation and budgets. It permits no implicit write and
+does not turn experimental success into service confirmation or production
+capability. `clearUploadExperiment` withdraws either unused grant; neither call
+clears quarantine, cancels admitted work or permits replay. The application must
+retain the exact write procedure, source basis, fixture authorization and
+independent control/reconciliation plan.
+
 `authorizeUploadExperiment(slot, exactUpload, nodeGeneration, authorizationId,
 nowUs)` copies one explicitly reviewed `UNQUALIFIED` upload. It requires the
 configured fresh-session/exclusive-server premise, a current nonzero passive
@@ -450,14 +460,43 @@ old binding/epoch qualification while retaining those original tags in history.
 A host epoch is not on the wire and cannot identify delayed remote traffic.
 Future capture or backward processing time rejects before service or mutation.
 
+The four-argument `receive(frame, earliestUs, latestUs, nowUs)` retains a separate
+conservative completed-frame receive interval. Exact capture remains unknown.
+Invalid, reversed or future bounds reject before mutation. Network age uses the
+oldest possible receive time to prove freshness and the newest possible time to
+prove expiry; a policy-straddling interval is unqualified. Lifecycle and NMT
+qualification require the whole interval strictly after the relevant boundary.
+Contradictory overlapping NMT observations withdraw state qualification until a
+provably later observation arrives. See the [TWAI receive-time proof](adapters/twai_receive_time.md).
+SDO deadlines and correlation remain independent; a wholly pre-handoff interval
+quarantines stale traffic. Bounds never promote SDO/PDO observations to exact
+capture or qualify reused PDO routes.
+
+`invalidateProducerInterval` explicitly withdraws effective heartbeat producer
+timing before a requested change can transmit. It preserves raw old timing,
+receive history, epochs and channel state. Only subsequent effective evidence
+passed to `setProducerInterval` restores that timing premise; successful TX alone
+does not establish it.
+
+The protocol millisecond unit for `1017h` is independently shown in CiA's
+[official CANopen poster, page 1 heartbeat diagram](https://member.can-cia.org/files/canopen_poster_2024.pdf).
+The original PDF was reopened and visually checked on 2026-11-02 (SHA-256
+`f7a498e61dbd45641748f6c1cd809cceb2e796504783afe36358f2cd77635ac0`).
+CiA also describes `1017h` as the configurable heartbeat cycle and the heartbeat
+payload as the producer's NMT state in its
+[error-control overview](https://www.can-cia.org/can-knowledge/error-control-protocols).
+The retained Lichuan EDS `[1017]`, lines 261–269, supplies U16/RW/default-zero
+metadata but no unit or firmware activation guarantee. The protocol source does
+not resolve that separate device qualification gap or establish a host-loss stop.
+
 Configured node snapshots keep heartbeat, observed NMT and last checked matching
 SDO times independently. Malformed SDO frames cannot renew that communication
 fact. A valid abort proves matching service communication without success.
 Older heartbeat capture cannot replace a newer heartbeat; EMCY has its own
 ordering, so an EMCY older than the latest heartbeat remains independent evidence.
 Unknown capture cannot replace a known newer observation. After invalidation,
-unknown-capture heartbeat/EMCY are diagnostic only; known capture must be
-strictly after the processing boundary. An explicitly old route epoch always
+heartbeat/EMCY without qualified receive bounds are diagnostic only; known
+capture or the entire receive interval must be strictly after the processing boundary. An explicitly old route epoch always
 fails. This conservatively rejects already queued pre-boundary samples.
 The retained proof facade supplies processing time only and forwards unknown
 capture; it cannot refresh passive evidence after a reset by stamping delivery
@@ -540,6 +579,13 @@ events. After that conservative boundary, cancellation cannot prove no effect.
 local result. NMT has no remote acknowledgement; neither CAN ACK nor a later
 heartbeat can manufacture one. Results remain immutable until release.
 
+The application `CanBusOwner` now connects this service through tagged
+`TransportTxId` identities on its ordinary transport. NMT uses one retained
+request/result and one external handoff slot, distinct from SDO request/frame
+tokens. Exact report identity and controller epoch are required; stale reports,
+cancelled work and controller recovery cannot cause replay. See the
+[owner contract](can_owner.md#copied-tx-and-receive-time-responsibility).
+
 Queue cutoff and overall deadline are immutable, exclusive caller microsecond
 budgets, including equality and `UINT64_MAX` arithmetic. Stalled staging,
 unconfirmed handoffs and pending observations expire without extending those
@@ -552,8 +598,8 @@ wins over lifecycle reports at the same time. No vendor boot delay is assumed.
 `NodeSnapshot` retains requested command/identity, handoff boundary, original
 deadline and independent pending/observed/conflict/expired/invalidated facts.
 The old observed state/time and SDO time stay history. After possible NMT TX,
-current qualification requires known capture **strictly after** that handoff,
-the current lifecycle epoch and the caller's age policy. Unknown capture,
+current qualification requires known capture or an entire receive interval
+**strictly after** that handoff, the current lifecycle epoch and the caller's age policy. Unknown time,
 pre-handoff/equal timestamps and elapsed time cannot qualify the requested
 state. A conflicting current heartbeat records the actual state while retaining
 the conflict; it never gets rewritten to match intent. A match settles the
@@ -601,13 +647,15 @@ non-changing, and its result cannot promote ordinary service eligibility.
 for exact NMT and SDO service evidence; it does not refresh either fact. The
 documented default `UINT64_MAX` selects lifecycle validity without age expiry,
 not a guessed device timeout. Applications needing bounded observation age
-must choose their finite cap. Capture age, not processing time, determines
+must choose their finite cap. Capture age, or conservative oldest possible receive age, determines
 freshness. Explicit external service confirmation is recorded separately in
 `serviceQualification` with `serviceFromSdo=false`; the last matching SDO time
 is not fabricated. Checked matching responses, including a valid rejection,
 update service evidence with SDO provenance while preserving channel quarantine.
 An experimental upload updates the separate raw SDO observation only and leaves
 `serviceQualification` unchanged.
+The same rule applies to experimental downloads; their success cannot qualify
+later ordinary services.
 An older or unknown-capture response may update separate raw SDO history but
 cannot replace a newer known service proof. Configuring an externally confirmed
 SDO route uses the owner's last supplied processing time as a conservative

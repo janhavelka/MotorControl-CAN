@@ -67,7 +67,7 @@ struct Fake {
     E::ReceivedFrame incoming[CAPACITY];
     E::TxReport reports[CAPACITY];
     M::Frame sent[CAPACITY];
-    C::SdoTxId ids[CAPACITY];
+    E::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool pending[CAPACITY] = {};      // Controller queue ownership, separate from enqueue history.
     unsigned departed[CAPACITY] = {}; // Enqueue indices which actually left the fake controller.
@@ -78,7 +78,7 @@ struct Fake {
     uint32_t recoveryEpoch = 0;
     bool accept = true, retirement = false, startRecovery = true;
     E::RecoveryProgress progress = E::RecoveryProgress::PENDING;
-    C::SdoTxId retired;
+    E::TransportTxId retired;
     uint32_t retiredEpoch = 0;
     static bool receive(void* p, E::ReceivedFrame& output) {
         Fake& f = *static_cast<Fake*>(p);
@@ -88,7 +88,7 @@ struct Fake {
         output = f.incoming[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         CHECK(f.sentCount < CAPACITY);
         f.sent[f.sentCount] = value;
@@ -109,26 +109,26 @@ struct Fake {
     static void observe(void* p, const E::ReceivedFrame&, uint64_t) {
         ++static_cast<Fake*>(p)->observations;
     }
-    static bool retire(void* p, C::SdoTxId id, uint32_t epoch) {
+    static bool retire(void* p, E::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.retireCalls;
         f.retired = id;
         f.retiredEpoch = epoch;
         if (f.retirement) {
             for (unsigned i = 0; i < f.sentCount; ++i)
-                if (f.epochs[i] == epoch && f.ids[i].request.owner == id.request.owner &&
-                    f.ids[i].request.channel == id.request.channel &&
-                    f.ids[i].request.generation == id.request.generation &&
-                    f.ids[i].frame == id.frame)
+                if (f.epochs[i] == epoch && f.ids[i].sdo.request.owner == id.sdo.request.owner &&
+                    f.ids[i].sdo.request.channel == id.sdo.request.channel &&
+                    f.ids[i].sdo.request.generation == id.sdo.request.generation &&
+                    f.ids[i].sdo.frame == id.sdo.frame)
                     f.pending[i] = false;
             unsigned write = f.reportRead;
             for (unsigned i = f.reportRead; i < f.reportWrite; ++i) {
                 const E::TxReport& report = f.reports[i];
                 if (report.controllerEpoch == epoch &&
-                    report.id.request.owner == id.request.owner &&
-                    report.id.request.channel == id.request.channel &&
-                    report.id.request.generation == id.request.generation &&
-                    report.id.frame == id.frame)
+                    report.id.sdo.request.owner == id.sdo.request.owner &&
+                    report.id.sdo.request.channel == id.sdo.request.channel &&
+                    report.id.sdo.request.generation == id.sdo.request.generation &&
+                    report.id.sdo.frame == id.sdo.frame)
                     continue;
                 f.reports[write++] = report;
             }
@@ -430,7 +430,7 @@ void cleanupHandoffNeedsRetirement() {
     const Saved<E::Completion> saved(r.done(id));
     // Protocol abort cleanup has the same external queue ownership as work.
     CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, 2));
-    CHECK(r.fake.retireCalls == 1 && r.fake.retired.frame == r.fake.ids[1].frame);
+    CHECK(r.fake.retireCalls == 1 && r.fake.retired.sdo.frame == r.fake.ids[1].sdo.frame);
     r.turn(3, budget());
     CHECK(r.fake.sentCount == 2);
     saved.unchanged(r.done(id));
@@ -524,7 +524,7 @@ void staleQueuedFramesAfterBoundaries() {
         CHECK(r.done(first).service.effectUncertain &&
               !r.done(queued).service.transmissionPossible);
         CHECK(r.fake.retireCalls == 1 && r.fake.retiredEpoch == 1);
-        CHECK(r.fake.retired.frame == r.fake.ids[0].frame);
+        CHECK(r.fake.retired.sdo.frame == r.fake.ids[0].sdo.frame);
         const Saved<E::Completion> interrupted(r.done(first));
         r.fake.report(0);
         r.fake.push(reply(1, true), 2);
@@ -683,7 +683,7 @@ void repliesBeforeFinalTxReportDoNotLoseRetirement() {
     CHECK(r.fake.sentCount == 1 && r.fake.retireCalls == 1);
     r.fake.report(0);
     r.turn(3, budget(0, 1, 1, 0));
-    CHECK(r.fake.sentCount == 2 && r.fake.ids[0].frame != r.fake.ids[1].frame);
+    CHECK(r.fake.sentCount == 2 && r.fake.ids[0].sdo.frame != r.fake.ids[1].sdo.frame);
     CHECK(r.fake.physicalDrain(1, false));
     M::Frame segmentAck = frame(0x581);
     segmentAck.data[0] = 0x20;
@@ -829,7 +829,7 @@ void twoVendorBindingsShareRecoveryWithoutInventingEvidence() {
     }
     CHECK(owner.service(0, budget(0, 2, 0, 2)));
     CHECK(fake.sentCount == 2 && fake.pendingCount() == 2);
-    CHECK(fake.ids[0].request.owner == &services && fake.ids[1].request.owner == &services);
+    CHECK(fake.ids[0].sdo.request.owner == &services && fake.ids[1].sdo.request.owner == &services);
     CHECK(fake.physicalDrain(0));
     fake.push(reply(1, true), 1);
     CHECK(owner.service(1, budget(1, 0, 8, 0)));

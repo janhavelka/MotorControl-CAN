@@ -51,8 +51,10 @@ service under console pressure.
 SDK submission establishes admission. A matched TX callback can establish
 controller transmission; endpoint acknowledgement and motion completion need
 their own protocol evidence. RTR keeps its requested DLC with zero payload.
-Physical RX arrival timestamps remain unknown. ISR observation time is
-diagnostic, and owner time uses explicit monotonic microseconds. The selected
+Exact physical RX arrival timestamps remain unknown. A read-only, pinned hardware
+FIFO probe and ISR observation provide [conservative receive intervals](../../docs/adapters/twai_receive_time.md)
+for network freshness. Future-upper-bound entries remain queued until an accepted
+service cutoff reaches them. Owner time uses explicit monotonic microseconds. The selected
 ESP timer is 64-bit, so the adapter performs no 32-bit wrap extension.
 
 ## Explicit shutdown and recovery
@@ -84,8 +86,9 @@ wiring, node/bitrate and applicable user authorization.
 The SDK has no public count for every hardware RX FIFO overrun, and its own RX
 ISR drains until the hardware FIFO is empty. The adapter's configured capacities
 therefore do not promise complete reception or a fixed interrupt duration.
-The compile-only S3 ABI measurement is 192 bytes for `TwaiAdapter` and 752
-bytes for `IdfTwaiDriver` (944 bytes combined, including the fixed RX ring).
+The earlier compile-only S3 baseline measured 192 bytes for `TwaiAdapter` and 752
+bytes for `IdfTwaiDriver` before tagged NMT transport and receive intervals.
+These are historical sizes; the current compile gate reports both layouts again.
 These exclude SDK allocations, the existing owner/service store and task/ISR
 stacks. The adapter creates no task. SDK allocation high-water marks and actual
 service gaps still require the physical fixture.
@@ -116,7 +119,8 @@ Unread authoritative RX postpones submission, including when the owner RX budget
 is exhausted. Repeated zero RX budgets can consume a request's deadline; they do
 not authorize dropping boot-up evidence to make TX progress. Platform time can
 come from 64-bit `esp_timer_get_time()`; validate its nonnegative value before
-conversion to `uint64_t`. No adapter clock or wrap extension exists. Backward
+conversion to `uint64_t`. `TwaiAdapter` uses supplied time; `IdfTwaiDriver` samples
+the same ESP timer solely for receive bounds. No wrap extension exists. Backward
 adapter time inhibits transport and invalidates at the owner's last accepted
 time, including explicit owner calls between service turns. Active TX remains
 uncertain until checked completion or retirement.

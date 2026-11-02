@@ -1,12 +1,16 @@
 # CAN bench facts and evidence gaps
 
-As of 2026-11-02, [firmware upload and live CAN checks](reports/2026-11-02_s2_live_connection.md)
-verify UART communication and matching SDO responses from both reported nodes
-1/2 at 1 Mbit/s. Both completed 20 explicit raw uploads, including one-byte
-`1009=0x0C` and `100A=0x20`, conflicting with the EDS U16 widths. Actual TPDO1
-contents are retained; model-wide identity interpretation and PDO mutation
-remain unqualified. The user confirmed both labels read **CL86-C**.
-The firmware starts with CAN disabled and contains no motor-action commands.
+As of 2026-11-02, the [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md)
+records 26 successful raw uploads on each CL86-C node, node1 heartbeat1000,
+qualified bounded Pre-operational observation and the fixed TPDO1 map change
+with exact readback. At mutation completion node1 had map2 and producer1000; no save/restore,
+start/reset or motor action was sent. A later user power cycle produced both
+boot-up frames and withdrew cached producer confidence. Fresh readback found
+node1 back at producer0/map3 without a save or restore command, for this one
+cycle only. Both nodes then completed 30 readiness uploads; nonzero retained
+targets607A=5000/60FF=120 and mode0 leave enable/motion readiness unresolved. Firmware starts
+with CAN disabled; explicit controls own each experiment. The earlier
+[connection checkpoint](reports/2026-11-02_s2_live_connection.md) remains historical.
 
 The user reports an attached ESP-Prog2, an ESP32-S2 PCB and two
 CL86 drives with free-shaft motors bolted to a table, and authorizes board testing.
@@ -26,7 +30,7 @@ builds, acquisition and physical qualification remain separate facts.
 | Item | Established fact | Evidence needed before dependent live work |
 | --- | --- | --- |
 | Drive | User confirms both labels CL86-C; nodes 1/2 share the captured raw identity tuple | Manufacturer interpretation of version fields, unique specimen identity and applicable dialect |
-| Motor and feedback | Two attached motors, user reports free shafts | Motor ratings, wiring, encoder configuration and command/feedback scale |
+| Motor and feedback | User identifies LC60H2127; free shafts with paper mask, somewhat visible but imperfect. [Manufacturer model page](https://en.xlichuan.com/product-xq/71.html) lists representative ratings | Installed variant/ratings, wiring, encoder configuration, adequate motion observation and command/feedback scale remain unqualified |
 | PC interface | User reports PCAN-USB opto IPEH-002022 available; not inspected or exercised | Exact connected interface, driver/version, timestamp and queue behavior, wiring and applicable authorization; availability is not adapter integration or qualification |
 | Embedded controller and SDK | EasyEDA specifies ESP32-S2-MINI-2-N4; ROM reports ESP32-S2FH4 revision 1.0, embedded 4 MB flash, no embedded PSRAM, 40 MHz crystal. S2 UART/core-0/TWAI firmware was built, uploaded and exercised on IDF 5.5.5 | Physical PCB/module revision still unrecorded; requested P4 adapter support remains separate |
 | Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
@@ -35,10 +39,10 @@ builds, acquisition and physical qualification remain separate facts.
 | Bus topology | User reports PCB to drive to drive daisy chain; CN2 pin1 L, pin2 H in both design netlists | Physical cable/reference continuity and endpoint termination. Drive RJ45 pin1 is H, pin2 L, pin3 GND; CN2 is only two pins |
 | Node and bitrate | Matched replies on 581/582 prove service communication with nodes 1/2 using 1 Mbit/s. User reports PCB JP1 bridged and last-drive SW8 ON | Measure unpowered bus resistance and cable/reference continuity; successful short exchanges do not establish electrical margins |
 | Power | User reports both probe selectors and PCB jumpers at 5 V, measured rails 4.75 V and 3.25 V on probe/PCB; green VPROG LED blinks. Design supplies MCU through U14; U3 uses separate VCC/VIO | These are user measurements, not captured rail traces. Green activity indication alone is not a power diagnosis; transient behavior, EN and other attached supplies remain unconfirmed |
-| External I/O | Unknown; it may be unused | Actual assignments, electrical levels and connected limits/home/stop inputs needed by the chosen operation |
+| External I/O | Post-cycle both nodes report 2400:01=0, :02/:03/:04=1/2/3, :05..08=0; raw2101/60FD=0. Terminals reportedly unconnected | Configured origin/positive-limit/negative-limit functions remain present; confirm electrical levels and active semantics needed by the operation. No function was disabled or reassigned |
 | Mechanics | User reconfirmed free shafts, motors bolted to table and independent drive-power cutoff available | Actual ratings, finite motion bounds and independent observation for any motion experiment |
 | Authorization | User explicitly authorizes starting board testing; no repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
-| Evidence | Original sources, host checks, board ROM, verified flash, UART ping and 20 matched raw uploads per node | Manufacturer interpretation, target electrical measurements and independent motor/PDO behavior remain pending |
+| Evidence | First image: heartbeat/NMT/fixed TPDO1; 197RX/80TX, stackFree9452. Second image: post-cycle26 plus readiness30 uploads/node; 112RX/112TX, stackFree9580. Both stats report zero errors/drops | Global network history separately reports49 then351 dropped entries. One-cycle reversion is observed; broader persistence, firmware, electrical, sample and motor qualification remain pending |
 
 An unconnected input does not mean its protective or enabling function is
 disabled. An SDO acknowledgement does not prove physical standstill, a valid

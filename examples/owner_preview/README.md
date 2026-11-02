@@ -29,7 +29,7 @@ facts. Uploads retain `UNQUALIFIED` read effects; this preview does not resolve 
 All supplied microsecond budgets are application fixture policy.
 
 The fixture uses the current transmit callback signature
-`bool transmit(void*, const Frame&, SdoTxId, uint32_t controllerEpoch)` and copies
+`bool transmit(void*, const Frame&, TransportTxId, uint32_t controllerEpoch)` and copies
 the enqueue epoch into each exact-token `TxReport`. Its positive reports are
 explicit fake actual-TX evidence, separate from enqueue acceptance. Ingress uses
 the initial epoch 1 before queuing; a real adapter must stamp ingress at capture,
@@ -98,3 +98,10 @@ In PowerShell run
 `& '.build/owner-preview/examples/owner_preview/owner_preview.exe'`.
 Success prints two retained uploads, two passive EMCYs, cached health/statistics
 and the local diagnostic/reset checks, and exits zero.
+
+The transport identity now selects `TransportTxId::Kind::SDO` with `.sdo` or
+`Kind::NMT` with `.nmt`. The same bounded TX/report/retirement path carries an
+explicit `owner.admitNmt` request. Its retained `nmtResult` records possible and
+confirmed controller transmission; a TX report never confirms remote NMT state.
+Only qualified subsequent receive evidence can do that. Local cancellation and
+controller recovery never send or replay an NMT command.

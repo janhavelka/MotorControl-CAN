@@ -157,6 +157,21 @@
       "path": "components/soc/esp32s2/include/soc/gpio_num.h",
       "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/soc/esp32s2/include/soc/gpio_num.h",
       "sha256": "ff138e72bb25df00ad64b0513bc2114fc04aecbda3db8410864b72d9ced3c2d0"
+    },
+    {
+      "path": "components/esp_timer/include/esp_timer.h",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_timer/include/esp_timer.h",
+      "sha256": "9ef47843590090f5ffccdc956c924e650cfb479ad4d7b2553bf0453ffac492fd"
+    },
+    {
+      "path": "components/esp_timer/src/esp_timer_impl_systimer.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/esp_timer/src/esp_timer_impl_systimer.c",
+      "sha256": "6dbd98e996db47c23967b4a759511bf779d836d70dd69a9112b4f3e1b832c180"
+    },
+    {
+      "path": "components/hal/systimer_hal.c",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/systimer_hal.c",
+      "sha256": "7b04fc829596c330b729d5a3df1001475ba53865aa5fd9cf807e959de1bcf66f"
     }
   ],
   "documentation_urls": [

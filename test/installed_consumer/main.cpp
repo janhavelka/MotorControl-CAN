@@ -6,6 +6,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
+#include <MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
@@ -294,5 +295,12 @@ int main() {
         16, 65, 100, stopOptions);
     if (arbitraryPosition.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
         return 57;
+    LICHUAN_C::Tpdo1ConfigurationContext remap;
+    if (LICHUAN_C::prepareTpdo1Configuration(
+            remap, LICHUAN_C::SettingsReservation(), LICHUAN_C::Tpdo1ConfigurationReview(),
+            nullptr, 0, CANOPEN::NmtState::PRE_OPERATIONAL, CANOPEN::ObservationTime(),
+            17, 65, 100, readOptions, 10) ||
+        remap.state != LICHUAN_C::PdoConfigurationState::EMPTY)
+        return 58;
     return 0;
 }

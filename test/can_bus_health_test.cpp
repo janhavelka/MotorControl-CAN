@@ -73,7 +73,7 @@ struct Fake {
     enum { CAPACITY = 96 };
     E::ReceivedFrame rx[CAPACITY];
     E::TxReport reports[CAPACITY];
-    C::SdoTxId ids[CAPACITY];
+    E::TransportTxId ids[CAPACITY];
     uint32_t epochs[CAPACITY] = {};
     bool reportsRetired[CAPACITY] = {};
     M::Frame sent[CAPACITY];
@@ -90,7 +90,7 @@ struct Fake {
         out = f.rx[f.rxRead++];
         return true;
     }
-    static bool transmit(void* p, const M::Frame& value, C::SdoTxId id, uint32_t epoch) {
+    static bool transmit(void* p, const M::Frame& value, E::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         CHECK(f.sentCount < CAPACITY);
         f.sent[f.sentCount] = value;
@@ -112,11 +112,10 @@ struct Fake {
     static bool guard(void* p, E::SequenceId, const C::SdoTransfer&, uint64_t) {
         return !static_cast<Fake*>(p)->rejectGuard;
     }
-    static bool same(C::SdoTxId a, C::SdoTxId b) {
-        return a.request.owner == b.request.owner && a.request.channel == b.request.channel &&
-               a.request.generation == b.request.generation && a.frame == b.frame;
+    static bool same(E::TransportTxId a, E::TransportTxId b) {
+        return E::sameTransportTxId(a, b);
     }
-    static bool retire(void* p, C::SdoTxId id, uint32_t epoch) {
+    static bool retire(void* p, E::TransportTxId id, uint32_t epoch) {
         Fake& f = *static_cast<Fake*>(p);
         ++f.retireCalls;
         if (!f.retireAccepted)
@@ -305,15 +304,15 @@ void cachedStateAndKnownZero() {
     while (r.owner.takeDiagnostic(diagnostic)) {
         if (diagnostic.kind == E::DiagnosticKind::TX) {
             ++txCopies;
-            CHECK(diagnostic.accepted && diagnostic.txId.frame == r.fake.ids[0].frame &&
-                  diagnostic.txId.request.generation == r.fake.ids[0].request.generation);
+            CHECK(diagnostic.accepted && diagnostic.txId.sdo.frame == r.fake.ids[0].sdo.frame &&
+                  diagnostic.txId.sdo.request.generation == r.fake.ids[0].sdo.request.generation);
         } else if (diagnostic.kind == E::DiagnosticKind::RX) {
             ++rxCopies;
             CHECK(diagnostic.receivedTimeKnown && diagnostic.receivedUs == 0 &&
                   diagnostic.frame.id == 0x581 && diagnostic.frame.data[4] == 0x34);
         } else if (diagnostic.kind == E::DiagnosticKind::TX_REPORT) {
             ++reportsCopied;
-            CHECK(diagnostic.accepted && diagnostic.txId.frame == r.fake.ids[0].frame);
+            CHECK(diagnostic.accepted && diagnostic.txId.sdo.frame == r.fake.ids[0].sdo.frame);
         }
     }
     CHECK(txCopies == 1 && rxCopies == 1 && reportsCopied == 1);
@@ -456,6 +455,50 @@ void heartbeatPolicyAndControllerRecovery() {
     r.turn(92, budget(1, 0, 0, 0));
     CHECK(r.health().state == E::DriverState::READY);
     CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
+}
+
+void receiveIntervalsBoundHealthWithoutFresheningDeliveryTime() {
+    Rig r;
+    CHECK(r.services.setServiceAge(0, 5, 0));
+    CHECK(r.owner.setHeartbeatMaximumAge(route().binding, 5, 0));
+    CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 1, 0));
+    auto pushInterval = [&](uint64_t first, uint64_t last) {
+        r.fake.push(heartbeat(), 0, false);
+        auto& frame = r.fake.rx[r.fake.rxWrite - 1];
+        frame.receiveBoundsKnown = true;
+        frame.receivedEarliestUs = first;
+        frame.receivedLatestUs = last;
+    };
+    pushInterval(10, 12);
+    r.turn(12, budget(1, 0, 0, 0));
+    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 12);
+    CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
+    r.turn(15, E::ServiceBudget());
+    CHECK(r.health().state == E::DriverState::READY); // Conservative age equals policy.
+    r.turn(16, E::ServiceBudget());
+    CHECK(r.health().state == E::DriverState::UNINIT); // Neither fresh nor definitely expired.
+    r.turn(17, E::ServiceBudget());
+    CHECK(r.health().state == E::DriverState::UNINIT && r.health().lastSeenUs == 12);
+    r.turn(18, E::ServiceBudget());
+    CHECK(r.health().state == E::DriverState::OFFLINE); // Even the latest possible ingress expired.
+    pushInterval(19, 20);
+    r.turn(20, budget(1, 0, 0, 0));
+    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 20);
+    CHECK(r.services.invalidateNetwork(0, C::NetworkInvalidation::CONFIGURATION, 21));
+    pushInterval(20, 22);
+    r.turn(22, budget(1, 0, 0, 0));
+    CHECK(r.health().state == E::DriverState::UNINIT && r.health().lastSeenUs == 20);
+    pushInterval(23, 24);
+    r.turn(24, budget(1, 0, 0, 0));
+    CHECK(r.health().state == E::DriverState::READY && r.health().lastSeenUs == 24);
+    CHECK(r.health().totalSuccess == 0 && r.health().totalFailures == 0);
+
+    Rig zero;
+    zero.fake.push(heartbeat(), 0, false);
+    zero.fake.rx[0].receiveBoundsKnown = true;
+    zero.turn(0, budget(1, 0, 0, 0));
+    CHECK(zero.health().state == E::DriverState::READY && zero.health().lastSeenKnown &&
+          zero.health().lastSeenUs == 0);
 }
 
 void localCancellationAndQueueExpiryAreHealthNeutral() {
@@ -921,7 +964,7 @@ void exactRetirementAlsoRetiresFinalReports() {
         const auto unaffected = r.admit(r.request(other));
         r.turn(0);
         CHECK(r.fake.sentCount == 2 && r.owner.stats().txFrames == 0);
-        CHECK(r.fake.ids[0].request.channel == 0 && r.fake.ids[1].request.channel == 1);
+        CHECK(r.fake.ids[0].sdo.request.channel == 0 && r.fake.ids[1].sdo.request.channel == 1);
         r.fake.reportTx(0);
         r.fake.reportTx(1);
         CHECK(r.owner.cancel(cancelled, 1) == E::Cancel::CANCELLED);
@@ -951,6 +994,7 @@ int main() {
     abortFailureThenIndependentRead();
     freshHeartbeatPreservesServiceFailure();
     heartbeatPolicyAndControllerRecovery();
+    receiveIntervalsBoundHealthWithoutFresheningDeliveryTime();
     localCancellationAndQueueExpiryAreHealthNeutral();
     segmentedServiceCountsOnce();
     statisticsResetPreservesUncertaintyHistoryAndLiveWork();

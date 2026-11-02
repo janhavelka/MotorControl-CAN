@@ -47,6 +47,9 @@ struct SdoTransfer {
     uint8_t data[32] = {}; ///< Owned download bytes [0,size); ignored for an upload.
     SdoReadEffect readEffect = SdoReadEffect::UNQUALIFIED; ///< Independent reviewed upload policy.
     bool allowSegmentedUpload = true; ///< False requires explicit unsupported settlement if discovered.
+    bool requirePreOperational = false; ///< True requires current qualified Pre-operational evidence
+    ///< at admission and every transport handoff, including delayed controller submission.
+    ///< False uses ordinary service eligibility; this flag never requests an NMT transition.
     uint64_t deadlineUs = 0; ///< Exclusive immutable overall cutoff in caller monotonic microseconds.
     uint32_t queueTimeoutUs = 0; ///< Nonzero maximum staging delay per frame, clamped to deadlineUs.
     uint32_t responseTimeoutUs = 0; ///< Nonzero response interval after handoff, clamped to deadlineUs.
