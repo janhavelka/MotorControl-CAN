@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Usable stop lifecycle (audit W6)
+
+- `prepareStop` accepts the DEC-8 mode 1 predecessors. `ActionContext` gains `predecessorWord`, `predecessorDocumented`, `predecessorBasis`. Undocumented rows are project decisions. An acknowledged controlword no longer expires by age.
+- Add `BestEffortStop` with `prepareBestEffortStop`, `nextBestEffortStop`, `noteBestEffortAdmission`, `advanceBestEffortStop`, and `ActionOutcome::STOP_SENT_UNCONFIRMED`. It yields only `000B` and never succeeds.
+- Add `prepareEscalation`, `stopOptionsValid`, `stopPredecessorAllowed`.
+- Add `AxisSession`, caller-owned and borrowed through `ProbeApp::openAxis`, `axis`, holding the latest controlword per axis and the pending-stop policy. Add `CanBusOwner::nodeEpochs`, `recoveryActive` and `NodeSnapshot::serverSessions`.
+- **Migration:** `maximumAgeUs` must now cover the field count times queue plus response budgets, or preparation rejects it. `CLEAR_ALARM` reads ERRORS once after the alarm clears, not each cycle, so its cycle has five fields, then two. Consumers copying `examples/common` also need `AxisSession.cpp`.
+
 ### Per-axis urgent work and best-effort stop route (audit W6, owner half)
 
 - `CanBusOwner::URGENT_REQUESTS` is now one slot per channel, so one axis's unread urgent result no longer blocks another's. **Migration:** `TOTAL_REQUESTS` grows by one and `resources()` reports the new capacity. Code that assumed one urgent slot must not.

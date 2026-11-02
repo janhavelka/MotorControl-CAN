@@ -2,7 +2,7 @@
 
 **Reopened by audit W5.** [Packet 5](handoff_19_33/packet_5.md) changed abort and controller-event settlement and added the drain marker. Quarantine statements below describe the earlier contract.
 
-**Reopened by audit W6.** [Packet 6](handoff_19_33/packet_6.md) replaced the one urgent slot with one per channel and added `beginUrgentOperation`, `findSequence` and the best-effort stop route. Capacity statements below describe the earlier contract.
+**Reopened by audit W6.** [Packet 6](handoff_19_33/packet_6.md) replaced the one urgent slot with one per channel and added `beginUrgentOperation`, `findSequence` and the best-effort stop route. [Packet 7](handoff_19_33/packet_7.md) consumes them. Capacity statements below describe the earlier contract.
 
 Date: 2026-10-31. Promptset v2 continues on `promptset/motorcontrol-can`, upstream
 `origin/promptset/motorcontrol-can`, original base `7878f7c`. Entry commit

@@ -2,6 +2,7 @@
   "sources": [
     "adapters/owner/CanBusOwner.cpp",
     "adapters/owner/CanBusDiagnostics.cpp",
+    "examples/common/AxisSession.cpp",
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.cpp",
     "examples/common/DeviceEvidence.cpp",

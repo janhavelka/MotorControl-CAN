@@ -152,7 +152,7 @@ def check_package(args, work, summary):
     probe = work / "native probe consumer"
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
-        "common": ("examples/common", ["ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
+        "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
                     "DeviceEvidence.h", "DeviceEvidence.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
         "evidence": ("examples/device_evidence", ["main.cpp"]),
@@ -179,7 +179,7 @@ target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
 add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
 target_include_directories(owner PUBLIC owner)
 target_link_libraries(owner PUBLIC adapter)
-add_library(app STATIC common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp)
+add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)

@@ -8,25 +8,47 @@ generic CiA402 stopping, velocity-mode stopping or a torque/brake policy.
 
 ## Reviewed transitions
 
-This table was specified before the lifecycle implementation. The original
-ZH86 PDF p12 places both arrows in the position-mode procedure. EN86 p12
-contains the quick-stop arrow but omits halt. OP86 p10 agrees, with the retained
-57C/86C internal-heading applicability conflict. EDS `[6040]` establishes a
-U16 write-only object; a controlword read-modify-write is not required.
+The manuals give whole-word stop arrows only from word 15. ZH86 PDF p12 places both
+arrows in the position-mode procedure. EN86 p12 has the quick-stop arrow and omits
+halt. OP86 p10 agrees with ZH86, with the retained 57C/86C internal-heading
+applicability conflict. No manual defines bit 2 or bit 8, or says what a falling bit
+4 does in mode 1. EDS `[6040]` establishes a U16 write-only object, so a controlword
+read-modify-write is not required.
 
-| Kind / starting evidence | Exact command | New evidence | Remaining consequences |
+So every row below the first is a **project decision, not vendor evidence** (DEC-8):
+a running move with no stop is worse, and clearing bit 4 while stopping cannot be the
+wrong direction. `ActionContext::predecessorDocumented` is false for those rows, and
+`predecessorWord` records the word. They stay unmeasured until packet 16.
+
+| Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
-| `HALT`: last acknowledged command `6040:00=000F`, continuous exclusion, fresh mode 1 / low status bits 7 / monitor alarm and released clear | One `6040:00=010F` U16 download | Matching SDO acknowledgement, then new STATUS/MONITORS reads | Normal-stop label only; deceleration, queue disposition, torque and reference effects unknown |
-| `QUICK_STOP`: same prerequisites | One `6040:00=000B` U16 download | Same acquisition contract | Vendor's emergency-labelled command; no certified safety function or latency claim |
-| Prior `010F`/`000B`, unknown predecessor, released, other mode or revoked history | Reject preparation | None; output unchanged | No automatic rearm, enabling preamble or inferred idempotence |
-| Prior target trigger such as `001F`/`005F` | Outside this implemented predecessor scope | Requires applicable transition evidence | This remains an owned stop capability gate, not a completed motion-interruption implementation |
+| `000F` | `000B` (`QUICK_STOP`) | True | EN86 and ZH86 p12, OP86 p10 |
+| `000F` | `010F` (`HALT`) | True | ZH86 p12 and OP86 p10 only |
+| `001F`, `005F`, `003F`, `007F` | `010F` or `000B` | False | DEC-8, no documented arrow |
+| `010F` | `000B` only | False | DEC-8, escalation of a running normal stop |
+| `000B`, `010F` for `HALT`, any other word | Rejected, output unchanged | - | No rearm, enabling preamble or inferred idempotence |
+| Unknown or withdrawn word, or stale state | `000B` on the best-effort path below only | - | DEC-2 |
 
-The preceding `000F` must be the application's actual latest acknowledged
-controlword under a reservation acquired before that command. Fresh low bits 7
-cannot reconstruct it. Any intervening target, controlword, mode, RPDO,
-configuration change, reset/rebind/recovery or uncertain submission withdraws
-that history. Reacquiring a reservation does not restore it. These facts must
-come from the sole application owner; copying an old evidence struct is not a
+The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS reporting mode
+1 and low bits 7, and fresh MONITORS reporting alarm and released clear. Fresh reports of an
+**idle** drive that is alarmed, released, in another mode or not enabled refuse the request
+on both paths, with no traffic, because nothing establishes what `000B` does in those
+states. A running report keeps the stop available on the best-effort path, as this project's
+decision that a running motor should get the attempt. Modes 3 and 6 get their own
+sequenced stops in prompts 35 and 36.
+
+The word must be the application's actual latest acknowledged controlword, under a
+reservation acquired before that command. Fresh low bits 7 cannot reconstruct it. An
+acknowledgement does not expire by age, because a drive idle at `000F` must not lose
+its stop. Read observations still expire.
+
+`AxisSession` in `examples/common/` keeps this history per axis, and every command the
+axis sends passes through its `admitPrepared`. It withdraws the word at once on any new
+download through that path, because that write may reach the drive before any report
+says so. That covers `6040`, target, mode, RPDO and configuration writes alike. It also
+withdraws on a reset, rebind, recovery, bus-off, boot, route quarantine or a stop's own
+admission. Reopening the session does not restore it, and a write settling after a stop
+was admitted is older intent and does not restore it. A copied evidence struct is not a
 new observation. This API never writes `000F` or the `6,7,15` enable sequence.
 
 Initial running may be either value. A stop does not require an already stopped
@@ -76,44 +98,80 @@ arithmetic must not wrap.
 
 ## Owner handoff and retained interruption
 
-The [owner contract](can_owner.md) owns capacity, transmission retirement,
-receive dispatch and channel quarantine. Stop is an explicitly admitted new
-operation. Urgent priority alone does not cancel old work.
+The [owner contract](can_owner.md) owns capacity, transmission retirement, receive
+dispatch and channel quarantine. A stop is an explicitly admitted new operation, and
+`AxisSession::requestStop` runs it:
 
-1. Validate the proposed stop and retain the original operation/context. A failed
-   preparation leaves earlier work unchanged.
-2. Explicitly withdraw the old producer's continuation and cancel every pending
-   request in its sequence. Copy or retain each terminal by its original ID.
-3. With no pending old request, use `beginOperation` on the same reservation and
-   a strictly larger operation ID. Retained old results do not block it.
-4. Admit the stop's yielded work through reserved urgent capacity, service the
-   same owner, consume its matching completion, then explicitly release that
-   request slot. Repeat only the observation steps the context yields.
-5. Keep the stop and interrupted operation results independent. Reject any later
-   admission of old-operation work. A later new operation requires fresh,
-   applicable prerequisites; stop does not restore the old controlword history.
+1. Decide first. Invalid budgets, a known unsupported predecessor, or the fresh idle
+   reports above refuse the request with nothing changed but a stale word withdrawn. Refusal
+   does not stop the drive.
+2. `beginUrgentOperation` retires this reservation's queued work with explicit results.
+   In-flight work settles, because cancelling it could quarantine the route: a stop never
+   cancels a poll. The stop gets its own operation and an immutable deadline.
+3. The sequenced stop goes through the channel's urgent slot behind that work, and
+   its observation cycles use the same slot. The session consumes each terminal.
+4. Old results stay with their own request identities, and later admission of
+   old-operation work is refused. A later operation needs fresh prerequisites, and a stop
+   does not restore the old controlword history.
 
-Cancellation and stop admission are distinct outcomes. Capacity refusal after
-explicit interruption does not undo cancellation or claim a stop was sent.
-Do not invalidate/reacquire the sequence merely to fit the stop: that loses
-continuous exclusion and cannot bypass retained results or channel quarantine.
-Do not service another turn between deciding to retire old queued work and
-performing that retirement.
+If the settling work leaves the route unresolved before any stop frame could leave, the
+stop ends `NOT_TRANSMITTED` and the request takes the best-effort branch.
 
-Local queued work can be definitely retired. Once handed off, exact controller
-retirement/final-report evidence and remote SDO ambiguity remain separate. If
-the route becomes unresolved, this stop cannot use it. Other nodes and passive
-events remain serviceable; no NMT, guessed PDO or second receiver substitutes
-for the unavailable stop. Controller recovery cannot make the earlier write
-not have happened, retire a remote producer or replay the stop.
+**Escalation is upward only** (R-14). `QUICK_STOP` may replace a running `HALT`. A
+`010F` in flight settles first and its terminal stays in its own context, then `000B`
+follows. No separate read can run during a stop, so `prepareEscalation` takes the running
+`HALT`'s own acknowledgement and latest complete cycle, when fresh. Otherwise, such as
+before that first cycle completes, it takes the best-effort path, whose route ends
+unresolved. `HALT` never replaces a running stop, and a second `QUICK_STOP` is refused. RS
+has no such check, so this differs on purpose.
+
+Keep the last complete state read for `requestStop`: a read still in progress counts as
+missing, and the request then takes the best-effort path. `ProbeApp` holds only its one
+current read, so a caller polling through it must copy the last complete one. Packet 7 does
+not add that storage, because prompt 33's move context owns its own polling.
+
+## Best-effort stop
+
+`BestEffortStop` is the separate DEC-2 path. It yields only `6040:00=000B`, needs no
+state evidence, and is keyed to a target because its route may have no usable
+reservation. It uses `CanBusOwner::admitBestEffortStop`, and `000B` is never replaced by
+`010F` on this path, whatever kind was requested.
+
+**It is not a confirmed stop and it never reaches `SUCCEEDED`.** No claim is made that
+`000B` stops or does not enable this drive: packet 16 owns that measurement.
+
+| Owner terminal | `outcome` | `execution` |
+| --- | --- | --- |
+| Controller reported the TX | `STOP_SENT_UNCONFIRMED` | `UNKNOWN` |
+| Possible transmission, no report by the deadline | `DEADLINE` | `UNKNOWN` |
+| Nothing possible | The cause, such as `DEADLINE` or `INVALIDATED` | `NOT_TRANSMITTED` |
+
+A matching-looking `60 40 60 00` cannot make this path succeed, reopen its route or
+settle the interrupted operation: classic SDO has no transaction tag, so it may answer
+the write before. The route ends unresolved. A session with no usable reservation still
+opens, so this branch stays available on such a route.
+
+**When it runs.** For missing history, stale state or an unresolved route, only when
+`StopPolicy::bestEffortDeadlineUs` is nonzero. Zero refuses the branch. That deadline is
+fixed at the request, at or after the sequenced stop's own, and nothing extends it (W6
+step 9).
+
+**Across one recovery.** A stop proved never sent (`transmissionPossible` false, nothing
+weaker) by a controller fault waits in `StopPath::HELD`, under the deadline it already had
+(W6 step 10): `deadlineUs` for a sequenced stop, its own for a best-effort one. The
+application runs the explicit recovery: the session does not start one, and recovery is not
+a stop. Then the stop goes out once as `000B`. A second recovery, a boot or rebinding, or
+the deadline ends it `NOT_TRANSMITTED`, and `firstBestEffort` keeps an earlier attempt.
+**A write that may have left is never sent again**: it keeps `UNKNOWN`, and only a new
+explicit request can try again. This adopts RS (R-14), except that RS keeps the requested
+policy across recovery where this always re-issues `000B`.
 
 ## Support and qualification
 
-Host tests cover the implemented conditional path through the real owner and
-selected SDO engine. They do not establish firmware applicability, motor
-standstill, stop latency, braking curve, torque, device-target retirement or
-reference validity. Broader predecessor states, repeated stop from halted or
-released state, velocity/homing modes and a quarantined-channel alternative need
-their own reviewed transitions and fixture evidence. See the
+Host tests cover these paths through the real owner and selected SDO engine, with words
+manufactured by a fake. They do not establish firmware applicability, motor standstill,
+stop latency, braking curve, torque, device-target retirement or reference validity.
+The DEC-8 rows, whether `000B` is non-enabling, and velocity and homing modes need their
+own fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.

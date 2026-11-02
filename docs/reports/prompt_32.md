@@ -1,5 +1,7 @@
 # Prompt 32: explicit fault clear and device-position zero
 
+**Changed by audit W6.** [Packet 7](handoff_19_33/packet_7.md) made the alarm clear poll MONITORS and STATUS only, then read ERRORS once after the alarm clears, and rejects a `maximumAgeUs` below the cycle's service budget. Statements below about reads per cycle describe the earlier contract.
+
 Subsequent [independent audit of prompts 31/32](prompts_31_32_audit.md) adds
 failure-to-later-admission coverage through the real owner. The original scope
 and firmware gates below remain in effect.

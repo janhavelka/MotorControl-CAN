@@ -235,7 +235,7 @@ struct Rig {
         L::ActionOptions value;
         value.service = options();
         value.observationIntervalUs = 10;
-        value.maximumAgeUs = 1000;
+        value.maximumAgeUs = 1400; // A-20: at least 7 x (queue + response), for the counter clear.
         return value;
     }
     void prepare(L::ActionContext& action, bool position) {
@@ -292,7 +292,8 @@ struct Rig {
                   current.channel.binding.configurationGeneration);
             field(action, raw(work.transfer, monitor, mode, error, position));
             CHECK(++fields <= 7);
-        } while (action.state == M::ActionState::ACTIVE && action.observations == before);
+        } while (action.state == M::ActionState::ACTIVE &&
+                 (action.observations == before || action.finalErrorRead));
     }
     void commands(L::ActionContext& action, bool position) {
         if (position) {
@@ -495,7 +496,11 @@ void pendingObservationsAndDeadline() {
             L::advanceAction(action, r.reservation, r.current, M::ActionOutcome::CANCELLED, r.now));
         CHECK(action.outcome == M::ActionOutcome::DEADLINE &&
               action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain);
-        CHECK(r.wire.sentCount == sent + 7);
+        // Alarm polling is MONITORS+STATUS only: ERRORS waits until the alarm has cleared.
+        CHECK(r.wire.sentCount == sent + (position ? 7u : 5u));
+        for (unsigned i = sent; i < r.wire.sentCount && !position; ++i)
+            CHECK(!(r.wire.sent[i].data[1] == 0x01 && r.wire.sent[i].data[2] == 0x10) &&
+                  !(r.wire.sent[i].data[1] == 0x3f && r.wire.sent[i].data[2] == 0x60));
         if (position)
             r.checkWithdrawn();
     }

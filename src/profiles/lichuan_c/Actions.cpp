@@ -44,10 +44,10 @@ ReadTarget expectedTarget(const ActionContext& c) {
     return target;
 }
 uint8_t observationMask(const ActionContext& c) {
+    if (c.finalErrorRead)
+        return uint8_t(1u << static_cast<unsigned>(StateBlock::ERRORS));
     uint8_t mask = uint8_t((1u << static_cast<unsigned>(StateBlock::MONITORS)) |
                            (1u << static_cast<unsigned>(StateBlock::STATUS)));
-    if (c.actionKind == ActionKind::CLEAR_ALARM)
-        mask |= uint8_t(1u << static_cast<unsigned>(StateBlock::ERRORS));
     if (c.actionKind == ActionKind::SET_DEVICE_POSITION)
         mask |= uint8_t(1u << static_cast<unsigned>(StateBlock::FEEDBACK));
     return mask;
@@ -68,7 +68,8 @@ Status shape(const ActionContext& c, uint64_t now) {
          (!c.originalReferenceGeneration || c.originalReferenceGeneration == UINT32_MAX ||
           c.reservation.target.channel.binding.configurationGeneration == UINT32_MAX ||
           (c.commandCursor == 2 && !c.coordinatesInvalidated))) ||
-        (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated))
+        (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
+        (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND &&
         (!c.commandEvidencePresent || c.execution != ActionExecution::ACKNOWLEDGED ||
@@ -76,7 +77,9 @@ Status shape(const ActionContext& c, uint64_t now) {
          c.commandCursor + 1 != commandCount(c) || c.step <= commandCount(c) ||
          !sameTarget(c.read.target, expectedTarget(c)) || c.read.operation != c.operation ||
          c.read.kind != ReadKind::STATE || c.read.source != ReadSource::SDO ||
-         c.read.count != (c.actionKind == ActionKind::STOP ? 5 : 7) ||
+         c.read.count != (c.finalErrorRead                                ? 2
+                          : c.actionKind == ActionKind::SET_DEVICE_POSITION ? 7
+                                                                            : 5) ||
          c.read.blockMask != observationMask(c) || c.read.deadlineUs != c.deadlineUs ||
          c.read.options.queueTimeoutUs != c.options.service.queueTimeoutUs ||
          c.read.options.responseTimeoutUs != c.options.service.responseTimeoutUs))
@@ -103,8 +106,23 @@ bool after(const StateObservation& o, uint64_t at) {
             return false;
     return true;
 }
-bool controlEvidence(const CANOPEN::SdoCompletion& e, const SettingsReservation& r, uint64_t now,
-                     uint64_t age) {
+uint16_t controlWord(const CANOPEN::SdoTransfer& t) {
+    return uint16_t(t.data[0] | (uint16_t(t.data[1]) << 8));
+}
+// Each term is at most 2^33 and the field count is single digit, so this cannot wrap.
+// Actual cycle time is unknown here, so service gaps can still expire a cycle.
+bool ageCoversCycle(const ActionOptions& o, unsigned fields) {
+    return o.maximumAgeUs >=
+           fields * (uint64_t(o.service.queueTimeoutUs) + o.service.responseTimeoutUs);
+}
+bool fresh(const StateObservation& o, uint64_t now, uint64_t age) {
+    for (unsigned i = 0; i < o.fieldCount; ++i)
+        if (o.fields[i].earliestUs > now || now - o.fields[i].earliestUs > age)
+            return false;
+    return o.fieldCount != 0;
+}
+bool controlEvidence(const CANOPEN::SdoCompletion& e, const SettingsReservation& r, StopKind kind,
+                     uint64_t now) {
     const CANOPEN::SdoTransfer& t = e.transfer;
     return sameBinding(t.channel.binding, r.target.channel.binding) &&
            t.channel.clientToServerId == r.target.channel.clientToServerId &&
@@ -112,11 +130,12 @@ bool controlEvidence(const CANOPEN::SdoCompletion& e, const SettingsReservation&
            e.nodeGeneration == r.target.nodeGeneration &&
            e.outcome == CANOPEN::SdoOutcome::SUCCESS &&
            t.direction == CANOPEN::SdoDirection::DOWNLOAD && t.index == 0x6040 && !t.subindex &&
-           t.size == 2 && t.data[0] == 0x0f && !t.data[1] && t.operation && t.request && t.step &&
+           t.size == 2 && stopPredecessorAllowed(controlWord(t), kind) && t.operation && t.request &&
+           t.step &&
            t.deadlineUs > e.completedUs && t.queueTimeoutUs && t.responseTimeoutUs && e.queued &&
            e.transmissionPossible && e.protocolAcknowledged && e.effectPossible &&
            !e.effectUncertain && !e.abortValid && !e.size && r.acquiredUs <= e.admittedUs &&
-           e.admittedUs <= e.completedUs && e.completedUs <= now && now - e.admittedUs <= age;
+           e.admittedUs <= e.completedUs && e.completedUs <= now;
 }
 CANOPEN::SdoTransfer command(const ActionContext& c) {
     CANOPEN::SdoTransfer t;
@@ -209,23 +228,32 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     StateObservation status, monitors, extra;
     const ReadTarget target = expectedTarget(c);
     const uint64_t lastCommandUs = c.commandHistory[commandCount(c) - 1].completedUs;
+    if (c.finalErrorRead) {
+        if (!getStateBlock(c.read, StateBlock::ERRORS, target, now, c.options.maximumAgeUs, extra) ||
+            !after(extra, lastCommandUs)) {
+            fail(c, ActionOutcome::OBSERVATION_SCOPE, now, "action observation freshness unavailable");
+            return Ok();
+        }
+        c.errorObservation = extra;
+        c.state = ActionState::SUCCEEDED;
+        c.outcome = ActionOutcome::OBSERVED;
+        c.completion = ActionCompletion::OBSERVED;
+        c.status = Ok();
+        return Ok();
+    }
     if (!getStateBlock(c.read, StateBlock::STATUS, target, now, c.options.maximumAgeUs, status) ||
         !getStateBlock(c.read, StateBlock::MONITORS, target, now, c.options.maximumAgeUs,
                        monitors) ||
         !after(status, lastCommandUs) || !after(monitors, lastCommandUs) ||
-        (c.actionKind != ActionKind::STOP &&
-         (!getStateBlock(c.read,
-                         c.actionKind == ActionKind::CLEAR_ALARM ? StateBlock::ERRORS
-                                                                 : StateBlock::FEEDBACK,
-                         target, now, c.options.maximumAgeUs, extra) ||
+        (c.actionKind == ActionKind::SET_DEVICE_POSITION &&
+         (!getStateBlock(c.read, StateBlock::FEEDBACK, target, now, c.options.maximumAgeUs,
+                         extra) ||
           !after(extra, lastCommandUs)))) {
         fail(c, ActionOutcome::OBSERVATION_SCOPE, now, "action observation freshness unavailable");
         return Ok();
     }
     c.statusObservation = status;
     c.monitorObservation = monitors;
-    if (c.actionKind == ActionKind::CLEAR_ALARM)
-        c.errorObservation = extra;
     if (c.actionKind == ActionKind::SET_DEVICE_POSITION)
         c.feedbackObservation = extra;
     c.observationKnown = true;
@@ -251,7 +279,15 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     if (outsideScope)
         fail(c, ActionOutcome::OBSERVATION_SCOPE, now,
              "drive report outside this action's supported observation scope");
-    else if (done) {
+    else if (done && c.actionKind == ActionKind::CLEAR_ALARM) {
+        // These reads may consume data, so take them once, after the alarm has cleared.
+        if (!anotherStepAvailable) {
+            fail(c, ActionOutcome::ITERATION_EXHAUSTED, now, "action service identity exhausted");
+        } else {
+            c.finalErrorRead = true;
+            return prepareCycle(c, now);
+        }
+    } else if (done) {
         c.state = ActionState::SUCCEEDED;
         c.outcome = ActionOutcome::OBSERVED;
         c.completion = ActionCompletion::OBSERVED;
@@ -270,12 +306,35 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     }
     return Ok();
 }
+void publishStop(ActionContext& output, const SettingsReservation& r,
+                 const CANOPEN::SdoCompletion& control, const StateObservation& status,
+                 const StateObservation& monitors, StopKind kind, uint32_t operation, uint64_t now,
+                 uint64_t deadline, const ActionOptions& options) {
+    ActionContext c;
+    c.reservation = r;
+    c.kind = kind;
+    c.predecessorWord = controlWord(control.transfer);
+    c.predecessorDocumented = c.predecessorWord == 0x000f;
+    c.predecessorBasis = !c.predecessorDocumented      ? PredecessorBasis::PROJECT_DECISION
+                         : kind == StopKind::QUICK_STOP ? PredecessorBasis::EN86_ZH86_OP86
+                                                        : PredecessorBasis::ZH86_OP86;
+    c.options = options;
+    c.operation = operation;
+    c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = now;
+    c.deadlineUs = deadline;
+    c.state = ActionState::ACTIVE;
+    c.controlEvidence = control;
+    c.statusObservation = status;
+    c.monitorObservation = monitors;
+    output = c;
+}
 Status prepareExplicit(ActionContext& c, const SettingsReservation& r, const ReadContext& state,
                        ActionKind kind, uint32_t operation, uint64_t now, uint64_t deadline,
                        const ActionOptions& options) {
     if (!valid(r) || !operation || deadline <= now || r.acquiredUs > now ||
         !options.service.queueTimeoutUs || !options.service.responseTimeoutUs ||
-        !options.observationIntervalUs || !options.maximumAgeUs)
+        !options.observationIntervalUs || !options.maximumAgeUs ||
+        !ageCoversCycle(options, kind == ActionKind::SET_DEVICE_POSITION ? 7 : 5))
         return error(ActionError::ARGUMENT, "invalid explicit action reservation or budgets");
     StateObservation status, monitors, errors, history;
     if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
@@ -313,6 +372,28 @@ Status prepareExplicit(ActionContext& c, const SettingsReservation& r, const Rea
 }
 } // namespace
 
+bool stopOptionsValid(const ActionOptions& options) noexcept {
+    return options.service.queueTimeoutUs && options.service.responseTimeoutUs &&
+           options.observationIntervalUs && options.maximumAgeUs && ageCoversCycle(options, 5);
+}
+
+// DEC-8: only 000F has documented arrows, and only in the cited manuals. The others rest
+// on derived words, allowed because a running move with no stop is worse.
+bool stopPredecessorAllowed(uint16_t word, StopKind kind) noexcept {
+    switch (word) {
+    case 0x000f:
+    case 0x001f:
+    case 0x005f:
+    case 0x003f:
+    case 0x007f:
+        return true;
+    case 0x010f:
+        return kind == StopKind::QUICK_STOP;
+    default:
+        return false;
+    }
+}
+
 Status prepareStop(ActionContext& output, const SettingsReservation& r, const ReadContext& state,
                    const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                    uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
@@ -322,12 +403,11 @@ Status prepareStop(ActionContext& output, const SettingsReservation& r, const Re
         overlap(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "stop preparation overlaps input");
     if (!valid(r) || kind > StopKind::QUICK_STOP || !operation || deadline <= now ||
-        !options.service.queueTimeoutUs || !options.service.responseTimeoutUs ||
-        !options.observationIntervalUs || !options.maximumAgeUs || r.acquiredUs > now)
+        !stopOptionsValid(options) || r.acquiredUs > now)
         return error(ActionError::ARGUMENT,
                      "invalid stop reservation, selection or caller budgets");
     StateObservation status, monitors;
-    if (!controlEvidence(control, r, now, options.maximumAgeUs) ||
+    if (!controlEvidence(control, r, kind, now) ||
         state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
         !getStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, status) ||
         !getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs,
@@ -336,19 +416,32 @@ Status prepareStop(ActionContext& output, const SettingsReservation& r, const Re
         (monitors.monitor & (monitorAlarm | monitorReleased)) ||
         !after(status, control.completedUs) || !after(monitors, control.completedUs))
         return error(ActionError::STATE,
-                     "continuous acknowledged 000F and fresh mode 1 state required");
-    ActionContext c;
-    c.reservation = r;
-    c.kind = kind;
-    c.options = options;
-    c.operation = operation;
-    c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = now;
-    c.deadlineUs = deadline;
-    c.state = ActionState::ACTIVE;
-    c.controlEvidence = control;
-    c.statusObservation = status;
-    c.monitorObservation = monitors;
-    output = c;
+                     "allowed acknowledged predecessor and fresh mode 1 state required");
+    publishStop(output, r, control, status, monitors, kind, operation, now, deadline, options);
+    return Ok();
+}
+
+Status prepareEscalation(ActionContext& output, const ActionContext& running, uint32_t operation,
+                         uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+    if (overlap(&output, sizeof output, &running, sizeof running) ||
+        overlap(&output, sizeof output, &options, sizeof options))
+        return error(ActionError::OVERLAP, "stop escalation overlaps input");
+    if (!valid(running.reservation) || !operation || deadline <= now ||
+        !stopOptionsValid(options) || running.reservation.acquiredUs > now)
+        return error(ActionError::ARGUMENT, "invalid escalation reservation or budgets");
+    const CANOPEN::SdoCompletion& control = running.commandEvidence;
+    const StateObservation& status = running.statusObservation;
+    const StateObservation& monitors = running.monitorObservation;
+    if (running.actionKind != ActionKind::STOP || running.kind != StopKind::HALT ||
+        !running.commandEvidencePresent || running.execution != ActionExecution::ACKNOWLEDGED ||
+        !running.observationKnown || !controlEvidence(control, running.reservation, StopKind::QUICK_STOP, now) ||
+        controlWord(control.transfer) != 0x010f || !fresh(status, now, options.maximumAgeUs) ||
+        !fresh(monitors, now, options.maximumAgeUs) || !after(status, control.completedUs) ||
+        !after(monitors, control.completedUs) || status.modeRaw != 1 ||
+        (status.statusword & 7u) != 7 || (monitors.monitor & (monitorAlarm | monitorReleased)))
+        return error(ActionError::STATE, "acknowledged HALT and a fresh later cycle required");
+    publishStop(output, running.reservation, control, status, monitors, StopKind::QUICK_STOP,
+                operation, now, deadline, options);
     return Ok();
 }
 
@@ -636,6 +729,112 @@ Status advanceAction(ActionContext& c, const SettingsReservation& live, const Re
         reason = ActionOutcome::DEADLINE;
     fail(candidate, reason, now, "action locally withdrawn; no replay or physical stop proof");
     c = candidate;
+    return Ok();
+}
+
+Status prepareBestEffortStop(BestEffortStop& output, const ReadTarget& target, uint32_t operation,
+                             uint64_t now, uint64_t deadline, const ReadOptions& service) noexcept {
+    if (overlap(&output, sizeof output, &target, sizeof target) ||
+        overlap(&output, sizeof output, &service, sizeof service))
+        return error(ActionError::OVERLAP, "best-effort stop preparation overlaps input");
+    if (!operation || deadline <= now || !service.queueTimeoutUs || !service.responseTimeoutUs ||
+        !target.nodeGeneration || !CANOPEN::validateSdoChannel(target.channel))
+        return error(ActionError::ARGUMENT, "invalid best-effort stop target or budgets");
+    BestEffortStop c;
+    c.target = target;
+    c.service = service;
+    c.operation = operation;
+    c.startedUs = c.servicedUs = now;
+    c.deadlineUs = deadline;
+    c.state = ActionState::ACTIVE;
+    output = c;
+    return Ok();
+}
+
+Status nextBestEffortStop(const BestEffortStop& c, const ReadTarget& current, uint64_t now,
+                          PreparedAction& output) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &current, sizeof current))
+        return error(ActionError::OVERLAP, "best-effort stop work overlaps input");
+    if (now < c.servicedUs)
+        return error(ActionError::TIME, "best-effort stop time moved backward");
+    if (!sameTarget(c.target, current))
+        return error(ActionError::TARGET, "best-effort stop target changed");
+    if (c.state == ActionState::ACTIVE && now >= c.deadlineUs)
+        return error(ActionError::TIME, "best-effort stop deadline");
+    PreparedAction next;
+    next.eligibleUs = c.startedUs;
+    if (c.state == ActionState::ACTIVE && !c.admitted) {
+        next.ready = true;
+        CANOPEN::SdoTransfer& t = next.transfer;
+        t.channel = c.target.channel;
+        t.operation = t.request = c.operation;
+        t.step = 1;
+        t.index = 0x6040;
+        t.direction = CANOPEN::SdoDirection::DOWNLOAD;
+        t.size = 2;
+        t.data[0] = 0x0b;
+        t.deadlineUs = c.deadlineUs;
+        t.queueTimeoutUs = c.service.queueTimeoutUs;
+        t.responseTimeoutUs = c.service.responseTimeoutUs;
+    }
+    output = next;
+    return Ok();
+}
+
+Status noteBestEffortAdmission(BestEffortStop& c, uint64_t now) noexcept {
+    if (c.state != ActionState::ACTIVE || c.admitted || now < c.servicedUs || now >= c.deadlineUs)
+        return error(ActionError::STATE, "no unadmitted best-effort stop");
+    c.admitted = true;
+    c.servicedUs = now;
+    return Ok();
+}
+
+Status advanceBestEffortStop(BestEffortStop& c, const CANOPEN::SdoCompletion& e,
+                             uint64_t now) noexcept {
+    if (overlap(&c, sizeof c, &e, sizeof e))
+        return error(ActionError::OVERLAP, "best-effort stop terminal overlaps input");
+    if (c.state != ActionState::ACTIVE || !c.admitted || now < c.servicedUs)
+        return error(ActionError::STATE, "no admitted best-effort stop");
+    const CANOPEN::SdoTransfer& t = e.transfer;
+    const bool sent = e.outcome == CANOPEN::SdoOutcome::UNCONFIRMED_SENT;
+    if (!sameBinding(t.channel.binding, c.target.channel.binding) ||
+        t.channel.clientToServerId != c.target.channel.clientToServerId ||
+        t.channel.serverToClientId != c.target.channel.serverToClientId ||
+        t.operation != c.operation || t.index != 0x6040 || t.subindex || t.size != 2 ||
+        t.direction != CANOPEN::SdoDirection::DOWNLOAD || t.data[0] != 0x0b || t.data[1] ||
+        t.deadlineUs != c.deadlineUs || e.admittedUs < c.startedUs || e.completedUs < e.admittedUs ||
+        e.completedUs > now || e.size || e.abortValid || e.protocolAcknowledged ||
+        e.outcome == CANOPEN::SdoOutcome::SUCCESS ||
+        e.outcome == CANOPEN::SdoOutcome::SERVER_ABORT ||
+        e.outcome == CANOPEN::SdoOutcome::UNSUPPORTED ||
+        e.outcome > CANOPEN::SdoOutcome::UNCONFIRMED_SENT ||
+        (e.transmissionConfirmed && !e.transmissionPossible) ||
+        e.effectPossible != e.transmissionPossible || (sent && !e.transmissionConfirmed))
+        return error(ActionError::CORRELATION, "best-effort stop terminal does not match");
+    c.commandEvidence = e;
+    c.commandEvidencePresent = true;
+    c.effectsPossible = e.effectPossible;
+    c.execution =
+        e.transmissionPossible ? ActionExecution::UNKNOWN : ActionExecution::NOT_TRANSMITTED;
+    c.outcome = sent ? ActionOutcome::STOP_SENT_UNCONFIRMED : outcome(e.outcome);
+    c.state = ActionState::FAILED;
+    c.status = sent ? error(ActionError::STATE, "stop frame sent; no reply can confirm it")
+                    : error(ActionError::STATE, "best-effort stop did not complete");
+    c.servicedUs = now;
+    return Ok();
+}
+
+Status advanceBestEffortStop(BestEffortStop& c, ActionOutcome reason, uint64_t now) noexcept {
+    if (c.state != ActionState::ACTIVE || c.admitted || now < c.servicedUs ||
+        (reason != ActionOutcome::CANCELLED && reason != ActionOutcome::DEADLINE &&
+         reason != ActionOutcome::INVALIDATED && reason != ActionOutcome::TRANSPORT_ERROR) ||
+        (reason == ActionOutcome::DEADLINE && now < c.deadlineUs))
+        return error(ActionError::STATE, "invalid local best-effort stop termination");
+    c.outcome = now >= c.deadlineUs ? ActionOutcome::DEADLINE : reason;
+    c.state = ActionState::FAILED;
+    c.status = error(ActionError::STATE, "best-effort stop never admitted; nothing was sent");
+    c.servicedUs = now;
     return Ok();
 }
 } // namespace LICHUAN_C

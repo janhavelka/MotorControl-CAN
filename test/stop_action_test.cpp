@@ -354,6 +354,40 @@ void unsupportedPrerequisitesAreAtomic() {
         before.unchanged(action);
         CHECK(r.wire.sentCount == sent);
     }
+    // DEC-8 table, whole words only. These fixture words are this fake's, not qualified behavior.
+    const uint16_t words[] = {0x000f, 0x001f, 0x005f, 0x003f, 0x007f, 0x010f, 0x000b, 0x0007,
+                              0x0006, 0x0000, 0x011f, 0x002f, 0x004f, 0x000e, 0x8000};
+    for (uint16_t word : words)
+        for (unsigned kind = 0; kind < 2; ++kind) {
+            const L::StopKind selected = kind ? L::StopKind::QUICK_STOP : L::StopKind::HALT;
+            const bool trigger = word == 0x001f || word == 0x005f || word == 0x003f || word == 0x007f;
+            const bool allowed =
+                word == 0x000f || trigger || (word == 0x010f && selected == L::StopKind::QUICK_STOP);
+            CHECK(L::stopPredecessorAllowed(word, selected) == allowed);
+            Rig r;
+            r.prerequisites();
+            r.begin();
+            C::SdoCompletion control = r.control;
+            control.transfer.data[0] = uint8_t(word);
+            control.transfer.data[1] = uint8_t(word >> 8);
+            L::ActionContext action;
+            action.operation = 777;
+            const Saved<L::ActionContext> before(action);
+            const M::Status status =
+                L::prepareStop(action, r.reservation, r.state, control, selected, r.operation, r.now,
+                               r.deadline, r.actionOptions());
+            CHECK(bool(status) == allowed);
+            if (allowed)
+                CHECK(action.predecessorWord == word &&
+                      action.predecessorDocumented == (word == 0x000f) &&
+                      action.predecessorBasis ==
+                          (word != 0x000f ? L::PredecessorBasis::PROJECT_DECISION
+                           : kind         ? L::PredecessorBasis::EN86_ZH86_OP86
+                                          : L::PredecessorBasis::ZH86_OP86) &&
+                      action.state == M::ActionState::ACTIVE);
+            else
+                before.unchanged(action);
+        }
 }
 void contradictoryObservationsAndAbort() {
     for (unsigned scenario = 0; scenario < 4; ++scenario) {
@@ -711,6 +745,17 @@ void exactDeadlineAndRepeatedStopRejection() {
                               r.operation + 1, r.now, r.deadline, r.actionOptions()));
         unchanged.unchanged(repeated);
         CHECK(r.wire.sentCount == sent);
+        // R-14 escalation: only an acknowledged 010F, and only for 000B. A prior 000B admits neither.
+        L::ActionContext escalated;
+        const M::Status status = L::prepareStop(escalated, r.reservation, first.read, r.control,
+                                                L::StopKind::QUICK_STOP, r.operation + 1, r.now,
+                                                r.deadline, r.actionOptions());
+        CHECK(bool(status) == (kind == 0));
+        if (kind == 0)
+            CHECK(escalated.predecessorWord == 0x010f && !escalated.predecessorDocumented);
+        else
+            unchanged.unchanged(escalated);
+        CHECK(r.wire.sentCount == sent);
     }
 }
 // DEC-3: a marker reopens the route, not the reservation or its 000F. The ordered server here is
@@ -776,15 +821,22 @@ void drainMarkerConsumesOld000F() {
     CHECK(r.control.completedUs > old000F.completedUs);
 }
 void freshnessAndStepExhaustion() {
+    // An acknowledged word does not expire while the drive idles. Fresh reads still do.
     Rig fresh;
     fresh.prerequisites();
+    const L::ActionOptions policy = fresh.actionOptions();
+    fresh.turn(fresh.control.admittedUs + policy.maximumAgeUs + 5000, O::ServiceBudget());
+    fresh.acquire();
     fresh.begin();
-    L::ActionOptions policy = fresh.actionOptions();
-    policy.maximumAgeUs = fresh.now - fresh.control.admittedUs;
+    CHECK(fresh.now - fresh.control.admittedUs > policy.maximumAgeUs);
     L::ActionContext action;
     CHECK(L::prepareStop(action, fresh.reservation, fresh.state, fresh.control, L::StopKind::HALT,
                          fresh.operation, fresh.now, fresh.deadline, policy));
-    --policy.maximumAgeUs;
+    const uint64_t earliest = fresh.state.values[0].provenance.earliestUs;
+    fresh.turn(earliest + policy.maximumAgeUs, O::ServiceBudget());
+    CHECK(L::prepareStop(action, fresh.reservation, fresh.state, fresh.control, L::StopKind::HALT,
+                         fresh.operation, fresh.now, fresh.deadline, policy));
+    fresh.turn(fresh.now + 1, O::ServiceBudget());
     L::ActionContext rejected;
     const Saved<L::ActionContext> unchanged(rejected);
     CHECK(!L::prepareStop(rejected, fresh.reservation, fresh.state, fresh.control,
