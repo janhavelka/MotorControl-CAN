@@ -268,11 +268,14 @@ void SdoClient::retainPair(Channel& c, uint16_t index, uint8_t subindex) {
     ++c.retainedCount;
 }
 void SdoClient::retainFrame(Channel& c, const Frame& f) {
-    // An unexpected frame after a marker reopened this route disproves that marker's premise.
-    if (c.requalifications) c.drainRefused = true;
     uint16_t index = 0; uint8_t subindex = 0;
-    if (frameMultiplexer(f, index, subindex)) retainPair(c, index, subindex);
-    else c.drainRefused = true;
+    if (!frameMultiplexer(f, index, subindex)) { c.drainRefused = true; return; }
+    for (uint8_t i = 0; i < c.retainedCount; ++i)
+        if (c.retained[i].index == index && c.retained[i].subindex == subindex) return;
+    // A retained pair names a request made since the last reopening, so its late reply is
+    // expected. Any other frame after a marker reopened this route disproves that marker's premise.
+    if (c.requalifications) c.drainRefused = true;
+    retainPair(c, index, subindex);
 }
 bool SdoClient::checkAdmission(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
     return slot < CHANNELS && !channels_[slot].unresolved && checkWork(slot, work, now);
@@ -322,6 +325,44 @@ bool SdoClient::checkWork(uint8_t slot, const SdoTransfer& work, uint64_t now) c
     if (slot >= CHANNELS || now < lastUs_ || !eligibleSdo(slot, work, now))
         return false;
     const Channel& c = channels_[slot];
+    return checkShape(c, work, now) &&
+        (c.confirmed || experimentMatches(slot, work, now, false) ||
+         (work.direction == SdoDirection::UPLOAD && work.readEffect != SdoReadEffect::UNQUALIFIED));
+}
+bool SdoClient::workEligible(uint8_t slot, const Channel& c, uint64_t now) const {
+    return c.bestEffort ? bestEffortEligible(slot, now) : eligibleSdo(slot, c.work, now);
+}
+bool SdoClient::bestEffortEligible(uint8_t slot, uint64_t now) const {
+    if (slot >= CHANNELS || now < lastUs_) return false;
+    if (controllerState_ == ControllerState::BUS_OFF || controllerState_ == ControllerState::RECOVERING)
+        return false;
+    const int anchor = networkAnchor(slot);
+    if (anchor < 0) return true;
+    ServiceEligibility eligibility;
+    // probeUpload is false exactly for an exhausted node or known STOPPED/INITIALIZING.
+    return serviceEligibility(channels_[anchor].network, now, eligibility) && eligibility.probeUpload;
+}
+bool SdoClient::validBestEffortStop(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
+    return slot < CHANNELS && now >= lastUs_ && checkShape(channels_[slot], work, now) &&
+        work.direction == SdoDirection::DOWNLOAD && work.index == 0x6040 && work.subindex == 0 &&
+        work.size == 2 && work.data[0] == 0x0b && work.data[1] == 0 && !work.requirePreOperational;
+}
+bool SdoClient::checkBestEffortStop(uint8_t slot, const SdoTransfer& work, uint64_t now) const {
+    if (!validBestEffortStop(slot, work, now) || !bestEffortEligible(slot, now)) return false;
+    const Channel& c = channels_[slot];
+    return !c.occupied && !c.cleanup && !c.handoffLive && !c.port.queueOccupied && !c.drainSuccess;
+}
+bool SdoClient::admitBestEffortStop(uint8_t slot, const SdoTransfer& work, uint64_t now,
+                                    SdoRequestId& id, uint64_t initialQueueDeadline) {
+    if (!checkBestEffortStop(slot, work, now) || initialQueueDeadline <= now ||
+        overlap(&id, sizeof id, this, sizeof *this) || overlap(&id, sizeof id, &work, sizeof work))
+        return false;
+    if (!start(slot, work, now, id, initialQueueDeadline)) return false;
+    channels_[slot].bestEffort = true;
+    return true;
+}
+bool SdoClient::checkShape(const Channel& c, const SdoTransfer& work, uint64_t now) const {
+    const uint8_t slot = static_cast<uint8_t>(&c - channels_);
     if (!c.configured || c.generation == UINT32_MAX ||
         !sameBinding(work.channel.binding, c.route.binding) ||
         work.channel.clientToServerId != c.route.clientToServerId ||
@@ -332,10 +373,7 @@ bool SdoClient::checkWork(uint8_t slot, const SdoTransfer& work, uint64_t now) c
         (work.uploadSize != SdoUploadSize::EXACT && work.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
         (work.uploadSize == SdoUploadSize::SERVER_INDICATED &&
          !experimentMatches(slot, work, now, false)) ||
-        work.readEffect > SdoReadEffect::ACCEPTED_UNQUALIFIED ||
-        (!c.confirmed && !experimentMatches(slot, work, now, false) &&
-         (work.direction != SdoDirection::UPLOAD ||
-          work.readEffect == SdoReadEffect::UNQUALIFIED)))
+        work.readEffect > SdoReadEffect::ACCEPTED_UNQUALIFIED)
         return false;
     return true;
 }
@@ -362,6 +400,7 @@ bool SdoClient::start(uint8_t slot, const SdoTransfer& work, uint64_t now, SdoRe
     c.terminal = c.started = c.awaiting = c.queued = c.possible = c.txConfirmed = false;
     c.unsizedExpedited = c.replyValid = c.handoffLive = false;
     c.held = c.withdrawn = c.possibleBeforeHandoff = c.txLive = c.abortClean = false;
+    c.bestEffort = false;
     c.uploaded = 0;
     c.frame = 0;
     c.queueCutoff = cutoff(now, work.deadlineUs, work.queueTimeoutUs);
@@ -572,6 +611,15 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
         c.observation.disposition = SdoRxDisposition::REJECTED;
         c.observationValid = true;
         if (!validateFrame(f) || f.extended || f.rtr || f.fd) return false;
+        if (c.bestEffort && c.occupied && !c.terminal) {
+            // A reply is indistinguishable from a late reply to earlier work, so it can
+            // neither confirm this stop nor withdraw its handoff. It still disproves the
+            // external reuse premise, even if this stop then proves never sent.
+            retainFrame(c, f);
+            c.unresolved = true;
+            c.observation.disposition = SdoRxDisposition::UNRESOLVED;
+            return false;
+        }
         if (c.drainActive && c.occupied && !c.terminal) {
             // A retained pair may be the old reply still arriving, so it cannot settle
             // the marker. Anything else on this route contradicts the sole-client premise.
@@ -706,7 +754,7 @@ bool SdoClient::nextTx(uint8_t slot, uint64_t now, Frame& f, SdoTxId& id) {
     const bool cleanup = c.cleanup;
     const uint64_t cleanupCutoff = c.queueCutoff;
     if ((!c.occupied || c.terminal) && !cleanup) return false;
-    if (!cleanup && !eligibleSdo(slot, c.work, now)) {
+    if (!cleanup && !workEligible(slot, c, now)) {
         retire(c); finish(c, SdoOutcome::BINDING_INVALIDATED, now); return false;
     }
     const Frame candidate = wire(c.port.queued);
@@ -731,6 +779,8 @@ bool SdoClient::nextTx(uint8_t slot, uint64_t now, Frame& f, SdoTxId& id) {
         c.awaiting = true;
         c.responseCutoff = cutoff(now, c.work.deadlineUs, c.work.responseTimeoutUs);
         c.handoffCutoff = c.responseCutoff;
+        // The drive's ordinary reply must not count as an unexpected frame on this route.
+        if (c.bestEffort) retainPair(c, c.work.index, c.work.subindex);
     }
     return true;
 }
@@ -742,7 +792,7 @@ bool SdoClient::canTransmit(SdoTxId id, uint64_t now) const {
     return c.handoffLive && id.request.generation != 0 &&
            id.request.generation == c.generation && id.frame != 0 && id.frame == c.frame &&
            now < c.handoffCutoff && now < c.work.deadlineUs &&
-           ((!c.occupied || c.terminal) || eligibleSdo(id.request.channel, c.work, now));
+           ((!c.occupied || c.terminal) || workEligible(id.request.channel, c, now));
 }
 
 bool SdoClient::holdHandoff(SdoTxId id) {
@@ -811,6 +861,7 @@ bool SdoClient::confirmTx(SdoTxId id, uint64_t now) {
     if (c.terminal || id.frame == 0 || id.frame != c.frame || !c.possible) return false;
     c.txConfirmed = true;
     c.handoffLive = false;
+    if (c.bestEffort) finish(c, SdoOutcome::UNCONFIRMED_SENT, now);
     return true;
 }
 

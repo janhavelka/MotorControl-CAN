@@ -1,5 +1,7 @@
 # Prompt 31: conditional stop operations and owner integration
 
+**Reopened by audit W6.** [Packet 6](handoff_19_33/packet_6.md) delivered the owner half: per-channel urgent capacity, in-flight settlement, and the narrow `6040:00=000B` best-effort route. Packet 7 owns the profile action and application history, so the conditional stop lifecycle below stays as described until then. This prompt stays Partial.
+
 Subsequent [independent audit of prompts 31/32](prompts_31_32_audit.md) rechecked
 the actual implementation, source evidence, owner paths and tests. The original
 scope and firmware gates below remain in effect.

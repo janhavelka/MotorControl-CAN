@@ -388,6 +388,41 @@ public:
      */
     bool checkDrain(uint8_t slot, const SdoTransfer& transfer, const SdoDrainPremises& premises,
                     uint64_t nowUs) const;
+    /** Check one explicit best-effort stop: scalar U16 download `6040:00=000B` only (DEC-2).
+     * It may go out on an unresolved or unconfirmed route, because that is when a host most
+     * needs a stop. Its reply can never qualify, so its route ends unresolved. It is best
+     * effort and no safety function. This is validBestEffortStop and bestEffortEligible
+     * plus a channel with no live local work.
+     * @param[in] slot Configured channel.
+     * @param[in] transfer The exact stop download with its own finite deadline.
+     * @param[in] nowUs Same supplied time.
+     * @return True when the stop could be admitted now.
+     */
+    bool checkBestEffortStop(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs) const;
+    /** Check only that a transfer is the exact stop, with a current route and a finite deadline.
+     * @param[in] slot Configured channel.
+     * @param[in] transfer Candidate download.
+     * @param[in] nowUs Same supplied time.
+     * @return True for `6040:00=000B` alone.
+     */
+    bool validBestEffortStop(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs) const;
+    /** Check only that controller and network state allow a best-effort stop to go out.
+     * Bus-off, recovery, known STOPPED or INITIALIZING and an exhausted node refuse it.
+     * @param[in] slot Configured channel.
+     * @param[in] nowUs Same supplied time.
+     * @return True when that state does not refuse it.
+     */
+    bool bestEffortEligible(uint8_t slot, uint64_t nowUs) const;
+    /** Admit the stop checkBestEffortStop accepts. One request, one transmission, no resend.
+     * @param[in] slot Configured channel.
+     * @param[in] transfer The exact stop download.
+     * @param[in] nowUs Same supplied time.
+     * @param[out] id Published only on success.
+     * @param[in] initialQueueDeadline Queue cutoff, after nowUs.
+     * @return True when admitted.
+     */
+    bool admitBestEffortStop(uint8_t slot, const SdoTransfer& transfer, uint64_t nowUs,
+                             SdoRequestId& id, uint64_t initialQueueDeadline);
     /** Admit the marker checkDrain accepts. Each attempt is new explicit intent, never a retry.
      * @param[in] slot Unresolved configured channel.
      * @param[in] transfer Marker upload.
@@ -607,7 +642,7 @@ private:
         bool unsizedExpedited = false;
         bool handoffLive = false, observationValid = false;
         bool held = false, withdrawn = false, possibleBeforeHandoff = false, txLive = false;
-        bool abortClean = false;
+        bool abortClean = false, bestEffort = false;
         // Drain marker history: object pairs that may still answer on this route.
         enum { RETAINED_PAIRS = 4 };
         /** One SDO object address. */
@@ -661,6 +696,8 @@ private:
     void finishNmt(NmtOutcome outcome, uint64_t nowUs);
     void recordNmtIntent(uint64_t nowUs, bool present);
     bool checkWork(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
+    bool checkShape(const Channel& channel, const SdoTransfer& work, uint64_t nowUs) const;
+    bool workEligible(uint8_t slot, const Channel& channel, uint64_t nowUs) const;
     bool start(uint8_t slot, const SdoTransfer& work, uint64_t nowUs, SdoRequestId& id,
                uint64_t initialQueueDeadline);
     static bool possibleWork(const Channel& channel);

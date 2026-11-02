@@ -412,6 +412,10 @@ A controller event, bus-off or recovery, quarantines only a route with a frame t
 
 A marker settles the channel only. Earlier effects stay uncertain, and nothing replays or re-enables. **If the ordered-server premise is false, a stale reply naming the same object as a later write can still confirm that write, and no client-side check can tell.** That is why the premise is a gate, not a default.
 
+### Best-effort stop on an unresolved route (DEC-2)
+
+`SdoClient::checkBestEffortStop` and `admitBestEffortStop` pass one exact request, `6040:00` U16 `000B`, on a route that ordinary work may not use. The frame is submitted at most once. A controller TX report ends it `SdoOutcome::UNCONFIRMED_SENT`, with execution unknown. A frame received meanwhile, even a matching `60 40 60 00`, is retained: it retires nothing and qualifies nothing, because it may answer the write before. The route stays unresolved and the marker above is still required. The [owner contract](can_owner.md) gives the admission table. This is not a reopening path and not a stop result.
+
 ### Other proposed reopening paths
 
 Negative tests keep admission blocked for every path below, rather than supplying a success stub.
