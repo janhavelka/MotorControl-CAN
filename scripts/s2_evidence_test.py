@@ -136,6 +136,16 @@ class RetainedCaptures(unittest.TestCase):
             self.assertEqual(conflicts, {("1009:00", 1, 2, "raw upload"), ("100a:00", 1, 2, "raw upload")}, name)
             self.assertEqual(report.typed_successes, 0, "raw bytes are never a typed success")
 
+    def test_measured_width_identity_succeeds_and_keeps_its_discrepancy(self):
+        # Outcome 1 is ReadOutcome::SUCCESS. Selecting MEASURED_U8 does not hide the EDS difference.
+        for name, operation in (("20261103T0118Z-identity1", 1), ("20261103T0118Z-identity2-b", 2)):
+            report = evidence.replay_capture(BENCH / name)
+            self.assertEqual((report.verdict, report.family, report.operation),
+                             ("complete", "EVIDENCE", operation))
+            self.assertEqual(report.typed_successes, 9)
+            self.assertEqual({(w["object"], w["actual"]) for w in report.width_discrepancies},
+                             {("1009:00", 1), ("100a:00", 1)})
+
     def test_typed_width_rejection_stays_failed_evidence(self):
         for name, operation in (("20261102-s2-identity1-fixed", 1), ("20261102-s2-identity2", 2)):
             report = evidence.replay_capture(BENCH / name)

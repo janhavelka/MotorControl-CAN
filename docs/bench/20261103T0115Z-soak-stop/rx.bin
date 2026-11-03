@@ -1,0 +1,13 @@
+SOAK_STOPPING; a started read settles first
+SOAK_SUM n=204 t=918602606 trial=1793667707 up=768242235 rx=15545 tx=15545 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+SOAK_GAP n=205 t=918605616 gapMax=3751 gapWin=3601 ownerGap=4179 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrop=0 stack=9312 heap=128396 heapMin=123956
+SOAK_CON n=206 t=918621598 lines=206 blocked=1006 conRej=0 conHw=240 evFull=0 evLimit=0 evHw=39 anomalies=0 dumps=0 dumpSkip=0 dumpAb=0 trLost=0 dumpUs=0 defDump=0 defBusy=0 defTx=0 defInh=0 slips=0 sdkDefer=0
+SOAK_NODE n=207 t=918647603 node=1 ops=1921 opsOk=1921 opsFail=0 refused=0 steps=6729 stepsOk=6729 min=4848 mean=4886 max=4920 retireMax=3235 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+SOAK_HIST n=208 t=918671598 node=1 b=0,6729,0,0,0,0,0,0
+SOAK_OUT n=209 t=918677603 node=1 sdo=6729,0,0,0,0,0,0,0,0,0,0,0 reason=6729,0,0,0,0,0,0,0 read=0,1921,0,0,0,0,0,0,0
+SOAK_ABORT n=210 t=918693598 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+SOAK_NODE n=211 t=918705596 node=2 ops=1920 opsOk=1920 opsFail=0 refused=0 steps=6726 stepsOk=6726 min=4850 mean=4889 max=5869 retireMax=3233 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+SOAK_HIST n=212 t=918727601 node=2 b=0,6707,19,0,0,0,0,0
+SOAK_OUT n=213 t=918735598 node=2 sdo=6726,0,0,0,0,0,0,0,0,0,0,0 reason=6726,0,0,0,0,0,0,0 read=0,1920,0,0,0,0,0,0,0
+SOAK_ABORT n=214 t=918749599 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+SOAK_END n=215 t=918761596 trial=1793667707 reason=stopped up=768401225 lines=215 settled=1
