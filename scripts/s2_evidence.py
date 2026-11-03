@@ -527,6 +527,21 @@ def parse_line(number, text):
     return record
 
 
+def _boot_after_reset_noise(number, text):
+    """A capture's first line may carry a stray byte or two that the S2's UART emits at reset
+    (2026-11-03: one 0xB8 before the boot banner after a reflash). Only then, and only when the
+    rest parses as a boot line, is it accepted; the raw line is kept and the noise noted."""
+    rest = text.lstrip("�")
+    if not 1 <= len(text) - len(rest) <= 2 or not rest.startswith(("S2_BENCH ready", "rst:0x")):
+        return None
+    record = parse_line(number, rest)
+    if record.status != "parsed" or record.role != "boot":
+        return None
+    record.raw = text
+    record.reason = "%d undecodable byte(s) of reset noise before the boot line" % (len(text) - len(rest))
+    return record
+
+
 def parse_bytes(data):
     """Split on LF, tolerating CRLF. Returns (records, unterminated final text or None)."""
     lines = data.split(b"\n")
@@ -535,7 +550,10 @@ def parse_bytes(data):
     for number, line in enumerate(lines, 1):
         text = line.rstrip(b"\r").decode("utf-8", errors="replace")
         if text:
-            records.append(parse_line(number, text))
+            record = parse_line(number, text)
+            if number == 1 and record.status == "malformed":
+                record = _boot_after_reset_noise(number, text) or record
+            records.append(record)
     unterminated = None
     if tail:
         unterminated = tail.decode("utf-8", errors="replace")

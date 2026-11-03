@@ -127,9 +127,26 @@ class RetainedCaptures(unittest.TestCase):
             # A run the runner refused before its route line holds only its ping: there is no route
             # to complete, and the runner recorded why.
             refused_before_send = set(request.get("sent", ["?"])) <= {"70"} and bool(request.get("reason"))
-            if directory.name != "20261102-s2-identity1" and not refused_before_send:  # The retained reset investigation.
+            # 20261102-s2-identity1: the retained reset investigation. 20261103T1010Z-s2-ping: a ping
+            # sent while the S2 was still booting after a reflash, with no PONG; 1012Z's was answered.
+            retained_incomplete = ("20261102-s2-identity1", "20261103T1010Z-s2-ping")
+            if directory.name not in retained_incomplete and not refused_before_send:
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
                                  (directory.name, report.errors))
+
+    def test_reset_noise_before_the_boot_banner_is_kept_and_accepted(self):
+        # The 2026-11-03 10:10Z capture began with one 0xB8 from the S2's UART at reset.
+        banner = b"S2_BENCH ready; UART115200; CAN disabled"
+        records, _ = evidence.parse_bytes(b"\xb8" + banner + b"\n")
+        self.assertEqual((records[0].status, records[0].kind), ("parsed", "BOOT_READY"))
+        self.assertEqual(records[0].raw, "\ufffd" + banner.decode())
+        self.assertIn("reset noise", records[0].reason)
+        # Never on a later line, never three bytes, never before anything but a boot line.
+        for data in (b"PONG x\n\xb8" + banner + b"\n",
+                     b"\xb8\xb8\xb8" + banner + b"\n",
+                     b"\xb8TRIAL record released; sessions and uncertainty retained\n"):
+            records, _ = evidence.parse_bytes(data)
+            self.assertEqual(records[-1].status, "malformed", data)
 
     def test_earlier_one_byte_identity_discrepancy_is_preserved(self):
         for name in ("20261102-s2-raw-fixed-node1", "20261102-s2-raw-fixed-node2",
