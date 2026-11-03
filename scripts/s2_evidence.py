@@ -476,6 +476,10 @@ def sdo_reply(payload):
     return "other", None
 
 
+# ReadOutcome order, which an EVIDENCE header reports. SDO terminals use OUTCOMES.
+READ_OUTCOMES = ("NONE", "SUCCESS", "REPLY_ERROR", "PROTOCOL_REJECTED", "TRANSPORT_ERROR", "CANCELLED",
+                 "DEADLINE", "INVALIDATED", "SERVICE_TIMEOUT")
+
 # Incomplete: output is missing or damaged. Positional: wire correlation that a lost
 # line also shifts, so it cannot accuse the record once output is known damaged.
 # Everything else (identity, duplicates, contradictions) is always inconsistent.
@@ -789,9 +793,11 @@ def _check_record(report, records, expect):
     report.node = values.get("node", expect.node or None)
     report.gap_us = values.get("gap")
     report.failure = values.get("failure", values.get("outcome"))
+    if header.kind == "EVIDENCE" and report.failure == 1:
+        report.failure = 0  # ReadOutcome::SUCCESS.
     report.trace_lost = bool(values.get("lost"))
     report.tail_lost = bool(values.get("tailLost"))
-    names = OUTCOMES if header.kind == "EVIDENCE" else FAILURES
+    names = READ_OUTCOMES if header.kind == "EVIDENCE" else FAILURES
     if report.failure is not None and report.failure < len(names):
         report.failure_name = names[report.failure]
     if expect.family and expect.family != "any" and header.kind != expect.family:
@@ -892,7 +898,8 @@ def _check_record(report, records, expect):
 def _check_record_outcome(report, header, results, terminal_failure, inventory):
     values = header.values
     if header.kind == "EVIDENCE":
-        if (values["outcome"] != 0) != (terminal_failure is not None):
+        # ReadOutcome: 0 none, 1 success, anything higher is a failure.
+        if (values["outcome"] > 1) != (terminal_failure is not None):
             report.error("failure_differs_from_terminal", header.number)
         return
     failure = values["failure"]

@@ -1,0 +1,14 @@
+{
+  "name": "sdk_python_version",
+  "command": [
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\build\\p25\\idf-python\\Scripts\\python.exe",
+    "--version"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261103T011449Z-s2-upload\\tools\\20261103T011449961869Z-82300-2lroc71e\\01_sdk_python_version.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 0.015
+}
+
+Python 3.12.10
