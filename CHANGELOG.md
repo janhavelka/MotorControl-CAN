@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Bench route review fixes (closing audit)
+
+An independent review of the bench routes found no unrequested motion or controlword write, and these defects, each fixed with a test that fails without it:
+
+- Lost evidence ends every route `EVIDENCE_LOSS` (`why=lost`), never `NONE`, and withdraws an active enable or move locally (`lossCancel=1`); nothing is sent because of the loss. An EMCY or loss withdrawal uses the later of the route's and the owner's time, so the session cannot refuse it.
+- `move` and `position` with a planned stop are refused (`why=deadline`) before their first write unless the stop's span fits the route cutoff; plans that never can are refused at admission (`duration`).
+- The check step's predecessor is judged again when the first write is offered; `begin()` applies the parser's range check (`reason=plan`).
+- Bench line protocol 3: every `T` line ends in `,K` and a CRC-32 (zlib) of the bytes before it; the firmware refuses `reason=crc`; PONG reports `routes=3`, and the host refuses other images. **An image built before this needs reflashing before any route runs.**
+- `s2_bench.py` campaign ledger: an exclusive `PATH.lock` per invocation (`campaign busy`; a stale lock is kept for the operator), a reload and recheck before the send entry, a `seq`/`prev` SHA-256 chain and consistency checks; unchained ledgers are refused. A chain cannot detect a tail cut at a line end or a restored older copy, so commit the ledger with each session's evidence.
+- `s2_evidence.py`: separate transition names for enable, stop and move results; a `lost=1` record is no longer accused by traffic matching; header field `lossCancel`.
+
 ### Bench routes: rearm, gated move and a host campaign ledger (closing audit of packets 19, 20, 22)
 
 - Add the `rearm` route (`TR`) to `examples/s2_bench/BenchRoute`: exactly one `6040=000F` through the session after the acknowledged `001F` of a finished `position` record on that node, then fresh cycles that are recorded and never judged. A missing, uncertain or other latest word refuses with `control`, so a lost `000F` or `001F` can never be followed by another. It is project policy until the mode 1 falling-edge behavior is measured.

@@ -522,6 +522,16 @@ class TraceLoss(unittest.TestCase):
         report = replay(record(0, [ok], frames, lost=1))
         self.assertIn("failure_differs_from_terminal", codes(report))
 
+    def test_lost_trace_cannot_be_accused_by_traffic_matching(self):
+        # The request frame is missing from the copied traffic. With lost=1 the record said so itself.
+        ok, frames = first_step_ok()
+        report = replay(record(5, [ok], frames[1:], lost=1))
+        self.assertEqual(report.verdict, "failed-evidence", report.errors)
+        self.assertIn("success_without_request", warnings(report))
+        self.assertEqual(codes(report), set())
+        self.assertEqual(replay(record(5, [ok], frames[1:])).verdict, "inconsistent")
+        self.assertEqual(replay(record(0, [ok], frames[1:], lost=1)).verdict, "inconsistent")
+
     def test_tail_overflow_is_visible(self):
         rows = lines()
         rows[1] = rows[1].replace("tailLost=0", "tailLost=1")
@@ -643,6 +653,40 @@ class TransitionLog(unittest.TestCase):
         self.assertTrue({("controller", "controller_state", "BUS_OFF"), ("controller", "recovery", "RETIRED"),
                          ("controller", "tx_report_ok", 0), ("health", "sdo_outcome", 3),
                          ("health", "effect_uncertain", 1), ("health", "failure", 3)} <= found)
+
+    def test_move_and_its_stop_keep_separate_results(self):
+        """A move record with its planned stop: each result has its own signal, never one key."""
+        sample = ("TRIAL_MOVE_SAMPLE which=%d present=1 cycle=1 status=9037 monitor=0004 mode=01 feedback=1 "
+                  "position=3 velocity=1 lo=10 hi=20")
+        rows = ["TRIAL admitted route=move node=1 trial=7 motion=2 case=1; finite typed route, no retry",
+                "TRIAL id=7 node=1 route=move failure=0 why=none lost=0 terminals=0 traffic=0 tail=0 tailLost=0 "
+                "summaries=12 step=3 cycles=1 motion=2 case=1 unsettled=0 gap=1000 lossCancel=0",
+                "TRIAL_PLAN route=move node=1 trial=7 attended=1 sp=0 target=16 rpm=1 up=1000 down=1000 "
+                "deadline=10000 interval=1000 kind=1 after=1 sd=2000 be=0 si=500",
+                "TRIAL_RES stack0=9300 stack1=9100 heap0=60000 heap1=59000 heapMin=58000 largest=40000 gap=1000 "
+                "dropped=0 admission=0 started=10 completed=20",
+                "TRIAL_EVIDENCE record=19 as=1 am=1000 av=1000 cs=1 cm=8000 cv=8000 rule=1 dt=00040192 hw=0012 "
+                "sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123",
+                "TRIAL_MOVE own=1 state=3 phase=2 phases=07 outcome=4 int=2 setup=1 exec=1 completion=0 rearm=0 "
+                "uncertain=1 readUnc=0 effects=1 cycles=1 op=9 target=16 mask=f ev=f trigger=1 rearmed=0 "
+                "fenced=1 code=0 detail=0"]
+        rows += [sample % which for which in range(5)]
+        rows += ["TRIAL_STOP kind=1 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 "
+                 "effects=1 pred=001f documented=1 basis=1 observations=1 op=10",
+                 "TRIAL_BEST_EFFORT which=0 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0",
+                 "TRIAL_BEST_EFFORT which=1 own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0",
+                 "END trial terminals=0 traffic=0 tail=0 tailLost=0 lost=0; r=release"]
+        report = evidence.replay_bytes(join(rows), {"command": "move", "node": 1, "trial": 7,
+                                                    "line": "TG1,7", "status": "captured"})
+        self.assertEqual(report.verdict, "complete", report.errors)
+        self.assertEqual(report.unknown_fields, [])
+        log = evidence.Transitions()
+        log.observe(report)
+        found = {(e["signal"], e["node"], e["from"], e["to"]) for e in log.entries if e["category"] == "health"}
+        self.assertTrue({("moveOutcome", 1, None, 4), ("moveUncertain", 1, None, 1), ("moveFenced", 1, None, 1),
+                         ("moveCompletion", 1, None, 0), ("stopOutcome", 1, None, 1),
+                         ("stopPath", 1, None, 1)} <= found, found)
+        self.assertFalse([e for e in log.entries if e["signal"] in ("outcome", "uncertain", "path", "fenced")])
 
     def test_boot_marks_following_observations(self):
         boot = join(["rst:0xc (RTC_SW_CPU_RST),boot:0xa (SPI_FAST_FLASH_BOOT)",

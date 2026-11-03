@@ -78,6 +78,7 @@ struct Drive {
     uint16_t lateIndex = 0;   // The first reply to this object is held in `late` for the test to send.
     uint16_t mismatchIndex = 0; // Replies to this object name the next subindex.
     uint16_t alarmAfterMode = 0; // 2100 bits set once 6060 has been written.
+    uint16_t monitorAfterTrigger = 0; // 2100 bits set by a 001F.
     bool followWords = true;
     bool writesOnly = false;    // silentIndex, abortIndex, lateIndex and mismatchIndex spare uploads.
     bool ignoreTrigger = false; // A 001F changes nothing the fake reports: no acceptance, no travel.
@@ -186,6 +187,8 @@ struct Drive {
                 const uint16_t low = word == 6 ? 1 : word == 7 ? 3 : word == 15 ? 7 : uint16_t(status & 7u);
                 if (followWords)
                     status = uint16_t((status & ~L::STATUS_LOW_BITS) | low);
+                if (word == 0x001f)
+                    monitor = uint16_t(monitor | monitorAfterTrigger);
                 if (word == 0x001f && !ignoreTrigger) {
                     moveReads = travelReads;
                     if (statusBits && previous == 0x000f)
@@ -954,7 +957,8 @@ void testParseRearmMove() {
           p.completeValue == COMPLETE_BIT && p.rule == 1 && p.firmware.deviceType == DEVICE_TYPE &&
           p.firmware.hardwareVersion == HARDWARE && p.firmware.revision == REVISION &&
           p.firmware.firmwareCode == FIRMWARE && p.stopKind == 2 && p.stopAfter == 4 && p.bestEffortMs == 3000);
-    // The longest line the host can build fits ROUTE_LINE; one byte more is refused whole.
+    // The longest line the host can build fits ROUTE_LINE with its integrity field; one byte more is
+    // refused whole.
     MoveSpec widest;
     widest.sp = INT32_MIN;
     widest.target = -1000000;
@@ -967,7 +971,7 @@ void testParseRearmMove() {
     widest.stop = "2,16,55000,55000,10000";
     uint32_t big = UINT32_MAX - 1;
     const std::string longest = move(1, big, widest);
-    CHECK(longest.size() <= E::ROUTE_LINE && E::parseRouteCommand(longest.data(), longest.size(), p));
+    CHECK(longest.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(longest.data(), longest.size(), p));
     std::string padded = "R1,1,1,1,100";
     padded.insert(1, std::string(E::ROUTE_LINE, '0'));
     CHECK(!E::parseRouteCommand(padded.data(), padded.size(), p));
@@ -1491,13 +1495,497 @@ void testMoveInterruptions() {
         a->dump();
     }
 }
+// ------------------------------------------------------------------- review fixes, 2026-11-03
+M::Frame beat(unsigned node) {
+    M::Frame value = frame(0x700 + node, 1);
+    value.data[0] = 0x7f;
+    return value;
+}
+// Turn until the route ends, flooding the bus with heartbeats of `node` once `from` holds, until the
+// route's copied traffic overflows. Returns the drive's downloads after the turn that lost it.
+unsigned floodUntilEnd(Rig& r, size_t first, unsigned node, bool (*from)(const Rig&, size_t)) {
+    unsigned atLoss = UINT32_MAX;
+    for (unsigned i = 0; i < 200000 && r.route.active(); ++i) {
+        for (unsigned k = 0; k < 12 && atLoss == UINT32_MAX && r.driver.count < 12 && from(r, first); ++k)
+            r.driver.push(beat(node));
+        r.turn();
+        if (atLoss == UINT32_MAX && r.route.record()->evidenceLost)
+            atLoss = r.downloadsFrom(first);
+    }
+    CHECK(!r.route.active());
+    return atLoss;
+}
+bool triggerSent(const Rig& r, size_t first) {
+    const uint8_t bytes[8] = {0x2b, 0x40, 0x60, 0, 0x1f, 0, 0, 0};
+    for (size_t i = first; i < r.driver.requests.size(); ++i)
+        if (download(r.driver.requests[i], 1, bytes))
+            return true;
+    return false;
+}
+bool wordSent(const Rig& r, size_t first) { return r.downloadsFrom(first) != 0; }
+// Lost evidence ends an action route EVIDENCE_LOSS, never NONE, and withdraws its move or enable locally:
+// the lost span may have held an EMCY. Nothing at all is sent because of the loss.
+void testLostEvidence() {
+    scenario = "lost-move";
+    std::unique_ptr<Rig> r(new Rig);
+    r->driver.drives[0].statusBits = true;
+    r->driver.drives[0].travelReads = 40;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    size_t first = r->driver.requests.size();
+    CHECK(!r->start(move(1, trial)));
+    unsigned atLoss = floodUntilEnd(*r, first, 1, triggerSent);
+    const E::RouteRecord& m = *r->route.record();
+    CHECK(m.failure == E::RouteFailure::EVIDENCE_LOSS && std::strcmp(m.why, "lost") == 0 && m.evidenceLost &&
+          m.lossCancel && m.moveRequested && !m.stopRequested);
+    CHECK(r->one.moveAction().interruption == M::MoveInterruption::CANCELLED && r->one.moveFenced());
+    CHECK(atLoss == 5 && r->downloadsFrom(first) == 5); // The parameters and trigger; no stop, no rearm.
+    r->turns(500);
+    CHECK(r->downloadsFrom(first) == 5);
+    std::string text = r->dump();
+    CHECK(has(text, "route=move failure=5 why=lost lost=1 ") && has(text, " lossCancel=1\n"));
+    CHECK(has(text, "TRIAL_MOVE own=1 state=3 ") && has(text, " int=1 "));
+
+    scenario = "lost-enable";
+    std::unique_ptr<Rig> e(new Rig);
+    trial = 0;
+    CHECK(e->run("M1," + id(trial) + ",1,1,200").failure == E::RouteFailure::NONE);
+    e->release();
+    e->heartbeat(1);
+    first = e->driver.requests.size();
+    CHECK(!e->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800"));
+    atLoss = floodUntilEnd(*e, first, 1, wordSent);
+    const E::RouteRecord& n = *e->route.record();
+    CHECK(n.failure == E::RouteFailure::EVIDENCE_LOSS && n.lossCancel && n.enableRequested);
+    CHECK(e->one.enableAction().outcome == M::ActionOutcome::CANCELLED);
+    CHECK(atLoss >= 1 && atLoss < 3 && e->downloadsFrom(first) == atLoss); // Never word 15 after the loss.
+    e->turns(500);
+    CHECK(e->downloadsFrom(first) == atLoss);
+    CHECK(has(e->dump(), " lossCancel=1\n"));
+
+    scenario = "lost-position";
+    std::unique_ptr<Rig> p(new Rig);
+    trial = 0;
+    enabled(*p, trial);
+    p->driver.drives[0].travelReads = 40;
+    first = p->driver.requests.size();
+    CHECK(!p->start(position(1, trial, 0, 16, 6, 1000, "1,4,2000,0,500")));
+    floodUntilEnd(*p, first, 1, triggerSent);
+    const E::RouteRecord& q = *p->route.record();
+    // Nothing to withdraw, and the planned stop is not asked for once evidence is lost.
+    CHECK(q.failure == E::RouteFailure::EVIDENCE_LOSS && !q.lossCancel && !q.stopRequested);
+    CHECK(p->downloadsFrom(first) == 5 && wordsFrom(*p, first, 1, 0x010f) == 0);
+    p->dump();
+}
+// A planned stop must still fit the route cutoff when it is asked for at its latest: otherwise the
+// route refuses before its first write, so a refused stop can never leave a trigger running.
+void testPlannedStopFits() {
+    scenario = "move-stop-fits";
+    std::unique_ptr<Rig> r(new Rig);
+    r->driver.drives[0].statusBits = true;
+    r->driver.drives[0].travelReads = 400;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    MoveSpec spec;
+    spec.deadline = 40000;
+    spec.interval = 5000;
+    spec.stop = "1,7,10000,15000,5000";
+    size_t first = r->driver.requests.size();
+    CHECK(!r->start(move(1, trial, spec)));
+    r->console.now += 12000000; // As if the identity and full reads had taken twelve seconds.
+    finishRoute(*r);
+    const E::RouteRecord& m = *r->route.record();
+    CHECK(m.failure == E::RouteFailure::REFUSED && std::strcmp(m.why, "deadline") == 0 && !m.moveRequested);
+    CHECK(r->downloadsFrom(first) == 0);
+    r->dump();
+    r->release();
+
+    scenario = "position-stop-fits";
+    first = r->driver.requests.size();
+    CHECK(!r->start(position(1, trial, 0, 16, 6, 100, "1,4,2000,0,200")));
+    r->console.now += 35000000; // Thirty-five seconds before the first write.
+    finishRoute(*r);
+    const E::RouteRecord& p = *r->route.record();
+    CHECK(p.failure == E::RouteFailure::REFUSED && std::strcmp(p.why, "deadline") == 0 && !p.stopRequested);
+    CHECK(p.checkPassed && r->downloadsFrom(first) == 0);
+    r->dump();
+    r->release();
+    // Ten cycles of up to five seconds each before the stop can never fit: refused at admission.
+    CHECK(std::strcmp(r->start(position(1, trial, 0, 16, 12, 100, "1,10,2000,0,1000")), "duration") == 0);
+    CHECK(r->downloadsFrom(first) == 0);
+}
+// The test's own acknowledged 6040 write through the session, settled before the route's next turn:
+// another writer between the route's check and its first write.
+void ownWord(Rig& r, uint16_t word) {
+    E::AxisSession& s = r.one;
+    const uint64_t now = r.firmware.owner().lastTimeUs();
+    const uint32_t operation = s.beginOperation(now + 2000000, now);
+    CHECK(operation != 0);
+    C::SdoTransfer t;
+    t.channel = *r.services.channel(0);
+    t.operation = t.request = operation;
+    t.step = 1;
+    t.index = 0x6040;
+    t.size = 2;
+    t.data[0] = uint8_t(word);
+    t.data[1] = uint8_t(word >> 8);
+    t.direction = C::SdoDirection::DOWNLOAD;
+    t.deadlineUs = now + 2000000;
+    t.queueTimeoutUs = E::ROUTE_QUEUE_US;
+    t.responseTimeoutUs = E::ROUTE_RESPONSE_US;
+    CHECK(s.admitPrepared(t, now) == O::BusAdmission::ACCEPTED);
+    C::SdoCompletion done;
+    bool settled = false;
+    for (unsigned i = 0; i < 1000 && !settled; ++i) {
+        r.console.now += 1000;
+        r.driver.deliver();
+        r.firmware.service();
+        settled = s.settle(done);
+    }
+    CHECK(settled && done.outcome == C::SdoOutcome::SUCCESS);
+}
+// The predecessor the check step judged is judged again when the first write is offered.
+void testPredecessorAtAdmission() {
+    scenario = "rearm-predecessor";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    CHECK(r->run(position(1, trial, 0, 16)).failure == E::RouteFailure::NONE);
+    r->release();
+    size_t first = r->driver.requests.size();
+    CHECK(!r->start(rearm(1, trial)));
+    for (unsigned i = 0; i < 20000 && r->route.active() && r->route.record()->step < 2; ++i)
+        r->turn();
+    CHECK(r->route.active() && r->route.record()->checkPassed && r->downloadsFrom(first) == 0);
+    ownWord(*r, 0x000f); // Now the latest word is not the trigger any more.
+    finishRoute(*r);
+    const E::RouteRecord& a = *r->route.record();
+    CHECK(a.failure == E::RouteFailure::PREREQUISITE && std::strcmp(a.why, "control") == 0);
+    CHECK(wordsFrom(*r, first, 1, 0x000f) == 1 && r->downloadsFrom(first) == 1); // Only the other writer's.
+    r->dump();
+
+    scenario = "mode-predecessor";
+    std::unique_ptr<Rig> m(new Rig);
+    first = m->driver.requests.size();
+    CHECK(!m->start("M1,1,1,1,200"));
+    for (unsigned i = 0; i < 20000 && m->route.active() && m->route.record()->step < 6; ++i)
+        m->turn();
+    CHECK(m->route.active() && m->route.record()->checkPassed && m->downloadsFrom(first) == 0);
+    ownWord(*m, 0x0006);
+    finishRoute(*m);
+    CHECK(m->route.record()->failure == E::RouteFailure::PREREQUISITE &&
+          std::strcmp(m->route.record()->why, "history") == 0);
+    CHECK(m->downloadsFrom(first) == 1 && m->driver.drives[0].mode == 0); // No 6060 write.
+}
+// begin() judges a plan built in code as the parser judges a line, before any bound divides by it.
+void testPlanValidation() {
+    scenario = "plan";
+    std::unique_ptr<Rig> r(new Rig);
+    E::RoutePlan enable, stop, move, mode;
+    const std::string e = "E1,1,1,1,1,32823,5000,120,10000,800", s = "S1,1,1,1,2000,0,100", g = "G1,1,1,0,16,1,1000,"
+                          "1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,1,2,2000,0,"
+                          "500";
+    CHECK(E::parseRouteCommand(e.data(), e.size(), enable) && E::routePlanValid(enable));
+    CHECK(E::parseRouteCommand(s.data(), s.size(), stop) && E::routePlanValid(stop));
+    CHECK(E::parseRouteCommand(g.data(), g.size(), move) && E::routePlanValid(move));
+    CHECK(E::parseRouteCommand("M1,1,1,1,200", 12, mode) && E::routePlanValid(mode));
+    std::vector<E::RoutePlan> bad(12, enable);
+    bad[0].intervalMs = 0; // terminalBound divides by it.
+    bad[1] = stop;
+    bad[1].intervalMs = 0;
+    bad[2] = move;
+    bad[2].intervalMs = 0;
+    bad[3] = move;
+    bad[3].stopIntervalMs = 0; // The planned stop's bound divides by it.
+    bad[4] = mode;
+    bad[4].node = 3;
+    bad[5].kind = E::RouteKind::NONE;
+    bad[6].kind = static_cast<E::RouteKind>(42);
+    bad[7].deadlineMs = 55001;
+    bad[8] = move;
+    bad[8].acceptValue = 0x1001; // Outside its mask.
+    bad[9] = move;
+    bad[9].stopAfter = 0; // A stop naming no cycle.
+    bad[10] = stop;
+    bad[10].bestEffortMs = 1000; // Best effort before the deadline.
+    bad[11].shaft = 0;
+    for (const E::RoutePlan& plan : bad) {
+        CHECK(!E::routePlanValid(plan));
+        const char* refusal = r->route.begin(plan, r->console.now);
+        CHECK(refusal && std::strcmp(refusal, "plan") == 0);
+    }
+    r->turns(50);
+    CHECK(r->driver.requests.empty() && !r->route.record() && r->route.motionAdmissions() == 0);
+    // The same plans as built by the parser are admitted.
+    CHECK(!r->route.begin(stop, r->console.now));
+}
+std::string signLine(const std::string& text) {
+    char field[16];
+    std::snprintf(field, sizeof field, ",K%08lx", static_cast<unsigned long>(E::routeLineCrc(text.data(), text.size())));
+    return text + field;
+}
+// The host's CRC-32 field: zlib's values, checked before any parse, and every single-digit change that
+// still parses as another valid plan is refused.
+void testIntegrity() {
+    scenario = "integrity";
+    CHECK(E::routeLineCrc("", 0) == 0xbe047a60u);                // zlib.crc32(b"T")
+    CHECK(E::routeLineCrc("A1,5", 4) == 0x62328164u);            // zlib.crc32(b"TA1,5")
+    CHECK(E::routeLineCrc("R2,9,1,16,5000", 14) == 0x3c9f15dbu); // zlib.crc32(b"TR2,9,1,16,5000")
+    size_t body = 99;
+    const std::string good = "A1,5,K62328164";
+    CHECK(E::checkRouteIntegrity(good.data(), good.size(), body) && body == 4);
+    const char* const bad[] = {"A1,5",           "A1,5,K6232816",  "A1,5,K623281640", "A1,5,K62328165",
+                               "A1,5,K6232816A", "A1,6,K62328164", "A1,5K62328164",   "A1,5,k62328164",
+                               "A1,5,K62328164 ", ",K62328164",    "A1,5,K6232816g",  "A1,5,,K62328164"};
+    for (const char* text : bad) {
+        size_t untouched = 99;
+        CHECK(!E::checkRouteIntegrity(text, std::strlen(text), untouched) && untouched == 99);
+    }
+    CHECK(!E::checkRouteIntegrity(nullptr, 14, body));
+    uint32_t trial = 40;
+    const std::string lines[] = {move(1, trial), position(1, trial, 0, 16, 4, 100, "1,2,2000,0,200"),
+                                 "E1,7,1,1,2,32823,-5000,120,10000,800", rearm(2, trial)};
+    unsigned parsed = 0;
+    for (const std::string& line : lines) {
+        const std::string sent = signLine(line);
+        CHECK(E::checkRouteIntegrity(sent.data(), sent.size(), body) && body == line.size());
+        E::RoutePlan p;
+        CHECK(E::parseRouteCommand(sent.data(), body, p));
+        for (size_t at = 0; at < line.size(); ++at) {
+            if (line[at] < '0' || line[at] > '9')
+                continue;
+            for (char digit = '0'; digit <= '9'; ++digit) {
+                if (digit == line[at])
+                    continue;
+                std::string damaged = sent;
+                damaged[at] = digit;
+                E::RoutePlan other;
+                parsed += E::parseRouteCommand(damaged.data(), line.size(), other);
+                size_t untouched = 99;
+                CHECK(!E::checkRouteIntegrity(damaged.data(), damaged.size(), untouched) && untouched == 99);
+            }
+        }
+    }
+    CHECK(parsed > 100); // Many of these changes are other valid plans: only the field refuses them.
+}
+// A planned stop the session refuses (path NONE) during a move: the move is withdrawn by the request
+// itself, nothing of the stop is sent and later moves are fenced.
+void testMoveStopRefused() {
+    scenario = "move-stop-none";
+    std::unique_ptr<Rig> r(new Rig);
+    r->driver.drives[0].statusBits = true;
+    r->driver.drives[0].travelReads = 400;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    MoveSpec spec;
+    spec.deadline = 30000;
+    spec.interval = 5000;
+    spec.stop = "1,1,2000,0,500";
+    const size_t first = r->driver.requests.size();
+    CHECK(!r->start(move(1, trial, spec)));
+    bool aged = false;
+    for (unsigned i = 0; i < 200000 && r->route.active(); ++i) {
+        r->console.now += 1000;
+        r->driver.deliver();
+        r->firmware.service();
+        const L::MoveContext& m = r->one.moveAction();
+        if (!aged && m.observations >= 1 && m.phase == L::MovePhase::WAITING) {
+            // The last complete cycle ages past the stop's age cap before the route's turn asks for it.
+            aged = true;
+            r->console.now += 2000000;
+            r->firmware.service();
+        }
+        r->route.service(r->firmware.owner().lastTimeUs());
+    }
+    const E::RouteRecord& x = *r->route.record();
+    CHECK(aged && x.failure == E::RouteFailure::REFUSED && std::strcmp(x.why, "stop") == 0);
+    CHECK(!x.stopRequested && x.stopPathRequested == uint8_t(E::StopPath::NONE) && x.moveRequested);
+    CHECK(r->one.moveAction().interruption == M::MoveInterruption::STOP && r->one.moveFenced());
+    r->turns(500);
+    CHECK(r->downloadsFrom(first) == 5 && wordsFrom(*r, first, 1, 0x010f) == 0 &&
+          wordsFrom(*r, first, 1, 0x000b) == 0 && wordsFrom(*r, first, 1, 0x000f) == 0);
+    r->dump();
+}
+// Abort or EMCY while a parameter is on its way, and abort with the trigger admitted but unsent: no
+// later download leaves, the trigger never does, and nothing is fenced.
+void testMoveEarlyWithdrawals() {
+    const char* const names[] = {"move-abort-parameters", "move-emcy-parameters", "move-abort-queued-trigger"};
+    for (unsigned k = 0; k < 3; ++k) {
+        scenario = names[k];
+        std::unique_ptr<Rig> r(new Rig);
+        r->driver.drives[0].statusBits = true;
+        r->driver.drives[0].travelReads = 40;
+        uint32_t trial = 0;
+        enabled(*r, trial);
+        const size_t first = r->driver.requests.size();
+        CHECK(!r->start(move(1, trial)));
+        if (k < 2) {
+            for (unsigned i = 0; i < 20000 && r->downloadsFrom(first) < 1; ++i)
+                r->turn();
+        } else {
+            for (unsigned i = 0; i < 20000 && r->one.moveAction().phase != L::MovePhase::TRIGGER; ++i)
+                r->turn();
+            CHECK(r->downloadsFrom(first) == 4 && !triggerSent(*r, first)); // Admitted, not yet handed over.
+        }
+        if (k == 1) {
+            M::Frame emcy = frame(0x81, 8);
+            emcy.data[0] = 0x10;
+            emcy.data[1] = 0xff;
+            r->driver.push(emcy);
+        } else {
+            CHECK(!r->route.abort(r->console.now));
+        }
+        finishRoute(*r);
+        r->turns(500);
+        const E::RouteRecord& x = *r->route.record();
+        CHECK(x.failure == (k == 1 ? E::RouteFailure::OBSERVATION : E::RouteFailure::ABORTED) && !x.stopRequested);
+        CHECK(r->one.moveAction().interruption ==
+              (k == 1 ? M::MoveInterruption::DRIVE_FAULT : M::MoveInterruption::CANCELLED));
+        CHECK(!triggerSent(*r, first) && !r->one.moveFenced() && r->downloadsFrom(first) == (k < 2 ? 1u : 4u));
+        r->dump();
+    }
+}
+// A trigger acknowledgement that arrives after its budget, and a boot-up during the cycles: the move
+// ends without its rearm, stays fenced, and the late frame is only kept in the tail.
+void testMoveLateTriggerAndBoot() {
+    scenario = "move-late-trigger";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    d.statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    d.lateIndex = 0x6040; // The next 6040 is the move's trigger.
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& late = r->run(move(1, trial));
+    CHECK(late.failure == E::RouteFailure::ACTION && d.lateHeld && r->downloadsFrom(first) == 5);
+    CHECK(r->one.moveFenced() && r->one.moveAction().uncertain &&
+          r->one.moveAction().execution == M::ActionExecution::UNKNOWN);
+    const unsigned terminals = late.terminalCount;
+    r->driver.push(d.late);
+    r->turns(50);
+    CHECK(late.terminalCount == terminals && late.failure == E::RouteFailure::ACTION);
+    CHECK(has(r->dump(), "TAIL k=0 ") && has(r->dump(), "id=581 ext=0 rtr=0 dlc=8 data=6040600000000000"));
+    r->turns(500);
+    CHECK(r->downloadsFrom(first) == 5 && wordsFrom(*r, first, 1, 0x000f) == 0);
+    r->release();
+    CHECK(r->start(move(1, trial)) != nullptr);
+
+    scenario = "move-boot";
+    std::unique_ptr<Rig> b(new Rig);
+    b->driver.drives[0].statusBits = true;
+    b->driver.drives[0].travelReads = 40;
+    trial = 0;
+    enabled(*b, trial);
+    first = b->driver.requests.size();
+    CHECK(!b->start(move(1, trial)));
+    for (unsigned i = 0; i < 40000 && b->route.active() && b->one.moveAction().observations < 1; ++i)
+        b->turn();
+    M::Frame boot = frame(0x701, 1);
+    boot.data[0] = 0;
+    b->driver.push(boot);
+    finishRoute(*b);
+    b->turns(500);
+    const E::RouteRecord& x = *b->route.record();
+    CHECK(x.failure == E::RouteFailure::ACTION && b->one.moveFenced() && b->downloadsFrom(first) == 5);
+    CHECK(b->one.moveAction().interruption == M::MoveInterruption::INVALIDATED);
+    CHECK(wordsFrom(*b, first, 1, 0x000f) == 0 && wordsFrom(*b, first, 1, 0x010f) == 0);
+    b->dump();
+    b->release();
+    CHECK(b->start(move(1, trial)) != nullptr);
+}
+// One node's fence and lost trigger do not reach the other node, and the other node's routes do not
+// unfence it.
+void testFencedNodeIsolation() {
+    scenario = "fenced-node-isolation";
+    std::unique_ptr<Rig> r(new Rig);
+    r->driver.drives[0].statusBits = r->driver.drives[1].statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial, 1);
+    r->driver.drives[0].silentIndex = 0x6040;
+    r->driver.drives[0].silentWord = 0x001f;
+    CHECK(r->run(move(1, trial)).failure == E::RouteFailure::ACTION && r->one.moveFenced());
+    r->release();
+    enabled(*r, trial, 2);
+    const size_t first = r->driver.requests.size();
+    CHECK(r->run(move(2, trial)).failure == E::RouteFailure::NONE && !r->two.moveFenced() && r->one.moveFenced());
+    r->release();
+    CHECK(r->run(position(2, trial, 16, 32)).failure == E::RouteFailure::NONE);
+    r->release();
+    CHECK(r->run(rearm(2, trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        CHECK(r->driver.requests[i].id == 0x602);
+    CHECK(r->one.moveFenced() && r->start(move(1, trial)) != nullptr && r->start(rearm(1, trial)) != nullptr);
+}
+// A POSITION whose planned stop the session refused: REARM checks the drive afresh, refusing while it
+// reports released and admitting its one 000F once the report is idle again.
+void testRearmAfterRefusedStop() {
+    scenario = "rearm-after-refused-stop";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    Drive& d = r->driver.drives[0];
+    d.monitorAfterTrigger = L::MONITOR_RELEASED;
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& p = r->run(position(1, trial, 0, 16, 6, 100, "1,4,2000,0,200"));
+    CHECK(p.failure == E::RouteFailure::REFUSED && std::strcmp(p.why, "stop") == 0 && !p.stopRequested &&
+          p.stopPathRequested == uint8_t(E::StopPath::NONE) && p.cycles == 4);
+    CHECK(r->downloadsFrom(first) == 5 && wordsFrom(*r, first, 1, 0x010f) == 0 && wordsFrom(*r, first, 1, 0x000b) == 0);
+    r->release();
+    first = r->driver.requests.size();
+    const E::RouteRecord& a = r->run(rearm(1, trial));
+    CHECK(a.failure == E::RouteFailure::PREREQUISITE && std::strcmp(a.why, "released") == 0);
+    CHECK(r->downloadsFrom(first) == 0);
+    r->release();
+    d.monitor = uint16_t(d.monitor & ~L::MONITOR_RELEASED);
+    CHECK(r->run(rearm(1, trial)).failure == E::RouteFailure::NONE && wordsFrom(*r, first, 1, 0x000f) == 1 &&
+          r->downloadsFrom(first) == 1);
+}
+// The session's handover recheck through FirmwareProbe's preflight: a parameter admitted while the
+// admission read was within its age cap, handed over once it was not, never leaves.
+void testMovePreflightAtHandover() {
+    scenario = "move-preflight";
+    std::unique_ptr<Rig> r(new Rig);
+    r->driver.drives[0].statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    const size_t first = r->driver.requests.size();
+    CHECK(!r->start(move(1, trial)));
+    for (unsigned i = 0; i < 20000 && r->route.active() && !r->route.record()->moveRequested; ++i)
+        r->turn();
+    CHECK(r->route.record()->moveRequested && r->downloadsFrom(first) == 0);
+    // The route's age cap for the move's admission read; the next turn admits 607A at the cap and the
+    // turn after that hands it over just past it.
+    const uint64_t cap = 9 * (uint64_t(E::ROUTE_QUEUE_US) + E::ROUTE_RESPONSE_US);
+    const uint64_t admission = r->one.moveAction().admission.earliestUs;
+    CHECK(r->console.now < admission + cap - 1500);
+    r->console.now = admission + cap - 1500;
+    finishRoute(*r);
+    r->turns(200);
+    CHECK(r->downloadsFrom(first) == 0 && !r->one.moveFenced());
+    CHECK(r->one.moveAction().interruption == M::MoveInterruption::INVALIDATED &&
+          r->one.moveRefusal().detail == int32_t(M::MoveError::STATE));
+    CHECK(r->route.record()->failure == E::RouteFailure::ACTION);
+}
 // A full set of records for the parser's grammar check in s2_evidence_test.py: every route, the
-// rearm and the move on node 2 after the lost reply ended node 1's evidence.
+// rearm and the move on node 2 after the lost reply ended node 1's evidence, and a second move on node
+// 2 whose copied traffic overflowed.
 void writeTranscript(const char* path) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
     std::string out;
     uint32_t moveTrial = 11;
+    const auto append = [&out, &r](const std::string& text) {
+        char admitted[160];
+        std::snprintf(admitted, sizeof admitted,
+                      "TRIAL admitted route=%s node=%u trial=%lu motion=%u case=%u; finite typed route, no retry\n",
+                      E::routeName(r->route.record()->plan.kind), unsigned(r->route.record()->plan.node),
+                      static_cast<unsigned long>(r->route.record()->plan.trial),
+                      unsigned(r->route.record()->motionTotal), unsigned(r->route.record()->caseCount));
+        out += std::string("=== ") + text + "\n" + admitted + r->dump();
+        r->turns(5);
+        r->route.release();
+    };
     const std::string lines[] = {"A1,1", "I1,2", "U1,3", "M1,4,1,2,200", "E1,5,1,1,1,32823,5000,120,10000,800",
                                  "P1,6,1,0,16,1,1000,1000,4,100,1,2,2000,0,200", "S1,7,1,1,2000,0,100",
                                  "M2,8,1,1,200", "E2,9,1,1,1,32823,5000,120,10000,800",
@@ -1515,16 +2003,23 @@ void writeTranscript(const char* path) {
         if (i == 8)
             r->heartbeat(2);
         CHECK(r->run(text).failure == (i == 6 ? E::RouteFailure::SERVICE : E::RouteFailure::NONE));
-        char admitted[160];
-        std::snprintf(admitted, sizeof admitted,
-                      "TRIAL admitted route=%s node=%u trial=%lu motion=%u case=%u; finite typed route, no retry\n",
-                      E::routeName(r->route.record()->plan.kind), unsigned(r->route.record()->plan.node),
-                      static_cast<unsigned long>(r->route.record()->plan.trial),
-                      unsigned(r->route.record()->motionTotal), unsigned(r->route.record()->caseCount));
-        out += std::string("=== ") + text + "\n" + admitted + r->dump();
-        r->turns(5);
-        r->route.release();
+        append(text);
     }
+    MoveSpec spec;
+    spec.sp = 32;
+    spec.target = 48;
+    r->driver.drives[1].travelReads = 40;
+    const std::string lost = move(2, moveTrial, spec);
+    const size_t first = r->driver.requests.size();
+    CHECK(!r->start(lost));
+    for (unsigned i = 0; i < 200000 && r->route.active(); ++i) {
+        if (!r->route.record()->evidenceLost && i % 3 == 0 && r->driver.count < 8 &&
+            wordsFrom(*r, first, 2, 0x001f))
+            r->driver.push(beat(2));
+        r->turn();
+    }
+    CHECK(r->route.record()->failure == E::RouteFailure::EVIDENCE_LOSS && r->route.record()->lossCancel);
+    append(lost);
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
     CHECK(std::fwrite(out.data(), 1, out.size(), file) == out.size());
@@ -1558,6 +2053,17 @@ int main(int argc, char** argv) {
     testMoveRefusals();
     testMoveFailures();
     testMoveInterruptions();
+    testLostEvidence();
+    testPlannedStopFits();
+    testPredecessorAtAdmission();
+    testPlanValidation();
+    testIntegrity();
+    testMoveStopRefused();
+    testMoveEarlyWithdrawals();
+    testMoveLateTriggerAndBoot();
+    testFencedNodeIsolation();
+    testRearmAfterRefusedStop();
+    testMovePreflightAtHandover();
     std::printf("bench_route: %u checks\n", checks);
     return 0;
 }

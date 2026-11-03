@@ -433,7 +433,13 @@ while its own record is held.
 | `stop` (packet 15 P4, packet 16) | `TS<node>,<trial>,1,<1 halt/2 quick>,<deadline>,<best effort or 0>,<interval>` | A fresh `MONITORS`/`STATUS` read, then `requestStop` with that kind and policy | The session decides the path |
 | `position` (packet 19) | `TP<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<cycles>,<interval>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | A fresh full read and a check: latest controlword the session's acknowledged `000F`, mode 1, low bits 111, released, alarm and running clear, `606C` 0, `6064` equal to the reviewed start. Then `6081`, `6083`, `6084`, `607A` read for the record; `607A`, `6081`, `6083`, `6084` and `6040=001F` written, each after the previous acknowledgement; 1..16 fresh image cycles; an optional `requestStop` after a named cycle | Alarm, a failed terminal, EMCY. No stop follows unless planned |
 | `rearm` (packet 19) | `TR<node>,<trial>,1,<cycles>,<interval>` | Admitted only while the session's latest controlword is the acknowledged `001F` of a finished `position` record on that node: missing, uncertain or any other word refuses with `control`. A fresh full read and the `position` check without the start position. Then `2B 40 60 00 0F 00 00 00` once through the session, so it becomes the latest word when acknowledged, then 1..16 fresh image cycles, recorded and never judged. Project policy until the mode 1 falling-edge behavior is measured | Alarm, a failed terminal, EMCY. A lost reply leaves no latest word: `position`, `rearm` and `move` then refuse |
-| `move` (packet 20) | `TG<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<deadline>,<interval>,<record>,<accept source>,<accept mask>,<accept value>,<complete source>,<complete mask>,<complete value>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Refused unless the latest word is the acknowledged `000F` and no earlier move is fenced. A fresh identity read (`1009`/`100A` one byte), a fresh full read and the `position` check, then `requestMove` with `MoveEvidence` built only from the line: the record, both signals (1 `6041`, 2 `2100`), the rule (1 after absence, 2 after acceptance) and the raw identity, which must equal the fresh read. An absolute `STEPS` target in the native frame and rpm as motor turns per minute, with no scale claimed. The session writes `607A`, `6081`, `6083`, `6084`, `001F`, runs its cycles to its own terminal and writes its own `000F` only after an observed completion. An optional `requestStop` after a named number of move cycles, with the move's last complete cycle | The library's refusals (`TRIAL_STATUS`), the move's own outcome, EMCY (`DRIVE_FAULT`), abort (`cancelMove`). A trigger without an observed completion fences later moves |
+| `move` (packet 20) | `TG<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<deadline>,<interval>,<record>,<accept source>,<accept mask>,<accept value>,<complete source>,<complete mask>,<complete value>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Refused unless the latest word is the acknowledged `000F` and no earlier move is fenced. A fresh identity read (`1009`/`100A` one byte), a fresh full read and the `position` check, then `requestMove` with `MoveEvidence` built only from the line: the record, both signals (1 `6041`, 2 `2100`), the rule (1 after absence, 2 after acceptance) and the raw identity, which must equal the fresh read. An absolute `STEPS` target in the native frame and rpm as motor turns per minute, with no scale claimed. The session writes `607A`, `6081`, `6083`, `6084`, `001F`, runs its cycles to its own terminal and writes its own `000F` only after an observed completion. An optional `requestStop` after a named number of move cycles, with the move's last complete cycle | The library's refusals (`TRIAL_STATUS`), the move's own outcome, EMCY (`DRIVE_FAULT`), abort or lost evidence (`cancelMove`). A trigger without an observed completion fences later moves |
+
+Every line also ends in an integrity field the table leaves out: `,K` and eight lowercase hexadecimal
+digits holding the CRC-32 (IEEE, as Python's `zlib.crc32`) of every byte from `T` up to that comma,
+for example `TA1,5,K62328164`. The firmware checks it before parsing and refuses a missing or
+mismatched field with `reason=crc`, because a digit corrupted in transit can still parse as another
+valid plan. `PONG routes=3` names this protocol; the runner refuses any other value before sending.
 
 `trial-abort` sends `A`: a local withdrawal, with no stop sent. A request on its way settles first,
 an active enable ends through `cancelEnable` and an active move through `cancelMove`, and a stop in
@@ -465,10 +471,33 @@ from the campaign ledger below. Every unqualified upload and every write of the 
 an exact one-use grant, numbered from 100000. Queue budgets are 100 ms and response budgets 250 ms,
 as host policy; with them the shortest enable deadline the library admits is 9.13 s. A plan whose
 polls could exceed the record (128 terminals) or the sixty-second cutoff is refused before anything
-is sent. Any failed terminal, lost reply, refused grant or admission, changed epoch, nonzero EMCY
-or abort ends the route and keeps its evidence. Nothing is retried, enabled, cleared, zeroed,
-restored or switched to another mode. A lost reply leaves the state unknown: after one on `6060`
-the session refuses any enable, and the route stays unresolved until an MCU restart.
+is sent. Any failed terminal, lost reply, refused grant or admission, changed epoch, nonzero EMCY,
+lost evidence or abort ends the route and keeps its evidence. Nothing is retried, enabled, cleared,
+zeroed, restored or switched to another mode. A lost reply leaves the state unknown: after one on
+`6060` the session refuses any enable, and the route stays unresolved until an MCU restart.
+
+**Lost evidence** (copied traffic or terminals overflowing the record, or the owner's trace or
+receive path dropping frames) ends every route with failure 5 (`why=lost`), never 0. The lost span
+may have held an EMCY or a status report, so an active enable or move is also withdrawn locally
+through `cancelEnable` or `cancelMove`, as an abort withdraws it, and the header shows
+`lossCancel=1`. Nothing is sent because of the loss: no stop, no rearm and no planned stop; the
+drive may still be moving, and the attendant's independent cutoff is the control. A trigger that may
+have left without an observed completion still fences later moves.
+
+**Planned stops and the cutoff.** A `move` or `position` with a planned stop is refused with
+failure 11 (`why=deadline`) before its first write unless the stop's whole span (its deadline, or
+the best-effort cutoff when later) still fits the sixty-second route cutoff when the stop is asked
+for at its latest: for `move`, after the move's deadline; for `position`, after its writes' five-
+second operation deadline and `<after>` cycles of up to five seconds each (an interval, or one read's
+operation deadline). A plan that could never fit is refused at admission with `reason=duration`. A
+stop refused for the cutoff can therefore not leave a trigger running.
+
+**Predecessor at the write.** The check step judges the session's latest controlword (the
+acknowledged `000F` for `position`, the acknowledged trigger of a finished `position` for `rearm`,
+no write or controlword yet for `mode1`) on one turn; the first write is offered on a later one. The
+same predecessor is judged again each time that first write is offered, and a changed one ends the
+route with failure 8 and the same reason before anything is written. A plan built in code is judged
+by the parser's own range check at admission (`reason=plan`).
 
 **Sessions stay open** once a route has opened them, so that their written-motion record, latest
 controlword and trial record survive between routes, as P3 and P4 need. While one is open,
@@ -476,7 +505,7 @@ controlword and trial record survive between routes, as P3 and P4 need. While on
 
 **Records.** After the terminal the firmware prints the record once; `d` reprints and `r` releases.
 It has the same form as `RAW`: a `TRIAL` header (route, failure, `why`, counts, step, cycles,
-motion counts, `unsettled`, gap), summaries, then `RESULT` for every owner terminal including the
+motion counts, `unsettled`, gap, `lossCancel`), summaries, then `RESULT` for every owner terminal including the
 session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 
 | Line | Meaning |
@@ -494,8 +523,13 @@ session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 `failure` values: 0 none, 1 grant, 2 admission, 3 service, 4 correlation, 5 evidence loss,
 6 invalidated, 7 deadline, 8 prerequisite, 9 observation, 10 action, 11 refused, 12 aborted.
 `s2_evidence.py` reads every line, checks the request, plan, summary count and, for the three read
-routes, the fixed inventory, and gives the verdicts above. `scripts/s2_bench_test.py --transcript`
-replays a record of every route that the real `BenchRoute` printed against a synthetic drive.
+routes, the fixed inventory, and gives the verdicts above. A record that reports `lost=1` cannot be
+accused by matching its terminals to the copied traffic it says is incomplete: those findings stay
+as warnings and the verdict is `failed-evidence`. In the transition log the enable, stop and move
+summaries publish under their own names (`enableOutcome`, `stopPath`, `stopOutcome`, `moveOutcome`,
+`moveCompletion`, `moveUncertain`, `moveFenced`), so a move and its planned stop in one record are
+never one signal. `scripts/s2_bench_test.py --transcript` replays a record of every route that the
+real `BenchRoute` printed against a synthetic drive, and one move whose copied traffic overflowed.
 
 ```text
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 1 --trial 101 --fault-led prompt --output NEW_DIRECTORY
@@ -512,8 +546,8 @@ reads, and the position values need packet 19's reviewed bounds. The move's evid
 placeholder at all: every signal, rule and identity value comes from packet 19's reviewed
 measurement record, and without one the move stays unrun. Every route value is required; the
 runner refuses a missing one. Each command checks the recorded USB identity, pings, and refuses
-unless the image reports `routes=1` (`routes=2` for `rearm` and `move`), no soak, no held record and
-a started controller. It asks the
+unless the image reports `routes=3` (the line protocol with the integrity field), no soak, no held
+record and a started controller. It asks the
 operator to type the attended confirmation, the shaft observation for `enable` and the fault LED for
 `readiness-actions` with `--fault-led prompt`, and after the route a free-text shaft observation.
 These go to `request.json` and are never interpreted; only the enable's `FREE` or `HOLDING` is
@@ -532,8 +566,24 @@ counts. A partial last line or a malformed entry is refused and never repaired. 
 cannot be written nothing is sent (`reason=campaign_unwritten`). Read routes may name the ledger too;
 their entries count toward trial identities only.
 
-**Memory.** Static DRAM is unchanged by `rearm` and `move`: `dram0_0_seg` has 2576 bytes left
-(169456 used, 98.5%); the parser's field tables are in flash. On the 2026-11-03 tree `BenchRoute`
+One invocation at a time holds a ledger: `PATH.lock` is created exclusively before the ledger is
+read and removed after the result entry is written. A second invocation refuses with `campaign
+busy`, naming the lock file. A lock left by a crash is refused the same way and never removed by the
+runner: when no runner is active, check the ledger, then remove the lock yourself. After a ledger
+write error, or a ledger that changed under the lock, the runner keeps the lock and says so. Right
+before the send entry is written the ledger is read and checked again (`reason=campaign_refused` if
+that refuses; nothing is sent). Each entry carries `seq`, its line number from 1, and `prev`, the
+SHA-256 of the previous line's bytes without its line feed (64 zeros for the first). A gap, a broken
+chain, a send entry whose `motion` does not match its route and `stop`, whose line does not carry
+its own route, node, trial, stop kind and matching integrity field, a trial that is not an integer,
+or a result entry without its send entry is refused. **The chain cannot detect a ledger cut at a line
+end or an older copy restored in place: both are valid chains.** Commit the ledger together with each
+session's evidence, so that git history is the anchor that shows a shortened or replaced ledger.
+
+**Memory.** Static DRAM is unchanged by `rearm`, `move`, the integrity field and the shared plan
+check: on the 2026-11-03 review-fix tree `dram0_0_seg` has 2520 bytes left (169512 used, 98.5%;
+2576 were left at `01190cf`), and the map places no `BenchRoute` section in DRAM. The parser's field
+tables and route grammars are in flash, and the CRC-32 is computed bit by bit with no table. On the 2026-11-03 tree `BenchRoute`
 takes 41888 bytes of internal heap on the first route request (it holds the move's identity read,
 one coordinate configuration per node and the move request, off the task stack), and each node's `AxisSession` 23576
 bytes on its first route, with the session as in that tree. Like the soak's they are never freed, and a

@@ -173,10 +173,11 @@ GRAMMAR = (
     Row("REFUSED", "TRIAL_REFUSED ", "refused", "reason:s"),
     Row("TRIAL_ABORTING", "TRIAL_ABORTING", "response"),
     Row("TRIAL_ABORT_REFUSED", "TRIAL_ABORT refused", "response", "reason:s"),
+    # lossCancel: lost evidence withdrew an active enable or move locally (no stop, nothing sent).
     Row("TRIAL", "TRIAL ", "header",
         "id:u node:u route:s failure:u why:s lost:b terminals:u traffic:u tail:u tailLost:b summaries:u "
-        "step:u cycles:u motion:u case:u unsettled:b gap:u",
-        signals=_RECORD_HEALTH + (("health", "why"),), per_node=True),
+        "step:u cycles:u motion:u case:u unsettled:b gap:u lossCancel:b?",
+        signals=_RECORD_HEALTH + (("health", "why"), ("health", "lossCancel")), per_node=True),
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u?"),
@@ -187,17 +188,19 @@ GRAMMAR = (
     Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES, per_node=True),
     Row("TRIAL_EMCY", "TRIAL_EMCY ", "summary", "data:h", signals=(("health", "data"),), per_node=True),
     Row("TRIAL_STATUS", "TRIAL_STATUS ", "summary", "code:u detail:i"),
+    # The enable, stop and move summaries publish their results under names of their own: one record can
+    # hold a move and its planned stop, and the transition log keys on (category, signal, node).
     Row("TRIAL_ENABLE", "TRIAL_ENABLE ", "summary",
-        "own:b state:u outcome:u exec:u completion:u uncertain:b effects:b mask:x cursor:u observations:u "
-        "op:u pt:i vt:i s0:x m0:x p0:i",
-        signals=(("health", "outcome"), ("health", "uncertain")), per_node=True),
+        "own:b state:u outcome:u>enableOutcome exec:u completion:u uncertain:b>enableUncertain effects:b mask:x "
+        "cursor:u observations:u op:u pt:i vt:i s0:x m0:x p0:i",
+        signals=(("health", "enableOutcome"), ("health", "enableUncertain")), per_node=True),
     Row("TRIAL_ENABLE_STEP", "TRIAL_ENABLE_STEP ", "summary",
         "word:u present:b status:x monitor:x position:i velocity:i history:b outcome:u ack:b possible:b "
         "uncertain:b"),
     Row("TRIAL_STOP", "TRIAL_STOP ", "summary",
-        "kind:u path:u final:u own:b state:u outcome:u exec:u completion:u uncertain:b effects:b pred:x "
-        "documented:b basis:u observations:u op:u",
-        signals=(("health", "path"), ("health", "outcome")), per_node=True),
+        "kind:u path:u>stopPath final:u own:b state:u outcome:u>stopOutcome exec:u completion:u uncertain:b "
+        "effects:b pred:x documented:b basis:u observations:u op:u",
+        signals=(("health", "stopPath"), ("health", "stopOutcome")), per_node=True),
     Row("TRIAL_BEST_EFFORT", "TRIAL_BEST_EFFORT ", "summary",
         "which:u own:b state:u outcome:u exec:u admitted:b effects:b op:u"),
     # The 001F a rearm followed, and the session's latest word after it: none after a lost 000F.
@@ -208,9 +211,11 @@ GRAMMAR = (
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
         "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x"),
     Row("TRIAL_MOVE", "TRIAL_MOVE ", "summary",
-        "own:b state:u phase:u phases:x outcome:u int:u setup:u exec:u completion:u rearm:u uncertain:b "
-        "readUnc:b effects:b cycles:u op:u target:i mask:x ev:x trigger:b rearmed:b fenced:b code:u detail:i",
-        signals=(("health", "outcome"), ("health", "completion"), ("health", "uncertain"), ("health", "fenced")),
+        "own:b state:u phase:u phases:x outcome:u>moveOutcome int:u setup:u exec:u completion:u>moveCompletion "
+        "rearm:u uncertain:b>moveUncertain readUnc:b effects:b cycles:u op:u target:i mask:x ev:x trigger:b "
+        "rearmed:b fenced:b>moveFenced code:u detail:i",
+        signals=(("health", "moveOutcome"), ("health", "moveCompletion"), ("health", "moveUncertain"),
+                 ("health", "moveFenced")),
         per_node=True),
     Row("TRIAL_MOVE_SAMPLE", "TRIAL_MOVE_SAMPLE ", "summary",
         "which:u present:b cycle:u status:x monitor:x mode:x feedback:b position:i velocity:i lo:u hi:u"),
@@ -580,6 +585,13 @@ POSITIONAL = {"step_sequence", "wrong_object_for_step", "wrong_request_object", 
               "abort_differs_from_wire", "traffic_time_reversed", "record_order", "terminal_overlap",
               "end_differs_from_header", "failure_differs_from_terminal", "plan_size_not_in_inventory",
               "tx_before_admission", "reply_after_terminal", "wrong_direction"}
+# Matching terminals to copied traffic. A record that itself reports lost=1 has an incomplete trace,
+# so these findings cannot accuse it: they stay listed as warnings. Its failure stays its own.
+TRACE_MATCHING = {"wrong_request_object", "stale_reply", "success_without_request", "success_without_reply",
+                  "unmatched_request", "unmatched_tx_report", "tx_report_not_copied", "reply_form_mismatch",
+                  "terminal_width_differs_from_wire", "terminal_bytes_differ_from_wire", "abort_differs_from_wire",
+                  "tx_before_admission", "reply_after_terminal", "wrong_direction"}
+assert TRACE_MATCHING <= POSITIONAL
 
 
 @dataclass
@@ -1049,8 +1061,22 @@ def replay_bytes(data, meta=None, path="<bytes>", expect_operation=None):
     if expect_operation is not None and report.operation != expect_operation:
         report.error("wrong_operation", None, "expected %d found %s" % (expect_operation, report.operation))
     _check_trial(report, records, meta)
+    _excuse_lost_trace(report)
     report.verdict = _verdict(report, records)
     return report
+
+
+def _excuse_lost_trace(report):
+    """A record that reports its own copied trace lost cannot be accused by traffic matching."""
+    if not report.trace_lost:
+        return
+    kept = []
+    for item in report.errors:
+        if item["code"] in TRACE_MATCHING:
+            report.warn(item["code"], item["line"], item["detail"])
+        else:
+            kept.append(item)
+    report.errors = kept
 
 
 def _check_trial(report, records, meta):

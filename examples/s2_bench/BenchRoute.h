@@ -45,9 +45,14 @@
  * and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside POSITION
  * or MOVE counts as one more. These caps restart with the MCU: scripts/s2_bench.py keeps the
  * campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
- * changed epoch, nonzero EMCY from the node or local abort ends the route and keeps its evidence;
- * nothing is retried, enabled, cleared, zeroed, restored or switched to another mode, and an abort
- * sends no stop. A request already on its way always settles first.
+ * changed epoch, nonzero EMCY from the node, lost evidence or local abort ends the route and keeps
+ * its evidence; nothing is retried, enabled, cleared, zeroed, restored or switched to another mode,
+ * and an abort sends no stop. A request already on its way always settles first. Lost evidence also
+ * withdraws an active enable or move locally, as an abort does, because the lost span may have held
+ * an EMCY or a status report: nothing is sent because of the loss, and a route with lost evidence
+ * never ends NONE. A POSITION or MOVE with a planned stop is refused before its first write unless
+ * the stop's whole span still fits the route cutoff when it is asked for at its latest. The
+ * predecessor a check judged is judged again just before the first write is admitted.
  *
  * Sessions stay open for the life of the firmware once a route has opened them: their history,
  * latest controlword and trial record must survive between routes. While one is open, routes that
@@ -134,12 +139,38 @@ struct RoutePlan {
  * <record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,
  * <rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stopKind>,<stopAfter>,
  * <stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each, at most ROUTE_LINE bytes).
+ * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
  * @param text Borrowed characters; no terminator required.
  * @param size Character count.
  * @param output Published only on success.
- * @return False for anything else, including a value outside its stated range.
+ * @return False for anything else, including a value outside its stated range or a plan
+ * routePlanValid refuses.
  */
 bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcept;
+/** The parser's own range and consistency check of a plan, however it was built: every field the
+ * route uses within its stated range, a planned stop naming all of its policy and no stop naming
+ * none, and a move signal value within its mask. Fields the route does not use are not judged.
+ * @param plan Borrowed for this call.
+ * @return True when parseRouteCommand could have produced these route fields.
+ */
+bool routePlanValid(const RoutePlan& plan) noexcept;
+/** CRC-32 of a route line as the host computes it: IEEE 802.3, reflected polynomial 0xEDB88320,
+ * initial and final value 0xFFFFFFFF, as Python's zlib.crc32, over the command byte `T` and then
+ * the text. Bit by bit, with no table.
+ * @param text Borrowed characters after `T`.
+ * @param size Character count.
+ * @return The checksum.
+ */
+uint32_t routeLineCrc(const char* text, size_t size) noexcept;
+/** Check the host's integrity field before anything parses the line: the text after `T` must end in
+ * `,K` and eight lowercase hexadecimal digits holding routeLineCrc of every byte before `,K`. A digit
+ * corrupted in transit that still parses as another valid plan fails here.
+ * @param text Borrowed characters after `T`, integrity field included.
+ * @param size Character count, at most ROUTE_LINE.
+ * @param body Set to the length of the route text before `,K`; written only on success.
+ * @return False when the field is absent, malformed or does not match.
+ */
+bool checkRouteIntegrity(const char* text, size_t size, size_t& body) noexcept;
 /** @param kind Route. @return Static lowercase name printed in records; "none" for NONE. */
 const char* routeName(RouteKind kind) noexcept;
 /** Why a route ended, as printed in its header. Device facts stay in the terminals. */
@@ -149,7 +180,9 @@ enum class RouteFailure : uint8_t {
     ADMISSION,     ///< The session or owner refused a step, or a context refused preparation.
     SERVICE,       ///< A terminal other than success; kept, with any uncertainty it carries.
     CORRELATION,   ///< A settled terminal was not the request this route admitted.
-    EVIDENCE_LOSS, ///< Copied traffic or terminals were lost; no further step was admitted.
+    /** Copied traffic or terminals were lost; no further step was admitted, and an active enable or
+     * move was withdrawn locally. Never sent anything itself. */
+    EVIDENCE_LOSS,
     INVALIDATED,   ///< Reservation, node epoch or firmware progression ended before the next step.
     DEADLINE,      ///< The route cutoff or an operation deadline was reached between steps.
     PREREQUISITE,  ///< A fresh read before any write did not meet the route's stated condition.
@@ -181,7 +214,9 @@ enum {
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
     ROUTE_OPERATION_US = 5000000, ///< Deadline of one read or write operation, clamped to the cutoff.
-    ROUTE_LINE = 256 ///< Longest request text after `T` the firmware collects; a longer one is refused.
+    /** Longest request text after `T` the firmware collects, integrity field included; a longer one
+     * is refused. The longest move line with its field is 204 bytes. */
+    ROUTE_LINE = 256
 };
 /** First grant identity; RawEvidence uses 1000..4029 and ProbeApp reads count from 1. */
 constexpr uint32_t ROUTE_GRANT_BASE = 100000;
@@ -241,6 +276,9 @@ struct RouteRecord {
     const char* why = "none";                  ///< Static token naming the condition.
     bool terminal = false;                     ///< The route has ended.
     bool evidenceLost = false;                 ///< Traffic or terminal capacity or owner trace lost.
+    /** Evidence was lost while an enable or move was active, and this route withdrew it locally
+     * through cancelEnable or cancelMove. Nothing was sent because of it, and no stop. */
+    bool lossCancel = false;
     bool tailOverflow = false;                 ///< Tail capacity or owner trace lost after terminal.
     bool unsettled = false; ///< The route ended with its own request not settled (firmware failure).
     uint8_t step = 0;       ///< Route step index reached.
@@ -311,10 +349,10 @@ class BenchRoute {
         return attached(node) ? sessions_[node - 1] : nullptr;
     }
     /** Admit one route. Sends nothing during this call.
-     * @param plan Copied request.
+     * @param plan Copied request; routePlanValid judges it again, however it was built.
      * @param nowUs Owner time, at least its last time.
-     * @return Null when admitted; otherwise a static refusal token, with nothing changed except
-     * that a session opened here stays open.
+     * @return Null when admitted; otherwise a static refusal token ("plan" for a plan routePlanValid
+     * refuses), with nothing changed except that a session opened here stays open.
      */
     const char* begin(const RoutePlan& plan, uint64_t nowUs) noexcept;
     /** One turn after the firmware's: copy diagnostics, settle, check, admit at most one step.
@@ -324,8 +362,8 @@ class BenchRoute {
     /** Withdraw the active route locally. Sends no stop. A request on its way settles first; an
      * active enable or move is withdrawn through AxisSession::cancelEnable or cancelMove.
      * @param nowUs Owner time.
-     * @return Null when the route will end ABORTED; otherwise a static refusal token. A stop in
-     * progress refuses: it settles by itself.
+     * @return Null when the route will end, ABORTED unless an EMCY or lost evidence already decided
+     * its failure; otherwise a static refusal token. A stop in progress refuses: it settles by itself.
      */
     const char* abort(uint64_t nowUs) noexcept;
     /** Release a terminal record once local TX has retired. Sessions stay open.
@@ -390,6 +428,7 @@ class BenchRoute {
     uint8_t stepIndex_ = 0, subStep_ = 0, readMode_ = 0, readArg_ = 0;
     bool occupied_ = false, pending_ = false, stepActive_ = false, readActive_ = false;
     bool singleAdmitted_ = false, actionStarted_ = false, abortRequested_ = false, emcyHandled_ = false;
+    bool lossHandled_ = false;   ///< Lost evidence has decided the end and withdrawn active work.
     bool stopAttempted_ = false; ///< MOVE: the planned stop was asked for, whatever its path.
     bool modeAdmitted_[2] = {false, false};
     RouteFailure endFailure_ = RouteFailure::NONE; ///< Abort or EMCY, applied once work settles.
@@ -401,6 +440,7 @@ class BenchRoute {
     bool currentTarget(MotorControlCAN::LICHUAN_C::ReadTarget& output) const noexcept;
     void finish(RouteFailure failure, const char* why, uint64_t nowUs) noexcept;
     void endAfterSettling(RouteFailure failure, const char* why) noexcept;
+    uint64_t withdrawalTime(uint64_t nowUs) const noexcept;
     void capture(bool tail) noexcept;
     void lose(uint32_t count, bool tail) noexcept;
     void copyTerminal(const MotorControlCANOwner::Completion& done) noexcept;
@@ -416,6 +456,7 @@ class BenchRoute {
     bool startWrite(uint64_t nowUs) noexcept;
     void serviceWrite(uint64_t nowUs) noexcept;
     bool writeTransfer(MotorControlCAN::CANOPEN::SdoTransfer& output) const noexcept;
+    const char* predecessor(uint8_t write) const noexcept;
     const char* checkMode() const noexcept;
     const char* checkIdle() const noexcept;
     const char* checkPosition() const noexcept;
