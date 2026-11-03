@@ -1,0 +1,82 @@
+{
+  "started_utc": "2026-11-03T08:28:44.049805+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "mode1",
+  "seconds": 120.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 102,
+  "plan": "packet 15 P2",
+  "fields": [
+    1,
+    102,
+    1,
+    5,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 102 to confirm: ",
+      "typed": "ATTENDED 102",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "NONE reported (attendant at the cutoff, standing instruction to report anything unexpected; relayed by the lead)"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "mode1",
+    "--node",
+    "1",
+    "--trial",
+    "102",
+    "--cycles",
+    "5",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "docs/bench/20261103-campaign.jsonl",
+    "--output",
+    "docs/bench/20261103T0829Z-p2-node1"
+  ],
+  "host_revision": "71c8670018d2fa7cdd5e26f5e98ac7b626bf236d",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261103-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544d312c3130322c312c352c3530302c4b65626338343339390a"
+  ],
+  "image": {
+    "base": "71c8670018d2fa7cdd5e26f5e98ac7b626bf236d",
+    "elf": "1729d905151a4e54fe9318d0f591635c4e88384715eb42fc7be6e2fd6492c118",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TM1,102,1,5,500,Kebc84399",
+  "tx_hex": "544d312c3130322c312c352c3530302c4b65626338343339390a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-03T08:28:50.585995+00:00"
+}

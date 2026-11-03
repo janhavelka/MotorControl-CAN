@@ -193,7 +193,7 @@ struct EnableStepRecord {
 /** ENABLE history kept for inspection, including after failure. None of it is an interpretation. */
 struct EnableRecord {
     EnableEvidence evidence;      ///< Copied caller evidence.
-    uint16_t startStatusword = 0; ///< Admission 6041; bits above 0..2 must not change during the sequence.
+    uint16_t startStatusword = 0; ///< Admission 6041; bits other than 0..2 and 10 must not change during the sequence.
     uint16_t startMonitor = 0;    ///< Admission 2100; bits other than released must not change.
     int32_t startPosition = 0;    ///< Admission 6064; any later raw difference ends the sequence.
     uint8_t targetCursor = 0;     ///< Current upload: 0 is 607A, 1 is 60FF.
@@ -445,7 +445,8 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * come from applying the correspondence table of EN86/ZH86 p12 (6040=6 gives 001, 7 gives 011, 15
  * gives 111) as an expectation; no source documents a report after a write or its delay. Success
  * also needs 2100 released clear. Each cycle ends the sequence if mode leaves 1, a 2100 bit other
- * than released changes, a 6041 bit above 0..2 changes, 6064 changes or 606C is nonzero. 2100
+ * than released changes, a 6041 bit other than 0..2 and 10 (STATUS_EN86_ZERO_SPEED) changes, 6064
+ * changes or 606C is nonzero. 2100
  * decides alarm and running because EN86 p17 and ZH86 p18 agree on it; disputed 6041 bits decide
  * nothing and are only compared. Never zeroes a target, changes mode, clears a fault, replays a
  * word or issues a stop. Fresh specimen reads show low bits 7 and released clear with no enable in

@@ -123,7 +123,11 @@ class RetainedCaptures(unittest.TestCase):
             self.assertEqual(report.unknown, [], directory.name)
             self.assertEqual(report.malformed, [], directory.name)
             self.assertEqual(report.typed_successes if report.family != "EVIDENCE" else 0, 0)
-            if directory.name != "20261102-s2-identity1":  # The retained reset investigation.
+            request = json.loads((directory / "request.json").read_text(encoding="utf-8"))
+            # A run the runner refused before its route line holds only its ping: there is no route
+            # to complete, and the runner recorded why.
+            refused_before_send = set(request.get("sent", ["?"])) <= {"70"} and bool(request.get("reason"))
+            if directory.name != "20261102-s2-identity1" and not refused_before_send:  # The retained reset investigation.
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
                                  (directory.name, report.errors))
 

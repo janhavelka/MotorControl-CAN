@@ -253,7 +253,9 @@ void nextCycle(ActionContext& c, uint64_t at, uint64_t now) {
 // Every bit but 2100 released and 6041 bits 0..2 stays as admitted, and raw feedback stays still.
 // Disputed bits decide nothing here: a change only ends the sequence, with both words retained.
 bool enableScopeHolds(const ActionContext& c) {
-    constexpr uint16_t lowBits = STATUS_LOW_BITS;
+    // Bit 10 changes with the enable state itself on node 1 (STATUS_EN86_ZERO_SPEED), and 606C below
+    // already requires zero velocity, so comparing it would end every enable at its first word.
+    constexpr uint16_t lowBits = STATUS_LOW_BITS | STATUS_EN86_ZERO_SPEED;
     constexpr uint16_t released = MONITOR_RELEASED;
     const StateObservation& status = c.statusObservation;
     const StateObservation& monitors = c.monitorObservation;
