@@ -331,6 +331,8 @@ add_test(NAME planning_integrity COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOUR
 add_test(NAME planning_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_promptset_test.py")
 add_test(NAME ledger_validator_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_lichuan_ledger_test.py")
 add_test(NAME stack_check_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/check_stack_test.py")
+add_test(NAME s2_evidence_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_evidence_test.py")
+add_test(NAME s2_flash_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_flash_test.py")
 set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract frame sdo_codec sdo_adapter objects PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
 set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;docs")
