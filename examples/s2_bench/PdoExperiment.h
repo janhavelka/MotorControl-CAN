@@ -41,7 +41,7 @@ enum { PDO_EXPERIMENT_TERMINALS = 24, PDO_EXPERIMENT_TRAFFIC = 112, PDO_EXPERIME
 /** Owned acquisition and exact retained prefix, stationary until explicit release. */
 struct PdoExperimentRecord {
     PdoExperimentPlan plan; ///< Exact copied admission metadata; no pointers retained.
-    MotorControlCAN::LICHUAN_C::SettingsReservation reservation; ///< Actual sequence-issued token.
+    MotorControlCAN::LICHUAN_C::AxisReservation reservation; ///< Built from the actual held sequence.
     MotorControlCAN::CANOPEN::ObservationTime baselinePreOperational;
     ///< Frozen qualified observation after reservation and before all baseline reads.
     MotorControlCAN::Binding

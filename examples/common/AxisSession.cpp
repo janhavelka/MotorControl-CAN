@@ -46,7 +46,7 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     }
     target_ = target;
     sequence_ = s ? held : SequenceId();
-    reservation_ = L::SettingsReservation();
+    reservation_ = L::AxisReservation();
     reservation_.target = target;
     reservation_.model = model;
     if (s) {

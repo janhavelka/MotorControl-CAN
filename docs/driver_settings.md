@@ -77,10 +77,10 @@ actual retained prerequisites are checked before yielding any work:
 
 - An explicit caller-established CL86-C or OL86-C model; opaque profile IDs and
   raw `2000` values do not establish that model or firmware qualification.
-- A continuous live `SettingsReservation` issued by the sole application owner
+- A continuous live `AxisReservation` issued by the sole application owner
   before acquisition. The owner excludes other control, mode, target, RPDO and
   settings work, and revokes it on contradictory observations or lifecycle loss.
-  Pass the actual live token on every call, not a stale retained copy.
+  Pass the actual live reservation on every call, not a stale retained copy.
 - Actual matching acknowledged `6040:00=0x000F` U16 download evidence, followed
   by fresh checked STATUS/MONITORS and native parameter reads on the same epochs.
   Require mode 1, status low bits 7, and monitor running/alarm/disabled bits clear.
@@ -107,7 +107,7 @@ After queue admission and application preflight, call `noteDriverTransmission`
 **before** `SdoClient::nextTx` or another possible controller handoff. It advances
 the actual application/axis binding configuration generation exactly once;
 old snapshots and prepared targets then fail their ordinary epoch checks. It
-must not alias context/token storage. Retire separately admitted work before
+must not alias context/reservation storage. Retire separately admitted work before
 local cancel/deadline/invalidation. Cancellation is not motor stop. Unknown
 write or unqualified read effects remain retained and never replay automatically.
 

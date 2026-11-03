@@ -85,7 +85,7 @@ real drive.
 ## Explicit loop mutation and retained effects
 
 The application establishes an actual model-bound exclusive
-`SettingsReservation` before the complete control read. The same
+`AxisReservation` before the complete control read. The same
 [settings exclusion and transmission contract](driver_settings.md#explicit-position-parameter-settings)
 applies: competing control/mode/target/RPDO/settings work is excluded, and each
 call checks the actual still-live reservation and current configuration binding.

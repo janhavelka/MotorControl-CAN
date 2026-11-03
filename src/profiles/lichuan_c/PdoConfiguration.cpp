@@ -23,12 +23,12 @@ bool sameChannel(const CANOPEN::SdoChannel& a, const CANOPEN::SdoChannel& b) {
 bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
     return sameChannel(a.channel, b.channel) && a.nodeGeneration == b.nodeGeneration;
 }
-bool validReservation(const SettingsReservation& r) {
+bool validReservation(const AxisReservation& r) {
     return r.owner && r.sequence && r.generation && r.target.nodeGeneration &&
            (r.model == SettingsModel::CL86_C || r.model == SettingsModel::OL86_C) &&
            CANOPEN::validateSdoChannel(r.target.channel);
 }
-bool sameReservation(const SettingsReservation& a, const SettingsReservation& b) {
+bool sameReservation(const AxisReservation& a, const AxisReservation& b) {
     return validReservation(a) && validReservation(b) && sameTarget(a.target, b.target) &&
            a.owner == b.owner && a.sequence == b.sequence && a.generation == b.generation &&
            a.model == b.model && a.acquiredUs == b.acquiredUs;
@@ -37,7 +37,7 @@ bool active(const Tpdo1ConfigurationContext& c) {
     return c.state == PdoConfigurationState::WRITING ||
            c.state == PdoConfigurationState::READING_BACK;
 }
-bool preOperational(const SettingsReservation& r, CANOPEN::NmtState nmt,
+bool preOperational(const AxisReservation& r, CANOPEN::NmtState nmt,
                     const CANOPEN::ObservationTime& t, uint64_t now, uint64_t age) {
     if (nmt != CANOPEN::NmtState::PRE_OPERATIONAL || !t.present || !age ||
         t.generation != r.target.nodeGeneration || t.receivedTimeKnown == t.receiveBoundsKnown ||
@@ -53,7 +53,7 @@ Binding expectedBinding(const Tpdo1ConfigurationContext& c) {
         ++b.configurationGeneration;
     return b;
 }
-Status current(const Tpdo1ConfigurationContext& c, const SettingsReservation& live,
+Status current(const Tpdo1ConfigurationContext& c, const AxisReservation& live,
                const Binding& binding, uint64_t now) {
     if (!sameReservation(c.reservation, live) || !sameBinding(binding, expectedBinding(c)))
         return error(ReadError::TARGET, "PDO configuration reservation or binding changed");
@@ -86,7 +86,7 @@ bool consistent(const CANOPEN::SdoCompletion& e) {
             (e.abortValid && e.transmissionPossible)) &&
            e.size == (success && upload ? e.transfer.size : 0);
 }
-bool validBaseline(const CANOPEN::SdoCompletion& e, const SettingsReservation& r, unsigned slot,
+bool validBaseline(const CANOPEN::SdoCompletion& e, const AxisReservation& r, unsigned slot,
                    uint64_t earliest, uint64_t now, uint64_t age) {
     const CANOPEN::SdoTransfer& t = e.transfer;
     return sameChannel(t.channel, r.target.channel) &&
@@ -177,7 +177,7 @@ void fail(Tpdo1ConfigurationContext& c, ReadOutcome reason, uint64_t now, const 
 }
 } // namespace
 
-Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output, const SettingsReservation& r,
+Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output, const AxisReservation& r,
                                  const Tpdo1ConfigurationReview& review,
                                  const CANOPEN::SdoCompletion* baseline, size_t count,
                                  CANOPEN::NmtState nmt, const CANOPEN::ObservationTime& preOp,
@@ -227,7 +227,7 @@ Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output, const Settin
     output = c;
     return Ok();
 }
-Status nextPdoConfiguration(const Tpdo1ConfigurationContext& c, const SettingsReservation& live,
+Status nextPdoConfiguration(const Tpdo1ConfigurationContext& c, const AxisReservation& live,
                             const Binding& binding, CANOPEN::NmtState nmt,
                             const CANOPEN::ObservationTime& preOp, uint64_t now,
                             PreparedRead& output) noexcept {
@@ -251,7 +251,7 @@ Status nextPdoConfiguration(const Tpdo1ConfigurationContext& c, const SettingsRe
     return Ok();
 }
 Status notePdoConfigurationTransmission(Tpdo1ConfigurationContext& c,
-                                        const SettingsReservation& live, Binding& binding,
+                                        const AxisReservation& live, Binding& binding,
                                         CANOPEN::NmtState nmt,
                                         const CANOPEN::ObservationTime& preOp,
                                         uint64_t now) noexcept {
@@ -274,7 +274,7 @@ Status notePdoConfigurationTransmission(Tpdo1ConfigurationContext& c,
     c.servicedUs = now;
     return Ok();
 }
-Status advancePdoConfiguration(Tpdo1ConfigurationContext& c, const SettingsReservation& live,
+Status advancePdoConfiguration(Tpdo1ConfigurationContext& c, const AxisReservation& live,
                                const Binding& binding, const CANOPEN::SdoCompletion& e,
                                uint64_t now) noexcept {
     if (overlaps(&c, sizeof c, &live, sizeof live) ||
@@ -347,7 +347,7 @@ Status advancePdoConfiguration(Tpdo1ConfigurationContext& c, ReadOutcome reason,
     fail(c, reason, now, "PDO configuration locally withdrawn; no rollback");
     return Ok();
 }
-Status getTpdo1Configuration(const Tpdo1ConfigurationContext& c, const SettingsReservation& live,
+Status getTpdo1Configuration(const Tpdo1ConfigurationContext& c, const AxisReservation& live,
                              const Binding& binding, uint64_t now, Generation generation,
                              uint32_t evidenceId, CANOPEN::PdoMapEvidence& output) noexcept {
     if (overlaps(&output, sizeof output, &c, sizeof c) ||

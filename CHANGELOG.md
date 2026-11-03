@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Axis reservation name (audit A-04, packet 10)
+
+- **Migration:** rename `LICHUAN_C::SettingsReservation` to `LICHUAN_C::AxisReservation`, with the same fields and the same header, `Settings.h`. There is no alias, so code using the old name stops compiling. Settings, stop, action and PDO configuration calls all take it. It means actual continuous exclusion of one axis by the sole owner, not a permission a profile can construct. Behavior is unchanged; one status message now says `axis reservation` where it said `settings reservation`.
+
 ### Native rate basis and soft-limit recovery (audit W8, packet 9)
 
 - Add `NativeRateBasis`, `AxisConfig::nativeRateBasis`, and the frozen `PreparedVelocityTarget::rateBasis` and `rateTime`. Rates quantize once, in the destination unit. **Migration:** the default `COMMAND_INCREMENTS` keeps old behavior, so a Lichuan rpm caller must set `MOTOR_TURNS` with `MINUTE` and check both before writing. A wrong basis gives an in-range wrong value, and nothing in the library refuses it.

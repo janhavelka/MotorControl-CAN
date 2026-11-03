@@ -63,7 +63,7 @@ M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = fal
 }
 struct Wire : OwnerRig::WireBase {
     L::ActionContext* action = nullptr;
-    const L::SettingsReservation* reservation = nullptr;
+    const L::AxisReservation* reservation = nullptr;
     L::ReadTarget* current = nullptr;
     M::AxisConfig* axis = nullptr;
     M::AxisReference* reference = nullptr;
@@ -90,7 +90,7 @@ struct Rig {
     Wire wire;
     O::CanBusOwner owner;
     O::SequenceId sequence;
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     L::ReadTarget current = target();
     L::ReadContext state;
     M::AxisConfig axis;
@@ -437,7 +437,7 @@ void unsupportedValuesAndPoliciesAreAtomic() {
                         scenario == 3 && !position ? 0xff04 : 0xff05,
                         scenario == 4 && !position ? 0x1d : 0x1f);
             bad.begin();
-            L::SettingsReservation live = bad.reservation;
+            L::AxisReservation live = bad.reservation;
             M::AxisConfig axis = bad.axis;
             auto options = bad.policy();
             if (scenario == 5)

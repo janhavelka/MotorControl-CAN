@@ -89,8 +89,9 @@ int main() {
     std::puts("Assignment and polarity establish neither wiring nor electrical levels or method "
               "prerequisites.");
     std::puts("This example performs no configuration writes, output actions, enabling or motion.");
-    // Explicit illustrative nameplate/exclusion premises, not identity detection.
-    L::SettingsReservation reservation;
+    // Illustrative nameplate and exclusion premises: this offline preview has no owner, so nothing
+    // is actually excluded. A real application builds this from its actual held sequence.
+    L::AxisReservation reservation;
     reservation.target = target;
     reservation.model = L::SettingsModel::CL86_C;
     reservation.owner = reservation.sequence = reservation.generation = 1;

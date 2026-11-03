@@ -8,7 +8,7 @@ raw count, polarity and seven documentary input functions.
 Route, epochs, timestamps and successful `SdoCompletion` records are synthetic
 fixture premises. No controller, stack, SDK, clock or hardware is accessed.
 Production callers obtain retained terminals from the sole service owner;
-a copied local token cannot distinguish an ambiguous late wire response.
+a copied local reservation cannot distinguish an ambiguous late wire response.
 
 DI0 has code 0 (undefined), DI1 code 1 (origin) and DI2 unlisted code 99.
 The raw code remains 99 while its documentary interpretation is `UNKNOWN`.

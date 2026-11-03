@@ -324,8 +324,8 @@ void quiet(Rig& r, unsigned from = UINT32_MAX) {
     r.steps(4);
     CHECK(r.wire.sentCount == sent);
 }
-L::SettingsReservation reservationOf(const Rig& r, const E::AxisSession& s, unsigned node = 1) {
-    L::SettingsReservation value;
+L::AxisReservation reservationOf(const Rig& r, const E::AxisSession& s, unsigned node = 1) {
+    L::AxisReservation value;
     const O::SequenceId id = s.sequence();
     const O::Sequence* live = r.owner.sequence(id);
     CHECK(live);
@@ -2208,7 +2208,7 @@ void freshnessBudgetBoundaries() {
                 r.drive[0].monitor = 0;
                 readState(r, r.a, state);
             }
-            const L::SettingsReservation reservation = reservationOf(r, r.a);
+            const L::AxisReservation reservation = reservationOf(r, r.a);
             const M::AxisConfig axis = axisFor(r.current());
             const unsigned fields = which == 2 ? 7 : 5;
             L::ActionOptions options;
@@ -2302,7 +2302,7 @@ struct AlarmRun {
     Rig r;
     L::ReadContext state;
     L::ActionContext action;
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     unsigned from = 0;
     AlarmRun() {
         openAxis(r, r.a);

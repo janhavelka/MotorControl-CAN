@@ -44,7 +44,7 @@ enum class PdoConfigurationState : uint8_t {
  * 1800:01/02/03/05 and 1A00:00..04. One failed step never rolls back/replays.
  */
 struct Tpdo1ConfigurationContext {
-    SettingsReservation reservation; ///< Actual continuous owner exclusion, frozen original route.
+    AxisReservation reservation; ///< Actual continuous owner exclusion, frozen original route.
     Tpdo1ConfigurationReview review; ///< Owned admission provenance; never promoted automatically.
     PdoConfigurationState state = PdoConfigurationState::EMPTY; ///< Current finite phase.
     ReadOutcome outcome = ReadOutcome::NONE; ///< Terminal cause, not health or motion.
@@ -95,7 +95,7 @@ struct Tpdo1ConfigurationContext {
  * enforce it again at admission, handoff and actual controller enqueue.
  */
 Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output,
-                                 const SettingsReservation& reservation,
+                                 const AxisReservation& reservation,
                                  const Tpdo1ConfigurationReview& review,
                                  const CANOPEN::SdoCompletion* baseline, size_t count,
                                  CANOPEN::NmtState nmt,
@@ -113,7 +113,7 @@ Status prepareTpdo1Configuration(Tpdo1ConfigurationContext& output,
  * next epoch after owner retirement/reconciliation. Owner checks NMT before enqueue too.
  */
 Status nextPdoConfiguration(const Tpdo1ConfigurationContext& context,
-                            const SettingsReservation& live, const Binding& current,
+                            const AxisReservation& live, const Binding& current,
                             CANOPEN::NmtState nmt, const CANOPEN::ObservationTime& preOperational,
                             uint64_t nowUs, PreparedRead& output) noexcept;
 /** Record possible download TX before owner handoff, never send or retry.
@@ -125,7 +125,7 @@ Status nextPdoConfiguration(const Tpdo1ConfigurationContext& context,
  * @return Atomic validation status; mutable arguments and live/time must not overlap.
  */
 Status notePdoConfigurationTransmission(Tpdo1ConfigurationContext& context,
-                                        const SettingsReservation& live, Binding& current,
+                                        const AxisReservation& live, Binding& current,
                                         CANOPEN::NmtState nmt,
                                         const CANOPEN::ObservationTime& preOperational,
                                         uint64_t nowUs) noexcept;
@@ -137,7 +137,7 @@ Status notePdoConfigurationTransmission(Tpdo1ConfigurationContext& context,
  * settles context without rollback. Caller revokes reservation on NMT/lifecycle change;
  * admission/enqueue checks current NMT separately. Deadline wins at equality.
  */
-Status advancePdoConfiguration(Tpdo1ConfigurationContext& context, const SettingsReservation& live,
+Status advancePdoConfiguration(Tpdo1ConfigurationContext& context, const AxisReservation& live,
                                const Binding& current, const CANOPEN::SdoCompletion& evidence,
                                uint64_t nowUs) noexcept;
 /** Local withdrawal after separately retiring owner work; never a motor stop.
@@ -158,7 +158,7 @@ Status advancePdoConfiguration(Tpdo1ConfigurationContext& context, ReadOutcome r
  * capture, NMT inference, device firmware capability or old-frame qualification follows.
  */
 Status getTpdo1Configuration(const Tpdo1ConfigurationContext& context,
-                             const SettingsReservation& live, const Binding& current,
+                             const AxisReservation& live, const Binding& current,
                              uint64_t nowUs, Generation mappingGeneration, uint32_t evidenceId,
                              CANOPEN::PdoMapEvidence& output) noexcept;
 } // namespace LICHUAN_C

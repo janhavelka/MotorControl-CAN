@@ -19,12 +19,12 @@ bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
            a.channel.clientToServerId == b.channel.clientToServerId &&
            a.channel.serverToClientId == b.channel.serverToClientId;
 }
-bool valid(const SettingsReservation& r) {
+bool valid(const AxisReservation& r) {
     return r.owner && r.sequence && r.generation && r.target.nodeGeneration &&
            (r.model == SettingsModel::CL86_C || r.model == SettingsModel::OL86_C) &&
            CANOPEN::validateSdoChannel(r.target.channel);
 }
-bool sameReservation(const SettingsReservation& a, const SettingsReservation& b) {
+bool sameReservation(const AxisReservation& a, const AxisReservation& b) {
     return valid(a) && valid(b) && sameTarget(a.target, b.target) && a.model == b.model &&
            a.owner == b.owner && a.sequence == b.sequence && a.generation == b.generation &&
            a.acquiredUs == b.acquiredUs;
@@ -67,10 +67,10 @@ bool settingsShape(const DriverSettingsContext& c) {
     }
     return true;
 }
-Status current(const DriverSettingsContext& c, const SettingsReservation& live,
+Status current(const DriverSettingsContext& c, const AxisReservation& live,
                const Binding& binding, uint64_t now) {
     if (!sameReservation(c.reservation, live) || !sameBinding(binding, expectedBinding(c)))
-        return error(ReadError::TARGET, "settings reservation or configuration changed");
+        return error(ReadError::TARGET, "axis reservation or configuration changed");
     if (c.state == SettingsState::EMPTY || c.state > SettingsState::FAILED ||
         c.deadlineUs <= c.startedUs || now < c.servicedUs || !c.operation ||
         c.reservation.target.channel.binding.configurationGeneration == UINT32_MAX ||
@@ -78,7 +78,7 @@ Status current(const DriverSettingsContext& c, const SettingsReservation& live,
         return error(ReadError::STATE, "invalid settings context or time");
     return Ok();
 }
-Status validatePreparation(const SettingsReservation& r, const DriverContext& prior, ReadKind kind,
+Status validatePreparation(const AxisReservation& r, const DriverContext& prior, ReadKind kind,
                         uint32_t operation, uint64_t now, uint64_t deadline,
                         const ReadOptions& options, uint64_t age) {
     if (!valid(r) || r.acquiredUs > prior.read.startedUs || prior.read.startedUs > now || !age ||
@@ -89,7 +89,7 @@ Status validatePreparation(const SettingsReservation& r, const DriverContext& pr
     return validateRead(kind, r.target, operation, now, deadline, options);
 }
 // Everything refusable has been checked; output is disjoint from every input.
-void publish(DriverSettingsContext& c, const SettingsReservation& r, DriverGroup group,
+void publish(DriverSettingsContext& c, const AxisReservation& r, DriverGroup group,
              uint32_t operation, uint64_t now, uint64_t deadline, const ReadOptions& options) {
     new (static_cast<void*>(&c)) DriverSettingsContext();
     c.reservation = r;
@@ -176,7 +176,7 @@ void fail(DriverSettingsContext& c, ReadOutcome reason, uint64_t now, const char
 bool active(const DriverSettingsContext& c) {
     return c.state == SettingsState::WRITING || c.state == SettingsState::READING_BACK;
 }
-bool controlEvidence(const CANOPEN::SdoCompletion& e, const SettingsReservation& r, uint64_t now,
+bool controlEvidence(const CANOPEN::SdoCompletion& e, const AxisReservation& r, uint64_t now,
                      uint64_t age) {
     const CANOPEN::SdoTransfer& t = e.transfer;
     return sameBinding(t.channel.binding, r.target.channel.binding) &&
@@ -193,7 +193,7 @@ bool controlEvidence(const CANOPEN::SdoCompletion& e, const SettingsReservation&
 }
 } // namespace
 
-Status prepareDriverSettings(DriverSettingsContext& output, const SettingsReservation& r,
+Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservation& r,
                              const DriverContext& prior, const ReadContext& state,
                              const CANOPEN::SdoCompletion& control, const DriverSettings& settings,
                              uint32_t operation, uint64_t now, uint64_t deadline,
@@ -232,7 +232,7 @@ Status prepareDriverSettings(DriverSettingsContext& output, const SettingsReserv
     select(output, prior, 0);
     return Ok();
 }
-Status prepareIoSettings(DriverSettingsContext& output, const SettingsReservation& r,
+Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r,
                          const DriverContext& prior, const IoSettings& settings, uint32_t operation,
                          uint64_t now, uint64_t deadline, const ReadOptions& options,
                          uint64_t age) noexcept {
@@ -261,7 +261,7 @@ Status prepareIoSettings(DriverSettingsContext& output, const SettingsReservatio
     select(output, prior, 1);
     return Ok();
 }
-Status prepareControlSettings(DriverSettingsContext& output, const SettingsReservation& r,
+Status prepareControlSettings(DriverSettingsContext& output, const AxisReservation& r,
                               const DriverContext& prior, const ControlSettings& settings,
                               uint32_t operation, uint64_t now, uint64_t deadline,
                               const ReadOptions& options, uint64_t age) noexcept {
@@ -287,7 +287,7 @@ Status prepareControlSettings(DriverSettingsContext& output, const SettingsReser
     select(output, prior, 0);
     return Ok();
 }
-Status nextDriver(const DriverSettingsContext& c, const SettingsReservation& live,
+Status nextDriver(const DriverSettingsContext& c, const AxisReservation& live,
                   const Binding& binding, uint64_t now, PreparedRead& output) noexcept {
     if (overlap(&output, sizeof output, &c, sizeof c) ||
         overlap(&output, sizeof output, &live, sizeof live) ||
@@ -317,7 +317,7 @@ Status nextDriver(const DriverSettingsContext& c, const SettingsReservation& liv
     output = candidate;
     return Ok();
 }
-Status noteDriverTransmission(DriverSettingsContext& c, const SettingsReservation& live,
+Status noteDriverTransmission(DriverSettingsContext& c, const AxisReservation& live,
                               Binding& binding, uint64_t now) noexcept {
     if (overlap(&binding, sizeof binding, &c, sizeof c) ||
         overlap(&binding, sizeof binding, &live, sizeof live) ||
@@ -334,7 +334,7 @@ Status noteDriverTransmission(DriverSettingsContext& c, const SettingsReservatio
     c.servicedUs = now;
     return Ok();
 }
-Status advanceDriver(DriverSettingsContext& c, const SettingsReservation& live,
+Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
                      const Binding& binding, const CANOPEN::SdoCompletion& input,
                      uint64_t now) noexcept {
     if (overlap(&c, sizeof c, &input, sizeof input) || overlap(&c, sizeof c, &live, sizeof live) ||
@@ -454,7 +454,7 @@ Status advanceDriver(DriverSettingsContext& c, ReadOutcome reason, uint64_t now)
     fail(c, reason, now, "settings locally withdrawn; no rollback or motor stop");
     return Ok();
 }
-Status getDriver(const DriverSettingsContext& c, const SettingsReservation& live,
+Status getDriver(const DriverSettingsContext& c, const AxisReservation& live,
                  const ReadTarget& target, uint64_t now, uint64_t age,
                  DriverObservation& output) noexcept {
     if (overlap(&output, sizeof output, &c, sizeof c) ||
@@ -468,7 +468,7 @@ Status getDriver(const DriverSettingsContext& c, const SettingsReservation& live
         return error(ReadError::STATE, "settings not complete and matched");
     return getDriver(c.readback, target, now, age, output);
 }
-Status getIo(const DriverSettingsContext& c, const SettingsReservation& live,
+Status getIo(const DriverSettingsContext& c, const AxisReservation& live,
              const ReadTarget& target, uint64_t now, uint64_t age, IoObservation& output) noexcept {
     if (overlap(&output, sizeof output, &c, sizeof c) ||
         overlap(&output, sizeof output, &live, sizeof live) ||
@@ -481,7 +481,7 @@ Status getIo(const DriverSettingsContext& c, const SettingsReservation& live,
         return error(ReadError::STATE, "settings not complete and matched");
     return getIo(c.readback, target, now, age, output);
 }
-Status getControl(const DriverSettingsContext& c, const SettingsReservation& live,
+Status getControl(const DriverSettingsContext& c, const AxisReservation& live,
                   const ReadTarget& target, uint64_t now, uint64_t age,
                   ControlObservation& output) noexcept {
     if (overlap(&output, sizeof output, &c, sizeof c) ||

@@ -73,7 +73,7 @@ struct Fake {
     C::SdoClient* services = nullptr;
     O::RequestId retained;
     L::DriverSettingsContext* settings = nullptr;
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     M::Binding current;
     void recursiveCall() {
         if (!reenter)
@@ -1017,7 +1017,7 @@ void publicReadAndConfirmedControlSetting() {
     r.fake.reservation.sequence = uint32_t(s.slot + 1);
     r.fake.reservation.generation = s.generation;
     r.fake.reservation.acquiredUs = live->acquiredUs;
-    const Saved<L::SettingsReservation> frozen(r.fake.reservation);
+    const Saved<L::AxisReservation> frozen(r.fake.reservation);
     CHECK(r.owner.beginOperation(s, 13, 1000, r.now));
     L::ControlSettings requested;
     requested.loopMode = L::LoopMode::CLOSED_LOOP;
