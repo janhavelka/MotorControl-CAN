@@ -80,7 +80,7 @@ From each route's `TRIAL_RES`, on the 12,288-byte owner task:
 ## Still owed
 
 - **Stationary stops:** `010F` and, on a new power-up, `000B`, both from idle `000F` (packet 15 P4, packet 16 step 3). No admissions were left.
-- **`000B` on a released state** (packet 16 step 4), before the best-effort path is relied on.
+- **`000B` on a released state** (packet 16 step 3), before the best-effort path is relied on.
 - **A move on node 2,** with node 1's retained outcome checked unchanged (packet 22 step 6). Two-node work with an urgent stop on the other node has no route: one route runs at a time.
 - **Packet 20's `move` route** through `AxisSession::requestMove`, with acceptance `6041` mask and value `0x1000`, completion `2100` mask and value `0x0001`, and rule `AFTER_ABSENCE`, reviewed first. The library's own move lifecycle has not run on a specimen; trial 111 was the application-local `position` experiment.
 - **Relative moves:** what `005F` adds to (packet 21). Every relative request stays refused.

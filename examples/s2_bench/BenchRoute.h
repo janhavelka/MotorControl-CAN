@@ -16,6 +16,11 @@
  *   (2400:0C..0F), IO_INPUT_FILTERS(2401..2407), IO_OUTPUT_COMMAND(60FE:00..02), image. 2400:0B is
  *   never read. No writes.
  * - READ_TUNING, packet 14 T0. Image, the four tuning groups 2502..2520, image. No writes.
+ * - READ_HISTORY, packet 4 and packet 22 step 2. STATE(1001, 603F, 2100..2102, 6041, 6061, 6064, 606C),
+ *   STATE(ERROR_HISTORY) alone: 1003:00, then only the entries its count names, at most four, then
+ *   STATE(ERRORS) again, so 1001 and 603F are on record before and after the first 1003 read. Every
+ *   1003 upload is unqualified and takes its own one-use grant. No writes; the values are kept raw
+ *   and never interpreted. Last in RouteKind, so earlier route numbers and records are unchanged.
  * - MODE_ONE, packet 15 P2. The READ_ACTIONS reads, a prerequisite check, one 6060:00=1 through
  *   AxisSession::admitPrepared, then the stated number of fresh cycles. Never enables.
  * - ENABLE, packet 15 P3. A fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then
@@ -76,7 +81,8 @@ enum class RouteKind : uint8_t {
     STOP,         ///< Packet 15 P4 and packet 16, AxisSession::requestStop; `TS`.
     POSITION,     ///< Packet 19 isolated absolute experiment; `TP`.
     REARM,        ///< Packet 19 post-terminal 000F after POSITION; `TR`.
-    MOVE          ///< Packet 20 gated absolute move, AxisSession::requestMove; `TG`.
+    MOVE,         ///< Packet 20 gated absolute move, AxisSession::requestMove; `TG`.
+    READ_HISTORY  ///< Packet 4 and packet 22 step 2, 1003 error history reads; `TH`. Not motion.
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -127,7 +133,7 @@ struct RoutePlan {
 };
 /** Parse the text after the `T` command byte: a route letter, then decimal fields separated by
  * commas, with a leading minus only on signed fields and nothing else:
- * `A|I|U<node>,<trial>`;
+ * `A|I|U|H<node>,<trial>`;
  * `M<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `E<node>,<trial>,<attended>,<start>,<shaft>,<status>,<positionTarget>,<velocityTarget>,
  * <deadlineMs>,<intervalMs>`;
@@ -303,7 +309,14 @@ struct RouteRecord {
     bool checkPresent = false; ///< A prerequisite check ran on snapshot below.
     bool checkPassed = false;  ///< That check passed.
     RouteSnapshot check;       ///< Values the check judged.
-    RouteSnapshot last;        ///< Latest successful fresh read.
+    /** Latest successful fresh read of the blocks RouteSnapshot holds. A read of ERROR_HISTORY
+     * alone leaves it unchanged. */
+    RouteSnapshot last;
+    /** READ_HISTORY: the 1003 read succeeded and the library published it; the next two fields hold
+     * it. A failed read leaves this false, with its raw terminals in the RESULT lines. */
+    bool historyPresent = false;
+    uint8_t historyCount = 0; ///< 1003:00 raw, 0..4: the library refuses a larger count.
+    uint32_t history[4] = {}; ///< 1003:01.. raw; only the first historyCount entries were read.
     bool statusPresent = false; ///< A library request was refused; the next fields hold it.
     uint8_t statusCode = 0;     ///< Err of that refusal.
     int32_t statusDetail = 0;   ///< Detail of that refusal.
@@ -426,7 +439,8 @@ class BenchRoute {
     // Each node's latest acknowledged POSITION trigger: the only 001F a REARM may follow.
     uint32_t triggerOperation_[2] = {0, 0};
     uint64_t triggerUs_[2] = {0, 0};
-    uint8_t motionTotal_ = 0, motionCases_[10][2] = {};
+    // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::MOVE) + 1][2] = {};
     uint8_t stepIndex_ = 0, subStep_ = 0, readMode_ = 0, readArg_ = 0;
     bool occupied_ = false, pending_ = false, stepActive_ = false, readActive_ = false;
     bool singleAdmitted_ = false, actionStarted_ = false, abortRequested_ = false, emcyHandled_ = false;

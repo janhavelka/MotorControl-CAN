@@ -430,6 +430,45 @@ void contradictoryObservationsAndAbort() {
           action.commandHistory[0].abortCode == 0x08000022);
     CHECK(rejected.wire.sentCount == 7);
 }
+// The measured 000B terminal on 2026-11-03, both mode 1: trial 124 (node 2, from 000F) read
+// 2100=0011 and 6041=8050, trial 126 (node 1, from 010F) 2100=0010 and 6041=0050. That completes
+// a QUICK_STOP and keeps the release. The same report ends a HALT outside its scope, as does a
+// release with a low bit still set or with an alarm; a running release keeps polling.
+void quickStopReleaseIsTheMeasuredTerminal() {
+    enum Expect { SCOPE, OBSERVED, POLLING };
+    const struct {
+        L::StopKind kind;
+        uint16_t monitor, status;
+        Expect expect;
+    } cases[] = {{L::StopKind::QUICK_STOP, 0x0011, 0x8050, OBSERVED},
+                 {L::StopKind::QUICK_STOP, 0x0010, 0x0050, OBSERVED},
+                 {L::StopKind::HALT, 0x0011, 0x8050, SCOPE},
+                 {L::StopKind::QUICK_STOP, 0x0011, 0x8051, SCOPE},
+                 {L::StopKind::QUICK_STOP, 0x0011, 0x8054, SCOPE},
+                 {L::StopKind::QUICK_STOP, 0x0018, 0x0050, SCOPE},
+                 {L::StopKind::QUICK_STOP, 0x0014, 0x0050, POLLING}};
+    for (const auto& c : cases) {
+        Rig r;
+        r.prerequisites();
+        L::ActionContext action;
+        r.prepare(action, c.kind);
+        r.field(action, 0x6040);
+        r.cycle(action, c.monitor, c.status);
+        CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED && action.observations == 1 &&
+              action.monitorObservation.monitor == c.monitor &&
+              action.statusObservation.statusword == c.status);
+        if (c.expect == OBSERVED)
+            CHECK(action.state == M::ActionState::SUCCEEDED && action.outcome == M::ActionOutcome::OBSERVED &&
+                  action.completion == M::ActionCompletion::OBSERVED);
+        else if (c.expect == SCOPE)
+            CHECK(action.state == M::ActionState::FAILED &&
+                  action.outcome == M::ActionOutcome::OBSERVATION_SCOPE && action.uncertain &&
+                  action.completion == M::ActionCompletion::NOT_OBSERVED);
+        else
+            CHECK(action.state == M::ActionState::ACTIVE && action.outcome == M::ActionOutcome::NONE &&
+                  action.completion == M::ActionCompletion::NOT_OBSERVED);
+    }
+}
 
 void cancellationAndLostReplies() {
     for (unsigned phase = 0; phase < 4; ++phase) {
@@ -1235,6 +1274,7 @@ int main() {
     runningPollingAndDeadline();
     unsupportedPrerequisitesAreAtomic();
     contradictoryObservationsAndAbort();
+    quickStopReleaseIsTheMeasuredTerminal();
     cancellationAndLostReplies();
     interruptQueuedWorkPreservesResultsAndFencesOldOperations();
     reservedUrgentCapacity();

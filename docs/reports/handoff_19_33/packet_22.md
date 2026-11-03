@@ -1,5 +1,7 @@
 # Packet 22: finite two-node HIL regression and failure closure
 
+**Unattended session, 2026-11-03.** A second campaign ran on the user's written waiver, with nobody at the bench, on the attended session's boot: 3 motion admissions. Packet 20's `move` route ran once on node 2 and succeeded, with node 1 unchanged; a stationary `000B` ran on each node and released the motor. One defect was found and fixed on the host (below), not yet retested on hardware. See the [unattended bench report](../2026-11-03_unattended_bench.md).
+
 **Attended session, 2026-11-03.** A first campaign ran: 12 motion admissions (the cap), enables on both nodes, one absolute move with rearm and one moving HALT stop on node 1. One defect was found and fixed (the enable compared `6041` bit 10, `e17271a`). Still owed: `000B`, a node 2 move, packet 20's `move` route and the first `1003` read. The route records lacked controller counters, which step 7 asks for; `TRIAL_RES` now carries them. See the [attended bench report](../2026-11-03_attended_bench.md).
 
 **Before that session the motion campaign had not run.** Its prerequisites are physically unmet: no drive has been enabled (packet 15), no stop qualified (packet 16), and no position evidence acquired (packet 19). The campaign also needs an attendant and an independent cutoff. **Zero motion admissions were made**, on any boot.
@@ -14,7 +16,8 @@ The communication part of this packet's regression ran overnight as soaks, throu
 | --- | --- | --- | --- | --- |
 | On the S2, every SDO write by the session was refused before work, because the node never had ordinary-SDO eligibility (soak `eligibility=0xC`: probe upload allowed and a qualification recorded but not current, so no ordinary SDO). Enable, sequenced stop and move routes would all have refused `eligibility`, and the owner reported both drives `UNINIT` all night | Service qualification needed an exact receive time. The S2 shim gives only receive bounds, and the drives produce no heartbeat, so nothing could ever make ordinary SDO current | A reply qualifies service when its earliest receive bound is strictly after its handoff and after the node boundary (`SdoClient::recordSdo` with `ObservationTime`, [receive-time guide](../../adapters/twai_receive_time.md#sdo-service-qualification)) | `test/bounded_service_test.cpp`; `sdo_transfer_test`, `network_receive_time_test`, `device_evidence_test` and `bench_route_test` updated | **Passed, reads only, on `261a25b`:** both nodes went from `eligibility=0x4` to `0xE` (ordinary SDO) and `health` from `UNINIT` to `READY` with their first qualified replies, where `fcea8b4` held `0xC` and `UNINIT` all night. See the soak report |
 | No enable could complete on these specimens: trial 103 ended at word 6 with `OBSERVATION_SCOPE` | The scope rule compared every `6041` bit above 0..2 across the enable, and bit 10 follows the enable state itself (`8437` → `8031` → `8437`) | `e17271a`: bit 10 (`STATUS_EN86_ZERO_SPEED`) is not compared; `606C` still decides velocity, and every other bit still ends the enable | `zeroSpeedBitFollowsTheEnable` in `test/enable_action_test.cpp`, replaying the measured bytes; fails without the fix | **Passed** on both nodes, trials 108 and 118 |
-| The route records kept no controller error counters, which step 7 asks for | `RouteResources` sampled stack and heap only | `TRIAL_RES` adds `tec0 rec0 tec1 rec1`, sampled at admission and terminal from the TWAI driver; optional in the parser, so older records still parse | `bench_route_test` (the fake sampler's counters reach the line) and `test_route_controller_counters_are_parsed_and_older_records_still_fit` | Pending: the next campaign, after a reflash |
+| The route records kept no controller error counters, which step 7 asks for | `RouteResources` sampled stack and heap only | `TRIAL_RES` adds `tec0 rec0 tec1 rec1`, sampled at admission and terminal from the TWAI driver; optional in the parser, so older records still parse | `bench_route_test` (the fake sampler's counters reach the line) and `test_route_controller_counters_are_parsed_and_older_records_still_fit` | Pending: the unattended campaign ran on the unflashed `e17271a` image, so it needs a reflash |
+| A quick stop could never complete on these drives: trials 124 and 126 (unattended) ended `OBSERVATION_SCOPE` | The stop rule treated every released report as outside its scope, a provisional policy written before `000B` was measured | `QUICK_STOP` only: a not-running cycle with `2100` released, `6041` low bits `000`, mode 1 and no alarm is `OBSERVED`, and `monitorObservation` keeps the release. A `HALT` still refuses a release | `quickStopReleaseIsTheMeasuredTerminal` in `test/stop_action_test.cpp`, replaying trials 124 and 126 and five neighbors; fails without the fix | **Not retested.** Both drives are released, and no enable can be admitted until they are power-cycled and an attendant observes the power-up shaft |
 | The soak parser read the EVIDENCE header `outcome=1` (read success) as a failure | Wrong outcome table in `scripts/s2_evidence.py` | `READ_OUTCOMES`, failure only above 1 (`edba06e`) | `test_measured_width_identity_succeeds_and_keeps_its_discrepancy` in `scripts/s2_evidence_test.py` | Packet 11's live baseline |
 | The soak watcher flagged an operation in flight as an anomaly | `ops - opsOk` is 1 while an operation runs | Watch failure, refusal and stop counters instead | Scratch tool only, not shipped | Stress run, no false alarm since |
 | **Open, not a library defect.** Three console losses in stress1, whole chunks of 64, 64 and 35 bytes, between the S2's UART and pyserial | Localized below pyserial (driver, USB link or the ESP-Prog-2 bridge) and after about a minute of console silence. Not host load, host read latency, or the S2's console path. Idle time, 20 ms read load and bridge state are still confounded | None yet. The line numbers detect each loss; runs with quiet spells of at most about 10 s showed none (1,379 bursts) | Host option `--keepalive-s` (`test_keepalive_writes_only_newlines_and_counts_them`) for the A/B test | Pending: A/B at stress1's settings, 3 h each, with and without the keepalive. See the soak report |
@@ -40,19 +43,33 @@ The plan was recorded before each send in the ledger [`20261103-campaign.jsonl`]
 
 **Budget.** The firmware caps admissions per boot: 12 motion admissions, 3 per route and node, 60 s per route (`ROUTE_MOTION_TOTAL`, `ROUTE_MOTION_PER_CASE`, `ROUTE_CUTOFF_MS`), and a planned stop inside a move counts as one more. Those counts reset on reboot, so `scripts/s2_bench.py` also keeps a campaign ledger across boots: every motion command needs `--campaign PATH`, a send entry is written before the line goes out, and it refuses at the same caps or a trial number not above every earlier one. A missing ledger is refused unless `--new-campaign` starts it, so a mistyped path cannot reset the count.
 
+## Campaign record, second campaign (2026-11-03, unattended)
+
+The full record, written before transmitting, is in the [unattended bench report](../2026-11-03_unattended_bench.md#campaign-record-written-before-transmitting). What differs from the first:
+
+| Field | State |
+| --- | --- |
+| Authorization | The user's written waiver, verbatim in the report, replacing the attendant and independent cutoff for this campaign only. `scripts/s2_bench.py --unattended-waiver` stored it in each request and send entry, asked no attendant question and stored every eye-only answer as `unattended: not observed` |
+| Image | `e17271a`, the attended session's boot, not reflashed: a new boot would lose both sessions' latest controlwords. So no record holds controller counters |
+| Ledger and budget | [`20261103b-campaign.jsonl`](../../bench/20261103b-campaign.jsonl), new; 9 sends, 3 motion admissions planned and made, one admission of the boot left unused |
+| Cases | Trial 121, node 2, `move` 0 → 250 at 2 rpm with packet 19's evidence; trial 124, node 2, stationary `000B` from the move's `000F`; trial 126, node 1, stationary `000B` from the halted `010F` |
+| Observation | Drive reports only. No shaft, LED or other physical observation |
+| Result | No alarm, nonzero `1001` or `603F`, EMCY, lost record or console loss. Least free stack 7,024 of 12,288 bytes during the move, largest service gap 5 ms, heap unchanged at 50,060 bytes free |
+
 ## The packet's cases
 
-| Case | Route | State after the first campaign |
+| Case | Route | State after both campaigns |
 | --- | --- | --- |
 | Absolute move, node 1 | `position` (isolated experiment) | **Ran** (trial 111): accepted, complete, quarter turn CCW |
-| Production absolute lifecycle | `move`, through `AxisSession::requestMove` | Not run. Evidence now exists: acceptance `6041` `0x1000`, completion `2100` `0x0001`, `AFTER_ABSENCE` |
+| Production absolute lifecycle | `move`, through `AxisSession::requestMove` | **Ran** (trial 121, node 2, unattended): `SUCCEEDED` with its own rearm, acceptance `6041` `0x1000` and completion `2100` `0x0001` under `AFTER_ABSENCE` as on node 1. Completion read `6064=251`, the next read 250 |
 | Relative move | None, by design | Packet 21's wire base is unevidenced, so every request is refused |
 | Stop during a move | `position` with a named stop, or `stop` | **HALT ran** (trial 113), stopped and held; `000B` during a move not run |
-| Second case on the same node | `rearm` after `position`; the move's own rearm runs inside the lifecycle | **Rearm ran** (trial 112), then trial 113 on the same node |
-| Node 2 | Any route on node 2 | P1 to P3 ran (trials 116 to 118); no move |
+| Stationary stop | `stop` | **`000B` ran** from `000F` (trial 124, node 2) and from `010F` (trial 126, node 1): each drive left operation and released the motor, and neither moved. The fixed quick stop is not retested. A stationary `010F` from `000F` not run |
+| Second case on the same node | `rearm` after `position`; the move's own rearm runs inside the lifecycle | **Rearm ran** (trial 112), then trial 113 on the same node; the `move`'s own rearm ran in trial 121, then trial 124 on node 2 |
+| Node 2 | Any route on node 2 | P1 to P3 ran (trials 116 to 118), then the `move` (trial 121); node 1's retained state read unchanged afterwards (trial 123) |
 | Two-node work with an urgent stop on the other node | Not possible as routes stand: one route runs at a time | A two-node plan with its own bounds; keep the second axis stationary meanwhile |
-| Task stack during actions | Every route records it | **Measured:** least free 8,492 of 12,288 bytes, during the HALT |
-| Controller counters | `TRIAL_RES tec0 rec0 tec1 rec1`, added after the campaign | Not in the first campaign's records; no controller report and no failed TX report occurred |
+| Task stack during actions | Every route records it | **Measured:** least free 8,492 of 12,288 bytes during the HALT, then 7,024 during the unattended `move`; the stops went no lower |
+| Controller counters | `TRIAL_RES tec0 rec0 tec1 rec1`, added after the first campaign | In neither campaign's records: the second ran on the unflashed image. No controller report and no failed TX report occurred in either |
 
 ## Review of the campaign tools
 
@@ -82,14 +99,16 @@ The lead added one more: an EMCY withdrawal used the route's own time, which the
 
 ## Next smallest measurement
 
-A second campaign with its own ledger and record, attendant and cutoff, after a reflash to the current commit:
+The second campaign covered the plan this section held before it, except the stationary `010F` and the `1003` read. Its move ran on node 2, not node 1, because node 1's session ended at the HALT's `010F` and so had no admitted `000F` predecessor. Both drives are now released, and both have had motion writes since their last power-up, so no enable can be admitted until they are power-cycled. What remains:
 
-1. Node 1: P1, P2, enable, then the `move` route 0 → 250 with the measured evidence. It is the first run of the library's own move lifecycle.
-2. Node 1, stationary from idle `000F`: `010F`; then, on a new power-up, `000B`.
-3. Node 2: P2, enable and one `move`, then node 1's retained outcome checked unchanged.
-4. The first `1003` read, with the fault LED observed before and after.
+1. **An attended campaign** with its own ledger and record, attendant and cutoff, after a power cycle of both drives and a reflash to the current commit, so that every record carries controller counters:
+   - the enable on one node, with the attendant's power-up shaft observation, then a stationary `000B` from its `000F`: the hardware retest of the fixed quick stop, which should end `OBSERVED` with the release kept if the drive repeats trial 124;
+   - a stationary `010F` from idle `000F` on the other node, since a node left released or halted cannot be enabled again on that power-up;
+   - the first `1003` read, with the fault LED observed before and after: pending.
+2. **Later, each with its own route or measurement:** `000B` during a move; packet 21's relative base; the settings, alarm-clear and counter-zero trials of packets 12 to 14, 17 and 18 (backlog H03, S12); whether word 7 pulls a displaced shaft back; whether completion at `6064=251`, then 250, is overshoot or counter dither.
+3. **Communication:** the unattended console-loss A/B soak, 3 h each with and without `--keepalive-s` (defects table above).
 
-`000B` on a released state stays gated. The only evidenced released state is word 6's (`2100` released set, shaft free, trial 103), inside an enable, and no route stops there on purpose.
+`000B` with no known predecessor on a released state stays gated (packet 16 step 3). Two released states are now evidenced: word 6's inside an enable (`2100` released set, shaft free, trial 103) and the state `000B` leaves (trials 124 and 126). The library refuses a stop on an idle released drive on both paths, so neither opens it, and no route stops in word 6's state on purpose.
 
 ## Checks
 

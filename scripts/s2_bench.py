@@ -58,7 +58,11 @@ TRIALS = {
     "position": ("P", True, "packet 19"),
     "rearm": ("R", True, "packet 19 rearm"),
     "move": ("G", True, "packet 20"),
+    "readiness-history": ("H", False, "packet 4 / packet 22 step 2"),
 }
+# Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
+# and after: --fault-led prompt asks, unobserved records that nobody looked.
+FAULT_LED_ROUTES = ("readiness-actions", "readiness-history")
 # PONG routes= of the line protocol this runner speaks: 3 adds the CRC-32 field. Any other image
 # would misread the line, so it is refused before anything is sent.
 ROUTE_PROTOCOL = 3
@@ -214,9 +218,9 @@ def trial_line(args, parser):
                            ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
         fields += _stop_fields(args, parser, 16)
-    if args.command != "readiness-actions" and args.fault_led is not None:
-        parser.error("--fault-led belongs to readiness-actions")
-    if args.command == "readiness-actions" and args.fault_led is None:
+    if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
+        parser.error("--fault-led belongs to %s" % " and ".join(FAULT_LED_ROUTES))
+    if args.command in FAULT_LED_ROUTES and args.fault_led is None:
         parser.error("--fault-led is required: prompt, or unobserved when nobody can see the drive")
     return fields
 
@@ -436,11 +440,11 @@ def before_send(args, fields, ask, operator):
                              "Attendant: turn the node %d shaft by hand now. Type FREE or HOLDING: " % node,
                              lambda text: SHAFT.get(text))
         fields[4] = shaft
-    if args.command == "readiness-actions" and args.fault_led == "prompt":
+    if args.command in FAULT_LED_ROUTES and args.fault_led == "prompt":
         ask_operator(ask, operator, "fault_led_before",
                      "Fault LED of node %d now, as seen (for example off, red, red blinking): " % node,
                      lambda text: text or None)
-    elif args.command == "readiness-actions":
+    elif args.command in FAULT_LED_ROUTES:
         operator["fault_led_before"] = {"typed": "unobserved", "accepted": True}
 
 
@@ -453,7 +457,7 @@ def after_capture(args, fields, ask, operator):
                                          "approximate rotation against the mark, or NONE: " % node))
     if args.command == "enable":
         questions.append(("holding_after", "Attendant: turn the node %d shaft by hand now: FREE or HOLDING? " % node))
-    if args.command == "readiness-actions" and args.fault_led == "prompt":
+    if args.command in FAULT_LED_ROUTES and args.fault_led == "prompt":
         questions.append(("fault_led_after", "Fault LED of node %d now, as seen: " % node))
     for key, question in questions:
         if args.unattended_waiver:

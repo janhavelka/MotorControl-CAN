@@ -1,8 +1,8 @@
 # Packet 20: finite absolute-position lifecycle
 
-**After the attended session, 2026-11-03.** Packet 19's evidence now exists for node 1: acceptance `6041` `0x1000`, completion `2100` `0x0001` under `AFTER_ABSENCE` ([packet 19](packet_19.md)). The library default still refuses, and the `move` route, which passes that evidence through `AxisSession::requestMove`, has not run. It is the next campaign's first case.
+**After the 2026-11-03 sessions.** Packet 19's evidence exists for node 1: acceptance `6041` `0x1000`, completion `2100` `0x0001` under `AFTER_ABSENCE` ([packet 19](packet_19.md)). The unattended session then ran the `move` route, which passes that evidence through `AxisSession::requestMove`, once on node 2 (trial 121, record 111): 0 to 250 at 2 rpm, `SUCCEEDED` with completion observed and its own `000F` rearm acknowledged, with node 1's bits. Completion read `6064=251` and the next read 250; whether that is overshoot or counter dither is not established. No shaft was observed. The library default still refuses. One specimen and one firmware: not qualified. See the [unattended bench report](../2026-11-03_unattended_bench.md).
 
-Owns the absolute part of original prompt 33. Host and fake evidence only. **The lifecycle is gated: the default `MoveEvidence` returns `UNSUPPORTED`, and no specimen has run it.** Acceptance and completion bits are not established for these specimens, so they are an explicit caller input from packet 19, not a guessed mask.
+Owns the absolute part of original prompt 33. When this packet closed, host and fake evidence only. **The lifecycle is gated: the default `MoveEvidence` returns `UNSUPPORTED`.** No source establishes the acceptance and completion bits, so they are an explicit caller input from packet 19's measurement, not a guessed mask.
 
 ## Delivered
 

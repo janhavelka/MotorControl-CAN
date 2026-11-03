@@ -24,14 +24,22 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {
-// StateBlock bits: ERRORS 0, MONITORS 2, STATUS 3, FEEDBACK 4.
+// StateBlock bits: ERRORS 0, ERROR_HISTORY 1, MONITORS 2, STATUS 3, FEEDBACK 4.
 constexpr uint8_t FULL = 0x1d;  // 1001, 603F, 2100..2102, 6041, 6061, 6064, 606C.
 constexpr uint8_t IMAGE = 0x1c; // The DEC-1 accepted image: 2100..2102, 6041, 6061, 6064, 606C.
 constexpr uint8_t STOP_STATE = 0x0c; // MONITORS and STATUS, what requestStop judges.
+constexpr uint8_t ERROR_STATE = 0x01;   // 1001 and 603F.
+constexpr uint8_t HISTORY_STATE = 0x02; // 1003:00 and only the entries its count names.
 static_assert(FULL == (1u << unsigned(L::StateBlock::ERRORS) | 1u << unsigned(L::StateBlock::MONITORS) |
                        1u << unsigned(L::StateBlock::STATUS) | 1u << unsigned(L::StateBlock::FEEDBACK)),
               "FULL is ERRORS, MONITORS, STATUS and FEEDBACK");
 static_assert(IMAGE == (FULL & ~(1u << unsigned(L::StateBlock::ERRORS))), "IMAGE drops ERRORS");
+static_assert(ERROR_STATE == 1u << unsigned(L::StateBlock::ERRORS) &&
+                  HISTORY_STATE == 1u << unsigned(L::StateBlock::ERROR_HISTORY),
+              "ERROR_STATE and HISTORY_STATE are single blocks");
+// 1003:00 is one byte and each entry four, as the typed read declares them.
+static_assert(L::OBJECT_1003_00.widthBytes == 1 && L::OBJECT_1003_01.widthBytes == 4,
+              "history widths follow the generated declarations");
 enum ReadMode : uint8_t { READ_STATE, READ_GROUP, READ_TUNING, READ_SINGLE, READ_IDENTITY };
 // Typed reads whose context is the plain ReadContext; the others run through a DriverContext.
 bool plainRead(uint8_t mode) { return mode == READ_STATE || mode == READ_IDENTITY; }
@@ -57,10 +65,11 @@ static_assert(unsigned(L::MoveSignalSource::STATUSWORD) == 1 && unsigned(L::Move
                   unsigned(L::CompletionRule::AFTER_ABSENCE) == 1 &&
                   unsigned(L::CompletionRule::AFTER_ACCEPTANCE) == 2,
               "the host line numbers MoveSignalSource and CompletionRule as declared");
-const char* const names[] = {"none", "actions", "io",       "tuning", "mode1",
-                             "enable", "stop",  "position", "rearm",  "move"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::MOVE) + 1, "one name per route");
-bool isMotion(RouteKind kind) { return kind >= RouteKind::MODE_ONE; }
+const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
+                             "enable", "stop",    "position", "rearm",  "move", "history"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::READ_HISTORY) + 1, "one name per route");
+// MODE_ONE..MOVE only: READ_HISTORY follows MOVE in RouteKind and is a read.
+bool isMotion(RouteKind kind) { return kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE; }
 // Routes that may plan a stop of their own, counted against STOP as well.
 bool plansStop(const RoutePlan& p) {
     return (p.kind == RouteKind::POSITION || p.kind == RouteKind::MOVE) && p.stopKind;
@@ -187,8 +196,9 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'S', RouteKind::STOP, STOP_FIELDS, countOf(STOP_FIELDS)},
                                 {'P', RouteKind::POSITION, POSITION_FIELDS, countOf(POSITION_FIELDS)},
                                 {'R', RouteKind::REARM, REARM_FIELDS, countOf(REARM_FIELDS)},
-                                {'G', RouteKind::MOVE, MOVE_FIELDS, countOf(MOVE_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::MOVE), "one grammar per route");
+                                {'G', RouteKind::MOVE, MOVE_FIELDS, countOf(MOVE_FIELDS)},
+                                {'H', RouteKind::READ_HISTORY, READ_FIELDS, countOf(READ_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::READ_HISTORY), "one grammar per route");
 // One field's value, read from or written to the plan through its declared width.
 int64_t load(const RoutePlan& p, const Field& f) {
     const unsigned char* at = reinterpret_cast<const unsigned char*>(&p) + f.offset;
@@ -274,6 +284,9 @@ unsigned terminalBound(const RoutePlan& p) {
         return 7 + 9 + 4 + 7 + 3 + 7;
     case RouteKind::READ_TUNING:
         return 7 + 6 + 6 + 12 + 7 + 7;
+    case RouteKind::READ_HISTORY:
+        // The full read, 1003:00 and at most four entries (a larger count fails the read), 1001 and 603F.
+        return 9 + 1 + 4 + 2;
     case RouteKind::MODE_ONE:
         return 15 + 1 + 9 + 7u * (p.cycles - 1u);
     case RouteKind::ENABLE:
@@ -522,7 +535,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.terminal = r.evidenceLost = r.lossCancel = r.tailOverflow = r.unsettled = false;
     r.step = 0;
     r.motionTotal = motionTotal_;
-    r.caseCount = motionCases_[unsigned(plan.kind)][index];
+    r.caseCount = motion ? motionCases_[unsigned(plan.kind)][index] : 0; // Only motion routes have a row.
     r.cycles = 0;
     r.startedUs = now;
     r.completedUs = r.maxServiceGapUs = 0;
@@ -535,6 +548,9 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.trafficCount = 0;
     r.checkPresent = r.checkPassed = false;
     r.check = r.last = RouteSnapshot();
+    r.historyPresent = false;
+    r.historyCount = 0;
+    std::memset(r.history, 0, sizeof r.history);
     r.statusPresent = false;
     r.statusCode = 0;
     r.statusDetail = 0;
@@ -596,8 +612,12 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                     {STEP_OBSERVE, 0}};
     static const Step rearm[] = {{STEP_STATE, FULL}, {STEP_CHECK_REARM, 0}, {STEP_REARM_WRITE, 0}, {STEP_OBSERVE, 0}};
     static const Step move[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_MOVE, 0}};
-    const Step* const tables[] = {nullptr, actions, io, tuning, mode, enable, stopSteps, position, rearm, move};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::MOVE) + 1, "one table per route");
+    // 1001 and 603F before and after the first 1003 read; the history is read alone between them.
+    static const Step history[] = {
+        {STEP_STATE, FULL}, {STEP_STATE, HISTORY_STATE}, {STEP_STATE, ERROR_STATE}, {STEP_END, 0}};
+    const Step* const tables[] = {nullptr,   actions,   io,       tuning, mode, enable,
+                                  stopSteps, position,  rearm,    move,   history};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::READ_HISTORY) + 1, "one table per route");
     steps_ = tables[unsigned(plan.kind)];
     stepIndex_ = subStep_ = 0;
     pending_ = stepActive_ = readActive_ = actionStarted_ = abortRequested_ = emcyHandled_ = false;
@@ -1046,6 +1066,19 @@ bool BenchRoute::snapshot(uint8_t mask, uint64_t now) noexcept {
     L::ReadTarget target;
     if (!currentTarget(target))
         return false;
+    // ERROR_HISTORY has no RouteSnapshot field: it is kept apart, and a read of it alone leaves the
+    // latest snapshot as it was. The library publishes only the active entries; nothing else is copied.
+    if (mask & HISTORY_STATE) {
+        if (mask != HISTORY_STATE ||
+            !L::getStateBlock(context_.read, L::StateBlock::ERROR_HISTORY, target, now, ROUTE_OPERATION_US, block_) ||
+            block_.errorCount > 4)
+            return false;
+        record_.historyPresent = true;
+        record_.historyCount = block_.errorCount;
+        for (unsigned i = 0; i < 4; ++i)
+            record_.history[i] = i < block_.errorCount ? block_.errorHistory[i] : 0;
+        return true;
+    }
     RouteSnapshot s;
     const L::StateBlock blocks[] = {L::StateBlock::ERRORS, L::StateBlock::MONITORS, L::StateBlock::STATUS,
                                     L::StateBlock::FEEDBACK};
@@ -1561,7 +1594,7 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
 constexpr unsigned MOVE_SAMPLES = 5;
 unsigned BenchRoute::summaryCount() const noexcept {
     const RouteRecord& r = record_;
-    unsigned count = 2 + r.checkPresent + (r.last.blocks != 0) + r.emcy + r.statusPresent;
+    unsigned count = 2 + r.checkPresent + (r.last.blocks != 0) + r.historyPresent + r.emcy + r.statusPresent;
     if (r.plan.kind == RouteKind::REARM)
         count += 1;
     if (r.plan.kind == RouteKind::MOVE)
@@ -1651,6 +1684,17 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    labels[i], unsigned(i == 0 ? r.checkPassed : 1), unsigned(s.blocks), unsigned(s.errorRegister),
                    unsigned(s.errorCode), unsigned(s.monitor), unsigned(s.statusword), unsigned(s.mode),
                    static_cast<long>(s.position), static_cast<long>(s.velocity));
+    }
+    if (r.historyPresent && !index--) {
+        // Raw 1003:00 and only the entries it names, never interpreted: an entry that was not read is
+        // absent from the line, not printed as zero. Each " eN=xxxxxxxx" is twelve characters.
+        constexpr int ENTRY = 12;
+        char entries[4 * ENTRY + 1];
+        put(entries, sizeof entries, " e1=%08lx e2=%08lx e3=%08lx e4=%08lx", static_cast<unsigned long>(r.history[0]),
+            static_cast<unsigned long>(r.history[1]), static_cast<unsigned long>(r.history[2]),
+            static_cast<unsigned long>(r.history[3]));
+        const unsigned count = r.historyCount < 4 ? r.historyCount : 4u;
+        return put(out, size, "TRIAL_HISTORY count=%u%.*s\n", unsigned(r.historyCount), ENTRY * int(count), entries);
     }
     if (r.emcy && !index--)
         return put(out, size, "TRIAL_EMCY data=%02x%02x%02x%02x%02x%02x%02x%02x\n", unsigned(r.emcyData[0]),

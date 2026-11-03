@@ -8,8 +8,9 @@
  * measurement and a closed gate refuses. A success with those reports unqualified cannot happen.
  * A relative move is gated twice: the manuals give the bit 6 trigger but not what the drive adds
  * the displacement to, so MoveEvidence::relativeBase must name the measured base. No base is
- * measured on any specimen, so every relative request is refused with UNSUPPORTED today. Fake-owner
- * tests are the only evidence that either lifecycle runs; no specimen has run one.
+ * measured on any specimen, so every relative request is refused with UNSUPPORTED today. The
+ * absolute lifecycle ran once on one specimen and firmware (docs/position_parameters.md); no specimen
+ * has run a relative one, and fake-owner tests are the rest of the evidence.
  *
  * Phase order (D-01): the caller's fresh state read proves mode 1, low bits 111 and released clear
  * after the actual latest acknowledged 000F under this reservation, which no move writes itself.

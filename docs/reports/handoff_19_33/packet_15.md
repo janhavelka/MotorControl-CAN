@@ -1,6 +1,6 @@
 # Packet 15: mode and enable behavior, and the supported actions
 
-Resumes prompt 30. **Host and fake evidence only: no specimen has run `prepareEnable`, and its gate is closed by default.** Physical steps 1 and 3 and an enable trial need an attendant, and the bench was running the communication soak with no one present. Release stays absent.
+Resumes prompt 30. **When this packet closed, host and fake evidence only: no specimen had run `prepareEnable`, and its gate is closed by default.** Physical steps 1 and 3 and an enable trial need an attendant, and the bench was running the communication soak with no one present. Release stays absent. The sessions below then ran P1 to P3 on both specimens and P4's `000B` on node 2.
 
 ## Delivered
 
@@ -42,6 +42,10 @@ It confirmed every source claim and literal byte, and found no replayed or retri
 ## Attended session, 2026-11-03
 
 P1 to P3 ran on both nodes; P4 did not, because the campaign cap was reached. Both shafts hold torque at power-up. Word 6 releases the motor, word 7 energizes it and word 15 completes the enable. The first attempt exposed a defect, fixed in `e17271a`: the enable compared `6041` bit 10, which follows the enable state. After it, both enables succeeded with identical bytes. The heap-allocated `mode1` and `enable` bench routes ran them; the enable's live stack low was 8,700 of 12,288 bytes free. P4, the stationary `010F` and `000B`, is still owed. See the [attended bench report](../2026-11-03_attended_bench.md).
+
+## Unattended session, 2026-11-03
+
+P4's `000B` ran on node 2 (trial 124), on the user's written waiver with nobody at the bench, from the `000F` rearm of the library move just before it rather than from the enable's own `000F`. Within one cycle the drive read `6041=8050` and `2100=0011`: it left operation and released the motor. The library ended it `OBSERVATION_SCOPE`; it now completes a quick stop on that report, not yet retested on hardware. P4's `010F` from idle `000F` is still owed. No enable ran: the runner refuses one under the waiver, and the next needs both drives power-cycled and an attendant's power-up shaft observation. See the [unattended bench report](../2026-11-03_unattended_bench.md).
 
 ## Physical plan, as written before the session
 

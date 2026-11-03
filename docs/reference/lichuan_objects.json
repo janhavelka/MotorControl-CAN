@@ -22616,7 +22616,7 @@
       "decision": "packet 15 review ruling",
       "selected_by": "handoff lead",
       "selected_on": "2026-11-03",
-      "fixture_status": "no specimen has run an enable",
+      "fixture_status": "run once by the attended enable on each of two specimens on 2026-11-03 (trials 108 and 118), with no read-effect observation",
       "rows": [
         "0x607A:00",
         "0x60FF:00"

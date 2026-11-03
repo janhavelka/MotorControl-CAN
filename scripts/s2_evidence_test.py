@@ -529,6 +529,98 @@ class FailedEvidence(unittest.TestCase):
         self.assertIn("plan_size_not_in_inventory", codes(replay(record(0, [ok], frames))))
 
 
+_HISTORY_FULL = ((0x1001, 0, 1, 0), (0x603F, 0, 2, 0), (0x2100, 0, 2, 1), (0x2101, 0, 2, 0xA580),
+                 (0x2102, 0, 2, 0xF008), (0x6041, 0, 2, 0x8037), (0x6061, 0, 1, 0), (0x6064, 0, 4, 0),
+                 (0x606C, 0, 4, 0))
+HISTORY_META = {"command": "readiness-history", "node": 1, "trial": 5, "line": "TH1,5,K1f3aceee",
+                "status": "captured"}
+
+
+def history_record(count, entries=(), extra=(), failure=0, why="none", summary=None, after=0):
+    """A history route record in the firmware's format, with wire frames matching every terminal.
+    Values are this test's, not any drive's. extra: 1003 entries read beyond the count. after: 603F
+    in the closing read."""
+    reads = list(_HISTORY_FULL) + [(0x1003, 0, 1, count)]
+    reads += [(0x1003, n + 1, 4, value) for n, value in enumerate(tuple(entries) + tuple(extra))]
+    if failure == 0:
+        reads += [(0x1001, 0, 1, 0), (0x603F, 0, 2, after)]
+    terminals, traffic = [], []
+    for step, (index, subindex, width, value) in enumerate(reads, 1):
+        mux = "%02x%02x%02x" % (index & 0xFF, index >> 8, subindex)
+        data = value.to_bytes(4, "little").hex()
+        sent = 1000 * step
+        terminals.append(result(step, "%04x:%02x" % (index, subindex), size=width, data=data, admitted=sent,
+                                completed=sent + 500))
+        traffic += [frame(evidence.TX, sent, 0x601, "40" + mux + "00000000"), report_frame(sent + 500),
+                    reply(sent + 500, "%02x" % (0x43 | (4 - width) << 2) + mux + data, sent)]
+    if summary is None:
+        summary = "TRIAL_HISTORY count=%d%s" % (count, "".join(" e%d=%08x" % (n + 1, value)
+                                                                for n, value in enumerate(entries)))
+    summaries = ["TRIAL_PLAN route=history node=1 trial=5 attended=0",
+                 "TRIAL_RES stack0=9300 stack1=9100 heap0=60000 heap1=59000 heapMin=58000 largest=40000 gap=1000 "
+                 "dropped=0 admission=0 started=10 completed=20 tec0=0 rec0=0 tec1=0 rec1=0",
+                 "TRIAL_LAST passed=1 blocks=%s 1001=00 603f=%04x 2100=0001 6041=8037 6061=00 6064=0 606c=0" % (
+                     ("01", after) if failure == 0 else ("1d", 0))]
+    if summary:
+        summaries.append(summary)
+    rows = ["TRIAL admitted route=history node=1 trial=5 motion=0 case=0; finite typed route, no retry",
+            "TRIAL id=5 node=1 route=history failure=%d why=%s lost=0 terminals=%d traffic=%d tail=0 tailLost=0 "
+            "summaries=%d step=%d cycles=0 motion=0 case=0 unsettled=0 gap=1000 lossCancel=0" % (
+                failure, why, len(terminals), len(traffic), len(summaries), 3 if failure == 0 else 1)]
+    rows += summaries + terminals + traffic
+    rows.append("END trial terminals=%d traffic=%d tail=0 tailLost=0 lost=0; r=release" % (
+        len(terminals), len(traffic)))
+    return join(rows)
+
+
+class TrialHistory(unittest.TestCase):
+    """The history route: a plan as long as its own 1003:00 says, and a summary that is its terminals."""
+
+    def test_complete_records_for_each_count(self):
+        for count in range(5):
+            entries = [0x1234, 0xFF007531, 0x0BADF00D, 0x80000001][:count]
+            report = evidence.replay_bytes(history_record(count, entries, after=0x7531), HISTORY_META)
+            self.assertEqual(report.verdict, "complete", (count, report.errors))
+            self.assertTrue(report.inventory_checked)
+            self.assertEqual(report.terminals, 12 + count)
+            self.assertEqual((report.unknown, report.unknown_fields, report.malformed), ([], [], []))
+            summary = [r for r in report.records if r.kind == "TRIAL_HISTORY"][0]
+            self.assertEqual(summary.values, dict({"count": count},
+                                                  **{"e%d" % (n + 1): v for n, v in enumerate(entries)}))
+
+    def test_an_entry_past_the_count_is_off_plan(self):
+        report = evidence.replay_bytes(history_record(1, [0x1234], extra=[0x5678]), HISTORY_META)
+        self.assertEqual(report.verdict, "inconsistent")
+        self.assertIn("wrong_object_for_step", codes(report))
+        self.assertIn("history_differs_from_terminals", codes(report))
+
+    def test_summary_must_be_the_record_terminals(self):
+        changed = "TRIAL_HISTORY count=2 e1=00001234 e2=ff007532"
+        report = evidence.replay_bytes(history_record(2, [0x1234, 0xFF007531], summary=changed), HISTORY_META)
+        self.assertEqual(report.verdict, "inconsistent")
+        self.assertEqual(codes(report), {"history_differs_from_terminals"})
+        for line in ("TRIAL_HISTORY count=2 e1=00001234", "TRIAL_HISTORY count=1 e2=00001234",
+                     "TRIAL_HISTORY count=5 e1=1 e2=2 e3=3 e4=4"):
+            report = evidence.replay_bytes(history_record(2, [0x1234, 0xFF007531], summary=line), HISTORY_META)
+            self.assertIn("history_count_mismatch", codes(report), line)
+            self.assertEqual(report.verdict, "inconsistent", line)
+
+    def test_count_above_four_is_failed_evidence(self):
+        # The typed read refuses a count above four after 1003:00: no entry, no summary, nothing after.
+        report = evidence.replay_bytes(history_record(5, failure=3, why="read", summary=""), HISTORY_META)
+        self.assertEqual(report.verdict, "failed-evidence", report.errors)
+        self.assertEqual((report.failure_name, report.terminals), ("SERVICE", 10))
+        self.assertNotIn("TRIAL_HISTORY", report.kinds)
+
+    def test_record_pinned_to_its_request(self):
+        data = history_record(1, [0x1234])
+        report = evidence.replay_bytes(data, dict(HISTORY_META, command="readiness-actions"))
+        self.assertEqual(report.verdict, "inconsistent")
+        self.assertIn("wrong_procedure", codes(report))
+        self.assertIn("wrong_node", codes(evidence.replay_bytes(data, dict(HISTORY_META, node=2))))
+        self.assertEqual(evidence.TRIAL_ROUTES["readiness-history"], "history")
+
+
 class TraceLoss(unittest.TestCase):
     def test_trace_saturation_is_failed_evidence(self):
         ok, frames = first_step_ok()
