@@ -50,13 +50,16 @@ DRIFT_SAMPLES = ("src/profiles/lichuan_c/Actions.cpp",
 DRIFT_IGNORED = ("-fdiagnostics-color", "-fmacro-prefix-map", "-fstack-usage", "-fcallgraph-info")
 
 SOURCE_GLOBS = ("src/**/*.cpp", "adapters/owner/*.cpp", "adapters/canopennode/*.cpp",
-                "adapters/twai/*.cpp", "examples/common/*.cpp")
-HEADER_GLOBS = ("include/**/*.h", "adapters/**/*.h", "examples/common/*.h",
+                "adapters/twai/*.cpp", "examples/common/*.cpp", "examples/s2_bench/*.cpp",
+                "examples/s2_bench/main/*.cpp", "examples/probe_idf/main/*.cpp")
+HEADER_GLOBS = ("include/**/*.h", "adapters/**/*.h", "examples/common/*.h", "examples/s2_bench/*.h",
                 "experiments/canopen_service_fit/vendor/CANopenNode/**/*.h")
 SDK_ONLY = {
     "adapters/twai/IdfTwaiDriver.cpp": "includes ESP-IDF TWAI driver headers",
     "examples/common/EspProbeMain.cpp": "includes FreeRTOS and esp_attr headers",
     "examples/common/EspProbePlatform.cpp": "includes FreeRTOS, esp_timer and console driver headers",
+    "examples/s2_bench/main/main.cpp": "includes FreeRTOS and console driver headers",
+    "examples/probe_idf/main/main.cpp": "includes FreeRTOS headers through EspProbeMain.h",
 }
 CONTEXT_TYPES = (
     ("ActionContext", "MotorControlCAN/profiles/lichuan_c/Actions.h", "MotorControlCAN::LICHUAN_C::ActionContext"),

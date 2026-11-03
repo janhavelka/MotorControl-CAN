@@ -50,11 +50,19 @@ actions. Digital-output and tuning operations keep their existing owners.
 
 ## Historical errors and independent results
 
-The context copies the initial read context, including original raw `603F`,
-status and error-history entries. The sole owner's original EMCY records and
-interrupted operation results remain separate; the application retains its
-incident snapshot before requesting clear. Neither action clears host event
-history, releases another result or declares application health restored.
+An alarm clear keeps `AlarmIncident incident`: the raw prerequisite values of
+all four retained blocks, namely `1001`, `603F`, the error-history count and
+entries, `2100` to `2102`, `6041` and `6061`, with the read's operation and one
+earliest/latest bound across them. Later cycles replace the context's observations;
+this record stays. It does not keep each field's own provenance: every field shares
+the frozen reservation's route and node epoch, and the application keeps its own
+read if it needs per-field times. A device-position zero keeps no such record, and
+its first observations are replaced by later cycles.
+
+The sole owner's original EMCY records and interrupted operation results remain
+separate; the application retains its incident snapshot before requesting clear.
+Neither action clears host event history, releases another result or declares
+application health restored.
 
 `2100` bit 3 has consistent alarm meaning in EN86 p17 and ZH86 p18. The
 conflicting `6041` alarm bits are retained raw and are not combined into a reset
@@ -62,9 +70,9 @@ success mask. `603F` latching/clearing semantics are unspecified: a subsequent
 nonzero raw value is preserved even if the monitor no longer reports alarm.
 This difference from the RS profile is intentional.
 
-Each download terminal is retained separately. `execution` describes the
-effecting write (`2301=1` or `2302=1`), while command history records the arm and
-return-to-zero writes too. A successful trigger followed by a failed final zero
+Each download terminal is retained separately in `commandHistory`: the effecting
+write is slot 0 for `2301=1` and slot 1 for `2302=1`. `execution` describes that
+write, while the other slots record the arm and return-to-zero writes. A successful trigger followed by a failed final zero
 keeps its trigger acknowledgement; it does not claim rearm or completion.
 `completion=OBSERVED` requires the new typed observations, never just an SDO
 reply. Their sequential acquisition window is not an atomic physical snapshot.
@@ -130,9 +138,11 @@ resume/counter relationships remain precise gates. Counter zero, host origin,
 successful homing, release and factory reset stay distinct. No action here
 publishes a home reference or qualified physical measurement.
 
-Storage is fixed and caller-owned. On the Windows GCC 15.1 x64 ABI, the action
-context occupies 7,496 bytes, including the copied original read and three
-download terminals. This is an object-size measurement, not target stack usage.
-Atomic candidate copies also consume stack; firmware integration must measure
-its actual stack budget before placing this lifecycle in a task. No heap or
-target stack sufficiency is implied by the native tests.
+Storage is fixed and caller-owned. On the pinned Xtensa compiler the action
+context occupies 4,880 bytes, including one current read and three download
+terminals, so keep it in static or owner storage, not a task local. Calls validate
+and then write that storage in place, with no context copy on the stack;
+`scripts/check_stack.py` holds their frames and known call chains to the project
+limits. Those are compiler measurements with visible unknown edges, not a measured
+task high-water mark. No heap or target stack sufficiency is implied by the native
+tests.

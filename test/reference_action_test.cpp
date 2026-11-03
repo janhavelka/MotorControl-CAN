@@ -348,50 +348,58 @@ void successfulActionsRetainEvidence() {
         L::ActionContext action;
         const unsigned sent = r.wire.sentCount;
         r.prepare(action, position != 0);
-        CHECK(action.originalState.operation == r.state.operation &&
-              action.originalState.count == r.state.count &&
-              action.originalState.state == M::ReadState::SUCCEEDED &&
-              action.originalState.startedUs == r.state.startedUs &&
-              action.originalState.servicedUs == r.state.servicedUs);
-        for (unsigned i = 0; i < r.state.count; ++i) {
-            const auto& a = action.originalState.values[i];
-            const auto& b = r.state.values[i];
-            CHECK(a.valid == b.valid && a.raw == b.raw && a.object.index == b.object.index &&
-                  a.object.subindex == b.object.subindex &&
-                  a.provenance.earliestUs == b.provenance.earliestUs &&
-                  a.provenance.latestUs == b.provenance.latestUs &&
-                  a.provenance.deliveredUs == b.provenance.deliveredUs &&
-                  M::sameBinding(a.provenance.binding, b.provenance.binding));
+        CHECK(action.incident.present == (position == 0));
+        if (!position) {
+            const L::AlarmIncident& incident = action.incident;
+            CHECK(incident.readOperation == r.state.operation && incident.errorCode == 0xff05);
+            CHECK(incident.errorCount == 2 && incident.errorHistory[0] == 0x12340001 &&
+                  incident.errorHistory[1] == 0x12340002);
+            CHECK(incident.earliestUs >= r.state.startedUs && incident.latestUs <= r.state.servicedUs);
+            const L::StateBlock kept[] = {L::StateBlock::ERRORS, L::StateBlock::ERROR_HISTORY,
+                                          L::StateBlock::MONITORS, L::StateBlock::STATUS};
+            uint64_t earliest = UINT64_MAX, latest = 0;
+            for (L::StateBlock block : kept) {
+                const unsigned first = r.state.blockStart[unsigned(block)];
+                for (unsigned i = first; i < first + r.state.blockLength[unsigned(block)]; ++i) {
+                    const auto& value = r.state.values[i];
+                    if (!value.valid)
+                        continue;
+                    earliest = value.provenance.earliestUs < earliest ? value.provenance.earliestUs : earliest;
+                    latest = value.provenance.latestUs > latest ? value.provenance.latestUs : latest;
+                }
+            }
+            CHECK(incident.earliestUs == earliest && incident.latestUs == latest);
+            CHECK(incident.statusword == uint16_t(r.state.values[r.state.blockStart[unsigned(L::StateBlock::STATUS)]].raw));
+            CHECK(incident.modeRaw == 1);
+            const unsigned monitors = r.state.blockStart[unsigned(L::StateBlock::MONITORS)];
+            CHECK(incident.monitor == uint16_t(r.state.values[monitors].raw) &&
+                  incident.logicalInputs == uint16_t(r.state.values[monitors + 1].raw) &&
+                  incident.logicalOutputs == uint16_t(r.state.values[monitors + 2].raw));
         }
-        const Saved<L::ReadContext> original(action.originalState);
+        const Saved<L::AlarmIncident> original(action.incident);
         r.commands(action, position != 0);
         CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED &&
               action.completion == M::ActionCompletion::NOT_OBSERVED);
         if (position)
             r.checkWithdrawn();
-        const Saved<C::SdoCompletion> trigger(action.commandEvidence);
+        const Saved<C::SdoCompletion> trigger(action.commandHistory[position ? 1 : 0]);
         r.cycle(action);
         CHECK(action.state == M::ActionState::SUCCEEDED &&
               action.outcome == M::ActionOutcome::OBSERVED && action.observations == 1 &&
               action.completion == M::ActionCompletion::OBSERVED);
         CHECK(r.wire.sentCount == sent + (position ? 10 : 9));
-        trigger.unchanged(action.commandEvidence);
-        original.unchanged(action.originalState);
+        trigger.unchanged(action.commandHistory[position ? 1 : 0]);
+        original.unchanged(action.incident);
         fault.unchanged(r.services.node(0)->emcy);
         CHECK(r.services.node(0)->emcyCount == 1);
         if (position) {
-            CHECK(action.feedbackObservation.actualPosition == 0);
+            CHECK(action.extraObservation.actualPosition == 0);
             r.checkWithdrawn();
         } else {
-            CHECK(action.errorObservation.errorCode == 0xff05 &&
+            CHECK(action.extraObservation.errorCode == 0xff05 &&
                   action.monitorObservation.monitor == 0);
             CHECK(r.axis.originKnown && r.reference.nativeKnown &&
                   r.axis.binding.configurationGeneration == 7);
-            L::StateObservation history;
-            CHECK(L::getStateBlock(action.originalState, L::StateBlock::ERROR_HISTORY, r.current,
-                                   r.now, 1000, history));
-            CHECK(history.errorCount == 2 && history.errorHistory[0] == 0x12340001 &&
-                  history.errorHistory[1] == 0x12340002);
         }
         const Saved<L::ActionContext> terminal(action);
         CHECK(!r.next(action).ready);
@@ -517,7 +525,7 @@ void writeFailuresPreservePrefixes() {
                 for (unsigned i = 0; i < prefix; ++i)
                     r.command(action, position ? 0x2302 : 0x2301,
                               position ? (i == 1 ? 1 : 0) : (i == 0 ? 1 : 0));
-                const Saved<L::ReadContext> initial(action.originalState);
+                const Saved<L::AlarmIncident> initial(action.incident);
                 const auto work = r.next(action);
                 const auto id = r.admit(work.transfer);
                 const unsigned sent = r.wire.sentCount;
@@ -541,7 +549,7 @@ void writeFailuresPreservePrefixes() {
                     CHECK(action.commandHistory[i].protocolAcknowledged);
                 CHECK(action.commandHistory[prefix].outcome == terminal.outcome);
                 CHECK(r.wire.sentCount == sent + (failure ? 1u : 0u));
-                initial.unchanged(action.originalState);
+                initial.unchanged(action.incident);
                 if (position && (prefix > 1 || (prefix == 1 && failure)))
                     r.checkWithdrawn();
                 else
@@ -658,7 +666,7 @@ void deadlinesFaultsAndRebootKeepOriginalTerminals() {
                 r.turn(r.deadline - 1, O::ServiceBudget());
             const auto id = r.admit(work.transfer);
             r.turn(r.now);
-            const Saved<C::SdoCompletion> command(action.commandEvidence);
+            const Saved<C::SdoCompletion> command(action.commandHistory[position ? 1 : 0]);
             if (event == 0) {
                 r.wire.push(reply(work.transfer, position ? 0 : 1), r.deadline);
                 r.turn(r.deadline, budget(8, 0, 8, 0));
@@ -696,7 +704,7 @@ void deadlinesFaultsAndRebootKeepOriginalTerminals() {
             }
             CHECK(action.state == M::ActionState::FAILED &&
                   action.completion == M::ActionCompletion::NOT_OBSERVED && action.uncertain);
-            command.unchanged(action.commandEvidence);
+            command.unchanged(action.commandHistory[position ? 1 : 0]);
             if (position)
                 CHECK(!r.axis.originKnown && !r.reference.nativeKnown &&
                       !M::validatePreparedTarget(r.prepared, r.axis, nullptr, r.now));
@@ -874,6 +882,61 @@ void uncertainCounterTriggerCannotReopenThroughEpochSync() {
     r.checkWithdrawn();
 }
 
+void identityWidthsRefusedAtAdmission() {
+    for (unsigned position = 0; position < 2; ++position) {
+        Rig r;
+        r.acquire(position ? 0 : 8);
+        r.begin();
+        L::ActionOptions measured = r.policy();
+        measured.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+        L::ActionContext action;
+        const Saved<L::ActionContext> empty(action);
+        const M::Status refused =
+            position ? L::prepareSetDevicePosition(action, r.reservation, r.state, 0, r.axis, r.operation,
+                                                   r.now, r.deadline, measured)
+                     : L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now,
+                                            r.deadline, measured);
+        CHECK(!refused && refused.detail == int32_t(M::ActionError::ARGUMENT));
+        empty.unchanged(action);
+    }
+}
+// The cycle that clears the alarm must prepare the final ERRORS read. That is proved first.
+void unpreparableFinalReadRefusesBeforeAnyMutation() {
+    Rig r;
+    r.acquire(8);
+    L::ActionContext action;
+    r.prepare(action, false);
+    r.commands(action, false);
+    const uint32_t values[] = {0, 0xa580, 0xf008, 0xffff, 1};
+    for (uint32_t value : values) {
+        const L::PreparedAction work = r.next(action);
+        const C::SdoCompletion terminal = r.exchange(work.transfer, value);
+        action.options.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+        const Saved<L::ActionContext> refused(action);
+        const M::Status status = L::advanceAction(action, r.reservation, r.current, terminal, r.now);
+        CHECK(!status && status.detail == int32_t(M::ReadError::ARGUMENT));
+        refused.unchanged(action);
+        action.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+        CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
+    }
+    CHECK(action.finalErrorRead && action.state == M::ActionState::ACTIVE);
+    // Before the final read the slot still holds the prerequisite, and the incident outlives it.
+    CHECK(action.extraObservation.block == L::StateBlock::ERRORS &&
+          action.extraObservation.errorCode == 0xff05 && action.incident.errorCode == 0xff05);
+}
+// Admission reads no more than it needs: a counter clear carries no alarm incident or ERRORS.
+void counterClearHoldsItsFeedbackOnly() {
+    Rig r;
+    r.acquire(0);
+    L::ActionContext action;
+    r.prepare(action, true);
+    CHECK(!action.incident.present && action.extraObservation.fieldCount == 0);
+    r.commands(action, true);
+    r.cycle(action);
+    CHECK(action.state == M::ActionState::SUCCEEDED &&
+          action.extraObservation.block == L::StateBlock::FEEDBACK);
+    CHECK(action.commandHistory[1].transfer.index == 0x2302 && action.commandHistory[1].transfer.data[0] == 1);
+}
 } // namespace
 int main() {
     successfulActionsRetainEvidence();
@@ -887,5 +950,8 @@ int main() {
     failedCounterActionThenExplicitNewEpochRead();
     uncertainCounterTriggerCannotReopenThroughEpochSync();
     absentObjectAbortLeavesWorkflowHistoryOnAnOpenRoute();
+    identityWidthsRefusedAtAdmission();
+    unpreparableFinalReadRefusesBeforeAnyMutation();
+    counterClearHoldsItsFeedbackOnly();
     std::printf("reference actions: %u checks passed\n", checks);
 }

@@ -84,14 +84,7 @@ bool ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
     const uint32_t last = shared && shared->operation > operation_ ? shared->operation : operation_;
     if (last == UINT32_MAX)
         return false;
-    L::ReadContext candidate;
-    const M::Status prepared =
-        kind == L::ReadKind::IDENTITY
-            ? L::prepareIdentity(candidate, target_, last + 1, now, deadline, options)
-        : kind == L::ReadKind::CONFIG
-            ? L::prepareConfig(candidate, target_, last + 1, now, deadline, options)
-            : L::prepareState(candidate, target_, last + 1, now, deadline, options, mask);
-    if (!prepared)
+    if (!L::validateRead(kind, target_, last + 1, now, deadline, options, mask))
         return false;
     SequenceId sequence = held;
     if (!session && !owner_.beginSequence(target_.channel.binding, 1, now, sequence))
@@ -105,7 +98,13 @@ bool ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
     }
     sequence_ = sequence;
     readOwnsSequence_ = !session;
-    read_ = candidate;
+    // Same values as the check above; read_ was EMPTY, and only the owner has moved.
+    if (kind == L::ReadKind::IDENTITY)
+        L::prepareIdentity(read_, target_, last + 1, now, deadline, options);
+    else if (kind == L::ReadKind::CONFIG)
+        L::prepareConfig(read_, target_, last + 1, now, deadline, options);
+    else
+        L::prepareState(read_, target_, last + 1, now, deadline, options, mask);
     operation_ = last + 1;
     lastUs_ = now;
     return true;
@@ -167,13 +166,13 @@ bool ProbeApp::advanceRead(uint64_t now) noexcept {
     const Completion* terminal = owner_.result(pending_);
     if (!terminal || now < lastUs_ || now < terminal->service.completedUs)
         return false;
-    L::ReadContext candidate = read_;
+    // Release can refuse only inside an owner call, and the read is atomic on rejection.
+    if (!owner_.canRelease(pending_))
+        return false;
     // Owner-local closures also retain the exact transfer/epochs/times and honest
     // no-TX flags. Consume that evidence rather than relabel a queue timeout.
-    const M::Status advanced = L::advanceRead(candidate, terminal->service, now);
-    if (!advanced || !owner_.release(pending_))
+    if (!L::advanceRead(read_, terminal->service, now) || !owner_.release(pending_))
         return false;
-    read_ = candidate;
     pending_ = RequestId();
     lastUs_ = now;
     return true;
@@ -199,7 +198,7 @@ bool ProbeApp::releaseRead() noexcept {
         return false;
     readOwnsSequence_ = false;
     sequence_ = SequenceId();
-    read_ = L::ReadContext();
+    L::resetRead(read_);
     return true;
 }
 } // namespace MotorControlCANExample

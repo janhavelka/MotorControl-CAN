@@ -1400,6 +1400,26 @@ void passiveProvenance() {
         CHECK(!L::advanceRead(c, bad, 3));
         empty.unchanged(c);
     }
+    {
+        // Values are written in place, so a forged route missing the second selected field must
+        // refuse before the first is written. Every copy of the route agrees, to get that far.
+        L::ReadContext forged = c;
+        C::PdoRecord record = valid;
+        C::PdoRoute route = c.pdoRoute;
+        for (unsigned j = 0; j < route.layout.mapping.count; ++j)
+            if (route.layout.fields[j].index == 0x606c) {
+                route.layout.fields[j].index = 0x6041;
+                route.layout.mapping.words[j] = (uint32_t(0x6041) << 16) | (route.layout.mapping.words[j] & 0xffffu);
+            }
+        forged.pdoRoute = route;
+        record.map.route = route;
+        record.qualification.route = route;
+        record.observation.sample.route = route;
+        const Saved<L::ReadContext> kept(forged);
+        const M::Status status = L::advanceRead(forged, record, 3);
+        CHECK(!status && !std::strcmp(status.msg, "missing selected PDO field"));
+        kept.unchanged(forged);
+    }
     CHECK(L::advanceRead(c, valid, 3));
     L::StateObservation s;
     CHECK(L::getStateBlock(c, L::StateBlock::FEEDBACK, target(), 3, 1, s, &valid));
@@ -1435,6 +1455,54 @@ void passiveProvenance() {
                            &map.route));
     retained.unchanged(c);
 }
+// A count the read's own checks would have failed still cannot publish a block.
+void forgedHistoryCountRefusesAndPublishesNothing() {
+    L::ReadContext c;
+    CHECK(L::prepareState(c, target(), 1, 0, 10000, options(), mask(L::StateBlock::ERROR_HISTORY)));
+    accept(c, 4, 0);
+    for (unsigned i = 1; i <= 4; ++i)
+        accept(c, 0x80000000u + i, i);
+    CHECK(c.state == M::ReadState::SUCCEEDED);
+    c.values[0].raw = 5;
+    L::StateObservation s;
+    s.errorCount = 0x7f;
+    const Saved<L::StateObservation> old(s);
+    L::ReadWindow window;
+    window.skewUs = 123;
+    const M::Status status = L::getStateBlock(c, L::StateBlock::ERROR_HISTORY, target(), 5, 100, s);
+    CHECK(!status && status.detail == int32_t(M::ReadError::VALUE));
+    old.unchanged(s);
+    CHECK(!L::validateStateBlock(c, L::StateBlock::ERROR_HISTORY, target(), 5, 100, window));
+    CHECK(window.skewUs == 123);
+    c.values[0].raw = 4;
+    CHECK(L::validateStateBlock(c, L::StateBlock::ERROR_HISTORY, target(), 5, 100, window));
+    CHECK(window.earliestUs == 0 && window.latestUs == 4 && window.skewUs == 4);
+    CHECK(L::getStateBlock(c, L::StateBlock::ERROR_HISTORY, target(), 5, 100, s) && s.errorCount == 4);
+    CHECK(s.window.earliestUs == window.earliestUs && s.window.latestUs == window.latestUs);
+}
+// validateRead gives prepare's status without a context, and resetRead returns one to EMPTY.
+void validateReadMatchesPreparation() {
+    L::ReadContext c;
+    const Saved<L::ReadContext> empty(c);
+    L::ReadOptions measured = options();
+    measured.identityWidths = L::IdentityWidths::MEASURED_U8;
+    CHECK(L::validateRead(L::ReadKind::IDENTITY, target(), 1, 0, 100, options()));
+    CHECK(L::validateRead(L::ReadKind::IDENTITY, target(), 1, 0, 100, measured));
+    CHECK(L::validateRead(L::ReadKind::STATE, target(), 1, 0, 100, options(), mask(L::StateBlock::STATUS)));
+    const M::Status width = L::validateRead(L::ReadKind::STATE, target(), 1, 0, 100, measured,
+                                            mask(L::StateBlock::STATUS));
+    const M::Status prepared = L::prepareState(c, target(), 1, 0, 100, measured, mask(L::StateBlock::STATUS));
+    CHECK(!width && !prepared && width.detail == prepared.detail && width.code == prepared.code);
+    empty.unchanged(c);
+    CHECK(!L::validateRead(L::ReadKind::STATE, target(), 1, 0, 100, options()));
+    CHECK(!L::validateRead(L::ReadKind::STATE, target(), 1, 0, 100, options(), 0x40));
+    CHECK(!L::validateRead(L::ReadKind::CONFIG, target(), 0, 0, 100, options()));
+    CHECK(!L::validateRead(L::ReadKind::CONFIG, target(), 1, 100, 100, options()));
+    CHECK(!L::validateRead(L::ReadKind::CONFIG, L::ReadTarget(), 1, 0, 100, options()));
+    CHECK(L::prepareConfig(c, target(), 1, 0, 100, options()));
+    L::resetRead(c);
+    CHECK(c.state == M::ReadState::EMPTY && !c.count && !c.operation);
+}
 } // namespace
 int main() {
     allRowsAndRealOwner();
@@ -1451,6 +1519,8 @@ int main() {
     mixedAgeBlocks();
     partialHistory();
     realLifecycleInvalidation();
+    forgedHistoryCountRefusesAndPublishesNothing();
+    validateReadMatchesPreparation();
     std::printf("reads: %u checks passed\n", checks);
     return 0;
 }

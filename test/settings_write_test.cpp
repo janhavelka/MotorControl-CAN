@@ -946,6 +946,75 @@ void partialFailure() {
     }
 }
 
+// The last write's only refusal is preparing the readback. It comes before anything moves.
+void refusedReadbackLeavesTransactionUnchanged() {
+    for (bool io : {false, true}) {
+        Fixture f(io);
+        L::DriverSettingsContext c;
+        CHECK(f.prepare(c));
+        const unsigned first = io ? 1 : 0, count = io ? 8 : 3;
+        for (unsigned i = 0; i + 1 < count; ++i)
+            write(f, c, first + i);
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, f.owner.live(), f.owner.current, f.owner.now, work));
+        CHECK(L::noteDriverTransmission(c, f.owner.live(), f.owner.current, f.owner.now));
+        ++f.owner.settingsDownloads;
+        C::SdoCompletion terminal = f.owner.exchange(work.transfer, 0);
+        const uint32_t queue = c.readback.read.options.queueTimeoutUs;
+        // Forge the budget in both, so correlation still matches and the readback alone refuses.
+        c.readback.read.options.queueTimeoutUs = 0;
+        terminal.transfer.queueTimeoutUs = 0;
+        const Saved<L::DriverSettingsContext> refused(c);
+        const M::Status status =
+            L::advanceDriver(c, f.owner.live(), f.owner.current, terminal, f.owner.now);
+        CHECK(!status && status.detail == int32_t(M::ReadError::ARGUMENT));
+        refused.unchanged(c);
+        c.readback.read.options.queueTimeoutUs = queue;
+        terminal.transfer.queueTimeoutUs = queue;
+        CHECK(L::advanceDriver(c, f.owner.live(), f.owner.current, terminal, f.owner.now));
+        CHECK(c.state == L::SettingsState::READING_BACK && c.readback.read.options.queueTimeoutUs == queue);
+        CHECK(f.owner.service.advanceConfiguration(0, target().channel.binding, f.owner.current,
+                                                   f.owner.now));
+        // A readback terminal the read refuses leaves the transaction alone as well.
+        CHECK(L::nextDriver(c, f.owner.live(), f.owner.current, f.owner.now, work));
+        const C::SdoCompletion answer = f.owner.exchange(work.transfer, c.requested[0]);
+        C::SdoCompletion wrongSize = answer;
+        wrongSize.size = uint8_t(answer.size == 1 ? 2 : 1);
+        const Saved<L::DriverSettingsContext> reading(c);
+        CHECK(!L::advanceDriver(c, f.owner.live(), f.owner.current, wrongSize, f.owner.now));
+        reading.unchanged(c);
+        // And so does a local withdrawal the read refuses.
+        ++c.readback.read.values[0].object.index;
+        const Saved<L::DriverSettingsContext> forged(c);
+        CHECK(!L::advanceDriver(c, M::ReadOutcome::CANCELLED, f.owner.now));
+        forged.unchanged(c);
+        --c.readback.read.values[0].object.index;
+        CHECK(L::advanceDriver(c, f.owner.live(), f.owner.current, answer, f.owner.now));
+        CHECK(L::advanceDriver(c, M::ReadOutcome::CANCELLED, f.owner.now));
+        CHECK(c.state == L::SettingsState::FAILED);
+    }
+}
+// A refused preparation keeps a retained transaction, not only a fresh output.
+void refusedPreparationKeepsRetainedTransaction() {
+    for (bool io : {false, true}) {
+        Fixture f(io);
+        L::DriverSettingsContext c;
+        CHECK(f.prepare(c));
+        const Saved<L::DriverSettingsContext> retained(c);
+        if (io) {
+            L::IoSettings bad = ioCandidate();
+            bad.functions[6] = static_cast<L::InputFunction>(14);
+            CHECK(!L::prepareIoSettings(c, f.owner.live(), f.prior, bad, 42, f.owner.now, 1000,
+                                        options(), 100));
+        } else {
+            L::DriverSettings bad = motionCandidate();
+            bad.rampDownTimeMs = 2001;
+            CHECK(!L::prepareDriverSettings(c, f.owner.live(), f.prior, f.state, f.control, bad, 42,
+                                            f.owner.now, 1000, options(), 100));
+        }
+        retained.unchanged(c);
+    }
+}
 } // namespace
 int main() {
     preparation();
@@ -957,5 +1026,7 @@ int main() {
     correlationAndLocalDeadlines();
     failedReadback();
     localReadbackWithdrawal();
+    refusedReadbackLeavesTransactionUnchanged();
+    refusedPreparationKeepsRetainedTransaction();
     std::printf("settings writes: %u checks passed\n", checks);
 }

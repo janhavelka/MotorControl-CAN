@@ -26,6 +26,9 @@
  * Independently received EMCY/fault/lifecycle withdrawal must be delivered as a
  * local terminal before accepting later observation completions; an older monitor
  * read never overrides a newer routed fault.
+ * Preparation and advancement validate first, then write the caller's context in place,
+ * so no call copies a context onto the stack and a refused call changes nothing. Keep
+ * contexts in static or owner storage, never in task locals.
  */
 #pragma once
 #include <MotorControlCAN/ActionOperation.h>
@@ -66,6 +69,27 @@ struct PreparedAction {
     bool ready = false;            ///< False for terminal or not-yet-eligible work.
     uint64_t eligibleUs = 0;       ///< Earliest caller processing time for this work.
 };
+/** What a clear attempt set out to clear: raw prerequisite values, as read at admission.
+ * Later cycles replace the context's observations, so this keeps the incident. Per-field
+ * provenance is not kept: all four blocks share the reservation's route and node epoch,
+ * and earliestUs/latestUs bound them together. The application keeps its full read if it
+ * needs each field's times. No value here is an interpretation or a reset claim.
+ */
+struct AlarmIncident {
+    bool present = false;          ///< True only in a CLEAR_ALARM context.
+    uint32_t readOperation = 0;    ///< Operation of the read that established the prerequisite.
+    uint64_t earliestUs = 0;       ///< Earliest observation bound across the four blocks.
+    uint64_t latestUs = 0;         ///< Latest observation bound across the four blocks.
+    uint8_t errorRegister = 0;     ///< ERRORS: 1001 raw.
+    uint16_t errorCode = 0;        ///< ERRORS: 603F raw, FF05 at admission.
+    uint8_t errorCount = 0;        ///< ERROR_HISTORY: active entries, 0..4.
+    uint32_t errorHistory[4] = {}; ///< ERROR_HISTORY: native error values.
+    uint16_t monitor = 0;          ///< MONITORS: 2100 raw.
+    uint16_t logicalInputs = 0;    ///< MONITORS: 2101 raw.
+    uint16_t logicalOutputs = 0;   ///< MONITORS: 2102 raw.
+    uint16_t statusword = 0;       ///< STATUS: 6041 raw.
+    uint8_t modeRaw = 0;           ///< STATUS: 6061 complete byte.
+};
 /** Caller-owned concrete action context. Serialize access; do not edit active fields.
  * Histories are inspectable after terminal and survive failure. Inputs are borrowed
  * during calls only. Every yielded/advanced service needs the actual live reservation.
@@ -100,14 +124,12 @@ struct ActionContext {
     bool uncertain =
         false; ///< Unconfirmed command/read effects or missing supported action observation.
     CANOPEN::SdoCompletion controlEvidence; ///< STOP only: prior positively acknowledged word.
-    CANOPEN::SdoCompletion
-        commandEvidence; ///< Effecting command terminal: stop, alarm value 1, or counter value 1.
-    bool commandEvidencePresent = false; ///< Makes commandEvidence meaningful.
-    CANOPEN::SdoCompletion
-        commandHistory[3];           ///< Each ordered download terminal, including failure.
+    /** Each ordered download terminal, including failure. The effecting command is slot 0
+     * for a stop or alarm clear (value 1) and slot 1 for a counter clear (value 1). */
+    CANOPEN::SdoCompletion commandHistory[3];
     uint8_t commandEvidenceMask = 0; ///< Bits identify retained commandHistory slots.
     uint8_t commandCursor = 0;       ///< Current download slot: stop 0, alarm 0..1, counter 0..2.
-    ReadContext originalState; ///< Owned historical prerequisite, including original error history.
+    AlarmIncident incident; ///< CLEAR_ALARM only: the prerequisite, kept after later cycles.
     Generation originalReferenceGeneration = 0; ///< Counter action's frozen confidence epoch.
     bool coordinatesInvalidated =
         false; ///< Counter trigger crossed possible-TX boundary; never undone.
@@ -119,9 +141,10 @@ struct ActionContext {
         statusObservation; ///< Latest complete cycle STATUS; preserved on later failure.
     StateObservation
         monitorObservation; ///< Latest complete cycle MONITORS; sequential, not atomic.
-    StateObservation
-        errorObservation; ///< Alarm action raw 1001/603F: prerequisite until the final read.
-    StateObservation feedbackObservation; ///< Counter action signed 6064/606C, no scale/home proof.
+    /** Selected by its block. CLEAR_ALARM: raw 1001/603F, the prerequisite until the final read.
+     * SET_DEVICE_POSITION: signed 6064/606C of the latest cycle, no scale/home proof. Stop: unused.
+     * The default block is ERRORS with fieldCount 0, so check fieldCount before reading it. */
+    StateObservation extraObservation;
     bool observationKnown = false;        ///< All required blocks of a complete cycle are retained.
 };
 /** Best-effort stop context (DEC-2), keyed to a target because its route has no usable
@@ -154,9 +177,39 @@ struct BestEffortStop {
 bool stopPredecessorAllowed(uint16_t word, StopKind kind) noexcept;
 /** Check budgets for prepareStop or prepareEscalation, before any work is retired.
  * @param[in] options Caller policies.
- * @return True with nonzero budgets and a maximumAgeUs covering five fields.
+ * @return True with nonzero budgets, a maximumAgeUs covering five fields, and DECLARED_U16
+ * identity widths: an action's reads are state reads, which take no other setting.
  */
 bool stopOptionsValid(const ActionOptions& options) noexcept;
+/** Return a context to EMPTY in place. `context = ActionContext()` builds a stack temporary
+ * of the whole context on the generated code we measured; this does not.
+ * @param[out] context Context to reset; its retained history is gone.
+ */
+void resetAction(ActionContext& context) noexcept;
+/** Report what prepareStop would refuse, changing nothing. For a caller that must know before
+ * it moves other state, such as an owner operation, and only then writes the context.
+ * @param[in] output The context prepareStop would write; read only for its overlap checks.
+ * @param[in] reservation As prepareStop. @param[in] state As prepareStop.
+ * @param[in] control As prepareStop. @param[in] kind As prepareStop.
+ * @param[in] operation As prepareStop. @param[in] nowUs As prepareStop.
+ * @param[in] deadlineUs As prepareStop. @param[in] options As prepareStop.
+ * @return The status prepareStop would give. OK means prepareStop with these same unchanged
+ * values cannot refuse.
+ */
+Status validateStop(const ActionContext& output, const SettingsReservation& reservation,
+                 const ReadContext& state, const CANOPEN::SdoCompletion& control, StopKind kind,
+                 uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                 const ActionOptions& options) noexcept;
+/** Report what prepareEscalation would refuse, changing nothing.
+ * @param[in] output The context prepareEscalation would write; read only for its overlap checks.
+ * @param[in] running As prepareEscalation. @param[in] operation As prepareEscalation.
+ * @param[in] nowUs As prepareEscalation. @param[in] deadlineUs As prepareEscalation.
+ * @param[in] options As prepareEscalation.
+ * @return The status prepareEscalation would give. OK means prepareEscalation with these same
+ * unchanged values cannot refuse.
+ */
+Status validateEscalation(const ActionContext& output, const ActionContext& running, uint32_t operation,
+                       uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Prepare only the DEC-8 stop transitions; all failures leave output unchanged.
  * @param[out] output Owned context; must not overlap any input.
  * @param[in] reservation Actual continuous exclusive owner reservation, not a fresh replacement.
@@ -169,6 +222,7 @@ bool stopOptionsValid(const ActionOptions& options) noexcept;
  * @param[in] deadlineUs Immutable exclusive future cutoff for command and observations.
  * @param[in] options Explicit nonzero caller service/observation/freshness policies. maximumAgeUs
  * must cover five fields at the queue plus response budgets, or no cycle could ever qualify.
+ * service.identityWidths must stay DECLARED_U16.
  * @return Local validation status only; emits no I/O and establishes no firmware qualification.
  */
 Status prepareStop(ActionContext& output, const SettingsReservation& reservation,
@@ -194,10 +248,11 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
  * policy, not a claimed vendor edge/rearm requirement. Completion requires fresh
  * mode 1/not-running/alarm-clear reports, then one ERRORS read: these reads may
  * consume data, so polling never repeats them. 603F may retain its old raw value.
- * maximumAgeUs must cover five fields at the queue plus response budgets.
+ * maximumAgeUs must cover five fields at the queue plus response budgets, and
+ * service.identityWidths must stay DECLARED_U16.
  * @param[out] output Owned context, unchanged on failure and disjoint from inputs.
  * @param[in] reservation Continuous actual owner exclusion, CL86-C/OL86-C.
- * @param[in] state Complete fresh prerequisite; copied as historical originalState.
+ * @param[in] state Complete fresh prerequisite; its raw values stay in incident.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Nonzero caller policies.
  * @return Local validation only. Caller/owner separately retains EMCY/error history;
@@ -220,7 +275,8 @@ Status prepareClearAlarm(ActionContext& output, const SettingsReservation& reser
  * @param[in] axis Valid matching axis with room in both configuration/confidence epochs.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Explicit caller policies;
- * maximumAgeUs must cover seven fields at the queue plus response budgets.
+ * maximumAgeUs must cover seven fields at the queue plus response budgets, and
+ * service.identityWidths must stay DECLARED_U16.
  * @return Local validation. After trigger, retire old owner results/work and advance
  * owner configuration before admitting the new-epoch observation uploads.
  */

@@ -14,6 +14,7 @@ namespace {
 DRAM_ATTR StackType_t stack[FIRMWARE_STACK_BYTES / sizeof(StackType_t)];
 DRAM_ATTR StaticTask_t taskState;
 DRAM_ATTR FirmwareConfig configuration;
+TaskHandle_t ownerHandle = nullptr;
 std::atomic<FirmwareBootStatus> boot(FirmwareBootStatus::NOT_STARTED);
 bool attempted = false;
 void ownerTask(void*) {
@@ -67,12 +68,16 @@ bool startProbeFirmware(const FirmwareConfig& config) noexcept {
         return false;
     attempted = true;
     configuration = config;
-    if (!xTaskCreateStaticPinnedToCore(ownerTask, "can_owner", sizeof(stack), nullptr, 1, stack,
-                                       &taskState, FIRMWARE_OWNER_CORE)) {
+    ownerHandle = xTaskCreateStaticPinnedToCore(ownerTask, "can_owner", sizeof(stack), nullptr, 1,
+                                                stack, &taskState, FIRMWARE_OWNER_CORE);
+    if (!ownerHandle) {
         boot.store(FirmwareBootStatus::TASK_FAILED);
         return false;
     }
     return true;
+}
+size_t firmwareStackFreeBytes() noexcept {
+    return ownerHandle ? size_t(uxTaskGetStackHighWaterMark(ownerHandle)) * sizeof(StackType_t) : 0;
 }
 FirmwareBootStatus firmwareBootStatus() noexcept {
     return boot.load();

@@ -124,7 +124,7 @@ jobs:
           . .build/esp-idf/export.sh
           s3=(.build/firmware-idf/*/idf/compile_commands.json)
           s2=(.build/firmware-s2/*/s2/compile_commands.json)
-          python scripts/check_stack.py --require-toolchain --build-dir .build/stack --report .build/stack/report.json --allow-file scripts/check_stack_baseline.json --compile-commands "esp32s3=${s3[0]}" --compile-commands "esp32s2=${s2[0]}"
+          python scripts/check_stack.py --require-toolchain --build-dir .build/stack --report .build/stack/report.json --strict --compile-commands "esp32s3=${s3[0]}" --compile-commands "esp32s2=${s2[0]}"
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

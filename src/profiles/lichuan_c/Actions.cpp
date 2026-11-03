@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
+#include <new>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
@@ -72,7 +73,7 @@ Status shape(const ActionContext& c, uint64_t now) {
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND &&
-        (!c.commandEvidencePresent || c.execution != ActionExecution::ACKNOWLEDGED ||
+        (c.execution != ActionExecution::ACKNOWLEDGED ||
          c.commandEvidenceMask != uint8_t((1u << commandCount(c)) - 1u) ||
          c.commandCursor + 1 != commandCount(c) || c.step <= commandCount(c) ||
          !sameTarget(c.read.target, expectedTarget(c)) || c.read.operation != c.operation ||
@@ -224,47 +225,59 @@ Status prepareCycle(ActionContext& c, uint64_t at) {
     return prepareState(c.read, expectedTarget(c), c.operation, at, c.deadlineUs, c.options.service,
                         observationMask(c));
 }
-Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
-    StateObservation status, monitors, extra;
+// True when this block of the current cycle is current and began after `at`.
+bool cycleBlock(const ActionContext& c, StateBlock block, const ReadTarget& target, uint64_t now,
+                uint64_t at) {
+    ReadWindow window;
+    return validateStateBlock(c.read, block, target, now, c.options.maximumAgeUs, window).isOk() &&
+           window.earliestUs >= at;
+}
+uint32_t raw(const ReadContext& c, StateBlock block, unsigned field) {
+    return c.values[c.blockStart[static_cast<unsigned>(block)] + field].raw;
+}
+// prepareCycle was proved able to succeed before this cycle's read moved (advanceAction).
+void nextCycle(ActionContext& c, uint64_t at, uint64_t now) {
+    if (!prepareCycle(c, at))
+        fail(c, ActionOutcome::OBSERVATION_SCOPE, now, "action observation could not be prepared");
+}
+void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const ReadTarget target = expectedTarget(c);
     const uint64_t lastCommandUs = c.commandHistory[commandCount(c) - 1].completedUs;
+    const uint64_t age = c.options.maximumAgeUs;
     if (c.finalErrorRead) {
-        if (!getStateBlock(c.read, StateBlock::ERRORS, target, now, c.options.maximumAgeUs, extra) ||
-            !after(extra, lastCommandUs)) {
+        if (!cycleBlock(c, StateBlock::ERRORS, target, now, lastCommandUs)) {
             fail(c, ActionOutcome::OBSERVATION_SCOPE, now, "action observation freshness unavailable");
-            return Ok();
+            return;
         }
-        c.errorObservation = extra;
+        getStateBlock(c.read, StateBlock::ERRORS, target, now, age, c.extraObservation);
         c.state = ActionState::SUCCEEDED;
         c.outcome = ActionOutcome::OBSERVED;
         c.completion = ActionCompletion::OBSERVED;
         c.status = Ok();
-        return Ok();
+        return;
     }
-    if (!getStateBlock(c.read, StateBlock::STATUS, target, now, c.options.maximumAgeUs, status) ||
-        !getStateBlock(c.read, StateBlock::MONITORS, target, now, c.options.maximumAgeUs,
-                       monitors) ||
-        !after(status, lastCommandUs) || !after(monitors, lastCommandUs) ||
-        (c.actionKind == ActionKind::SET_DEVICE_POSITION &&
-         (!getStateBlock(c.read, StateBlock::FEEDBACK, target, now, c.options.maximumAgeUs,
-                         extra) ||
-          !after(extra, lastCommandUs)))) {
+    const bool feedback = c.actionKind == ActionKind::SET_DEVICE_POSITION;
+    if (!cycleBlock(c, StateBlock::STATUS, target, now, lastCommandUs) ||
+        !cycleBlock(c, StateBlock::MONITORS, target, now, lastCommandUs) ||
+        (feedback && !cycleBlock(c, StateBlock::FEEDBACK, target, now, lastCommandUs))) {
         fail(c, ActionOutcome::OBSERVATION_SCOPE, now, "action observation freshness unavailable");
-        return Ok();
+        return;
     }
-    c.statusObservation = status;
-    c.monitorObservation = monitors;
-    if (c.actionKind == ActionKind::SET_DEVICE_POSITION)
-        c.feedbackObservation = extra;
+    // All required blocks are good, so no earlier observation is torn from here on.
+    getStateBlock(c.read, StateBlock::STATUS, target, now, age, c.statusObservation);
+    getStateBlock(c.read, StateBlock::MONITORS, target, now, age, c.monitorObservation);
+    if (feedback)
+        getStateBlock(c.read, StateBlock::FEEDBACK, target, now, age, c.extraObservation);
     c.observationKnown = true;
     ++c.observations; // Distinct external identities per cycle bound this below UINT32_MAX.
-    const bool running = (monitors.monitor & monitorRunning) != 0;
-    const bool alarm = (monitors.monitor & monitorAlarm) != 0;
-    bool outsideScope = status.modeRaw != 1;
+    const uint16_t monitor = c.monitorObservation.monitor;
+    const bool running = (monitor & monitorRunning) != 0;
+    const bool alarm = (monitor & monitorAlarm) != 0;
+    bool outsideScope = c.statusObservation.modeRaw != 1;
     bool done = false;
     switch (c.actionKind) {
     case ActionKind::STOP:
-        outsideScope |= alarm || (monitors.monitor & monitorReleased) != 0;
+        outsideScope |= alarm || (monitor & monitorReleased) != 0;
         done = !running;
         break;
     case ActionKind::CLEAR_ALARM:
@@ -273,7 +286,7 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         break;
     case ActionKind::SET_DEVICE_POSITION:
         outsideScope |= running || alarm;
-        done = extra.actualPosition == 0;
+        done = c.extraObservation.actualPosition == 0;
         break;
     }
     if (outsideScope)
@@ -285,7 +298,7 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
             fail(c, ActionOutcome::ITERATION_EXHAUSTED, now, "action service identity exhausted");
         } else {
             c.finalErrorRead = true;
-            return prepareCycle(c, now);
+            nextCycle(c, now, now);
         }
     } else if (done) {
         c.state = ActionState::SUCCEEDED;
@@ -302,61 +315,64 @@ Status finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         c.phase = ActionPhase::WAITING;
         c.stepStartedUs = c.eligibleUs;
         if (c.eligibleUs < c.deadlineUs)
-            return prepareCycle(c, c.eligibleUs);
+            nextCycle(c, c.eligibleUs, now);
     }
-    return Ok();
 }
+// Every caller has validated; output is disjoint from inputs, and nothing here can fail.
 void publishStop(ActionContext& output, const SettingsReservation& r,
-                 const CANOPEN::SdoCompletion& control, const StateObservation& status,
-                 const StateObservation& monitors, StopKind kind, uint32_t operation, uint64_t now,
-                 uint64_t deadline, const ActionOptions& options) {
-    ActionContext c;
-    c.reservation = r;
-    c.kind = kind;
-    c.predecessorWord = controlWord(control.transfer);
-    c.predecessorDocumented = c.predecessorWord == 0x000f;
-    c.predecessorBasis = !c.predecessorDocumented      ? PredecessorBasis::PROJECT_DECISION
-                         : kind == StopKind::QUICK_STOP ? PredecessorBasis::EN86_ZH86_OP86
-                                                        : PredecessorBasis::ZH86_OP86;
-    c.options = options;
-    c.operation = operation;
-    c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = now;
-    c.deadlineUs = deadline;
-    c.state = ActionState::ACTIVE;
-    c.controlEvidence = control;
-    c.statusObservation = status;
-    c.monitorObservation = monitors;
-    output = c;
+                 const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                 uint64_t now, uint64_t deadline, const ActionOptions& options) {
+    new (static_cast<void*>(&output)) ActionContext();
+    output.reservation = r;
+    output.kind = kind;
+    output.predecessorWord = controlWord(control.transfer);
+    output.predecessorDocumented = output.predecessorWord == 0x000f;
+    output.predecessorBasis = !output.predecessorDocumented ? PredecessorBasis::PROJECT_DECISION
+                              : kind == StopKind::QUICK_STOP ? PredecessorBasis::EN86_ZH86_OP86
+                                                             : PredecessorBasis::ZH86_OP86;
+    output.options = options;
+    output.operation = operation;
+    output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
+    output.deadlineUs = deadline;
+    output.state = ActionState::ACTIVE;
+    output.controlEvidence = control;
 }
-Status prepareExplicit(ActionContext& c, const SettingsReservation& r, const ReadContext& state,
-                       ActionKind kind, uint32_t operation, uint64_t now, uint64_t deadline,
-                       const ActionOptions& options) {
+Status validateExplicit(const SettingsReservation& r, const ReadContext& state, ActionKind kind,
+                     uint32_t operation, uint64_t now, uint64_t deadline,
+                     const ActionOptions& options) {
     if (!valid(r) || !operation || deadline <= now || r.acquiredUs > now ||
         !options.service.queueTimeoutUs || !options.service.responseTimeoutUs ||
+        options.service.identityWidths != IdentityWidths::DECLARED_U16 ||
         !options.observationIntervalUs || !options.maximumAgeUs ||
         !ageCoversCycle(options, kind == ActionKind::SET_DEVICE_POSITION ? 7 : 5))
         return error(ActionError::ARGUMENT, "invalid explicit action reservation or budgets");
-    StateObservation status, monitors, errors, history;
+    ReadWindow status, monitors;
+    const uint64_t age = options.maximumAgeUs;
     if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
         state.startedUs < r.acquiredUs ||
-        !getStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, status) ||
-        !getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs,
-                       monitors) ||
-        !after(status, r.acquiredUs) || !after(monitors, r.acquiredUs) || status.modeRaw != 1 ||
-        (monitors.monitor & monitorRunning))
+        !validateStateBlock(state, StateBlock::STATUS, r.target, now, age, status) ||
+        !validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors) ||
+        status.earliestUs < r.acquiredUs || monitors.earliestUs < r.acquiredUs ||
+        uint8_t(raw(state, StateBlock::STATUS, 1)) != 1 ||
+        (raw(state, StateBlock::MONITORS, 0) & monitorRunning))
         return error(ActionError::STATE, "fresh mode 1 not-running SDO evidence required");
+    const bool alarmed = (raw(state, StateBlock::MONITORS, 0) & monitorAlarm) != 0;
     if (kind == ActionKind::CLEAR_ALARM) {
-        if (!(monitors.monitor & monitorAlarm) ||
-            !getStateBlock(state, StateBlock::ERRORS, r.target, now, options.maximumAgeUs,
-                           errors) ||
-            !getStateBlock(state, StateBlock::ERROR_HISTORY, r.target, now, options.maximumAgeUs,
-                           history) ||
-            !after(errors, r.acquiredUs) || !after(history, r.acquiredUs) ||
-            errors.errorCode != 0xff05)
+        ReadWindow errors, history;
+        if (!alarmed || !validateStateBlock(state, StateBlock::ERRORS, r.target, now, age, errors) ||
+            !validateStateBlock(state, StateBlock::ERROR_HISTORY, r.target, now, age, history) ||
+            errors.earliestUs < r.acquiredUs || history.earliestUs < r.acquiredUs ||
+            uint16_t(raw(state, StateBlock::ERRORS, 1)) != 0xff05)
             return error(ActionError::STATE,
                          "retained history and documented resettable FF05 alarm required");
-    } else if (monitors.monitor & monitorAlarm)
+    } else if (alarmed)
         return error(ActionError::STATE, "counter clear requires no reported alarm");
+    return Ok();
+}
+void publishExplicit(ActionContext& c, const SettingsReservation& r, const ReadContext& state,
+                     ActionKind kind, uint32_t operation, uint64_t now, uint64_t deadline,
+                     const ActionOptions& options) {
+    new (static_cast<void*>(&c)) ActionContext();
     c.reservation = r;
     c.actionKind = kind;
     c.options = options;
@@ -364,16 +380,43 @@ Status prepareExplicit(ActionContext& c, const SettingsReservation& r, const Rea
     c.startedUs = c.servicedUs = c.eligibleUs = c.stepStartedUs = now;
     c.deadlineUs = deadline;
     c.state = ActionState::ACTIVE;
-    c.originalState = state;
-    c.statusObservation = status;
-    c.monitorObservation = monitors;
-    c.errorObservation = errors;
-    return Ok();
+    const uint64_t age = options.maximumAgeUs;
+    getStateBlock(state, StateBlock::STATUS, r.target, now, age, c.statusObservation);
+    getStateBlock(state, StateBlock::MONITORS, r.target, now, age, c.monitorObservation);
+    if (kind != ActionKind::CLEAR_ALARM)
+        return;
+    getStateBlock(state, StateBlock::ERRORS, r.target, now, age, c.extraObservation);
+    // The incident record outlives them: later cycles replace the observations above.
+    StateObservation history;
+    getStateBlock(state, StateBlock::ERROR_HISTORY, r.target, now, age, history);
+    AlarmIncident& i = c.incident;
+    i.present = true;
+    i.readOperation = state.operation;
+    i.errorRegister = c.extraObservation.errorRegister;
+    i.errorCode = c.extraObservation.errorCode;
+    i.errorCount = history.errorCount;
+    for (unsigned n = 0; n < 4; ++n)
+        i.errorHistory[n] = history.errorHistory[n];
+    i.monitor = c.monitorObservation.monitor;
+    i.logicalInputs = c.monitorObservation.logicalInputs;
+    i.logicalOutputs = c.monitorObservation.logicalOutputs;
+    i.statusword = c.statusObservation.statusword;
+    i.modeRaw = c.statusObservation.modeRaw;
+    i.earliestUs = i.latestUs = c.statusObservation.window.earliestUs;
+    const ReadWindow* windows[] = {&c.statusObservation.window, &c.monitorObservation.window,
+                                   &c.extraObservation.window, &history.window};
+    for (const ReadWindow* w : windows) {
+        if (w->earliestUs < i.earliestUs)
+            i.earliestUs = w->earliestUs;
+        if (w->latestUs > i.latestUs)
+            i.latestUs = w->latestUs;
+    }
 }
 } // namespace
 
 bool stopOptionsValid(const ActionOptions& options) noexcept {
     return options.service.queueTimeoutUs && options.service.responseTimeoutUs &&
+           options.service.identityWidths == IdentityWidths::DECLARED_U16 &&
            options.observationIntervalUs && options.maximumAgeUs && ageCoversCycle(options, 5);
 }
 
@@ -394,9 +437,9 @@ bool stopPredecessorAllowed(uint16_t word, StopKind kind) noexcept {
     }
 }
 
-Status prepareStop(ActionContext& output, const SettingsReservation& r, const ReadContext& state,
-                   const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
-                   uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+Status validateStop(const ActionContext& output, const SettingsReservation& r, const ReadContext& state,
+                 const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                 uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
     if (overlap(&output, sizeof output, &r, sizeof r) ||
         overlap(&output, sizeof output, &state, sizeof state) ||
         overlap(&output, sizeof output, &control, sizeof control) ||
@@ -406,43 +449,68 @@ Status prepareStop(ActionContext& output, const SettingsReservation& r, const Re
         !stopOptionsValid(options) || r.acquiredUs > now)
         return error(ActionError::ARGUMENT,
                      "invalid stop reservation, selection or caller budgets");
-    StateObservation status, monitors;
+    ReadWindow status, monitors;
     if (!controlEvidence(control, r, kind, now) ||
         state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
-        !getStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, status) ||
-        !getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs,
-                       monitors) ||
-        status.modeRaw != 1 || (status.statusword & 7u) != 7 ||
-        (monitors.monitor & (monitorAlarm | monitorReleased)) ||
-        !after(status, control.completedUs) || !after(monitors, control.completedUs))
+        !validateStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, status) ||
+        !validateStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs, monitors) ||
+        uint8_t(raw(state, StateBlock::STATUS, 1)) != 1 ||
+        (raw(state, StateBlock::STATUS, 0) & 7u) != 7 ||
+        (raw(state, StateBlock::MONITORS, 0) & (monitorAlarm | monitorReleased)) ||
+        status.earliestUs < control.completedUs || monitors.earliestUs < control.completedUs)
         return error(ActionError::STATE,
                      "allowed acknowledged predecessor and fresh mode 1 state required");
-    publishStop(output, r, control, status, monitors, kind, operation, now, deadline, options);
     return Ok();
 }
 
-Status prepareEscalation(ActionContext& output, const ActionContext& running, uint32_t operation,
-                         uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+Status prepareStop(ActionContext& output, const SettingsReservation& r, const ReadContext& state,
+                   const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                   uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+    const Status s = validateStop(output, r, state, control, kind, operation, now, deadline, options);
+    if (!s)
+        return s;
+    publishStop(output, r, control, kind, operation, now, deadline, options);
+    getStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, output.statusObservation);
+    getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs, output.monitorObservation);
+    return Ok();
+}
+
+Status validateEscalation(const ActionContext& output, const ActionContext& running, uint32_t operation,
+                       uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
     if (overlap(&output, sizeof output, &running, sizeof running) ||
         overlap(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "stop escalation overlaps input");
     if (!valid(running.reservation) || !operation || deadline <= now ||
         !stopOptionsValid(options) || running.reservation.acquiredUs > now)
         return error(ActionError::ARGUMENT, "invalid escalation reservation or budgets");
-    const CANOPEN::SdoCompletion& control = running.commandEvidence;
+    const CANOPEN::SdoCompletion& control = running.commandHistory[0]; // A stop has one command.
     const StateObservation& status = running.statusObservation;
     const StateObservation& monitors = running.monitorObservation;
     if (running.actionKind != ActionKind::STOP || running.kind != StopKind::HALT ||
-        !running.commandEvidencePresent || running.execution != ActionExecution::ACKNOWLEDGED ||
+        !(running.commandEvidenceMask & 1u) || running.execution != ActionExecution::ACKNOWLEDGED ||
         !running.observationKnown || !controlEvidence(control, running.reservation, StopKind::QUICK_STOP, now) ||
         controlWord(control.transfer) != 0x010f || !fresh(status, now, options.maximumAgeUs) ||
         !fresh(monitors, now, options.maximumAgeUs) || !after(status, control.completedUs) ||
         !after(monitors, control.completedUs) || status.modeRaw != 1 ||
         (status.statusword & 7u) != 7 || (monitors.monitor & (monitorAlarm | monitorReleased)))
         return error(ActionError::STATE, "acknowledged HALT and a fresh later cycle required");
-    publishStop(output, running.reservation, control, status, monitors, StopKind::QUICK_STOP,
-                operation, now, deadline, options);
     return Ok();
+}
+
+Status prepareEscalation(ActionContext& output, const ActionContext& running, uint32_t operation,
+                         uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+    const Status s = validateEscalation(output, running, operation, now, deadline, options);
+    if (!s)
+        return s;
+    publishStop(output, running.reservation, running.commandHistory[0], StopKind::QUICK_STOP,
+                operation, now, deadline, options);
+    output.statusObservation = running.statusObservation;
+    output.monitorObservation = running.monitorObservation;
+    return Ok();
+}
+
+void resetAction(ActionContext& c) noexcept {
+    new (static_cast<void*>(&c)) ActionContext();
 }
 
 Status prepareClearAlarm(ActionContext& output, const SettingsReservation& r,
@@ -452,12 +520,11 @@ Status prepareClearAlarm(ActionContext& output, const SettingsReservation& r,
         overlap(&output, sizeof output, &state, sizeof state) ||
         overlap(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "alarm preparation overlaps input");
-    ActionContext c;
     const Status s =
-        prepareExplicit(c, r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options);
+        validateExplicit(r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options);
     if (!s)
         return s;
-    output = c;
+    publishExplicit(output, r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options);
     return Ok();
 }
 
@@ -477,13 +544,13 @@ Status prepareSetDevicePosition(ActionContext& output, const SettingsReservation
         axis.exhausted || !axis.referenceGeneration || axis.referenceGeneration == UINT32_MAX ||
         axis.binding.configurationGeneration == UINT32_MAX)
         return error(ActionError::TARGET, "counter clear needs matching nonexhausted axis epochs");
-    ActionContext c;
-    const Status s = prepareExplicit(c, r, state, ActionKind::SET_DEVICE_POSITION, operation, now,
-                                     deadline, options);
+    const Status s =
+        validateExplicit(r, state, ActionKind::SET_DEVICE_POSITION, operation, now, deadline, options);
     if (!s)
         return s;
-    c.originalReferenceGeneration = axis.referenceGeneration;
-    output = c;
+    publishExplicit(output, r, state, ActionKind::SET_DEVICE_POSITION, operation, now, deadline,
+                    options);
+    output.originalReferenceGeneration = axis.referenceGeneration;
     return Ok();
 }
 
@@ -565,25 +632,23 @@ Status noteActionTransmission(ActionContext& c, const SettingsReservation& live,
         (c.coordinatesInvalidated && (axis.originKnown || axis.encoderOriginKnown ||
                                       axis.softLimitsKnown || reference.nativeKnown)))
         return error(ActionError::STATE, "counter notice requires frozen axis and fresh command");
-    ActionContext candidate = c;
-    AxisConfig nextAxis = axis;
-    AxisReference nextReference = reference;
-    ReadTarget nextTarget = target;
-    if (c.commandCursor == 1 && !c.coordinatesInvalidated) {
-        s = invalidateAxisReference(nextAxis, nextReference, ReferenceLoss::COORDINATES);
+    const bool trigger = c.commandCursor == 1 && !c.coordinatesInvalidated;
+    // invalidateAxisReference mutates even when it reports exhaustion, so prove room first.
+    if (trigger && (!axis.referenceGeneration || axis.referenceGeneration == UINT32_MAX ||
+                    !axis.binding.configurationGeneration ||
+                    axis.binding.configurationGeneration == UINT32_MAX))
+        return error(ActionError::STATE, "counter notice requires room in both axis epochs");
+    if (trigger) {
+        s = invalidateAxisReference(axis, reference, ReferenceLoss::COORDINATES);
         if (!s)
-            return s; // Preparation reserved room; no partial public invalidation on rejection.
-        nextTarget.channel.binding = nextAxis.binding;
-        candidate.coordinatesInvalidated = true;
+            return s; // Unreachable after the check above.
+        target.channel.binding = axis.binding;
+        c.coordinatesInvalidated = true;
     }
-    candidate.transmissionNoted = candidate.effectsPossible = candidate.uncertain = true;
+    c.transmissionNoted = c.effectsPossible = c.uncertain = true;
     if (effecting(c))
-        candidate.execution = ActionExecution::UNKNOWN;
-    candidate.servicedUs = now;
-    axis = nextAxis;
-    reference = nextReference;
-    target = nextTarget;
-    c = candidate;
+        c.execution = ActionExecution::UNKNOWN;
+    c.servicedUs = now;
     return Ok();
 }
 
@@ -608,7 +673,6 @@ Status advanceAction(ActionContext& c, const SettingsReservation& live, const Re
         input.completedUs < input.admittedUs || input.completedUs > now ||
         input.completedUs < c.servicedUs)
         return error(ActionError::CORRELATION, "action terminal does not match current service");
-    ActionContext candidate = c;
     if (c.phase == ActionPhase::COMMAND) {
         const bool success = input.outcome == CANOPEN::SdoOutcome::SUCCESS;
         if (input.outcome > CANOPEN::SdoOutcome::UNSUPPORTED ||
@@ -622,79 +686,82 @@ Status advanceAction(ActionContext& c, const SettingsReservation& live, const Re
             (input.outcome == CANOPEN::SdoOutcome::SERVER_ABORT &&
              (!input.abortValid || !input.transmissionPossible)))
             return error(ActionError::CORRELATION, "inconsistent action command terminal");
-        candidate.commandHistory[c.commandCursor] = input;
-        candidate.commandEvidenceMask |= uint8_t(1u << c.commandCursor);
-        if (effecting(c)) {
-            candidate.commandEvidence = input;
-            candidate.commandEvidencePresent = true;
-            candidate.execution = success ? ActionExecution::ACKNOWLEDGED
-                                  : input.outcome == CANOPEN::SdoOutcome::SERVER_ABORT
-                                      ? ActionExecution::REJECTED
-                                  : input.transmissionPossible ? ActionExecution::UNKNOWN
-                                                               : ActionExecution::NOT_TRANSMITTED;
-        }
-        // Each settled terminal refines its own possible-TX notice. Earlier
-        // prefix effects and a coordinate withdrawal are never rolled back.
-        candidate.effectsPossible = input.effectPossible;
-        candidate.uncertain = input.effectUncertain;
-        for (unsigned i = 0; i < c.commandCursor; ++i) {
-            candidate.effectsPossible |= c.commandHistory[i].effectPossible;
-            candidate.uncertain |= c.commandHistory[i].effectUncertain;
-        }
-        if (now >= c.deadlineUs || input.completedUs >= c.deadlineUs)
-            fail(candidate, ActionOutcome::DEADLINE, now, "action overall deadline");
-        else if (!success)
-            fail(candidate, outcome(input.outcome), now, "action command service failed");
-        else if (c.commandCursor + 1 < commandCount(c)) {
-            ++candidate.commandCursor;
-            ++candidate.step;
-            candidate.transmissionNoted = false;
-            candidate.eligibleUs = candidate.stepStartedUs = now;
-        } else {
-            candidate.phase = ActionPhase::OBSERVING;
-            ++candidate.step;
-            candidate.transmissionNoted = false;
-            candidate.eligibleUs = candidate.stepStartedUs = now;
-            s = prepareCycle(candidate, now);
+        const bool expired = now >= c.deadlineUs || input.completedUs >= c.deadlineUs;
+        const unsigned cursor = c.commandCursor;
+        const bool last = cursor + 1u >= commandCount(c);
+        // The only refusal left. It replaces c.read alone, atomically, before anything else moves.
+        if (success && !expired && last) {
+            s = prepareCycle(c, now);
             if (!s)
                 return s;
         }
+        c.commandHistory[cursor] = input;
+        c.commandEvidenceMask |= uint8_t(1u << cursor);
+        if (effecting(c)) {
+            c.execution = success ? ActionExecution::ACKNOWLEDGED
+                          : input.outcome == CANOPEN::SdoOutcome::SERVER_ABORT
+                              ? ActionExecution::REJECTED
+                          : input.transmissionPossible ? ActionExecution::UNKNOWN
+                                                       : ActionExecution::NOT_TRANSMITTED;
+        }
+        // Each settled terminal refines its own possible-TX notice. Earlier
+        // prefix effects and a coordinate withdrawal are never rolled back.
+        c.effectsPossible = input.effectPossible;
+        c.uncertain = input.effectUncertain;
+        for (unsigned i = 0; i < cursor; ++i) {
+            c.effectsPossible |= c.commandHistory[i].effectPossible;
+            c.uncertain |= c.commandHistory[i].effectUncertain;
+        }
+        if (expired)
+            fail(c, ActionOutcome::DEADLINE, now, "action overall deadline");
+        else if (!success)
+            fail(c, outcome(input.outcome), now, "action command service failed");
+        else {
+            if (last)
+                c.phase = ActionPhase::OBSERVING;
+            else
+                ++c.commandCursor;
+            ++c.step;
+            c.transmissionNoted = false;
+            c.eligibleUs = c.stepStartedUs = now;
+        }
     } else {
+        // A finished cycle may have to prepare the next one, and by then this read has moved.
+        // So prove it now: the outcome of prepareCycle does not depend on this terminal.
+        if (now < c.deadlineUs) {
+            s = validateRead(ReadKind::STATE, expectedTarget(c), c.operation, now, c.deadlineUs,
+                          c.options.service, observationMask(c));
+            if (!s)
+                return s;
+        }
         CANOPEN::SdoCompletion local = input;
-        local.transfer.step = uint32_t(candidate.read.cursor) + 1;
-        s = advanceRead(candidate.read, local, now);
+        local.transfer.step = uint32_t(c.read.cursor) + 1;
+        s = advanceRead(c.read, local, now);
         if (!s)
             return s;
-        candidate.read.evidence = input; // Preserve actual external identity in retained history.
-        candidate.observationEvidence = input;
-        candidate.observationEvidencePresent = true;
-        candidate.uncertain |= candidate.read.uncertain;
-        if (candidate.read.state == ReadState::FAILED)
-            fail(candidate, outcome(candidate.read.outcome), now,
-                 "action observation service failed");
+        c.read.evidence = input; // Preserve actual external identity in retained history.
+        c.observationEvidence = input;
+        c.observationEvidencePresent = true;
+        c.uncertain |= c.read.uncertain;
+        if (c.read.state == ReadState::FAILED)
+            fail(c, outcome(c.read.outcome), now, "action observation service failed");
         else if (c.step == UINT32_MAX) {
             // The last representable identity may still close an observed stop;
             // only work requiring another distinct identity is exhausted.
-            if (candidate.read.state == ReadState::SUCCEEDED) {
-                s = finishCycle(candidate, now, false);
-                if (!s)
-                    return s;
-            } else
-                fail(candidate, ActionOutcome::ITERATION_EXHAUSTED, now,
+            if (c.read.state == ReadState::SUCCEEDED)
+                finishCycle(c, now, false);
+            else
+                fail(c, ActionOutcome::ITERATION_EXHAUSTED, now,
                      "action service identity exhausted");
         } else {
-            ++candidate.step;
-            candidate.stepStartedUs = now;
-            candidate.phase = ActionPhase::OBSERVING;
-            if (candidate.read.state == ReadState::SUCCEEDED) {
-                s = finishCycle(candidate, now, true);
-                if (!s)
-                    return s;
-            }
+            ++c.step;
+            c.stepStartedUs = now;
+            c.phase = ActionPhase::OBSERVING;
+            if (c.read.state == ReadState::SUCCEEDED)
+                finishCycle(c, now, true);
         }
     }
-    candidate.servicedUs = now;
-    c = candidate;
+    c.servicedUs = now;
     return Ok();
 }
 
@@ -710,7 +777,6 @@ Status advanceAction(ActionContext& c, const SettingsReservation& live, const Re
          reason != ActionOutcome::INVALIDATED && reason != ActionOutcome::DRIVE_FAULT) ||
         (reason == ActionOutcome::DEADLINE && now < c.deadlineUs))
         return error(ActionError::STATE, "invalid local action termination");
-    ActionContext candidate = c;
     if (c.phase != ActionPhase::COMMAND && c.read.state == ReadState::ACTIVE) {
         // During WAITING the read is prepared at a future eligible time and has
         // not been admitted; cancelling then must not fabricate read effects.
@@ -719,16 +785,16 @@ Status advanceAction(ActionContext& c, const SettingsReservation& live, const Re
                 reason == ActionOutcome::INVALIDATED ? ReadOutcome::INVALIDATED
                 : reason == ActionOutcome::DEADLINE  ? ReadOutcome::DEADLINE
                                                      : ReadOutcome::CANCELLED;
-            s = advanceRead(candidate.read, readReason, now);
+            // Atomic on c.read, and nothing else has moved yet.
+            s = advanceRead(c.read, readReason, now);
             if (!s)
                 return s;
-            candidate.uncertain |= candidate.read.uncertain;
+            c.uncertain |= c.read.uncertain;
         }
     }
     if (now >= c.deadlineUs)
         reason = ActionOutcome::DEADLINE;
-    fail(candidate, reason, now, "action locally withdrawn; no replay or physical stop proof");
-    c = candidate;
+    fail(c, reason, now, "action locally withdrawn; no replay or physical stop proof");
     return Ok();
 }
 
