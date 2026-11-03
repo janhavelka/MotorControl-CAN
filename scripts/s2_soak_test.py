@@ -17,7 +17,7 @@ import s2_soak as soak  # noqa: E402
 
 ROOT = soak.ROOT
 LOCAL = timezone(timedelta(hours=1))
-ALLOWED = re.compile(rb"^(p|c|X|S\d+,\d+,\d+,\d+,\d+\n)$")
+ALLOWED = re.compile(rb"^(p|c|X|\n|S\d+,\d+,\d+,\d+,\d+\n)$")
 PONG = ("PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent=0 pinsReady=1 soak=%d t=5\n")
 
 
@@ -445,6 +445,20 @@ class Interruptions(Base):
         pings = self.board.writes.count(b"p")
         self.assertGreater(pings, 1)
         self.assertLess(pings, 8)  # Each reply ends that quiet spell; it is not a poll.
+
+
+    def test_keepalive_writes_only_newlines_and_counts_them(self):
+        self.assertEqual(self.run_soak("--keepalive-s", "1", duration="30"), 0)
+        newlines = self.board.writes.count(b"\n")
+        self.assertGreater(newlines, 5)
+        meta = json.loads((self.out / "trial-01" / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual(meta["host_keepalives"], newlines)
+        self.assertEqual([w for w in self.board.writes if w != b"\n"][:2], [b"p", b"c"])
+        self.assertEqual(self.run_json()["trials"][0]["verdict"], "complete")
+
+    def test_no_keepalive_by_default(self):
+        self.assertEqual(self.run_soak(duration="30"), 0)
+        self.assertNotIn(b"\n", self.board.writes)
 
 
 class Output(Base):

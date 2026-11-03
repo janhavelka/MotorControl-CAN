@@ -1,0 +1,71 @@
+{
+  "command": "soak-run",
+  "started_utc": "2026-11-03T07:24:00.541495+00:00",
+  "fixture": {
+    "port": "COM15",
+    "usb_serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "until": "09:00",
+  "duration_s": null,
+  "end_local": "2026-11-03T09:00:00+01:00",
+  "interval_ms": 20,
+  "summary_s": 60,
+  "reads": "full",
+  "max_trials": 3,
+  "objects": {
+    "state": [
+      "6041:00",
+      "6061:00",
+      "6064:00",
+      "606C:00"
+    ],
+    "monitors": [
+      "2100:00",
+      "2101:00",
+      "2102:00"
+    ],
+    "identity_once_per_node": [
+      "1000:00",
+      "1009:00",
+      "100A:00",
+      "1018:00",
+      "1018:01",
+      "1018:02",
+      "1018:03",
+      "2000:00",
+      "2001:00"
+    ],
+    "read_disposition": "accepted_not_qualified",
+    "never_read": [
+      "603F:00",
+      "1001:00",
+      "1003"
+    ]
+  },
+  "reset": false,
+  "retry": false,
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--until",
+    "09:00",
+    "--interval-ms",
+    "20",
+    "--summary-s",
+    "60",
+    "--reads",
+    "full",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261103-soak-final"
+  ],
+  "time_basis": "firmware processing microseconds; receive bounds are separate, no wall clock",
+  "host_revision": "261a25bc0d749cb04e3c2aa9dd0584b82a06851d",
+  "host_dirty": true
+}

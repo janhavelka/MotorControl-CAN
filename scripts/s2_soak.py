@@ -196,6 +196,7 @@ class Trial:
         self.synced = run.clock.monotonic()
         self.boot_after_begin = None
         self.waiting_high = 0
+        self.keepalives = 0
         self.last_data = run.clock.monotonic()
         self.port = None
         self.meta = {"command": "soak", "trial": identity, "trial_number": number,
@@ -289,6 +290,18 @@ class Trial:
             self.parse(chunk)
         return chunk
 
+    def keepalive(self):
+        """One bare newline, which the firmware ignores outside a command line. HIL-only
+        diagnostic: it keeps host-to-board traffic going while the console is quiet. Counted, not
+        logged per write. A failed write ends the trial as any port loss does."""
+        try:
+            count = self.port.write(b"\n")
+        except OSError as error:
+            raise PortLost("keepalive write failed: %s" % error) from error
+        if count != 1:
+            raise PortLost("short keepalive write of %s" % count)
+        self.keepalives += 1
+
     def send(self, data):
         """Exactly one write of one request. A failed or short write is never repeated."""
         self.run.event("send", trial=self.identity, tx_hex=data.hex(), text=data.decode("ascii").strip())
@@ -316,7 +329,8 @@ class Trial:
         if self.partial:
             self.run.note(self.run.transitions, self.number, "TRUNCATED %d bytes without a line end" % len(self.partial))
         self.meta.update(status="captured" if status == "captured" else "failed", ended_utc=self.run.clock.utc(),
-                         reason=reason, bytes=self.offset, host_waiting_high_water=self.waiting_high)
+                         reason=reason, bytes=self.offset, host_waiting_high_water=self.waiting_high,
+                         host_keepalives=self.keepalives)
         if status != "captured":
             self.meta["error"] = reason
         self.write_meta()
@@ -385,8 +399,12 @@ def capture(trial, args):
     stop_sent_at = None
     silence_after = max(10.0, args.summary_s * 3.0)
     pinged_for = None
+    next_keepalive = clock.monotonic() + args.keepalive_s if args.keepalive_s else None
     while True:
         trial.read()
+        if next_keepalive is not None and clock.monotonic() >= next_keepalive:
+            trial.keepalive()
+            next_keepalive = clock.monotonic() + args.keepalive_s
         if trial.checker.ended is not None:
             return "captured", "end:" + trial.checker.ended["reason"]
         if trial.boot_after_begin is not None:
@@ -553,6 +571,8 @@ def arguments(argv):
     when.add_argument("--duration-s", type=int, help="End this many seconds from now")
     parser.add_argument("--interval-ms", type=int, default=200, help="Read operation spacing across both nodes")
     parser.add_argument("--summary-s", type=int, default=60)
+    parser.add_argument("--keepalive-s", type=float, default=0.0,
+                        help="HIL diagnostic: write a bare newline this often while capturing; 0 never")
     parser.add_argument("--reads", choices=READS, default="full",
                         help="state; monitors adds 2100..2102; identity adds one identity read per node")
     parser.add_argument("--max-trials", type=int, default=3,
