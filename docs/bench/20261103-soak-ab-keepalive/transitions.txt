@@ -1,0 +1,8 @@
+2026-11-03T16:42:05.056043+00:00 HOST trial_start {"number": 1, "trial": 1793724125, "remaining_s": 10799, "usb": {"port": "COM15", "serial": "94A990398B40", "vid": 12346, "pid": 4098}}
+2026-11-03T16:42:05.335329+00:00 HOST send {"trial": 1793724125, "tx_hex": "70", "text": "p"}
+2026-11-03T16:42:05.360680+00:00 HOST ping {"trial": 1793724125, "base": "e724a39a05f26e2eca0d75a451d70bd766090060", "elf": "9a6e98ca44013b3c562d4e82f8b99bb8ad2959e35d9f4ecd2315450039962603", "active": 1, "running": 1, "soak": 0}
+2026-11-03T16:42:05.361681+00:00 HOST send {"trial": 1793724125, "tx_hex": "53313739333732343132352c31303739392c32302c36302c330a", "text": "S1793724125,10799,20,60,3"}
+2026-11-03T16:42:05.396876+00:00 trial=1 SOAK_REFUSED reason=busy; no work
+2026-11-03T16:42:05.396876+00:00 HOST soak_not_started {"trial": 1793724125, "reason": "refused:busy"}
+2026-11-03T16:42:05.402382+00:00 HOST trial_end {"trial": 1793724125, "reason": "refused:busy", "bytes": 263}
+2026-11-03T16:42:05.411060+00:00 HOST verdict {"trial": 1793724125, "verdict": "incomplete", "errors": 2, "soak": {"trial": null, "end": null, "lines": {}, "anomalies": {}, "nodes_stopped": {}, "lost_lines": 0, "signals": 0, "note_counts": {"soak_no_begin": 1}}, "sha256": "d6982d42ee23fee6b4027eb0c7715d175badb6ef658ee3803ec6e068d068a67a"}

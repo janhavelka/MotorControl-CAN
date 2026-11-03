@@ -25,7 +25,7 @@ A mutation check compiled 21 mutated production copies. 19 were caught, one surv
 ## Owed to packet 11 and open
 
 - Run the bounded typed acquisition live and compare it with the retained raw replies.
-- `603F`, `1001`, `1003`: first read of each records LED fault state before and after. **Done for `1001` and `603F`** in the attended session (trial 101, node 1, both 0, LED off before and after). `1003` has never been read.
+- `603F`, `1001`, `1003`: first read of each records LED fault state before and after. **Done for `1001` and `603F`** in the attended session (trial 101, node 1, both 0, LED off before and after). `1003` was first read unattended on 2026-11-03 through the `readiness-history` route (trials 128 and 129): `1003:00=0` on both nodes, `1001` and `603F` 0 before and after. The LED was not observed, so its part stays owed.
 - On interval-only S2 receive, `receiveFrame` drops the bounds before `recordSdo`, so a confirmed channel's `ordinarySdo` stays false until an exact NMT observation. This is conservative and pinned by `sdo_transfer_test`. Packet 11 should expect accepted uploads to work and other ordinary work to refuse there, and decide from the trace whether that needs changing.
 - The bench's identity plan must select MEASURED_U8 to succeed on these specimens.
 

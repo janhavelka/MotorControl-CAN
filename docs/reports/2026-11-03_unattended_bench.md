@@ -61,6 +61,19 @@ Ledger: 9 sends, **3 motion admissions** (`G2`, `S2`, `S1`); the firmware's boot
 | Internal heap | 50,060 bytes free and largest block 25,600 throughout: no change since the attended session |
 | Controller counters | Not on this image (see the campaign record). Every TX report in the copied traffic succeeded and no controller report occurred |
 
+## After the campaign: new image, error history, final state
+
+The board was then flashed with `e724a39` ([upload](../bench/20261103T1639Z-s2-upload/build.json), [ping](../bench/20261103T1641Z-s2-ping/rx.txt), `--check-ping` matched), so this boot carries the quick-stop fix, the controller counters and the history route. No motion route ran on it.
+
+| Trial | Node | Route | Result |
+| --- | --- | --- | --- |
+| [128](../bench/20261103T1641Z-history-node1-128/rx.txt), [129](../bench/20261103T1641Z-history-node2-129/rx.txt) | 1, 2 | `readiness-history`, first `1003` read | Both: `1003:00=0`, no entries. `1001=0` and `603F=0` before and after. TEC and REC 0 at admission and terminal. The fault LED was not observed |
+| [130](../bench/20261103T1641Z-p1-node1-130/rx.txt), [131](../bench/20261103T1641Z-p1-node2-131/rx.txt) | 1, 2 | Reads, post-test state | Node 1: `0050`, `2100=0010`, `6064=316`. Node 2: `8050`, `0011`, `6064=250`. Both mode 1, released, no error; TEC and REC 0 |
+
+So both drives answer `1003` with an empty history, and the read changed neither error word. Whether a read of a nonempty history has an effect is still unknown.
+
+**Console A/B soak.** The first attempt was refused `busy` before anything ran ([plain](../bench/20261103-soak-ab-plain/events.jsonl), [keepalive](../bench/20261103-soak-ab-keepalive/events.jsonl)): route sessions stay open after a route, and the soak's raw reads refuse while they are. The MCU was restarted by flashing the same commit again ([upload](../bench/20261103T1642Z-s2-upload/build.json), [ping](../bench/20261103T1643Z-s2-ping-c/rx.txt); the first ping after it caught the boot and got no answer, as in the attended session). The pair then started at stress1's settings, 3 h each: `20261103-soak-ab-plain2`, then `20261103-soak-ab-keepalive2` with `--keepalive-s 1`.
+
 ## Still owed
 
 - **Retest the quick stop** with the fixed library: needs a power cycle of both drives, then a reflashed board, the enable (an attendant must observe the power-up shaft), and a stationary `000B`.
