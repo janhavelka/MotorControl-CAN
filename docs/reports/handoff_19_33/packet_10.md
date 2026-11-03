@@ -45,7 +45,7 @@ Clang failed `stop_action` on every commit from packet 7 on. CI named the line o
 
 ## Override
 
-The [audit's](../../prompts/PROMPTSET_AUDIT_34_50_2026-11-02.md) hold lifts only when this commit's full verifier and CI pass. See the execution table for the outcome.
+CI passed on `5306eaf`, the first green run since `25a332f`, once the clang test defects above and a reference bound to too small an object in the corruption suite were fixed. So the [audit's](../../prompts/PROMPTSET_AUDIT_34_50_2026-11-02.md) hold is lifted. No script pins its text, and the audit file stays as the source of its decisions.
 
 **These stay open after closure:** Q02, Q04, Q05, Q10, Q11, Q12, Q18 and the unlisted Q20 rows; release command, moving stop, relative wire base, physical scale; whether `000B` stops the drive or could enable it; every DEC-8 row; the live stack during a stop; packet 3's seven TWAI questions. No firmware holds an `AxisSession`, so no firmware can issue a stop yet.
 

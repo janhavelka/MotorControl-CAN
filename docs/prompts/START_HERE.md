@@ -2,7 +2,7 @@
 
 Use the [numbered index](README.md). Filenames use ordinary integers **1-50**, without a stage 0 or lettered subprompts. The index is the execution order; alphabetical file sorting is not. Each prompt carries its concrete scope, source audit, dependencies, checks, documentation and delegation guidance through COMMON and the named contracts.
 
-The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) is active. Read its "Start here" section first if an assignment touches prompt 33's finite lifecycle or prompts 34-50: finite move, velocity and homing work waits for its W1 to W8. COMMON item 5 applies to both assignments below.
+The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1 to W8. Read its decisions if an assignment touches prompt 33's finite lifecycle or prompts 34-50. COMMON item 5 applies to both assignments below.
 
 ## Execute one prompt
 

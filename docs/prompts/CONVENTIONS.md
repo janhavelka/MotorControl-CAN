@@ -108,8 +108,6 @@ families exist, and `prepareStop` and `prepareClearAlarm` exist with conditional
 scope; [PROGRESS.md](PROGRESS.md) gives what remains in each. `prepareEnable`,
 `prepareRelease` and the move, velocity, homing, communication and persistence
 families are pending, and their CAN signatures are fixed when they are implemented.
-Finite move, velocity and homing lifecycles wait for W1 to W8 of the
-[repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md).
 Retain `state`, `outcome`, `status`, `execution`, `completion`,
 `uncertain` and operation-specific evidence in the concrete contexts where
 applicable. Do not invent `getMoveResult`, `getActionResult`, `getResult`,

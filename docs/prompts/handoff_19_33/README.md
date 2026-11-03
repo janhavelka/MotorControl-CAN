@@ -54,8 +54,8 @@ Prerequisites mean verified consumed artifacts, not a falsely Complete report.
 Unresolved DO addressing, tuning ranges, release or a naturally unavailable fault
 must not block unrelated arithmetic, diagnostics or a supported position case.
 Carry their gates into reports. Do not claim all original prompts Complete when
-only a subset passes. W1–W8's mandatory software repairs remain required before
-production finite motion; missing firmware qualification remains separate.
+only a subset passes. W1–W8's mandatory software repairs closed in packet 10;
+missing firmware qualification remains separate.
 
 ## Where the repository actually stands
 
@@ -73,8 +73,8 @@ and counter zero have conditional implementations. Position has pure
 `preparePositionParameters`, not a finite move engine. `MotionPreview` is offline
 and always has `executionReady=false`; changing that flag is not implementation.
 
-The [active repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md) requires W1–W8
-before finite motion. It was written against older code. Current NMT, S2 and
+The [repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1–W8 in packet 10.
+It was written against older code. Current NMT, S2 and
 receive-bound work already resolves parts of it. Reproduce each affected finding
 against current source before fixing it. The current firmware task stack is
 12,288 bytes; the audit's 8,192-byte figure is historical. Read-acquisition

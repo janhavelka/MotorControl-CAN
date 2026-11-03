@@ -37,11 +37,10 @@ not invent a remote or push to the base branch.
 
 The authoring baseline is `4ae93e3` on 2026-11-02; `c643af8` is the tested
 communication/PDO implementation. Refresh both code and reports. Read the
-[active repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md), particularly its
+[repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md), particularly its
 changes-since-baseline note, decisions and the packet's W/A/C/G/D findings.
-Packets 1–10 divide W1–W8 into executable pieces. Production finite motion must
-wait for their verified closure. Isolated prompt-29 experiments do not assert
-that a production lifecycle exists. Do not remove the audit override early.
+Packets 1–10 closed W1–W8. Isolated prompt-29 experiments do not assert
+that a production lifecycle exists.
 
 For every packet refresh MotorControl-RS, ADS1115 and INA228 revisions and dirty
 state, then read the relevant implementation, real caller and focused test.
