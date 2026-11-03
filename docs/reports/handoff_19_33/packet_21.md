@@ -18,7 +18,7 @@ See the [move guide](../../position_parameters.md) and the [changelog](../../../
 ## Tests
 
 - `test/support/MoveRig.h`, a shared rig; `move_absolute_test` now uses it.
-- `test/move_relative_test.cpp`, 100,967 checks: 11 interruption points, with queued and handed-off variants for the downloads, against deadline, cancel, fault, boot-up, rebind, missing feedback, stale feedback and a real urgent stop. Separate scenarios: both nodes stopping urgently at once, a lost trigger reply then a late identical ACK, explicit recovery, repeated identical values as separately admitted edges, timeout then new motion, and the processing-time cutoff.
+- `test/move_relative_test.cpp`, 108,159 checks after the review fixes (`move_absolute_test` 39,814): 11 interruption points, with queued and handed-off variants for the downloads, against deadline, cancel, fault, boot-up, rebind, missing feedback, stale feedback and a real urgent stop. Separate scenarios: both nodes stopping urgently at once, a lost trigger reply then a late identical ACK, explicit recovery, repeated identical values as separately admitted edges, timeout then new motion, and the processing-time cutoff.
 - `test/move_common_test.cpp`, 40 checks: the common intent vectors, compared with RS `preparePosition` compiled read-only, and test-only servo and non-CANopen fixtures for type neutrality.
 - Nine hand mutants of the new rules, all killed.
 
@@ -68,4 +68,4 @@ Per specimen and firmware, with raw traffic and a shaft observation:
 
 ## Checks
 
-See the [execution table](README.md).
+On `261a25b`: the full verifier in a clean detached worktree, every firmware gate, and the quick suite under UBSan (88 of 88) are recorded in the [execution table](README.md).
