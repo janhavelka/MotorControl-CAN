@@ -1,0 +1,78 @@
+{
+  "started_utc": "2026-11-03T08:21:42.885886+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-actions",
+  "seconds": 120.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 101,
+  "plan": "packet 15 P1",
+  "fields": [
+    1,
+    101
+  ],
+  "operator": {
+    "fault_led_before": {
+      "question": "Fault LED of node 1 now, as seen (for example off, red, red blinking): ",
+      "typed": "off",
+      "accepted": true
+    },
+    "fault_led_after": {
+      "question": "Fault LED of node 1 now, as seen: ",
+      "typed": "off"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-actions",
+    "--node",
+    "1",
+    "--trial",
+    "101",
+    "--fault-led",
+    "prompt",
+    "--campaign",
+    "docs/bench/20261103-campaign.jsonl",
+    "--new-campaign",
+    "--output",
+    "docs/bench/20261103T0822Z-p1-node1"
+  ],
+  "host_revision": "71c8670018d2fa7cdd5e26f5e98ac7b626bf236d",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261103-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5441312c3130312c4b35333636663363640a"
+  ],
+  "image": {
+    "base": "71c8670018d2fa7cdd5e26f5e98ac7b626bf236d",
+    "elf": "1729d905151a4e54fe9318d0f591635c4e88384715eb42fc7be6e2fd6492c118",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TA1,101,K5366f3cd",
+  "tx_hex": "5441312c3130312c4b35333636663363640a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-03T08:21:45.087241+00:00"
+}

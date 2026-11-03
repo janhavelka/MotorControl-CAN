@@ -35,6 +35,12 @@ enum class ObservedMode : uint8_t {
  * CiA402 decoder: two specimens read 111 after a power cycle with no 6040 write in any retained
  * record, so these bits alone never show that a word was written. */
 constexpr uint16_t STATUS_LOW_BITS = 0x0007;
+/** Bit 10 of 6041. EN86 PDF p12 labels it "0: motor in operating, 1: motor velocity 0"; ZH86 p12
+ * and OP86 p10 do not list it. On node 1 on 2026-11-03 it read 0 in mode 0 (0x8037), 1 in mode 1
+ * while energized and stationary (0x8437), and 0 again once 6040=6 released the motor (0x8031,
+ * 2100 released set). It follows the drive's state, so an enable never compares it across its
+ * words; 606C, not this bit, decides velocity. One specimen and firmware, not a qualification. */
+constexpr uint16_t STATUS_EN86_ZERO_SPEED = 0x0400;
 /** @name Object 2100 monitor bits
  * EN86 PDF p17 and ZH86 PDF p18 agree on these. They are not 6041 dialect bits, and a monitor
  * report is what the controller says, not an independent physical measurement.

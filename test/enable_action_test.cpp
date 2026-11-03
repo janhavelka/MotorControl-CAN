@@ -87,6 +87,9 @@ struct FakeDrive {
     unsigned lagReads = 0;      // 6041 reads to answer with the old low bits after each word.
     uint16_t silentIndex = 0, abortIndex = 0, silentWord = 0, abortWord = 0;
     uint16_t lastWord = 0xffff;
+    // The bytes node 1 gave on 2026-11-03: word 6 released the motor (2100 bit 4) and cleared 6041 bit
+    // 10. Words 7 and 15 here follow the hypothesis that energizing sets it again; not yet measured.
+    bool measuredRelease = false;
     unsigned words = 0, targetReads = 0;
     // Applied when this many enable words have arrived; zero means never.
     unsigned changeAfterWord = 0;
@@ -130,6 +133,12 @@ bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
                 drive.status = uint16_t((drive.status & ~L::STATUS_LOW_BITS) | low);
                 if (word == 15)
                     drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_RELEASED);
+                if (drive.measuredRelease && word == 6) {
+                    drive.status = uint16_t(drive.status & ~L::STATUS_EN86_ZERO_SPEED);
+                    drive.monitor = uint16_t(drive.monitor | L::MONITOR_RELEASED);
+                } else if (drive.measuredRelease && word == 15) {
+                    drive.status = uint16_t(drive.status | L::STATUS_EN86_ZERO_SPEED);
+                }
             }
             if (drive.changeAfterWord && drive.words == drive.changeAfterWord)
                 drive.apply();
@@ -783,6 +792,59 @@ void targetsDecideBeforeAnyWord() {
             CHECK(c.execution == M::ActionExecution::NOT_TRANSMITTED && wordsFrom(r, r.startFrame) == 0);
             quiet(r);
         }
+}
+
+// 4b. Node 1's measured bytes: from mode 1 at 0x8437 with the shaft holding, word 6 gave 0x8031 and
+// 2100=0x0011. Bit 10 follows the enable state, so it never ends the sequence; any other bit still
+// does, and so does a nonzero 606C.
+void zeroSpeedBitFollowsTheEnable() {
+    const uint16_t modeOne = 0x8437;
+    {
+        Rig r;
+        r.drive.status = modeOne;
+        r.drive.measuredRelease = true;
+        L::ReadContext state;
+        admittedRig(r, state);
+        L::EnableEvidence e = evidence(modeOne);
+        e.powerUpShaft = L::ShaftObservation::HOLDING;
+        CHECK(r.request(state, e).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+        CHECK(wordsFrom(r, r.startFrame) == 3);
+        CHECK(c.enable.steps[0].statusword == 0x8031 && c.enable.steps[0].monitor == 0x0011);
+        CHECK(c.enable.steps[1].statusword == 0x8033);
+        CHECK(c.enable.steps[2].statusword == modeOne && c.enable.steps[2].monitor == 0x0001);
+    }
+    // The same release with another bit changing, or the shaft creeping, still ends at that word.
+    const uint16_t others[] = {0x0200, 0x0800, 0x1000, 0x4000};
+    for (uint16_t bit : others) {
+        Rig r;
+        r.drive.status = modeOne;
+        r.drive.measuredRelease = true;
+        r.drive.changeAfterWord = 1;
+        r.drive.statusChange = bit;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, evidence(modeOne)).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(wordsFrom(r, r.startFrame) == 1);
+    }
+    {
+        Rig r;
+        r.drive.status = modeOne;
+        r.drive.measuredRelease = true;
+        r.drive.changeAfterWord = 1;
+        r.drive.velocityChange = 1;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, evidence(modeOne)).isOk());
+        r.finishEnable();
+        CHECK(r.a.enableAction().outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(wordsFrom(r, r.startFrame) == 1);
+    }
 }
 
 // 5. A report at each step that leaves the supported scope ends the sequence there.
@@ -1698,6 +1760,7 @@ void allScenarios() {
     RUN(refusalsAreAtomic);
     RUN(wrongStartRefuses);
     RUN(targetsDecideBeforeAnyWord);
+    RUN(zeroSpeedBitFollowsTheEnable);
     RUN(outOfScopeAtEachStep);
     RUN(wordFailuresAtEachStep);
     RUN(delaysAndPolling);

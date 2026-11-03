@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Enable observation scope ignores 6041 bit 10 (attended P3, node 1)
+
+- On node 1 the enable's word 6 released the motor and cleared `6041` bit 10 (EN86's zero-speed bit; `8437` to `8031`). The enable rule compared every bit above 0..2, so it ended there with `OBSERVATION_SCOPE` and could never complete on these drives. It now ignores bit 10 (`STATUS_EN86_ZERO_SPEED`, new in `State.h`); `606C` still decides velocity, and every other bit still ends the sequence. Test `zeroSpeedBitFollowsTheEnable` replays the measured bytes.
+
 ### Soak console loss diagnostics
 
 - `scripts/s2_soak.py --keepalive-s N`, HIL-only and off by default: one bare newline every N seconds while capturing, counted as `host_keepalives`. It tests whether console loss after a long quiet spell follows the idle link.
