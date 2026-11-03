@@ -1132,7 +1132,7 @@ constexpr ObjectDescriptor OBJECT_2500_00 = {
     22, 0x00080101u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x2501:00 U16 value declaration; EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19.
+/** @brief 0x2501:00 U16 value declaration; EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3.
  * No operation is implemented or authorized; gates Q01, Q09, Q04, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2501_00 = {
     0x2501, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
@@ -1140,7 +1140,7 @@ constexpr ObjectDescriptor OBJECT_2501_00 = {
     22, 0x00080109u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x2502:00 U16 value declaration; EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19.
+/** @brief 0x2502:00 U16 value declaration; EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3.
  * No operation is implemented or authorized; gates Q01, Q09, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2502_00 = {
     0x2502, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
@@ -1164,7 +1164,7 @@ constexpr ObjectDescriptor OBJECT_2504_00 = {
     22, 0x00080101u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x2505:00 U16 value declaration; EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19.
+/** @brief 0x2505:00 U16 value declaration; EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19; ZH86 PDF page 20.
  * No operation is implemented or authorized; gates Q01, Q09, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_2505_00 = {
     0x2505, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
@@ -1204,7 +1204,7 @@ constexpr ObjectDescriptor OBJECT_2509_00 = {
     22, 0x00080101u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x250A:00 U16 value declaration; EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20.
+/** @brief 0x250A:00 U16 value declaration; EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20; EN86 PDF page 20.
  * No operation is implemented or authorized; gates Q01, Q09, Q04, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_250A_00 = {
     0x250A, 0x00, ScalarType::U16, 2, false, SdoAccess::READ_ONLY,
@@ -1440,7 +1440,7 @@ constexpr ObjectDescriptor OBJECT_606C_00 = {
  * No operation is implemented or authorized; gates Q01, Q04, Q11, Q20 remain open. */
 constexpr ObjectDescriptor OBJECT_607A_00 = {
     0x607A, 0x00, ScalarType::I32, 4, true, SdoAccess::READ_WRITE,
-    ReadEffect::UNQUALIFIED, WritePolicy::QUALIFICATION_REQUIRED, PdoPolicy::UNQUALIFIED,
+    ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::QUALIFICATION_REQUIRED, PdoPolicy::UNQUALIFIED,
     33, 0x00080409u, SourceScope::EDS_FAMILY_UNBOUND
 };
 

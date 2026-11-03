@@ -2544,8 +2544,8 @@ constexpr ObjectMetadata METADATA_2500_00 = {
     "EDS [2500] lines 1559-1566; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3",
     "loop selector",
     "No unqualified conversion or range inferred.",
-    "Selects native drive loop behavior; not 6060 motion mode, a motor stop, enable or torque request.",
-    "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.; Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.; Explicit CL86-C or OL86-C model selection and continuous exclusive owner reservation acquired before the complete control read. Reject closed-loop selection for OL86-C. Write only a changed 2500 selector, withdraw configuration/reference prerequisites before possible TX, await matching ACK and exact new-epoch control readback; no enable/reset/save preamble.",
+    "Selects native drive loop behavior; not 6060 motion mode or an enable or torque request. The manual calls 0 noneffective; whether it removes torque is unknown, so it is not a disable, release or stop the library can rely on.",
+    "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.; Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.; Explicit CL86-C or OL86-C model selection and continuous exclusive owner reservation acquired before a clean STATUS and MONITORS read and the complete control read. Project policy, not a vendor rule: the state read must have succeeded with no uncertainty, and 2100 must report no running, alarm or undocumented bit 7..15. Project policy: CLOSED_LOOP is refused while 2501 reads 0. Reject closed-loop selection for OL86-C. Write only a changed 2500 selector, withdraw configuration/reference prerequisites before possible TX, await matching ACK and exact new-epoch control readback; no enable/reset/save preamble.",
     "Not specified by the retained source.",
     "RW",
     nullptr,
@@ -2559,7 +2559,7 @@ constexpr ObjectMetadata METADATA_2500_00 = {
 constexpr ObjectMetadata METADATA_2501_00 = {
     OBJECT_2501_00,
     "Obj.Encoder",
-    "EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19",
+    "EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3",
     "encoder resolution",
     "No unqualified conversion or range inferred.",
     "Changes native loop/current/tuning behavior; not a generic torque or autotune command.",
@@ -2577,7 +2577,7 @@ constexpr ObjectMetadata METADATA_2501_00 = {
 constexpr ObjectMetadata METADATA_2502_00 = {
     OBJECT_2502_00,
     "Obj.Maxcurrent",
-    "EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19",
+    "EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3",
     "mA",
     "No unqualified conversion or range inferred.",
     "Changes native loop/current/tuning behavior; not a generic torque or autotune command.",
@@ -2631,7 +2631,7 @@ constexpr ObjectMetadata METADATA_2504_00 = {
 constexpr ObjectMetadata METADATA_2505_00 = {
     OBJECT_2505_00,
     "Obj.OlMaxCper",
-    "EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19",
+    "EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19; ZH86 PDF page 20",
     "percent",
     "No unqualified conversion or range inferred.",
     "Changes native loop/current/tuning behavior; not a generic torque or autotune command.",
@@ -2721,7 +2721,7 @@ constexpr ObjectMetadata METADATA_2509_00 = {
 constexpr ObjectMetadata METADATA_250A_00 = {
     OBJECT_250A_00,
     "Obj.PosAlrm",
-    "EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20",
+    "EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20; EN86 PDF page 20",
     "position threshold",
     "No unqualified conversion or range inferred.",
     "Changes native loop/current/tuning behavior; not a generic torque or autotune command.",

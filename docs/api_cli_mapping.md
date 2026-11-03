@@ -44,8 +44,8 @@ Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming chec
 STATUS and MONITORS reads for explicit documentary comparison.
 Packet 10 adds `interpretStatusword` for one raw word, with the same meanings. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is
-no CLI route or implemented `prepareEnable/prepareRelease` yet. The
-[transition guide](drive_actions.md) records their exact remaining gates.
+no CLI route for an enable. `prepareEnable` exists and is gated: no specimen has run it, and
+`prepareRelease` does not exist. The [transition guide](drive_actions.md) records both.
 Prompt 31 installs `prepareStop/nextAction/advanceAction` and the concrete
 `ActionContext` for the [conditional native stop path](stop_actions.md), including
 `noteActionTransmission` at the owner's external handoff. No stop CLI is installed.
@@ -89,9 +89,10 @@ or validated drive stops. The next operation may retain previous terminal result
 
 Prompt 22 adds `prepareControlRead`, `prepareTuningRead`, `getControl` and
 `getTuning`, plus explicit `prepareControlSettings` through the existing
-`nextDriver/advanceDriver` lifecycle. [The tuning guide](tuning.md) lists exact
-rows, conditional mutation and missing evidence. Planned CLI owner is 41; no
-route or broad tuning-write capability is implemented.
+`nextDriver/advanceDriver` lifecycle; packet 14 adds its clean state read.
+[The tuning guide](tuning.md) lists exact rows, the conditional 2500 write and
+each withheld row's next evidence. Planned CLI owner is 41; no route or broad
+tuning-write capability is implemented.
 
 The [fresh 20/21 audit](reports/prompts_20_21_audit.md) adds real native
 `prepareDriverSettings`, `prepareSoftLimitSettings`
@@ -131,7 +132,7 @@ I2C siblings differ in lifecycle, status helpers and health enum members. Carry 
 | `prepareVelocity` | Finite signed velocity with explicit duration/stop policy | Wire units, signedness and start sequence require profile evidence |
 | `prepareHome` | Explicit documented method and prerequisites | Do not transfer ESS home method numbers |
 | `prepareSetDevicePosition` | Explicit supported device-coordinate change only | Reject if no documented equivalent; origin remains available |
-| `prepareEnable`, `prepareRelease` | Explicit drive state change | Confirm state transition; NMT operational alone is insufficient |
+| `prepareEnable`, `prepareRelease` | Explicit drive state change | Confirm state transition; NMT operational alone is insufficient. `prepareEnable` is gated, unrun on any specimen and has no console route. `prepareRelease` stays absent, with no source-backed command |
 | `prepareClearAlarm` | Explicit fault action preserving original evidence | Lichuan fault-reset behavior and controlword edge |
 | `prepareStop` | Explicit stop behavior and pending-command policy | Occupied SDO/PDO channel and option-code rules |
 | `nextRead`, `advanceRead`, `getIdentity`, `getConfig`, `getStateBlock` | Concrete bounded read state and checked typed getters | Service events, not serial byte replies |

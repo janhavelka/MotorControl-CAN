@@ -1321,7 +1321,9 @@ void escalationFromInFlightHalt() {
               halt.commandHistory[0].transfer.data[0] == 0x0f && halt.commandHistory[0].transfer.data[1] == 1 &&
               halt.commandHistory[0].transfer.operation == halt.operation);
         CHECK(halt.execution == (lost ? M::ActionExecution::UNKNOWN : M::ActionExecution::ACKNOWLEDGED));
-        CHECK(halt.outcome == (lost ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::CANCELLED));
+        // Superseded first, so the outcome is that withdrawal; the lost reply stays in its evidence.
+        CHECK(halt.outcome == M::ActionOutcome::CANCELLED);
+        CHECK(halt.commandHistory[0].outcome == (lost ? C::SdoOutcome::TIMEOUT : C::SdoOutcome::SUCCESS));
         CHECK(r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::EMPTY);
         CHECK(!r.a.latestControl()); // A superseded terminal is older intent, even a success.
         const Saved<L::ActionContext> old(halt);
@@ -1658,14 +1660,73 @@ void refusedEscalationsChangeNothing() {
     }
 }
 
+// A HALT superseded while the last field of a cycle that would report it stopped is in flight:
+// that terminal is kept as evidence, and the HALT still ends CANCELLED, never SUCCEEDED.
+void supersededHaltCannotSucceed() {
+    Rig r;
+    openAxis(r, r.a);
+    L::ReadContext state;
+    history(r, r.a, state);
+    CHECK(r.a.requestStop(L::StopKind::HALT, state, stopPolicy(r.now, 3000, 3100, 100, 100, 200), r.now) ==
+          E::StopPath::CONFIRMED);
+    r.steps(14);
+    const L::ActionContext& halt = r.a.stopAction(L::StopKind::HALT);
+    CHECK(halt.observations == 1 && halt.phase == L::ActionPhase::WAITING);
+    r.drive[0].monitor = 0; // The next cycle reports not running: it would complete the HALT.
+    r.turn(halt.eligibleUs);
+    unsigned field = 0;
+    for (unsigned i = 0; i < 40 && !field; ++i) {
+        r.step();
+        const unsigned last = r.wire.sentCount - 1;
+        if (r.wire.sent[last].data[0] == 0x40 && frameIndex(r.wire.sent[last]) == 0x6061) {
+            field = last;
+            r.drive[0].answer = false; // Held: answered below, after the escalation.
+        }
+    }
+    CHECK(field && halt.state == M::ActionState::ACTIVE && halt.read.cursor == 4);
+    L::ReadContext none;
+    CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, none, stopPolicy(r.now, 2000, 0), r.now) ==
+          E::StopPath::CONFIRMED);
+    CHECK(halt.state == M::ActionState::ACTIVE && halt.withdrawal == M::ActionOutcome::CANCELLED);
+    r.steps(2);
+    CHECK(r.wire.sentCount == field + 1); // The field settles first, in its own context.
+    r.answer(field);
+    r.step();
+    CHECK(halt.state == M::ActionState::FAILED && halt.outcome == M::ActionOutcome::CANCELLED);
+    CHECK(halt.completion == M::ActionCompletion::NOT_OBSERVED && halt.observations == 1);
+    CHECK(halt.observationEvidence.transfer.index == 0x6061 &&
+          halt.observationEvidence.outcome == C::SdoOutcome::SUCCESS && halt.read.state == M::ReadState::SUCCEEDED);
+    CHECK(halt.execution == M::ActionExecution::ACKNOWLEDGED);
+    r.drive[0].answer = true;
+    finish(r, r.a);
+    CHECK(r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::SUCCEEDED);
+    CHECK(!r.a.latestControl() || r.a.latestControl()->transfer.data[0] == 0x0b);
+}
+
 // 9. Stopped and released.
 void stoppedAndReleasedRefuse() {
+    // A known word with no arrow refuses on a fresh idle report. A fresh running report takes 000B
+    // instead, as that word still in flight would (packet 15 review): a running motor gets the attempt.
     const uint16_t refusedWords[] = {WORD_QUICK, 0x0006, 0x0007, 0x0000};
     for (uint16_t word : refusedWords)
         for (unsigned kind = 0; kind < 2; ++kind) {
             Rig r;
             openAxis(r, r.a);
+            L::ReadContext running;
+            history(r, r.a, running, word); // The fixture's drive reports running.
+            const unsigned before = r.wire.sentCount;
+            const E::StopPath path = r.a.requestStop(kind ? L::StopKind::QUICK_STOP : L::StopKind::HALT,
+                                                     running, stopPolicy(r.now), r.now);
+            CHECK(path == E::StopPath::HELD || path == E::StopPath::BEST_EFFORT);
+            finish(r, r.a);
+            CHECK(writes6040(r, before) == 1 && isWord(r, r.wire.sentCount - 1, WORD_QUICK));
+        }
+    for (uint16_t word : refusedWords)
+        for (unsigned kind = 0; kind < 2; ++kind) {
+            Rig r;
+            openAxis(r, r.a);
             L::ReadContext state;
+            r.drive[0].monitor = 0;
             history(r, r.a, state, word);
             const Saved<E::AxisSession> session(r.a);
             const Saved<O::OwnerResources> resources(r.owner.resources());
@@ -1678,11 +1739,12 @@ void stoppedAndReleasedRefuse() {
             CHECK(r.owner.stats().queueRejected == rejected);
             quiet(r, sent);
         }
-    // A prior 010F refuses HALT, and allows QUICK_STOP.
+    // A prior 010F refuses HALT on a fresh idle report, and allows QUICK_STOP.
     {
         Rig r;
         openAxis(r, r.a);
         L::ReadContext state;
+        r.drive[0].monitor = 0;
         history(r, r.a, state, WORD_HALT);
         CHECK(r.a.requestStop(L::StopKind::HALT, state, stopPolicy(r.now), r.now) == E::StopPath::NONE);
         CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(r.now), r.now) == E::StopPath::CONFIRMED);
@@ -2681,7 +2743,8 @@ void supersededHaltSettlesAfterFinished() {
             CHECK(halt.state == M::ActionState::FAILED && (halt.commandEvidenceMask & 1u));
             CHECK(halt.commandHistory[0].transfer.data[0] == 0x0f && halt.commandHistory[0].transfer.data[1] == 1);
             CHECK(halt.execution == (lost ? M::ActionExecution::UNKNOWN : M::ActionExecution::ACKNOWLEDGED));
-            CHECK(halt.outcome == (lost ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::CANCELLED));
+            CHECK(halt.outcome == M::ActionOutcome::CANCELLED); // The supersession, noted first.
+            CHECK(halt.commandHistory[0].outcome == (lost ? C::SdoOutcome::TIMEOUT : C::SdoOutcome::SUCCESS));
             CHECK(!r.a.latestControl()); // Never from a superseded terminal, even a success.
             if (second) {
                 r.step();
@@ -3385,6 +3448,7 @@ void allScenarios() {
     RUN(stopRequestedDuringAFault);
     RUN(idleOutOfScopeRefuses);
     RUN(supersededHaltSettlesAfterFinished);
+    RUN(supersededHaltCannotSucceed);
     RUN(invalidOptionsRefuseAtRequest);
     RUN(bestEffortHeldByFault);
     RUN(heldStopKeepsItsDeadline);

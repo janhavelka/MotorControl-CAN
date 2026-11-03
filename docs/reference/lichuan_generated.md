@@ -4275,10 +4275,10 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Units | loop selector |
 | Scaling | No unqualified conversion or range inferred. |
 | Original low / high / default | [null, null, null] |
-| Effect | Selects native drive loop behavior; not 6060 motion mode, a motor stop, enable or torque request. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C or OL86-C model selection and continuous exclusive owner reservation acquired before the complete control read. Reject closed-loop selection for OL86-C. Write only a changed 2500 selector, withdraw configuration/reference prerequisites before possible TX, await matching ACK and exact new-epoch control readback; no enable/reset/save preamble."] |
+| Effect | Selects native drive loop behavior; not 6060 motion mode or an enable or torque request. The manual calls 0 noneffective; whether it removes torque is unknown, so it is not a disable, release or stop the library can rely on. |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Explicit CL86-C or OL86-C model selection and continuous exclusive owner reservation acquired before a clean STATUS and MONITORS read and the complete control read. Project policy, not a vendor rule: the state read must have succeeded with no uncertainty, and 2100 must report no running, alarm or undocumented bit 7..15. Project policy: CLOSED_LOOP is refused while 2501 reads 0. Reject closed-loop selection for OL86-C. Write only a changed 2500 selector, withdraw configuration/reference prerequisites before possible TX, await matching ACK and exact new-epoch control readback; no enable/reset/save preamble."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "0 ineffective, 1 open loop, 2 closed loop. CL86-C accepts this reviewed enum; OL86-C has no documented encoder and cannot select closed loop. No EDS default or numeric limits; no physical activation timing inferred.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "Register acceptance on one CL86-C at the installed firmware, by an explicit write from 2 to 1 and back with readback, and a manufacturer statement of when a selector change takes effect and what selector 0 does. Neither is a physical loop activation measurement.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86/ZH86 PDF p19: 0 noneffective, 1 open loop, 2 closed loop. The library admits 0..2 for CL86-C and 0..1 for OL86-C, which has no encoder on EN86/ZH86 PDF p3; no specimen has accepted a write. No EDS default or numeric limits; no physical activation timing inferred.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4294,7 +4294,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.Encoder |
-| Sources | EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19 |
+| Sources | EDS [2501] lines 1567-1574; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -4305,7 +4305,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Line/count/quadrature basis not specified. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the unit (lines or counts), the writable range, whether a fixed encoder makes it read-only and when a change applies; corroborated without a write by the 6064 change over one independently measured shaft revolution.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86/ZH86 PDF p19 'Encoder resolution' with no unit or range. EN86/ZH86 PDF p3 give CL86-C a 1000-line incremental encoder and OL86-C none. Both specimens read 4000, which matches a quadrature count only by inference. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4321,7 +4321,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.Maxcurrent |
-| Sources | EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19 |
+| Sources | EDS [2502] lines 1575-1582; EN86 PDF page 19; ZH86 PDF page 19; EN86 PDF page 3; ZH86 PDF page 3 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -4332,7 +4332,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Maximum peak current, mA, not RMS. Admissible range, activation and motor ratings are not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer range and peak/RMS convention for 2502 on this firmware, and the installed LC60H2127 variant's rated phase current from its nameplate or datasheet.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86/ZH86 PDF p19 'Max. peak current', unit mA, with no range in either manual or the EDS. EN86/ZH86 PDF p3 give 8 A maximum output current: a drive ceiling, not an admissible setting or a rating of the installed LC60H2127. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4359,7 +4359,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Closed-loop maximum current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer formula for the percent base and the range, then an intermediate-current check over the write order, as RS validateIntermediateCurrentTuple does.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86/ZH86 PDF p19 'Maximum current ratio under closed loop', unit %. The base of the percentage, the range and any ordering against 2504 are not given; a % label does not establish 0..100. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4386,7 +4386,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Closed-loop base current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer formula for the percent base, the range and any ordering against 2503.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86/ZH86 PDF p19 'Basic current ratio under closed loop', unit %. Base, range and any ordering against 2503 are not given. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4402,7 +4402,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.OlMaxCper |
-| Sources | EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19 |
+| Sources | EDS [2505] lines 1599-1606; EN86 PDF page 19; ZH86 PDF page 19; ZH86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -4413,7 +4413,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Open-loop maximum current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer formula for the percent base and the range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p19-20 'Maximum current ratio under open loop', unit %. Base and range not given. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4440,7 +4440,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Standstill current ratio; range/basis not established. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer base, range, zero meaning and start condition, then a current-probe measurement at standstill.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Current ratio for locking', ZH86 PDF p20 the locking-current ratio, unit %. 'Holding' is the library's name. Base, range, zero meaning and the condition that starts locking are not given. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4467,7 +4467,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Standstill-current timing; range and exact transition not established. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer meaning (delay or duration), range and zero meaning, then a timed current-probe measurement at standstill.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Locking current time', ZH86 PDF p20, unit ms. Whether it is a delay before locking or a duration, its range and zero meaning are not given. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4494,7 +4494,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Low-pass enable, factory parameter; no Boolean option set established. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer code set and effect. No specimen record has read this word.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Low-pass filtering enabling', ZH86 PDF p20; factory default, adjustment not required generally. No code set: not a Boolean. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4521,7 +4521,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Filter coefficient; equation not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer filter equation, sample period and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Low-pass filtering coefficient', ZH86 PDF p20; factory default. No equation, unit or range. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4537,7 +4537,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | Obj.PosAlrm |
-| Sources | EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20 |
+| Sources | EDS [250A] lines 1639-1646; EN86 PDF page 19; ZH86 PDF page 20; EN86 PDF page 20 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -4548,7 +4548,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Position-deviation alarm threshold; scale/range not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer unit (encoder counts, command pulses or other), range and link to the p20 alarm. Never widened to make a test pass.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Out-of-tolerance alarm threshold', ZH86 PDF p20; factory default. EN86/ZH86 PDF p20 list a position out-of-tolerance alarm but link no threshold, unit or range to it. A setting, not measured following error. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4575,7 +4575,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Position-completion threshold; scale/range not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q04", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer unit, range and the report it drives, then a comparison against 6064 at standstill after a finite move.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Positioning completion threshold', ZH86 PDF p20; factory default. No unit or range, and no link to a 6041 or 2100 report. The EDS names it PosError. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4602,7 +4602,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Position-completion time; unit/range not supplied. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer time unit and range, then a timed in-position report after a finite move.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Positioning completion time', ZH86 PDF p20; factory default. No time unit, so no ms conversion. No EDS default or limits.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4629,7 +4629,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "The manufacturer equation, unit and range, which also settles coefficient against time.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 'Mean filtering coefficient', ZH86 PDF p20; factory default. The EDS names it AvrFiltime, a time, against the manuals' coefficient. No equation, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4656,7 +4656,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4683,7 +4683,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4710,7 +4710,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4737,7 +4737,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4764,7 +4764,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4791,7 +4791,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4818,7 +4818,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4845,7 +4845,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4872,7 +4872,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p19 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4899,7 +4899,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p20 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4926,7 +4926,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p20 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4953,7 +4953,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes native loop/current/tuning behavior; not a generic torque or autotune command. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Factory filter/gain meaning is incomplete. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer statement of the domain, scale and any ordering for each gain and node, and whether the drive's auto-tuning rewrites them. Read-only until then: no specimen record has read these words.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EN86 PDF p20 and ZH86 PDF p20: 'Factory default setting, adjustment not required generally', with no range, unit or equation; the EDS gives U16 RW with no default or limits. Velocity nodes have no inferred rpm unit or ordering.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -4980,7 +4980,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -5007,7 +5007,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -5034,7 +5034,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -5061,7 +5061,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -5088,7 +5088,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -5115,7 +5115,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |
@@ -5142,7 +5142,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Unknown physical effect; a symbolic EDS name is not sufficient evidence for a tuning write. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS-only symbolic name; no documented physical meaning. No EDS default or limits.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q09", "Q20"], "generation_type": "resolved", "next_evidence": "A manufacturer document that names this word and gives its meaning, unit and range.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Absent from every retained manual; only the EDS lists it, U16 RW with no default or limits. Its symbolic name is not a meaning, unit or range.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 22 |
 | Read owner prompt | 22 |

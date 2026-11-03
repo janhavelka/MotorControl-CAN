@@ -3,8 +3,10 @@
 `MotorControlCAN/profiles/lichuan_c/Tuning.h` provides finite typed native reads
 and explicit `0x2500` loop selection. It reuses `DriverContext`,
 `DriverSettingsContext`, `nextDriver` and `advanceDriver`; it adds no service
-engine, clock, allocation or controller access. Prompt 22 remains **Partial** on
-the precise write-evidence gates below. No confirmed read is left unimplemented.
+engine, clock, allocation or controller access. Prompt 22 remains **Partial**:
+2500 is the only typed write, and each of the other 32 rows keeps a named gate
+below. No confirmed read is left unimplemented. **No specimen has accepted any
+write here**; all write evidence is host and fake-owner evidence.
 
 ## Assignment and source evidence
 
@@ -14,35 +16,50 @@ lines 1559..1822. No EDS default, lower limit or upper limit is supplied.
 The original [EN86 manual](reference/vendor/86C_CANopen_user_manual_en.pdf),
 PDF p19 covers 2500..2516 and p20 covers 2517..2519; the original
 [ZH86 manual](reference/vendor/86C_CANopen_user_manual_zh.pdf), PDF p19 covers
-2500..2505 and p20 covers 2506..2519. Printed pages are 17 and 18.
+2500..2505, with the 2505 name running onto p20, and p20 covers 2506..2519.
+Printed pages are 17 and 18. Both pages were rendered again for packet 14.
+251A..2520 appear in no retained manual (EN86, ZH86, OP86, ZH57, OP57).
 The manuals' covers identify CL86-C/OL86-C; their firmware identity is unknown.
-PDF p3 distinguishes CL86-C's incremental encoder from OL86-C's absent encoder.
-Those facts do not specify the numeric convention of 2501.
+PDF p3 distinguishes CL86-C's 1000-line incremental encoder from OL86-C's absent
+encoder. That does not specify the numeric convention of 2501.
 
 Every row below has read owner and native setting owner **22**. All reads are
 documented, implemented and host tested; hardware qualification is false.
 Unknown words remain valid raw observations. The canonical
 [ledger and generated coverage](reference/lichuan_objects.md) preserve source
-claims and separate raw reads, conditional settings and whole-function coverage.
+claims, and each row's `review.next_evidence` names what would close its gate;
+the ledger checker refuses a Prompt 22 row without one.
 
-| Exact rows | Read API/group | Native facts | Write disposition and exact blocker |
+## Decisions per subgroup
+
+Pages are PDF pages. "No range" means neither manual nor the EDS gives an
+admissible domain, so the U16 width is not one.
+
+| Rows | Source facts | Decision | Next concrete evidence |
 | --- | --- | --- | --- |
-| 2500:00 | `prepareControlRead`, `getControl` | 0 ineffective, 1 open loop, 2 closed loop; distinct from motion mode 6060 | `prepareControlSettings` implemented for explicit CL86-C/OL86-C binding; OL86-C closed-loop rejected. Physical activation timing/firmware qualification remains unknown. |
-| 2501:00 | Same control read | Encoder resolution raw U16 | Pending in 22: line/count convention and admissible domain unknown. |
-| 2502:00 | `prepareTuningRead(CURRENT_HOLDING)`, `getTuning` | Maximum peak current in mA | Pending in 22: admissible domain and motor/drive peak-current bounds. Product-table 8 A has no peak/RMS qualification. |
-| 2503..2506:00 | Same current/holding group | Closed-loop maximum/base, open-loop maximum and holding ratios in percent | Pending in 22: ratio basis and admissible domains; no invented 0..100 bound or base/max ordering. |
-| 2507:00 | Same current/holding group | Holding time in ms | Pending in 22: accepted domain and zero/sentinel behavior; U16 width is not an operating range. |
-| 2508:00 | `prepareTuningRead(FILTER_POSITION)`, `getTuning` | Low-pass enabling raw word | Pending in 22: documented value set absent; not a Boolean setter. |
-| 2509/250D:00 | Same filter/position group | Low-pass/averaging coefficients | Pending in 22: coefficient domains, equations and physical units. |
-| 250A/250B:00 | Same filter/position group | Position alarm/in-position thresholds | Pending in 22: threshold scale and admissible domains. These are settings, not measured following error. |
-| 250C:00 | Same filter/position group | In-position time raw word | Pending in 22: time unit and admissible domain. No ms conversion. |
-| 250E..2519:00 | `prepareTuningRead(LOOP_GAINS)`, `getTuning` | Twelve named native factory loop parameters | Pending in 22: admissible domains/equations/scales. Manuals advise adjustment normally is unnecessary. Velocity nodes have no inferred ordering or rpm unit. |
-| 251A..2520:00 | `prepareTuningRead(EDS_GAINS)`, `getTuning` | Seven EDS-only words in address order | Pending in 22: no reviewed manual meaning, units or effects; no semantic setters from symbolic strings. |
+| 2500 | EN86/ZH86 p19: 0 noneffective (无效), 1 open loop, 2 closed loop. EN86/ZH86 p3: OL86-C has no encoder | **Typed write**, `prepareControlSettings`, below. The library admits 0..2 for CL86-C and 0..1 for OL86-C; no specimen has accepted a write. An ACK is register acceptance only | The attended trial T1: an explicit write from 2 to 1 and back on one CL86-C at its installed firmware, with readback; a manufacturer statement of when a change applies and what 0 does |
+| 2501 | EN86/ZH86 p19 "Encoder resolution", no unit or range. EN86/ZH86 p3: CL86-C 1000-line encoder. Both specimens read 4000, which matches 4 × 1000 lines only by inference | **Gate**, read back unchanged on every loop write | Manufacturer unit (lines or counts), range and whether a fixed encoder makes it read-only; without a write, the 6064 change over one independently measured revolution |
+| 2502 | EN86/ZH86 p19 "Max. peak current", mA, no range. EN86/ZH86 p3: 8 A maximum output current, no peak label. The [product page](reference/vendor/CL86-C_manufacturer_product.html) says "Maximum peak current: 8A" under Features, but "Maximum Output Current 8A" in its spec table, and its supply ranges (DC30..110 V, AC20..80 V) differ from p3, so it describes another revision | **Gate.** 8 A is a drive ceiling, not a setting or the LC60H2127's rating | Manufacturer range and peak/RMS convention for this firmware; the installed LC60H2127 variant's rated phase current from its nameplate or datasheet |
+| 2503..2505 | EN86 p19, ZH86 p19..20: closed-loop maximum, closed-loop base and open-loop maximum ratios, unit %. No base, range or ordering | **Gate.** A % label does not establish 0..100; no base ≤ maximum rule is invented | Manufacturer formula for the percent base, the range and any ordering; then an intermediate-current check over the write order, as RS `validateIntermediateCurrentTuple` does |
+| 2506, 2507 | EN86 p19 "Current ratio for locking" (%) and "Locking current time" (ms); ZH86 p20 锁机电流比例/时间. "Holding" is this library's name | **Gate.** No range, no zero meaning, no start condition; delay or duration unknown for 2507 | Manufacturer meaning, range and zero behavior; then a timed current-probe measurement at standstill |
+| 2508 | EN86 p19, ZH86 p20 "Low-pass filtering enabling", factory default, "adjustment not required generally" | **Gate.** No code set, so not a Boolean | Manufacturer code set and effect; no specimen record has read this word |
+| 2509, 250D | Low-pass and mean filtering coefficients, same pages. The EDS names 250D `AvrFiltime`, a time | **Gate.** No equation, unit or range; coefficient against time unresolved for 250D | Manufacturer equations, sample period, units and ranges |
+| 250A, 250B | "Out-of-tolerance alarm threshold" and "Positioning completion threshold", same pages. EN86/ZH86 p20 list a position out-of-tolerance alarm with no linked threshold | **Gate.** No scale or range. A threshold is a setting, not measured following error; 250A is never widened to make a test pass | Manufacturer unit (encoder counts, command pulses or other), range, and the report each drives; then a comparison against 6064 after a finite move |
+| 250C | "Positioning completion time", same pages, no time unit | **Gate.** No ms conversion | Manufacturer time unit and range; then a timed in-position report after a finite move |
+| 250E..2519 | Twelve named current, velocity and position loop parameters, EN86 p19 (2517..2519 on p20), ZH86 p20, all "factory default, adjustment not required generally" | **Gate.** No domain, scale or ordering; velocity nodes have no rpm unit | Manufacturer domain, scale and ordering for each, and whether the product page's "motor parameter auto-tuning" rewrites them |
+| 251A..2520 | EDS only: `v_kp`, `v_ki`, `v_kc`, `v_kvfbd1`, `v_kvfbd2`, `v_kvff`, `v_kacff` | **Gate.** A symbolic name is not a meaning | Any manufacturer document that names these words with meaning, unit and range |
 
-There are no confirmed-but-unimplemented tuning rows in this assignment. The
-remaining mutations are documentary uncertainty, not proven unsupported model
-capabilities. CL2-86C, 57C and other manufacturers acquire no support from this
-86C-specific setting subset. Current, current limit and torque stay distinct.
+Corrections recorded in packet 14: the earlier claim that the product's 8 A has
+"no peak/RMS qualification" holds for the manual table and the product page's
+spec table; only the product page's Features list says peak, on a page whose
+supply ranges belong to another revision. Either way it is not a setting for the
+installed motor. The product page is not a ledger source, so the ledger cites
+p3 only. The ledger now keeps the manuals' "locking" label for 2506/2507
+instead of "standstill", and cites every page its prose names.
+There are no confirmed-but-unimplemented tuning rows. The withheld writes are
+documentary gaps, not proven unsupported capabilities. CL2-86C, 57C and other
+manufacturers acquire no support from this 86C subset. Current, current limit
+and torque stay distinct.
 
 ## Read lifecycle and output guarantees
 
@@ -60,7 +77,8 @@ atomic device snapshot: `ReadWindow` exposes earliest/latest bounds and skew.
 Delivering an old terminal later does not renew its freshness. Every upload
 retains `UNQUALIFIED` effects under Q20; none enters the non-changing probe or
 automatic reconciliation. Abort, partial read history and uncertain effects
-remain in the context after failure.
+remain in the context after failure. Reads of 2502..2520 are outside the
+accepted polling list, so bench use needs its own reviewed acquisition path.
 
 ```cpp
 namespace L = MotorControlCAN::LICHUAN_C;
@@ -72,81 +90,110 @@ auto status = L::prepareTuningRead(read, target, operation, nowUs, deadlineUs,
 // No controller is opened or lifecycle action performed by preparation.
 ```
 
-The compiled [standalone consumer](../test/installed_consumer/main.cpp) exercises
-control acquisition, an explicit loop candidate and withdrawal before admission.
-The independent [native suite](../test/tuning_test.cpp) drives all 33 literal
-objects and the loop write through the selected service adapter. The
-[application-owner suite](../test/can_bus_owner_test.cpp) additionally drives
-actual control reads and loop settings through copied admission, scheduling,
-pre-TX notification and retained completion, including failed readback and
-uncertain downloads. Its illustrative words/model premises do not qualify a
-real drive.
-
 ## Explicit loop mutation and retained effects
 
-The application establishes an actual model-bound exclusive
-`AxisReservation` before the complete control read. The same
-[settings exclusion and transmission contract](driver_settings.md#explicit-position-parameter-settings)
+The application establishes an actual model-bound exclusive `AxisReservation`
+before a clean STATUS and MONITORS state read and the complete control read.
+The same [settings exclusion and transmission contract](driver_settings.md#explicit-position-parameter-settings)
 applies: competing control/mode/target/RPDO/settings work is excluded, and each
-call checks the actual still-live reservation and current configuration binding.
-This host reservation cannot correlate identical late wire replies or reopen a
+call checks the actual still-live reservation and current target. This host
+reservation cannot correlate identical late wire replies or reopen a
 quarantined SDO channel.
 
-`ControlSettings` defaults to invalid `UNKNOWN`. Whole-candidate preparation
-accepts only documented enum values, rejects absent model binding and OL86-C
-closed-loop selection, and preserves output on failure. Only a changed 2500
-word is downloaded. The 2501 encoder word is never written. No-op candidates
-retain the fresh prior result and do not withdraw configuration.
+`prepareControlSettings(output, reservation, current, prior, state, settings, ...)`
+validates the whole candidate before publishing anything:
 
-Before handing a queued changed word to a controller, call
-`noteDriverTransmission` with the **actual application/axis binding**. This
-withdraws the configuration generation once, invalidating dependent scale,
-reference, prepared targets and old snapshots before effects become possible.
-Do not use a disposable binding copy as the application truth. Independent
-stable observations are not refreshed by this change.
+- `ControlSettings` defaults to invalid `UNKNOWN`; only 0, 1 and 2 pass. An
+  absent or unknown model is refused, and so is `CLOSED_LOOP` for OL86-C.
+- A stored undocumented selector word is readable raw and can be replaced.
+- **Project policy, not a vendor rule**, as for 2202: the state read must have
+  succeeded cleanly under the reservation, with no 2100 running, alarm or
+  undocumented bit 7..15 report. Bit 4 decides nothing. This is not evidence of
+  a stopped shaft or a safe transition; RS refuses its control settings unless
+  stationary with no alarm. An alarm refuses every selector, deliberately: open
+  loop cannot be selected to get past an out-of-tolerance alarm, even one
+  caused by a lost encoder (EN86 PDF p20, cause 3).
+- **Project policy**: `CLOSED_LOOP` is refused while 2501 reads zero. Whatever
+  2501 counts, zero of them cannot scale feedback. Leaving closed loop stays
+  possible.
 
-A matching download acknowledgement records `confirmed` bit 0, its requested
-word and acknowledgement time. It proves a register acknowledgement only.
-After releasing service results, explicitly advance the healthy idle adapter
-configuration with `advanceConfiguration`; read back 2500 and 2501 at that new
-epoch. Both must match the candidate image, including unchanged encoder data.
-A mismatch fails without publishing an observation. Failure during readback
-retains the confirmed write; cancellation after possible transmission retains
-uncertainty. No rollback, retry, enable, stop, save or reset is emitted.
+Only a changed 2500 word is downloaded; 2501 is never written. An unchanged
+candidate that passes the state and 2501 rules succeeds from the fresh prior
+read with no frame, no notice and no epoch change. Before handing the queued
+word to a controller, call
+`noteDriverTransmission` with the actual application/axis binding. That
+withdraws the configuration generation once, so prepared targets and old reads
+fail their epoch checks before any effect is possible.
 
-`INEFFECTIVE` is the vendor selector label. It is not advertised as motor
-disable, stop or release. Requested loop mode, read register value, actual
-physical activation and motion completion are separate facts.
+A matching acknowledgement records `confirmed` bit 0 and its time. It proves
+register acceptance only, not physical loop activation. After releasing the
+write's result, advance the owner's configuration with `advanceConfiguration`;
+readback of 2500 and 2501 runs at the new epoch, and both must match, including
+the unchanged 2501. A mismatch or a failure at either word publishes nothing
+and keeps the acknowledgement. A lost reply, cancellation after possible
+transmission, reboot, bus-off or deadline keeps uncertainty. No rollback, retry,
+enable, stop, save or reset is emitted.
 
-EN86/ZH86 PDF p19 document the selector's type, access and values without a
-drive-state precondition or activation interval. This API confirms the native
-register transaction only; it does not establish a qualified physical loop
-transition. The broader Q09 evidence gate remains open for unestablished tuning
-domains/effects and model/firmware qualification. No disabled-state rule or
-fixed activation delay is inferred from another profile.
+The manual calls selector 0 (`INEFFECTIVE`) noneffective. Whether it removes
+torque is unknown, so it is not a disable, release or stop the library can rely
+on. Loop selector 2500 is not motion mode 6060. Requested selector, read
+register value, physical activation and motion completion are separate facts.
 
-## Other accounting and verification
+**Warning: the drive may be energized when the write lands.** Both specimens
+report `6041=0x8037` and 2100 bit 4 clear with no enable written in any
+retained record, which matches the documented enabled pattern, and OP86 PDF p5
+note 4 says the motor is shaft-locked after power-up (OP86 pp5-14 repeat the
+57C manual, so this is not independent 86C evidence). A 2500 change can
+therefore act on an energized motor: closed to open may snap the rotor or
+change the phase current. No source gives a drive-state precondition or an
+activation interval, and none is inferred from another profile.
 
-`1003:00..04` reads remain 19 (history clearing/persistence stays separately
-assigned). `1005/1014/1017/1200` configuration reads remain 19, while
-communication mutations remain 38; the 1200 count declaration belongs to 13.
-All 88 PDO-record reads remain 38; their declarations/observation and mutation
-owners remain 17/18. No row transfers silently into this tuning assignment.
-The ledger validator has exact ownership regression tests.
+Recorded delta from RS: RS refuses every control write, the algorithm selector
+included, unless `CONTROL_EFFECTS_REQUIRED` qualification and a qualified
+current tuple are supplied (`DriverSettings.cpp` lines 366-433). This 2500 write
+has no such gate. Its only evidence gate is an attended bench trial (T1): one
+write from 2 to 1 and back on one CL86-C, with a phase-current probe, an
+unloaded shaft and the drive power cutoff at hand. Until that passes, a changed
+selector is an unqualified action on a possibly energized drive.
 
-Implementation: `src/profiles/lichuan_c/Reads.cpp` and `Settings.cpp`.
-Native tests: `test/tuning_test.cpp`, including literal vendor words,
-wrong-width/access replies, every-position read failures, model/enum rejection,
-unknown prior repair, ACK/readback mismatch, cancellation and configuration
-invalidation. Generator/schema tests separately check exact 95 read descriptors
-and the sole conditional tuning setting. Planned CLI owner is prompt 41;
-no tuning CLI or hardware qualification exists yet.
+## Other accounting
+
+`1003:00..04` reads and their read-only declarations remain 19.
+`1005/1014/1017/1200:01..02` configuration reads remain 19 and their mutations
+38; the `1200:00` count declaration belongs to 13. All 88 PDO-record reads
+remain 38; their declarations and mutations remain 17/18, and persistence 39.
+No row transfers silently into this tuning assignment, and the ledger validator
+has exact ownership regression tests.
+
+## Verification
+
+Implementation: `src/profiles/lichuan_c/Tuning.cpp` and `Settings.cpp`.
+
+- [`test/settings_owner_test.cpp`](../test/settings_owner_test.cpp) runs the
+  loop write through the real `CanBusOwner` and `SdoClient` against a scripted
+  dictionary holding the specimens' 2500=2 and 2501=4000: literal frames for
+  every transition, no-op silence, whole-candidate and state refusals, the
+  inclusive age bound, frozen tokens, aliases, immutable queued bytes, aborted
+  and lost downloads, failed, lost and mismatched readback at each word,
+  cancellation before and after handoff, preflight and controller refusal,
+  deadlines, boot-up, bus-off, EMCY, notice-before-TX, retirement before epoch
+  migration, and that no other word or object is written.
+- [`test/tuning_test.cpp`](../test/tuning_test.cpp) drives all 33 literal reads
+  and the model/enum and policy matrix through the direct service adapter.
+- [`test/settings_write_test.cpp`](../test/settings_write_test.cpp) checks that
+  refused calls leave a retained control transaction unchanged.
+- [`test/can_bus_owner_test.cpp`](../test/can_bus_owner_test.cpp) keeps the
+  owner's retained partial-effect scenarios for the loop write.
+
+21 hand mutants of the control-settings logic were each killed in a scratch
+copy. Generator/schema tests check the 95 read descriptors, the sole
+conditional tuning setting and that each withheld row's next evidence reaches
+the generated coverage. The planned CLI owner is prompt 41; no tuning CLI or
+hardware qualification exists yet.
 
 ```sh
 python scripts/generate_lichuan_objects.py --check
 python scripts/check_lichuan_ledger_test.py
 python scripts/generate_lichuan_objects_test.py
-ctest --test-dir .build/p22-native -R '^(tuning|settings_write|reads)$' --output-on-failure
-python scripts/verify.py --mode quick --build-dir .build/p22-quick
-python scripts/verify.py --mode full --build-dir .build/p22-full
+ctest --test-dir <build> -R "^(tuning|settings_write|settings_owner|can_bus_owner)$" --output-on-failure
 ```

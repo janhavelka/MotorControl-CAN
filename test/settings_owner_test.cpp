@@ -5,6 +5,7 @@
 #include "CanBusOwner.h"
 #include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -59,7 +60,7 @@ struct Entry {
 // A scripted dictionary, not a drive model: it stores what is written and answers what it holds.
 struct Drive {
     enum Fault { NONE, ABORT, LOST };
-    Entry table[41] = {{0x2100, 0, 2, 1},      {0x2101, 0, 2, 0},
+    Entry table[74] = {{0x2100, 0, 2, 1},      {0x2101, 0, 2, 0},
                        {0x2102, 0, 2, 0},      {0x6041, 0, 2, 0x8037},
                        {0x6061, 0, 1, 0},      {0x6040, 0, 2, 0},
                        {0x2200, 0, 2, 0},      {0x2201, 0, 2, 1000},
@@ -79,7 +80,25 @@ struct Drive {
                        {0x2404, 0, 2, 2},      {0x2405, 0, 2, 2},
                        {0x2406, 0, 2, 2},      {0x2407, 0, 2, 2},
                        {0x60fe, 0, 1, 2},      {0x60fe, 1, 4, 0},
-                       {0x60fe, 2, 4, 0}};
+                       {0x60fe, 2, 4, 0},
+                       {0x2500, 0, 2, 2},      {0x2501, 0, 2, 4000},
+                       // No retained record reads 2502..2520. These words are arbitrary, and all differ.
+                       {0x2502, 0, 2, 0x1002}, {0x2503, 0, 2, 0x1003},
+                       {0x2504, 0, 2, 0x1004}, {0x2505, 0, 2, 0x1005},
+                       {0x2506, 0, 2, 0x1006}, {0x2507, 0, 2, 0x1007},
+                       {0x2508, 0, 2, 0x1008}, {0x2509, 0, 2, 0x1009},
+                       {0x250a, 0, 2, 0x100a}, {0x250b, 0, 2, 0x100b},
+                       {0x250c, 0, 2, 0x100c}, {0x250d, 0, 2, 0x100d},
+                       {0x250e, 0, 2, 0x100e}, {0x250f, 0, 2, 0x100f},
+                       {0x2510, 0, 2, 0x1010}, {0x2511, 0, 2, 0x1011},
+                       {0x2512, 0, 2, 0x1012}, {0x2513, 0, 2, 0x1013},
+                       {0x2514, 0, 2, 0x1014}, {0x2515, 0, 2, 0x1015},
+                       {0x2516, 0, 2, 0x1016}, {0x2517, 0, 2, 0x1017},
+                       {0x2518, 0, 2, 0x1018}, {0x2519, 0, 2, 0x1019},
+                       {0x251a, 0, 2, 0x101a}, {0x251b, 0, 2, 0x101b},
+                       {0x251c, 0, 2, 0x101c}, {0x251d, 0, 2, 0x101d},
+                       {0x251e, 0, 2, 0x101e}, {0x251f, 0, 2, 0x101f},
+                       {0x2520, 0, 2, 0x1020}};
     Entry* find(uint16_t index, uint8_t subindex) {
         for (Entry& e : table)
             if (e.index == index && e.subindex == subindex)
@@ -163,7 +182,7 @@ struct Wire : OwnerRig::WireBase {
     L::DriverSettingsContext* settings = nullptr;
     L::AxisReservation live;
     M::Binding current;
-    unsigned guards = 0, notices = 0;
+    unsigned guards = 0, notices = 0, sentAtNotice = 0;
     bool rejectGuard = false;
     L::DriverContext* retained[2] = {nullptr, nullptr};
     static bool guard(void* context, O::SequenceId, const C::SdoTransfer& work, uint64_t now) {
@@ -174,6 +193,7 @@ struct Wire : OwnerRig::WireBase {
         if (w.settings) {
             CHECK(L::noteDriverTransmission(*w.settings, w.live, w.current, now));
             ++w.notices;
+            w.sentAtNotice = w.sentCount;
         }
         for (L::DriverContext* c : w.retained)
             if (c) {
@@ -2695,6 +2715,1120 @@ void diUnusedAndMethodFixtures() {
     CHECK(after.inputFunctions[0] == L::InputFunction::UNDEFINED);
     CHECK(!fixtureMethodPermits(after, true, true, true));
 }
+// The 2500 selector through the real owner. 2500=2 and 2501=4000 are what both specimens report, and
+// neither that nor anything scripted here qualifies a selector, an encoder convention or an activation.
+L::ControlSettings loop(L::LoopMode mode) {
+    L::ControlSettings s;
+    s.loopMode = mode;
+    return s;
+}
+L::ControlSettings loop(uint16_t code) {
+    return loop(static_cast<L::LoopMode>(code));
+}
+// Drive a read to its terminal; a server abort leaves it FAILED.
+void readControl(Bench& b, L::DriverContext& out) {
+    const uint32_t op = b.begin();
+    CHECK(L::prepareControlRead(out, b.current(), op, b.now, DEADLINE, options()));
+    while (out.read.state == M::ReadState::ACTIVE) {
+        L::PreparedRead work;
+        CHECK(L::nextDriver(out, b.now, work) && work.ready);
+        const C::SdoCompletion terminal = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(out, terminal, b.now));
+    }
+}
+struct LoopEvidence {
+    L::ReadContext state;
+    L::DriverContext prior;
+    explicit LoopEvidence(Bench& b) {
+        b.readState(state);
+        readControl(b, prior);
+        CHECK(prior.read.state == M::ReadState::SUCCEEDED);
+    }
+};
+M::Status prepareLoop(L::DriverSettingsContext& out, Bench& b, const LoopEvidence& e,
+                      const L::ControlSettings& s, uint64_t deadline = DEADLINE) {
+    const uint32_t op = b.begin(deadline);
+    return L::prepareControlSettings(out, b.wire.live, b.current(), e.prior, e.state, s, op, b.now,
+                                     deadline, options(), AGE);
+}
+M::Status prepareLoop(L::DriverSettingsContext& out, Bench& b, const LoopEvidence& e, L::LoopMode mode,
+                      uint64_t deadline = DEADLINE) {
+    return prepareLoop(out, b, e, loop(mode), deadline);
+}
+// No controlword, mode, save, reset, clear, NMT or other object since `first`: only single 2500
+// writes, 2500 and 2501 reads, and a client abort cleanup.
+void onlyLoopTraffic(const Bench& b, unsigned first) {
+    for (unsigned i = first; i < b.wire.sentCount; ++i) {
+        const M::Frame& f = b.wire.sent[i];
+        CHECK(f.id == 0x601);
+        if (f.data[0] == 0x80)
+            continue;
+        CHECK(f.data[2] == 0x25 && f.data[3] == 0);
+        if (f.data[0] == 0x40)
+            CHECK(f.data[1] <= 1);
+        else
+            CHECK(f.data[0] == 0x2b && f.data[1] == 0 && f.data[4] <= 2 && !f.data[5] && !f.data[6] &&
+                  !f.data[7]);
+    }
+}
+unsigned loopWrites(const Bench& b) {
+    unsigned writes = 0;
+    for (unsigned i = 0; i < b.wire.sentCount; ++i)
+        if (b.wire.sent[i].id == 0x601 && b.wire.sent[i].data[0] != 0x40 && b.wire.sent[i].data[0] != 0x80 &&
+            b.wire.sent[i].data[2] == 0x25)
+            ++writes;
+    return writes;
+}
+void noLoopPublication(const L::DriverSettingsContext& c, Bench& b) {
+    L::ControlObservation seen;
+    const Saved<L::ControlObservation> none(seen);
+    CHECK(!L::getControl(c, b.wire.live, b.current(), b.now, AGE, seen));
+    none.unchanged(seen);
+}
+// Yield and admit the next step of an owned transaction, leaving it for the scenario to settle.
+O::RequestId startLoopStep(Bench& b, L::DriverSettingsContext& c) {
+    b.wire.settings = &c;
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    return b.admit(work.transfer);
+}
+// Run the write and its acknowledgement, and move the reservation to the new epoch for readback.
+void acknowledgeLoopWrite(Bench& b, L::DriverSettingsContext& c) {
+    b.wire.settings = &c;
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const C::SdoCompletion ack = b.exchange(work.transfer);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+    CHECK(c.state == L::SettingsState::READING_BACK && c.confirmed == 1);
+    CHECK(b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+}
+
+void loopEndToEnd() {
+    Bench b;
+    LoopEvidence e(b);
+    L::ControlObservation found;
+    CHECK(L::getControl(e.prior, b.current(), b.now, AGE, found));
+    CHECK(found.loopMode == L::LoopMode::CLOSED_LOOP && found.loopModeRaw == 2 &&
+          found.encoderResolutionRaw == 4000);
+    L::DriverContext motionHeld;
+    b.read(motionHeld, L::DriverGroup::MOTION_PARAMETERS);
+    M::AxisConfig axis;
+    const M::PreparedTarget prepared = preparedTarget(b, axis);
+    L::DriverSettingsContext c;
+    CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+    CHECK(c.state == L::SettingsState::WRITING && c.changed == 1 && !c.effectsPossible && !c.confirmed);
+    // Preparation moves no epoch and invalidates nothing.
+    CHECK(b.wire.current.configurationGeneration == 7);
+    axis.binding = b.wire.current;
+    CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+    const unsigned first = b.mark();
+    b.run(c);
+    CHECK(c.state == L::SettingsState::SUCCEEDED && c.outcome == M::ReadOutcome::SUCCESS);
+    CHECK(c.changed == 1 && c.confirmed == 1 && !c.uncertain && c.effectsPossible);
+    CHECK(b.wire.current.configurationGeneration == 8 && b.wire.notices == 1);
+    // One write, then the whole control group at the new epoch, and nothing else.
+    CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2500, 0, 1));
+    CHECK(frameIs(b.wire.sent[first + 1], 0x40, 0x2500, 0, 0));
+    CHECK(frameIs(b.wire.sent[first + 2], 0x40, 0x2501, 0, 0));
+    CHECK(b.wire.sentCount == first + 3);
+    CHECK(b.drive.value(0x2500) == 1 && b.drive.value(0x2501) == 4000);
+    CHECK(c.readback.read.target.channel.binding.configurationGeneration == 8);
+    L::ControlObservation seen;
+    CHECK(L::getControl(c, b.wire.live, b.current(), b.now, AGE, seen));
+    CHECK(seen.loopMode == L::LoopMode::OPEN_LOOP && seen.loopModeRaw == 1);
+    CHECK(seen.encoderResolutionRaw == 4000);
+    CHECK(seen.target.channel.binding.configurationGeneration == 8);
+    CHECK(seen.fields[0].index == 0x2500 && seen.fields[1].index == 0x2501);
+    // The frozen token keeps its epoch and publishes nothing there.
+    CHECK(b.reservation.target.channel.binding.configurationGeneration == 7);
+    const Saved<L::ControlObservation> published(seen);
+    CHECK(!L::getControl(c, b.wire.live, b.reservation.target, b.now, AGE, seen));
+    published.unchanged(seen);
+    // Every earlier observation and target on this configuration is now refused.
+    CHECK(!L::getControl(e.prior, b.current(), b.now, AGE, seen));
+    published.unchanged(seen);
+    L::StateObservation block;
+    CHECK(!L::getStateBlock(e.state, L::StateBlock::STATUS, b.current(), b.now, AGE, block));
+    L::DriverObservation motionSeen;
+    CHECK(!L::getDriver(motionHeld, b.current(), b.now, AGE, motionSeen));
+    axis.binding = b.wire.current;
+    CHECK(!M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+    // The other settings getters refuse this transaction's kind.
+    CHECK(!L::getDriver(c, b.wire.live, b.current(), b.now, AGE, motionSeen));
+    L::IoObservation ioSeen;
+    CHECK(!L::getIo(c, b.wire.live, b.current(), b.now, AGE, ioSeen));
+}
+
+void loopEveryTransitionOnTheWire() {
+    const uint32_t storedWords[] = {0, 1, 2, 3, 0x1234, 0xffff};
+    for (L::SettingsModel model : {L::SettingsModel::CL86_C, L::SettingsModel::OL86_C})
+        for (uint32_t stored : storedWords)
+            for (uint16_t code = 0; code < 3; ++code) {
+                Bench b(model);
+                b.drive.set(0x2500, 0, stored);
+                LoopEvidence e(b);
+                // An undocumented stored word stays raw, undecoded and repairable.
+                L::ControlObservation found;
+                CHECK(L::getControl(e.prior, b.current(), b.now, AGE, found));
+                CHECK(found.loopModeRaw == stored && found.encoderResolutionRaw == 4000);
+                CHECK((found.loopMode == L::LoopMode::UNKNOWN) == (stored > 2));
+                L::DriverSettingsContext c;
+                if (model == L::SettingsModel::OL86_C && code == 2) { // No documented encoder, EN86 p3.
+                    refused(b, c, [&] { return prepareLoop(c, b, e, loop(code)); });
+                    CHECK(b.drive.value(0x2500) == stored);
+                    continue;
+                }
+                const unsigned first = b.mark(), guards = b.wire.guards;
+                CHECK(prepareLoop(c, b, e, loop(code)));
+                if (stored == code) { // The no-op: its fresh read stands, and no frame or epoch moves.
+                    CHECK(c.state == L::SettingsState::SUCCEEDED && !c.changed && !c.effectsPossible);
+                    CHECK(!c.confirmed && !c.uncertain && c.outcome == M::ReadOutcome::SUCCESS);
+                    L::PreparedRead work;
+                    work.ready = true;
+                    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && !work.ready);
+                    b.turn(b.now);
+                    b.checkSilentSince(first);
+                    CHECK(b.wire.guards == guards && b.wire.notices == 0);
+                    CHECK(b.wire.current.configurationGeneration == 7);
+                    L::ControlObservation same;
+                    CHECK(L::getControl(c, b.wire.live, b.current(), b.now, AGE, same));
+                    CHECK(same.loopModeRaw == code && same.encoderResolutionRaw == 4000);
+                    continue;
+                }
+                b.run(c);
+                CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 1 && !c.uncertain);
+                CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2500, 0, code));
+                CHECK(b.wire.sentCount == first + 3);
+                onlyLoopTraffic(b, first);
+                CHECK(b.drive.value(0x2500) == code && b.drive.value(0x2501) == 4000);
+                CHECK(b.wire.notices == 1 && b.wire.current.configurationGeneration == 8);
+            }
+    { // Selector 0 is a register value like the others: no controlword goes with it.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareLoop(c, b, e, L::LoopMode::INEFFECTIVE));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2500) == 0);
+        onlyLoopTraffic(b, first);
+        CHECK(b.drive.downloads == 1);
+    }
+}
+
+void loopCandidatesRefusedWhole() {
+    // Candidate words and a default candidate: nothing outside 0..2 goes anywhere.
+    for (uint16_t code : {uint16_t(3), uint16_t(4), uint16_t(0x8000), uint16_t(0xfffe), uint16_t(0xffff)}) {
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        refused(b, c, [&] { return prepareLoop(c, b, e, loop(code)); });
+        CHECK(b.drive.value(0x2500) == 2);
+    }
+    {
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        refused(b, c, [&] { return prepareLoop(c, b, e, L::ControlSettings()); });
+    }
+    // Each case spoils one prerequisite of a candidate that is otherwise admissible.
+    enum Case {
+        NO_MODEL, BAD_MODEL, NO_OWNER, NO_SEQUENCE, NO_GENERATION, PRIOR_BEFORE_RESERVATION,
+        NO_OPERATION, DEADLINE_NOW, DEADLINE_PAST, NO_QUEUE_BUDGET, NO_RESPONSE_BUDGET, NO_AGE,
+        EXPIRED, EXHAUSTED, CASES
+    };
+    for (unsigned k = 0; k < CASES; ++k) {
+        Bench b;
+        LoopEvidence e(b);
+        L::AxisReservation live = b.wire.live;
+        if (k == NO_MODEL)
+            live.model = L::SettingsModel::UNKNOWN;
+        if (k == BAD_MODEL)
+            live.model = static_cast<L::SettingsModel>(3);
+        if (k == NO_OWNER)
+            live.owner = 0;
+        if (k == NO_SEQUENCE)
+            live.sequence = 0;
+        if (k == NO_GENERATION)
+            live.generation = 0;
+        if (k == PRIOR_BEFORE_RESERVATION)
+            live.acquiredUs = b.now + 1;
+        if (k == EXHAUSTED)
+            live.target.channel.binding.configurationGeneration = UINT32_MAX;
+        uint32_t operation = b.begin();
+        uint64_t deadline = DEADLINE, age = AGE;
+        if (k == NO_OPERATION)
+            operation = 0;
+        if (k == DEADLINE_NOW)
+            deadline = b.now;
+        if (k == DEADLINE_PAST) {
+            b.turn(b.now + 1);
+            deadline = b.now - 1;
+        }
+        if (k == NO_AGE)
+            age = 0;
+        if (k == EXPIRED)
+            b.turn(b.now + AGE + 1);
+        L::ReadOptions policy = options();
+        if (k == NO_QUEUE_BUDGET)
+            policy.queueTimeoutUs = 0;
+        if (k == NO_RESPONSE_BUDGET)
+            policy.responseTimeoutUs = 0;
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            return L::prepareControlSettings(c, live, live.target, e.prior, e.state, loop(uint16_t(1)), operation,
+                                             b.now, deadline, policy, age);
+        });
+    }
+    // The same evidence admits with its oldest field exactly AGE old, so the cases above isolate what
+    // they spoil, and one microsecond more refuses.
+    for (uint64_t late = 0; late < 2; ++late) {
+        Bench b;
+        LoopEvidence e(b);
+        L::StateObservation status, monitors;
+        L::ControlObservation control;
+        CHECK(L::getStateBlock(e.state, L::StateBlock::STATUS, b.current(), b.now, AGE, status));
+        CHECK(L::getStateBlock(e.state, L::StateBlock::MONITORS, b.current(), b.now, AGE, monitors));
+        CHECK(L::getControl(e.prior, b.current(), b.now, AGE, control));
+        uint64_t oldest = status.window.earliestUs;
+        if (monitors.window.earliestUs < oldest)
+            oldest = monitors.window.earliestUs;
+        if (control.window.earliestUs < oldest)
+            oldest = control.window.earliestUs;
+        b.turn(oldest + AGE + late);
+        L::DriverSettingsContext c;
+        if (late) {
+            refused(b, c, [&] { return prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP); });
+            continue;
+        }
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        CHECK(c.state == L::SettingsState::WRITING);
+    }
+    { // A prior of another kind is complete and still not this one.
+        Bench b;
+        L::ReadContext state;
+        b.readState(state);
+        const L::DriverGroup others[] = {L::DriverGroup::DRIVER, L::DriverGroup::SOFT_LIMITS,
+                                         L::DriverGroup::MOTION_PARAMETERS,
+                                         L::DriverGroup::IO_INPUT_CONFIGURATION,
+                                         L::DriverGroup::TUNING_CURRENT_HOLDING};
+        for (L::DriverGroup group : others) {
+            L::DriverContext wrong;
+            b.read(wrong, group);
+            const uint32_t op = b.begin();
+            L::DriverSettingsContext c;
+            refused(b, c, [&] {
+                return L::prepareControlSettings(c, b.wire.live, b.current(), wrong, state, loop(uint16_t(1)), op,
+                                                 b.now, DEADLINE, options(), AGE);
+            });
+        }
+    }
+    // A failed prior read, at either word.
+    for (uint16_t index : {uint16_t(0x2500), uint16_t(0x2501)}) {
+        Bench b;
+        L::ReadContext state;
+        b.readState(state);
+        b.drive.inject(Drive::ABORT, index, 0, false);
+        L::DriverContext prior;
+        readControl(b, prior);
+        CHECK(prior.read.state == M::ReadState::FAILED);
+        const uint32_t op = b.begin();
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            return L::prepareControlSettings(c, b.wire.live, b.current(), prior, state, loop(uint16_t(1)), op,
+                                             b.now, DEADLINE, options(), AGE);
+        });
+    }
+    { // A prior or state read older than this reservation, each on its own.
+        Bench b;
+        L::ReadContext oldState;
+        b.readState(oldState);
+        L::DriverContext oldPrior;
+        readControl(b, oldPrior);
+        b.turn(b.now + 1);
+        L::AxisReservation live = b.wire.live;
+        live.acquiredUs = b.now;
+        L::ReadContext state;
+        b.readState(state);
+        L::DriverContext prior;
+        readControl(b, prior);
+        const uint32_t op = b.begin();
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            return L::prepareControlSettings(c, live, live.target, oldPrior, state, loop(uint16_t(1)), op, b.now,
+                                             DEADLINE, options(), AGE);
+        });
+        refused(b, c, [&] {
+            return L::prepareControlSettings(c, live, live.target, prior, oldState, loop(uint16_t(1)), op, b.now,
+                                             DEADLINE, options(), AGE);
+        });
+        CHECK(L::prepareControlSettings(c, live, live.target, prior, state, loop(uint16_t(1)), op, b.now, DEADLINE,
+                                        options(), AGE));
+    }
+    { // A new node generation refuses before the evidence is looked at.
+        Bench b;
+        LoopEvidence e(b);
+        L::ReadTarget rebooted = b.current();
+        ++rebooted.nodeGeneration;
+        L::DriverSettingsContext c;
+        const M::Status status = L::prepareControlSettings(c, b.wire.live, rebooted, e.prior, e.state,
+                                                           loop(uint16_t(1)), 99, b.now, DEADLINE, options(), AGE);
+        CHECK(!status && status.detail == int32_t(M::ReadError::TARGET));
+    }
+}
+
+// Project policy, as for 2202. Each word holds alone against the fixture's clean one.
+void loopStateRules() {
+    const auto admitted = [](uint32_t word, uint16_t code) {
+        Bench b;
+        b.drive.set(0x2100, 0, word);
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        const uint32_t before = b.drive.value(0x2500);
+        const unsigned first = b.mark();
+        const M::Status status = prepareLoop(c, b, e, loop(code));
+        if (status) {
+            b.run(c);
+            CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2500) == code);
+        } else {
+            CHECK(status.detail == int32_t(M::ReadError::STATE));
+            CHECK(b.wire.sentCount == first && b.drive.value(0x2500) == before);
+        }
+        return bool(status);
+    };
+    for (uint16_t code : {uint16_t(0), uint16_t(1)}) {
+        CHECK(admitted(0x0001, code)); // Both specimens read 2100=1.
+        CHECK(admitted(0x0000, code));
+        CHECK(admitted(0x0003, code)); // Homing complete is not a refusal here.
+        CHECK(admitted(0x0011, code)); // Bit 4 decides nothing, reported set or clear.
+        CHECK(admitted(0x0021, code)); // The soft-limit flags are documented reports.
+        CHECK(admitted(0x0041, code));
+        CHECK(!admitted(0x0005, code)); // Running.
+        // Alarm. Open loop cannot be used to get past one either, even from a lost encoder.
+        CHECK(!admitted(0x0009, code));
+        for (unsigned bit = 7; bit < 16; ++bit)
+            CHECK(!admitted(0x0001u | (1u << bit), code));
+    }
+    // A failed or partial state read refuses even though the blocks this call reads completed.
+    for (Drive::Fault fault : {Drive::ABORT, Drive::LOST}) {
+        Bench b;
+        L::DriverContext prior;
+        readControl(b, prior);
+        b.drive.inject(fault, 0x60fd, 0, false);
+        L::ReadContext state;
+        const uint32_t op = b.begin();
+        CHECK(L::prepareState(state, b.current(), op, b.now, DEADLINE, options(),
+                              uint8_t(STATE_MASK | (1u << unsigned(L::StateBlock::INPUTS)))));
+        for (unsigned i = 0; i < 5; ++i) {
+            L::PreparedRead work;
+            CHECK(L::nextRead(state, b.now, work) && work.ready);
+            const C::SdoCompletion terminal = b.exchange(work.transfer);
+            CHECK(L::advanceRead(state, terminal, b.now));
+        }
+        L::PreparedRead failing;
+        CHECK(L::nextRead(state, b.now, failing) && failing.ready);
+        const O::RequestId id = b.admit(failing.transfer);
+        b.turn(b.now);
+        b.deliver();
+        b.turn(b.now + (fault == Drive::LOST ? 100 : 1), budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal);
+        CHECK(L::advanceRead(state, terminal->service, b.now));
+        CHECK(state.state == M::ReadState::FAILED);
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            return L::prepareControlSettings(c, b.wire.live, b.current(), prior, state, loop(uint16_t(1)),
+                                             b.operation, b.now, DEADLINE, options(), AGE);
+        });
+        CHECK(b.owner.release(id));
+    }
+    // Each required block must be there: a read of one alone is not enough.
+    for (L::StateBlock only : {L::StateBlock::STATUS, L::StateBlock::MONITORS}) {
+        Bench b;
+        L::ReadContext state;
+        b.readState(state, uint8_t(1u << unsigned(only)));
+        L::DriverContext prior;
+        readControl(b, prior);
+        const uint32_t op = b.begin();
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            return L::prepareControlSettings(c, b.wire.live, b.current(), prior, state, loop(uint16_t(1)), op,
+                                             b.now, DEADLINE, options(), AGE);
+        });
+    }
+    // Closed loop on a stored 2501 of zero is refused; the rest of the domain stays open, so the same
+    // read can still leave closed loop. Nonzero words are not a domain: each only passes this check.
+    for (uint32_t encoder : {0u, 1u, 4000u, 65535u})
+        for (uint32_t stored : {0u, 1u, 2u, 3u})
+            for (uint16_t code = 0; code < 3; ++code) {
+                Bench b;
+                b.drive.set(0x2500, 0, stored);
+                b.drive.set(0x2501, 0, encoder);
+                LoopEvidence e(b);
+                L::DriverSettingsContext c;
+                if (code == 2 && !encoder) {
+                    const Saved<L::DriverSettingsContext> blank(c);
+                    const M::Status status = prepareLoop(c, b, e, loop(code));
+                    CHECK(!status && status.detail == int32_t(M::ReadError::VALUE));
+                    blank.unchanged(c);
+                    continue;
+                }
+                CHECK(prepareLoop(c, b, e, loop(code)));
+                b.run(c);
+                CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2501) == encoder);
+            }
+}
+
+void loopFrozenTokenAndAliases() {
+    { // A finished transaction leaves a token and evidence that agree with each other and not the drive.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2500) == 1);
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        const unsigned sent = b.mark();
+        const uint32_t op = b.begin();
+        const M::Status status = L::prepareControlSettings(out, b.wire.live, b.current(), e.prior, e.state,
+                                                           loop(uint16_t(2)), op, b.now, DEADLINE, options(), AGE);
+        CHECK(!status && status.detail == int32_t(M::ReadError::TARGET));
+        blank.unchanged(out);
+        b.checkSilentSince(sent);
+        // A current token refuses the old evidence outright. Fresh evidence admits the next step.
+        b.renew();
+        refused(b, out, [&] { return prepareLoop(out, b, e, L::LoopMode::CLOSED_LOOP); });
+        LoopEvidence fresh(b);
+        L::DriverSettingsContext back;
+        const unsigned first = b.mark();
+        CHECK(prepareLoop(back, b, fresh, L::LoopMode::CLOSED_LOOP));
+        b.run(back);
+        CHECK(back.state == L::SettingsState::SUCCEEDED && b.wire.current.configurationGeneration == 9);
+        CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2500, 0, 2));
+        CHECK(b.wire.notices == 2);
+    }
+    { // A plan made while current cannot act once another transaction has moved the generation.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext heldNoOp, heldWrite, c;
+        CHECK(prepareLoop(heldNoOp, b, e, L::LoopMode::CLOSED_LOOP));
+        CHECK(heldNoOp.state == L::SettingsState::SUCCEEDED && !heldNoOp.changed);
+        CHECK(prepareLoop(heldWrite, b, e, L::LoopMode::INEFFECTIVE));
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        b.run(c);
+        noLoopPublication(heldNoOp, b);
+        L::PreparedRead work;
+        CHECK(!L::nextDriver(heldNoOp, b.wire.live, b.wire.current, b.now, work));
+        CHECK(!L::nextDriver(heldWrite, b.wire.live, b.wire.current, b.now, work));
+        M::Binding binding = b.wire.current;
+        const Saved<M::Binding> kept(binding);
+        CHECK(!L::noteDriverTransmission(heldWrite, b.wire.live, binding, b.now));
+        kept.unchanged(binding);
+    }
+    { // Every input that can sit inside the output refuses, before any work.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const uint32_t op = b.operation;
+        const Saved<L::DriverSettingsContext> saved(c);
+        const auto aliased = [&](M::Status status) {
+            CHECK(!status && status.detail == int32_t(M::ReadError::OVERLAP));
+            saved.unchanged(c);
+        };
+        const L::ControlSettings wanted = loop(uint16_t(1));
+        const L::ReadOptions policy = options();
+        aliased(L::prepareControlSettings(c, c.reservation, b.current(), e.prior, e.state, wanted, op, b.now,
+                                          DEADLINE, policy, AGE));
+        aliased(L::prepareControlSettings(c, b.wire.live, c.reservation.target, e.prior, e.state, wanted, op,
+                                          b.now, DEADLINE, policy, AGE));
+        aliased(L::prepareControlSettings(c, b.wire.live, b.current(), c.readback, e.state, wanted, op, b.now,
+                                          DEADLINE, policy, AGE));
+        aliased(L::prepareControlSettings(c, b.wire.live, b.current(), e.prior, c.readback.read, wanted, op,
+                                          b.now, DEADLINE, policy, AGE));
+        aliased(L::prepareControlSettings(c, b.wire.live, b.current(), e.prior, e.state,
+                                          at<L::ControlSettings>(&c.requested[0]), op, b.now, DEADLINE, policy,
+                                          AGE));
+        aliased(L::prepareControlSettings(c, b.wire.live, b.current(), e.prior, e.state, wanted, op, b.now,
+                                          DEADLINE, c.readback.read.options, AGE));
+    }
+    { // A stale copy of the reservation refuses every step, and revocation stops old copies at the owner.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        // The route has one reservation: nothing else can begin on it while this one holds.
+        O::SequenceId other;
+        CHECK(!b.owner.beginSequence(route(1).binding, 2, b.now, other));
+        L::AxisReservation stale = b.wire.live;
+        ++stale.sequence;
+        L::PreparedRead work;
+        const Saved<L::PreparedRead> noWork(work);
+        CHECK(!L::nextDriver(c, stale, b.wire.current, b.now, work));
+        noWork.unchanged(work);
+        M::Binding binding = b.wire.current;
+        CHECK(!L::noteDriverTransmission(c, stale, binding, b.now));
+        CHECK(binding.configurationGeneration == 7);
+        const L::AxisReservation before = b.wire.live;
+        CHECK(b.owner.invalidate(b.sequence, b.now) && !b.owner.sequence(b.sequence));
+        b.wire.live.owner = 0;
+        CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, b.now, work));
+        O::BusRequest late;
+        late.sequence = b.sequence;
+        CHECK(L::nextDriver(c, before, b.wire.current, b.now, work) && work.ready);
+        late.transfer = work.transfer;
+        O::RequestId refusedId;
+        CHECK(b.owner.admit(late, b.now, refusedId) != O::BusAdmission::ACCEPTED);
+    }
+}
+
+void loopCandidateIsImmutable() {
+    Bench b;
+    LoopEvidence e(b);
+    L::ControlSettings wanted = loop(L::LoopMode::OPEN_LOOP);
+    L::DriverSettingsContext c;
+    CHECK(prepareLoop(c, b, e, wanted));
+    wanted.loopMode = L::LoopMode::INEFFECTIVE;
+    b.wire.settings = &c;
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const O::RequestId id = b.admit(work.transfer);
+    // Neither the candidate, the yielded copy nor the context can reach the queued request.
+    work.transfer.data[0] = 0xee;
+    const uint32_t held = c.requested[0];
+    c.requested[0] = 0;
+    const unsigned first = b.mark();
+    b.turn(b.now);
+    CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2500, 0, 1));
+    c.requested[0] = held;
+    b.deliver();
+    b.turn(b.now + 1, budget(8, 0, 8, 0));
+    const O::Completion* terminal = b.owner.result(id);
+    CHECK(terminal && terminal->service.transfer.data[0] == 1);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+    CHECK(b.owner.release(id));
+    CHECK(c.confirmed == 1 && b.drive.value(0x2500) == 1);
+    b.wire.settings = nullptr;
+    // A hand-edited active context refuses instead of writing 2501 or an undocumented code.
+    Bench r(L::SettingsModel::OL86_C);
+    r.drive.set(0x2500, 0, 0);
+    LoopEvidence f(r);
+    L::DriverSettingsContext d;
+    CHECK(prepareLoop(d, r, f, L::LoopMode::OPEN_LOOP));
+    const Saved<L::DriverSettingsContext> saved(d);
+    const auto refusedEdit = [&]() {
+        L::PreparedRead edited;
+        const Saved<L::PreparedRead> none(edited);
+        CHECK(!L::nextDriver(d, r.wire.live, r.wire.current, r.now, edited));
+        none.unchanged(edited);
+    };
+    const uint32_t code = d.requested[0];
+    const uint16_t fields = d.changed;
+    d.requested[0] = 3;
+    refusedEdit();
+    d.requested[0] = 2; // Closed loop for OL86-C.
+    refusedEdit();
+    d.requested[0] = code;
+    d.changed = 2; // 2501.
+    refusedEdit();
+    d.changed = 3;
+    refusedEdit();
+    d.changed = fields;
+    d.cursor = 1;
+    refusedEdit();
+    d.cursor = 0;
+    saved.unchanged(d);
+    const unsigned sent = r.mark();
+    r.run(d);
+    CHECK(d.state == L::SettingsState::SUCCEEDED && r.drive.value(0x2500) == 1);
+    CHECK(frameIs(r.wire.sent[sent], 0x2b, 0x2500, 0, 1));
+    onlyLoopTraffic(r, sent);
+}
+
+void loopFailedDownload() {
+    { // A server abort: nothing confirmed, no readback, no retry, and the failure stays.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        b.drive.inject(Drive::ABORT, 0x2500, 0, true);
+        b.run(c);
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::PROTOCOL_REJECTED);
+        CHECK(!c.confirmed && c.effectsPossible && c.uncertain && !c.acknowledgedUs[0]);
+        CHECK(c.evidencePresent && c.evidence.abortValid && c.evidence.abortCode == 0x08000022u);
+        CHECK(b.wire.current.configurationGeneration == 8 && b.wire.notices == 1);
+        CHECK(b.drive.value(0x2500) == 2);
+        noLoopPublication(c, b);
+        L::PreparedRead work;
+        work.ready = true;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && !work.ready);
+        const unsigned sent = b.mark();
+        b.turn(b.now + 10);
+        b.checkSilentSince(sent);
+        CHECK(loopWrites(b) == 1);
+        onlyLoopTraffic(b, first);
+    }
+    { // A lost reply: the write may have landed, is not confirmed, is never replayed.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        b.drive.inject(Drive::LOST, 0x2500, 0, true);
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        b.deliver();
+        b.turn(b.now + 100, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.outcome == C::SdoOutcome::TIMEOUT);
+        CHECK(terminal->service.effectUncertain && terminal->service.transmissionPossible);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::SERVICE_TIMEOUT);
+        CHECK(c.uncertain && !c.confirmed && b.drive.value(0x2500) == 1);
+        // The late reply changes no result, the route stays unresolved, and no write repeats.
+        const Saved<O::Completion> retained(*terminal);
+        M::Frame late;
+        late.id = 0x581;
+        late.dlc = late.payloadLength = 8;
+        late.data[0] = 0x60;
+        late.data[2] = 0x25;
+        b.wire.push(late, b.now + 1);
+        b.turn(b.now + 1, budget(8, 0, 8, 0));
+        retained.unchanged(*b.owner.result(id));
+        CHECK(b.services.unresolved(0) && !b.owner.sequence(b.sequence));
+        O::SequenceId another;
+        CHECK(!b.owner.beginSequence(route(1).binding, 2, b.now, another));
+        CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+        CHECK(loopWrites(b) == 1);
+        // The token and evidence from before it cannot report a no-op, whatever the drive holds.
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        const M::Status status = L::prepareControlSettings(out, b.wire.live, b.current(), e.prior, e.state,
+                                                           loop(uint16_t(2)), 99, b.now, DEADLINE, options(), AGE);
+        CHECK(!status && status.detail == int32_t(M::ReadError::TARGET));
+        blank.unchanged(out);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+}
+
+void loopFailedReadback() {
+    for (uint16_t index : {uint16_t(0x2500), uint16_t(0x2501)}) {
+        { // An upload abort after the acknowledgement: register accepted, group unconfirmed.
+            Bench b;
+            LoopEvidence e(b);
+            L::DriverSettingsContext c;
+            CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+            b.drive.inject(Drive::ABORT, index, 0, false);
+            b.run(c);
+            CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::PROTOCOL_REJECTED);
+            CHECK(c.confirmed == 1 && c.effectsPossible);
+            CHECK(b.drive.value(0x2500) == 1 && loopWrites(b) == 1);
+            noLoopPublication(c, b);
+        }
+        { // A readback word that contradicts the candidate. 2501 was never written, and still decides.
+            Bench b;
+            LoopEvidence e(b);
+            L::DriverSettingsContext c;
+            CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+            const uint32_t wrong = index == 0x2500 ? 2 : 4001;
+            b.drive.lieIndex = index;
+            b.drive.lieRaw = wrong;
+            b.run(c);
+            CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::REPLY_ERROR);
+            CHECK(c.confirmed == 1 && !c.uncertain);
+            CHECK(c.readback.read.values[index & 1].raw == wrong);
+            noLoopPublication(c, b);
+            CHECK(loopWrites(b) == 1);
+        }
+        { // A lost upload: uncertain route, the acknowledgement stays, and nothing is published.
+            Bench b;
+            LoopEvidence e(b);
+            L::DriverSettingsContext c;
+            CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+            b.drive.inject(Drive::LOST, index, 0, false);
+            acknowledgeLoopWrite(b, c);
+            const uint64_t acknowledged = c.acknowledgedUs[0];
+            if (index == 0x2501) {
+                L::PreparedRead work;
+                CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+                const C::SdoCompletion first = b.exchange(work.transfer);
+                CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, first, b.now));
+            }
+            const O::RequestId id = startLoopStep(b, c);
+            b.turn(b.now);
+            b.deliver();
+            b.turn(b.now + 100, budget(8, 0, 8, 0));
+            const O::Completion* terminal = b.owner.result(id);
+            CHECK(terminal && terminal->service.outcome == C::SdoOutcome::TIMEOUT);
+            CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+            CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::SERVICE_TIMEOUT);
+            CHECK(c.confirmed == 1 && c.acknowledgedUs[0] == acknowledged && c.uncertain);
+            noLoopPublication(c, b);
+            CHECK(b.owner.release(id));
+            b.wire.settings = nullptr;
+        }
+    }
+}
+
+void loopCancellationAndPreflight() {
+    { // Cancelled before any possible transmission: no epoch change and no uncertainty.
+        Bench b;
+        LoopEvidence e(b);
+        M::AxisConfig axis;
+        const M::PreparedTarget prepared = preparedTarget(b, axis);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const unsigned sent = b.mark();
+        const O::RequestId id = startLoopStep(b, c);
+        CHECK(b.owner.cancel(id, b.now) == O::Cancel::CANCELLED);
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && !terminal->service.transmissionPossible);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::CANCELLED);
+        CHECK(!c.effectsPossible && !c.uncertain && !c.confirmed);
+        CHECK(b.wire.current.configurationGeneration == 7 && b.drive.value(0x2500) == 2);
+        b.turn(b.now);
+        b.checkSilentSince(sent);
+        axis.binding = b.wire.current;
+        CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A refused preflight is the same: the notice never ran.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        b.wire.rejectGuard = true;
+        const unsigned sent = b.mark();
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->reason == O::CompletionReason::PREFLIGHT_REJECTED);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(!c.effectsPossible && !c.uncertain && b.wire.current.configurationGeneration == 7);
+        CHECK(b.wire.notices == 0);
+        b.checkSilentSince(sent);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // The controller refuses the frame after the notice: uncertain, and nothing resends.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const O::RequestId id = startLoopStep(b, c);
+        b.wire.accept = false;
+        b.turn(b.now);
+        CHECK(b.wire.notices == 1 && b.wire.current.configurationGeneration == 8);
+        b.turn(b.now + 1, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && c.effectsPossible && !c.confirmed);
+        noLoopPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // Cancelled after handoff: uncertain, and the epoch stays advanced.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        CHECK(b.owner.mayHaveTransmitted(id));
+        CHECK(b.owner.cancel(id, b.now) == O::Cancel::CANCELLED);
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.effectUncertain);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && c.effectsPossible);
+        CHECK(b.wire.current.configurationGeneration == 8 && b.services.unresolved(0));
+        noLoopPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A local withdrawal during readback: not a rollback and not a motor stop.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const unsigned first = b.mark();
+        acknowledgeLoopWrite(b, c);
+        CHECK(L::advanceDriver(c, M::ReadOutcome::CANCELLED, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::CANCELLED);
+        CHECK(c.confirmed == 1 && b.drive.value(0x2500) == 1);
+        const unsigned sent = b.mark();
+        b.turn(b.now + 1);
+        b.checkSilentSince(sent);
+        noLoopPublication(c, b);
+        onlyLoopTraffic(b, first);
+        b.wire.settings = nullptr;
+    }
+}
+
+void loopDeadlines() {
+    { // The cutoff reached while the write waits: not a timeout, and the effect stays uncertain.
+        Bench b;
+        LoopEvidence e(b);
+        const uint64_t deadline = b.now + 50;
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP, deadline));
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        const Saved<L::DriverSettingsContext> saved(c);
+        CHECK(!L::advanceDriver(c, M::ReadOutcome::DEADLINE, b.now));
+        saved.unchanged(c);
+        b.turn(deadline, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::DEADLINE);
+        CHECK(c.uncertain && c.effectsPossible && !c.confirmed);
+        noLoopPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // At the cutoff nothing more is yielded or noted.
+        Bench b;
+        LoopEvidence e(b);
+        const uint64_t deadline = b.now + 5;
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP, deadline));
+        L::PreparedRead work;
+        const Saved<L::PreparedRead> none(work);
+        CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, deadline, work));
+        none.unchanged(work);
+        M::Binding binding = b.wire.current;
+        CHECK(!L::noteDriverTransmission(c, b.wire.live, binding, deadline));
+        CHECK(binding.configurationGeneration == 7);
+        CHECK(L::advanceDriver(c, M::ReadOutcome::DEADLINE, deadline));
+        CHECK(c.outcome == M::ReadOutcome::DEADLINE && !c.uncertain && !c.effectsPossible);
+    }
+    { // A deadline during readback publishes nothing, and the acknowledgement stays.
+        Bench b;
+        LoopEvidence e(b);
+        const uint64_t deadline = b.now + 6;
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP, deadline));
+        acknowledgeLoopWrite(b, c);
+        b.turn(deadline, budget(8, 0, 8, 0));
+        CHECK(L::advanceDriver(c, M::ReadOutcome::DEADLINE, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::DEADLINE);
+        CHECK(c.confirmed == 1);
+        noLoopPublication(c, b);
+        b.wire.settings = nullptr;
+    }
+}
+
+void loopFaultRebootAndBusOff() {
+    { // A boot-up during the write: uncertain, reservation gone, route closed, nothing replayed.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        const unsigned first = b.mark();
+        b.wire.push(bootFrame(), b.now + 1);
+        b.turn(b.now + 1, budget(1, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.outcome == C::SdoOutcome::REBOOT);
+        CHECK(terminal->service.effectUncertain && !b.owner.sequence(b.sequence));
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::INVALIDATED);
+        CHECK(c.uncertain && !c.confirmed);
+        noLoopPublication(c, b);
+        O::SequenceId another;
+        CHECK(!b.owner.beginSequence(route(1).binding, 1, b.now, another));
+        CHECK(b.owner.release(id));
+        b.turn(b.now + 1);
+        b.checkSilentSince(first); // No restore, replay, enable or NMT followed the boot-up.
+        b.wire.settings = nullptr;
+    }
+    { // A boot-up during readback: the acknowledged write is history, and nothing is published.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        acknowledgeLoopWrite(b, c);
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        b.wire.push(bootFrame(), b.now + 1);
+        b.turn(b.now + 1, budget(1, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.outcome == C::SdoOutcome::REBOOT);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.confirmed == 1);
+        noLoopPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // Bus-off during the write: invalidated, and the effect stays uncertain.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        const O::RequestId id = startLoopStep(b, c);
+        b.turn(b.now);
+        b.now += 1;
+        CHECK(b.owner.reportController(C::ControllerState::BUS_OFF, b.now));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.effectUncertain);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && !c.confirmed);
+        noLoopPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A drive fault event mid-transaction is observed, never cleared, and adds no frame.
+        Bench b;
+        LoopEvidence e(b);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+        acknowledgeLoopWrite(b, c);
+        M::Frame fault;
+        fault.id = 0x81;
+        fault.dlc = fault.payloadLength = 8;
+        fault.data[0] = 0x05; // The bytes of FF05, an example; no meaning is asserted here.
+        fault.data[1] = 0xff;
+        b.wire.push(fault, b.now + 1);
+        b.turn(b.now + 1, budget(8, 0, 8, 0));
+        CHECK(b.services.node(0)->emcyCount == 1);
+        while (c.state == L::SettingsState::READING_BACK) {
+            L::PreparedRead work;
+            CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+            const C::SdoCompletion reply = b.exchange(work.transfer);
+            CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, reply, b.now));
+        }
+        CHECK(c.state == L::SettingsState::SUCCEEDED);
+        onlyLoopTraffic(b, first);
+        b.wire.settings = nullptr;
+    }
+}
+
+// Notice before possible TX, and retirement of old results before the reservation moves.
+void loopGenerationsAndRetirement() {
+    Bench b;
+    LoopEvidence e(b);
+    M::AxisConfig axis;
+    const M::PreparedTarget prepared = preparedTarget(b, axis);
+    L::DriverSettingsContext c;
+    CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+    L::PreparedRead work;
+    b.wire.settings = &c;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const unsigned writeFrame = b.mark();
+    const O::RequestId id = b.admit(work.transfer);
+    CHECK(b.wire.current.configurationGeneration == 7 && !b.wire.notices); // Admission alone moves nothing.
+    b.turn(b.now);
+    // The notice ran with the write still unsent, and the epoch moved at that first possible download.
+    CHECK(b.wire.notices == 1 && b.wire.sentAtNotice == writeFrame && b.wire.sentCount == writeFrame + 1);
+    CHECK(frameIs(b.wire.sent[writeFrame], 0x2b, 0x2500, 0, 1));
+    CHECK(b.wire.current.configurationGeneration == 8);
+    axis.binding = b.wire.current;
+    CHECK(!M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+    // New-epoch work waits until the old result is consumed, released and the reservation moved.
+    CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    b.deliver();
+    b.turn(b.now + 1, budget(8, 0, 8, 0));
+    const O::Completion* terminal = b.owner.result(id);
+    CHECK(terminal);
+    CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+    CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    CHECK(b.owner.release(id));
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    CHECK(work.transfer.index == 0x2500 && work.transfer.direction == C::SdoDirection::UPLOAD);
+    CHECK(work.transfer.channel.binding.configurationGeneration == 8);
+    O::BusRequest early;
+    early.sequence = b.sequence;
+    early.transfer = work.transfer;
+    O::RequestId rejected;
+    CHECK(b.owner.admit(early, b.now, rejected) == O::BusAdmission::INVALID);
+    CHECK(b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    CHECK(b.owner.sequence(b.sequence)->binding.configurationGeneration == 8);
+    // Publication waits for the whole readback, and the first field alone publishes nothing.
+    const C::SdoCompletion first = b.exchange(work.transfer);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, first, b.now));
+    CHECK(c.state == L::SettingsState::READING_BACK);
+    noLoopPublication(c, b);
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const C::SdoCompletion second = b.exchange(work.transfer);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, second, b.now));
+    CHECK(c.state == L::SettingsState::SUCCEEDED && b.wire.notices == 1);
+    L::ControlObservation seen;
+    CHECK(L::getControl(c, b.wire.live, b.current(), b.now, AGE, seen));
+    CHECK(seen.target.channel.binding.configurationGeneration == 8);
+    b.wire.settings = nullptr;
+    { // A download that crossed the boundary with no notice cannot settle a transaction.
+        Bench r;
+        LoopEvidence f(r);
+        L::DriverSettingsContext d;
+        CHECK(prepareLoop(d, r, f, L::LoopMode::OPEN_LOOP));
+        L::PreparedRead step;
+        CHECK(L::nextDriver(d, r.wire.live, r.wire.current, r.now, step) && step.ready);
+        const C::SdoCompletion unnoticed = r.exchange(step.transfer);
+        CHECK(unnoticed.outcome == C::SdoOutcome::SUCCESS);
+        const Saved<L::DriverSettingsContext> saved(d);
+        const M::Status status = L::advanceDriver(d, r.wire.live, r.wire.current, unnoticed, r.now);
+        CHECK(!status && status.detail == int32_t(M::ReadError::CORRELATION));
+        saved.unchanged(d);
+    }
+    { // A second notice for one download refuses, and the binding stays where the first left it.
+        Bench r;
+        LoopEvidence f(r);
+        L::DriverSettingsContext d;
+        CHECK(prepareLoop(d, r, f, L::LoopMode::OPEN_LOOP));
+        CHECK(L::noteDriverTransmission(d, r.wire.live, r.wire.current, r.now));
+        M::Binding binding = r.wire.current;
+        CHECK(binding.configurationGeneration == 8);
+        CHECK(!L::noteDriverTransmission(d, r.wire.live, binding, r.now));
+        CHECK(binding.configurationGeneration == 8);
+    }
+}
+
+// The 31 tuning words read through the owner stay raw, and a selector write leaves everything else alone.
+void loopTouchesNothingElse() {
+    Bench b;
+    const unsigned first = b.mark();
+    const unsigned downloads = b.drive.downloads;
+    L::TuningObservation seen;
+    const L::TuningGroup groups[] = {L::TuningGroup::CURRENT_HOLDING, L::TuningGroup::FILTER_POSITION,
+                                     L::TuningGroup::LOOP_GAINS, L::TuningGroup::EDS_GAINS};
+    unsigned words = 0;
+    for (L::TuningGroup group : groups) {
+        L::DriverContext context;
+        const uint32_t op = b.begin();
+        CHECK(L::prepareTuningRead(context, b.current(), op, b.now, DEADLINE, options(), group));
+        while (context.read.state == M::ReadState::ACTIVE) {
+            L::PreparedRead work;
+            CHECK(L::nextDriver(context, b.now, work) && work.ready);
+            CHECK(work.transfer.direction == C::SdoDirection::UPLOAD);
+            CHECK(work.transfer.index >= 0x2502 && work.transfer.index <= 0x2520 && !work.transfer.subindex);
+            const C::SdoCompletion terminal = b.exchange(work.transfer);
+            CHECK(L::advanceDriver(context, terminal, b.now));
+            ++words;
+        }
+        CHECK(L::getTuning(context, b.current(), b.now, AGE, seen) && seen.group == group);
+    }
+    CHECK(words == 31 && seen.edsGainsRaw[6] == 0x1020);
+    CHECK(b.drive.downloads == downloads && b.wire.sentCount == first + 31);
+    uint32_t before[74];
+    for (unsigned i = 0; i < 74; ++i)
+        before[i] = b.drive.table[i].raw;
+    LoopEvidence e(b);
+    L::DriverSettingsContext c;
+    CHECK(prepareLoop(c, b, e, L::LoopMode::OPEN_LOOP));
+    b.run(c);
+    CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.downloads == downloads + 1);
+    for (unsigned i = 0; i < 74; ++i)
+        if (b.drive.table[i].index != 0x2500)
+            CHECK(b.drive.table[i].raw == before[i]);
+}
 } // namespace
 
 int main() {
@@ -2729,6 +3863,19 @@ int main() {
     diFaultRebootAndBusOff();
     diGenerationsAndExclusion();
     diUnusedAndMethodFixtures();
+    loopEndToEnd();
+    loopEveryTransitionOnTheWire();
+    loopCandidatesRefusedWhole();
+    loopStateRules();
+    loopFrozenTokenAndAliases();
+    loopCandidateIsImmutable();
+    loopFailedDownload();
+    loopFailedReadback();
+    loopCancellationAndPreflight();
+    loopDeadlines();
+    loopFaultRebootAndBusOff();
+    loopGenerationsAndRetirement();
+    loopTouchesNothingElse();
     std::printf("settings_owner: %u checks\n", checks);
     return 0;
 }

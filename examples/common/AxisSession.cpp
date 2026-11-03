@@ -20,6 +20,11 @@ bool isControlWrite(const C::SdoTransfer& t) {
 uint16_t word(const C::SdoTransfer& t) {
     return uint16_t(t.data[0] | (uint16_t(t.data[1]) << 8));
 }
+// The one write that leaves an enable admissible: selecting mode 1 is the manuals' first step.
+bool isModeOneWrite(const C::SdoTransfer& t) {
+    return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6060 && !t.subindex &&
+           t.size == 1 && t.data[0] == 1;
+}
 } // namespace
 
 bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint8_t producer,
@@ -58,6 +63,8 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     controlPresent_ = recoveryUsed_ = false;
     L::resetAction(stops_[0]);
     L::resetAction(stops_[1]);
+    L::resetAction(enable_);
+    enableWithdrawn_ = M::ActionOutcome::NONE;
     bestEffort_ = firstBestEffort_ = L::BestEffortStop();
     path_ = StopPath::NONE;
     ownsReservation_ = taken;
@@ -95,6 +102,9 @@ uint32_t AxisSession::beginOperation(uint64_t deadline, uint64_t now) noexcept {
 BusAdmission AxisSession::admitPrepared(const C::SdoTransfer& transfer, uint64_t now) noexcept {
     if (now < lastUs_ || !open_ || busy())
         return BusAdmission::INVALID;
+    return admitWork(transfer, now);
+}
+BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now) noexcept {
     BusRequest work;
     work.sequence = sequence_;
     work.transfer = transfer;
@@ -103,12 +113,17 @@ BusAdmission AxisSession::admitPrepared(const C::SdoTransfer& transfer, uint64_t
     if (admission == BusAdmission::ACCEPTED) {
         pending_ = id;
         lastUs_ = now;
-        if (transfer.direction == C::SdoDirection::DOWNLOAD)
+        if (transfer.direction == C::SdoDirection::DOWNLOAD) {
             controlPresent_ = false;
+            motionWritten_ |= !isModeOneWrite(transfer);
+        }
     }
     return admission;
 }
 bool AxisSession::settle(C::SdoCompletion& output) noexcept {
+    return !enableActive() && takeTerminal(output);
+}
+bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     const Completion* terminal = owner_.result(pending_);
     if (!terminal)
         return false;
@@ -124,8 +139,127 @@ bool AxisSession::settle(C::SdoCompletion& output) noexcept {
         controlPresent_ = true;
         controllerEpoch_ = owner_.controllerEpoch();
     }
+    // A 6060=1 that may have reached the drive unacknowledged leaves its effect unknown.
+    motionWritten_ |= isModeOneWrite(copy.transfer) && copy.outcome != C::SdoOutcome::SUCCESS &&
+                      copy.effectPossible;
     output = copy;
     return true;
+}
+M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::EnableEvidence& evidence,
+                                     const L::ActionOptions& options, uint64_t deadline,
+                                     uint64_t now) noexcept {
+    const int32_t stateError = static_cast<int32_t>(M::ActionError::STATE);
+    if (now < lastUs_ || !open_ || !usable())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TARGET),
+                         "no usable reservation for an enable");
+    if (busy())
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
+    if (motionWritten_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError,
+                         "this session wrote to the drive; no fresh enable history remains");
+    const uint32_t next = nextOperation();
+    if (!next)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
+    const uint32_t last = next - 1;
+    // Check everything before the owner moves; the context is written only once that succeeded.
+    const M::Status checked =
+        L::validateEnable(enable_, reservation_, state, evidence, last + 1, now, deadline, options);
+    if (!checked)
+        return checked;
+    // After the library's checks, so that a closed gate or a zero trial reports as such.
+    if (evidence.trial <= lastTrial_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError,
+                         "this session has already consumed that trial identity");
+    if (!owner_.beginOperation(sequence_, last + 1, deadline, now))
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
+    // Same values as the check above, and only the owner moved, so this cannot refuse.
+    L::prepareEnable(enable_, reservation_, state, evidence, last + 1, now, deadline, options);
+    operation_ = last + 1;
+    lastTrial_ = evidence.trial;
+    enableWithdrawn_ = M::ActionOutcome::NONE;
+    lastUs_ = now;
+    return M::Ok();
+}
+uint32_t AxisSession::nextOperation() const noexcept {
+    if (!usable())
+        return 0;
+    const uint32_t current = owner_.sequence(sequence_)->operation;
+    const uint32_t last = current > operation_ ? current : operation_;
+    return last == UINT32_MAX ? 0 : last + 1;
+}
+bool AxisSession::cancelEnable(uint64_t now, M::ActionOutcome reason) noexcept {
+    if (now < lastUs_ || !enableActive() ||
+        (reason != M::ActionOutcome::CANCELLED && reason != M::ActionOutcome::DRIVE_FAULT))
+        return false;
+    lastUs_ = now;
+    withdrawEnable(reason, now);
+    return true;
+}
+// A request in flight keeps the slot and settles into this context, so that its evidence survives.
+// The first reason wins. With nothing in flight the enable ends at once. Otherwise the library
+// records the withdrawal, so that the terminal is consumed as evidence and cannot complete it.
+void AxisSession::withdrawEnable(M::ActionOutcome reason, uint64_t now) noexcept {
+    if (!enableActive() || enableWithdrawn_ != M::ActionOutcome::NONE)
+        return;
+    enableWithdrawn_ = reason;
+    if (!pending_.owner)
+        L::advanceAction(enable_, reservation_, reservation_.target, reason, now);
+    else if (!L::noteActionWithdrawal(enable_, reservation_, reservation_.target, reason, now).isOk())
+        L::noteActionWithdrawal(enable_, reservation_, reservation_.target,
+                                M::ActionOutcome::INVALIDATED, now);
+}
+void AxisSession::serviceEnable(uint64_t now) noexcept {
+    if (!enableActive())
+        return;
+    // As for a stop: the frozen reservation identifies this action, and real currentness is checked
+    // below, so that a terminal is consumed with its evidence even after its route has gone.
+    const L::ReadTarget& frozen = reservation_.target;
+    if (pending_.owner) {
+        C::SdoCompletion evidence;
+        if (!takeTerminal(evidence))
+            return;
+        if (!L::advanceAction(enable_, reservation_, frozen, evidence, now).isOk())
+            L::advanceAction(enable_, reservation_, frozen,
+                             enableWithdrawn_ != M::ActionOutcome::NONE ? enableWithdrawn_
+                                                                        : M::ActionOutcome::INVALIDATED,
+                             now);
+        if (!enableActive())
+            return;
+    }
+    if (enableWithdrawn_ != M::ActionOutcome::NONE || now >= enable_.deadlineUs || !usable()) {
+        L::advanceAction(enable_, reservation_, frozen,
+                         now >= enable_.deadlineUs                 ? M::ActionOutcome::DEADLINE
+                         : enableWithdrawn_ != M::ActionOutcome::NONE ? enableWithdrawn_
+                                                                   : M::ActionOutcome::INVALIDATED,
+                         now);
+        return;
+    }
+    L::PreparedAction work;
+    if (!L::nextAction(enable_, reservation_, frozen, now, work).isOk()) {
+        L::advanceAction(enable_, reservation_, frozen, M::ActionOutcome::INVALIDATED, now);
+        return;
+    }
+    if (!work.ready)
+        return;
+    const BusAdmission admission = admitWork(work.transfer, now);
+    if (admission == BusAdmission::RESULTS_FULL)
+        return; // Unsent, so the same work is simply offered again.
+    if (admission != BusAdmission::ACCEPTED) {
+        L::advanceAction(enable_, reservation_, frozen, M::ActionOutcome::INVALIDATED, now);
+        return;
+    }
+    // As for a stop: no adapter gives a pre-transmit hook, nothing leaves before the next owner
+    // turn, and the terminal refines this notice.
+    if (enable_.phase == L::ActionPhase::COMMAND)
+        L::noteActionTransmission(enable_, reservation_, frozen, now);
+}
+// Fresh MONITORS reporting the controller not running. Absent or stale state is not this report.
+bool AxisSession::freshlyIdle(const L::ReadContext& state, const StopPolicy& policy,
+                              uint64_t now) const noexcept {
+    L::StateObservation monitors;
+    return L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, policy.options.maximumAgeUs,
+                            monitors) &&
+           !(monitors.monitor & L::MONITOR_RUNNING);
 }
 // Fresh evidence that this drive is idle and outside the stop's states refuses both paths:
 // nothing establishes what 000B does in those states. A running report keeps the stop.
@@ -142,6 +276,10 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
 }
 StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                   const StopPolicy& requested, uint64_t now) noexcept {
+    // Even a stop refused below ends the enable. Asking for a stop means no further word, so a time
+    // that moved backward still ends it, at the last valid time.
+    if (open_)
+        withdrawEnable(M::ActionOutcome::CANCELLED, now < lastUs_ ? lastUs_ : now);
     // This width concerns identity reads. A stop reads none, so it cannot refuse a stop.
     StopPolicy policy = requested;
     policy.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
@@ -156,7 +294,10 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     if (superseded_.owner && kind == L::StopKind::HALT)
         return StopPath::NONE; // Its context is still waiting for that terminal.
     withdrawIfStale();
-    if ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind)) ||
+    // A known word with no stop arrow, such as enable word 6 or 7, refuses only on a fresh idle report.
+    // A fresh running report, or no fresh report, takes 000B, as the same word still in flight would.
+    if ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind) &&
+         freshlyIdle(state, policy, now)) ||
         stateRefuses(state, policy, now))
         return StopPath::NONE;
     const Sequence* s = usable() ? owner_.sequence(sequence_) : nullptr;
@@ -198,11 +339,17 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
         L::ActionContext& old = stops_[static_cast<unsigned>(L::StopKind::HALT)];
         superseded_ = urgent_;
         urgent_ = RequestId();
+        // Superseded by escalation. With a request in flight its terminal is kept as evidence only,
+        // so a cycle completing in it cannot end this HALT as SUCCEEDED.
         if (!superseded_.owner)
             L::advanceAction(old, reservation_, reservation_.target, M::ActionOutcome::CANCELLED, now);
+        else
+            L::noteActionWithdrawal(old, reservation_, reservation_.target, M::ActionOutcome::CANCELLED,
+                                    now);
     }
     policy_ = policy;
     operation_ = next;
+    motionWritten_ = true; // Whichever path this takes, a stop frame may reach the drive.
     recoveryUsed_ = false;
     const uint32_t epoch = owner_.controllerEpoch();
     epochLimit_ = owner_.recoveryActive() ? epoch : epoch + 1; // A running recovery is the one.
@@ -224,6 +371,7 @@ void AxisSession::service(uint64_t now) noexcept {
     lastUs_ = now;
     withdrawIfStale();
     settleSuperseded(now);
+    serviceEnable(now);
     switch (path_) {
     case StopPath::CONFIRMED:
         serviceConfirmed(now);
@@ -239,7 +387,7 @@ void AxisSession::service(uint64_t now) noexcept {
     }
 }
 // An escalated HALT's terminal belongs to its own context. It is older intent, so even a
-// success does not become the latest controlword.
+// success does not become the latest controlword, and its withdrawal was noted at escalation.
 void AxisSession::settleSuperseded(uint64_t now) noexcept {
     const Completion* terminal = superseded_.owner ? owner_.result(superseded_) : nullptr;
     if (!terminal)

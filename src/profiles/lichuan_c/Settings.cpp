@@ -287,16 +287,20 @@ Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r
 }
 Status prepareControlSettings(DriverSettingsContext& output, const AxisReservation& r,
                               const ReadTarget& currentTarget, const DriverContext& prior,
-                              const ControlSettings& settings, uint32_t operation, uint64_t now,
-                              uint64_t deadline, const ReadOptions& options, uint64_t age) noexcept {
+                              const ReadContext& state, const ControlSettings& settings,
+                              uint32_t operation, uint64_t now, uint64_t deadline,
+                              const ReadOptions& options, uint64_t age) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
         overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
         overlaps(&output, sizeof output, &settings, sizeof settings) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "control settings preparation overlaps input");
-    Status s = validatePreparation(r, currentTarget, prior, ReadKind::CONTROL, operation, now, deadline,
-                                   options, age);
+    // The selector can change torque at once and no source says when it may be written, so it
+    // takes 2202's project policy; RS refuses this feature unless stationary with no alarm.
+    Status s = validateStopped(r, currentTarget, prior, ReadKind::CONTROL, state, operation, now,
+                               deadline, options, age);
     if (!s)
         return s;
     ControlObservation old;
@@ -306,6 +310,9 @@ Status prepareControlSettings(DriverSettingsContext& output, const AxisReservati
     if (mode > 2 ||
         (r.model == SettingsModel::OL86_C && settings.loopMode == LoopMode::CLOSED_LOOP))
         return error(ReadError::VALUE, "loop selector or model lacks reviewed applicability");
+    // Project policy, not a vendor rule: whatever 2501 counts, zero of them cannot scale feedback.
+    if (settings.loopMode == LoopMode::CLOSED_LOOP && !old.encoderResolutionRaw)
+        return error(ReadError::VALUE, "closed loop refused while 2501 reads zero");
     publish(output, r, DriverGroup::CONTROL, operation, now, deadline, options);
     output.requested[0] = mode;
     output.requested[1] = old.encoderResolutionRaw;

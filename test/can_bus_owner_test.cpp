@@ -981,6 +981,27 @@ void rejectedIngressRemainsDiagnosticOnly() {
     r.turn(1, budget(8, 0, 0, 0));
     CHECK(r.fake.observations == 3 && !r.services.node(0)->heartbeat.present);
 }
+// The settings state prerequisite, as fixture terminals that put nothing on this rig's wire: the frames
+// these scenarios count belong to the control group, and settings_owner runs the whole path.
+L::ReadContext cleanState(const L::ReadTarget& current, uint32_t operation, uint64_t now) {
+    L::ReadContext state;
+    const uint8_t mask = uint8_t((1u << static_cast<unsigned>(L::StateBlock::STATUS)) |
+                                 (1u << static_cast<unsigned>(L::StateBlock::MONITORS)));
+    CHECK(L::prepareState(state, current, operation, now, 1000, options(), mask));
+    while (state.state == M::ReadState::ACTIVE) {
+        L::PreparedRead p;
+        CHECK(L::nextRead(state, now, p) && p.ready);
+        C::SdoCompletion e;
+        e.transfer = p.transfer;
+        e.nodeGeneration = current.nodeGeneration;
+        e.admittedUs = e.completedUs = now;
+        e.outcome = C::SdoOutcome::SUCCESS;
+        e.queued = e.transmissionPossible = e.protocolAcknowledged = e.effectPossible = true;
+        e.size = p.transfer.size;
+        CHECK(L::advanceRead(state, e, now));
+    }
+    return state;
+}
 void publicReadAndConfirmedControlSetting() {
     Rig r;
     const auto s = r.sequence(1, 1, 11);
@@ -1022,8 +1043,8 @@ void publicReadAndConfirmedControlSetting() {
     L::ControlSettings requested;
     requested.loopMode = L::LoopMode::CLOSED_LOOP;
     L::DriverSettingsContext settings;
-    CHECK(L::prepareControlSettings(settings, r.fake.reservation, r.fake.reservation.target, prior, requested, 13, r.now, 1000,
-                                    options(), 100));
+    CHECK(L::prepareControlSettings(settings, r.fake.reservation, r.fake.reservation.target, prior,
+                                    cleanState(current, 13, r.now), requested, 13, r.now, 1000, options(), 100));
     requested.loopMode = L::LoopMode::OPEN_LOOP;
     r.fake.settings = &settings;
     L::PreparedRead p;
@@ -1078,8 +1099,8 @@ O::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& setti
     CHECK(r.owner.beginOperation(sequence, 12, 1000, r.now));
     L::ControlSettings candidate;
     candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-    CHECK(L::prepareControlSettings(settings, r.fake.reservation, r.fake.reservation.target, prior, candidate, 12, r.now, 1000,
-                                    options(), 100));
+    CHECK(L::prepareControlSettings(settings, r.fake.reservation, r.fake.reservation.target, prior,
+                                    cleanState(target(), 12, r.now), candidate, 12, r.now, 1000, options(), 100));
     r.fake.settings = &settings;
     return sequence;
 }

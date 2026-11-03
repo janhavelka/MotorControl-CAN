@@ -161,6 +161,7 @@ def check_package(args, work, summary):
         "units": ("examples/units_preview", ["main.cpp"]),
         "position": ("examples/position_preview", ["main.cpp"]),
         "reads": ("examples/reads_preview", ["main.cpp"]),
+        "action": ("examples/action_preview", ["main.cpp"]),
         "adapter": ("adapters/canopennode", ["SdoClient.h", "SdoClient.cpp", "NetworkState.h", "Network.cpp",
                      "Nmt.h", "Nmt.cpp", "PdoState.h", "Pdo.cpp", "CO_driver_target.h", "Driver.cpp"]),
     }
@@ -195,12 +196,14 @@ add_executable(position_preview position/main.cpp)
 target_link_libraries(position_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(reads_preview reads/main.cpp)
 target_link_libraries(reads_preview PRIVATE MotorControlCAN::MotorControlCAN)
+add_executable(action_preview action/main.cpp)
+target_link_libraries(action_preview PRIVATE app)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp" "#include <ProbeApp.h>\\n")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePlatform.h>\\n")
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview reads_preview probe_headers)
+foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview reads_preview action_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
         target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/W4;/WX>)
@@ -214,7 +217,8 @@ add_test(NAME device_evidence COMMAND device_evidence --fake-only)
 add_test(NAME units_preview COMMAND units_preview)
 add_test(NAME position_preview COMMAND position_preview)
 add_test(NAME reads_preview COMMAND reads_preview)
-set_tests_properties(native_probe device_evidence units_preview position_preview reads_preview PROPERTIES TIMEOUT 10)
+add_test(NAME action_preview COMMAND action_preview)
+set_tests_properties(native_probe device_evidence units_preview position_preview reads_preview action_preview PROPERTIES TIMEOUT 10)
 ''', encoding="utf-8")
     probe_build = work / "native probe build"
     run(*base, "-S", str(probe), "-B", str(probe_build), "-DCMAKE_PREFIX_PATH=" + str(relocated))

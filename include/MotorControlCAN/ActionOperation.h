@@ -10,7 +10,8 @@ namespace MotorControlCAN {
 enum class ActionKind : uint8_t {
     STOP,               ///< Profile-selected explicit stop.
     CLEAR_ALARM,        ///< Documented fault-clear attempt, with fresh observations.
-    SET_DEVICE_POSITION ///< Only a profile's evidenced native counter operation.
+    SET_DEVICE_POSITION, ///< Only a profile's evidenced native counter operation.
+    ENABLE               ///< Profile's explicit enable sequence, gated while its effect is unmeasured.
 };
 /** Local concrete operation phase; OK from an advancing call is not completion. */
 enum class ActionState : uint8_t {
@@ -41,7 +42,7 @@ enum class ActionOutcome : uint8_t {
     CANCELLED,         ///< Local withdrawal, never another motor command.
     DEADLINE,          ///< Immutable inclusive processing cutoff reached.
     INVALIDATED,       ///< Lifecycle or exclusive history withdrawn.
-    OBSERVATION_SCOPE, ///< Mode/alarm/release report lies outside the supported observation contract.
+    OBSERVATION_SCOPE, ///< Mode/alarm/release/target report lies outside the supported observation contract.
     DRIVE_FAULT,       ///< Independently routed checked drive fault; no implicit fault clearing.
     ITERATION_EXHAUSTED, ///< Nonwrapping local step identity exhausted.
     STOP_SENT_UNCONFIRMED, ///< Best-effort stop left the controller; no reply can confirm it or any effect.

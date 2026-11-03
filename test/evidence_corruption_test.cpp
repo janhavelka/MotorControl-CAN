@@ -603,7 +603,7 @@ void settingsEntry(SettingsKind kind, const char* where) {
     } else {
         L::ControlSettings candidate;
         candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-        CHECK(L::prepareControlSettings(c, live, live.target, prior, candidate, 41, now, DEADLINE, options(),
+        CHECK(L::prepareControlSettings(c, live, live.target, prior, state, candidate, 41, now, DEADLINE, options(),
                                         100000));
     }
     CHECK(c.state == L::SettingsState::WRITING);

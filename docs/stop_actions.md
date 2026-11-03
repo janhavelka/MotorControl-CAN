@@ -49,7 +49,13 @@ says so. That covers `6040`, target, mode, RPDO and configuration writes alike. 
 withdraws on a reset, rebind, recovery, bus-off, boot, route quarantine or a stop's own
 admission. Reopening the session does not restore it, and a write settling after a stop
 was admitted is older intent and does not restore it. A copied evidence struct is not a
-new observation. This API never writes `000F` or the `6,7,15` enable sequence.
+new observation. A stop never writes `000F` or the `6,7,15` enable sequence. The separately gated
+[enable](drive_actions.md) does, through this same path, so its acknowledged `000F` is such a word. A
+stop request ends an active enable first, even when the stop itself is refused, and even with a
+time that moved backward. `AxisSession` refuses after a known word with no arrow, such as enable
+word 6 or 7, only on a fresh report that the drive is not running. A fresh running report, or no
+fresh report, takes the best-effort `000B`, exactly as when that word is still in flight. This
+changes the earlier rule, under which any such word refused the request.
 
 Initial running may be either value. A stop does not require an already stopped
 drive. Native kind names deliberately avoid promising RS configured deceleration

@@ -273,8 +273,9 @@ def objects_header(rows):
 
 
 def read_effect(row):
-    """Only the owner's accepted list changes polling; the effect itself stays unknown."""
-    return ("ACCEPTED_UNQUALIFIED" if row.get("read_disposition") == "accepted_not_qualified"
+    """Only the owner's accepted lists change the classification; the effect itself stays unknown."""
+    return ("ACCEPTED_UNQUALIFIED"
+            if row.get("read_disposition") in ("accepted_not_qualified", "accepted_action_prerequisite")
             else "UNQUALIFIED")
 
 
