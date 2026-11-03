@@ -1,6 +1,8 @@
 # Packet 19: position evidence and one isolated finite experiment
 
-**The experiment was not run.** It moves a motor, and the packet requires an independent cutoff, a shaft mark that shows direction and approximate rotation, and an operator. The bench ran an unattended communication soak overnight. Packets 15 and 16's attended prerequisites have not run either.
+**Attended session, 2026-11-03: the experiment ran on node 1.** +250 pulses turned about a quarter turn counter-clockwise; `6041` bit 12 marks acceptance (latched until the `000F` rearm, which moved nothing), and `2100` bit 0 marks completion after acceptance. The command and `6064` share 1000 pulses per revolution. See the [attended bench report](../2026-11-03_attended_bench.md).
+
+**Before that session the experiment had not run.** It moves a motor, and the packet requires an independent cutoff, a shaft mark that shows direction and approximate rotation, and an operator. The bench ran an unattended communication soak overnight. Packets 15 and 16's attended prerequisites have not run either.
 
 ## What is ready
 

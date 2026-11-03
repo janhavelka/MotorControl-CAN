@@ -1,0 +1,86 @@
+{
+  "started_utc": "2026-11-03T11:39:52.082868+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "rearm",
+  "seconds": 120.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 112,
+  "plan": "packet 19 rearm",
+  "fields": [
+    1,
+    112,
+    1,
+    4,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 112 to confirm: ",
+      "typed": "ATTENDED 112",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "NONE reported (attendant at the cutoff, standing instruction to report anything unexpected; relayed by the lead)"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "rearm",
+    "--node",
+    "1",
+    "--trial",
+    "112",
+    "--cycles",
+    "4",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "docs/bench/20261103-campaign.jsonl",
+    "--output",
+    "docs/bench/20261103T1032Z-rearm-node1"
+  ],
+  "host_revision": "e17271a1baf4e8794e3f0b7ef528f8ef081ba5ba",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261103-campaign.jsonl",
+    "motion_total": 7,
+    "cases": {
+      "E1": 3,
+      "M1": 2,
+      "P1": 2
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5452312c3131322c312c342c3530302c4b30393463383938640a"
+  ],
+  "image": {
+    "base": "e17271a1baf4e8794e3f0b7ef528f8ef081ba5ba",
+    "elf": "024a653af03c284add2e245d6604b7fddb82b4fcc1284166346e5bda07918f07",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TR1,112,1,4,500,K094c898d",
+  "tx_hex": "5452312c3131322c312c342c3530302c4b30393463383938640a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-03T11:39:57.043315+00:00"
+}

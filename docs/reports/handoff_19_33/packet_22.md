@@ -1,6 +1,8 @@
 # Packet 22: finite two-node HIL regression and failure closure
 
-**The motion campaign was not run.** Its prerequisites are physically unmet: no drive has been enabled (packet 15), no stop qualified (packet 16), and no position evidence acquired (packet 19). The campaign also needs an attendant and an independent cutoff. **Zero motion admissions were made**, on any boot.
+**Attended session, 2026-11-03.** A first campaign ran: 12 motion admissions (the cap), enables on both nodes, one absolute move with rearm and one moving HALT stop on node 1. One defect was found and fixed (the enable compared `6041` bit 10, `e17271a`). Still owed: `000B`, a node 2 move and packet 20's `move` route. See the [attended bench report](../2026-11-03_attended_bench.md).
+
+**Before that session the motion campaign had not run.** Its prerequisites are physically unmet: no drive has been enabled (packet 15), no stop qualified (packet 16), and no position evidence acquired (packet 19). The campaign also needs an attendant and an independent cutoff. **Zero motion admissions were made**, on any boot.
 
 ## What ran instead
 

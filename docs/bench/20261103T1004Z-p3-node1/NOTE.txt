@@ -1,0 +1,1 @@
+The after-route shaft answer "NONE, no movement (attendant)" was entered by the lead before asking; the attendant was then asked and could not say whether the shaft turned back when word 7 energized it (6064 went from -545 to 0). HOLDING after the route was asked and answered by the attendant.

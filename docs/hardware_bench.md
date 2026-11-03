@@ -490,6 +490,10 @@ through `cancelEnable` or `cancelMove`, as an abort withdraws it, and the header
 drive may still be moving, and the attendant's independent cutoff is the control. A trigger that may
 have left without an observed completion still fences later moves.
 
+**Record capacity.** A route is refused as `capacity` after the host has counted it when its polls could exceed 128 terminals. `position` takes 18 plus 7 per cycle, so at most 15 cycles without a stop, and with a planned stop of 2000 ms polled every 250 ms (48 more) at most 8, although the parser accepts 16. Dry-run, then count before sending.
+
+**Release after every route.** A route sent while a record is held is refused before its line, and the host still counts it.
+
 **Planned stops and the cutoff.** A `move` or `position` with a planned stop is refused with
 failure 11 (`why=deadline`) before its first write unless the stop's whole span (its deadline, or
 the best-effort cutoff when later) still fits the sixty-second route cutoff when the stop is asked

@@ -1,0 +1,75 @@
+{
+  "started_utc": "2026-11-03T11:16:39.505272+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-actions",
+  "seconds": 120.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 106,
+  "plan": "packet 15 P1",
+  "fields": [
+    1,
+    106
+  ],
+  "operator": {
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-actions",
+    "--node",
+    "1",
+    "--trial",
+    "106",
+    "--fault-led",
+    "unobserved",
+    "--campaign",
+    "docs/bench/20261103-campaign.jsonl",
+    "--output",
+    "docs/bench/20261103T1013Z-p1-node1"
+  ],
+  "host_revision": "e17271a1baf4e8794e3f0b7ef528f8ef081ba5ba",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261103-campaign.jsonl",
+    "motion_total": 3,
+    "cases": {
+      "E1": 2,
+      "M1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5441312c3130362c4b63643032363636650a"
+  ],
+  "image": {
+    "base": "e17271a1baf4e8794e3f0b7ef528f8ef081ba5ba",
+    "elf": "024a653af03c284add2e245d6604b7fddb82b4fcc1284166346e5bda07918f07",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TA1,106,Kcd02666e",
+  "tx_hex": "5441312c3130362c4b63643032363636650a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-03T11:16:41.681671+00:00"
+}

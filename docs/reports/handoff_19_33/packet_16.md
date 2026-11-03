@@ -1,6 +1,8 @@
 # Packet 16: qualify and finish the stop path on the actual fixture
 
-**Physical scope not executed.** Qualifying a stop needs an enabled drive, then a moving one, and those need an attendant with the independent cutoff in hand. The bench ran an unattended communication soak overnight. No drive has been enabled, moved or stopped by this library. Prompt 31 stays Partial.
+**Attended session, 2026-11-03.** A moving HALT stop (`010F` from `001F`) ran on node 1 and was observed: the 2 rpm move stopped within its ramp and stayed stopped, with no creep over 26 s. The stationary `010F` and `000B`, and `000B` on a released state, did not run: the campaign cap was reached. See the [attended bench report](../2026-11-03_attended_bench.md).
+
+**Before that session the physical scope had not run.** Qualifying a stop needs an enabled drive, then a moving one, and those need an attendant with the independent cutoff in hand. The bench ran an unattended communication soak overnight. No drive has been enabled, moved or stopped by this library. Prompt 31 stays Partial.
 
 ## What is ready
 
