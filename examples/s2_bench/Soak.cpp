@@ -455,6 +455,14 @@ void Soak::track(unsigned scope, unsigned signal, uint32_t value, uint64_t now) 
              (value == uint32_t(C::ControllerState::BUS_OFF) ||
               value == uint32_t(C::ControllerState::RECOVERING)))
         kind = KIND_CONTROLLER;
+    // A value or counter raises one anomaly per summary window. Under a lasting fault, such as
+    // a missing ACK, twaiErrors changed on every pass, and one line per change starved the
+    // summaries for 3 h (2026-11-03). Its transitions and the summary totals carry the rest.
+    if (kind != KIND_NONE && SIGNALS[signal].limited) {
+        if (s_.raised[scope] & bit)
+            return;
+        s_.raised[scope] |= bit;
+    }
     // A counter says how many; the rejected frame's identifier says which.
     if (kind != KIND_NONE)
         anomaly(kind, scope, signal == SIG_UNMATCHED ? s_.lastRejectedId : previous, value, now);
@@ -1132,6 +1140,8 @@ bool Soak::formatNext(uint64_t now) noexcept {
 }
 
 void Soak::pump(uint64_t now) noexcept {
+    static_assert(unsigned(LINE_BYTES) <= unsigned(ProbePlatform::OUTPUT_CAPACITY),
+                  "a soak line must fit the console whole");
     ProbePlatform& console = firmware_.platform();
     const ProbeIoStats io = console.stats();
     highWater(s_.pressure.consoleHighWater, io.outputUsed);
@@ -1173,6 +1183,7 @@ void Soak::service(uint64_t now, bool holdOutput) noexcept {
     schedule(now);
     if (s_.phase == PHASE_RUNNING && now >= s_.nextSummaryUs) {
         s_.nextSummaryUs = now + uint64_t(s_.plan.summaryS) * 1000000u;
+        std::memset(s_.raised, 0, sizeof s_.raised);
         // A summary still printing is not restarted; its next one is simply later.
         if (!s_.summaryPending) {
             s_.summaryPending = true;

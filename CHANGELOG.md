@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Soak records survive a lasting bus fault (2026-11-03 A/B soak)
+
+- In the first A/B soak run, both drives stopped acknowledging at 18:13:49 UTC. From then on, `twaiErrors` changed on every pass, and each change raised its own `SOAK_ANOM`: 511,995 lines in run A and 997,649 in run B. With the event queue never empty, no summary printed for 1.5 h in A and 3 h in B. The first bus anomaly's trace dump was never closed, and run B's 86 MB capture was too large to replay. A value or counter signal now raises at most one anomaly per summary window, at its first change in the window. Its other changes stay in its rate-limited `SOAK_TR` chain and in the summary's cumulative counters. Test `testLastingBusFaultKeepsSummaries` fails without the fix.
+- At the end of both runs, `SOAK_CON` was longer than the soak's 240-byte line buffer and printed as `OUTPUT_FORMAT_ERROR`. The buffer is now 416 bytes, and `ProbePlatform::OUTPUT_CAPACITY` is 512 bytes, up from 256, so every soak line fits whole with each field at its type's maximum (SOAK_CON can reach 401 bytes). A static assertion ties the two sizes together. Test `test_every_soak_line_fits_its_buffer_at_type_maxima` computes each format's widest output and fails at 240. Needs a reflash.
+- `s2_evidence_test.py` lists `20261103T1642Z-s2-ping-b` with the other retained pings that the booting S2 never answered. Retaining that ping in `065b23e` had broken `s2_evidence_contract`.
+
 ### Quick stop completes on the measured release; unattended bench runs (2026-11-03)
 
 - **Contract change:** a `QUICK_STOP` cycle that reads `2100` released, not running and no alarm, with `6041` low bits `000` in mode 1, now ends `OBSERVED`, and `monitorObservation` keeps the released bit: after this quick stop the drive holds no torque. Before, every released report ended a stop `OBSERVATION_SCOPE`, so a quick stop could never complete on these drives. A released report with low bits `000` that still shows running now keeps the quick stop polling. A `HALT` still ends outside its scope on any release, as does a quick stop whose released report has a low bit set or an alarm. Test `quickStopReleaseIsTheMeasuredTerminal` replays trials 124 and 126 and five neighboring reports, and fails without the fix. **Not retested on hardware:** both drives are released, and the next enable needs a power cycle and an attendant. See the [stop guide](docs/stop_actions.md).

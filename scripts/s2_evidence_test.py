@@ -127,9 +127,10 @@ class RetainedCaptures(unittest.TestCase):
             # A run the runner refused before its route line holds only its ping: there is no route
             # to complete, and the runner recorded why.
             refused_before_send = set(request.get("sent", ["?"])) <= {"70"} and bool(request.get("reason"))
-            # 20261102-s2-identity1: the retained reset investigation. 20261103T1010Z-s2-ping: a ping
-            # sent while the S2 was still booting after a reflash, with no PONG; 1012Z's was answered.
-            retained_incomplete = ("20261102-s2-identity1", "20261103T1010Z-s2-ping")
+            # 20261102-s2-identity1: the retained reset investigation. 20261103T1010Z-s2-ping and
+            # 20261103T1642Z-s2-ping-b: pings sent while the S2 was still booting after a reflash, with
+            # no PONG; the next ping (1012Z, 1643Z-s2-ping-c) was answered.
+            retained_incomplete = ("20261102-s2-identity1", "20261103T1010Z-s2-ping", "20261103T1642Z-s2-ping-b")
             if directory.name not in retained_incomplete and not refused_before_send:
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
                                  (directory.name, report.errors))
