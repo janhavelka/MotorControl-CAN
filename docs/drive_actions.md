@@ -8,8 +8,8 @@ no action work. A caller holding only one 6041 word, from a STATUS block or a
 qualified TPDO sample, decodes it with `interpretStatusword`, and tests object
 2100 with the `MONITOR_` masks beside it. Those give the same meanings, but
 prove no route, freshness or firmware: a decoded word is not admission or
-completion evidence by itself, and each caller must prove those facts itself. A gated enable that no
-specimen has run is described below, and release has no API. The separate
+completion evidence by itself, and each caller must prove those facts itself. A gated enable, run
+attended on both specimens on one firmware, is described below, and release has no API. The separate
 [conditional stop lifecycle](stop_actions.md) uses common `ActionOperation.h`
 evidence and concrete `Actions.h` contexts; it establishes neither of those. [Fault clear and counter zero](fault_reference_actions.md)
 also use this lifecycle with their own documented writes and report criteria;
@@ -220,8 +220,10 @@ gives that:
 
 - `6040=0` appears only as the example paired with low bits 000. No source says that word releases
   the motor, or from which state it may be written.
-- Low bits 0 are a report, and a specimen's status tells us nothing here because no enable has been
-  observed.
+- Low bits 0 are a report. Both specimens reported them, with `2100` released, after a stationary
+  `000B` from `000F` and from `010F` ([unattended report](reports/2026-11-03_unattended_bench.md)).
+  That is a quick stop's measured effect from those two words, not a release command: no word was
+  tried as a release, and the reference consequence is not stated.
 - `2100` bit 4 reports released. It is an observation, not a command.
 - Input function 4 is labeled motor enabling or MF, with no behavior text, and is not a CAN command
   (D-28).
@@ -235,7 +237,10 @@ gap stays open too.
 
 ## Bounded physical plan
 
-For the lead, on an attended bench. Nothing here has run. Default to node 1 alone, and add node 2 only
+For the lead, on an attended bench. P1 to P3 ran on both specimens in the
+[attended session](reports/2026-11-03_attended_bench.md). P4's `000B` ran on node 2 in the
+[unattended session](reports/2026-11-03_unattended_bench.md), from a library move's rearm `000F`
+rather than the enable's own, and released the motor; P4's `010F` has not run. Default to node 1 alone, and add node 2 only
 after node 1 passes. Before each state-changing trial, record the operator, cutoff and clear shafts,
 and stop on any abort below. Never retry within a trial.
 

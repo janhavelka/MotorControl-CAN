@@ -187,6 +187,8 @@ GRAMMAR = (
         "completed", (("health", "stack1"), ("health", "heapMin")), True),
     Row("TRIAL_CHECK", "TRIAL_CHECK ", "summary", _TRIAL_SNAPSHOT),
     Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES, per_node=True),
+    # The history route's 1003, raw: the count, then only the entries it names. Never interpreted.
+    Row("TRIAL_HISTORY", "TRIAL_HISTORY ", "summary", "count:u e1:x? e2:x? e3:x? e4:x?"),
     Row("TRIAL_EMCY", "TRIAL_EMCY ", "summary", "data:h", signals=(("health", "data"),), per_node=True),
     Row("TRIAL_STATUS", "TRIAL_STATUS ", "summary", "code:u detail:i"),
     # The enable, stop and move summaries publish their results under names of their own: one record can
@@ -363,7 +365,7 @@ EXPECTED = {
 _TRIAL_RESPONSES = ("PONG", "TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")
 TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness-tuning": "tuning",
                 "mode1": "mode1", "enable": "enable", "stop": "stop", "position": "position",
-                "rearm": "rearm", "move": "move"}
+                "rearm": "rearm", "move": "move", "readiness-history": "history"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -393,7 +395,25 @@ _TRIAL_IO = (_IMAGE + tuple((0x2400, sub, 2) for sub in range(9)) +
              tuple((index, 0, 2) for index in range(0x2401, 0x2408)) +
              ((0x60FE, 0, 1), (0x60FE, 1, 4), (0x60FE, 2, 4)) + _IMAGE)
 _TRIAL_TUNING = _IMAGE + tuple((index, 0, 2) for index in range(0x2502, 0x2521)) + _IMAGE
-# name: (rows, plan sizes a successful record may have).
+_ERRORS = ((0x1001, 0, 1), (0x603F, 0, 2))
+_HISTORY_ENTRIES = tuple((0x1003, subindex, 4) for subindex in range(1, 5))
+
+
+def _trial_history(results):
+    """The history route's plan: the full read, 1003:00, only the entries its own count names, then
+    1001 and 603F again. The count is the record's own successful 1003:00 terminal at that step; one
+    the record never read, or above four (the typed read fails then), names no entry."""
+    count = 0
+    if len(results) > len(_FULL):
+        values = results[len(_FULL)].values
+        if tuple(values["object"]) == (0x1003, 0) and values["outcome"] == 0 and values["size"] == 1:
+            count = bytes.fromhex(values["data"])[0]
+    rows = _FULL + ((0x1003, 0, 1),) + (_HISTORY_ENTRIES[:count] if count <= 4 else ()) + _ERRORS
+    return rows, (len(rows),)
+
+
+# name: (rows, plan sizes a successful record may have), or a function of the record's terminals
+# returning them, for a plan whose length its own replies decide.
 INVENTORIES = {
     "identity": (_IDENTITY, (9,)),
     "identity_network": (_NETWORK_FIELDS, (18, 20, 26)),
@@ -402,6 +422,7 @@ INVENTORIES = {
     "trial_actions": (_TRIAL_ACTIONS, (22,)),
     "trial_io": (_TRIAL_IO, (37,)),
     "trial_tuning": (_TRIAL_TUNING, (45,)),
+    "trial_history": _trial_history,
 }
 
 
@@ -603,7 +624,7 @@ POSITIONAL = {"step_sequence", "wrong_object_for_step", "wrong_request_object", 
               "terminal_width_differs_from_wire", "terminal_bytes_differ_from_wire",
               "abort_differs_from_wire", "traffic_time_reversed", "record_order", "terminal_overlap",
               "end_differs_from_header", "failure_differs_from_terminal", "plan_size_not_in_inventory",
-              "tx_before_admission", "reply_after_terminal", "wrong_direction"}
+              "tx_before_admission", "reply_after_terminal", "wrong_direction", "history_differs_from_terminals"}
 # Matching terminals to copied traffic. A record that itself reports lost=1 has an incomplete trace,
 # so these findings cannot accuse it: they stay listed as warnings. Its failure stays its own.
 TRACE_MATCHING = {"wrong_request_object", "stale_reply", "success_without_request", "success_without_reply",
@@ -965,6 +986,8 @@ def _check_record(report, records, expect):
     _check_frames_order(report, tail)
 
     inventory = INVENTORIES.get(expect.inventory)
+    if callable(inventory):
+        inventory = inventory(results)
     rows = inventory[0] if inventory else None
     report.inventory_checked = rows is not None
     windows = _windows(report, traffic + tail, node)
@@ -1116,6 +1139,8 @@ def _check_trial(report, records, meta):
         if summary.kind == "TRIAL_PLAN" and any(summary.values[k] != header[n] for k, n in
                                                 (("route", "route"), ("node", "node"), ("trial", "id"))):
             report.error("plan_differs_from_header", summary.number)
+        if summary.kind == "TRIAL_HISTORY":
+            _check_history(report, summary, [r for r in records if r.role == "terminal" and r.status == "parsed"])
     requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
                  "trial": meta.get("trial")}
     for start in (r for r in records if r.role == "start" and r.kind == "ADMITTED" and "route" in r.values):
@@ -1124,6 +1149,28 @@ def _check_trial(report, records, meta):
         for name, wanted in requested.items():
             if wanted is not None and start.values[name] != wanted:
                 report.error("wrong_procedure", start.number, "%s requested %s" % (name, wanted))
+
+
+def _check_history(report, summary, results):
+    """TRIAL_HISTORY names a count of at most four and exactly that many entries, and both are the
+    record's own successful 1003 terminals: a summary is never a second, different observation."""
+    values = summary.values
+    count = values["count"]
+    named = [n for n in range(1, 5) if "e%d" % n in values]
+    if count > 4 or named != list(range(1, count + 1)):
+        report.error("history_count_mismatch", summary.number, "count %d with entries %s" % (count, named))
+        return
+    read = {}
+    for result in results:
+        data = result.values
+        index, subindex = data["object"]
+        if index == 0x1003 and data["outcome"] == 0 and subindex not in read:
+            read[subindex] = int.from_bytes(bytes.fromhex(data["data"])[:data["size"]], "little")
+    wanted = {0: count}
+    wanted.update((n, values["e%d" % n]) for n in named)
+    if read != wanted:
+        report.error("history_differs_from_terminals", summary.number,
+                     "summary %s terminals %s" % (sorted(wanted.items()), sorted(read.items())))
 
 
 def _check_request(report, meta):

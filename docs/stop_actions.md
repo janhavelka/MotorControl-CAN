@@ -21,8 +21,12 @@ wrong direction. `ActionContext::predecessorDocumented` is false for those rows,
 `predecessorWord` records the word. One has been measured: on 2026-11-03, `010F` from `001F`
 stopped a 2 rpm move on node 1 within its 500 ms ramp, and the shaft held for 26 s; afterwards
 `6041=0437` and `2100=0000`, so the halted move reads neither completion signal. That is one
-specimen, firmware and speed. The other rows, and `000B` from any word, stay unmeasured
-([packet 16](reports/handoff_19_33/packet_16.md)).
+specimen, firmware and speed. `000B` was then measured stationary, unattended, on both
+specimens: from `000F` on node 2 (`8050`, `2100=0011`) and from that halted `010F` on node 1
+(`0050`, `2100=0010`). Both drives left operation for low bits `000` and **released the motor**,
+and neither moved: node 1 stayed at 316 with its target 750 still retained. The other rows,
+`000B` during a move, and `000B` before this library's enable stay unmeasured
+([unattended session](reports/2026-11-03_unattended_bench.md), [packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
@@ -101,7 +105,13 @@ stopped/completion bit cannot satisfy it. The existing typed reader acquires
 MONITORS before STATUS; the five fields are not an atomic snapshot. New mode 1,
 alarm clear and released clear are the supported observation policy. A released
 report fails that policy; it does not prove that stopping physically failed or
-that the command should have retained torque. An alarm/fault terminates the
+that the command should have retained torque. **One exception, measured:** a
+`QUICK_STOP` whose cycle reads released with `6041` low bits `000`, not running and
+no alarm, is `OBSERVED`, because that is what `000B` did on both specimens.
+`monitorObservation` keeps the released bit: **after a quick stop this drive holds no
+torque**, so a load the motor held is no longer held. A `HALT` held torque when
+measured, so a release still ends it outside the scope, as does a release with any low
+bit set. An alarm/fault terminates the
 operation with its command evidence preserved. The application delivers routed
 fault/lifecycle invalidation before advancing a later successful read result.
 
@@ -162,9 +172,10 @@ reservation. It uses `CanBusOwner::admitBestEffortStop`, and `000B` is never rep
 
 **An independent physical stop stays mandatory.** Nothing here is a safety function, and a best-effort stop may not reach or affect the drive.
 
-**It is not a confirmed stop and it never reaches `SUCCEEDED`.** No claim is made that
-`000B` stops or does not enable this drive: packet 16 owns that measurement, which has not
-run ([packet 16](reports/handoff_19_33/packet_16.md)).
+**It is not a confirmed stop and it never reaches `SUCCEEDED`.** The sequenced `000B`
+from `000F` and `010F` released both specimens without enabling them, but this path sends it
+with no known predecessor, and nothing measured covers that
+([packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Owner terminal | `outcome` | `execution` |
 | --- | --- | --- |
@@ -198,7 +209,8 @@ policy across recovery where this always re-issues `000B`.
 Host tests cover these paths through the real owner and selected SDO engine, with words
 manufactured by a fake. They do not establish firmware applicability, motor standstill,
 stop latency, braking curve, torque, device-target retirement or reference validity.
-The DEC-8 rows, whether `000B` is non-enabling, and velocity and homing modes need their
-own fixture evidence. See the
+Two rows have one measurement each on one firmware (`010F` from `001F`, `000B` from `000F`
+and from `010F`). The other DEC-8 rows, `000B` with no known predecessor, and velocity and
+homing modes need their own fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.

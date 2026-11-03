@@ -30,9 +30,12 @@ audit's W1 to W8 for host scope. Packet 11 ran the first live typed reads and a
 read-only communication soak on two specimens. A first
 [attended campaign](reports/2026-11-03_attended_bench.md) enabled both
 specimens, and on node 1 ran one absolute experiment move, its rearm and a
-moving HALT. No specimen has accepted a setting write, run `000B`, cleared an
-alarm, zeroed a counter or run the library's move lifecycle. The open physical
-gates are listed in the [backlog](backlog.md).
+moving HALT. An [unattended campaign](reports/2026-11-03_unattended_bench.md), on
+the user's written waiver, ran the library's move lifecycle once on node 2 and a
+stationary `000B` on each node, which released the motor; the quick stop now
+completes on that report, not yet retested on hardware. No specimen has accepted a
+setting write, cleared an alarm, zeroed a counter or run a relative move. The open
+physical gates are listed in the [backlog](backlog.md).
 
 The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
 26 uploads per node, node1 heartbeat1000, fresh addressed Pre-operational and
@@ -76,9 +79,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 28 | Shared Arduino/ESP-IDF application | Arduino/S3 IDF/S2 bench/isolated component build gates; Partial on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). S2 uses explicit fixture configuration and UART; P4 complete firmware remains pending. |
 | 29 | Evidence harness, fixture record and conflict acquisition | Typed and raw finite collectors implemented and host/firmware checked; [two-node S2 raw acquisition](reports/2026-11-02_s2_live_connection.md) observed. Packet 11 added flash, parser and soak tools, and ran typed identity, the readiness image and a read-only soak live on two specimens. Partial on Q20 and remaining [measurement gates](device_conflicts.md); no PDO mutation or motor qualification. |
 | 30 | State interpretation, enable/release | Partial: checked documentary decoder and a [gated enable](drive_actions.md) (packet 15), closed by default, which succeeded on both specimens in the attended session. The release command remains unresolved and absent. |
-| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. One HALT from `001F` stopped and held a 2 rpm move on node 1; the other DEC-8 rows and `000B` are packet 16's measurements, not yet run; [remaining gates](stop_actions.md). No enabling preamble. |
+| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. One HALT from `001F` stopped and held a 2 rpm move on node 1. A stationary `000B` from `000F` and from `010F`, unattended, released the motor on each node; the quick stop now completes on that report, not yet retested on hardware. The other DEC-8 rows, a stationary `010F`, `000B` during a move and `000B` with no known predecessor are packet 16's measurements, not yet run; [remaining gates](stop_actions.md). No enabling preamble. |
 | 32 | Fault/reference actions | Partial: alarm clear with explicitly unresolved fault identity (packet 17) and zero-only counter clear with a retained baseline (packet 18), with exact owner/reference handoff. No specimen has run either. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
-| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20) that no specimen has run. Packet 19 measured node 1's acceptance and completion signals; the `move` route, stop rows (packet 16) and relative moves (packet 21) remain. |
+| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20), closed by default. Packet 19 measured node 1's acceptance and completion signals, and with them the `move` route ran the lifecycle once, unattended, on node 2 and succeeded: one specimen and firmware, not qualified. Stop rows during a move (packet 16) and relative moves (packet 21) remain. |
 | 34-36 | Angles, finite velocity and homing | Pending; the repair audit's hold is lifted only for consumed qualified contracts. Explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |

@@ -17,9 +17,12 @@
  * 000B, a prior 010F for HALT, any other word and a released state are rejected.
  * After ACK, fresh five-field MONITORS+STATUS SDO cycles require mode 1 and no
  * alarm/release; monitor running clear establishes OBSERVED controller-not-running
- * during that sequential read window. Other mode/alarm/release is outside the
- * observation scope, not proof that physical stopping failed. Statusword dialect
- * bits never decide completion. No 605A/6085, guessed 605D, queue disposition,
+ * during that sequential read window. The one exception is QUICK_STOP's measured
+ * terminal: on both specimens and one firmware, 000B from 000F and from 010F left 2100
+ * released with 6041 low bits 000 (docs/stop_actions.md), so that report completes a
+ * QUICK_STOP, and monitorObservation keeps the release: the motor holds no torque. Other
+ * mode/alarm/release is outside the observation scope, not proof that physical stopping
+ * failed. Other statusword dialect bits never decide completion. No 605A/6085, guessed 605D, queue disposition,
  * torque/reference retention, shaft standstill or firmware qualification is claimed.
  * One owner must retire obsolete queued/controller work before stop admission.
  * BestEffortStop is the separate DEC-2 path for an unresolved route or missing history.
@@ -28,8 +31,9 @@
  * read never overrides a newer routed fault. While admitted work is still in flight, deliver it
  * with noteActionWithdrawal instead: that work's terminal is then consumed as evidence, it cannot
  * complete or advance the action, and the outcome is the withdrawal's reason.
- * Enable transition contract: GATED. NO SPECIMEN HAS RUN prepareEnable, and every claim about it
- * below is fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15 about 10 ms
+ * Enable transition contract: GATED. Two specimens ran prepareEnable once each, attended, on one
+ * firmware (docs/drive_actions.md); that qualifies nothing, and every other claim about it below is
+ * fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15 about 10 ms
  * apart in position mode. No source says what the drive does with an earlier target when it
  * enables, so EnableEvidence must carry the caller's explicit statements and a closed gate refuses.
  * Mode 1 is mandatory: ZH86 p13 and OP86 p11 start the motor at the end of 6, 7, 15 in mode 3, and
@@ -138,7 +142,9 @@ struct CounterBaseline {
 /** Whether enable may run at all. This is the capability gate, not a readiness claim. */
 enum class EnableGate : uint8_t {
     CLOSED,             ///< Default: prepareEnable returns UNSUPPORTED with no output change.
-    ATTENDED_EXPERIMENT ///< One attended trial with an independent drive-power cutoff; no specimen has run it.
+    /** One attended trial with an independent drive-power cutoff. Two specimens ran it attended on
+     * one firmware (docs/drive_actions.md); that qualifies no firmware or capability. */
+    ATTENDED_EXPERIMENT
 };
 /** What the application's own retained record says happened before this enable. */
 enum class EnableStart : uint8_t {
@@ -435,7 +441,8 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& re
 Status validateEnable(const ActionContext& output, const AxisReservation& reservation,
                       const ReadContext& state, const EnableEvidence& evidence, uint32_t operation,
                       uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
-/** Prepare the documented position-mode enable sequence. GATED: no specimen has run it.
+/** Prepare the documented position-mode enable sequence. GATED: two specimens ran it attended
+ * on one firmware, which qualifies nothing.
  * Writes nothing itself. nextAction first yields one upload each of 607A and 60FF, as the project's
  * accepted action prerequisite, not a poll; their effects stay unknown. Their bytes must equal the
  * reviewed values, or the action fails before any 6040 word: this is the decision for a target of

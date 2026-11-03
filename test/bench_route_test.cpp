@@ -79,6 +79,10 @@ struct Drive {
     uint16_t mismatchIndex = 0; // Replies to this object name the next subindex.
     uint16_t alarmAfterMode = 0; // 2100 bits set once 6060 has been written.
     uint16_t monitorAfterTrigger = 0; // 2100 bits set by a 001F.
+    // 1003 as this fake reports it: a count and five raw words, chosen by each test, not any drive's.
+    uint8_t historyCount = 0;
+    uint32_t history[5] = {};
+    uint16_t errorCodeAfterHistory = 0; // 603F once 1003:00 has been read, to tell before from after.
     bool followWords = true;
     bool writesOnly = false;    // silentIndex, abortIndex, lateIndex and mismatchIndex spare uploads.
     bool ignoreTrigger = false; // A 001F changes nothing the fake reports: no acceptance, no travel.
@@ -96,6 +100,8 @@ struct Drive {
             return sub ? 4 : 1;
         case 0x60fe:
             return sub ? 4 : 1;
+        case 0x1003:
+            return sub ? 4 : 1;
         case 0x1000: case 0x6064: case 0x606c: case 0x607a: case 0x60ff: case 0x6081: case 0x6083: case 0x6084:
             return 4;
         default:
@@ -112,6 +118,10 @@ struct Drive {
         case 0x2001: return FIRMWARE;
         case 0x1001: return errorRegister;
         case 0x603f: return errorCode;
+        case 0x1003:
+            if (sub == 0 && errorCodeAfterHistory)
+                errorCode = errorCodeAfterHistory;
+            return sub == 0 ? historyCount : sub <= 5 ? history[sub - 1] : 0;
         case 0x2100:
             if (moveReads) {
                 if (!--moveReads) {
@@ -448,6 +458,10 @@ void testParse() {
     CHECK(E::parseRouteCommand("A1,5", 4, p) && p.kind == E::RouteKind::READ_ACTIONS && p.node == 1 && p.trial == 5);
     CHECK(E::parseRouteCommand("I2,4294967295", 13, p) && p.kind == E::RouteKind::READ_IO && p.trial == UINT32_MAX);
     CHECK(E::parseRouteCommand("U1,9", 4, p) && p.kind == E::RouteKind::READ_TUNING);
+    CHECK(E::parseRouteCommand("H2,4", 4, p) && p.kind == E::RouteKind::READ_HISTORY && p.node == 2 && p.trial == 4 &&
+          !p.attended);
+    // Appended after MOVE: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::MOVE) == 9 && unsigned(E::RouteKind::READ_HISTORY) == 10);
     const std::string mode = "M1,6,1,3,250";
     CHECK(E::parseRouteCommand(mode.data(), mode.size(), p) && p.attended && p.cycles == 3 && p.intervalMs == 250);
     const std::string enable = "E2,7,1,1,2,32823,-5000,120,10000,800";
@@ -480,7 +494,8 @@ void testParse() {
                                "P1,9,1,0,16,1,1000,1000,8,250,1,4,0,0,100",
                                "P1,9,1,0,16,1,1000,1000,8,250,1,4,2000,1000,100",
                                "P1,9,1,0,16,1,1000,1000,8,250,0,4,0,0,0",
-                               "P1,9,1,0,16,1,1000,1000,8,250,0,0,0,0,100"};
+                               "P1,9,1,0,16,1,1000,1000,8,250,0,0,0,0,100", "H0,5", "H3,5", "H1,0",
+                               "H1,5,", "H1,5,1", "h1,5", "H1"};
     for (const char* text : bad) {
         E::RoutePlan untouched;
         if (E::parseRouteCommand(text, std::strlen(text), untouched))
@@ -490,6 +505,7 @@ void testParse() {
     }
     CHECK(!E::parseRouteCommand(nullptr, 4, p));
     CHECK(std::strcmp(E::routeName(E::RouteKind::POSITION), "position") == 0);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::READ_HISTORY), "history") == 0);
 }
 // Nothing at construction or service, and refusals change nothing.
 void testPassiveAndRefusals() {
@@ -578,6 +594,98 @@ void testIoAndTuningReads() {
     expectUploads(*r, at, 1, IMAGE, 7);
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 0);
     r->dump();
+}
+// Packet 4 and packet 22 step 2: the full read, 1003:00 and only the entries its count names, then
+// 1001 and 603F again. Uploads only, each through its own grant; every value is this fake's.
+void testHistoryReads() {
+    scenario = "history";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    d.historyCount = 2;
+    d.history[0] = 0x00001234;
+    d.history[1] = 0xff007531;
+    d.history[2] = 0x0badf00d; // Past the count: never read.
+    d.history[3] = 0x80000001;
+    d.history[4] = 0x00000005;
+    d.errorCodeAfterHistory = 0x7531;
+    const E::RouteRecord& rec = r->run("H1,5");
+    CHECK(rec.failure == E::RouteFailure::NONE && !rec.evidenceLost && rec.terminalCount == 14);
+    size_t at = 0;
+    expectUploads(*r, at, 1, FULL, 9);
+    const Address two[] = {{0x1003, 0}, {0x1003, 1}, {0x1003, 2}, {0x1001, 0}, {0x603f, 0}};
+    expectUploads(*r, at, 1, two, 5);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 0);
+    for (unsigned i = 0; i < rec.terminalCount; ++i)
+        CHECK(rec.terminals[i].outcome == uint8_t(C::SdoOutcome::SUCCESS) &&
+              rec.terminals[i].direction == uint8_t(C::SdoDirection::UPLOAD));
+    CHECK(rec.historyPresent && rec.historyCount == 2 && rec.history[0] == 0x00001234 &&
+          rec.history[1] == 0xff007531 && rec.history[2] == 0 && rec.history[3] == 0);
+    // 603F before the 1003 read is its own terminal; the read after it shows the fake's change.
+    CHECK(rec.terminals[1].index == 0x603f && rec.terminals[1].data[0] == 0 && rec.terminals[1].data[1] == 0);
+    CHECK(rec.terminals[13].index == 0x603f && rec.terminals[13].data[0] == 0x31 && rec.terminals[13].data[1] == 0x75);
+    CHECK(rec.last.blocks == 0x01 && rec.last.errorCode == 0x7531 && rec.last.errorRegister == 0);
+    CHECK(rec.motionTotal == 0 && rec.caseCount == 0 && r->route.motionAdmissions() == 0);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL id=5 node=1 route=history failure=0 why=none lost=0 terminals=14 "));
+    CHECK(has(text, " summaries=4 step=3 cycles=0 motion=0 case=0 unsettled=0 "));
+    CHECK(has(text, "TRIAL_PLAN route=history node=1 trial=5 attended=0\n"));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=01 1001=00 603f=7531 2100=0000 6041=0000 6061=00 6064=0 606c=0\n"));
+    CHECK(has(text, "TRIAL_HISTORY count=2 e1=00001234 e2=ff007531\n"));
+    CHECK(has(text, "object=1003:02 dir=0 outcome=0 ack=1") && !has(text, "object=1003:03"));
+    r->release();
+    // An empty history on the other node: 1003:00 alone, then the errors again.
+    scenario = "history-empty";
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& empty = r->run("H2,6");
+    CHECK(empty.failure == E::RouteFailure::NONE && empty.terminalCount == 12 && empty.historyPresent &&
+          empty.historyCount == 0);
+    at = first;
+    expectUploads(*r, at, 2, FULL, 9);
+    const Address none[] = {{0x1003, 0}, {0x1001, 0}, {0x603f, 0}};
+    expectUploads(*r, at, 2, none, 3);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 0);
+    CHECK(has(r->dump(), "TRIAL_HISTORY count=0\n"));
+    r->release();
+    // Four entries fill the route's terminal bound exactly.
+    scenario = "history-full";
+    d.historyCount = 4;
+    first = r->driver.requests.size();
+    CHECK(r->run("H1,7").failure == E::RouteFailure::NONE && r->route.record()->terminalCount == 16);
+    at = first + 9;
+    const Address four[] = {{0x1003, 0}, {0x1003, 1}, {0x1003, 2}, {0x1003, 3}, {0x1003, 4}, {0x1001, 0}, {0x603f, 0}};
+    expectUploads(*r, at, 1, four, 7);
+    CHECK(at == r->driver.requests.size());
+    CHECK(has(r->dump(), "TRIAL_HISTORY count=4 e1=00001234 e2=ff007531 e3=0badf00d e4=80000001\n"));
+    r->release();
+    // A count above four fails the library's read after 1003:00: no entry and nothing after it.
+    scenario = "history-count";
+    d.historyCount = 5;
+    first = r->driver.requests.size();
+    const E::RouteRecord& over = r->run("H1,8");
+    CHECK(over.failure == E::RouteFailure::SERVICE && std::strcmp(over.why, "read") == 0 && over.terminalCount == 10);
+    CHECK(r->driver.requests.size() == first + 10 && upload(r->driver.requests.back(), 1, 0x1003, 0));
+    CHECK(!over.historyPresent && over.last.blocks == 0x1d && r->downloadsFrom(first) == 0);
+    text = r->dump();
+    CHECK(has(text, " summaries=3 ") && !has(text, "TRIAL_HISTORY") && has(text, "object=1003:00 dir=0 outcome=0"));
+    r->release();
+    // A failed terminal ends the route at once and keeps its abort.
+    scenario = "history-abort";
+    d.historyCount = 1;
+    d.abortIndex = 0x1003;
+    first = r->driver.requests.size();
+    const E::RouteRecord& aborted = r->run("H1,9");
+    CHECK(aborted.failure == E::RouteFailure::SERVICE && aborted.terminalCount == 10 && !aborted.historyPresent);
+    const E::RouteTerminal& refused = aborted.terminals[9];
+    CHECK(refused.index == 0x1003 && refused.outcome == uint8_t(C::SdoOutcome::SERVER_ABORT) &&
+          refused.abortCode == 0x08000020u);
+    CHECK(r->driver.requests.size() == first + 10 && r->downloadsFrom(first) == 0);
+    CHECK(!has(r->dump(), "TRIAL_HISTORY"));
+    // None of these counted as motion: the first motion route after them is admission one, case one.
+    CHECK(r->route.motionAdmissions() == 0);
+    r->release();
+    scenario = "history-then-motion";
+    const E::RouteRecord& mode = r->run("M2,10,1,1,200");
+    CHECK(mode.failure == E::RouteFailure::NONE && mode.motionTotal == 1 && mode.caseCount == 1);
 }
 // Packet 15 P2 then P3 then P4 on one power-up of the fake.
 void testModeEnableStop() {
@@ -1735,6 +1843,7 @@ void testIntegrity() {
     CHECK(E::routeLineCrc("", 0) == 0xbe047a60u);                // zlib.crc32(b"T")
     CHECK(E::routeLineCrc("A1,5", 4) == 0x62328164u);            // zlib.crc32(b"TA1,5")
     CHECK(E::routeLineCrc("R2,9,1,16,5000", 14) == 0x3c9f15dbu); // zlib.crc32(b"TR2,9,1,16,5000")
+    CHECK(E::routeLineCrc("H1,5", 4) == 0x1f3aceeeu);            // zlib.crc32(b"TH1,5")
     size_t body = 99;
     const std::string good = "A1,5,K62328164";
     CHECK(E::checkRouteIntegrity(good.data(), good.size(), body) && body == 4);
@@ -1972,23 +2081,23 @@ void testMovePreflightAtHandover() {
     CHECK(r->route.record()->failure == E::RouteFailure::ACTION);
 }
 // A full set of records for the parser's grammar check in s2_evidence_test.py: every route, the
-// rearm and the move on node 2 after the lost reply ended node 1's evidence, and a second move on node
-// 2 whose copied traffic overflowed.
+// rearm and the move on node 2 after the lost reply ended node 1's evidence, a second move on node
+// 2 whose copied traffic overflowed, and a history read with two entries on a fake of its own.
 void writeTranscript(const char* path) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
     std::string out;
     uint32_t moveTrial = 11;
-    const auto append = [&out, &r](const std::string& text) {
+    const auto append = [&out](Rig& rig, const std::string& text) {
         char admitted[160];
         std::snprintf(admitted, sizeof admitted,
                       "TRIAL admitted route=%s node=%u trial=%lu motion=%u case=%u; finite typed route, no retry\n",
-                      E::routeName(r->route.record()->plan.kind), unsigned(r->route.record()->plan.node),
-                      static_cast<unsigned long>(r->route.record()->plan.trial),
-                      unsigned(r->route.record()->motionTotal), unsigned(r->route.record()->caseCount));
-        out += std::string("=== ") + text + "\n" + admitted + r->dump();
-        r->turns(5);
-        r->route.release();
+                      E::routeName(rig.route.record()->plan.kind), unsigned(rig.route.record()->plan.node),
+                      static_cast<unsigned long>(rig.route.record()->plan.trial),
+                      unsigned(rig.route.record()->motionTotal), unsigned(rig.route.record()->caseCount));
+        out += std::string("=== ") + text + "\n" + admitted + rig.dump();
+        rig.turns(5);
+        rig.route.release();
     };
     const std::string lines[] = {"A1,1", "I1,2", "U1,3", "M1,4,1,2,200", "E1,5,1,1,1,32823,5000,120,10000,800",
                                  "P1,6,1,0,16,1,1000,1000,4,100,1,2,2000,0,200", "S1,7,1,1,2000,0,100",
@@ -2007,7 +2116,7 @@ void writeTranscript(const char* path) {
         if (i == 8)
             r->heartbeat(2);
         CHECK(r->run(text).failure == (i == 6 ? E::RouteFailure::SERVICE : E::RouteFailure::NONE));
-        append(text);
+        append(*r, text);
     }
     MoveSpec spec;
     spec.sp = 32;
@@ -2023,7 +2132,14 @@ void writeTranscript(const char* path) {
         r->turn();
     }
     CHECK(r->route.record()->failure == E::RouteFailure::EVIDENCE_LOSS && r->route.record()->lossCancel);
-    append(lost);
+    append(*r, lost);
+    // Its own fake, so the sequence above keeps its trial identities and node state.
+    std::unique_ptr<Rig> h(new Rig);
+    h->driver.drives[0].historyCount = 2;
+    h->driver.drives[0].history[0] = 0x00001234;
+    h->driver.drives[0].history[1] = 0xff007531;
+    CHECK(h->run("H1,1").failure == E::RouteFailure::NONE);
+    append(*h, "H1,1");
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
     CHECK(std::fwrite(out.data(), 1, out.size(), file) == out.size());
@@ -2040,6 +2156,7 @@ int main(int argc, char** argv) {
     testPassiveAndRefusals();
     testActionsReads();
     testIoAndTuningReads();
+    testHistoryReads();
     testModeEnableStop();
     testPosition();
     testPrerequisitesAndLostReplies();

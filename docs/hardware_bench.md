@@ -420,10 +420,12 @@ from the host's side file.
 
 ## Attended bench routes
 
-Named finite routes for the attended trials of packets 13, 14, 15, 16, 19 and 20, in
+Named finite routes for the attended trials of packets 13, 14, 15, 16, 19 and 20, and the
+`1003` error history read of packets 4 and 22, in
 [`BenchRoute`](../examples/s2_bench/BenchRoute.h). The [attended session](reports/2026-11-03_attended_bench.md)
-ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`; **`stop` and
-`move` have not run.** Each is
+ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`; the
+[unattended session](reports/2026-11-03_unattended_bench.md) ran `move` once and `stop` twice.
+**`history` has not run.** Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
 typed reads, the session's own `requestEnable`, `requestMove` and `requestStop`, and caller-built
 transfers through `admitPrepared` only for the 6060 write, the position experiment's writes and the
@@ -436,6 +438,7 @@ while its own record is held.
 | `readiness-actions` (packet 15 P1) | `TA<node>,<trial>` | STATE `1001`, `603F`, `2100..2102`, `6041`, `6061`, `6064`, `606C`; MOTION_PARAMETERS `6081`, `6083`, `6084`; single uploads `1017`, `607A`, `60FF`; the accepted image again. No write | Any failed terminal |
 | `readiness-io` (packet 13 P1) | `TI<node>,<trial>` | Image; `2400:00..08`, `2400:0C..0F`, `2401..2407`, `60FE:00..02` as the four typed I/O groups; image. `2400:0B` is never read. No write | As above |
 | `readiness-tuning` (packet 14 T0) | `TU<node>,<trial>` | Image; the four typed tuning groups `2502..2520`; image. No write | As above |
+| `readiness-history` (packet 4, packet 22 step 2) | `TH<node>,<trial>` | The `readiness-actions` STATE read; STATE `ERROR_HISTORY` alone: `1003:00`, then only the entries `1003:01..` its count names, at most four, each upload with its own one-use grant; STATE `ERRORS` (`1001`, `603F`) again, so both are on record before and after the first `1003` read. Values raw, never interpreted. No write | As above; a `1003:00` count above four fails the typed read after that upload |
 | `mode1` (packet 15 P2) | `TM<node>,<trial>,1,<cycles>,<interval>` | The `readiness-actions` reads, a check, then `2F 60 60 00 01 00 00 00` once, then 1..10 fresh cycles, the first with `1001`/`603F`. No enable | Before the write: `1001` or `603F` nonzero, `2100` alarm or running, `606C` nonzero, `6061` not 0, an earlier write or controlword in this session. After: alarm, running, `606C` nonzero, a fault code |
 | `enable` (packet 15 P3) | `TE<node>,<trial>,1,1,<shaft>,<6041>,<607A>,<60FF>,<deadline>,<interval>` | A fresh `ERRORS`/`MONITORS`/`STATUS`/`FEEDBACK` read, then `requestEnable` with `ATTENDED_EXPERIMENT`, the host's trial, reviewed values and `NO_MOTION_WRITE_RECORDED`, and the attendant's typed `FREE` or `HOLDING` | The library's own conditions; a nonzero EMCY of the node withdraws it with `DRIVE_FAULT` |
 | `stop` (packet 15 P4, packet 16) | `TS<node>,<trial>,1,<1 halt/2 quick>,<deadline>,<best effort or 0>,<interval>` | A fresh `MONITORS`/`STATUS` read, then `requestStop` with that kind and policy | The session decides the path |
@@ -524,7 +527,8 @@ session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 | --- | --- |
 | `TRIAL_PLAN` | The parsed request, only the fields the route uses |
 | `TRIAL_RES` | `stack0` and `stack1`, the task stack high-water mark at admission and at the terminal (a lower `stack1` was reached during the route), heap free before and after, least ever, largest free block, service gap, lost records, a refused admission, and the controller TX and RX error counters at admission and terminal (`tec0`, `rec0`, `tec1`, `rec1`; absent from records before 2026-11-03's counter change) |
-| `TRIAL_CHECK`, `TRIAL_LAST` | The values a prerequisite check judged, and the latest fresh read |
+| `TRIAL_CHECK`, `TRIAL_LAST` | The values a prerequisite check judged, and the latest fresh read; `blocks` names the StateBlock bits it holds (`history` ends with `01`, its closing `1001`/`603F`) |
+| `TRIAL_HISTORY` | `history` only, after a successful `1003` read: `count=<1003:00>` and `e1=..e<count>=` the entries read, raw hexadecimal; an entry not read is absent, not zero. `s2_evidence.py` requires it to equal the record's own `1003` terminals |
 | `TRIAL_EMCY`, `TRIAL_STATUS` | The EMCY that ended it; a library refusal with its code, detail and message |
 | `TRIAL_ENABLE`, `TRIAL_ENABLE_STEP` | The enable context and each word's acknowledgement and accepted report |
 | `TRIAL_STOP`, `TRIAL_BEST_EFFORT` | The requested and final path, the sequenced context with its predecessor, and both best-effort contexts; `own=1` marks this route's |
@@ -534,8 +538,9 @@ session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 
 `failure` values: 0 none, 1 grant, 2 admission, 3 service, 4 correlation, 5 evidence loss,
 6 invalidated, 7 deadline, 8 prerequisite, 9 observation, 10 action, 11 refused, 12 aborted.
-`s2_evidence.py` reads every line, checks the request, plan, summary count and, for the three read
-routes, the fixed inventory, and gives the verdicts above. A record that reports `lost=1` cannot be
+`s2_evidence.py` reads every line, checks the request, plan, summary count and, for the four read
+routes, the fixed inventory (for `history`, as many entries as its own `1003:00` reply names), and
+gives the verdicts above. A record that reports `lost=1` cannot be
 accused by matching its terminals to the copied traffic it says is incomplete: those findings stay
 as warnings and the verdict is `failed-evidence`. In the transition log the enable, stop and move
 summaries publish under their own names (`enableOutcome`, `stopPath`, `stopOutcome`, `moveOutcome`,
@@ -545,6 +550,7 @@ real `BenchRoute` printed against a synthetic drive, and one move whose copied t
 
 ```text
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 1 --trial 101 --fault-led prompt --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-history --node 1 --trial 102 --fault-led prompt --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command mode1 --node 1 --trial 104 --cycles 5 --interval-ms 500 --campaign CAMPAIGN.jsonl --new-campaign --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command enable --node 1 --trial 105 --status 0x8037 --position-target 5000 --velocity-target 120 --deadline-ms 10000 --interval-ms 800 --no-motion-write-recorded --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 1 --trial 106 --kind quick --deadline-ms 2000 --best-effort-ms 0 --interval-ms 200 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
@@ -561,9 +567,17 @@ runner refuses a missing one. Each command checks the recorded USB identity, pin
 unless the image reports `routes=3` (the line protocol with the integrity field), no soak, no held
 record and a started controller. It asks the
 operator to type the attended confirmation, the shaft observation for `enable` and the fault LED for
-`readiness-actions` with `--fault-led prompt`, and after the route a free-text shaft observation.
+`readiness-actions` and `readiness-history` with `--fault-led prompt` (both require `--fault-led`:
+they upload objects whose read effect is unqualified), and after the route a free-text shaft
+observation.
 These go to `request.json` and are never interpreted; only the enable's `FREE` or `HOLDING` is
-sent. `--dry-run` prints the plan without enumerating, prompting or creating anything. Exit status: 0
+sent. **With nobody at the bench**, `--unattended-waiver TEXT` replaces those questions, and only on
+the user's own written statement that they accept the trial unattended: TEXT is stored verbatim in
+`request.json` and the ledger's send entry, every answer only an attendant could give is stored as
+`unattended: not observed`, and the line's attended field still reads 1, recording that the host's
+gate was met by the waiver. It refuses `enable`, whose start report needs the attendant's power-up
+shaft observation, and `--fault-led prompt`. The independent cutoff is then absent, so keep such a
+campaign to bounded, slow, short cases. `--dry-run` prints the plan without enumerating, prompting or creating anything. Exit status: 0
 complete, 3 a consistent record of a failure, 2 nothing admitted, 1 damaged or unfinished.
 
 **Campaign ledger.** The firmware's caps restart with the MCU, so every motion command needs

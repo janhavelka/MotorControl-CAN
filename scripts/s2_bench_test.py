@@ -16,9 +16,9 @@ import s2_evidence as evidence  # noqa: E402
 
 PONG = "PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent=0 pinsReady=1 soak=%d t=5%s\n"
 NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning", "M": "mode1", "E": "enable",
-         "S": "stop", "P": "position", "R": "rearm", "G": "move"}
+         "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
-          "R": "rearm", "G": "move"}
+          "R": "rearm", "G": "move", "H": "history"}
 
 
 def check_trial_transcript(path):
@@ -26,8 +26,8 @@ def check_trial_transcript(path):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    if len(parts) < 13:
-        problems.append("expected thirteen records, found %d" % len(parts))
+    if len(parts) < 14:
+        problems.append("expected fourteen records, found %d" % len(parts))
     letters = {part[:1].decode("ascii") for part in parts}
     for letter in NAMES:
         if letter not in letters:
@@ -63,7 +63,9 @@ def check_trial_transcript(path):
             problems.append("%s: no check or rearm summary" % line)
         if line.startswith("G") and not {"TRIAL_CHECK", "TRIAL_EVIDENCE", "TRIAL_MOVE", "TRIAL_MOVE_SAMPLE"} <= kinds:
             problems.append("%s: no check, evidence or move summary" % line)
-        if line[0] in "AIU" and not report.inventory_checked:
+        if line.startswith("H") and "TRIAL_HISTORY" not in kinds:
+            problems.append("%s: no history summary" % line)
+        if line[0] in "AIUH" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
     return problems
 
@@ -410,6 +412,8 @@ class BenchTest(unittest.TestCase):
         for argv in (ENABLE + ["--unattended-waiver", waiver],
                      ["--command", "readiness-actions", "--node", "1", "--trial", "3", "--fault-led", "prompt",
                       "--unattended-waiver", waiver],
+                     ["--command", "readiness-history", "--node", "1", "--trial", "3", "--fault-led", "prompt",
+                      "--unattended-waiver", waiver],
                      MOVE + ["--unattended-waiver", "  "],
                      ["--command", "ping", "--unattended-waiver", waiver]):
             self.clear_output()
@@ -454,6 +458,55 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(meta["operator"]["fault_led_after"]["typed"], "off")
         self.assertNotIn("attended", meta["operator"])
         self.assertTrue((self.output / "rx.bin").read_bytes().startswith(b"stale\n"))
+
+    def test_history_route_line_and_fault_led(self):
+        history = ["--command", "readiness-history", "--node", "2", "--trial", "4"]
+        args, fields = bench.arguments(BASE + history + ["--fault-led", "unobserved", "--output", "x"])
+        self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed("TH2,4"))
+        # zlib's CRC-32 of "TH1,5", the value the firmware's own test pins.
+        self.assertEqual(bench.sign_line("TH1,5"), "TH1,5,K1f3aceee")
+        # A read: no attended field, no motion weight, no campaign required, never a motion route.
+        self.assertEqual(bench.motion_weight("readiness-history", fields), (0, 0))
+        self.assertNotIn("H", bench.MOTION_ROUTES)
+        # --fault-led is required here as for readiness-actions, and still refused on other routes.
+        for argv in (history, history + ["--fault-led", "seen"],
+                     ["--command", "readiness-io", "--node", "1", "--trial", "1", "--fault-led", "unobserved"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + ["--output", "x"])
+        # prompt asks before and after, as readiness-actions does; nothing else is asked.
+        board = Board()
+        operator = Operator("off", "red blinking")
+        status, _, err = self.run_main(history + ["--fault-led", "prompt"], Backend(board), operator)
+        self.assertEqual(status, 1, err)  # The synthetic record has no terminals: the inventory reads it short.
+        self.assertEqual(board.writes, [b"p", signed("TH2,4").encode()])
+        self.assertEqual(len(operator.questions), 2)
+        self.assertTrue(all("Fault LED of node 2" in question for question in operator.questions))
+        meta = self.meta()
+        self.assertEqual(meta["operator"]["fault_led_before"]["typed"], "off")
+        self.assertEqual(meta["operator"]["fault_led_after"]["typed"], "red blinking")
+        self.assertNotIn("attended", meta["operator"])
+        self.assertEqual(meta["plan"], "packet 4 / packet 22 step 2")
+        # prompt refuses an empty answer before anything is sent.
+        self.clear_output()
+        board = Board()
+        status, _, err = self.run_main(history + ["--fault-led", "prompt"], Backend(board), Operator(""))
+        self.assertEqual(status, 2, err)
+        self.assertEqual(board.writes, [])
+        # unobserved asks nothing and records that nobody looked; a named ledger keeps an uncounted send.
+        for extra in ([], ["--unattended-waiver", "I accept that nobody watches this read"]):
+            self.clear_output()
+            self.ledger.write_bytes(b"")
+            board = Board()
+            operator = Operator()
+            status, _, err = self.run_main(history + ["--fault-led", "unobserved", "--campaign", str(self.ledger)] +
+                                           extra, Backend(board), operator)
+            self.assertEqual(status, 1, err)
+            self.assertEqual(operator.questions, [])
+            self.assertEqual(board.writes, [b"p", signed("TH2,4").encode()])
+            self.assertEqual(self.meta()["operator"], {"fault_led_before": {"typed": "unobserved", "accepted": True}})
+            send = [entry for entry in self.entries() if entry["event"] == "send"]
+            self.assertEqual([(e["route"], e["node"], e["trial"], e["motion"], e["stop"]) for e in send],
+                             [("H", 2, 4, 0, 0)])
 
     def test_image_state_refuses_the_line(self):
         for name, value, reason in (("routes", 0, "image_without_routes"), ("soak", 1, "soak_running"),

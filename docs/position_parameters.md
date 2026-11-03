@@ -66,11 +66,22 @@ Common intent and outcome names are in `MotorControlCAN/MoveOperation.h`.
 `prepareMoveAbsolute` refuses relative intent; the relative move further down
 uses the same calls.
 
-**The move is gated.** No source or specimen establishes which report shows that
-this trigger was accepted, or that a completion report is new. `MoveEvidence`
+**The move is gated.** No source establishes which report shows that this
+trigger was accepted, or that a completion report is new. `MoveEvidence`
 therefore carries the caller's reviewed measurement, and its default
-`MoveGate::CLOSED` returns `UNSUPPORTED` before anything else is checked. Only
-fake-owner tests have run this lifecycle. No drive has.
+`MoveGate::CLOSED` returns `UNSUPPORTED` before anything else is checked.
+
+**One specimen run, 2026-11-03.** With node 1's measured evidence from
+[packet 19](reports/handoff_19_33/packet_19.md) (acceptance `6041` mask and value
+`0x1000`, completion `2100` mask and value `0x0001`, `AFTER_ABSENCE`), the bench
+`move` route ran this lifecycle once through `AxisSession::requestMove` on node 2,
+unattended: 0 to 250 pulses at 2 rpm, `SUCCEEDED` with completion observed and its
+own `000F` rearm acknowledged, the same bits as node 1. Completion was reported at
+`6064=251`, and the next read gave 250; whether the drive overshot and returned or
+the counter dithers inside the in-place window is not established. No shaft was
+observed, and node 2's scale is not measured. That is one specimen and one firmware,
+not a qualification ([unattended report](reports/2026-11-03_unattended_bench.md)).
+All other evidence for this lifecycle is fake-owner tests.
 
 ### Admission, before any write
 

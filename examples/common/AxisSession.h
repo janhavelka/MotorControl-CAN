@@ -43,8 +43,8 @@ struct StopPolicy {
  * across one explicit recovery and goes out once as 000B. A second recovery ends it. A
  * possibly sent frame is never sent again.
  *
- * Enable is gated: no specimen has run it. It takes one member, one request, one service branch and
- * one advance. Its words pass through the same path as every other command, so an acknowledged 000F
+ * Enable is gated: two specimens ran it once each, attended, on one firmware. It takes one member,
+ * one request, one service branch and one advance. Its words pass through the same path as every other command, so an acknowledged 000F
  * becomes the latest controlword that a stop may follow. A stop request ends an active enable first,
  * even if the stop itself is refused: no further word follows it. The session refuses an enable once
  * it has itself admitted a write other than an acknowledged 6060=1. That record lasts as long as this

@@ -44,8 +44,9 @@ Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming chec
 STATUS and MONITORS reads for explicit documentary comparison.
 Packet 10 adds `interpretStatusword` for one raw word, with the same meanings. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is
-no CLI route for an enable. `prepareEnable` exists and is gated: no specimen has run it, and
-`prepareRelease` does not exist. The [transition guide](drive_actions.md) records both.
+no CLI route for an enable. `prepareEnable` exists and is gated: it ran attended on both specimens,
+on one firmware, through a bench route ([attended report](reports/2026-11-03_attended_bench.md)),
+which qualifies nothing, and `prepareRelease` does not exist. The [transition guide](drive_actions.md) records both.
 Prompt 31 installs `prepareStop/nextAction/advanceAction` and the concrete
 `ActionContext` for the [conditional native stop path](stop_actions.md), including
 `noteActionTransmission` at the owner's external handoff. No stop CLI is installed.

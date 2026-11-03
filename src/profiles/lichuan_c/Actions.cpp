@@ -333,7 +333,12 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     bool done = false;
     switch (c.actionKind) {
     case ActionKind::STOP:
-        outsideScope |= alarm || (monitor & MONITOR_RELEASED) != 0;
+        // The one measured release: on both specimens, 000B from 000F and from 010F left 2100
+        // released with 6041 low bits 000 (2026-11-03). A HALT holds torque, so a release stays
+        // outside its scope. The release itself stays in monitorObservation for the caller.
+        outsideScope |= alarm || ((monitor & MONITOR_RELEASED) != 0 &&
+                                  (c.kind != StopKind::QUICK_STOP ||
+                                   (c.statusObservation.statusword & STATUS_LOW_BITS) != 0));
         done = !running;
         break;
     case ActionKind::CLEAR_ALARM:
@@ -610,7 +615,7 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return error(ActionError::OVERLAP, "enable preparation overlaps input");
     if (evidence.gate == EnableGate::CLOSED)
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::STATE),
-                      "enable is gated: no specimen has run it and no pending-motion rule is known");
+                      "enable is gated: not qualified and no pending-motion rule is known");
     if (evidence.gate > EnableGate::ATTENDED_EXPERIMENT ||
         evidence.start > EnableStart::NO_MOTION_WRITE_RECORDED ||
         evidence.powerUpShaft > ShaftObservation::HOLDING || !evidence.trial ||
