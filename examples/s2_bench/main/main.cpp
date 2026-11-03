@@ -6,13 +6,16 @@
 #include "IdfTwaiDriver.h"
 #include "PdoExperiment.h"
 #include "RawEvidence.h"
+#include "Soak.h"
 #include "driver/gpio.h"
 #include "esp_app_desc.h"
 #include "esp_attr.h"
+#include "esp_heap_caps.h"
 #include "sdkconfig.h"
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <new>
 
 #if !CONFIG_IDF_TARGET_ESP32S2
 #error "This fixture is the user's ESP32-S2 board"
@@ -44,10 +47,26 @@ void formatLine(char* output, size_t capacity, const char* pattern, ...) {
     }
 }
 
-// Output is copied once into the ordinary bounded platform queue. The caller
-// sends one request at a time; CAN service never waits for serial output.
+// Output is copied once into the ordinary bounded platform queue; CAN service never
+// waits for serial output. A one-shot response that does not fit waits here, and no
+// further command is taken until it has gone, so a response is not silently lost.
+DRAM_ATTR char retainedResponse[256];
+size_t retainedSize = 0;
+bool written(E::FirmwareProbe& firmware, const char* text, size_t size) {
+    return firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(text), size);
+}
 void line(E::FirmwareProbe& firmware, const char* text) {
-    firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(text), std::strlen(text));
+    const size_t size = std::strlen(text);
+    if (!retainedSize && written(firmware, text, size))
+        return;
+    if (!retainedSize && size < sizeof retainedResponse) {
+        std::memcpy(retainedResponse, text, size);
+        retainedSize = size;
+    }
+}
+void flushResponse(E::FirmwareProbe& firmware) {
+    if (retainedSize && written(firmware, retainedResponse, retainedSize))
+        retainedSize = 0;
 }
 L::ReadTarget target(unsigned node) {
     L::ReadTarget result;
@@ -61,6 +80,26 @@ L::ReadTarget target(unsigned node) {
     result.nodeGeneration = 1;
     return result;
 }
+bool ensureRoute(C::SdoClient& services, unsigned node, bool& configured, uint64_t now) {
+    if (configured)
+        return true;
+    // Explicit bench premise: exclusive, initially unused server session.
+    // This is NOT service confirmation. An accepted upload (DEC-1) can confirm
+    // the route when it succeeds. Any other upload needs an exact finite
+    // experiment grant before ordinary owner admission.
+    const L::ReadTarget selected = target(node);
+    if (!services.configure(node - 1, selected.channel, false, true))
+        return false;
+    C::NetworkRoute route;
+    route.binding = selected.channel.binding;
+    route.generation = 1;
+    route.heartbeatId = 0x700 + node;
+    route.emcyId = 0x80 + node;
+    if (!services.configureNetwork(node - 1, route, C::NetworkObserver(), now))
+        return false;
+    configured = true;
+    return true;
+}
 bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence& raw, bool rawPlan,
               unsigned node, bool& configured, uint32_t id, uint64_t now, bool heartbeat = false,
               bool motionReadiness = false) {
@@ -71,22 +110,8 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
         selected.channel = *services.channel(node - 1);
         selected.nodeGeneration = services.node(node - 1)->route.generation;
     }
-    if (!configured) {
-        // Explicit bench premise: exclusive, initially unused server session.
-        // This is NOT service confirmation. An accepted upload (DEC-1) can confirm
-        // the route when it succeeds. Any other upload needs an exact finite
-        // experiment grant before ordinary owner admission.
-        if (!services.configure(node - 1, selected.channel, false, true))
-            return false;
-        C::NetworkRoute route;
-        route.binding = selected.channel.binding;
-        route.generation = 1;
-        route.heartbeatId = 0x700 + node;
-        route.emcyId = 0x80 + node;
-        if (!services.configureNetwork(node - 1, route, C::NetworkObserver(), now))
-            return false;
-        configured = true;
-    }
+    if (!ensureRoute(services, node, configured, now))
+        return false;
     if (!firmware.app().select(selected))
         return false;
     // Static scratch avoids stacking the acquisition plan on top of typed reads.
@@ -104,6 +129,8 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
     review.plan.deadlineUs = now + 5000000;
     review.plan.options.queueTimeoutUs = 250000;
     review.plan.options.responseTimeoutUs = 250000;
+    // Both bench specimens answer 1009 and 100A in one byte (packet 4). Nothing detects this.
+    review.plan.options.identityWidths = L::IdentityWidths::MEASURED_U8;
     label(review.sourceReview, "EDS 1000/1009/100A/1018:0..3/2000/2001; Q20 remains open");
     label(review.independentReview, "bench_independent; retained review in board evidence report");
     label(review.fixtureReview, "hardware_bench; S2 TX17 RX16 S18; nodes1/2 1Mbit");
@@ -152,7 +179,7 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
 void trafficLine(char* out, size_t size, const E::EvidenceTraffic& t, const char* label) {
     formatLine(out, size,
                "%s k=%u p=%llu id=%lx ext=%u rtr=%u dlc=%u data=%02x%02x%02x%02x%02x%02x%02x%02x "
-               "ok=%u exact=%u t=%llu bounds=%u lo=%llu hi=%llu\n",
+               "ok=%u exact=%u t=%llu bounds=%u lo=%llu hi=%llu epoch=%lu",
                label, unsigned(t.kind), static_cast<unsigned long long>(t.processedUs),
                static_cast<unsigned long>(t.frame.id), unsigned(t.frame.extended),
                unsigned(t.frame.rtr), unsigned(t.frame.dlc), unsigned(t.frame.data[0]),
@@ -161,7 +188,49 @@ void trafficLine(char* out, size_t size, const E::EvidenceTraffic& t, const char
                unsigned(t.frame.data[7]), unsigned(t.accepted), unsigned(t.receivedTimeKnown),
                static_cast<unsigned long long>(t.receivedUs), unsigned(t.receiveBoundsKnown),
                static_cast<unsigned long long>(t.receivedEarliestUs),
-               static_cast<unsigned long long>(t.receivedLatestUs));
+               static_cast<unsigned long long>(t.receivedLatestUs),
+               static_cast<unsigned long>(t.controllerEpoch));
+    const size_t used = std::strlen(out);
+    // Only the fields this kind defines: a default state is not an observed one.
+    if (t.kind == E::DiagnosticKind::CONTROLLER)
+        formatLine(out + used, size - used, " ctrl=%u\n", unsigned(t.controller));
+    else if (t.kind == E::DiagnosticKind::RECOVERY)
+        formatLine(out + used, size - used, " rec=%u\n", unsigned(t.recovery));
+    else if (t.kind == E::DiagnosticKind::TX || t.kind == E::DiagnosticKind::TX_REPORT)
+        formatLine(out + used, size - used, " txk=%u txr=%lu txf=%lu\n", unsigned(t.txId.kind),
+                   static_cast<unsigned long>(t.txId.kind == O::TransportTxId::Kind::NMT
+                                                  ? t.txId.nmt.generation
+                                                  : t.txId.sdo.request.generation),
+                   static_cast<unsigned long>(t.txId.sdo.frame));
+    else
+        formatLine(out + used, size - used, "\n");
+}
+// Every stage the terminal can name: owner request, reservation epoch, local closure and
+// the progress of its frame (st bits: adapter admitted, controller accepted, queued,
+// possible TX, confirmed TX, acknowledged, uncertain, cleanup queued).
+void resultLine(char* out, size_t size, const O::Completion& done) {
+    const C::SdoCompletion& t = done.service;
+    const unsigned stages =
+        unsigned(done.adapterAdmitted) | unsigned(done.controllerAccepted) << 1 |
+        unsigned(t.queued) << 2 | unsigned(t.transmissionPossible) << 3 |
+        unsigned(t.transmissionConfirmed) << 4 | unsigned(t.protocolAcknowledged) << 5 |
+        unsigned(t.effectUncertain) << 6 | unsigned(t.clientAbortQueued) << 7;
+    formatLine(out, size,
+               "RESULT op=%lu req=%lu oreq=%lu step=%lu object=%04x:%02x dir=%u outcome=%u ack=%u "
+               "possible=%u uncertain=%u abort=%08lx cleanup=%u size=%u data=%02x%02x%02x%02x "
+               "admitted=%llu completed=%llu ne=%lu reason=%u st=%02x\n",
+               static_cast<unsigned long>(t.transfer.operation),
+               static_cast<unsigned long>(t.transfer.request),
+               static_cast<unsigned long>(done.id.generation),
+               static_cast<unsigned long>(t.transfer.step), unsigned(t.transfer.index),
+               unsigned(t.transfer.subindex), unsigned(t.transfer.direction), unsigned(t.outcome),
+               unsigned(t.protocolAcknowledged), unsigned(t.effectPossible),
+               unsigned(t.effectUncertain), static_cast<unsigned long>(t.abortCode),
+               unsigned(t.clientAbortQueued), unsigned(t.size), unsigned(t.data[0]),
+               unsigned(t.data[1]), unsigned(t.data[2]), unsigned(t.data[3]),
+               static_cast<unsigned long long>(t.admittedUs),
+               static_cast<unsigned long long>(t.completedUs),
+               static_cast<unsigned long>(t.nodeGeneration), unsigned(done.reason), stages);
 }
 bool dumpNetwork(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned& cursor) {
     char out[240] = {};
@@ -186,8 +255,7 @@ bool dumpNetwork(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned& c
         } else {
             formatLine(out, sizeof out, "NETWORK node=%u unconfigured\n", cursor + 1);
         }
-        if (!firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out),
-                                             std::strlen(out)))
+        if (!written(firmware, out, std::strlen(out)))
             return true;
         ++cursor;
         return true;
@@ -198,9 +266,10 @@ bool dumpNetwork(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned& c
     if (!pending && cursor < 10)
         pending = services.takeNetworkObservation(observation);
     if (!pending) {
-        line(firmware,
-             "END network; boot-up requires an actual observed00 frame; no inferred reset\n");
-        return false;
+        // A refused END keeps this listing open, so the record cannot end without it.
+        static const char end[] =
+            "END network; boot-up requires an actual observed00 frame; no inferred reset\n";
+        return !written(firmware, end, sizeof end - 1);
     }
     const auto& t = observation.time;
     formatLine(out, sizeof out,
@@ -226,7 +295,7 @@ bool dump(E::FirmwareProbe& firmware, unsigned& cursor) {
     const E::AcquisitionRecord* r = firmware.evidence().record();
     if (!r || !r->terminal)
         return false;
-    char out[240] = {};
+    char out[256] = {};
     if (cursor == 0) {
         formatLine(out, sizeof out,
                    "EVIDENCE id=%lu node=%lu outcome=%u uncertain=%u lost=%u terminals=%u "
@@ -237,17 +306,7 @@ bool dump(E::FirmwareProbe& firmware, unsigned& cursor) {
                    unsigned(r->evidenceLost), unsigned(r->terminalCount), unsigned(r->trafficCount),
                    static_cast<unsigned long long>(r->maxServiceGapUs));
     } else if (cursor <= r->terminalCount) {
-        const C::SdoCompletion& t = r->terminals[cursor - 1].service;
-        formatLine(out, sizeof out,
-                   "RESULT step=%lu object=%04x:%02x outcome=%u ack=%u possible=%u uncertain=%u "
-                   "abort=%08lx size=%u data=%02x%02x%02x%02x admitted=%llu completed=%llu\n",
-                   static_cast<unsigned long>(t.transfer.step), unsigned(t.transfer.index),
-                   unsigned(t.transfer.subindex), unsigned(t.outcome),
-                   unsigned(t.protocolAcknowledged), unsigned(t.effectPossible),
-                   unsigned(t.effectUncertain), static_cast<unsigned long>(t.abortCode),
-                   unsigned(t.size), unsigned(t.data[0]), unsigned(t.data[1]), unsigned(t.data[2]),
-                   unsigned(t.data[3]), static_cast<unsigned long long>(t.admittedUs),
-                   static_cast<unsigned long long>(t.completedUs));
+        resultLine(out, sizeof out, r->terminals[cursor - 1]);
     } else if (cursor <= unsigned(r->terminalCount) + r->trafficCount) {
         const E::EvidenceTraffic& t = r->traffic[cursor - r->terminalCount - 1];
         trafficLine(out, sizeof out, t, "TRAFFIC");
@@ -262,7 +321,7 @@ bool dumpRaw(E::FirmwareProbe& firmware, E::RawEvidence& raw, unsigned& cursor) 
     const E::RawEvidenceRecord* r = raw.record();
     if (!r || !r->terminal)
         return false;
-    char out[240] = {};
+    char out[256] = {};
     if (cursor == 0) {
         formatLine(
             out, sizeof out,
@@ -274,18 +333,7 @@ bool dumpRaw(E::FirmwareProbe& firmware, E::RawEvidence& raw, unsigned& cursor) 
             unsigned(r->trafficCount), unsigned(r->tailCount), unsigned(r->tailOverflow),
             static_cast<unsigned long long>(r->maxServiceGapUs));
     } else if (cursor <= r->terminalCount) {
-        const C::SdoCompletion& t = r->terminals[cursor - 1].service;
-        formatLine(
-            out, sizeof out,
-            "RESULT step=%lu object=%04x:%02x outcome=%u ack=%u possible=%u uncertain=%u "
-            "abort=%08lx cleanup=%u size=%u data=%02x%02x%02x%02x admitted=%llu completed=%llu\n",
-            static_cast<unsigned long>(t.transfer.step), unsigned(t.transfer.index),
-            unsigned(t.transfer.subindex), unsigned(t.outcome), unsigned(t.protocolAcknowledged),
-            unsigned(t.effectPossible), unsigned(t.effectUncertain),
-            static_cast<unsigned long>(t.abortCode), unsigned(t.clientAbortQueued),
-            unsigned(t.size), unsigned(t.data[0]), unsigned(t.data[1]), unsigned(t.data[2]),
-            unsigned(t.data[3]), static_cast<unsigned long long>(t.admittedUs),
-            static_cast<unsigned long long>(t.completedUs));
+        resultLine(out, sizeof out, r->terminals[cursor - 1]);
     } else if (cursor <= unsigned(r->terminalCount) + r->trafficCount + r->tailCount) {
         const unsigned index = cursor - r->terminalCount - 1;
         const bool tail = index >= r->trafficCount;
@@ -350,7 +398,7 @@ bool dumpPdo(E::FirmwareProbe& firmware, E::PdoExperiment& pdo, unsigned& cursor
     const auto* r = pdo.record();
     if (!r || !r->terminal)
         return false;
-    char out[240] = {};
+    char out[256] = {};
     if (!cursor) {
         formatLine(
             out, sizeof out,
@@ -364,20 +412,7 @@ bool dumpPdo(E::FirmwareProbe& firmware, E::PdoExperiment& pdo, unsigned& cursor
             unsigned(r->configurationMigrated),
             static_cast<unsigned long long>(r->maxServiceGapUs));
     } else if (cursor <= r->terminalCount) {
-        const auto& t = r->terminals[cursor - 1].service;
-        formatLine(out, sizeof out,
-                   "RESULT op=%lu step=%lu object=%04x:%02x dir=%u outcome=%u ack=%u "
-                   "possible=%u uncertain=%u "
-                   "abort=%08lx size=%u data=%02x%02x%02x%02x admitted=%llu completed=%llu\n",
-                   static_cast<unsigned long>(t.transfer.operation),
-                   static_cast<unsigned long>(t.transfer.step), unsigned(t.transfer.index),
-                   unsigned(t.transfer.subindex), unsigned(t.transfer.direction),
-                   unsigned(t.outcome), unsigned(t.protocolAcknowledged),
-                   unsigned(t.effectPossible), unsigned(t.effectUncertain),
-                   static_cast<unsigned long>(t.abortCode), unsigned(t.size), unsigned(t.data[0]),
-                   unsigned(t.data[1]), unsigned(t.data[2]), unsigned(t.data[3]),
-                   static_cast<unsigned long long>(t.admittedUs),
-                   static_cast<unsigned long long>(t.completedUs));
+        resultLine(out, sizeof out, r->terminals[cursor - 1]);
     } else if (cursor <= unsigned(r->terminalCount) + r->trafficCount + r->tailCount) {
         const unsigned index = cursor - r->terminalCount - 1;
         const bool tail = index >= r->trafficCount;
@@ -389,11 +424,58 @@ bool dumpPdo(E::FirmwareProbe& firmware, E::PdoExperiment& pdo, unsigned& cursor
         return true;
     return ++cursor <= unsigned(r->terminalCount) + r->trafficCount + r->tailCount + 1;
 }
+// Soak resources. The high-water scan is why this runs per summary, not per turn.
+void soakSample(void* context, E::SoakResources& output) {
+    static_cast<const E::IdfTwaiDriver*>(context)->errorCounters(output.txErrors, output.rxErrors);
+    output.stackFree = uint32_t(uxTaskGetStackHighWaterMark(nullptr));
+    output.heapFree = uint32_t(heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    output.heapMinimum = uint32_t(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
+}
+// One allocation on the first explicit soak request, never freed. The linker's
+// dram0_0_seg limit is far smaller than the internal heap behind it, and a build that
+// never soaks spends nothing. A failure refuses the soak; nothing else depends on it.
+E::Soak* soakStorage(E::FirmwareProbe& firmware, C::SdoClient& services, E::SoakTwaiTap& tap,
+                     E::IdfTwaiDriver& driver) {
+    static E::Soak* soak = nullptr;
+    if (soak)
+        return soak;
+    void* memory = heap_caps_aligned_alloc(alignof(E::Soak), sizeof(E::Soak),
+                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!memory)
+        return nullptr;
+    E::SoakCallbacks callbacks;
+    callbacks.context = &driver;
+    callbacks.sample = soakSample;
+    soak = new (memory) E::Soak(firmware, services, tap, callbacks, MOTORCONTROLCAN_SOURCE_REVISION);
+    return soak;
+}
+const char* startSoak(E::FirmwareProbe& firmware, C::SdoClient& services, E::SoakTwaiTap& tap,
+                      E::IdfTwaiDriver& driver, E::Soak*& soak, bool configured[2], const char* text, size_t size,
+                      uint64_t now) {
+    E::SoakPlan plan;
+    if (!E::parseSoakCommand(text, size, plan))
+        return "parse";
+    if (!ensureRoute(services, 1, configured[0], now) ||
+        !ensureRoute(services, 2, configured[1], now))
+        return "route";
+    soak = soakStorage(firmware, services, tap, driver);
+    if (!soak)
+        return "memory";
+    switch (soak->begin(plan, now)) {
+    case E::SoakAdmission::ACCEPTED:
+        return nullptr;
+    case E::SoakAdmission::BUSY:
+        return "busy";
+    default:
+        return "invalid";
+    }
+}
 void ownerTask(void*) {
     static DRAM_ATTR C::SdoClient services;
     static DRAM_ATTR E::IdfTwaiDriver driver;
     static DRAM_ATTR E::EspProbePlatform console;
-    static DRAM_ATTR E::FirmwareProbe firmware(services, driver.driver(), console.callbacks());
+    static DRAM_ATTR E::SoakTwaiTap tap(driver.driver());
+    static DRAM_ATTR E::FirmwareProbe firmware(services, tap.driver(), console.callbacks());
     static DRAM_ATTR E::RawEvidence raw(firmware.owner(), services);
     static DRAM_ATTR E::PdoExperiment pdo(firmware.owner(), services);
     // TJA1051 S=1 suppresses bus transmission. Set the latch before enabling GPIO.
@@ -404,7 +486,7 @@ void ownerTask(void*) {
             vTaskDelay(1);
     }
     line(firmware, "S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats 3/4=raw "
-                   "v/b=motion-reads\n");
+                   "v/b=motion-reads S=soak X=soak-stop\n");
     bool attempted = false, configured[2] = {}, used[2] = {}, heartbeatUsed[2] = {},
          readinessUsed[2] = {}, dumping = false, reported = false;
     C::NmtRequestId nmtRequest;
@@ -414,6 +496,12 @@ void ownerTask(void*) {
     bool silent = true, controllerReady = false;
     uint32_t acquisition = 0, grants[2] = {}, grantedOperation[2] = {}, grantedStep[2] = {};
     unsigned dumpCursor = 0;
+    E::Soak* soak = nullptr;
+    // The soak request is the one multi-byte command: `S` then text up to a line end.
+    char soakText[40] = {};
+    size_t soakLength = 0;
+    bool soakCollecting = false;
+    uint64_t soakCollectUs = 0;
     for (;;) {
         uint64_t now = 0;
         if (firmware.platform().nowUs(now)) {
@@ -443,6 +531,13 @@ void ownerTask(void*) {
         firmware.service();
         raw.service(firmware.owner().lastTimeUs());
         pdo.service(firmware.owner().lastTimeUs());
+        if (soak) {
+            // After a progression failure the owner's time stops, and the soak still reports.
+            uint64_t clock = firmware.owner().lastTimeUs(), sample = 0;
+            if (firmware.platform().nowUs(sample) && sample > clock)
+                clock = sample;
+            soak->service(clock, retainedSize != 0);
+        }
         if (firmware.progressionFailed() && !silent)
             silent = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK;
         const E::AcquisitionRecord* record = firmware.evidence().record();
@@ -480,10 +575,49 @@ void ownerTask(void*) {
                                   : dump(firmware, dumpCursor);
         else if (networkDump)
             networkDump = dumpNetwork(firmware, services, networkCursor);
+        flushResponse(firmware);
         uint8_t command = 0;
-        if (firmware.platform().takeInput(command)) {
-            char output[240] = {};
-            if (command == 'v' || command == 'b') {
+        const bool soakActive = soak && soak->active();
+        if (soakCollecting && firmware.platform().nowUs(now) && now - soakCollectUs > 2000000) {
+            soakCollecting = false;
+            line(firmware, "SOAK_REFUSED reason=incomplete; no work\n");
+        }
+        if (!retainedSize && firmware.platform().takeInput(command)) {
+            char output[256] = {};
+            if (soakCollecting) {
+                if (command != '\r' && command != '\n') {
+                    if (soakLength < sizeof soakText)
+                        soakText[soakLength] = char(command);
+                    ++soakLength;
+                } else {
+                    soakCollecting = false;
+                    const char* refusal = "active";
+                    if (!soakActive) {
+                        refusal = "state";
+                        if (soakLength <= sizeof soakText && controllerReady && !dumping &&
+                            !networkDump && !nmtRequest.owner && !record && !rawRecord &&
+                            !pdoRecord && firmware.platform().nowUs(now))
+                            refusal = startSoak(firmware, services, tap, driver, soak, configured,
+                                                soakText, soakLength, now);
+                    }
+                    if (refusal) {
+                        formatLine(output, sizeof output, "SOAK_REFUSED reason=%s; no work\n",
+                                   refusal);
+                        line(firmware, output);
+                    }
+                }
+            } else if (command == 'X') {
+                line(firmware, soak && soak->requestStop()
+                                   ? "SOAK_STOPPING; a started read settles first\n"
+                                   : "SOAK_STOP refused; none running\n");
+            } else if (command == 'S') {
+                soakCollecting = true;
+                soakLength = 0;
+                soakCollectUs = firmware.platform().nowUs(now) ? now : 0;
+            } else if (soakActive && command != 'p' && command != 's' && command != '\r' &&
+                       command != '\n') {
+                line(firmware, "SOAK_REFUSED reason=active; no work\n");
+            } else if (command == 'v' || command == 'b') {
                 const unsigned node = command == 'v' ? 1 : 2;
                 const bool accepted =
                     controllerReady && !pdoRecord && !dumping && !networkDump &&
@@ -625,10 +759,11 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
-                           unsigned(silent), unsigned(silentReady));
+                           unsigned(silent), unsigned(silentReady), unsigned(soakActive),
+                           static_cast<unsigned long long>(firmware.owner().lastTimeUs()));
                 line(firmware, output);
             } else if (command == 'c') {
                 bool ready = false;
@@ -659,14 +794,22 @@ void ownerTask(void*) {
                 const O::Stats stats = firmware.owner().stats();
                 formatLine(output, sizeof(output),
                            "STATS running=%u inhibited=%u rx=%lu tx=%lu dropped=%lu errors=%lu "
-                           "flags=%08lx stackFree=%lu\n",
+                           "flags=%08lx stackFree=%lu t=%llu txRej=%lu rxLost=%lu unmatched=%lu "
+                           "traceOver=%lu ownerGap=%llu conRej=%lu\n",
                            unsigned(firmware.running()), unsigned(diagnostics.inhibited),
                            static_cast<unsigned long>(stats.rxFrames),
                            static_cast<unsigned long>(stats.txFrames),
                            static_cast<unsigned long>(diagnostics.rxDropped),
                            static_cast<unsigned long>(diagnostics.busErrors),
                            static_cast<unsigned long>(diagnostics.errorFlags),
-                           static_cast<unsigned long>(uxTaskGetStackHighWaterMark(nullptr)));
+                           static_cast<unsigned long>(uxTaskGetStackHighWaterMark(nullptr)),
+                           static_cast<unsigned long long>(firmware.owner().lastTimeUs()),
+                           static_cast<unsigned long>(stats.txRejected),
+                           static_cast<unsigned long>(stats.rxLost),
+                           static_cast<unsigned long>(stats.unmatchedFrames),
+                           static_cast<unsigned long>(stats.traceOverwritten),
+                           static_cast<unsigned long long>(stats.maxServiceGapUs),
+                           static_cast<unsigned long>(firmware.platform().stats().outputRejected));
                 line(firmware, output);
             } else if (command != '\r' && command != '\n') {
                 line(firmware, "UNKNOWN command; no action\n");

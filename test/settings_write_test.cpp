@@ -1016,7 +1016,206 @@ void refusedPreparationKeepsRetainedTransaction() {
     }
 }
 } // namespace
+// A move's own download, as the future move owner would admit it.
+C::SdoTransfer moveWrite(const L::ReadTarget& route, uint16_t index, uint32_t value) {
+    C::SdoTransfer t;
+    t.channel = route.channel;
+    t.operation = t.request = 51;
+    t.step = 2;
+    t.index = index;
+    t.direction = C::SdoDirection::DOWNLOAD;
+    t.size = 4;
+    for (unsigned i = 0; i < 4; ++i)
+        t.data[i] = uint8_t(value >> (8 * i));
+    t.deadlineUs = 5000;
+    t.queueTimeoutUs = t.responseTimeoutUs = 100;
+    return t;
+}
+L::DriverSettings retainedValues() {
+    L::DriverSettings out;
+    out.positionSpeedRpm = oldMotion[0];
+    out.rampUpTimeMs = oldMotion[1];
+    out.rampDownTimeMs = oldMotion[2];
+    return out;
+}
+void moveParameterRetirement() {
+    // The hazard: an unchanged candidate is accepted from retained values, with no TX.
+    {
+        Fixture f(false);
+        L::DriverSettingsContext noOp;
+        CHECK(L::prepareDriverSettings(noOp, f.owner.live(), f.prior, f.state, f.control,
+                                       retainedValues(), 41, f.owner.now, 1000, options(), 100));
+        CHECK(noOp.state == L::SettingsState::SUCCEEDED && !noOp.changed);
+    }
+    for (uint16_t index : {uint16_t(0x6081), uint16_t(0x6083), uint16_t(0x6084)}) {
+        Fixture f(false);
+        M::AxisConfig axis;
+        axis.binding = f.owner.current;
+        M::PositionRequest request;
+        request.configurationGeneration = axis.binding.configurationGeneration;
+        request.value = M::Rational(10);
+        M::PreparedTarget prepared;
+        CHECK(M::preparePosition(request, axis, nullptr, prepared));
+
+        // The target write leaves observations alone, and every phase leaves the generation alone.
+        const Saved<L::DriverContext> untouched(f.prior);
+        const L::ReadTarget route = f.owner.currentTarget();
+        CHECK(L::retireMotionParameters(f.prior, route, moveWrite(route, 0x607a, 1000)));
+        untouched.unchanged(f.prior);
+        L::DriverObservation seen;
+        CHECK(L::getDriver(f.prior, route, f.owner.now, 100, seen));
+
+        const Saved<M::Binding> binding(f.owner.current);
+        CHECK(L::retireMotionParameters(f.prior, route, moveWrite(route, index, 777)));
+        binding.unchanged(f.owner.current);
+        axis.binding = f.owner.current;
+        CHECK(M::validatePreparedTarget(prepared, axis, nullptr, f.owner.now));
+
+        // Withdrawn, with raw history kept.
+        CHECK(f.prior.read.invalidated && f.prior.read.state == M::ReadState::SUCCEEDED);
+        CHECK(f.prior.read.values[0].raw == oldMotion[0] && f.prior.read.values[2].raw == oldMotion[2]);
+        const Saved<L::DriverObservation> kept(seen);
+        CHECK(!L::getDriver(f.prior, route, f.owner.now, 100, seen));
+        kept.unchanged(seen);
+        L::DriverSettingsContext refused;
+        const Saved<L::DriverSettingsContext> blank(refused);
+        CHECK(!L::prepareDriverSettings(refused, f.owner.live(), f.prior, f.state, f.control,
+                                        retainedValues(), 42, f.owner.now, 1000, options(), 100));
+        blank.unchanged(refused);
+        CHECK(L::retireMotionParameters(f.prior, route, moveWrite(route, index, 777))); // Idempotent.
+
+        // A fresh read contradicting the retained values drives real work, not a no-op.
+        const uint32_t moved[] = {777, oldMotion[1], oldMotion[2]};
+        L::DriverContext fresh = f.owner.readGroup(L::DriverGroup::MOTION_PARAMETERS, moved, 3);
+        L::DriverSettingsContext settings;
+        CHECK(L::prepareDriverSettings(settings, f.owner.live(), fresh, f.state, f.control,
+                                       retainedValues(), 41, f.owner.now, 1000, options(), 100));
+        CHECK(settings.state == L::SettingsState::WRITING && settings.changed == 1);
+        // Explicit settings still advance configuration confidence, staling the target.
+        write(f, settings, 0);
+        axis.binding = f.owner.current;
+        CHECK(!M::validatePreparedTarget(prepared, axis, nullptr, f.owner.now));
+        // Readback contradicting the candidate fails rather than reporting the write.
+        readback(f, settings, 0);
+        CHECK(settings.state == L::SettingsState::FAILED &&
+              settings.outcome == M::ReadOutcome::REPLY_ERROR && settings.confirmed == 1);
+    }
+    // A finished settings context's readback is retained evidence as well.
+    {
+        Fixture f(false);
+        L::DriverSettingsContext settings;
+        CHECK(f.prepare(settings));
+        for (unsigned field = 0; field < 3; ++field)
+            write(f, settings, field);
+        readback(f, settings);
+        CHECK(settings.state == L::SettingsState::SUCCEEDED);
+        const L::ReadTarget route = f.owner.currentTarget();
+        L::DriverObservation result;
+        CHECK(L::getDriver(settings, f.owner.live(), route, f.owner.now, 100, result));
+        CHECK(L::retireMotionParameters(settings.readback, route, moveWrite(route, 0x6083, 5)));
+        CHECK(!L::getDriver(settings, f.owner.live(), route, f.owner.now, 100, result));
+        CHECK(settings.state == L::SettingsState::SUCCEEDED);
+    }
+    // Refusals change nothing.
+    {
+        Fixture f(false);
+        const L::ReadTarget route = f.owner.currentTarget();
+        const Saved<L::DriverContext> untouched(f.prior);
+        const C::SdoTransfer good = moveWrite(route, 0x6081, 1);
+        const unsigned badWork = 8;
+        for (unsigned which = 0; which < badWork; ++which) {
+            C::SdoTransfer bad = good;
+            switch (which) {
+            case 0: bad.index = 0x6082; break; // Not an operation-owned write.
+            case 1: bad.index = 0x6040; break;
+            case 2: bad.subindex = 1; break;
+            case 3: bad.size = 2; break;
+            case 4: bad.direction = C::SdoDirection::UPLOAD; break;
+            case 5: bad.operation = 0; break;
+            case 6: bad.step = 0; break;
+            default: bad.channel.clientToServerId = 0x626; break;
+            }
+            const M::Status status = L::retireMotionParameters(f.prior, route, bad);
+            CHECK(!status && status.msg && *status.msg);
+            untouched.unchanged(f.prior);
+        }
+        L::ReadTarget unusable = route;
+        unusable.nodeGeneration = 0;
+        CHECK(!L::retireMotionParameters(f.prior, unusable, good));
+        untouched.unchanged(f.prior);
+
+        L::ReadTarget otherAxis = route;
+        ++otherAxis.channel.binding.logicalAxisId;
+        const M::Status elsewhere =
+            L::retireMotionParameters(f.prior, otherAxis, moveWrite(otherAxis, 0x6081, 1));
+        CHECK(!elsewhere && elsewhere.detail == int32_t(M::ReadError::TARGET));
+        untouched.unchanged(f.prior);
+
+        L::DriverContext aliased;
+        const M::Status overlapRoute = L::retireMotionParameters(
+            aliased, reinterpret_cast<const L::ReadTarget&>(aliased), good);
+        CHECK(!overlapRoute && overlapRoute.detail == int32_t(M::ReadError::OVERLAP));
+
+        // Prompts 35 and 36 own these writes too, so they retire instead of being refused as they
+        // were when only a move's own writes were listed. 6098 is its EDS byte; 60FF is a target.
+        struct Row {
+            uint16_t index;
+            uint8_t subindex, size;
+        };
+        const Row retiring[] = {{0x607c, 0, 4}, {0x6098, 0, 1}, {0x6099, 1, 4}, {0x6099, 2, 4}, {0x609a, 0, 4}};
+        for (const Row& row : retiring) {
+            C::SdoTransfer work = moveWrite(route, row.index, 1);
+            work.subindex = row.subindex;
+            work.size = row.size;
+            L::DriverContext copy = f.prior;
+            CHECK(L::retireMotionParameters(copy, route, work) && copy.read.invalidated);
+        }
+        {
+            L::DriverContext copy = f.prior;
+            CHECK(L::retireMotionParameters(copy, route, moveWrite(route, 0x60ff, 1)) && !copy.read.invalidated);
+        }
+        // An earlier generation of the same axis is retired, since its values are just as old.
+        L::ReadTarget later = route;
+        ++later.channel.binding.configurationGeneration;
+        CHECK(L::retireMotionParameters(f.prior, later, moveWrite(later, 0x6084, 1)));
+        CHECK(f.prior.read.invalidated);
+    }
+    // Nothing retained, or another group: unchanged success, so a caller can pass each context.
+    {
+        Fixture f(false);
+        const L::ReadTarget route = f.owner.currentTarget();
+        L::DriverContext empty;
+        const Saved<L::DriverContext> blank(empty);
+        CHECK(L::retireMotionParameters(empty, route, moveWrite(route, 0x6081, 1)));
+        blank.unchanged(empty);
+        const uint32_t words[] = {1, 2};
+        L::DriverContext other = f.owner.readGroup(L::DriverGroup::DRIVER, words, 2);
+        const Saved<L::DriverContext> driver(other);
+        CHECK(L::retireMotionParameters(other, route, moveWrite(route, 0x6081, 1)));
+        driver.unchanged(other);
+    }
+    // An active read cannot finish into a current observation after the write.
+    {
+        Fixture f(false);
+        const L::ReadTarget route = f.owner.currentTarget();
+        L::DriverContext active;
+        CHECK(L::prepareDriverRead(active, route, 61, f.owner.now, 5000, options(),
+                                   L::DriverGroup::MOTION_PARAMETERS));
+        CHECK(L::retireMotionParameters(active, route, moveWrite(route, 0x6081, 1)));
+        for (unsigned i = 0; i < 3; ++i) {
+            L::PreparedRead work;
+            CHECK(L::nextDriver(active, f.owner.now, work) && work.ready);
+            const C::SdoCompletion terminal = f.owner.exchange(work.transfer, oldMotion[i]);
+            CHECK(L::advanceDriver(active, terminal, f.owner.now));
+        }
+        L::DriverObservation result;
+        CHECK(active.read.state == M::ReadState::SUCCEEDED && active.read.invalidated);
+        CHECK(!L::getDriver(active, route, f.owner.now, 100, result));
+    }
+}
+
 int main() {
+    moveParameterRetirement();
     preparation();
     successfulTransactions();
     partialFailure();

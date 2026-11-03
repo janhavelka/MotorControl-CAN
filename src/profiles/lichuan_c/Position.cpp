@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+#include "../../canopen/SdoEvidence.h"
 #include <MotorControlCAN/profiles/lichuan_c/Position.h>
 #include <cmath>
 
@@ -20,10 +21,7 @@ Status axisStatus(Status status) {
     return status;
 }
 
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
+using CANOPEN::overlaps;
 
 bool inRange(const NativeQuantity& value) {
     return value.integral >= TARGET_MINIMUM && value.integral <= TARGET_MAXIMUM &&
@@ -69,10 +67,10 @@ Status preparePositionParameters(PreparedPositionParameters& output, SettingsMod
                                  const PositionRequest& request, const AxisConfig& axis,
                                  const AxisReference* reference, const DriverSettings& settings,
                                  uint64_t nowUs) noexcept {
-    if (overlap(&output, sizeof output, &request, sizeof request) ||
-        overlap(&output, sizeof output, &axis, sizeof axis) ||
-        overlap(&output, sizeof output, &settings, sizeof settings) ||
-        (reference && overlap(&output, sizeof output, reference, sizeof *reference)))
+    if (overlaps(&output, sizeof output, &request, sizeof request) ||
+        overlaps(&output, sizeof output, &axis, sizeof axis) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        (reference && overlaps(&output, sizeof output, reference, sizeof *reference)))
         return error(PositionParameterError::OVERLAP, "position parameters overlap input");
     if (model != SettingsModel::CL86_C && model != SettingsModel::OL86_C)
         return error(PositionParameterError::MODEL, "explicit documented 86C model required");

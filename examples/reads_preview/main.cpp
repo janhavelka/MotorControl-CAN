@@ -178,6 +178,15 @@ int main() {
                 static_cast<unsigned>(interpreted.statusword),
                 static_cast<unsigned>(interpreted.monitor),
                 interpreted.alarmDisagreement ? "true" : "false", interpreted.window.skewUs);
+    // The same meanings from the raw word alone, as a caller with only a STATUS block or a
+    // qualified TPDO sample would decode them. Its route and freshness remain its own to prove.
+    Reads::StatusIndications decoded;
+    if (!checked(Reads::interpretStatusword(interpreted.statusword, Reads::StatusLayout::EN86, decoded),
+                 "statusword decode"))
+        return 1;
+    std::printf("EN86 word alone: running=%s, unlisted=0x%04X\n",
+                decoded.running == Reads::StateIndication::YES ? "yes" : "no",
+                static_cast<unsigned>(decoded.unlistedStatusBits));
     std::puts("The comparison qualifies no firmware, action admission, torque or physical safety.");
     return interpreted.alarmDisagreement && interpreted.running == Reads::StateIndication::NO &&
                    interpreted.mode == Reads::ObservedMode::PROFILE_POSITION

@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
+#include "ProfileEvidence.h"
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
+using namespace Detail;
 namespace {
 const uint16_t kReadIndex[9] = {0x1800, 0x1800, 0x1800, 0x1800, 0x1a00,
                                 0x1a00, 0x1a00, 0x1a00, 0x1a00};
@@ -11,27 +13,6 @@ const uint8_t kReadSub[9] = {1, 2, 3, 5, 0, 1, 2, 3, 4};
 const uint8_t kReadWidth[9] = {4, 1, 2, 2, 1, 4, 4, 4, 4};
 Status error(ReadError reason, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(reason), message);
-}
-bool overlaps(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
-bool sameChannel(const CANOPEN::SdoChannel& a, const CANOPEN::SdoChannel& b) {
-    return sameBinding(a.binding, b.binding) && a.clientToServerId == b.clientToServerId &&
-           a.serverToClientId == b.serverToClientId;
-}
-bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
-    return sameChannel(a.channel, b.channel) && a.nodeGeneration == b.nodeGeneration;
-}
-bool validReservation(const AxisReservation& r) {
-    return r.owner && r.sequence && r.generation && r.target.nodeGeneration &&
-           (r.model == SettingsModel::CL86_C || r.model == SettingsModel::OL86_C) &&
-           CANOPEN::validateSdoChannel(r.target.channel);
-}
-bool sameReservation(const AxisReservation& a, const AxisReservation& b) {
-    return validReservation(a) && validReservation(b) && sameTarget(a.target, b.target) &&
-           a.owner == b.owner && a.sequence == b.sequence && a.generation == b.generation &&
-           a.model == b.model && a.acquiredUs == b.acquiredUs;
 }
 bool active(const Tpdo1ConfigurationContext& c) {
     return c.state == PdoConfigurationState::WRITING ||
@@ -72,6 +53,8 @@ uint32_t raw(const CANOPEN::SdoCompletion& e) {
         v |= uint32_t(e.data[i]) << (8 * i);
     return v;
 }
+// Stricter than the shared terminal checks: a read with a reviewed effect claims none, and this
+// exact sequence also refuses any queued client abort.
 bool consistent(const CANOPEN::SdoCompletion& e) {
     const bool success = e.outcome == CANOPEN::SdoOutcome::SUCCESS;
     const bool upload = e.transfer.direction == CANOPEN::SdoDirection::UPLOAD;
@@ -89,7 +72,7 @@ bool consistent(const CANOPEN::SdoCompletion& e) {
 bool validBaseline(const CANOPEN::SdoCompletion& e, const AxisReservation& r, unsigned slot,
                    uint64_t earliest, uint64_t now, uint64_t age) {
     const CANOPEN::SdoTransfer& t = e.transfer;
-    return sameChannel(t.channel, r.target.channel) &&
+    return CANOPEN::sameSdoChannel(t.channel, r.target.channel) &&
            e.nodeGeneration == r.target.nodeGeneration && t.operation && t.request && t.step &&
            t.index == kReadIndex[slot] && t.subindex == kReadSub[slot] &&
            t.size == kReadWidth[slot] && t.direction == CANOPEN::SdoDirection::UPLOAD &&
@@ -132,38 +115,6 @@ CANOPEN::SdoTransfer work(const Tpdo1ConfigurationContext& c) {
     }
     return t;
 }
-bool sameWork(const CANOPEN::SdoTransfer& a, const CANOPEN::SdoTransfer& b) {
-    if (!sameChannel(a.channel, b.channel) || a.operation != b.operation ||
-        a.request != b.request || a.step != b.step || a.index != b.index ||
-        a.subindex != b.subindex || a.direction != b.direction || a.size != b.size ||
-        a.uploadSize != b.uploadSize || a.readEffect != b.readEffect ||
-        a.allowSegmentedUpload != b.allowSegmentedUpload ||
-        a.requirePreOperational != b.requirePreOperational || a.deadlineUs != b.deadlineUs ||
-        a.queueTimeoutUs != b.queueTimeoutUs || a.responseTimeoutUs != b.responseTimeoutUs)
-        return false;
-    for (unsigned i = 0; i < a.size && a.direction == CANOPEN::SdoDirection::DOWNLOAD; ++i)
-        if (a.data[i] != b.data[i])
-            return false;
-    return true;
-}
-ReadOutcome outcome(CANOPEN::SdoOutcome o) {
-    switch (o) {
-    case CANOPEN::SdoOutcome::SERVER_ABORT:
-        return ReadOutcome::PROTOCOL_REJECTED;
-    case CANOPEN::SdoOutcome::TIMEOUT:
-        return ReadOutcome::DEADLINE;
-    case CANOPEN::SdoOutcome::CANCELLED:
-        return ReadOutcome::CANCELLED;
-    case CANOPEN::SdoOutcome::REBOOT:
-    case CANOPEN::SdoOutcome::BINDING_INVALIDATED:
-        return ReadOutcome::INVALIDATED;
-    case CANOPEN::SdoOutcome::CLIENT_ABORT:
-    case CANOPEN::SdoOutcome::UNSUPPORTED:
-        return ReadOutcome::REPLY_ERROR;
-    default:
-        return ReadOutcome::TRANSPORT_ERROR;
-    }
-}
 void fail(Tpdo1ConfigurationContext& c, ReadOutcome reason, uint64_t now, const char* message) {
     c.state = PdoConfigurationState::FAILED;
     c.outcome = reason;
@@ -173,7 +124,10 @@ void fail(Tpdo1ConfigurationContext& c, ReadOutcome reason, uint64_t now, const 
     c.status =
         reason == ReadOutcome::PROTOCOL_REJECTED
             ? Status(Err::PROTOCOL_ERROR, 0, message)
-            : error(reason == ReadOutcome::DEADLINE ? ReadError::TIME : ReadError::STATE, message);
+            : error(reason == ReadOutcome::DEADLINE || reason == ReadOutcome::SERVICE_TIMEOUT
+                        ? ReadError::TIME
+                        : ReadError::STATE,
+                    message);
 }
 } // namespace
 
@@ -286,7 +240,7 @@ Status advancePdoConfiguration(Tpdo1ConfigurationContext& c, const AxisReservati
     if (!active(c))
         return error(ReadError::STATE, "PDO configuration already terminal");
     const CANOPEN::SdoTransfer expected = work(c);
-    if (!sameWork(e.transfer, expected) ||
+    if (!CANOPEN::sameSdoWork(e.transfer, expected) ||
         e.nodeGeneration != c.reservation.target.nodeGeneration || e.admittedUs < c.stepStartedUs ||
         e.admittedUs > e.completedUs || e.admittedUs >= c.deadlineUs ||
         e.completedUs < c.servicedUs || e.completedUs > now || !consistent(e) ||
@@ -304,7 +258,7 @@ Status advancePdoConfiguration(Tpdo1ConfigurationContext& c, const AxisReservati
     if (now >= c.deadlineUs || e.completedUs >= c.deadlineUs) {
         fail(c, ReadOutcome::DEADLINE, now, "PDO configuration overall deadline");
     } else if (!success) {
-        fail(c, outcome(e.outcome), now, "PDO configuration service failed");
+        fail(c, readOutcome(e.outcome), now, "PDO configuration service failed");
     } else if (c.state == PdoConfigurationState::WRITING) {
         c.transmissionNoted = false;
         c.stepStartedUs = now;

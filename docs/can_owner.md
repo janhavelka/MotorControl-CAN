@@ -328,7 +328,8 @@ frame arriving during it, including an identical `60 40 60 00`, is retained. It 
 retire the handoff, qualify the route or refresh service evidence: classic SDO has no
 transaction tag, so that frame may answer the write before it. The route ends
 unresolved, and ordinary work stays blocked until a drain marker settles it.
-`UNCONFIRMED_SENT` is not a stop result. It says one frame left the controller.
+`UNCONFIRMED_SENT` is not a stop result. It says one frame left the controller. An
+independent physical stop stays mandatory.
 
 `cancel(id, nowUs)` closes only that request. Unlike RS owner sequence
 cancellation, it does not revoke the reservation or cancel its other queued

@@ -1,33 +1,14 @@
 // SPDX-License-Identifier: MIT
-#include <MotorControlCAN/profiles/lichuan_c/Settings.h>
-#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
+#include "ReadPlan.h"
+#include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <new>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
+using namespace Detail;
 namespace {
 Status error(ReadError detail, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(detail), message);
-}
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
-bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
-    return sameBinding(a.channel.binding, b.channel.binding) &&
-           a.nodeGeneration == b.nodeGeneration &&
-           a.channel.clientToServerId == b.channel.clientToServerId &&
-           a.channel.serverToClientId == b.channel.serverToClientId;
-}
-bool valid(const AxisReservation& r) {
-    return r.owner && r.sequence && r.generation && r.target.nodeGeneration &&
-           (r.model == SettingsModel::CL86_C || r.model == SettingsModel::OL86_C) &&
-           CANOPEN::validateSdoChannel(r.target.channel);
-}
-bool sameReservation(const AxisReservation& a, const AxisReservation& b) {
-    return valid(a) && valid(b) && sameTarget(a.target, b.target) && a.model == b.model &&
-           a.owner == b.owner && a.sequence == b.sequence && a.generation == b.generation &&
-           a.acquiredUs == b.acquiredUs;
 }
 Binding expectedBinding(const DriverSettingsContext& c) {
     Binding binding = c.reservation.target.channel.binding;
@@ -39,10 +20,9 @@ bool settingsShape(const DriverSettingsContext& c) {
     const ReadContext& read = c.readback.read;
     const bool io = read.kind == ReadKind::IO_INPUT_CONFIGURATION;
     const bool control = read.kind == ReadKind::CONTROL;
-    if ((!io && !control && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) ||
-        read.count != (io        ? 9
-                       : control ? 2
-                                 : 3))
+    const GroupPlan* plan = groupPlan(read.kind);
+    if ((!io && !control && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) || !plan ||
+        read.count != plan->count)
         return false;
     const uint16_t allowed = io ? 0x1fe : control ? 1 : 7;
     if ((c.changed & ~allowed) || (c.confirmed & ~c.changed) || c.cursor > read.count ||
@@ -53,12 +33,10 @@ bool settingsShape(const DriverSettingsContext& c) {
     if (control && (c.requested[0] > 2 ||
                     (c.reservation.model == SettingsModel::OL86_C && c.requested[0] == 2)))
         return false;
-    const uint16_t motion[] = {0x6081, 0x6083, 0x6084};
     for (unsigned i = 0; i < read.count; ++i) {
         const ReadDescriptor& actual = read.values[i].object;
         ReadDescriptor expected;
-        const uint16_t index = io ? 0x2400 : control ? uint16_t(0x2500 + i) : motion[i];
-        if (!readDescriptor(index, io ? uint8_t(i) : 0, expected) ||
+        if (!readDescriptor(plan->fields[i].index, plan->fields[i].subindex, expected) ||
             actual.index != expected.index || actual.subindex != expected.subindex ||
             actual.widthBytes != expected.widthBytes ||
             actual.representation != expected.representation ||
@@ -81,7 +59,7 @@ Status current(const DriverSettingsContext& c, const AxisReservation& live,
 Status validatePreparation(const AxisReservation& r, const DriverContext& prior, ReadKind kind,
                         uint32_t operation, uint64_t now, uint64_t deadline,
                         const ReadOptions& options, uint64_t age) {
-    if (!valid(r) || r.acquiredUs > prior.read.startedUs || prior.read.startedUs > now || !age ||
+    if (!validReservation(r) || r.acquiredUs > prior.read.startedUs || prior.read.startedUs > now || !age ||
         !operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs ||
         r.target.channel.binding.configurationGeneration == UINT32_MAX)
         return error(ReadError::ARGUMENT,
@@ -129,41 +107,6 @@ CANOPEN::SdoTransfer write(const DriverSettingsContext& c) {
     t.responseTimeoutUs = c.readback.read.options.responseTimeoutUs;
     return t;
 }
-bool sameWork(const CANOPEN::SdoTransfer& a, const CANOPEN::SdoTransfer& b) {
-    if (!sameBinding(a.channel.binding, b.channel.binding) ||
-        a.channel.clientToServerId != b.channel.clientToServerId ||
-        a.channel.serverToClientId != b.channel.serverToClientId || a.operation != b.operation ||
-        a.request != b.request || a.step != b.step || a.index != b.index ||
-        a.subindex != b.subindex || a.direction != b.direction || a.size != b.size ||
-        a.uploadSize != b.uploadSize ||
-        a.readEffect != b.readEffect || a.allowSegmentedUpload != b.allowSegmentedUpload ||
-        a.deadlineUs != b.deadlineUs || a.queueTimeoutUs != b.queueTimeoutUs ||
-        a.responseTimeoutUs != b.responseTimeoutUs)
-        return false;
-    if (a.direction == CANOPEN::SdoDirection::DOWNLOAD)
-        for (unsigned i = 0; i < a.size; ++i)
-            if (a.data[i] != b.data[i])
-                return false;
-    return true;
-}
-ReadOutcome outcome(CANOPEN::SdoOutcome o) {
-    switch (o) {
-    case CANOPEN::SdoOutcome::SERVER_ABORT:
-        return ReadOutcome::PROTOCOL_REJECTED;
-    case CANOPEN::SdoOutcome::TIMEOUT:
-        return ReadOutcome::DEADLINE;
-    case CANOPEN::SdoOutcome::CANCELLED:
-        return ReadOutcome::CANCELLED;
-    case CANOPEN::SdoOutcome::REBOOT:
-    case CANOPEN::SdoOutcome::BINDING_INVALIDATED:
-        return ReadOutcome::INVALIDATED;
-    case CANOPEN::SdoOutcome::CLIENT_ABORT:
-    case CANOPEN::SdoOutcome::UNSUPPORTED:
-        return ReadOutcome::REPLY_ERROR;
-    default:
-        return ReadOutcome::TRANSPORT_ERROR;
-    }
-}
 void fail(DriverSettingsContext& c, ReadOutcome reason, uint64_t now, const char* message) {
     c.state = SettingsState::FAILED;
     c.outcome = reason;
@@ -171,25 +114,19 @@ void fail(DriverSettingsContext& c, ReadOutcome reason, uint64_t now, const char
     c.status =
         reason == ReadOutcome::PROTOCOL_REJECTED
             ? Status(Err::PROTOCOL_ERROR, 0, message)
-            : error(reason == ReadOutcome::DEADLINE ? ReadError::TIME : ReadError::STATE, message);
+            : error(reason == ReadOutcome::DEADLINE || reason == ReadOutcome::SERVICE_TIMEOUT
+                        ? ReadError::TIME
+                        : ReadError::STATE,
+                    message);
 }
 bool active(const DriverSettingsContext& c) {
     return c.state == SettingsState::WRITING || c.state == SettingsState::READING_BACK;
 }
+// Settings wants 000F, no older than its other prerequisites. Its nonrunning report is separate.
 bool controlEvidence(const CANOPEN::SdoCompletion& e, const AxisReservation& r, uint64_t now,
                      uint64_t age) {
-    const CANOPEN::SdoTransfer& t = e.transfer;
-    return sameBinding(t.channel.binding, r.target.channel.binding) &&
-           t.channel.clientToServerId == r.target.channel.clientToServerId &&
-           t.channel.serverToClientId == r.target.channel.serverToClientId &&
-           e.nodeGeneration == r.target.nodeGeneration &&
-           e.outcome == CANOPEN::SdoOutcome::SUCCESS &&
-           t.direction == CANOPEN::SdoDirection::DOWNLOAD && t.index == 0x6040 && !t.subindex &&
-           t.size == 2 && t.data[0] == 0x0f && !t.data[1] && t.operation && t.request && t.step &&
-           t.deadlineUs > e.completedUs && t.queueTimeoutUs && t.responseTimeoutUs && e.queued &&
-           e.transmissionPossible && e.protocolAcknowledged && e.effectPossible &&
-           !e.effectUncertain && !e.abortValid && !e.size && r.acquiredUs <= e.admittedUs &&
-           e.admittedUs <= e.completedUs && e.completedUs <= now && now - e.admittedUs <= age;
+    return acknowledgedControlWrite(e, r, now) && controlWord(e.transfer) == 0x000f &&
+           now - e.admittedUs <= age;
 }
 } // namespace
 
@@ -198,12 +135,12 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
                              const CANOPEN::SdoCompletion& control, const DriverSettings& settings,
                              uint32_t operation, uint64_t now, uint64_t deadline,
                              const ReadOptions& options, uint64_t age) noexcept {
-    if (overlap(&output, sizeof output, &r, sizeof r) ||
-        overlap(&output, sizeof output, &prior, sizeof prior) ||
-        overlap(&output, sizeof output, &state, sizeof state) ||
-        overlap(&output, sizeof output, &control, sizeof control) ||
-        overlap(&output, sizeof output, &settings, sizeof settings) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &control, sizeof control) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "settings preparation overlaps input");
     Status s = validatePreparation(r, prior, ReadKind::DRIVER_MOTION_PARAMETERS, operation, now,
                                 deadline, options, age);
@@ -219,7 +156,8 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
         !validateStateBlock(state, StateBlock::STATUS, r.target, now, age, status) ||
         !validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors) ||
         uint8_t(word(StateBlock::STATUS, 1)) != 1 || (word(StateBlock::STATUS, 0) & 7u) != 7 ||
-        (word(StateBlock::MONITORS, 0) & 0x1cu) || status.earliestUs < control.completedUs ||
+        (word(StateBlock::MONITORS, 0) & (MONITOR_RUNNING | MONITOR_ALARM | MONITOR_RELEASED)) ||
+        status.earliestUs < control.completedUs ||
         monitors.earliestUs < control.completedUs)
         return error(ReadError::STATE, "current reserved position pre-trigger evidence required");
     if (settings.positionSpeedRpm > 3000 || settings.rampUpTimeMs > 2000 ||
@@ -236,10 +174,10 @@ Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r
                          const DriverContext& prior, const IoSettings& settings, uint32_t operation,
                          uint64_t now, uint64_t deadline, const ReadOptions& options,
                          uint64_t age) noexcept {
-    if (overlap(&output, sizeof output, &r, sizeof r) ||
-        overlap(&output, sizeof output, &prior, sizeof prior) ||
-        overlap(&output, sizeof output, &settings, sizeof settings) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "DI settings preparation overlaps input");
     Status s = validatePreparation(r, prior, ReadKind::IO_INPUT_CONFIGURATION, operation, now, deadline,
                                 options, age);
@@ -265,10 +203,10 @@ Status prepareControlSettings(DriverSettingsContext& output, const AxisReservati
                               const DriverContext& prior, const ControlSettings& settings,
                               uint32_t operation, uint64_t now, uint64_t deadline,
                               const ReadOptions& options, uint64_t age) noexcept {
-    if (overlap(&output, sizeof output, &r, sizeof r) ||
-        overlap(&output, sizeof output, &prior, sizeof prior) ||
-        overlap(&output, sizeof output, &settings, sizeof settings) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "control settings preparation overlaps input");
     Status s =
         validatePreparation(r, prior, ReadKind::CONTROL, operation, now, deadline, options, age);
@@ -289,9 +227,9 @@ Status prepareControlSettings(DriverSettingsContext& output, const AxisReservati
 }
 Status nextDriver(const DriverSettingsContext& c, const AxisReservation& live,
                   const Binding& binding, uint64_t now, PreparedRead& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &live, sizeof live) ||
-        overlap(&output, sizeof output, &binding, sizeof binding))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &live, sizeof live) ||
+        overlaps(&output, sizeof output, &binding, sizeof binding))
         return error(ReadError::OVERLAP, "settings work overlaps input");
     Status s = current(c, live, binding, now);
     if (!s)
@@ -319,9 +257,9 @@ Status nextDriver(const DriverSettingsContext& c, const AxisReservation& live,
 }
 Status noteDriverTransmission(DriverSettingsContext& c, const AxisReservation& live,
                               Binding& binding, uint64_t now) noexcept {
-    if (overlap(&binding, sizeof binding, &c, sizeof c) ||
-        overlap(&binding, sizeof binding, &live, sizeof live) ||
-        overlap(&c, sizeof c, &live, sizeof live))
+    if (overlaps(&binding, sizeof binding, &c, sizeof c) ||
+        overlaps(&binding, sizeof binding, &live, sizeof live) ||
+        overlaps(&c, sizeof c, &live, sizeof live))
         return error(ReadError::OVERLAP, "settings TX notice overlaps input");
     Status s = current(c, live, binding, now);
     if (!s)
@@ -337,8 +275,8 @@ Status noteDriverTransmission(DriverSettingsContext& c, const AxisReservation& l
 Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
                      const Binding& binding, const CANOPEN::SdoCompletion& input,
                      uint64_t now) noexcept {
-    if (overlap(&c, sizeof c, &input, sizeof input) || overlap(&c, sizeof c, &live, sizeof live) ||
-        overlap(&c, sizeof c, &binding, sizeof binding))
+    if (overlaps(&c, sizeof c, &input, sizeof input) || overlaps(&c, sizeof c, &live, sizeof live) ||
+        overlaps(&c, sizeof c, &binding, sizeof binding))
         return error(ReadError::OVERLAP, "settings terminal overlaps input");
     Status s = current(c, live, binding, now);
     if (!s)
@@ -350,7 +288,7 @@ Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
     s = nextDriver(c, live, binding, c.servicedUs, prepared);
     if (!s)
         return s;
-    if (!sameWork(input.transfer, prepared.transfer) ||
+    if (!CANOPEN::sameSdoWork(input.transfer, prepared.transfer) ||
         input.nodeGeneration != c.reservation.target.nodeGeneration ||
         input.admittedUs < c.stepStartedUs || input.admittedUs >= c.deadlineUs ||
         input.completedUs < input.admittedUs || input.completedUs < c.servicedUs ||
@@ -381,16 +319,7 @@ Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
         }
     } else {
         const bool success = input.outcome == CANOPEN::SdoOutcome::SUCCESS;
-        if (input.outcome > CANOPEN::SdoOutcome::UNSUPPORTED ||
-            (input.transmissionPossible && (!input.queued || !c.transmissionNoted)) ||
-            (input.transmissionConfirmed && !input.transmissionPossible) || input.size ||
-            input.effectPossible != input.transmissionPossible ||
-            input.effectUncertain != (input.transmissionPossible && !success) ||
-            (success &&
-             (!input.protocolAcknowledged || !input.transmissionPossible || input.abortValid)) ||
-            (!success && input.protocolAcknowledged) ||
-            (input.outcome == CANOPEN::SdoOutcome::SERVER_ABORT &&
-             (!input.abortValid || !input.transmissionPossible)))
+        if (!CANOPEN::checkDownloadTerminal(input, c.transmissionNoted))
             return error(ReadError::CORRELATION, "inconsistent settings service evidence");
         const bool expired = now >= c.deadlineUs || input.completedUs >= c.deadlineUs;
         unsigned nextCursor = c.cursor + 1u;
@@ -402,11 +331,7 @@ Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
             ReadTarget readTarget = c.reservation.target;
             readTarget.channel.binding = binding;
             const ReadOptions readOptions = c.readback.read.options; // Would overlap its output.
-            const DriverGroup group = c.readback.read.kind == ReadKind::IO_INPUT_CONFIGURATION
-                                          ? DriverGroup::IO_INPUT_CONFIGURATION
-                                      : c.readback.read.kind == ReadKind::CONTROL
-                                          ? DriverGroup::CONTROL
-                                          : DriverGroup::MOTION_PARAMETERS;
+            const DriverGroup group = groupPlan(c.readback.read.kind)->group; // Shape checked it.
             s = prepareDriverRead(c.readback, readTarget, c.operation, now, c.deadlineUs,
                                   readOptions, group);
             if (!s)
@@ -423,7 +348,7 @@ Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
         if (expired)
             fail(c, ReadOutcome::DEADLINE, now, "settings overall deadline");
         else if (!success)
-            fail(c, outcome(input.outcome), now, "settings download failed");
+            fail(c, readOutcome(input.outcome), now, "settings download failed");
         else {
             c.stepStartedUs = now;
             c.cursor = uint8_t(nextCursor);
@@ -457,9 +382,9 @@ Status advanceDriver(DriverSettingsContext& c, ReadOutcome reason, uint64_t now)
 Status getDriver(const DriverSettingsContext& c, const AxisReservation& live,
                  const ReadTarget& target, uint64_t now, uint64_t age,
                  DriverObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &live, sizeof live) ||
-        overlap(&output, sizeof output, &target, sizeof target))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &live, sizeof live) ||
+        overlaps(&output, sizeof output, &target, sizeof target))
         return error(ReadError::OVERLAP, "settings result overlaps input");
     Status s = current(c, live, target.channel.binding, now);
     if (!s)
@@ -470,9 +395,9 @@ Status getDriver(const DriverSettingsContext& c, const AxisReservation& live,
 }
 Status getIo(const DriverSettingsContext& c, const AxisReservation& live,
              const ReadTarget& target, uint64_t now, uint64_t age, IoObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &live, sizeof live) ||
-        overlap(&output, sizeof output, &target, sizeof target))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &live, sizeof live) ||
+        overlaps(&output, sizeof output, &target, sizeof target))
         return error(ReadError::OVERLAP, "settings result overlaps input");
     Status s = current(c, live, target.channel.binding, now);
     if (!s)
@@ -484,9 +409,9 @@ Status getIo(const DriverSettingsContext& c, const AxisReservation& live,
 Status getControl(const DriverSettingsContext& c, const AxisReservation& live,
                   const ReadTarget& target, uint64_t now, uint64_t age,
                   ControlObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &live, sizeof live) ||
-        overlap(&output, sizeof output, &target, sizeof target))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &live, sizeof live) ||
+        overlaps(&output, sizeof output, &target, sizeof target))
         return error(ReadError::OVERLAP, "control settings result overlaps input");
     Status s = current(c, live, target.channel.binding, now);
     if (!s)
@@ -494,6 +419,52 @@ Status getControl(const DriverSettingsContext& c, const AxisReservation& live,
     if (c.state != SettingsState::SUCCEEDED)
         return error(ReadError::STATE, "control settings not complete and matched");
     return getControl(c.readback, target, now, age, output);
+}
+Status retireMotionParameters(DriverContext& retained, const ReadTarget& current,
+                              const CANOPEN::SdoTransfer& work) noexcept {
+    if (overlaps(&retained, sizeof retained, &current, sizeof current) ||
+        overlaps(&retained, sizeof retained, &work, sizeof work))
+        return error(ReadError::OVERLAP, "motion parameter retirement overlaps input");
+    if (!current.nodeGeneration || !CANOPEN::validateSdoChannel(current.channel) ||
+        !CANOPEN::sameSdoChannel(work.channel, current.channel))
+        return error(ReadError::TARGET, "move write is not on the current route");
+    // EDS widths. 607A and 60FF are targets outside this group, so they retire nothing. Homing's
+    // writes are outside it too, and retire because prompt 36 requires it: their effect on the
+    // group is unestablished.
+    struct MoveWrite {
+        uint16_t index;
+        uint8_t subindex, size;
+        bool retires;
+    };
+    static const MoveWrite writes[] = {{0x607a, 0, 4, false}, {0x60ff, 0, 4, false},
+                                       {0x6081, 0, 4, true},  {0x6083, 0, 4, true},
+                                       {0x6084, 0, 4, true},  {0x6098, 0, 1, true},
+                                       {0x6099, 1, 4, true},  {0x6099, 2, 4, true},
+                                       {0x609a, 0, 4, true},  {0x607c, 0, 4, true}};
+    const MoveWrite* write = nullptr;
+    for (const MoveWrite& candidate : writes)
+        if (candidate.index == work.index && candidate.subindex == work.subindex &&
+            candidate.size == work.size)
+            write = &candidate;
+    if (!write || work.direction != CANOPEN::SdoDirection::DOWNLOAD || !work.operation ||
+        !work.request || !work.step)
+        return error(ReadError::ARGUMENT, "not an operation's own motion-phase download");
+    const ReadContext& read = retained.read;
+    if (read.state == ReadState::EMPTY || read.kind != ReadKind::DRIVER_MOTION_PARAMETERS)
+        return Ok();
+    // Older generations of this axis count too: only another axis's observation is left alone.
+    const Binding& a = read.target.channel.binding;
+    const Binding& b = current.channel.binding;
+    if (a.logicalAxisId != b.logicalAxisId || a.endpoint.bus != b.endpoint.bus ||
+        a.endpoint.profile != b.endpoint.profile || a.endpoint.address != b.endpoint.address ||
+        a.endpoint.channel != b.endpoint.channel || a.endpoint.subaxis != b.endpoint.subaxis ||
+        a.endpoint.protocol != b.endpoint.protocol ||
+        read.target.channel.clientToServerId != current.channel.clientToServerId ||
+        read.target.channel.serverToClientId != current.channel.serverToClientId)
+        return error(ReadError::TARGET, "retained observation belongs to another axis");
+    if (write->retires)
+        retained.read.invalidated = true;
+    return Ok();
 }
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

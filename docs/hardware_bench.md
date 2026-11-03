@@ -258,9 +258,9 @@ python scripts/s2_evidence.py CAPTURE... --report NEW.json --transitions NEW.jso
 It checks the requested byte and procedure, operation and step identities, node and
 channel, address, subindex and direction, actual width and bytes against the wire
 frame, terminal and traffic counts, and start and end completeness. Controller and
-node epochs are checked only on lines that carry them; current `RAW`/`RESULT`/`TRAFFIC`
-lines do not, which the report states as `not_emitted`. Exit status is nonzero for
-`incomplete` and `inconsistent`, and `--require-complete` adds `failed-evidence`.
+node epochs are checked only on lines that carry them: `epoch` on `TRAFFIC` and `ne` on
+`RESULT` from the soak image on, and `not_emitted` for older captures. Exit status is nonzero
+for `incomplete` and `inconsistent`, and `--require-complete` adds `failed-evidence`.
 
 A raw upload is never a typed success, so `typed_successes` counts only typed
 `EVIDENCE` terminals. The one-byte `1009`/`100A` replies stay listed against their
@@ -272,6 +272,12 @@ signals put it in the transition log. An unknown line or field is preserved and
 counted, and does not change a verdict by itself. A record header's tail count is a
 lower bound, because tail copies continue until release; `END` holds the total.
 
+`RESULT` now also has `req` (the transfer's request), `oreq` (the owner's result handle),
+`ne`, `reason` (the owner's closure) and `st` (stage bits: adapter admitted, controller
+accepted, queued, possible TX, confirmed TX, acknowledged, uncertain, cleanup queued). `TRAFFIC`
+has its local TX identity as `txk`, `txr` and `txf` on TX and report records, and its state as
+`ctrl` or `rec` on controller and recovery records. `STATS` and `PONG` have a firmware time `t`.
+
 The transition log is JSON lines, in capture order across the listed captures. Each
 entry has category (`health`, `status`, `controller`, `nmt`), signal, node, previous
 and new raw value, firmware processing time where the record has one, receive bounds
@@ -279,6 +285,112 @@ and the source line. Unchanged observations add nothing, and cumulative `rx`/`tx
 counters are not transitions. After an observed MCU boot, previous values are stale.
 The log shows what the capture recorded, not continuous bus history: `NETWORK` and
 `EVENT` come from bounded copies with their own dropped counter.
+
+## Communication soak
+
+A finite, read-only soak of the two-drive bus, through the ordinary public path. It does not
+enable, move, write, send NMT, clear a fault, save or reconfigure a PDO, and it has no raw sender
+or second receiver. Startup stays passive until the explicit request.
+
+```text
+python scripts/s2_soak.py --until 09:00 --dry-run
+python scripts/s2_soak.py --duration-s 120 --interval-ms 200 --summary-s 10 --reads full
+python scripts/s2_soak.py --until 09:00 --interval-ms 200 --summary-s 60 --reads full
+```
+
+Run the short one first. `2102` has no retained read on these specimens, and a reply of an
+unexpected width ends with a local client abort, which leaves that route unresolved until an
+MCU restart. If it fails, use `--reads identity` for the long run and record the result.
+
+**Read set.** Each object has `read_disposition: accepted_not_qualified` in
+[the ledger](reference/lichuan_objects.json). DEC-1 in the
+[active audit](prompts/PROMPTSET_AUDIT_34_50_2026-11-02.md) lists them as accepted with polling
+allowed. Their effects stay unknown, and a clean night does not show they have none.
+
+| Selected by `--reads` | Objects | Typed read | Last read on these specimens |
+| --- | --- | --- | --- |
+| Always | `6041:00`, `6061:00`, `6064:00`, `606C:00` | `STATUS` and `FEEDBACK` blocks | `20261102-motion-readiness-node1/2` |
+| `monitors`, `full` | `2100:00`, `2101:00`, `2102:00` | `MONITORS` block, a separate operation | `2100` and `2101` as above; **`2102` has no retained read** |
+| `identity`, `full`: once per node | `1000:00`, `1009:00`, `100A:00`, `1018:00..03`, `2000:00`, `2001:00` | `IDENTITY` with `MEASURED_U8` | `20261102-final-node1/2` |
+
+`603F`, `1001` and `1003` are never read: DEC-1 keeps them explicit single reads, and this is a
+poll. `1017` is not accepted either, so the soak cannot learn the producer interval. Unless an
+earlier explicit procedure established it, heartbeat freshness reads `PRODUCER_UNKNOWN`, and
+observed heartbeats are still counted with their largest gap.
+
+**Behavior.** One operation at a time, alternating nodes, each with its own identity and a
+2 s deadline; queue and response budgets are 250 ms, as host policies. A failed read is retained
+and never retried: the next scheduled tick is a new operation. An unresolved route stops that
+node's reads with `SOAK_NODE_STOP`, and the other node keeps its cadence. Nothing reopens a route
+or starts a recovery, so **one lost reply, one drive boot-up or a reply on a retired exchange ends
+that node's reads for the rest of the MCU's run**, and a controller fault ends both. The soak then
+keeps observing to its stated end. A new start needs a new MCU boot, which the runner never causes.
+
+**Records.** Bounded, and never blocking service. Every line has `n`, without gaps.
+
+| Line | Meaning |
+| --- | --- |
+| `SOAK_BEGIN`, `SOAK_END` | Trial, plan, budgets, resources; reason, `lines`, and whether the last read settled |
+| `SOAK_TR` | One change, or `first=1` for a first observation: `sig`, old and new raw value, `t`, `ne`, `ce` |
+| `SOAK_EMCY`, `SOAK_BOOT` | Raw bytes in wire order, node and network disposition |
+| `SOAK_OP` | A failed operation. `local=0`: owner terminal with object, step, outcome, abort, `reason`, `stages`. `local=1`: no terminal, with the read outcome |
+| `SOAK_NODE_STOP` | Reads ended for that node, and why |
+| `SOAK_ANOM` | One anomaly: `kind`, and `dump=1` when a trace dump follows |
+| `SOAK_T`, `SOAK_TEND` | One copied trace entry of that anomaly's dump; end of the dump |
+| `SOAK_SUM`, `SOAK_GAP`, `SOAK_CON` | Summary: bus counters; service gaps, high-water marks, stack and heap; console and scheduling pressure |
+| `SOAK_NODE`, `SOAK_HIST`, `SOAK_OUT`, `SOAK_ABORT` | Per node: totals and latency; histogram; counts by outcome, reason and read outcome; abort codes |
+
+`SOAK_TR` signals: per node `health`, `streak`, `lastError`, `nmt` (`ff` before any observation),
+`eligibility` (bits exact NMT, ordinary SDO, probe upload, service qualification), `heartbeat`,
+`unresolved`, `nodeEpoch`, `serverSessions`, `producer` and the native values named by object.
+Interface signals, with `node=0`: `controller`, `controllerEpoch`, `inhibited`, `recovery`,
+`firmware`, `busOff`, `recoveries`, `twaiErrors`, `twaiFlags`, `twaiDropped`, `rxDropped`, `rxLost`,
+`txRejected`, `unmatched`, `queueRejected`, `resultsRejected`, `traceOverwritten`, `networkDropped`
+and `submitOverwritten`.
+
+Trace kinds in `SOAK_T`, separating the stages of an exchange: `k=1` adapter handoff with
+enqueue result, `k=6` SDK submission with `st` its `TwaiSubmit` result, `k=2` final TX report,
+`k=0` RX with receive bounds as offsets `dlo` and `dhi` before processing time `p`, `k=3` terminal
+publication, `k=4` controller state, `k=5` recovery. In `k=3`, `id` is index and subindex, `data`
+is outcome, reason, stages, reply present and the little-endian abort code, `dlo` is admission to
+completion, `tr` the operation and `tf` the step. A dump holds up to 96 entries around the
+anomaly, including 50 ms after it. Latency buckets end at 2, 5, 10, 20, 50, 100 and 250 ms. A
+successful reply processed before its final TX report counts as `earlyReply`, and local TX
+retirement after the operation as `retireMax`.
+
+**Under console pressure.** The UART limits output to about 11.5 kB/s, and the console queue takes
+one complete line per turn at most, only when it fits. Waiting records sit in a 96-entry queue.
+When full, records are dropped and counted (`evFull`), value and counter records are also rate
+limited to ten per second (`evLimit`), and a dropped change shows as a break in that signal's
+old-to-new chain, which the parser reports as `soak_transition_gap`. The first two anomalies of
+each kind get a dump, sixteen in a soak; the rest are one line each and counted (`dumpSkip`).
+
+Timing effects, all in the summary so they can be accounted for: formatting costs a share of a
+1 ms turn, measured by `gapMax`; a dump holds the next scheduled read until it has printed,
+about a second at this baud by calculation, recorded in `dumpUs` and `defDump`, and bounded
+at 5 s by `dumpAb`.
+A started read is never cancelled for the sake of the log. A held read means a dump's traffic
+is not the normal cadence: compare intervals only away from one.
+
+**Runner.** `s2_soak.py` checks the recorded USB identity by enumeration and opens only that
+port. A run directory holds `run_request.json`, `events.jsonl`, `transitions.txt` and `summary.txt`,
+appended and flushed as things happen, `run.json` at the end, and one `trial-NN` per trial with
+`rx.bin`, `rx.times.csv` (byte offset, count, UTC, monotonic time and host queue depth for
+each read) and `request.json`. A board reset or lost port ends that trial and keeps its evidence.
+Within `--max-trials` the runner then waits for the port and starts a new trial, with a new
+identity and directory. A soak still running under a lost port is stopped by command rather than
+continued under a new name. A refused start ends the run. Exit status: 0 complete, 1 damaged or
+not finished, 3 consistent with anomalies retained, 2 refused before anything was created.
+
+Each trial directory replays through `s2_evidence.py`, which adds verdicts as in the table above:
+`complete` needs no anomaly, no gap and a `SOAK_END`. Add a retained run to
+`docs/bench/SHA256SUMS.json`, as with any other evidence.
+
+**Limits.** A soak does not qualify anything electrical, sustained-load or motion-related, and it
+carries no TPDO load unless a drive was started by other means. `IdfTwaiDriver` exposes the
+error-callback count and flag union but not the TEC and REC counters, so `twaiErrors` and
+`twaiFlags` are the controller's whole error record here. Bench time is MCU uptime; UTC comes only
+from the host's side file.
 
 ## Conditional state-changing evidence
 

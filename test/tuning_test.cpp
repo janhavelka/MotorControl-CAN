@@ -693,7 +693,7 @@ void loopFailureRetentionAndPublication() {
                 const auto timedOut = *terminal;
                 CHECK(owner.service.release(id));
                 CHECK(L::advanceDriver(c, owner.reservation, owner.current, timedOut, owner.now));
-                CHECK(c.outcome == M::ReadOutcome::DEADLINE);
+                CHECK(c.outcome == M::ReadOutcome::SERVICE_TIMEOUT);
             }
             CHECK(c.state == L::SettingsState::FAILED && c.effectsPossible && c.uncertain &&
                   c.confirmed == 1 && c.acknowledgedUs[0] == acknowledgedUs);

@@ -65,7 +65,7 @@ An independent reviewer tried to tear a rejected output: reading every exit, 158
 | `check_stack.py` did not cover or list `examples/s2_bench` or `probe_idf`, though the packet requires application paths | Added; the two `main.cpp` files are listed as unmeasured |
 | `validateStateBlock` had no overlap check on its output | Added |
 | `extraObservation` reads as ERRORS with `fieldCount` 0 before its first cycle | Documented |
-| The task high-water mark was reachable only in `s2_bench` | `firmwareStackFreeBytes` in `EspProbeMain`, on demand, because it scans the unused stack |
+| The task high-water mark is reachable only in `s2_bench` | Kept there. It is the firmware that will run stops, and its soak reports the mark. `EspProbeMain` has no diagnostic output to carry it |
 
 A `state` held inside the slot being overwritten now downgrades a stop to the best-effort path, or to refusal, where it used to be accepted. This is recorded and tested. A caller cannot tell this cause from others.
 

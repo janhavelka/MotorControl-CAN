@@ -12,6 +12,8 @@
 
 | Responsibility | Declaration / implementation | Real caller / test | Boundary |
 | --- | --- | --- | --- |
+| Shared private evidence | [SdoEvidence.h](../src/canopen/SdoEvidence.h), [ProfileEvidence.h](../src/profiles/lichuan_c/ProfileEvidence.h) | Reads, settings, actions, PDO configuration; [tests](../test/sdo_evidence_test.cpp) | Free functions only; not installed, so adapters and examples keep their own copies. Not admission or completion evidence |
+| Read group plans | [ReadPlan.h](../src/profiles/lichuan_c/ReadPlan.h), [DriverReads.cpp](../src/profiles/lichuan_c/DriverReads.cpp), [Tuning.cpp](../src/profiles/lichuan_c/Tuning.cpp) | Settings shape checks, `reads`, `driver_settings`, `io_settings` and `tuning` suites | One table row per group; each getter keeps its own field mapping and native unknowns |
 | Native position parameters | `include/MotorControlCAN/profiles/lichuan_c/Position.h`; `src/profiles/lichuan_c/Position.cpp` | `examples/position_preview/main.cpp`; `test/position_parameters_test.cpp`; installed consumer | Reuses common exact axis math; native limits only, no service/lifecycle/firmware permission |
 
 ## Fault and counter actions (prompt 32)

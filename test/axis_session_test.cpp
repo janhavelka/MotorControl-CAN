@@ -520,14 +520,14 @@ void queuedStopAtExactQueueCutoff() {
         CHECK(r.a.stopAction(L::StopKind::HALT).state == M::ActionState::ACTIVE);
         r.turn(start + 50);
         const L::ActionContext& stop = r.a.stopAction(L::StopKind::HALT);
-        CHECK(stop.state == M::ActionState::FAILED && stop.outcome == M::ActionOutcome::DEADLINE &&
+        CHECK(stop.state == M::ActionState::FAILED && stop.outcome == M::ActionOutcome::SERVICE_TIMEOUT &&
               stop.execution == M::ActionExecution::NOT_TRANSMITTED && !stop.uncertain);
         if (allowed) {
             CHECK(r.a.stopPath() == E::StopPath::BEST_EFFORT);
             r.turn(start + 99);
             CHECK(r.a.stopPath() == E::StopPath::BEST_EFFORT);
             r.turn(start + 100);
-            checkEnded(r.a.bestEffort(), M::ActionOutcome::DEADLINE, M::ActionExecution::NOT_TRANSMITTED);
+            checkEnded(r.a.bestEffort(), M::ActionOutcome::SERVICE_TIMEOUT, M::ActionExecution::NOT_TRANSMITTED);
         }
         CHECK(r.a.stopPath() == E::StopPath::FINISHED);
         CHECK(r.wire.sentCount == pollFrame + 1);
@@ -658,7 +658,7 @@ void bestEffortDeadlineEquality() {
         CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, policy, r.now) == E::StopPath::BEST_EFFORT);
         r.step();
         r.turn(r.now + 100);
-        checkEnded(r.a.bestEffort(), M::ActionOutcome::DEADLINE, M::ActionExecution::UNKNOWN);
+        checkEnded(r.a.bestEffort(), M::ActionOutcome::SERVICE_TIMEOUT, M::ActionExecution::UNKNOWN);
     }
     // A refused enqueue is not proof that nothing left.
     {
@@ -1321,7 +1321,7 @@ void escalationFromInFlightHalt() {
               halt.commandHistory[0].transfer.data[0] == 0x0f && halt.commandHistory[0].transfer.data[1] == 1 &&
               halt.commandHistory[0].transfer.operation == halt.operation);
         CHECK(halt.execution == (lost ? M::ActionExecution::UNKNOWN : M::ActionExecution::ACKNOWLEDGED));
-        CHECK(halt.outcome == (lost ? M::ActionOutcome::DEADLINE : M::ActionOutcome::CANCELLED));
+        CHECK(halt.outcome == (lost ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::CANCELLED));
         CHECK(r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::EMPTY);
         CHECK(!r.a.latestControl()); // A superseded terminal is older intent, even a success.
         const Saved<L::ActionContext> old(halt);
@@ -1467,6 +1467,14 @@ void prepareEscalationUnits() {
     L::PreparedAction work;
     CHECK(L::nextAction(output, halt.reservation, halt.reservation.target, limit, work) && work.ready);
     CHECK(work.transfer.data[0] == 0x0b && work.transfer.data[1] == 0);
+    {
+        // A later read withdrawn after correlation loss takes the earlier cycle with it.
+        L::ActionContext withdrawn = halt;
+        withdrawn.read.invalidated = true;
+        L::ActionContext refused;
+        CHECK(!L::prepareEscalation(refused, withdrawn, 77, limit, limit + 100, options));
+        CHECK(refused.state == M::ActionState::EMPTY);
+    }
     for (unsigned wrong = 0; wrong < 26; ++wrong) {
         L::ActionContext running = halt;
         L::ActionOptions budget = options;
@@ -2116,7 +2124,7 @@ void coreBestEffortUnits() {
         M::ActionOutcome output;
     };
     const Case cases[] = {{C::SdoOutcome::CLIENT_ABORT, M::ActionOutcome::REPLY_ERROR},
-                          {C::SdoOutcome::TIMEOUT, M::ActionOutcome::DEADLINE},
+                          {C::SdoOutcome::TIMEOUT, M::ActionOutcome::SERVICE_TIMEOUT},
                           {C::SdoOutcome::CANCELLED, M::ActionOutcome::CANCELLED},
                           {C::SdoOutcome::BUS_OFF, M::ActionOutcome::TRANSPORT_ERROR},
                           {C::SdoOutcome::REBOOT, M::ActionOutcome::INVALIDATED},
@@ -2124,6 +2132,15 @@ void coreBestEffortUnits() {
                           {C::SdoOutcome::CORRELATION_LOST, M::ActionOutcome::TRANSPORT_ERROR},
                           {C::SdoOutcome::TRANSPORT_ERROR, M::ActionOutcome::TRANSPORT_ERROR},
                           {C::SdoOutcome::UNCONFIRMED_SENT, M::ActionOutcome::STOP_SENT_UNCONFIRMED}};
+    // A timeout at the cutoff is the deadline, while the table's earlier one is a spent budget.
+    for (unsigned possible = 0; possible < 2; ++possible) {
+        L::BestEffortStop stop;
+        CHECK(L::prepareBestEffortStop(stop, t, 5, 10, 20, reads()));
+        CHECK(L::noteBestEffortAdmission(stop, 11));
+        CHECK(L::advanceBestEffortStop(stop, stopTerminal(stop, C::SdoOutcome::TIMEOUT, possible != 0, 20), 20));
+        checkEnded(stop, M::ActionOutcome::DEADLINE,
+                   possible ? M::ActionExecution::UNKNOWN : M::ActionExecution::NOT_TRANSMITTED);
+    }
     for (const Case& item : cases)
         for (unsigned possible = 0; possible < 2; ++possible) {
             if (item.input == C::SdoOutcome::UNCONFIRMED_SENT && !possible)
@@ -2400,7 +2417,7 @@ void alarmErrorsFailureKeepsMonitorObservation() {
                 const C::SdoCompletion terminal = settled(r.a);
                 CHECK(terminal.outcome == C::SdoOutcome::TIMEOUT);
                 CHECK(L::advanceAction(run.action, run.reservation, r.current(), terminal, r.now));
-                CHECK(run.action.outcome == M::ActionOutcome::DEADLINE);
+                CHECK(run.action.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
             } else {
                 r.drive[0].abortIndex = object;
                 run.field();
@@ -2664,7 +2681,7 @@ void supersededHaltSettlesAfterFinished() {
             CHECK(halt.state == M::ActionState::FAILED && (halt.commandEvidenceMask & 1u));
             CHECK(halt.commandHistory[0].transfer.data[0] == 0x0f && halt.commandHistory[0].transfer.data[1] == 1);
             CHECK(halt.execution == (lost ? M::ActionExecution::UNKNOWN : M::ActionExecution::ACKNOWLEDGED));
-            CHECK(halt.outcome == (lost ? M::ActionOutcome::DEADLINE : M::ActionOutcome::CANCELLED));
+            CHECK(halt.outcome == (lost ? M::ActionOutcome::SERVICE_TIMEOUT : M::ActionOutcome::CANCELLED));
             CHECK(!r.a.latestControl()); // Never from a superseded terminal, even a success.
             if (second) {
                 r.step();

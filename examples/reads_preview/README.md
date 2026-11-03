@@ -11,6 +11,7 @@ It then acquires five synthetic STATUS/MONITORS fields and calls the checked
 `getStateInterpretation` with an explicit EN86 document comparison. The fixture
 sets the EN86 status alarm while the monitor alarm stays clear; the result keeps
 both raw words and reports their disagreement without selecting a winner.
+It also decodes the raw status word alone with `interpretStatusword`.
 The five fields span 43 supplied microseconds. This demonstrates passive
 interpretation, not firmware applicability, enable/release support, action
 completion or physical safety. See [drive state and action scope](../../docs/drive_actions.md).

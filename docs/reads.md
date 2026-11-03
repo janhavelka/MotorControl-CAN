@@ -62,8 +62,15 @@ a local cancellation, deadline or invalidation to the read context. Cancellation
 does not undo an upload's unknown effects. Native abort bits remain unsigned
 32-bit evidence; transport success, raw observation and interpreted state are
 different facts. Deadline precedence does not erase independent lifecycle
-invalidation: a reboot, bus-off or binding invalidation revokes getters even
-when the terminal outcome is `DEADLINE`. Retained raw history remains inspectable.
+invalidation: a reboot, bus-off, binding invalidation or lost correlation revokes
+getters, including for earlier completed blocks, even when the terminal outcome
+is `DEADLINE`. Retained raw history remains inspectable.
+
+An SDO `TIMEOUT` completing before the overall deadline gives `SERVICE_TIMEOUT`,
+meaning a queue or response budget was spent. Earlier blocks stay available,
+since a missing reply says nothing against them. `DEADLINE` is reserved for the
+immutable overall cutoff. Neither outcome says whether a frame left the host:
+read `evidence.transmissionPossible` for that.
 
 ## Implemented rows
 

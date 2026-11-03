@@ -25,6 +25,14 @@ void increment(uint32_t& value) {
         ++value;
 }
 } // namespace
+bool IdfTwaiDriver::errorCounters(uint32_t& transmit, uint32_t& receive) const noexcept {
+    twai_node_status_t status;
+    if (!node_ || twai_node_get_info(node_, &status, nullptr) != ESP_OK)
+        return false;
+    transmit = status.tx_error_count;
+    receive = status.rx_error_count;
+    return true;
+}
 TwaiDriver IdfTwaiDriver::driver() noexcept {
     TwaiDriver result;
     result.context = this;

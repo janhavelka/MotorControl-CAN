@@ -756,6 +756,7 @@ void exactDeadlineAndRepeatedStopRejection() {
         CHECK(r.wire.sentCount == sent);
         // R-14 escalation: only an acknowledged 010F, and only for 000B. A prior 000B admits neither.
         L::ActionContext escalated;
+        const Saved<L::ActionContext> untouched(escalated);
         const M::Status status = L::prepareStop(escalated, r.reservation, first.read, r.control,
                                                 L::StopKind::QUICK_STOP, r.operation + 1, r.now,
                                                 r.deadline, r.actionOptions());
@@ -763,7 +764,7 @@ void exactDeadlineAndRepeatedStopRejection() {
         if (kind == 0)
             CHECK(escalated.predecessorWord == 0x010f && !escalated.predecessorDocumented);
         else
-            unchanged.unchanged(escalated);
+            untouched.unchanged(escalated);
         CHECK(r.wire.sentCount == sent);
     }
 }
@@ -1185,7 +1186,51 @@ void refusedReadWithdrawalLeavesActionUnchanged() {
 }
 } // namespace
 
+// A budget timeout before the cutoff is its own outcome. Execution comes from possible TX alone.
+void commandServiceTimeoutIsNotTheDeadline() {
+    struct Case {
+        bool possible, atCutoff;
+        M::ActionOutcome outcome;
+        M::ActionExecution execution;
+    };
+    const Case cases[] = {
+        {false, false, M::ActionOutcome::SERVICE_TIMEOUT, M::ActionExecution::NOT_TRANSMITTED},
+        {true, false, M::ActionOutcome::SERVICE_TIMEOUT, M::ActionExecution::UNKNOWN},
+        {true, true, M::ActionOutcome::DEADLINE, M::ActionExecution::UNKNOWN},
+    };
+    for (const Case& item : cases) {
+        Rig r;
+        r.prerequisites();
+        r.deadline = r.now + 1000;
+        L::ActionContext action;
+        r.prepare(action);
+        L::PreparedAction work;
+        CHECK(L::nextAction(action, r.reservation, target(), r.now, work) && work.ready);
+        if (item.possible)
+            CHECK(L::noteActionTransmission(action, r.reservation, target(), r.now));
+        const uint64_t at = item.atCutoff ? r.deadline : r.now + 10;
+        C::SdoCompletion e;
+        e.transfer = work.transfer;
+        e.outcome = C::SdoOutcome::TIMEOUT;
+        e.nodeGeneration = target().nodeGeneration;
+        e.admittedUs = r.now;
+        e.completedUs = at;
+        e.queued = e.transmissionPossible = e.effectPossible = e.effectUncertain = item.possible;
+        CHECK(L::advanceAction(action, r.reservation, target(), e, at));
+        CHECK(action.state == M::ActionState::FAILED && action.outcome == item.outcome &&
+              action.execution == item.execution && action.uncertain == item.possible);
+        CHECK(action.status.detail == int32_t(M::ActionError::TIME));
+        // The terminal stays a well-formed context for later calls.
+        L::PreparedAction after;
+        CHECK(L::nextAction(action, r.reservation, target(), at, after) && !after.ready);
+        const Saved<L::ActionContext> closed(action);
+        CHECK(!L::advanceAction(action, r.reservation, target(), e, at + 1));
+        closed.unchanged(action);
+    }
+}
+
 int main() {
+    commandServiceTimeoutIsNotTheDeadline();
     exactCommandsAndObservedReport();
     runningPollingAndDeadline();
     unsupportedPrerequisitesAreAtomic();

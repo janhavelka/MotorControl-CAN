@@ -295,7 +295,7 @@ void everyServiceFailureAndReadbackMismatch() {
             CHECK(f.context.acknowledgedMask == (at < 6 ? (1u << at) - 1 : 0x3fu));
             CHECK(f.context.outcome ==
                   (why == C::SdoOutcome::SERVER_ABORT   ? M::ReadOutcome::PROTOCOL_REJECTED
-                   : why == C::SdoOutcome::TIMEOUT      ? M::ReadOutcome::DEADLINE
+                   : why == C::SdoOutcome::TIMEOUT      ? M::ReadOutcome::SERVICE_TIMEOUT
                    : why == C::SdoOutcome::CANCELLED    ? M::ReadOutcome::CANCELLED
                    : why == C::SdoOutcome::REBOOT       ? M::ReadOutcome::INVALIDATED
                    : why == C::SdoOutcome::CLIENT_ABORT ? M::ReadOutcome::REPLY_ERROR

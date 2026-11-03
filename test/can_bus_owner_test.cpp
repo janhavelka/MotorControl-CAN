@@ -1245,7 +1245,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
                   settings.confirmed == 1 &&
                   settings.acknowledgedUs[0] == acknowledged.completedUs);
             CHECK(settings.outcome == (failure == 0   ? M::ReadOutcome::PROTOCOL_REJECTED
-                                       : failure == 1 ? M::ReadOutcome::DEADLINE
+                                       : failure == 1 ? M::ReadOutcome::SERVICE_TIMEOUT
                                                       : M::ReadOutcome::REPLY_ERROR));
             if (failure == 0)
                 CHECK(settings.evidence.abortValid && settings.evidence.abortCode == 0x06010001);

@@ -4,6 +4,12 @@
  * Applications supply actual retained service evidence and continuous exclusion
  * from the sole owner. No controlword/mode/save/reset preamble is emitted.
  * DI changes can immediately affect external enable/stop/limit controls.
+ *
+ * Configuration confidence: an explicit settings call advances the configuration generation at its
+ * first possible download, so a target prepared earlier goes stale. A move, velocity or homing
+ * operation's own writes are phases of it instead. They do not pass through these calls and do not advance
+ * the generation, so they cannot invalidate that move's prepared target. They do make retained
+ * MOTION_PARAMETERS observations untrustworthy; see retireMotionParameters.
  */
 #pragma once
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
@@ -181,5 +187,25 @@ Status getDriver(const DriverSettingsContext& context, const AxisReservation& li
 Status getIo(const DriverSettingsContext& context, const AxisReservation& live,
              const ReadTarget& current, uint64_t nowUs, uint64_t maximumAgeUs,
              IoObservation& output) noexcept;
+/** Withdraw a retained MOTION_PARAMETERS observation because a move's own write may reach the drive.
+ * Without this, prepareDriverSettings could report an unchanged candidate as success, with no TX,
+ * while the drive holds the move's value. A move owner calls this once per retained context,
+ * including a finished settings context's `readback`, for each own download, after queue admission
+ * and application preflight and before any possible transmission. Do not transmit if it refuses.
+ * The library cannot reach an unlisted copy, so keep one retained context per axis.
+ * After retirement getDriver and prepareDriverSettings refuse this context until a fresh read
+ * replaces it; its raw values and terminal remain as history. The configuration generation does not
+ * move, so the write's own prepared target stays valid.
+ * @param[in,out] retained Context to withdraw, on this axis at any generation. EMPTY and other
+ * kinds are unchanged, so a caller can pass each of its contexts. Another axis is refused.
+ * @param[in] current Actual current route and epochs.
+ * @param[in] work Exact admitted download on `current`, at its EDS width: 6081, 6083, 6084, 6098,
+ * 6099:01, 6099:02, 609A or 607C, which retire, or 607A or 60FF, which are accepted and retire
+ * nothing. Prompt 36 still owes its own ruling on 607C. Anything else is refused.
+ * @return OK, or INVALID_CONFIG with ReadError TARGET, ARGUMENT or OVERLAP and nothing changed.
+ * Performs no I/O and does not prove the write happened.
+ */
+Status retireMotionParameters(DriverContext& retained, const ReadTarget& current,
+                              const CANOPEN::SdoTransfer& work) noexcept;
 } // namespace LICHUAN_C
 } // namespace MotorControlCAN

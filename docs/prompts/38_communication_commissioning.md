@@ -1,5 +1,7 @@
 # Prompt 38 Explicit communication commissioning
 
+Apply C-09's remainder here first (audit W10): `TwaiAdapter::transport()` sets no `beforeTransmit`, so firmware downloads need an explicit pre-handoff note.
+
 Apply [COMMON.md](COMMON.md). Prerequisites: [24](24_owner_recovery.md), [37](37_discovery.md).
 
 ## Objective and boundaries

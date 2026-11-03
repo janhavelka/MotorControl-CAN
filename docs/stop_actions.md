@@ -137,14 +137,17 @@ state evidence, and is keyed to a target because its route may have no usable
 reservation. It uses `CanBusOwner::admitBestEffortStop`, and `000B` is never replaced by
 `010F` on this path, whatever kind was requested.
 
+**An independent physical stop stays mandatory.** Nothing here is a safety function, and a best-effort stop may not reach or affect the drive.
+
 **It is not a confirmed stop and it never reaches `SUCCEEDED`.** No claim is made that
 `000B` stops or does not enable this drive: packet 16 owns that measurement.
 
 | Owner terminal | `outcome` | `execution` |
 | --- | --- | --- |
 | Controller reported the TX | `STOP_SENT_UNCONFIRMED` | `UNKNOWN` |
-| Possible transmission, no report by the deadline | `DEADLINE` | `UNKNOWN` |
-| Nothing possible | The cause, such as `DEADLINE` or `INVALIDATED` | `NOT_TRANSMITTED` |
+| Possible transmission, no report by the overall deadline | `DEADLINE` | `UNKNOWN` |
+| Possible transmission, queue or response budget spent earlier | `SERVICE_TIMEOUT` | `UNKNOWN` |
+| Nothing possible | The cause, such as `SERVICE_TIMEOUT`, `DEADLINE` or `INVALIDATED` | `NOT_TRANSMITTED` |
 
 A matching-looking `60 40 60 00` cannot make this path succeed, reopen its route or
 settle the interrupted operation: classic SDO has no transaction tag, so it may answer

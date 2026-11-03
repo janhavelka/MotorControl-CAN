@@ -150,7 +150,8 @@ struct ActionContext {
 /** Best-effort stop context (DEC-2), keyed to a target because its route has no usable
  * reservation. It yields only 6040:00=000B and needs no state evidence. It never
  * reaches SUCCEEDED: state FAILED with STOP_SENT_UNCONFIRMED means a frame left the
- * controller, and nothing is known about the drive. Serialize access.
+ * controller, and nothing is known about the drive. An independent physical stop stays
+ * mandatory. Serialize access.
  */
 struct BestEffortStop {
     ReadTarget target;                      ///< Frozen route and node epoch at preparation.

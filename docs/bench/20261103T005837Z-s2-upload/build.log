@@ -1,0 +1,186 @@
+Executing action: reconfigure
+Running cmake in directory C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\s2-bench-live
+Executing "cmake -G Ninja -DPYTHON_DEPS_CHECKED=1 -DPYTHON=C:\Users\Honza\Documents\Projects\MotorControl-RS\build\p25\idf-python\Scripts\python.exe -DESP_PLATFORM=1 -DIDF_TARGET=esp32s2 -DSDKCONFIG=C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/sdkconfig -DCCACHE_ENABLE=0 C:\Users\Honza\Documents\Projects\MotorControl-CAN\examples\s2_bench"...
+-- Component directory C:/pio/packages/framework-espidf/components/esp_blockdev does not contain a CMakeLists.txt file. No component will be added
+-- git rev-parse returned 'fatal: not a git repository (or any of the parent directories): .git'
+fatal: not a git repository (or any of the parent directories): .git
+-- Minimal build - OFF
+-- Building ESP-IDF components for target esp32s2
+-- ESP-TEE is currently supported only on the esp32c6;esp32h2;esp32c5 SoCs
+-- Project sdkconfig file C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/sdkconfig
+Loading defaults file C:/Users/Honza/Documents/Projects/MotorControl-CAN/examples/s2_bench/sdkconfig.defaults...
+
+-- Compiler supported targets: xtensa-esp-elf
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- USING O3
+-- App "motorcontrol_can_s2_bench" version: b0b5417-dirty
+-- Adding linker script C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/esp-idf/esp_system/ld/memory.ld
+-- Adding linker script C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/esp-idf/esp_system/ld/sections.ld.in
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.api.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.libgcc.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.libc-funcs.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.newlib-reent-funcs.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.newlib-data.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/esp_rom/esp32s2/ld/esp32s2.rom.spiflash_legacy.ld
+-- Adding linker script C:/pio/packages/framework-espidf/components/soc/esp32s2/ld/esp32s2.peripherals.ld
+Traceback (most recent call last):
+
+  File "C:\pio\packages\framework-espidf\components\esp_rom\gen_gdbinit.py", line 72, in <module>
+
+    gdbinit_lines = generate_gdbinit_rom_add_symbols(target)
+
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  File "C:\pio\packages\framework-espidf\components\esp_rom\gen_gdbinit.py", line 32, in generate_gdbinit_rom_add_symbols
+
+    raise EnvironmentError(
+
+OSError: ESP_ROM_ELF_DIR environment variable is not defined. Please try to run IDF "install" and "export" scripts.
+
+CMake Warning at C:/pio/packages/framework-espidf/tools/cmake/gdbinit.cmake:52 (message):
+  Error while generating esp_rom gdbinit
+Call Stack (most recent call first):
+  C:/pio/packages/framework-espidf/tools/cmake/project.cmake:356 (__generate_gdbinit)
+  C:/pio/packages/framework-espidf/tools/cmake/project.cmake:979 (__project_info)
+  CMakeLists.txt:5 (project)
+
+
+-- Components: MotorControlCAN app_update bootloader bootloader_support cxx efuse esp_app_format esp_bootloader_format esp_common esp_driver_gpio esp_driver_twai esp_driver_uart esp_hw_support esp_mm esp_partition esp_pm esp_psram esp_ringbuf esp_rom esp_security esp_system esp_timer esptool_py freertos hal heap log main mbedtls newlib partition_table pthread soc spi_flash xtensa
+-- Component paths: C:/Users/Honza/Documents/Projects/MotorControl-CAN/examples/probe_idf/components/MotorControlCAN C:/pio/packages/framework-espidf/components/app_update C:/pio/packages/framework-espidf/components/bootloader C:/pio/packages/framework-espidf/components/bootloader_support C:/pio/packages/framework-espidf/components/cxx C:/pio/packages/framework-espidf/components/efuse C:/pio/packages/framework-espidf/components/esp_app_format C:/pio/packages/framework-espidf/components/esp_bootloader_format C:/pio/packages/framework-espidf/components/esp_common C:/pio/packages/framework-espidf/components/esp_driver_gpio C:/pio/packages/framework-espidf/components/esp_driver_twai C:/pio/packages/framework-espidf/components/esp_driver_uart C:/pio/packages/framework-espidf/components/esp_hw_support C:/pio/packages/framework-espidf/components/esp_mm C:/pio/packages/framework-espidf/components/esp_partition C:/pio/packages/framework-espidf/components/esp_pm C:/pio/packages/framework-espidf/components/esp_psram C:/pio/packages/framework-espidf/components/esp_ringbuf C:/pio/packages/framework-espidf/components/esp_rom C:/pio/packages/framework-espidf/components/esp_security C:/pio/packages/framework-espidf/components/esp_system C:/pio/packages/framework-espidf/components/esp_timer C:/pio/packages/framework-espidf/components/esptool_py C:/pio/packages/framework-espidf/components/freertos C:/pio/packages/framework-espidf/components/hal C:/pio/packages/framework-espidf/components/heap C:/pio/packages/framework-espidf/components/log C:/Users/Honza/Documents/Projects/MotorControl-CAN/examples/s2_bench/main C:/pio/packages/framework-espidf/components/mbedtls C:/pio/packages/framework-espidf/components/newlib C:/pio/packages/framework-espidf/components/partition_table C:/pio/packages/framework-espidf/components/pthread C:/pio/packages/framework-espidf/components/soc C:/pio/packages/framework-espidf/components/spi_flash C:/pio/packages/framework-espidf/components/xtensa
+-- Configuring done (3.3s)
+-- Generating done (0.4s)
+-- Build files have been written to: C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live
+Executing action: all (aliases: build)
+Running ninja in directory C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\s2-bench-live
+Executing "ninja all"...
+[1/49] Building C object esp-idf/esp_app_format/CMakeFiles/__idf_esp_app_format.dir/esp_app_desc.c.obj
+
+[2/49] Performing build step for 'bootloader'
+
+[1/1] C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\s2-bench-live\bootloader\esp-idf\esptool_py && C:\Users\Honza\Documents\Projects\MotorControl-RS\build\p25\idf-python\Scripts\python.exe C:/pio/packages/framework-espidf/components/partition_table/check_sizes.py --offset 0x8000 bootloader 0x1000 C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/bootloader/bootloader.bin"
+
+Bootloader binary size 0x3900 bytes. 0x3700 bytes (49%) free.
+
+[3/49] No install step for 'bootloader'
+
+[4/49] Linking C static library esp-idf\esp_app_format\libesp_app_format.a
+
+[5/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/canopen/Sdo.cpp.obj
+
+[6/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/canopen/Network.cpp.obj
+
+[7/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/canopen/Pdo.cpp.obj
+
+[8/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/DriverReads.cpp.obj
+
+[9/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/Tuning.cpp.obj
+
+[10/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/State.cpp.obj
+
+[11/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/PdoConfiguration.cpp.obj
+
+[12/49] Completed 'bootloader'
+
+[13/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/ProbePlatform.cpp.obj
+
+[14/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/owner/CanBusDiagnostics.cpp.obj
+
+[15/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/Settings.cpp.obj
+
+[16/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/__/RawEvidence.cpp.obj
+
+[17/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/Reads.cpp.obj
+
+[18/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/AxisSession.cpp.obj
+
+[19/49] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/experiments/canopen_service_fit/vendor/CANopenNode/301/CO_fifo.c.obj
+
+[20/49] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/experiments/canopen_service_fit/vendor/CANopenNode/301/CO_NMT_Heartbeat.c.obj
+
+[21/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/canopennode/Driver.cpp.obj
+
+[22/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/FirmwareProbe.cpp.obj
+
+[23/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/EspProbePlatform.cpp.obj
+
+[24/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/twai/TwaiAdapter.cpp.obj
+
+[25/49] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/experiments/canopen_service_fit/vendor/CANopenNode/301/CO_SDOclient.c.obj
+
+[26/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/Position.cpp.obj
+
+[27/49] Building C object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/experiments/canopen_service_fit/vendor/CANopenNode/301/CO_ODinterface.c.obj
+
+[28/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/__/PdoExperiment.cpp.obj
+
+[29/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/ProbeApp.cpp.obj
+
+[30/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/canopennode/Pdo.cpp.obj
+
+[31/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/DeviceEvidence.cpp.obj
+
+[32/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/profiles/lichuan_c/Actions.cpp.obj
+
+[33/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/canopennode/Nmt.cpp.obj
+
+[34/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/Axis.cpp.obj
+
+[35/49] Building CXX object esp-idf/MotorControlCAN/CMakeFiles/__idf_MotorControlCAN.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/src/Units.cpp.obj
+
+[36/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/canopennode/Network.cpp.obj
+
+[37/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/owner/CanBusOwner.cpp.obj
+
+[38/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/__/Soak.cpp.obj
+
+[39/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/twai/IdfTwaiDriver.cpp.obj
+
+[40/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/main.cpp.obj
+
+[41/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/examples/common/EspProbeMain.cpp.obj
+
+[42/49] Building CXX object esp-idf/main/CMakeFiles/__idf_main.dir/C_/Users/Honza/Documents/Projects/MotorControl-CAN/adapters/canopennode/SdoClient.cpp.obj
+
+[43/49] Linking C static library esp-idf\MotorControlCAN\libMotorControlCAN.a
+
+[44/49] Linking C static library esp-idf\main\libmain.a
+
+[45/49] Generating esp-idf/esp_system/ld/sections.ld
+
+[46/49] Building C object CMakeFiles/motorcontrol_can_s2_bench.elf.dir/project_elf_src_esp32s2.c.obj
+
+[47/49] Linking CXX executable motorcontrol_can_s2_bench.elf
+
+[48/49] Generating binary image from built executable
+
+esptool.py v4.12.0
+
+Creating esp32s2 image...
+
+Merged 2 ELF sections
+
+Successfully created esp32s2 image.
+
+Generated C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/motorcontrol_can_s2_bench.bin
+[49/49] C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\s2-bench-live\esp-idf\esptool_py && C:\Users\Honza\Documents\Projects\MotorControl-RS\build\p25\idf-python\Scripts\python.exe C:/pio/packages/framework-espidf/components/partition_table/check_sizes.py --offset 0x8000 partition --type app C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/partition_table/partition-table.bin C:/Users/Honza/Documents/Projects/MotorControl-CAN/.build/s2-bench-live/motorcontrol_can_s2_bench.bin"
+
+motorcontrol_can_s2_bench.bin binary size 0x62330 bytes. Smallest app partition is 0x100000 bytes. 0x9dcd0 bytes (62%) free.
+
+
+
+Project build complete. To flash, run:
+ idf.py flash
+or
+ idf.py -p PORT flash
+or
+ python -m esptool --chip esp32s2 -b 460800 --before default_reset --after hard_reset write_flash --flash_mode dio --flash_size 4MB --flash_freq 80m 0x1000 .build\s2-bench-live\bootloader\bootloader.bin 0x8000 .build\s2-bench-live\partition_table\partition-table.bin 0x10000 .build\s2-bench-live\motorcontrol_can_s2_bench.bin
+or from the "C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\s2-bench-live" directory
+ python -m esptool --chip esp32s2 -b 460800 --before default_reset --after hard_reset write_flash "@flash_args"

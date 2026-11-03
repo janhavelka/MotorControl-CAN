@@ -10,7 +10,7 @@ COMMANDS = {"ping": b"p", "start": b"c", "stats": b"s",
             "identity1": b"1", "identity2": b"2", "raw1": b"3", "raw2": b"4",
             "dump": b"d", "release": b"r", "network": b"n",
             "heartbeat1": b"h", "heartbeat2": b"j", "preop1": b"q", "preop2": b"w", "tpdo1": b"m",
-            "motion-readiness1": b"v", "motion-readiness2": b"b"}
+            "motion-readiness1": b"v", "motion-readiness2": b"b", "soak-stop": b"X"}
 
 
 def main():
