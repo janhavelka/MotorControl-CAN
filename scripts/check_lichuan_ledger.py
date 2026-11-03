@@ -329,6 +329,9 @@ MANUAL_REQUIREMENTS = {
 ACCEPTED_READS = {(0x1000, 0), (0x1009, 0), (0x100A, 0), (0x1018, 0), (0x1018, 1), (0x1018, 2), (0x1018, 3),
                   (0x2000, 0), (0x2001, 0), (0x6041, 0), (0x6061, 0), (0x6064, 0), (0x606C, 0),
                   (0x2100, 0), (0x2101, 0), (0x2102, 0)}
+# Packet 15 ruling: one upload each per enable, as that action's prerequisite, never a poll. Not
+# evidence either: the effect stays unknown.
+ACTION_PREREQUISITE_READS = {(0x607A, 0), (0x60FF, 0)}
 
 
 def entry_requirements(index, sub):
@@ -804,6 +807,13 @@ def validate_ledger(data, root=ROOT):
             errors.extend(read_owner_errors(entry))
             errors.extend(read_coverage_errors(entry))
             errors.extend(setting_coverage_errors(entry))
+            if entry.get("read_owner_prompt") == 22:
+                # Packet 14: a withheld tuning write names what would close it, so no row is left as
+                # "remaining tuning", and the 2500 subset names what its register test does not show.
+                review = entry.get("review")
+                evidence = review.get("next_evidence") if isinstance(review, dict) else None
+                require(isinstance(evidence, str) and bool(evidence.strip()),
+                        elabel + ": Prompt 22 row must name its next concrete evidence")
             require(all(isinstance(entry.get(field), str) and bool(entry[field].strip()) for field in
                     ("units", "scaling", "effect", "edge_behavior")) and
                     isinstance(entry.get("prerequisites"), list) and bool(entry["prerequisites"]) and
@@ -811,10 +821,14 @@ def validate_ledger(data, root=ROOT):
                     elabel + ": reviewed semantics missing")
             selected_gates = check_review(entry.get("review"), elabel,
                                           ("type_policy", "value_policy", "read_effect", "write_policy"))
-            accepted = entry.get("read_disposition") == "accepted_not_qualified"
+            disposition = entry.get("read_disposition")
+            accepted = disposition == "accepted_not_qualified"
+            prerequisite = disposition == "accepted_action_prerequisite"
             require(accepted == ((index, sub) in ACCEPTED_READS) and
-                    entry.get("read_disposition", "accepted_not_qualified") == "accepted_not_qualified",
-                    elabel + ": read disposition must match the DEC-1 accepted list")
+                    prerequisite == ((index, sub) in ACTION_PREREQUISITE_READS) and
+                    disposition in (None, "accepted_not_qualified", "accepted_action_prerequisite") and
+                    ("read_disposition" not in entry or disposition is not None),
+                    elabel + ": read disposition must match the DEC-1 accepted list and the enable prerequisite pair")
             required_gates = {"Q01"} | set(feature_gates.split())
             if raw.get("AccessType") != "WO":
                 required_gates.add("Q20")

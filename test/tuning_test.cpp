@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
@@ -191,13 +192,37 @@ struct Owner {
         CHECK(service.release(id));
         return result;
     }
-    L::DriverContext controlPrior(uint16_t mode = 0) {
+    // The settings state prerequisite, as fixture terminals: STATUS and MONITORS, 2100 as given.
+    L::ReadContext state(uint32_t monitor = 0) const {
+        L::ReadContext out;
+        const uint8_t mask = uint8_t((1u << unsigned(L::StateBlock::MONITORS)) |
+                                     (1u << unsigned(L::StateBlock::STATUS)));
+        CHECK(L::prepareState(out, currentTarget(), 18, now, 5000, options(), mask));
+        while (out.state == M::ReadState::ACTIVE) {
+            L::PreparedRead work;
+            CHECK(L::nextRead(out, now, work) && work.ready);
+            C::SdoCompletion e;
+            e.transfer = work.transfer;
+            e.nodeGeneration = 11;
+            e.admittedUs = e.completedUs = now;
+            e.outcome = C::SdoOutcome::SUCCESS;
+            e.queued = e.transmissionPossible = e.protocolAcknowledged = e.effectPossible = true;
+            e.size = work.transfer.size;
+            if (work.transfer.index == 0x2100) {
+                e.data[0] = uint8_t(monitor);
+                e.data[1] = uint8_t(monitor >> 8);
+            }
+            CHECK(L::advanceRead(out, e, now));
+        }
+        return out;
+    }
+    L::DriverContext controlPrior(uint16_t mode = 0, uint16_t encoder = 0xffff) {
         L::DriverContext c;
         CHECK(L::prepareControlRead(c, reservation.target, 19, now, 5000, options()));
         for (unsigned i = 0; i < 2; ++i) {
             const auto work = next(c, now);
             const auto id = transmit(work.transfer);
-            const auto e = respond(id, work.transfer, i ? 0xffff : mode);
+            const auto e = respond(id, work.transfer, i ? encoder : mode);
             CHECK(L::advanceDriver(c, e, now));
         }
         return c;
@@ -470,7 +495,7 @@ void loopCandidatesAndRealWrite() {
             L::DriverSettingsContext c;
             const Saved<L::DriverSettingsContext> old(c);
             const bool expected = model && value <= (model == 1 ? 2u : 1u);
-            CHECK(bool(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41,
+            CHECK(bool(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, owner.state(), candidate, 41,
                                                  owner.now, 5000, options(), 100)) == expected);
             if (!expected)
                 old.unchanged(c);
@@ -493,7 +518,7 @@ void loopCandidatesAndRealWrite() {
         L::ControlSettings candidate;
         candidate.loopMode = L::LoopMode::CLOSED_LOOP;
         L::DriverSettingsContext c;
-        CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now, 5000,
+        CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, owner.state(), candidate, 41, owner.now, 5000,
                                         options(), 100));
         candidate.loopMode = L::LoopMode::OPEN_LOOP;
         L::PreparedRead p;
@@ -563,7 +588,7 @@ void settingsAdmissionAndShape() {
     L::ControlSettings candidate;
     candidate.loopMode = L::LoopMode::OPEN_LOOP;
     L::DriverSettingsContext valid;
-    CHECK(L::prepareControlSettings(valid, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now, 5000,
+    CHECK(L::prepareControlSettings(valid, owner.reservation, owner.reservation.target, prior, owner.state(), candidate, 41, owner.now, 5000,
                                     options(), 100));
     for (unsigned bad = 0; bad < 10; ++bad) {
         auto r = owner.reservation;
@@ -593,7 +618,7 @@ void settingsAdmissionAndShape() {
             opt.responseTimeoutUs = 0;
         auto c = valid;
         const Saved<L::DriverSettingsContext> old(c);
-        CHECK(!L::prepareControlSettings(c, r, r.target, p, candidate, operation, owner.now, deadline, opt,
+        CHECK(!L::prepareControlSettings(c, r, r.target, p, owner.state(), candidate, operation, owner.now, deadline, opt,
                                          age));
         old.unchanged(c);
     }
@@ -602,7 +627,7 @@ void settingsAdmissionAndShape() {
         ++moved.channel.binding.configurationGeneration;
         auto c = valid;
         const Saved<L::DriverSettingsContext> old(c);
-        const M::Status status = L::prepareControlSettings(c, owner.reservation, moved, prior, candidate,
+        const M::Status status = L::prepareControlSettings(c, owner.reservation, moved, prior, owner.state(), candidate,
                                                            41, owner.now, 5000, options(), 100);
         CHECK(!status && status.detail == int32_t(M::ReadError::TARGET));
         old.unchanged(c);
@@ -653,7 +678,7 @@ void loopFailureRetentionAndPublication() {
             L::ControlSettings candidate;
             candidate.loopMode = L::LoopMode::CLOSED_LOOP;
             L::DriverSettingsContext c;
-            CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now,
+            CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, owner.state(), candidate, 41, owner.now,
                                             5000, options(), 100));
             L::ControlObservation out;
             out.encoderResolutionRaw = 0xa55a;
@@ -722,7 +747,7 @@ void loopFailureRetentionAndPublication() {
     L::ControlSettings candidate;
     candidate.loopMode = L::LoopMode::OPEN_LOOP;
     L::DriverSettingsContext c;
-    CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now, 5000,
+    CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, owner.state(), candidate, 41, owner.now, 5000,
                                     options(), 100));
     L::PreparedRead p;
     CHECK(L::nextDriver(c, owner.reservation, owner.current, owner.now, p) && p.ready);
@@ -761,10 +786,73 @@ void loopFailureRetentionAndPublication() {
     Owner exhausted(UINT32_MAX);
     const auto maximumPrior = exhausted.controlPrior();
     const Saved<L::DriverSettingsContext> untouched(c);
-    CHECK(!L::prepareControlSettings(c, exhausted.reservation, exhausted.reservation.target, maximumPrior, candidate, 43,
+    CHECK(!L::prepareControlSettings(c, exhausted.reservation, exhausted.reservation.target, maximumPrior, exhausted.state(), candidate, 43,
                                      exhausted.now, 5000, options(), 100));
     untouched.unchanged(c);
     CHECK(exhausted.current.configurationGeneration == UINT32_MAX);
+}
+// The two project-policy refusals added with the state prerequisite, against the direct service fixture.
+void loopStateAndEncoderPolicy() {
+    const auto prepare = [](Owner& owner, const L::DriverContext& prior, const L::ReadContext& state,
+                            L::LoopMode mode, L::DriverSettingsContext& c) {
+        L::ControlSettings candidate;
+        candidate.loopMode = mode;
+        return L::prepareControlSettings(c, owner.reservation, owner.currentTarget(), prior, state, candidate,
+                                         41, owner.now, 5000, options(), 100);
+    };
+    // 2100 words from EN86 p17/ZH86 p18: running and alarm refuse, as does any undocumented bit 7..15.
+    const uint32_t admittedWords[] = {0, 1, 2, 3, 0x10, 0x20, 0x40, 0x7f & ~0x0cu};
+    const uint32_t refusedWords[] = {0x04, 0x08, 0x0c, 0x80, 0x100, 0x8000, 0xffff};
+    for (uint32_t word : admittedWords) {
+        Owner owner;
+        const auto prior = owner.controlPrior(2, 4000);
+        L::DriverSettingsContext c;
+        CHECK(prepare(owner, prior, owner.state(word), L::LoopMode::OPEN_LOOP, c));
+        CHECK(c.state == L::SettingsState::WRITING && c.requested[0] == 1 && c.requested[1] == 4000);
+    }
+    for (uint32_t word : refusedWords) {
+        Owner owner;
+        const auto prior = owner.controlPrior(2, 4000);
+        L::DriverSettingsContext c;
+        const Saved<L::DriverSettingsContext> blank(c);
+        const M::Status status = prepare(owner, prior, owner.state(word), L::LoopMode::OPEN_LOOP, c);
+        CHECK(!status && status.detail == int32_t(M::ReadError::STATE));
+        blank.unchanged(c);
+    }
+    { // A forged failed, uncertain or passive-source state read refuses alike.
+        Owner owner;
+        const auto prior = owner.controlPrior(2, 4000);
+        const L::ReadContext clean = owner.state();
+        L::ReadContext forged = clean;
+        forged.uncertain = true;
+        L::DriverSettingsContext c;
+        const Saved<L::DriverSettingsContext> blank(c);
+        CHECK(!prepare(owner, prior, forged, L::LoopMode::OPEN_LOOP, c));
+        forged = clean;
+        forged.state = M::ReadState::FAILED;
+        CHECK(!prepare(owner, prior, forged, L::LoopMode::OPEN_LOOP, c));
+        forged = clean;
+        forged.source = L::ReadSource::TPDO;
+        CHECK(!prepare(owner, prior, forged, L::LoopMode::OPEN_LOOP, c));
+        blank.unchanged(c);
+        CHECK(prepare(owner, prior, clean, L::LoopMode::OPEN_LOOP, c));
+    }
+    // A stored 2501 of zero refuses closed loop only; nonzero words pass and are carried, never written.
+    for (uint16_t encoder : {uint16_t(0), uint16_t(1), uint16_t(4000), uint16_t(0xffff)})
+        for (unsigned mode = 0; mode < 3; ++mode) {
+            Owner owner;
+            const auto prior = owner.controlPrior(mode == 2 ? 1 : 2, encoder);
+            L::DriverSettingsContext c;
+            const Saved<L::DriverSettingsContext> blank(c);
+            const M::Status status =
+                prepare(owner, prior, owner.state(), static_cast<L::LoopMode>(mode), c);
+            if (mode == 2 && !encoder) {
+                CHECK(!status && status.detail == int32_t(M::ReadError::VALUE));
+                blank.unchanged(c);
+                continue;
+            }
+            CHECK(status && c.changed == 1 && c.requested[0] == mode && c.requested[1] == encoder);
+        }
 }
 } // namespace
 int main() {
@@ -775,5 +863,6 @@ int main() {
     loopCandidatesAndRealWrite();
     settingsAdmissionAndShape();
     loopFailureRetentionAndPublication();
+    loopStateAndEncoderPolicy();
     std::printf("tuning: %u checks passed\n", checks);
 }

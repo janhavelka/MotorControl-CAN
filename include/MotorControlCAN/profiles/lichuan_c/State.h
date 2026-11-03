@@ -30,6 +30,11 @@ enum class ObservedMode : uint8_t {
     PROFILE_VELOCITY = 3, ///< Documented velocity mode, not permission to enable a retained target.
     HOMING = 6            ///< Documented homing mode, not proof of homed reference.
 };
+/** Bits 0..2 of 6041, the one status field all retained manuals list alike: words 0, 6, 7 and 15 are
+ * shown with 000, 001, 011 and 111 (EN86 and ZH86 PDF p12, OP86 p10). Only an example table, not a
+ * CiA402 decoder: two specimens read 111 after a power cycle with no 6040 write in any retained
+ * record, so these bits alone never show that a word was written. */
+constexpr uint16_t STATUS_LOW_BITS = 0x0007;
 /** @name Object 2100 monitor bits
  * EN86 PDF p17 and ZH86 PDF p18 agree on these. They are not 6041 dialect bits, and a monitor
  * report is what the controller says, not an independent physical measurement.

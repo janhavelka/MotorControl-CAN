@@ -3,6 +3,7 @@
 
 import copy
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -270,6 +271,62 @@ class LedgerTests(unittest.TestCase):
             row.pop("setting_coverage", None)
             self.reject(data, "conservative read-only policy required")
 
+    def test_withheld_tuning_writes_stay_read_only_and_name_their_evidence(self):
+        # Packet 14: 2500 is the sole typed write; each other row keeps its own named gate.
+        for index in range(0x2500, 0x2521):
+            row = entry(LEDGER, "0x{:04X}:00".format(index))
+            self.assertEqual((row["owner_prompt"], row["read_owner_prompt"]), (22, 22))
+            self.assertTrue(row["review"]["next_evidence"].strip())
+            self.assertIsNone(row["default_eds"])
+            self.assertIsNone(row["low_limit_eds"])
+            self.assertIsNone(row["high_limit_eds"])
+            if index == 0x2500:
+                self.assertEqual(row["setting_scope"], "explicit_loop_mode_86c")
+                continue
+            self.assertEqual((row["access_eds"], row["access_reviewed"]), ("RW", "RO"))
+            self.assertEqual(row["review"]["write_policy"], "not_writable")
+            self.assertNotIn("setting_scope", row)
+            self.assertNotIn("setting_coverage", row)
+            self.assertFalse(row["coverage"]["implemented"])
+        for key in ("0x2500:00", "0x2502:00", "0x2520:00"):
+            for value in (None, "", "  "):
+                data = self.changed()
+                review = entry(data, key)["review"]
+                if value is None:
+                    review.pop("next_evidence")
+                else:
+                    review["next_evidence"] = value
+                self.reject(data, "must name its next concrete evidence")
+
+    def test_tuning_rows_cite_the_rendered_manual_pages(self):
+        # Table rows: EN86 p19 ends at 2516 and ZH86 p19 at 2505, whose name runs onto p20. The
+        # 251A..2520 tail is in no manual. Extra pages are p3 (encoder, 8 A) and p20 (the alarm table).
+        extra = {0x2500: {("EN86", 3), ("ZH86", 3)}, 0x2501: {("EN86", 3), ("ZH86", 3)},
+                 0x2502: {("EN86", 3), ("ZH86", 3)}, 0x2505: {("ZH86", 20)},
+                 0x250A: {("EN86", 20), ("ZH86", 20)}}
+        cited = re.compile(r"(EN86/ZH86|EN86|ZH86) PDF p(\d+)(?:-(\d+))?")
+        for index in range(0x2500, 0x2521):
+            row = entry(LEDGER, "0x{:04X}:00".format(index))
+            pages = {(ref["id"], ref.get("page")) for ref in row["source_refs"] if ref["id"] != "EDS"}
+            expected = set() if index >= 0x251A else {("EN86", 19 if index <= 0x2516 else 20),
+                                                      ("ZH86", 19 if index <= 0x2505 else 20)}
+            self.assertEqual(pages, expected | extra.get(index, set()), hex(index))
+            # Every page the row's prose cites is one of its source references.
+            prose = " ".join([row["review"]["value_policy"], row["review"]["next_evidence"],
+                              row["effect"]] + row["prerequisites"])
+            for ids, first, last in cited.findall(prose):
+                for sid in ids.split("/"):
+                    for page in range(int(first), int(last or first) + 1):
+                        self.assertIn((sid, page), pages, "{} cites {} p{}".format(hex(index), sid, page))
+        eds = [ref for index in (0x2500, 0x2520) for ref in entry(LEDGER, "0x{:04X}:00".format(index))["source_refs"]
+               if ref["id"] == "EDS"]
+        self.assertEqual((eds[0]["line_start"], eds[1]["line_end"]), (1559, 1822))
+        # The 2500 setting row states both project-policy refusals and claims no specimen acceptance.
+        row = entry(LEDGER, "0x2500:00")
+        self.assertIn("2100 must report no running, alarm or undocumented bit 7..15", row["prerequisites"][2])
+        self.assertIn("CLOSED_LOOP is refused while 2501 reads 0", row["prerequisites"][2])
+        self.assertIn("no specimen has accepted a write", row["review"]["value_policy"])
+
     def test_history_communication_and_pdo_read_owners_remain_finite_and_named(self):
         # Documentary/write ownership stays distinct from the implemented raw-read owner.
         for sub in range(5):
@@ -322,8 +379,19 @@ class LedgerTests(unittest.TestCase):
 
     def test_accepted_read_list_is_exact_and_changes_no_other_policy(self):
         actual = {row["key"] for obj in LEDGER["objects"] for row in obj["entries"]
-                  if "read_disposition" in row}
+                  if row.get("read_disposition") == "accepted_not_qualified"}
         self.assertEqual(actual, ACCEPTED)
+        prerequisite = {row["key"] for obj in LEDGER["objects"] for row in obj["entries"]
+                        if row.get("read_disposition") == "accepted_action_prerequisite"}
+        self.assertEqual(prerequisite, {"0x607A:00", "0x60FF:00"})
+        for key in prerequisite:
+            row = entry(LEDGER, key)
+            self.assertEqual(row["review"]["read_effect"], "not_established", key)
+            self.assertIn("Q20", row["review"]["gate_ids"], key)
+            self.assertNotIn("read_coverage", row, key)
+        action = LEDGER["semantic_review"]["action_read_acceptance"]
+        self.assertEqual(action["rows"], ["0x607A:00", "0x60FF:00"])
+        self.assertIn("Not a poll", action["meaning"])
         for key in ACCEPTED:
             row = entry(LEDGER, key)
             self.assertEqual(row["read_disposition"], "accepted_not_qualified", key)
@@ -347,6 +415,23 @@ class LedgerTests(unittest.TestCase):
                 data = self.changed()
                 entry(data, key)["read_disposition"] = "accepted_not_qualified"
                 self.reject(data, "read disposition must match the DEC-1 accepted list")
+
+    def test_enable_prerequisite_pair_is_exact(self):
+        # Only the two targets carry it; it cannot widen to another row, or stand in for DEC-1.
+        for key in ("0x6081:00", "0x6041:00", "0x607C:00", "0x1000:00"):
+            with self.subTest(key=key):
+                data = self.changed()
+                entry(data, key)["read_disposition"] = "accepted_action_prerequisite"
+                self.reject(data, "read disposition must match the DEC-1 accepted list")
+        for key in ("0x607A:00", "0x60FF:00"):
+            for value in ("accepted_not_qualified", None, "accepted"):
+                with self.subTest(key=key, value=value):
+                    data = self.changed()
+                    if value is None:
+                        del entry(data, key)["read_disposition"]
+                    else:
+                        entry(data, key)["read_disposition"] = value
+                    self.reject(data, "read disposition must match the DEC-1 accepted list")
 
     def test_missing_accepted_row_is_rejected(self):
         for key in sorted(ACCEPTED):

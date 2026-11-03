@@ -3,6 +3,7 @@
 #include "SdoClient.h"
 #include <MotorControlCAN/Axis.h>
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -1074,6 +1075,63 @@ void refusedReadbackLeavesTransactionUnchanged() {
         CHECK(c.state == L::SettingsState::FAILED);
     }
 }
+// A control (2500) transaction on the same lifecycle, against the real adapter. Its words are fixture
+// values; 2501 is read back and compared, never written.
+struct LoopFixture {
+    Owner owner;
+    L::ReadContext state;
+    L::DriverContext prior;
+    explicit LoopFixture(uint32_t monitor = 0, uint32_t encoder = 4000) {
+        state = owner.state(monitor);
+        const uint32_t words[] = {2, encoder};
+        prior = owner.readGroup(L::DriverGroup::CONTROL, words, 2);
+    }
+    M::Status prepare(L::DriverSettingsContext& out, uint16_t code, uint64_t deadline = 1000) {
+        L::ControlSettings s;
+        s.loopMode = static_cast<L::LoopMode>(code);
+        return L::prepareControlSettings(out, owner.live(), owner.currentTarget(), prior, state, s, 43, owner.now,
+                                         deadline, options(), 100);
+    }
+};
+void loopRefusalsKeepRetainedTransactions() {
+    LoopFixture f;
+    L::DriverSettingsContext c;
+    CHECK(f.prepare(c, 1));
+    // Every refusal after a success leaves the prepared transaction, not only a fresh output.
+    const Saved<L::DriverSettingsContext> retained(c);
+    for (uint16_t code : {uint16_t(3), uint16_t(0xffff)})
+        CHECK(!f.prepare(c, code));
+    retained.unchanged(c);
+    LoopFixture running(0x0005), alarm(0x0009), undocumented(0x0081), zero(0, 0);
+    CHECK(!running.prepare(c, 1) && !alarm.prepare(c, 1) && !undocumented.prepare(c, 1));
+    CHECK(!zero.prepare(c, 2));
+    retained.unchanged(c);
+    // The transaction then runs: one 2500 download, and 2500 then 2501 read back at the new epoch.
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, f.owner.live(), f.owner.current, f.owner.now, work) && work.ready);
+    CHECK(work.transfer.index == 0x2500 && work.transfer.size == 2 && work.transfer.data[0] == 1 &&
+          work.transfer.direction == C::SdoDirection::DOWNLOAD);
+    CHECK(L::noteDriverTransmission(c, f.owner.live(), f.owner.current, f.owner.now));
+    const C::SdoCompletion ack = f.owner.exchange(work.transfer, 0);
+    CHECK(L::advanceDriver(c, f.owner.live(), f.owner.current, ack, f.owner.now));
+    CHECK(c.state == L::SettingsState::READING_BACK && c.confirmed == 1);
+    CHECK(f.owner.service.advanceConfiguration(0, target().channel.binding, f.owner.current, f.owner.now));
+    const uint32_t answers[] = {1, 4000};
+    for (uint32_t answer : answers) {
+        CHECK(L::nextDriver(c, f.owner.live(), f.owner.current, f.owner.now, work) && work.ready);
+        CHECK(work.transfer.direction == C::SdoDirection::UPLOAD);
+        const C::SdoCompletion reply = f.owner.exchange(work.transfer, answer);
+        CHECK(L::advanceDriver(c, f.owner.live(), f.owner.current, reply, f.owner.now));
+    }
+    CHECK(c.state == L::SettingsState::SUCCEEDED);
+    L::ControlObservation seen;
+    CHECK(L::getControl(c, f.owner.live(), f.owner.currentTarget(), f.owner.now, 100, seen));
+    CHECK(seen.loopMode == L::LoopMode::OPEN_LOOP && seen.encoderResolutionRaw == 4000);
+    // The terminal transaction is retained too: a refused call leaves its history intact.
+    const Saved<L::DriverSettingsContext> finished(c);
+    CHECK(!f.prepare(c, 1));
+    finished.unchanged(c);
+}
 // A refused preparation keeps a retained transaction, not only a fresh output.
 void refusedPreparationKeepsRetainedTransaction() {
     for (bool io : {false, true}) {
@@ -1310,5 +1368,6 @@ int main() {
     localReadbackWithdrawal();
     refusedReadbackLeavesTransactionUnchanged();
     refusedPreparationKeepsRetainedTransaction();
+    loopRefusalsKeepRetainedTransactions();
     std::printf("settings writes: %u checks passed\n", checks);
 }

@@ -326,11 +326,14 @@ struct SettingsWriteRig {
                 function = L::InputFunction::STOP;
             CHECK(L::prepareIoSettings(c, live, live.target, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
         } else {
+            L::ReadContext state;
+            CHECK(L::prepareState(state, target(), 2, now, CUTOFF, options(), PREREQUISITE));
+            finishRead(state, now, {{0x2100, 0}, {0x6041, 7}, {0x6061, 1}});
             CHECK(L::prepareControlRead(prior, target(), 3, now, CUTOFF, options()));
             finishRead(prior.read, now, {});
             L::ControlSettings candidate;
             candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-            CHECK(L::prepareControlSettings(c, live, live.target, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
+            CHECK(L::prepareControlSettings(c, live, live.target, prior, state, candidate, 41, STEP_AT, CUTOFF, o, 100000));
         }
         L::PreparedRead p;
         CHECK(L::nextDriver(c, live, binding, STEP_AT, p) && p.ready);
@@ -385,11 +388,14 @@ struct SettingsReadbackRig {
             CHECK(L::prepareDriverSettings(c, live, live.target, prior, state, control, candidate, 41, now, CUTOFF,
                                            o, 100000));
         } else {
+            L::ReadContext state;
+            CHECK(L::prepareState(state, target(), 2, now, CUTOFF, options(), PREREQUISITE));
+            finishRead(state, now, {{0x2100, 0}, {0x6041, 7}, {0x6061, 1}});
             CHECK(L::prepareControlRead(prior, target(), 3, now, CUTOFF, options()));
             finishRead(prior.read, now, {});
             L::ControlSettings candidate;
             candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-            CHECK(L::prepareControlSettings(c, live, live.target, prior, candidate, 41, now, CUTOFF, o, 100000));
+            CHECK(L::prepareControlSettings(c, live, live.target, prior, state, candidate, 41, now, CUTOFF, o, 100000));
         }
         while (c.state == L::SettingsState::WRITING) {
             L::PreparedRead p;

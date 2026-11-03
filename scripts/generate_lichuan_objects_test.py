@@ -197,6 +197,10 @@ class ProjectionTests(unittest.TestCase):
                 self.assertIn("{{0x1009, 0x00, 2, ReadRepresentation::UNSIGNED, ReadEffect::{}, "
                               "SourceScope::EDS_FAMILY_UNBOUND}}".format(effect), header)
                 self.assertNotIn("REVIEWED_NON_CHANGING", header)
+        # The enable prerequisite is the other accepted classification, never a typed read row.
+        entry["read_disposition"] = "accepted_action_prerequisite"
+        self.assertIn("ReadEffect::ACCEPTED_UNQUALIFIED, WritePolicy::FORBIDDEN",
+                      objects_header(projected_rows(fixture_objects(entry))))
         # Any other value, or an address that happens to be on the list, does not select it.
         for value in ("accepted", "ACCEPTED_NOT_QUALIFIED", True, None):
             entry["read_disposition"] = value
@@ -483,6 +487,14 @@ class GenerationTests(unittest.TestCase):
             self.assertNotIn("WritePolicy::ALLOWED", declaration)
             self.assertNotIn("WritePolicy::APPROVED", declaration)
         self.assertNotIn("canWrite", header)
+        # Each withheld write's next evidence reaches the generated coverage, row by row.
+        document = coverage_document(self.ledger, rows)
+        tuning = [row for row in rows if 0x2500 <= row["index"] <= 0x2520]
+        self.assertEqual(len(tuning), 33)
+        for row in tuning:
+            section = document.split("### {}\n".format(row["key"]), 1)[1].split("\n### ", 1)[0]
+            self.assertIn(row["review"]["next_evidence"], section)
+        self.assertEqual(document.count("| Typed setting scope | explicit_loop_mode_86c |"), 1)
 
     def test_stale_exact_bytes_fail_without_mutation(self):
         generate(ROOT / LEDGER_PATH, self.root)

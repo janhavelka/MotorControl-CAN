@@ -228,11 +228,31 @@ int main() {
         observedControl.encoderResolutionRaw != 0x1234)
         return 46;
     reservation.model = LICHUAN_C::SettingsModel::CL86_C;
+    // The loop selector needs a clean state read as well: nothing running, no alarm.
+    LICHUAN_C::ReadContext controlState;
+    if (!LICHUAN_C::prepareState(controlState, readTarget, 11, 52, 100, readOptions,
+                                 uint8_t((1u << static_cast<unsigned>(LICHUAN_C::StateBlock::STATUS)) |
+                                         (1u << static_cast<unsigned>(LICHUAN_C::StateBlock::MONITORS)))))
+        return 67;
+    for (unsigned i = 0; i < 5; ++i) {
+        LICHUAN_C::PreparedRead work;
+        if (!LICHUAN_C::nextRead(controlState, 52, work) || !work.ready)
+            return 68;
+        CANOPEN::SdoCompletion e;
+        e.transfer = work.transfer;
+        e.nodeGeneration = readTarget.nodeGeneration;
+        e.admittedUs = e.completedUs = 52;
+        e.outcome = CANOPEN::SdoOutcome::SUCCESS;
+        e.queued = e.transmissionPossible = e.protocolAcknowledged = e.effectPossible = true;
+        e.size = work.transfer.size;
+        if (!LICHUAN_C::advanceRead(controlState, e, 52))
+            return 69;
+    }
     LICHUAN_C::ControlSettings loop;
     loop.loopMode = LICHUAN_C::LoopMode::CLOSED_LOOP;
     LICHUAN_C::DriverSettingsContext controlWrite;
-    if (!LICHUAN_C::prepareControlSettings(controlWrite, reservation, reservation.target, control, loop, 11, 52, 100,
-                                           readOptions, 10))
+    if (!LICHUAN_C::prepareControlSettings(controlWrite, reservation, reservation.target, control, controlState, loop, 11,
+                                           52, 100, readOptions, 10))
         return 47;
     LICHUAN_C::PreparedRead loopWork;
     if (!LICHUAN_C::nextDriver(controlWrite, reservation, readTarget.channel.binding, 52,
@@ -295,6 +315,17 @@ int main() {
         16, 65, 100, stopOptions);
     if (arbitraryPosition.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
         return 57;
+    // Enable is gated: default evidence refuses first, whatever else is offered.
+    LICHUAN_C::EnableEvidence enableEvidence;
+    const Status closedEnable = LICHUAN_C::prepareEnable(stop, LICHUAN_C::AxisReservation(), state,
+                                                         enableEvidence, 17, 65, 100, stopOptions);
+    if (closedEnable.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
+        return 61;
+    enableEvidence.gate = LICHUAN_C::EnableGate::ATTENDED_EXPERIMENT;
+    if (LICHUAN_C::validateEnable(stop, LICHUAN_C::AxisReservation(), state, enableEvidence, 17, 65,
+                                  100, stopOptions) ||
+        ActionKind::ENABLE == ActionKind::STOP || LICHUAN_C::ENABLE_WORD_INTERVAL_US != 10000)
+        return 62;
     // The value decoder and the masks need no read context, and refuse only an unknown document.
     LICHUAN_C::StatusIndications indications;
     if (!LICHUAN_C::interpretStatusword(0x0087, LICHUAN_C::StatusLayout::EN86, indications) ||

@@ -26,7 +26,7 @@ Execution has completed prompts 1-17, including the [native service fit experime
 
 | Material | Purpose |
 | --- | --- |
-| [Drive-state interpretation and action gates](drive_actions.md) | Checked documentary decoder, raw evidence and disagreements; precise unimplemented enable/release boundaries |
+| [Drive-state interpretation and action gates](drive_actions.md) | Checked documentary decoder, raw evidence and disagreements; the gated enable sequence and its transition table, which no specimen has run; release's exact gap |
 | [Device evidence conflicts](device_conflicts.md) and [offline evidence procedure](../examples/device_evidence/README.md) | Prompt 29 source questions, capability gates and the bounded typed-read collector; no live qualification |
 | [Firmware examples](firmware_examples.md) | Shared Arduino/IDF startup, explicit configuration, bounded USB/time and three real compile gates |
 | [TWAI adapter](../adapters/twai/README.md) and [SDK evidence](adapters/twai_sdk.md) | Pinned S3 controller boundary, capacities, completion/retirement evidence and compile-only checks |

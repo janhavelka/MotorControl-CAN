@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: MIT
  * No I/O, clock, allocation or automatic action. Raw values retain unknown
  * units/ranges; an acquired word is not a qualified physical setting.
+ * 2500 is the only writable word here. 2501..2520 have no typed write, because no source
+ * gives a domain for any of them. docs/tuning.md names the evidence each subgroup needs.
  */
 #pragma once
 #include <MotorControlCAN/profiles/lichuan_c/Settings.h>
@@ -11,7 +13,9 @@ namespace MotorControlCAN {
 namespace LICHUAN_C {
 /** Documented 2500 selector, independent of 6060 motion mode and motor kind. */
 enum class LoopMode : uint16_t {
-    INEFFECTIVE = 0, ///< Vendor label; no inferred disable/stop behavior.
+    /** The manual calls 0 noneffective. Whether it removes torque is unknown, so it is not a
+     * disable, release or stop the library can rely on. */
+    INEFFECTIVE = 0,
     OPEN_LOOP = 1,   ///< Native open-loop selection, not a motion command.
     CLOSED_LOOP = 2, ///< Native closed-loop selection; no inferred encoder scale.
     UNKNOWN = 0xffff ///< Unknown observation or invalid candidate default.
@@ -43,8 +47,8 @@ struct TuningObservation {
     uint16_t closedLoopMaximumPercent = 0;            ///< 2503; no assumed 0..100 bound.
     uint16_t closedLoopBasePercent = 0;               ///< 2504; no assumed ordering versus 2503.
     uint16_t openLoopMaximumPercent = 0;              ///< 2505; not a torque request.
-    uint16_t holdingCurrentPercent = 0;               ///< 2506; no inferred disabled sentinel.
-    uint16_t holdingTimeMs = 0;                ///< 2507 ms; zero/maximum operating meaning unknown.
+    uint16_t holdingCurrentPercent = 0;               ///< 2506 "locking" ratio; no zero meaning.
+    uint16_t holdingTimeMs = 0;                ///< 2507 "locking" ms; zero/maximum meaning unknown.
     uint16_t lowPassEnableRaw = 0;             ///< 2508; no documented Boolean encoding.
     uint16_t lowPassCoefficientRaw = 0;        ///< 2509; equation/unit unknown.
     uint16_t positionAlarmThresholdRaw = 0;    ///< 250A setting, not measured following error.
@@ -68,7 +72,10 @@ struct TuningObservation {
     ReadProvenance fields[12];           ///< Owned independent per-field provenance.
     ReadWindow window;                   ///< Acquisition interval, not a simultaneous sample.
 };
-/** Explicit complete loop selector candidate; encoder settings are not writable here. */
+/** Explicit complete loop selector candidate; the default is invalid until set.
+ * Encoder settings are not writable here. An acknowledged selector is register acceptance only,
+ * not physical loop activation.
+ */
 struct ControlSettings {
     LoopMode loopMode = LoopMode::UNKNOWN; ///< Explicit documented 0, 1 or 2 only.
 };
@@ -117,25 +124,49 @@ Status getControl(const DriverContext& context, const ReadTarget& current, uint6
 Status getTuning(const DriverContext& context, const ReadTarget& current, uint64_t nowUs,
                  uint64_t maximumAgeUs, TuningObservation& output) noexcept;
 /** Prepare explicit 86C loop selection using the existing settings lifecycle.
+ * Changing the selector can change torque at once, and no source states when it may be
+ * written. The state rules below are therefore project policy, the ones
+ * prepareSoftLimitSettings applies, and they establish neither a stopped shaft nor a safe
+ * transition. No enable or state preamble is emitted.
+ *
+ * Warning: the drive may be energized when this write lands. Both specimens report
+ * 6041=0x8037 and 2100 bit 4 clear with no enable written, which matches the documented
+ * enabled pattern, and OP86 p5 note 4 says the motor is shaft-locked after power-up (OP86
+ * pp5-14 repeat the 57C manual). Closed to open may snap the rotor or change current.
+ * Recorded delta from RS: RS refuses every control write, algorithm included, without
+ * CONTROL_EFFECTS_REQUIRED qualification and a qualified current tuple (DriverSettings.cpp
+ * 366-433). This write has no such gate; an attended bench trial is its only evidence gate.
  * @param[out] output Replaced on success only; no overlap with inputs.
- * @param[in] reservation Live exclusive model-bound owner reservation acquired before prior.
+ * @param[in] reservation Live exclusive model-bound owner reservation, acquired before prior
+ * and state.
  * @param[in] current Actual current route and epochs. The reservation's target must equal it.
- * @param[in] prior Complete fresh CONTROL read under the same reservation/epochs.
- * @param[in] settings Explicit enum candidate; no encoder setting or hidden state preamble.
+ * @param[in] prior Complete fresh CONTROL read under the same reservation/epochs. Any stored
+ * selector word may be replaced, so an undocumented one can be repaired. CLOSED_LOOP is
+ * refused while its 2501 reads zero, which is project policy: no source gives a range or says
+ * what zero does.
+ * @param[in] state Clean STATUS and MONITORS read under the reservation. Refused if the whole
+ * read did not succeed cleanly, or 2100 reports running, an alarm or an undocumented bit 7..15.
+ * Bit 4 is deliberately unused, since both specimens report it clear at power-up with no
+ * enable. An alarm refuses every selector, so open loop cannot be selected to get past one,
+ * such as an out-of-tolerance alarm from a lost encoder (EN86 p20 cause 3). That is deliberate.
+ * @param[in] settings Explicit enum candidate, 0 to 2. CLOSED_LOOP is refused for OL86_C, which
+ * has no documented encoder. There is no encoder setting: 2501 is read back, never written.
  * @param[in] operation Nonzero operation identity, distinct from live work.
  * @param[in] nowUs Nondecreasing caller microseconds, zero valid.
  * @param[in] deadlineUs Exclusive immutable overall cutoff.
  * @param[in] options Nonzero queue/response budgets.
  * @param[in] maximumAgeUs Nonzero prerequisite age limit.
- * @return OK only prepares changed 2500 work. Use nextDriver, noteDriverTransmission
- * and advanceDriver. Possible transmission withdraws configuration once; ACK/readback
- * do not establish physical activation or motion. No enable/save/reset/retry occurs.
+ * @return OK only prepares changed 2500 work. Use nextDriver, noteDriverTransmission and
+ * advanceDriver. An unchanged candidate that passes the state and 2501 rules succeeds from the
+ * fresh prior read with no TX and no epoch change. Possible transmission withdraws
+ * configuration once; ACK/readback do not establish physical activation or motion. No
+ * enable/save/reset/retry occurs.
  */
 Status prepareControlSettings(DriverSettingsContext& output, const AxisReservation& reservation,
                               const ReadTarget& current, const DriverContext& prior,
-                              const ControlSettings& settings, uint32_t operation, uint64_t nowUs,
-                              uint64_t deadlineUs, const ReadOptions& options,
-                              uint64_t maximumAgeUs) noexcept;
+                              const ReadContext& state, const ControlSettings& settings,
+                              uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                              const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
 /** Publish current matched control readback, with settings exclusion still live.
  * @param[in] context Successful explicit loop settings transaction.
  * @param[in] live Actual still-exclusive reservation; never a host wire-correlation tag.
