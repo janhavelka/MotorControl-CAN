@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Direction and soft-limit selectors, stricter state evidence (packet 12)
+
+- Add `prepareDirectionSettings` with `DirectionSettings` and `DefaultDirection`, a typed write of `2200` codes 0 and 1, and `prepareSoftLimitSettings` with `SoftLimitSettings` and `SoftLimitEnable`, a typed write of `2202` codes 0 and 1. They use `DriverSettingsContext`, `nextDriver`, `noteDriverTransmission`, `advanceDriver` and `getDriver`, advance the configuration generation like other explicit settings, and retain and recheck `2201` and `607D` without writing them. A match proves the stored code only: no physical direction, activation or protection is claimed.
+- **Migration:** `prepareDriverSettings` now refuses a failed or uncertain state read even when its STATUS and MONITORS blocks completed, as `prepareStop` does. Take a fresh state read. `getStateBlock` still returns those blocks as history.
+- Add `test/settings_owner_test.cpp`, which runs explicit settings through the real `CanBusOwner`.
+- `2201`, `607D` and `6060` keep their gates with no typed write; [the guide](docs/driver_settings.md#setting-decisions) gives each one's closing observation.
+
 ### Service timeouts and withdrawn blocks (audit A-07, A-08, packet 10)
 
 - Add `ReadOutcome::SERVICE_TIMEOUT` and `ActionOutcome::SERVICE_TIMEOUT`. **Migration:** an SDO `TIMEOUT` that completes before the overall deadline now reports this instead of `DEADLINE`, in reads, settings, PDO configuration, actions and best-effort stops. `DEADLINE` now always means the immutable overall cutoff. Code that treated `DEADLINE` as "the reply was lost" must handle both. Whether a frame could have left stays in `transmissionPossible`, `execution` and `uncertain`: this outcome does not imply it. The new values are appended, so earlier numeric values do not move.

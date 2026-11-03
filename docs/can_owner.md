@@ -420,7 +420,8 @@ settings context, live reservation and actual axis/configuration binding.
 Each changed download is notified; the configuration epoch increases only for
 the first possible effect of the transaction. Only that exclusive transaction
 finishes its original-epoch downloads. The fixed reservation retains its
-original target; it is not rewritten for readback.
+original target; it is not rewritten for readback. A later transaction takes a new
+value holding the same owner facts and the current target.
 
 After writes and service terminals are released, call the owner's checked
 `advanceConfiguration(sequence, actualBinding, nowUs)`. It delegates the native
@@ -436,7 +437,8 @@ and actual loop-setting ACK/readback through this path, keeping the original
 reservation unchanged. They also retain an unconfirmed write and an
 acknowledged write followed by failed readback, without replay or loss of the
 confirmed prefix. Unrelated nodes continue while these results remain unread.
-Future confirmed groups in 20–22 use this same boundary;
+`settings_owner` runs position, selector and DI settings through this boundary.
+Future confirmed groups in 20–22 use it too;
 prompt 45 checks combined integration again.
 
 ## Passive communication health

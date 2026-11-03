@@ -5,9 +5,9 @@ The installed `MotorControlCAN::LICHUAN_C` API in
 typed driver **read** groups. The same `DriverContext` and lifecycle also serve
 four [I/O groups](io_settings.md) through checked `getIo` and five
 [control/tuning groups](tuning.md) through `getControl/getTuning`.
-[Prompt 20](reports/prompt_20.md) remains Partial:
-the confirmed position-parameter setting group is implemented, while direction,
-subdivision, soft limits and mode selection retain their source-specific gates.
+[Prompt 20](reports/prompt_20.md) remains Partial. Explicit position parameters,
+the 2200 selector and the 2202 selector have typed writes. Subdivision, `607D`
+and mode selection keep the gates listed under Setting decisions.
 See [the fresh audit](reports/prompts_20_21_audit.md) for the correction to the
 earlier blanket write blocker. No generic integer-write substitute is provided.
 
@@ -21,9 +21,9 @@ already usable channel, not a non-consuming bootstrap probe.
 
 | Group / object | Native observation | Original evidence | Write gate |
 | --- | --- | --- | --- |
-| DRIVER `2200:00` | U16 `directionRaw` | EDS 1274–1282; EN86/ZH86 p18 | Q04: labels do not establish physical positive direction/CAN effect. |
+| DRIVER `2200:00` | U16 `directionRaw` | EDS 1274–1282; EN86/ZH86 p18 | Typed write of codes 0 and 1 below. Q04: labels do not establish physical positive direction/CAN effect. |
 | DRIVER `2201:00` | U16 `subdivisionRaw` | EDS 1283–1291; EN86/ZH86 p11/p18 | Q04: default 0 and 0–65535 versus 400–51200 conflict; scale/activation unknown. |
-| SOFT_LIMITS `2202:00` | U16 `softLimitSelectorRaw` | EDS 1292–1300; EN86/ZH86 p18 | Q05: preserve default 10 versus 0/1 and homing/enforcement prerequisites. |
+| SOFT_LIMITS `2202:00` | U16 `softLimitSelectorRaw` | EDS 1292–1300; EN86/ZH86 p18 | Typed write of codes 0 and 1 below. Q05: default 10 stays raw; homing and enforcement unqualified. |
 | SOFT_LIMITS `607D:00` | U8 `softLimitEntries` | EDS 1918–1926 | RO count, never a setter or discovery bound. |
 | SOFT_LIMITS `607D:01/:02` | I32 `minimumNative/maximumNative` | EDS 1927–1942; EN86 p16/p17, ZH86 p17 | Q05: coordinate basis, operating range, activation and enforcement unresolved. |
 | MOTION_PARAMETERS `6081:00` | U32 `positionSpeedRpm` | EDS 1943–1951; EN86/ZH86 p11/p17 | Explicit native 0..3000 rpm settings implemented under the reserved position-mode contract below; no speed-zero stop claim. |
@@ -96,6 +96,16 @@ Zero is accepted as a documented register value. Speed zero is not a stop
 command; ramp zero promises no instantaneous acceleration or trajectory.
 Candidates default to invalid values until all fields are explicitly selected.
 
+`positionSpeedRpm` is a native rpm register value. A common rate reaches it only
+through `prepareVelocityTarget` with `MOTOR_TURNS` and `MINUTE`. A
+`COMMAND_INCREMENTS` value may fall inside 0..3000 and still be wrong, and nothing
+here can detect that, so this call does not claim to.
+
+The state read must have ended cleanly: a failed or uncertain read is refused even
+when its STATUS and MONITORS blocks completed, as a stop refuses it. Those blocks
+stay readable as history. A settings call is never urgent, so the cost is one fresh
+read rather than an admission from a window with a known service problem.
+
 Use overloaded `nextDriver` and `advanceDriver` with the current live reservation
 and actual binding. The sequence writes only changed fields in fixed source
 order, awaiting each matching acknowledgement before the next field. It retains
@@ -142,12 +152,51 @@ checks literal downloads, releases results, advances the configuration epoch
 and consumes matched readback. It also tests partial effects, uncertainty,
 late acknowledgement/deadline distinctions and old prepared-target rejection.
 This is native software evidence, not an installed enable/motion capability.
+`test/settings_owner_test.cpp` runs the same calls through the real `CanBusOwner`
+and `SdoClient` against a scripted dictionary holding the values the two specimens
+reported. Its answers are scripted, so it establishes the library's behavior only.
 
-## Remaining prompt-20 gates
+A finished transaction keeps its frozen `AxisReservation`. Construct a new value
+holding the same owner facts and the current target before preparing the next one.
+A preparation checks its evidence against its reservation's own target, so a stale
+token and its old evidence still agree; `nextDriver`, `noteDriverTransmission` and
+`getDriver` then refuse against the actual binding. Read a result through `getDriver`,
+not from `state`.
 
-Direction/CAN effect, conflicting subdivision range/default/scale activation,
-soft-limit selector/bounds/frame/enforcement and mode transition effects remain
-unresolved as listed above. Current/holding remains solely prompt 22. Those
-fields still owe their typed write validation, effects, readback and dependency
-invalidation when their evidence arrives, including later real owner integration.
-No request writes a native setting merely because an EDS flag is RW.
+## The 2200 and 2202 selectors
+
+`prepareDirectionSettings` and `prepareSoftLimitSettings` write one selector each.
+Their other group fields are retained and compared at readback, so a write that
+disturbs `2201` or `607D` fails rather than succeeding. They never emit `6040`,
+`6060`, a target, a save or a reset, and they need no position-mode evidence.
+
+No source gives a state for these objects, so the prerequisites are project policy:
+a live reservation, an explicit model, a clean STATUS and MONITORS read under that
+reservation reporting no `2100` running or alarm bit, and a fresh complete prior read
+holding a documented code. Bit 4 of `2100` is not used, because both specimens report
+it clear with no enable in any retained record; that observation is raw, not an enabled
+claim. `prepareDirectionSettings` also needs a fresh SOFT_LIMITS read with `2202=0`,
+as RS requires known-disabled limits before a geometry change. Set the limits off
+explicitly first; no call does it for you.
+
+A matching readback proves the stored code and nothing else. Neither call reports a
+physical direction, a coordinate sign, an activation time or a protection. Both
+advance the configuration generation like any explicit setting, so prepared targets
+and earlier evidence go stale, and direction stays an application fact until measured.
+
+## Setting decisions
+
+`Settled` means a typed write exists for that domain. It does not mean the effect is
+physically established. Pages are PDF pages. No value below is hardware-qualified.
+
+| Object | Decision | Evidence | What closes the rest |
+| --- | --- | --- | --- |
+| `2200` | **Settled, codes 0 and 1.** Stored code only | EN86/ZH86 p18 agree on `0 Pulse Sign`, `1 Pulse /Sign`; EDS `[2200]` U16 RW default 0; both specimens 0 | Same native target at each code, finite move, independent shaft observation plus raw `6064`, with no change between them. Motion, so packet 19 or later. A flip with no motion shows only that the code is accepted |
+| `2201` | **Gate kept, no write.** At most 400..51200 if later admitted | p11 0..65535 versus p18 400..51200; EDS default 0; both specimens 1000 | Manufacturer range, then at the baseline and one other in-range value: raw `6064`, `607A`, `607D` after the write, and measured displacement for one fixed native target. The ratio gives the scale; a power cycle between them gives activation. No sweep |
+| `2202` | **Settled, codes 0 and 1**, from a documented prior code. Code 1 needs `607D:01` below `607D:02` | EN86/ZH86 p18 `0 noneffective`, `1 effective after homing`; EDS default 10 undocumented, both specimens 0 | Enforcement: a completed homing, then one finite move toward a limit with independent travel protection, recording `2100` bits 5 and 6, `6064` at the boundary and the reaction |
+| `607D:01/:02` | **Gate kept, no write.** No admissible domain | EDS and EN86 p16/p17, ZH86 p17 give I32 and a name only; both specimens signed extremes. `607A` and `607C` ranges are not its range | Manufacturer range and coordinate basis, or the `2202` test above at a value chosen from its result. `2100` bits need homing first, so no no-motion test can show the frame |
+| `6060` | **Gate kept, no write here.** Codes 1, 3, 6 share U8 and I8 encoding; 0 is undefined | p11, p13; EDS `[6060]` WO U8 versus manual RW I8; both specimens display 0 with `6041` low bits 7, the documentary pattern for `6040=15` | Packet 15's isolated `6060:00=1` with fresh mode, status, monitor, error and feedback evidence and independent shaft observation. Enabling in mode 3 or 6 and changing mode while enabled are separate gates (Q03, Q11, Q21). ZH86 p13 says the motor starts at the end of `6,7,15` in mode 3, with `60FF` reading 120 on both specimens, so code 3 is not a no-motion test |
+
+Current/holding remains solely prompt 22. No request writes a native setting merely
+because an EDS flag is RW. The position-parameter physical path needs acknowledged
+`6040=000F`, which is an enable, so packet 15 owns its first bench use.

@@ -149,7 +149,9 @@ remaining entries and Q01-Q21 preserve the actual feature/evidence obligations.
 engine. R09/R13/R20 retain separate write/scale prerequisites and host-only
 qualification. The fresh 20/21 audit implements documented native parameter
 ranges (including zero) with concrete pre-trigger evidence, write/readback and
-partial-effect tests. Remaining source-gated groups retain their original owners.
+partial-effect tests. Packet 12 adds typed `2200` and `2202` selectors, register-level
+only, and real-owner integration; `2201`, `607D` and `6060` keep exact gates in the
+[driver guide](driver_settings.md). Remaining source-gated groups retain their original owners.
 
 [Prompt 28](reports/prompt_28.md) adds firmware-built evidence to R04/R17/R20/R25:
 Arduino and native-IDF ELF/BIN builds consume the same application/owner sources;

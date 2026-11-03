@@ -18,7 +18,7 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
 | Read shape descriptors | 95 | Prompt 19/20/21/22 source width/representation only; read effects remain unqualified |
 | Typed reads | 95 | Implemented scalar read rows; see separate read coverage, not whole-object support |
-| Typed settings | 12 | Conditional scalar setting rows, not complete object permission; model/state scope below |
+| Typed settings | 14 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
 
@@ -3438,17 +3438,17 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Units | direction selector |
 | Scaling | Physical positive direction not established. |
 | Original low / high / default | [null, null, "0"] |
-| Effect | Named default direction; actual effect on CAN motion is not established by the retained labels. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Effect | Named default direction. The typed write establishes the stored code only; its effect on CAN motion, 6064, 607A, 607D or homing and its activation are not established. |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. Also 2202=0 from a fresh read, adopted from RS's geometry dependency."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; retain raw values until actual direction is qualified.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; the typed candidate is exactly these two codes, on EN86 and ZH86 p18 with no contradiction and the EDS default 0 inside. Raw values stay raw until actual direction is qualified; 2201 is retained and rechecked, never written.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
-| Typed setting scope | `null` (not stated) |
-| Setting coverage D/I/H/Q | not reported |
+| Typed setting scope | explicit_direction_selector_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DefautDir"} |
 
@@ -3468,7 +3468,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes command subdivision and invalidates dependent coordinate evidence. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero. No typed write: a later reviewed candidate could use at most 400..51200, the range both manual claims admit, but scale and activation stay unknown and every later pulse target would change by an unmeasured ratio. Q04 owns the closing measurement.", "write_policy": "qualification_required"} |
 | Conflicts | ["C12"] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
@@ -3492,17 +3492,17 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Units | enable selector |
 | Scaling | Native enumerated choice. |
 | Original low / high / default | [null, null, "10"] |
-| Effect | Changes software-limit enforcement. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
+| Effect | Selects documented 0 noneffective or 1 effective after homing. The typed write establishes the stored code only; enforcement, coordinate frame and reaction are not established. |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. AFTER_HOMING also needs observed 607D:01 strictly below 607D:02; 607D is retained and rechecked, never written. Neither a prior nor a candidate may be 10."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 disabled / 1 effective after homing; EDS default 10 is not an accepted option.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 disabled / 1 effective after homing, on EN86 and ZH86 p18. The typed candidate is exactly these codes, from a documented prior code only. EDS default 10 is not an accepted option or transition source; both specimens read 0. Matching readback is not protection.", "write_policy": "qualification_required"} |
 | Conflicts | ["C13"] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
-| Typed setting scope | `null` (not stated) |
-| Setting coverage D/I/H/Q | not reported |
+| Typed setting scope | explicit_soft_limit_selector_86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "10", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.Soft_Limit"} |
 
@@ -5277,7 +5277,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Explicitly request motion mode. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q10", "Q11"], "generation_type": "withheld", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "RAW", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1867, "line_start": 1859, "section": "6060"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 630, "line_start": 622, "section": "1600sub3"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain raw U8 byte; decode only documented positive codes shared by U8/I8. No negative-mode inference.", "value_policy": "Documented codes 0 undefined,1 position,3 velocity,6 homing; undefined0 is not an operating mode. No negative/other operating codes approved.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q10", "Q11"], "generation_type": "withheld", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "RAW", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1867, "line_start": 1859, "section": "6060"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 17}, {"id": "EDS", "line_end": 630, "line_start": 622, "section": "1600sub3"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain raw U8 byte; decode only documented positive codes shared by U8/I8. No negative-mode inference.", "value_policy": "Documented codes 0 undefined,1 position,3 velocity,6 homing; undefined0 is not an operating mode. No negative/other operating codes approved. No typed write: only code 1 has a proposed first transition, under packet 15's bounded experiment; code 3 stays gated by Q03 and code 6 by Q21.", "write_policy": "qualification_required"} |
 | Conflicts | ["C08", "C10"] |
 | Owner prompt | 20 |
 | Read owner prompt | `null` (not stated) |
@@ -5466,7 +5466,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes negative/positive software travel bound. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. Minimum/maximum ordering and enforcement require qualification.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. No typed write: the source gives a width and a name, not a domain, and I32 is not an admissible range. Minimum/maximum ordering and enforcement require qualification.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
@@ -5493,7 +5493,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Changes negative/positive software travel bound. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. Minimum/maximum ordering and enforcement require qualification.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. No typed write: the source gives a width and a name, not a domain, and I32 is not an admissible range. Minimum/maximum ordering and enforcement require qualification.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
@@ -6895,7 +6895,7 @@ Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions 
 | {"id": "EN86", "page": 11} | 0..65535 in object table |
 | {"id": "EN86", "page": 18} | 400..51200 in detailed setting |
 
-Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.", "disposition": "No union range; zero metadata is not an initialization or valid physical scale.", "gate_ids": ["Q04"], "status": "complete"}.
+Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.", "disposition": "No union range; zero metadata is not an initialization or valid physical scale. Typed write withheld: the two manual ranges still conflict and scale and activation are unmeasured.", "gate_ids": ["Q04"], "status": "complete"}.
 
 ### C13: 2202 software-limit enable options versus default
 
@@ -6904,7 +6904,7 @@ Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions 
 | {"id": "EDS", "line_end": 1300, "line_start": 1292, "section": "2202"} | default 10 |
 | {"id": "EN86", "page": 18} | only values 0 and 1 described |
 
-Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.", "disposition": "Document0/1 meanings but no initialization from10.", "gate_ids": ["Q05"], "status": "complete"}.
+Disposition: unresolved. Review: {"consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.", "disposition": "Document0/1 meanings but no initialization from10. Typed write admits 0 or 1 from a documented prior code only; 10 is refused as candidate and as prior. Both specimens read 0, so the conflict is open.", "gate_ids": ["Q05"], "status": "complete"}.
 
 ### C14: I/O assignment factory values
 
