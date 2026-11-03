@@ -1,5 +1,9 @@
 # Prompt 29: device evidence readiness and conflict gate
 
+**Resumed by packet 11, 2026-11-03.** [Packet 11](handoff_19_33/packet_11.md) added `scripts/s2_flash.py`, the offline parser `scripts/s2_evidence.py`, and a read-only soak mode (`examples/s2_bench/Soak.cpp`, `scripts/s2_soak.py`). It then ran a live baseline on two specimens: typed identity 9 of 9 per node, and all 30 readiness fields identical to the retained captures. The first live typed success exposed a parser defect, fixed with a regression. The soak is communication evidence on two specimens and one image, not qualification. Q18 stays unresolved, and packet 3's TWAI questions 1, 4 and 6 stay unanswered. "No port was opened" below describes this report's original checkpoint, not the current state. Gates: live bench; local full verifier and firmware gates; CI failed on clang at `fcea8b4` and passed at `5306eaf`, which contains `edba06e`.
+
+**Packet 19, 2026-11-03: the isolated position experiment has not run.** [Packet 19](handoff_19_33/packet_19.md) prepared the application-local bench `position` route as the acquisition path for Q02 (acceptance and completion) and Q04 (command and feedback scale). It needs an attendant, an independent cutoff, a shaft mark showing direction and approximate rotation, and packets 15 and 16 first. No raw motion record exists yet, and Q02 and Q04 stay open.
+
 The [fresh independent 29/30 audit](prompts_29_30_audit.md) rechecks the original
 assignment, implementation and source evidence; it records current validation
 and confirms that acquisition/qualification obligations remain open.

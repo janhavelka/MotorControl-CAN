@@ -25,8 +25,13 @@ evidence record that the code labels SIMULATION ONLY: `nextMove`,
 download printed. Its terminals are built by hand, as a sole owner would publish
 them. That run shows the calls, not a drive: an application supplies its own
 reviewed record, or the gate stays closed. See the
-[move guide](../../docs/position_parameters.md). Relative moves remain pending in
-[prompt 33](../../docs/prompts/33_position_moves.md).
+[move guide](../../docs/position_parameters.md).
+
+Between those two it calls `prepareMoveRelative` with the same simulated record
+and an illustrative idle `ACTUAL` witness, and prints the `UNSUPPORTED`
+`RELATIVE_BASIS` refusal: no specimen has measured what the drive adds a
+relative displacement to on the `005F` edge, so no relative basis is supported
+and the example runs no relative simulation.
 
 From the repository root, with the native tools described in
 [getting started](../../docs/getting_started.md):

@@ -54,6 +54,7 @@ A stop returns `RESULTS_FULL` while its channel's urgent slot holds anything: a 
 | MotorControl-RS | `3f871c7` | Clean | `ProbeApp.cpp` `admitUrgent`, `STOP_RECORDS`, `test/bus_scheduling_test.cpp` | Adopted: reserved stop capacity and explicit `URGENT_FULL`-style refusal, without displacing work. Rejected: RS's single stop capacity, because this owner serves two nodes through one owner. RS has no outside-sequence route, because RTU replies are solicited in a strict window |
 | FieldCore-node | `5ad9292` | Clean | Invalidation | Unchanged since packet 5; read-only |
 | PCA9555 | `414e0f6` | Clean | `PCA9555::cancelOperation`, `detach` | Adopted in shape: active work becomes a retained result and a pending result stays exactly-once evidence. Rejected: its `IN_PROGRESS` cooperative cancel, because a CAN frame already handed off cannot be withdrawn, so in-flight work settles |
+| ADS1115 | `d613a13` | Clean | Owner service | Unchanged since packet 5; no behavior adopted |
 | INA228 | `73f9548` | Clean | Per-field `*Valid` flags in `INA228.h` | Same idea as keeping `transmissionPossible` and `effectUncertain` separate from the outcome. No retry rule imported |
 
 ## Checks

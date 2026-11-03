@@ -55,7 +55,9 @@ class CanBusOwner {
      * @param[in] id Exact current non-invalidated reservation with no nonterminal requests.
      * Old retained terminals do not prevent a new operation and remain unchanged.
      * @param[in] operation Strictly greater nonzero operation identity than its predecessor.
-     * @param[in] deadlineUs Exclusive immutable absolute cutoff, strictly after nowUs.
+     * @param[in] deadlineUs Immutable absolute deadline, strictly after nowUs. The operation's work
+     * expires once processing time reaches it, `now >= deadlineUs`, even if a frame for it was
+     * received earlier.
      * @param[in] nowUs Supplied nondecreasing microseconds.
      * @return False unchanged on invalid input; step sequence restarts only on success.
      */
@@ -168,7 +170,9 @@ class CanBusOwner {
     bool invalidateProducer(uint8_t producer, uint64_t nowUs) noexcept;
     /** Begin explicit host/controller recovery, with independently retained result capacity.
      * @param[in] nowUs Nondecreasing microseconds; no hidden time acquisition.
-     * @param[in] deadlineUs Exclusive absolute cutoff, strictly greater than nowUs.
+     * @param[in] deadlineUs Absolute deadline, strictly greater than nowUs. The recovery times out
+     * once processing time reaches it, `now >= deadlineUs`, before any later poll can report it
+     * retired, even if the adapter finished earlier.
      * @param[out] output Published on acceptance only; may not overlap owner/adapter.
      * @return True reserves a result, invalidates all reservations/node freshness and
      * invokes at most one beginRecovery callback. Missing/failed callback closes FAILED.

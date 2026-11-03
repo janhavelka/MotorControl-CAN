@@ -10,6 +10,10 @@ namespace {
 Status error(ReadError detail, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(detail), message);
 }
+// Write steps are field + 1, at most one per field `requested` holds. Readback steps follow after
+// all of them, so no readback reuses a write's step identity within one operation.
+constexpr uint32_t READBACK_STEP_OFFSET = sizeof(DriverSettingsContext::requested) / sizeof(uint32_t);
+static_assert(READBACK_STEP_OFFSET == 9, "a readback step must not reuse a write step");
 Binding expectedBinding(const DriverSettingsContext& c) {
     Binding binding = c.reservation.target.channel.binding;
     if (c.effectsPossible)
@@ -257,16 +261,21 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
 }
 Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r,
                          const ReadTarget& currentTarget, const DriverContext& prior,
-                         const IoSettings& settings, uint32_t operation, uint64_t now,
-                         uint64_t deadline, const ReadOptions& options, uint64_t age) noexcept {
+                         const ReadContext& state, const IoSettings& settings, uint32_t operation,
+                         uint64_t now, uint64_t deadline, const ReadOptions& options,
+                         uint64_t age) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
         overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
         overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
         overlaps(&output, sizeof output, &settings, sizeof settings) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "DI settings preparation overlaps input");
-    Status s = validatePreparation(r, currentTarget, prior, ReadKind::IO_INPUT_CONFIGURATION, operation,
-                                   now, deadline, options, age);
+    // A reassignment can change enable, stop and limit inputs at once, and no source says when 2400
+    // may be written, so it takes 2202's project policy. RS refuses every settings group, I/O
+    // included, unless stationary with no alarm (validatePriorSettingsAndStandstill).
+    Status s = validateStopped(r, currentTarget, prior, ReadKind::IO_INPUT_CONFIGURATION, state,
+                               operation, now, deadline, options, age);
     if (!s)
         return s;
     IoObservation old;
@@ -339,7 +348,7 @@ Status nextDriver(const DriverSettingsContext& c, const AxisReservation& live,
         s = nextDriver(c.readback, now, candidate);
         if (!s)
             return s;
-        candidate.transfer.step += 9;
+        candidate.transfer.step += READBACK_STEP_OFFSET;
     } else {
         if (c.cursor >= c.readback.read.count || !(c.changed & (1u << c.cursor)))
             return error(ReadError::STATE, "invalid settings cursor");
@@ -390,7 +399,7 @@ Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
         return error(ReadError::CORRELATION, "settings terminal does not match live work");
     if (c.state == SettingsState::READING_BACK) {
         CANOPEN::SdoCompletion local = input;
-        local.transfer.step -= 9;
+        local.transfer.step -= READBACK_STEP_OFFSET;
         const unsigned field = c.readback.read.cursor;
         // Atomic on c.readback, and nothing after it can refuse.
         s = advanceDriver(c.readback, local, now);

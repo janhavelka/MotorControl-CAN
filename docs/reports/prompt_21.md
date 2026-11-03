@@ -1,5 +1,7 @@
 # Prompt 21: digital I/O
 
+**Resumed by packet 13, 2026-11-03.** [Packet 13](handoff_19_33/packet_13.md) verified DI writes through the real owner and repaired two gaps: readback now compares the `2400:00` count, and an active context refuses a hand-edited code. DO polarity and functions, DO codes 2 and 3, `60FE` and the `2401..2407` filters keep per-field gates with no typed write. No specimen has accepted a DI write, and physical trials P1 to P4 have not run. Prompt 21 stays Partial. Gates: local full verifier; CI passed at `99ff2b0`.
+
 **Current correction:** the [fresh independent 20/21 audit](prompts_20_21_audit.md)
 implements the confirmed native setting subsets and corrects this checkpoint's
 blanket blocker rationale. The original read-only checkpoint and its checks

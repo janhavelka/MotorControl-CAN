@@ -8,10 +8,18 @@ enable, the attendant's own shaft observation, then ping, refuse unless the imag
 nothing else is running, send one T line and capture until the record's END. Ctrl-C sends one local
 abort ('A'), which sends no stop. Nothing is retried, and --dry-run prints the plan without
 enumerating, prompting, opening or creating anything.
+
+Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
+Before a motion line is sent its entry is appended and flushed; the tool refuses once the campaign
+holds CAMPAIGN_MOTION_TOTAL motion admissions, CAMPAIGN_PER_CASE for one route and node, or a trial
+identity at or above this one. A missing ledger is refused unless --new-campaign starts it, so a
+mistyped path cannot reset the counts.
 """
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 import signal
 import sys
@@ -34,8 +42,17 @@ TRIALS = {
     "enable": ("E", True, "packet 15 P3"),
     "stop": ("S", True, "packet 15 P4 / packet 16"),
     "position": ("P", True, "packet 19"),
+    "rearm": ("R", True, "packet 19 rearm"),
+    "move": ("G", True, "packet 20"),
 }
+# PONG routes= version an image needs for a route; older images refuse the line as unparsed anyway.
+ROUTE_VERSION = {"rearm": 2, "move": 2}
 STOP_KINDS = {"halt": 1, "quick": 2}
+SIGNAL_SOURCES = {"statusword": 1, "monitor": 2}
+COMPLETION_RULES = {"after-absence": 1, "after-acceptance": 2}
+# Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
+CAMPAIGN_MOTION_TOTAL = 12
+CAMPAIGN_PER_CASE = 3
 SHAFT = {"FREE": 1, "HOLDING": 2}
 PING_TIMEOUT_S = 3.0
 CAPTURE_LIMIT = 1 << 20
@@ -90,6 +107,35 @@ def _within(parser, name, value, low, high):
     return value
 
 
+def _stop_fields(args, parser, cycles):
+    """The planned-stop tail shared by position and move: none names nothing, a stop names everything."""
+    if args.stop_kind is None:
+        parser.error("--stop-kind is required for this route (none, halt or quick)")
+    if args.stop_kind == "none":
+        if any(v is not None for v in (args.stop_after, args.stop_deadline_ms, args.stop_best_effort_ms,
+                                       args.stop_interval_ms)):
+            parser.error("--stop-kind none takes no other stop argument")
+        return [0, 0, 0, 0, 0]
+    deadline = _within(parser, "stop-deadline-ms", args.stop_deadline_ms, 1, 55000)
+    best = _within(parser, "stop-best-effort-ms", args.stop_best_effort_ms, 0, 55000)
+    if best and best < deadline:
+        parser.error("--stop-best-effort-ms must be 0 or at least --stop-deadline-ms")
+    return [STOP_KINDS[args.stop_kind], _within(parser, "stop-after", args.stop_after, 1, cycles),
+            deadline, best, _within(parser, "stop-interval-ms", args.stop_interval_ms, 10, 10000)]
+
+
+def _signal(parser, args, name):
+    """One host-reviewed move signal: source, nonzero mask and a value inside it. Never defaulted."""
+    source = getattr(args, name + "_source")
+    if source is None:
+        parser.error("--%s-source is required for this route (statusword or monitor)" % name)
+    mask = _within(parser, name + "-mask", getattr(args, name + "_mask"), 1, 0xFFFF)
+    value = _within(parser, name + "-value", getattr(args, name + "_value"), 0, 0xFFFF)
+    if value & ~mask:
+        parser.error("--%s-value has bits outside --%s-mask" % (name, name))
+    return [SIGNAL_SOURCES[source], mask, value]
+
+
 def trial_line(args, parser):
     """The firmware's parseRouteCommand text, with the same ranges, from explicit arguments only."""
     node = _within(parser, "node", args.node, 1, 2)
@@ -125,18 +171,30 @@ def trial_line(args, parser):
                    _within(parser, "ramp-up-ms", args.ramp_up_ms, 0, 2000),
                    _within(parser, "ramp-down-ms", args.ramp_down_ms, 0, 2000), cycles,
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
-        if args.stop_kind == "none":
-            if any(v is not None for v in (args.stop_after, args.stop_deadline_ms, args.stop_best_effort_ms,
-                                           args.stop_interval_ms)):
-                parser.error("--stop-kind none takes no other stop argument")
-            fields += [0, 0, 0, 0, 0]
-        else:
-            deadline = _within(parser, "stop-deadline-ms", args.stop_deadline_ms, 1, 55000)
-            best = _within(parser, "stop-best-effort-ms", args.stop_best_effort_ms, 0, 55000)
-            if best and best < deadline:
-                parser.error("--stop-best-effort-ms must be 0 or at least --stop-deadline-ms")
-            fields += [STOP_KINDS[args.stop_kind], _within(parser, "stop-after", args.stop_after, 1, cycles),
-                       deadline, best, _within(parser, "stop-interval-ms", args.stop_interval_ms, 10, 10000)]
+        fields += _stop_fields(args, parser, cycles)
+    elif args.command == "rearm":
+        fields += [1, _within(parser, "cycles", args.cycles, 1, 16),
+                   _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
+    elif args.command == "move":
+        if args.stop_kind is None:
+            parser.error("--stop-kind is required for this route (none, halt or quick)")
+        if args.rule is None:
+            parser.error("--rule is required for this route (after-absence or after-acceptance)")
+        fields += [1, _within(parser, "start-position", args.start_position, -2**31, 2**31 - 1),
+                   _within(parser, "target", args.target, -1000000, 1000000),
+                   _within(parser, "rpm", args.rpm, 1, 3000),
+                   _within(parser, "ramp-up-ms", args.ramp_up_ms, 1, 2000),
+                   _within(parser, "ramp-down-ms", args.ramp_down_ms, 1, 2000),
+                   _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
+                   _within(parser, "interval-ms", args.interval_ms, 20, 5000),
+                   _within(parser, "record", args.record, 1, 0xFFFFFFFF)]
+        fields += _signal(parser, args, "accept") + _signal(parser, args, "complete")
+        fields += [COMPLETION_RULES[args.rule]]
+        for name, high in (("device-type", 0xFFFFFFFF), ("hardware-version", 0xFFFF), ("software-version", 0xFFFF),
+                           ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
+                           ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
+            fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
+        fields += _stop_fields(args, parser, 16)
     if args.command != "readiness-actions" and args.fault_led is not None:
         parser.error("--fault-led belongs to readiness-actions")
     if args.command == "readiness-actions" and args.fault_led is None:
@@ -146,6 +204,101 @@ def trial_line(args, parser):
 
 def encode(command, fields):
     return ("T%s%s\n" % (TRIALS[command][0], ",".join(str(v) for v in fields))).encode("ascii")
+
+
+def motion_weight(command, fields):
+    """Motion admissions this line counts, as the firmware counts them: one, plus a planned stop."""
+    if not TRIALS[command][1]:
+        return 0, 0
+    stop = 1 if command in ("position", "move") and fields[-5] else 0
+    return 1 + stop, stop
+
+
+class Campaign:
+    """The host's campaign ledger: JSON lines, appended and flushed, never rewritten or reset here.
+
+    A "send" entry is written before its line is sent, so a crash after sending still counts it; a
+    "result" entry follows the capture. Every send counts, admitted or refused by the firmware: each is
+    a deliberate trial. Counts never reset with an MCU boot, a new image or a released record.
+    """
+
+    def __init__(self, path, new):
+        self.path, self.new = Path(path), new
+        self.entries = []
+
+    def load(self):
+        exists = self.path.exists()
+        if self.new and exists:
+            raise Refused("--new-campaign names an existing ledger %s" % self.path)
+        if not self.new and not exists:
+            raise Refused("campaign ledger %s does not exist; name the campaign's ledger, or start one with "
+                          "--new-campaign" % self.path)
+        self.entries = []
+        if not exists:
+            return self
+        raw = self.path.read_bytes()
+        if raw and not raw.endswith(b"\n"):
+            raise Refused("campaign ledger %s ends in a partial line; it cannot be counted" % self.path)
+        for number, line in enumerate(raw.decode("utf-8", errors="replace").split("\n")[:-1], 1):
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                raise Refused("campaign ledger line %d is not JSON; it cannot be counted" % number)
+            if not isinstance(entry, dict) or entry.get("event") not in ("send", "result"):
+                raise Refused("campaign ledger line %d is not a send or result entry" % number)
+            if entry["event"] == "send" and not (
+                    entry.get("route") in {letter for letter, _, _ in TRIALS.values()} and
+                    entry.get("node") in (1, 2) and isinstance(entry.get("trial"), int) and
+                    entry.get("motion") in (0, 1, 2) and entry.get("stop") in (0, 1)):
+                raise Refused("campaign ledger line %d is a malformed send entry" % number)
+            self.entries.append(entry)
+        return self
+
+    def counts(self):
+        total, cases = 0, Counter()
+        for entry in self.entries:
+            if entry["event"] != "send" or not entry["motion"]:
+                continue
+            total += entry["motion"]
+            cases[(entry["route"], entry["node"])] += 1
+            cases[("S", entry["node"])] += entry["stop"]
+        return total, cases
+
+    def check(self, command, fields):
+        """Refuse before anything is sent: a reused trial identity, or a motion line over a cap."""
+        letter, node, trial = TRIALS[command][0], fields[0], fields[1]
+        sends = [entry for entry in self.entries if entry["event"] == "send"]
+        highest = max((entry["trial"] for entry in sends), default=0)
+        if trial <= highest:
+            raise Refused("trial %d is not above every trial of this campaign (highest %d)" % (trial, highest))
+        motion, stop = motion_weight(command, fields)
+        if not motion:
+            return
+        total, cases = self.counts()
+        if total + motion > CAMPAIGN_MOTION_TOTAL:
+            raise Refused("the campaign holds %d motion admissions; this line would make %d, over %d" %
+                          (total, total + motion, CAMPAIGN_MOTION_TOTAL))
+        if cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
+            raise Refused("the campaign holds %d %s admissions on node %d, the cap is %d" %
+                          (cases[(letter, node)], command, node, CAMPAIGN_PER_CASE))
+        if stop and cases[("S", node)] + 1 > CAMPAIGN_PER_CASE:
+            raise Refused("the planned stop would be stop admission %d on node %d, the cap is %d" %
+                          (cases[("S", node)] + 1, node, CAMPAIGN_PER_CASE))
+
+    def summary(self):
+        total, cases = self.counts()
+        return {"path": str(self.path), "motion_total": total,
+                "cases": {"%s%d" % key: count for key, count in sorted(cases.items()) if count}}
+
+    def append(self, entry):
+        """One flushed line; an error propagates, and then nothing is sent."""
+        data = (json.dumps(entry, sort_keys=True) + "\n").encode("utf-8")
+        with open(self.path, "ab") as ledger:
+            if ledger.write(data) != len(data):
+                raise OSError("short campaign ledger write")
+            ledger.flush()
+            os.fsync(ledger.fileno())
+        self.entries.append(entry)
 
 
 def ask_operator(ask, record, key, question, accept):
@@ -258,8 +411,9 @@ def pong_values(line):
     return dict(word.split("=", 1) for word in line.split()[1:] if "=" in word)
 
 
-def run_trial(args, fields, port, clock, meta):
-    """Ping, check the image, send one line, capture to the record's END. Returns the stop reason."""
+def run_trial(args, fields, port, clock, meta, record=None):
+    """Ping, check the image, send one line, capture to the record's END. Returns the stop reason.
+    record, when given, is called just before the line is written; if it raises nothing is sent."""
     capture = Capture(port, clock)
     capture.until(0.2, lambda line: False)  # Retain whatever already waits; never flush unseen evidence.
     meta["prefix_bytes"] = len(capture.data)
@@ -272,8 +426,11 @@ def run_trial(args, fields, port, clock, meta):
     else:
         values = pong_values(pong)
         meta["image"] = {key: values.get(key) for key in ("base", "elf", "sdk", "target")}
-        if values.get("routes", "0") == "0":
+        routes = values.get("routes", "0")
+        if routes == "0":
             reason = "image_without_routes"  # An older image would read the line as single-byte commands.
+        elif (int(routes) if routes.isdigit() else 0) < ROUTE_VERSION.get(args.command, 1):
+            reason = "image_route_version"  # It would refuse the line as unparsed; nothing is sent.
         elif values.get("soak") != "0":
             reason = "soak_running"
         elif values.get("trial") != "0":
@@ -283,6 +440,12 @@ def run_trial(args, fields, port, clock, meta):
     if reason is None:
         line = encode(args.command, fields)
         meta.update(line=line.decode("ascii").strip(), tx_hex=line.hex())
+        if record is not None:
+            try:
+                record(line.decode("ascii").strip())
+            except OSError as error:
+                meta["campaign_error"] = str(error)
+                return capture, "campaign_unwritten"
         capture.send(line)
         meta["sent"].append(line.hex())
         aborted = []
@@ -315,9 +478,18 @@ def dry_run(args, fields):
         _, motion, plan = TRIALS[args.command]
         if motion:
             print("  require the operator to type: ATTENDED %d" % fields[1])
+        if args.campaign is not None:
+            try:
+                campaign = Campaign(args.campaign, args.new_campaign).load()
+                campaign.check(args.command, fields)
+                print("  campaign %s: %s; this line would be appended before it is sent" %
+                      (args.campaign, campaign.summary()))
+            except Refused as error:
+                print("  campaign %s would refuse: %s" % (args.campaign, error))
         if args.command == "enable":
             print("  require the attendant to type FREE or HOLDING; it replaces the 0 in field 5 below")
-        print("  send p; refuse unless PONG has routes=1 soak=0 trial=0 active=1 running=1")
+        print("  send p; refuse unless PONG has routes>=%d soak=0 trial=0 active=1 running=1" %
+              ROUTE_VERSION.get(args.command, 1))
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
     else:
@@ -336,11 +508,23 @@ def arguments(argv):
     trial = parser.add_argument_group("trial routes; every value is required explicitly")
     for name in ("node", "trial", "cycles", "interval-ms", "position-target", "velocity-target", "deadline-ms",
                  "best-effort-ms", "start-position", "target", "rpm", "ramp-up-ms", "ramp-down-ms", "stop-after",
-                 "stop-deadline-ms", "stop-best-effort-ms", "stop-interval-ms"):
+                 "stop-deadline-ms", "stop-best-effort-ms", "stop-interval-ms", "record"):
         trial.add_argument("--" + name, type=int)
     trial.add_argument("--status", type=lambda text: int(text, 0), help="Reviewed 6041, for example 0x8037")
     trial.add_argument("--kind", choices=("halt", "quick"))
     trial.add_argument("--stop-kind", choices=("none", "halt", "quick"))
+    move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
+    for name in ("accept", "complete"):
+        move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
+        move.add_argument("--%s-mask" % name, type=lambda text: int(text, 0))
+        move.add_argument("--%s-value" % name, type=lambda text: int(text, 0))
+    move.add_argument("--rule", choices=sorted(COMPLETION_RULES))
+    for name in ("device-type", "hardware-version", "software-version", "vendor-id", "product-code", "revision",
+                 "model-code", "firmware-code"):
+        move.add_argument("--" + name, type=lambda text: int(text, 0), help="Raw identity value of the record")
+    ledger = parser.add_argument_group("campaign ledger, across boots")
+    ledger.add_argument("--campaign", type=Path, help="JSON-lines campaign ledger; required for motion routes")
+    ledger.add_argument("--new-campaign", action="store_true", help="Start the named ledger; refused if it exists")
     trial.add_argument("--fault-led", choices=("prompt", "unobserved"))
     trial.add_argument("--no-motion-write-recorded", action="store_true",
                        help="The trial log shows no motion write since power-up apart from one acknowledged 6060=1")
@@ -355,6 +539,13 @@ def arguments(argv):
     fields = trial_line(args, parser) if is_trial else None
     if not is_trial and any(getattr(args, name) is not None for name in ("node", "trial")):
         parser.error("--node and --trial belong to trial commands")
+    if not is_trial and (args.campaign is not None or args.new_campaign):
+        parser.error("--campaign belongs to trial commands")
+    if is_trial and TRIALS[args.command][1] and args.campaign is None:
+        parser.error("--campaign is required for a motion route: name the campaign's ledger; counts are kept "
+                     "across boots")
+    if args.new_campaign and args.campaign is None:
+        parser.error("--new-campaign needs --campaign")
     return args, fields
 
 
@@ -367,8 +558,12 @@ def main(argv=None, backend=None, clock=None, ask=input):
     clock = clock or RealClock()
     is_trial = args.command in TRIALS
     operator = {}
+    campaign = None
     try:
         usb = check_identity(args.port, args.serial, backend.comports(), is_trial)
+        if is_trial and args.campaign is not None:
+            campaign = Campaign(args.campaign, args.new_campaign).load()
+            campaign.check(args.command, fields)
         if is_trial:
             before_send(args, fields, ask, operator)
     except Refused as error:
@@ -381,14 +576,24 @@ def main(argv=None, backend=None, clock=None, ask=input):
         meta.update(node=fields[0], trial=fields[1], plan=TRIALS[args.command][2], fields=list(fields),
                     operator=operator, argv=list(argv) if argv is not None else sys.argv[1:])
         meta.update(repository_state())
+        if campaign is not None:
+            meta["campaign"] = dict(campaign.summary(), before=True)
     else:
         meta["tx_hex"] = COMMANDS[args.command].hex()
+    motion, stop = motion_weight(args.command, fields) if is_trial else (0, 0)
+
+    def record(line):
+        """The send entry, flushed before the line goes out: it counts even if the host then fails."""
+        campaign.append({"event": "send", "utc": clock.utc(), "command": args.command,
+                         "route": TRIALS[args.command][0], "node": fields[0], "trial": fields[1],
+                         "motion": motion, "stop": stop, "line": line, "output": str(args.output),
+                         "image": meta.get("image")})
     data = bytearray()
     try:
         port = backend.open(args.port)
         try:
             if is_trial:
-                capture, reason = run_trial(args, fields, port, clock, meta)
+                capture, reason = run_trial(args, fields, port, clock, meta, record if campaign else None)
                 data = capture.data
                 meta["reason"] = reason
             else:
@@ -411,6 +616,13 @@ def main(argv=None, backend=None, clock=None, ask=input):
         raise
     finally:
         meta["ended_utc"] = clock.utc()
+        if campaign is not None and "line" in meta and meta.get("reason") != "campaign_unwritten":
+            try:  # The send entry already counts it; this records how it ended.
+                campaign.append({"event": "result", "utc": meta["ended_utc"], "trial": fields[1],
+                                 "node": fields[0], "reason": meta.get("reason"), "status": meta.get("status"),
+                                 "aborted": meta.get("aborted", False), "output": str(args.output)})
+            except OSError as error:
+                meta["campaign_error"] = str(error)
         if is_trial and meta.get("status") == "captured":
             after_capture(args, fields, ask, operator)
         (args.output / "rx.bin").write_bytes(bytes(data))

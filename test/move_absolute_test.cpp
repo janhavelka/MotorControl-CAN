@@ -1,21 +1,15 @@
 // SPDX-License-Identifier: MIT
-// prepareMoveAbsolute through the real owner, the selected SDO engine and AxisSession.
-// Every word, status, monitor, mode, identity, target and feedback value here is manufactured by
-// this fake, and so are the acceptance and completion masks: 6041 bit 12 and bit 15 are documentary
-// candidates whose behavior on any specimen is unmeasured, and MoveEvidence is opened here only to
-// exercise the lifecycle. Nothing here shows that a drive accepts, moves or completes a target.
-// Every scenario runs twice, the second time with heartbeat traffic delivered on every turn.
-#include "AxisSession.h"
-#include <MotorControlCAN/profiles/lichuan_c/State.h>
+// prepareMoveAbsolute through the real owner, the selected SDO engine and AxisSession, on the shared
+// fake of support/MoveRig.h. Every word, status, monitor, mode, identity, target and feedback value
+// is manufactured by that fake, and so are the acceptance and completion masks: 6041 bit 12 and bit
+// 15 are documentary candidates whose behavior on any specimen is unmeasured, and MoveEvidence is
+// opened here only to exercise the lifecycle. Nothing here shows that a drive accepts, moves or
+// completes a target. Every scenario runs twice, the second time with heartbeat traffic delivered on
+// every turn.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-namespace M = MotorControlCAN;
-namespace C = MotorControlCAN::CANOPEN;
-namespace L = MotorControlCAN::LICHUAN_C;
-namespace E = MotorControlCANExample;
-namespace O = MotorControlCANOwner;
 static unsigned checks = 0;
 static bool asyncTraffic = false;
 static const char* scenario = "";
@@ -28,450 +22,9 @@ static const char* scenario = "";
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
-#include "support/OwnerRig.h"
+#include "support/MoveRig.h"
 namespace {
-using OwnerRig::budget;
-using OwnerRig::frame;
-// Same object, its own snapshot: padding differs between compilers, so never compare two objects.
-template <class T> struct Saved {
-    unsigned char bytes[sizeof(T)];
-    explicit Saved(const T& value) { std::memcpy(bytes, static_cast<const void*>(&value), sizeof value); }
-    void unchanged(const T& value) const {
-        CHECK(!std::memcmp(bytes, static_cast<const void*>(&value), sizeof value));
-    }
-};
-const uint64_t TICK = 500;
-const uint32_t QUEUE = 2000, RESPONSE = 2000;
-const uint64_t LEAD = 400000;
-const uint16_t IDLE_STATUS = 0x8037; // Manufactured: the specimens' power-up word, bit 15 set.
-const uint16_t ACCEPT_BIT = 0x1000, COMPLETE_BIT = 0x8000; // This test's choice, not a dialect.
-const int32_t TARGET = 25000;
-uint8_t bit(L::StateBlock block) { return uint8_t(1u << unsigned(block)); }
-const uint8_t STATE_MASK = uint8_t(bit(L::StateBlock::MONITORS) | bit(L::StateBlock::STATUS));
-const uint8_t ENABLE_MASK = uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::MONITORS) |
-                                    bit(L::StateBlock::STATUS) | bit(L::StateBlock::FEEDBACK));
-L::ReadTarget target() {
-    L::ReadTarget value;
-    value.channel = OwnerRig::route(1);
-    value.nodeGeneration = 11;
-    return value;
-}
-L::ReadOptions reads() {
-    L::ReadOptions value;
-    value.queueTimeoutUs = QUEUE;
-    value.responseTimeoutUs = RESPONSE;
-    return value;
-}
-L::MoveOptions options() {
-    L::MoveOptions value;
-    value.service = reads();
-    value.observationIntervalUs = 1000;
-    value.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
-    return value;
-}
-M::AxisConfig axisConfig() {
-    M::AxisConfig c;
-    c.binding = OwnerRig::route(1).binding;
-    c.units.commandStepsPerMotorTurn = M::UnitScale(3200, 1, M::ScaleSource::QUALIFIED);
-    c.units.motorTurnsPerLoadTurn = M::UnitScale(5, 1, M::ScaleSource::QUALIFIED);
-    c.nativeRateBasis = M::NativeRateBasis::MOTOR_TURNS;
-    c.nativeVelocityTime = M::TimeUnit::MINUTE;
-    c.supportedRelativeBases = 1;
-    return c;
-}
-M::MoveRequest moveRequest(int64_t targetSteps = TARGET, int64_t rpm = 120) {
-    M::MoveRequest value;
-    value.position.value = M::Rational(targetSteps);
-    value.position.configurationGeneration = OwnerRig::route(1).binding.configurationGeneration;
-    value.speed.value = M::Rational(rpm);
-    value.speed.unit = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
-    value.speed.configurationGeneration = value.position.configurationGeneration;
-    return value;
-}
-L::MoveProfile profile(uint32_t up = 100, uint32_t down = 200) {
-    L::MoveProfile value;
-    value.rampUpTimeMs = up;
-    value.rampDownTimeMs = down;
-    return value;
-}
-// The fake identity. Raw codes only; nothing here is a real model or firmware.
-const uint32_t DEVICE_TYPE = 0x00040192, VENDOR = 0x00000300, PRODUCT = 0x00008605, REVISION = 0x00010001;
-const uint16_t HARDWARE = 0x0102, SOFTWARE = 0x0203, MODEL = 0x0086, FIRMWARE = 0x0123;
-L::MoveEvidence evidence(L::CompletionRule rule = L::CompletionRule::AFTER_ABSENCE) {
-    L::MoveEvidence value;
-    value.gate = L::MoveGate::MEASURED;
-    value.record = 19;
-    value.model = L::SettingsModel::CL86_C;
-    value.firmware.deviceType = DEVICE_TYPE;
-    value.firmware.hardwareVersion = HARDWARE;
-    value.firmware.softwareVersion = SOFTWARE;
-    value.firmware.vendorId = VENDOR;
-    value.firmware.productCode = PRODUCT;
-    value.firmware.revision = REVISION;
-    value.firmware.modelCode = MODEL;
-    value.firmware.firmwareCode = FIRMWARE;
-    value.acceptance.source = L::MoveSignalSource::STATUSWORD;
-    value.acceptance.mask = value.acceptance.value = ACCEPT_BIT;
-    value.completion.source = L::MoveSignalSource::STATUSWORD;
-    value.completion.mask = value.completion.value = COMPLETE_BIT;
-    value.rule = rule;
-    return value;
-}
-// A fake server with a crude motion model. Only its wire shape means anything.
-struct FakeDrive {
-    uint16_t status = IDLE_STATUS, monitor = 1;
-    uint8_t mode = 1;
-    int32_t target = 5000, position = 0, velocity = 0;
-    uint32_t speed = 60, rampUp = 100, rampDown = 100;
-    bool answer = true, acceptOnTrigger = true, clearCompletion = true, followEnable = false;
-    unsigned travelReads = 1; // 6041 reads reporting motion after a trigger, before arrival.
-    unsigned remaining = 0, statusReads = 0, words = 0, alarmAtRead = 0;
-    bool moving = false;
-    uint16_t lastWord = 0xffff;
-    uint16_t silentIndex = 0, abortIndex = 0, silentWord = 0, abortWord = 0;
-    void arrive() {
-        moving = false;
-        status = uint16_t(status | COMPLETE_BIT);
-        monitor = uint16_t((monitor | L::MONITOR_POSITION_COMPLETE) & ~L::MONITOR_RUNNING);
-        position = target;
-    }
-    void word(uint16_t w) {
-        if (w == 0x001f && lastWord == 0x000f) {
-            if (acceptOnTrigger)
-                status = uint16_t(status | ACCEPT_BIT);
-            if (clearCompletion)
-                status = uint16_t(status & ~COMPLETE_BIT);
-            moving = true;
-            remaining = travelReads;
-            monitor = uint16_t((monitor & ~L::MONITOR_POSITION_COMPLETE) | L::MONITOR_RUNNING);
-        } else if (w == 0x000f && lastWord == 0x001f) {
-            status = uint16_t(status & ~ACCEPT_BIT);
-        } else if (w == 0x010f || w == 0x000b) {
-            moving = false;
-            monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
-        }
-        if (followEnable && (w == 6 || w == 7 || w == 15)) {
-            const uint16_t low = w == 6 ? 1 : w == 7 ? 3 : 7;
-            status = uint16_t((status & ~L::STATUS_LOW_BITS) | low);
-        }
-        lastWord = w;
-        ++words;
-    }
-};
-uint16_t frameIndex(const M::Frame& f) { return uint16_t(f.data[1] | (uint16_t(f.data[2]) << 8)); }
-uint32_t frameValue(const M::Frame& f) {
-    return uint32_t(f.data[4]) | (uint32_t(f.data[5]) << 8) | (uint32_t(f.data[6]) << 16) |
-           (uint32_t(f.data[7]) << 24);
-}
-bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
-    out = frame(sent.id - 0x600 + 0x580, 8);
-    const uint16_t index = frameIndex(sent);
-    const uint8_t sub = sent.data[3];
-    out.data[1] = sent.data[1];
-    out.data[2] = sent.data[2];
-    out.data[3] = sent.data[3];
-    const bool download = sent.data[0] != 0x40;
-    const bool isWord = index == 0x6040 && download;
-    const uint16_t word = isWord ? uint16_t(frameValue(sent)) : 0;
-    if (index == drive.silentIndex && index && (!isWord || !drive.silentWord || word == drive.silentWord))
-        return false;
-    if (index == drive.abortIndex && index && (!isWord || !drive.abortWord || word == drive.abortWord)) {
-        out.data[0] = 0x80;
-        out.data[4] = 0x23;
-        out.data[7] = 0x08;
-        return true;
-    }
-    if (download) {
-        const uint32_t value = frameValue(sent);
-        if (index == 0x607a)
-            drive.target = int32_t(value);
-        else if (index == 0x6081)
-            drive.speed = value;
-        else if (index == 0x6083)
-            drive.rampUp = value;
-        else if (index == 0x6084)
-            drive.rampDown = value;
-        else if (isWord)
-            drive.word(word);
-        out.data[0] = 0x60;
-        return true;
-    }
-    uint32_t raw = 0;
-    unsigned size = 2;
-    switch (index) {
-    case 0x1000: raw = DEVICE_TYPE; size = 4; break;
-    case 0x1009: raw = HARDWARE; break;
-    case 0x100a: raw = SOFTWARE; break;
-    case 0x1018:
-        size = sub ? 4 : 1;
-        raw = sub == 0 ? 3 : sub == 1 ? VENDOR : sub == 2 ? PRODUCT : REVISION;
-        break;
-    case 0x2000: raw = MODEL; break;
-    case 0x2001: raw = FIRMWARE; break;
-    case 0x1001: raw = 0; size = 1; break;
-    case 0x603f: raw = 0; break;
-    case 0x2100: raw = drive.monitor; break;
-    case 0x2101: raw = 0xa580; break;
-    case 0x2102: raw = 0xf008; break;
-    case 0x6041:
-        ++drive.statusReads;
-        if (drive.alarmAtRead && drive.statusReads == drive.alarmAtRead)
-            drive.monitor = uint16_t(drive.monitor | L::MONITOR_ALARM);
-        if (drive.moving) {
-            if (!drive.remaining)
-                drive.arrive();
-            else
-                --drive.remaining;
-        }
-        raw = drive.status;
-        break;
-    case 0x6061: raw = drive.mode; size = 1; break;
-    case 0x6064: raw = uint32_t(drive.position); size = 4; break;
-    case 0x606c: raw = uint32_t(drive.velocity); size = 4; break;
-    case 0x607a: raw = uint32_t(drive.target); size = 4; break;
-    case 0x60ff: raw = 120; size = 4; break;
-    case 0x6081: raw = drive.speed; size = 4; break;
-    case 0x6083: raw = drive.rampUp; size = 4; break;
-    case 0x6084: raw = drive.rampDown; size = 4; break;
-    default: break;
-    }
-    out.data[0] = size == 1 ? 0x4f : size == 2 ? 0x4b : 0x43;
-    for (unsigned i = 0; i < 4; ++i)
-        out.data[4 + i] = uint8_t(raw >> (8 * i));
-    return true;
-}
-struct Wire : OwnerRig::WireBase {
-    O::RecoveryProgress progress = O::RecoveryProgress::RETIRED;
-    static bool beginRecovery(void*, uint32_t) { return true; }
-    static O::RecoveryProgress pollRecovery(void* context, uint32_t) {
-        return static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context))->progress;
-    }
-    O::Transport callbacks() {
-        O::Transport value = plumbing();
-        value.beginRecovery = beginRecovery;
-        value.pollRecovery = pollRecovery;
-        return value;
-    }
-};
-struct Rig {
-    C::SdoClient services;
-    Wire wire;
-    O::CanBusOwner owner;
-    E::AxisSession a;
-    FakeDrive drive;
-    uint64_t now = 0;
-    unsigned served = 0, startFrame = 0;
-    uint64_t sentAt[OwnerRig::WireBase::CAPACITY] = {};
-    unsigned stamped = 0;
-    bool serviceSession = true;
-    L::ReadContext state;
-    L::IdentityObservation identity;
-    Rig() : owner(services, wire.callbacks(), 73), a(owner) {
-        const L::ReadTarget t = target();
-        CHECK(services.configure(0, t.channel, true, true));
-        C::NetworkRoute network;
-        network.binding = t.channel.binding;
-        network.generation = 11;
-        network.heartbeatId = 0x701;
-        network.emcyId = 0x81;
-        CHECK(services.configureNetwork(0, network, C::NetworkObserver(), 0));
-    }
-    L::ReadTarget current() const {
-        L::ReadTarget value = target();
-        value.nodeGeneration = services.node(0)->route.generation;
-        return value;
-    }
-    void later(const M::Frame& value) { wire.push(value, now + 1, owner.controllerEpoch()); }
-    void turn(uint64_t time) {
-        now = time;
-        if (wire.rxRead == wire.rxWrite)
-            wire.rxRead = wire.rxWrite = 0;
-        for (; served < wire.sentCount; ++served) {
-            M::Frame reply;
-            if (wire.sent[served].id == 0x601 && drive.answer && replyTo(wire.sent[served], drive, reply))
-                wire.push(reply, now, owner.controllerEpoch());
-        }
-        if (asyncTraffic) {
-            M::Frame heartbeat = frame(0x701, 1);
-            heartbeat.data[0] = 5;
-            wire.push(heartbeat, now, owner.controllerEpoch());
-        }
-        CHECK(owner.service(now, budget(8, 2, 8, 2, 1)));
-        for (; stamped < wire.sentCount; ++stamped)
-            sentAt[stamped] = now;
-        if (serviceSession)
-            a.service(now);
-    }
-    void step() { turn(now + TICK); }
-    void steps(unsigned count) {
-        for (unsigned i = 0; i < count; ++i)
-            step();
-    }
-    void finishMove(unsigned limit = 2000) {
-        for (unsigned i = 0; i < limit && (a.moveActive() || a.busy()); ++i)
-            step();
-        CHECK(!a.moveActive());
-    }
-    void open() { CHECK(a.open(current(), L::SettingsModel::CL86_C, 1, now)); }
-    C::SdoCompletion settled() {
-        C::SdoCompletion output;
-        CHECK(a.settle(output));
-        return output;
-    }
-    void readState(L::ReadContext& into, uint8_t mask = STATE_MASK) {
-        const uint64_t deadline = now + LEAD;
-        const uint32_t operation = a.beginOperation(deadline, now);
-        CHECK(operation);
-        CHECK(L::prepareState(into, current(), operation, now, deadline, reads(), mask));
-        while (into.state == M::ReadState::ACTIVE) {
-            L::PreparedRead work;
-            CHECK(L::nextRead(into, now, work) && work.ready);
-            CHECK(a.admitPrepared(work.transfer, now) == O::BusAdmission::ACCEPTED);
-            steps(2);
-            const C::SdoCompletion terminal = settled();
-            CHECK(L::advanceRead(into, terminal, now));
-        }
-        CHECK(into.state == M::ReadState::SUCCEEDED);
-    }
-    void readIdentity() {
-        static L::ReadContext read;
-        const uint64_t deadline = now + LEAD;
-        const uint32_t operation = a.beginOperation(deadline, now);
-        CHECK(operation);
-        CHECK(L::prepareIdentity(read, current(), operation, now, deadline, reads()));
-        while (read.state == M::ReadState::ACTIVE) {
-            L::PreparedRead work;
-            CHECK(L::nextRead(read, now, work) && work.ready);
-            CHECK(a.admitPrepared(work.transfer, now) == O::BusAdmission::ACCEPTED);
-            steps(2);
-            const C::SdoCompletion terminal = settled();
-            CHECK(L::advanceRead(read, terminal, now));
-        }
-        CHECK(read.state == M::ReadState::SUCCEEDED);
-        CHECK(L::getIdentity(read, current(), now, LEAD, identity));
-    }
-    void readProfile(L::DriverContext& into) {
-        const uint64_t deadline = now + LEAD;
-        const uint32_t operation = a.beginOperation(deadline, now);
-        CHECK(operation);
-        CHECK(L::prepareDriverRead(into, current(), operation, now, deadline, reads(),
-                                   L::DriverGroup::MOTION_PARAMETERS));
-        while (into.read.state == M::ReadState::ACTIVE) {
-            L::PreparedRead work;
-            CHECK(L::nextDriver(into, now, work) && work.ready);
-            CHECK(a.admitPrepared(work.transfer, now) == O::BusAdmission::ACCEPTED);
-            steps(2);
-            const C::SdoCompletion terminal = settled();
-            CHECK(L::advanceDriver(into, terminal, now));
-        }
-        CHECK(into.read.state == M::ReadState::SUCCEEDED);
-    }
-    // An explicit caller-issued write through the session's one path.
-    void writeThrough(uint16_t index, uint8_t size, uint32_t value) {
-        const uint64_t deadline = now + LEAD;
-        const uint32_t operation = a.beginOperation(deadline, now);
-        CHECK(operation);
-        C::SdoTransfer t;
-        t.channel = target().channel;
-        t.channel.binding = current().channel.binding;
-        t.operation = t.request = operation;
-        t.step = 1;
-        t.index = index;
-        t.size = size;
-        t.direction = C::SdoDirection::DOWNLOAD;
-        for (unsigned i = 0; i < size; ++i)
-            t.data[i] = uint8_t(value >> (8 * i));
-        t.deadlineUs = deadline;
-        t.queueTimeoutUs = QUEUE;
-        t.responseTimeoutUs = RESPONSE;
-        CHECK(a.admitPrepared(t, now) == O::BusAdmission::ACCEPTED);
-        steps(2);
-        settled();
-    }
-    // The explicit enable is stood in for by an acknowledged 000F here; enableChain() runs the real one.
-    void ready() {
-        open();
-        readIdentity();
-        writeThrough(0x6040, 2, 0x000f);
-        readState(state);
-    }
-    L::AxisReservation reservation() const {
-        L::AxisReservation value;
-        const O::SequenceId id = a.sequence();
-        const O::Sequence* live = owner.sequence(id);
-        CHECK(live);
-        value.target = current();
-        value.model = L::SettingsModel::CL86_C;
-        value.owner = owner.identity();
-        value.sequence = uint32_t(id.slot) + 1;
-        value.generation = id.generation;
-        value.acquiredUs = live->acquiredUs;
-        return value;
-    }
-    M::Status request(const L::MoveEvidence& e = evidence(), const M::MoveRequest& r = moveRequest(),
-                      const L::MoveProfile& p = profile(), const M::AxisReference* reference = nullptr,
-                      const M::AxisConfig& axis = axisConfig(), uint64_t lead = LEAD,
-                      const L::MoveOptions& o = options(), const L::DriverContext* stored = nullptr) {
-        startFrame = wire.sentCount;
-        return a.requestMove(state, identity, e, r, p, stored, axis, reference, o, now + lead, now);
-    }
-};
-bool frameIs(const Rig& r, unsigned i, const uint8_t (&expected)[8]) {
-    const M::Frame& f = r.wire.sent[i];
-    return i < r.wire.sentCount && f.id == 0x601 && f.dlc == 8 && f.payloadLength == 8 &&
-           !f.extended && !f.rtr && !std::memcmp(f.data, expected, sizeof expected);
-}
-bool downloadAt(const Rig& r, unsigned i, uint16_t index, uint8_t size, uint32_t value) {
-    const uint8_t command = size == 4 ? 0x23 : size == 2 ? 0x2b : 0x2f;
-    uint8_t expected[8] = {command, uint8_t(index), uint8_t(index >> 8), 0, 0, 0, 0, 0};
-    for (unsigned b = 0; b < size; ++b)
-        expected[4 + b] = uint8_t(value >> (8 * b));
-    return frameIs(r, i, expected);
-}
-bool wordAt(const Rig& r, unsigned i, uint16_t word) { return downloadAt(r, i, 0x6040, 2, word); }
-bool uploadAt(const Rig& r, unsigned i, uint16_t index, uint8_t sub = 0) {
-    const uint8_t expected[8] = {0x40, uint8_t(index), uint8_t(index >> 8), sub, 0, 0, 0, 0};
-    return frameIs(r, i, expected);
-}
-unsigned wordsFrom(const Rig& r, unsigned from, uint16_t word) {
-    unsigned count = 0;
-    for (unsigned i = from; i < r.wire.sentCount; ++i)
-        count += wordAt(r, i, word);
-    return count;
-}
-unsigned downloadsFrom(const Rig& r, unsigned from, uint16_t index) {
-    unsigned count = 0;
-    for (unsigned i = from; i < r.wire.sentCount; ++i)
-        count += r.wire.sent[i].data[0] != 0x40 && frameIndex(r.wire.sent[i]) == index;
-    return count;
-}
-unsigned uploadsFrom(const Rig& r, unsigned from, uint16_t index) {
-    unsigned count = 0;
-    for (unsigned i = from; i < r.wire.sentCount; ++i)
-        count += uploadAt(r, i, index);
-    return count;
-}
-void quiet(Rig& r, unsigned ticks = 40) {
-    const unsigned sent = r.wire.sentCount;
-    r.steps(ticks);
-    CHECK(r.wire.sentCount == sent);
-}
-bool cycleAt(const Rig& r, unsigned i) {
-    const uint16_t order[] = {0x2100, 0x2101, 0x2102, 0x6041, 0x6061, 0x6064, 0x606c};
-    for (unsigned k = 0; k < 7; ++k)
-        if (!uploadAt(r, i + k, order[k]))
-            return false;
-    return true;
-}
-const L::MoveContext& moveOf(const Rig& r) { return r.a.moveAction(); }
-// Refused at the session: no frame, no move, nothing busy.
-void refused(Rig& r, const M::Status& s, M::Err code, M::MoveError detail) {
-    CHECK(!s);
-    CHECK(s.code == code);
-    CHECK(s.detail == int32_t(detail));
-    CHECK(!r.a.moveActive() && !r.a.busy());
-    quiet(r, 4);
-}
+using namespace MoveRig;
 
 // 1. The whole sequence, literal bytes in literal order, and its retained history.
 void golden() {
@@ -639,18 +192,6 @@ void targetsAndQuantization() {
     CHECK(downloadAt(m, m.startFrame, 0x607a, 4, 1067));
 }
 
-M::AxisReference witness(const Rig& r, int64_t position) {
-    M::AxisReference w;
-    w.binding = axisConfig().binding;
-    w.referenceGeneration = axisConfig().referenceGeneration;
-    w.idle = w.stationary = w.nativeKnown = true;
-    w.nativePosition = position;
-    w.basis = M::RelativeBasis::ACTUAL;
-    w.source = M::ScaleSource::QUALIFIED;
-    w.observedUs = w.nowUs = r.now;
-    w.maximumAgeUs = 1000000;
-    return w;
-}
 // 4. Optional witness, zero distance (R-08) and the reference rules.
 void referenceAndZero() {
     scenario = "reference";
@@ -1378,7 +919,7 @@ void atomicity() {
           int32_t(M::MoveError::STATE));
     CHECK(L::noteMoveWithdrawal(c, live, here, M::MoveInterruption::DEADLINE, r.now).detail ==
           int32_t(M::MoveError::STATE));
-    CHECK(L::noteMoveTransmission(c, live, here, nullptr, 1, r.now).detail == int32_t(M::MoveError::ARGUMENT));
+    CHECK(L::noteMoveTransmission(c, live, here, axis, nullptr, nullptr, 1, r.now).detail == int32_t(M::MoveError::ARGUMENT));
     CHECK(L::advanceMove(c, observation, live, here, M::MoveInterruption::DEADLINE, r.now).detail ==
           int32_t(M::MoveError::STATE));
     // A terminal for other work, and one before the notice that a frame may have left.
@@ -1414,7 +955,7 @@ void atomicity() {
     CHECK(L::nextMove(c, observation, live, here, r.now, work) && work.ready && work.transfer.index == 0x607a);
     C::SdoCompletion ack = wrong;
     ack.transfer = work.transfer; // The download in flight, as the owner would retain it.
-    CHECK(L::noteMoveTransmission(c, live, here, nullptr, 0, r.now));
+    CHECK(L::noteMoveTransmission(c, live, here, axis, nullptr, nullptr, 0, r.now));
     CHECK(c.setup == M::ActionExecution::UNKNOWN && c.uncertain && c.effectsPossible);
     // Noted, so in flight: nextMove never offers it again (review F4).
     CHECK(L::nextMove(c, observation, live, here, r.now, work) && !work.ready && !work.observe);
@@ -1435,7 +976,7 @@ void atomicity() {
                                  nullptr, third, r.now, r.now + LEAD, o));
     CHECK(L::nextMove(c, observation, live, here, r.now, work) && work.ready);
     ack.transfer = work.transfer;
-    CHECK(L::noteMoveTransmission(c, live, here, nullptr, 0, r.now));
+    CHECK(L::noteMoveTransmission(c, live, here, axis, nullptr, nullptr, 0, r.now));
     CHECK(L::advanceMove(c, observation, live, here, ack, r.now));
     CHECK(c.state == M::ActionState::ACTIVE && c.setupCursor == 1 && c.setup == M::ActionExecution::UNKNOWN);
     CHECK(L::nextMove(c, observation, live, here, r.now, work) && work.ready && work.transfer.index == 0x6081);
@@ -1503,7 +1044,7 @@ void counterZeroInvalidates() {
     const Saved<L::MoveContext> before(move);
     L::PreparedMove next;
     CHECK(L::nextMove(move, observation, live, here, r.now, next).detail == int32_t(M::MoveError::TARGET));
-    CHECK(L::noteMoveTransmission(move, live, here, nullptr, 0, r.now).detail == int32_t(M::MoveError::TARGET));
+    CHECK(L::noteMoveTransmission(move, live, here, axis, nullptr, nullptr, 0, r.now).detail == int32_t(M::MoveError::TARGET));
     CHECK(!M::validatePreparedTarget(move.parameters.target, axis, nullptr, r.now));
     before.unchanged(move);
     CHECK(L::advanceMove(move, observation, live, here, M::MoveInterruption::INVALIDATED, r.now));
@@ -1524,6 +1065,112 @@ void counterZeroInvalidates() {
     CHECK(!stale);
 }
 
+E::StopPolicy stopPolicy(const Rig& r) {
+    E::StopPolicy policy;
+    policy.options.service = reads();
+    policy.options.observationIntervalUs = 1000;
+    policy.options.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+    policy.deadlineUs = r.now + 200000;
+    policy.bestEffortDeadlineUs = r.now + 300000;
+    return policy;
+}
+void finishAll(Rig& r) {
+    r.finishMove();
+    for (unsigned k = 0; k < 600 && r.a.busy(); ++k)
+        r.step();
+    CHECK(!r.a.busy());
+}
+
+// 17. Packet 21 review W2: a 607A the owner closed before handing it over changed nothing on the
+// drive, so the acknowledged 000F before it is the latest word again, and a stop takes the sequenced
+// path from it: through cancelMove, and within the stop request that withdraws the move.
+void unsentKeepsControl() {
+    for (unsigned viaStop = 0; viaStop < 2; ++viaStop) {
+        scenario = viaStop ? "unsent 607A, stop withdraws" : "unsent 607A, cancel then stop";
+        Rig r;
+        r.ready();
+        CHECK(r.request().isOk());
+        r.step(); // 607A admitted and noted; the owner hands it over only at the next turn.
+        const L::MoveContext& c = moveOf(r);
+        CHECK(c.phase == L::MovePhase::PARAMETERS && c.transmissionNoted && !c.setupEvidenceMask);
+        CHECK(!r.a.latestControl() && r.wire.sentCount == r.startFrame); // It may leave from here.
+        if (!viaStop) {
+            CHECK(r.a.cancelMove(r.now));
+            r.step();
+            CHECK(!r.a.moveActive() && c.setup == M::ActionExecution::NOT_TRANSMITTED);
+            CHECK(c.setupEvidenceMask == 1 && !c.setupHistory[0].transmissionPossible);
+            CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x0f);
+        }
+        const unsigned at = r.wire.sentCount;
+        CHECK(r.a.requestStop(L::StopKind::HALT, r.state, stopPolicy(r), r.now) == E::StopPath::CONFIRMED);
+        finishAll(r);
+        const L::ActionContext& s = r.a.stopAction(L::StopKind::HALT);
+        CHECK(s.state == M::ActionState::SUCCEEDED && s.predecessorWord == 0x000f);
+        CHECK(c.state == M::ActionState::FAILED && c.execution == M::ActionExecution::NOT_TRANSMITTED);
+        CHECK(wordsFrom(r, at, 0x010f) == 1 && !wordsFrom(r, at, 0x000b));
+        CHECK(!downloadsFrom(r, r.startFrame, 0x607a) && !wordsFrom(r, r.startFrame, 0x001f));
+        CHECK(!r.a.moveFenced());
+    }
+}
+
+// 18. Packet 21 review D2 for the absolute move: with preflight wired, the recheck holds up to the
+// handover of the noted 001F. Coordinates lost with no witness, and a witness that expires exactly
+// between the notice and the handover, both stop it unsent.
+void toNotedTrigger(Rig& r) {
+    for (unsigned k = 0; k < 400 && r.a.moveActive() &&
+                         !(moveOf(r).phase == L::MovePhase::TRIGGER && moveOf(r).transmissionNoted);
+         ++k)
+        r.step();
+    CHECK(moveOf(r).phase == L::MovePhase::TRIGGER && moveOf(r).transmissionNoted);
+    CHECK(!wordsFrom(r, r.startFrame, 0x001f));
+}
+void recheckAtHandover() {
+    scenario = "absolute handover loss";
+    {
+        Rig r;
+        r.drive.travelReads = 2;
+        r.ready();
+        CHECK(r.request().isOk());
+        toNotedTrigger(r);
+        M::AxisReference scratch;
+        CHECK(M::invalidateAxisReference(r.one.coordinates, scratch, M::ReferenceLoss::COORDINATES));
+        finishAll(r);
+        const L::MoveContext& c = moveOf(r);
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::INVALIDATED);
+        CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::NOT_TRANSMITTED);
+        CHECK(c.triggerPresent && !c.trigger.transmissionPossible && r.wire.preflightRefusals == 1);
+        CHECK(!wordsFrom(r, r.startFrame, 0x001f) && !r.drive.edges && !r.a.moveFenced());
+        CHECK(r.a.moveRefusal().detail == int32_t(M::MoveError::PARAMETER_ERROR_BASE) +
+                                              int32_t(L::PositionParameterError::AXIS_ERROR_BASE) +
+                                              int32_t(M::AxisError::STALE_GENERATION));
+    }
+    uint64_t delay = 0;
+    {
+        Rig probe;
+        probe.ready();
+        const uint64_t prepared = probe.now;
+        M::AxisReference w = witness(probe, 100);
+        CHECK(probe.request(evidence(), moveRequest(), profile(), &w).isOk());
+        toNotedTrigger(probe);
+        delay = probe.now - prepared;
+    }
+    scenario = "absolute handover witness expiry";
+    Rig r;
+    r.ready();
+    M::AxisReference w = witness(r, 100);
+    w.maximumAgeUs = delay; // Inclusive: fresh at the notice, too old one turn later.
+    CHECK(r.request(evidence(), moveRequest(), profile(), &w).isOk());
+    toNotedTrigger(r);
+    CHECK(r.now - w.observedUs == delay);
+    finishAll(r);
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.outcome == M::ActionOutcome::INVALIDATED && c.execution == M::ActionExecution::NOT_TRANSMITTED);
+    CHECK(!wordsFrom(r, r.startFrame, 0x001f) && !r.drive.edges && !r.a.moveFenced());
+    CHECK(r.a.moveRefusal().detail == int32_t(M::MoveError::PARAMETER_ERROR_BASE) +
+                                          int32_t(L::PositionParameterError::AXIS_ERROR_BASE) +
+                                          int32_t(M::AxisError::STALE_REFERENCE));
+}
+
 void runAll() {
     golden();
     enableChain();
@@ -1542,6 +1189,8 @@ void runAll() {
     processingCutoff();
     atomicity();
     counterZeroInvalidates();
+    unsentKeepsControl();
+    recheckAtHandover();
 }
 } // namespace
 

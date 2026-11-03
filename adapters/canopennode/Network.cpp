@@ -25,8 +25,15 @@ ObservationTime timeOf(bool known, uint64_t received, uint64_t now) {
     time.receivedUs = received; time.processedUs = now;
     return time;
 }
-bool older(const ObservationTime& previous, bool known, uint64_t received) {
-    return previous.present && previous.receivedTimeKnown && (!known || received < previous.receivedUs);
+// True when next must not replace previous. Unknown time never replaces timed evidence.
+// Each side is ordered by its earliest possible receive time, so an interval never
+// overtakes evidence by its upper bound and an old reply delivered late stays older.
+// For two exact captures this is the original `received < previous.receivedUs`.
+bool older(const ObservationTime& previous, const ObservationTime& next) {
+    uint64_t previousFirst = 0, previousLast = 0, nextFirst = 0, nextLast = 0;
+    if (!observationTimeBounds(previous, previousFirst, previousLast)) return false;
+    if (!observationTimeBounds(next, nextFirst, nextLast)) return true;
+    return nextFirst < previousFirst;
 }
 enum class Order { FOLLOWING, STALE, OVERLAPPING };
 Order order(const ObservationTime& previous, const ObservationTime& next) {
@@ -112,14 +119,13 @@ bool SdoClient::configureNetwork(uint8_t slot, const NetworkRoute& route, Networ
         if (!other.configured || !sameNode(other.route.binding, route.binding)) continue;
         ObservationTime evidence = other.unanchoredService;
         evidence.generation = route.generation;
-        if (!other.unresolved && evidence.present &&
-            !older(c.network.serviceQualification, evidence.receivedTimeKnown, evidence.receivedUs)) {
+        if (!other.unresolved && evidence.present && !older(c.network.serviceQualification, evidence)) {
             c.network.serviceQualification = evidence;
             c.network.serviceFromSdo = other.unanchoredServiceFromSdo;
         }
         ObservationTime sdo = other.unanchoredSdo;
         sdo.generation = route.generation;
-        if (!other.unresolved && sdo.present && !older(c.network.sdo, sdo.receivedTimeKnown, sdo.receivedUs))
+        if (!other.unresolved && sdo.present && !older(c.network.sdo, sdo))
             c.network.sdo = sdo;
         other.unanchoredService = ObservationTime();
         other.unanchoredSdo = ObservationTime();
@@ -370,25 +376,35 @@ bool SdoClient::dispatchNetwork(const Frame& frame, const NetworkRoute* source, 
     return false;
 }
 
-void SdoClient::recordSdo(Channel& channel, bool known, uint64_t received, uint64_t now) {
+// Exact capture and a receive interval follow one rule, with the interval's lower bound
+// standing for its receive time. That bound must follow the node boundary (strictly
+// after an invalidation), orders the reply against retained evidence and sets its age.
+// The upper bound only rejected future input at entry. serviceEligibility applies the
+// NMT transition and age to both forms alike. An interval must also start strictly
+// after its own handoff: one reaching back to it may hold an older reply, which still
+// settles the request but records nothing here.
+void SdoClient::recordSdo(Channel& channel, const ObservationTime& time) {
+    uint64_t first = 0, last = 0;
+    const bool timed = observationTimeBounds(time, first, last);
+    if (time.receiveBoundsKnown && (!timed || first <= channel.handoffUs)) return;
     const unsigned slot = static_cast<unsigned>(&channel - channels_);
     const int anchor = networkAnchor(static_cast<uint8_t>(slot));
     if (anchor < 0) {
-        if (!older(channel.unanchoredSdo, known, received))
-            channel.unanchoredSdo = timeOf(known, received, now);
-        if (!channel.experimentActive && !older(channel.unanchoredService, known, received)) {
-            channel.unanchoredService = timeOf(known, received, now);
+        if (!older(channel.unanchoredSdo, time))
+            channel.unanchoredSdo = time;
+        if (!channel.experimentActive && !older(channel.unanchoredService, time)) {
+            channel.unanchoredService = time;
             channel.unanchoredServiceFromSdo = true;
         }
         return;
     }
     NodeSnapshot& state = channels_[anchor].network;
-    if (state.exhausted || (known && (received < state.boundaryUs ||
-        (state.strictBoundary && received == state.boundaryUs))) || (!known && state.strictBoundary) ||
-        older(state.sdo, known, received)) return;
-    state.sdo = timeOf(known, received, now);
+    if (state.exhausted || (timed && (first < state.boundaryUs ||
+        (state.strictBoundary && first == state.boundaryUs))) || (!timed && state.strictBoundary) ||
+        older(state.sdo, time)) return;
+    state.sdo = time;
     state.sdo.generation = state.route.generation;
-    if (!channel.experimentActive && !older(state.serviceQualification, known, received)) {
+    if (!channel.experimentActive && !older(state.serviceQualification, time)) {
         state.serviceQualification = state.sdo;
         state.serviceFromSdo = true;
     }

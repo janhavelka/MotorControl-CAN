@@ -23,7 +23,9 @@ Fixture by software identity: ESP-Prog2 on COM15, serial `94A990398B40`, VID/PID
 
 This closes packet 4's live comparison: `1009` and `100A` answer in one byte, still recorded as a difference from the EDS's two.
 
-Pilot soak, 120 s, on the earlier dirty image: 297 of 297 operations per node. A 15-minute continuation: 1,920 of 1,920 per node. No anomaly, zero TX rejections or drops, `gapMax` under 4 ms, `stackFree` about 9.3 KB.
+Pilot soak, 120 s, on the earlier dirty image: 297 of 297 operations per node. Night 1 then ran for about 13 minutes (768 s): 1,921 of 1,921 operations on node 1 and 1,920 of 1,920 on node 2, counted from the stop capture `docs/bench/20261103T0115Z-soak-stop`. The night-1 capture itself, `docs/bench/20261103-soak-night1`, is incomplete: it ends at 1,800 operations per node with no `SOAK_END`. No anomaly, zero TX rejections or drops, `gapMax` under 4 ms, `stackFree` about 9.3 KB.
+
+Refused attempts are retained as evidence: `20261103T0118Z-identity2`, `20261103T0118Z-motion-readiness1-b` and `20261103T0118Z-motion-readiness2-b` each answered `refused; no work`, so nothing was sent. Each followed a capture whose record had not yet been released. After a release, the new requests `20261103T0118Z-identity2-b` and the `20261103T0120Z` sequence were admitted, and they are the records the table above uses, with `20261103T0118Z-identity1` for node 1.
 
 ## Parser defects found on the first real typed success
 
@@ -63,6 +65,8 @@ The missing observation is a slow write then a read, with a new request while on
 | --- | --- | --- | --- | --- |
 | MotorControl-RS | `e59c5ca` | Clean | `scripts/bench_session.py`, `_bench_evidence.py`, `bench_probe.py` | Adopted: port ownership, retained errors, correlation. RS's retry and cleanup choices are not adopted |
 | PCA9555 | `414e0f6` | Clean | Dry-run guard | Adopted for the tools' `--dry-run` |
+| ADS1115 | `d613a13` | Clean | Owner service | Unchanged; no behavior adopted |
+| INA228 | `73f9548` | Clean | Validity | Unchanged; no behavior adopted |
 | FieldCore-node | `5ad9292` | Clean | Copied request and result | No CAN runner there; read-only |
 
 ## Checks

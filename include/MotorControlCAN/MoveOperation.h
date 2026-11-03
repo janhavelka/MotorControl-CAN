@@ -10,7 +10,10 @@
 #include <MotorControlCAN/Axis.h>
 
 namespace MotorControlCAN {
-/** Common finite-move intent. A profile prepares each part once and refuses what it cannot qualify. */
+/** Common finite-move intent. A profile prepares each part once and refuses what it cannot qualify.
+ * For a relative move, position.basis names the host witness the displacement is added to. That is
+ * host arithmetic only: whether the drive adds the displacement to the same base is a separate
+ * profile fact, and a profile without evidence of it refuses the request. */
 struct MoveRequest {
     PositionRequest position; ///< Target intent, prepared with preparePosition.
     /** Profile speed, prepared with prepareVelocityTarget. It must be positive. The profile checks
@@ -22,7 +25,10 @@ enum class MoveDisplacement : uint8_t {
     /** Absolute target with no witness: no current position, distance or standstill is claimed, and
      * an absolute coordinate zero is not a zero displacement. */
     UNKNOWN,
-    KNOWN ///< Nonzero endpoint minus a supplied idle, stationary witness, in command increments.
+    /** Nonzero endpoint minus a supplied idle, stationary witness, in command increments. A relative
+     * move is always KNOWN: its displacement is the quantized request, and its endpoint is host
+     * arithmetic on the witness, never an observed position. */
+    KNOWN
 };
 /** Why the host ended a move before the move's own terminal. Never a motor command by itself, and
  * never a resume: a withdrawn move is not replayed. */
@@ -48,8 +54,13 @@ enum class MoveError : int32_t {
     RATE_BASIS,        ///< Prepared speed is not in the native object's unit.
     RANGE,             ///< Requested or effective native value outside the admitted range.
     ZERO_DISPLACEMENT, ///< Known effective displacement is zero; nothing is written.
-    REFERENCE,         ///< Supplied witness is not idle, stationary actual command coordinates.
+    /** Supplied witness is not idle and stationary, is of the wrong basis, has no age cap where one
+     * is needed, or was observed before the predecessor it must follow. */
+    REFERENCE,
     ACCEPTANCE,        ///< The acceptance report is already present before the trigger.
+    /** The drive's own relative base is not evidenced for the requested basis: unmeasured, a
+     * different base, or a queued basis that needs a target queue. Returned with UNSUPPORTED. */
+    RELATIVE_BASIS,
     PARAMETER_ERROR_BASE = 1000, ///< Added to a profile parameter-preparation detail.
     RATE_ERROR_BASE = 5000       ///< Added to a speed-preparation AxisError detail.
 };

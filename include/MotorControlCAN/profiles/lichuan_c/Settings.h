@@ -164,25 +164,32 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
                                 const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
 /** Prepare complete explicit DI assignment/polarity, preserving unknown polarity bits.
  * A stored undocumented function code is replaced, never carried: a candidate cannot name one.
+ * The state rule is project policy, as no source gives a state for 2400: it is 2202's rule, and RS
+ * refuses every settings group, I/O included, unless stationary with no alarm.
  * @param[out] output Owned context, unchanged on rejection; no input overlap.
  * @param[in] reservation Actual live owner exclusion, CL86_C or OL86_C only.
  * @param[in] current Actual current route and epochs. The reservation's target must equal it: a token
  * left from a finished or uncertain transaction is refused here, before any no-op can report success.
  * @param[in] prior Fresh complete IO_INPUT_CONFIGURATION acquired under that reservation.
+ * @param[in] state Clean STATUS and MONITORS read under the reservation, within maximumAgeUs. Refused
+ * if the whole read did not succeed cleanly, or 2100 reports running, an alarm or an undocumented
+ * bit 7..15. Bit 4 is deliberately unused, since both specimens report it clear at power-up with no
+ * enable. An alarm refuses every candidate, so an input cannot be reassigned to get past one. A
+ * clean report is not evidence of a stopped shaft.
  * @param[in] settings Complete explicit codes/bits; no invented uniqueness or drive-mode rule.
  * @param[in] operation Nonzero unique live operation identity.
  * @param[in] nowUs Supplied nonwrapping microseconds.
  * @param[in] deadlineUs Exclusive immutable cutoff after nowUs.
  * @param[in] options Nonzero service budgets.
  * @param[in] maximumAgeUs Nonzero inclusive earliest-observation age cap.
- * @return Local status. An unchanged candidate succeeds using fresh prior evidence without TX/epoch change.
- * Writes only changed fields in ascending subindex order;
+ * @return Local status. An unchanged candidate that passes the state rule succeeds from fresh prior
+ * evidence without TX or epoch change. Writes only changed fields in ascending subindex order;
  * intermediate effects are possible, not an atomic or electrically safe transition.
  */
 Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& reservation,
                          const ReadTarget& current, const DriverContext& prior,
-                         const IoSettings& settings, uint32_t operation, uint64_t nowUs,
-                         uint64_t deadlineUs, const ReadOptions& options,
+                         const ReadContext& state, const IoSettings& settings, uint32_t operation,
+                         uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options,
                          uint64_t maximumAgeUs) noexcept;
 /** Yield owned work without admitting or transmitting it.
  * @param[in] context Prepared transaction. @param[in] live Actual current reservation, not stale copy.

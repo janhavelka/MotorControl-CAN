@@ -600,7 +600,8 @@ void settingsEntry(SettingsKind kind, const char* where) {
         candidate.invertedInputs = 0x55;
         for (L::InputFunction& function : candidate.functions)
             function = L::InputFunction::STOP;
-        CHECK(L::prepareIoSettings(c, live, live.target, prior, candidate, 41, now, DEADLINE, options(), 100000));
+        CHECK(L::prepareIoSettings(c, live, live.target, prior, state, candidate, 41, now, DEADLINE, options(),
+                                   100000));
     } else {
         L::ControlSettings candidate;
         candidate.loopMode = L::LoopMode::CLOSED_LOOP;

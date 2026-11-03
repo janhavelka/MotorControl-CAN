@@ -35,7 +35,7 @@ A separate reviewer recomputed the hashes against `docs/adapters/twai_sources.js
 
 | Sibling | Revision | Dirty | Seam | Disposition |
 | --- | --- | --- | --- | --- |
-| MotorControl-RS | `776facd` | Clean | Retirement and urgent admission in `RtuBusOwner` | Pattern only. RS transport makes no CAN transmission claim, and `AGENTS.md` keeps sensor retry out of motor commands |
+| MotorControl-RS | `776facd`; HEAD was `3f871c7`, which adds only two lines to an RS audit report, so the seam is the same | Clean | Retirement and urgent admission in `RtuBusOwner` | Pattern only. RS transport makes no CAN transmission claim, and `AGENTS.md` keeps sensor retry out of motor commands |
 | ADS1115 | `d613a13` | Clean | Owner service in `02_owner_safe_poll` | Unchanged since the handoff authoring; no behavior adopted |
 | INA228 | `73f9548` | Clean | Validity callers | Unchanged since the handoff authoring; no behavior adopted |
 | FieldCore-node | `5ad9292` | Clean | No CAN path | Unchanged |

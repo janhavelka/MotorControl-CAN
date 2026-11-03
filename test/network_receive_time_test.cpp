@@ -27,9 +27,10 @@ C::NetworkRoute route() {
     value.heartbeatId = 0x701; value.emcyId = 0x81;
     return value;
 }
-C::SdoChannel channel() {
+C::SdoChannel channel(uint16_t sub = 0) {
     C::SdoChannel value;
-    value.binding = binding(); value.clientToServerId = 0x601; value.serverToClientId = 0x581;
+    value.binding = binding(); value.binding.endpoint.channel = sub;
+    value.clientToServerId = 0x601u + 0x20u * sub; value.serverToClientId = 0x581u + 0x20u * sub;
     return value;
 }
 M::Frame heartbeat(uint8_t state = 5) {
@@ -176,9 +177,9 @@ C::SdoRequestId startRead(C::SdoClient& owner) {
     CHECK(owner.nextTx(0, 10, request, tx));
     return id;
 }
-M::Frame reply() {
+M::Frame reply(uint16_t sub = 0) {
     M::Frame value;
-    value.id = 0x581; value.dlc = value.payloadLength = 8;
+    value.id = 0x581u + 0x20u * sub; value.dlc = value.payloadLength = 8;
     value.data[0] = 0x4b; value.data[1] = 0x41; value.data[2] = 0x60;
     value.data[4] = 0x35; value.data[5] = 0xa2;
     return value;
@@ -190,18 +191,233 @@ void sdoDeadlinesAndCorrelationStayConservative() {
         CHECK(owner.result(id)->outcome == C::SdoOutcome::CORRELATION_LOST);
         CHECK(owner.unresolved(0));
     }
-    {
+    {   // Contract change (bounds qualification): the interval, never exact capture, now
+        // reaches the node record when passive routing is attached later.
         C::SdoClient owner; const auto id = startRead(owner);
         CHECK(owner.receive(reply(), 11, 12, 12));
         CHECK(owner.result(id)->outcome == C::SdoOutcome::SUCCESS);
         CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 12));
-        CHECK(!owner.node(0)->sdo.receivedTimeKnown && !owner.node(0)->sdo.receiveBoundsKnown);
+        const C::NodeSnapshot& node = *owner.node(0);
+        CHECK(!node.sdo.receivedTimeKnown && node.sdo.receiveBoundsKnown && node.sdo.receivedUs == 0);
+        CHECK(node.sdo.receivedEarliestUs == 11 && node.sdo.receivedLatestUs == 12);
+        CHECK(node.sdo.generation == route().generation && node.serviceFromSdo);
+        CHECK(node.serviceQualification.receiveBoundsKnown && node.serviceQualification.receivedEarliestUs == 11);
     }
     {
         C::SdoClient owner; const auto id = startRead(owner);
         CHECK(!owner.receive(reply(), 11, 12, 30));
         CHECK(owner.result(id)->outcome == C::SdoOutcome::TIMEOUT);
     }
+}
+
+// Contract change (bounds qualification, decided from the 2026-11-03 S2 soaks): a checked reply
+// received with bounds records service evidence exactly when its whole interval is after every
+// boundary the exact form checks. Its lower bound orders and ages it. The S2 bench shape follows:
+// an unconfirmed channel, passive routing with no heartbeat, and interval-only ingress.
+void unconfirmed(C::SdoClient& owner, uint64_t age = 20) {
+    CHECK(owner.configure(0, channel(), false, true));
+    CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 0));
+    CHECK(owner.setServiceAge(0, age, 0));
+}
+C::SdoTransfer accepted(uint16_t sub = 0) {
+    C::SdoTransfer transfer;
+    transfer.channel = channel(sub); transfer.operation = 17; transfer.request = 19; transfer.step = 23;
+    transfer.index = 0x6041; transfer.size = 2;
+    transfer.direction = C::SdoDirection::UPLOAD;
+    transfer.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    transfer.deadlineUs = 1000; transfer.queueTimeoutUs = 200; transfer.responseTimeoutUs = 200;
+    return transfer;
+}
+C::SdoTransfer write() {
+    C::SdoTransfer transfer = accepted();
+    transfer.index = 0x6040; transfer.direction = C::SdoDirection::DOWNLOAD;
+    transfer.readEffect = C::SdoReadEffect::UNQUALIFIED;
+    transfer.data[0] = 0x0b;
+    return transfer;
+}
+C::SdoRequestId sent(C::SdoClient& owner, uint64_t admitted, uint64_t handoff, uint16_t sub = 0) {
+    C::SdoRequestId id;
+    CHECK(owner.admit(uint8_t(sub), accepted(sub), admitted, id));
+    M::Frame request; C::SdoTxId tx;
+    CHECK(owner.nextTx(uint8_t(sub), handoff, request, tx) && request.id == 0x601u + 0x20u * sub);
+    CHECK(owner.confirmTx(tx, handoff)); // The controller's TX report retires the frame.
+    return id;
+}
+void succeeded(C::SdoClient& owner, C::SdoRequestId id) {
+    CHECK(owner.result(id) && owner.result(id)->outcome == C::SdoOutcome::SUCCESS);
+    CHECK(owner.release(id));
+}
+void boundedReplyQualifiesFromItsEarliestBound() {
+    C::SdoClient owner; unconfirmed(owner);
+    CHECK(!eligible(owner, 0).ordinarySdo && eligible(owner, 0).probeUpload);
+    CHECK(!owner.checkAdmission(0, write(), 0));
+    const auto id = sent(owner, 1, 2);
+    CHECK(owner.receive(reply(), 3, 5, 6));
+    succeeded(owner, id);
+    const C::NodeSnapshot& node = *owner.node(0);
+    const C::ObservationTime& proof = node.serviceQualification;
+    CHECK(proof.present && proof.receiveBoundsKnown && !proof.receivedTimeKnown && proof.receivedUs == 0);
+    CHECK(proof.receivedEarliestUs == 3 && proof.receivedLatestUs == 5 && proof.processedUs == 6);
+    CHECK(proof.generation == route().generation && node.serviceFromSdo);
+    CHECK(node.sdo.receivedEarliestUs == 3 && node.sdo.receivedLatestUs == 5 && !node.nmtTime.present);
+    const C::ServiceEligibility now = eligible(owner, 6);
+    CHECK(now.ordinarySdo && !now.exactNmtKnown && !now.pdoTransmit && now.probeUpload);
+    CHECK(owner.checkAdmission(0, write(), 6));
+    // Age runs from the earliest bound: 23-3 is within 20, 24-3 is not, although 24-5 would be.
+    CHECK(eligible(owner, 23).ordinarySdo && !eligible(owner, 24).ordinarySdo);
+    CHECK(owner.checkAdmission(0, write(), 23) && !owner.checkAdmission(0, write(), 24));
+    CHECK(owner.checkAdmission(0, accepted(), 24)); // The accepted read that can renew it stays.
+}
+void intervalMustStartAfterItsHandoff() {
+    for (unsigned form = 0; form < 3; ++form) {
+        C::SdoClient owner; unconfirmed(owner);
+        const auto id = sent(owner, 1, 2);
+        const Saved<C::NodeSnapshot> before(*owner.node(0));
+        if (form == 0) CHECK(owner.receive(reply(), 2, 5, 6));      // Starts at the handoff.
+        else if (form == 1) CHECK(owner.receive(reply(), 1, 5, 6)); // Straddles it.
+        else CHECK(owner.receive(reply(), 2, 6));                   // Exact, equal to it.
+        succeeded(owner, id); // Matching and settlement are unchanged.
+        CHECK(!owner.unresolved(0));
+        if (form < 2) {
+            CHECK(before.unchanged(*owner.node(0)));
+            CHECK(!eligible(owner, 6).ordinarySdo && !owner.checkAdmission(0, write(), 6));
+        } else {
+            // Unchanged: equal exact timestamps cannot order, so this capture still records.
+            CHECK(owner.node(0)->serviceQualification.receivedTimeKnown);
+            CHECK(owner.node(0)->serviceQualification.receivedUs == 2 && eligible(owner, 6).ordinarySdo);
+        }
+    }
+}
+void nodeBoundaryKeepsItsStrictness() {
+    // Attaching passive routing sets an inclusive boundary: an interval may start on it.
+    for (unsigned straddle = 0; straddle < 2; ++straddle) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), false, true));
+        const auto id = sent(owner, 1, 2);
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 10));
+        CHECK(owner.setServiceAge(0, 20, 10));
+        const Saved<C::NodeSnapshot> before(*owner.node(0));
+        CHECK(owner.receive(reply(), straddle ? 9 : 10, 12, 12));
+        succeeded(owner, id);
+        if (straddle) {
+            CHECK(before.unchanged(*owner.node(0)) && !eligible(owner, 12).ordinarySdo);
+        } else {
+            CHECK(owner.node(0)->serviceQualification.receivedEarliestUs == 10);
+            CHECK(eligible(owner, 12).ordinarySdo);
+        }
+    }
+}
+void recoveryClearsBoundedQualification() {
+    for (unsigned exact = 0; exact < 2; ++exact) {
+        C::SdoClient owner; unconfirmed(owner);
+        const auto first = sent(owner, 1, 2);
+        CHECK(owner.receive(reply(), 3, 5, 6));
+        succeeded(owner, first);
+        CHECK(eligible(owner, 6).ordinarySdo);
+        CHECK(owner.reportController(C::ControllerState::BUS_OFF, 10));
+        const C::NodeSnapshot& node = *owner.node(0);
+        CHECK(!node.serviceQualification.present && !node.sdo.present && !owner.unresolved(0));
+        CHECK(node.strictBoundary && node.boundaryUs == 10);
+        CHECK(owner.reportController(C::ControllerState::RECOVERING, 10));
+        CHECK(owner.reportController(C::ControllerState::AVAILABLE, 10));
+        CHECK(!eligible(owner, 10).ordinarySdo && !owner.checkAdmission(0, write(), 10));
+        // After invalidation the boundary is strict: a reply on it is not after it, in either form.
+        const auto equal = sent(owner, 10, 10);
+        const Saved<C::NodeSnapshot> before(node);
+        CHECK(exact ? owner.receive(reply(), 10, 12) : owner.receive(reply(), 10, 12, 12));
+        succeeded(owner, equal);
+        CHECK(before.unchanged(node) && !eligible(owner, 12).ordinarySdo);
+        const auto later = sent(owner, 12, 12);
+        CHECK(owner.receive(reply(), 13, 14, 14));
+        succeeded(owner, later);
+        CHECK(node.serviceQualification.receivedEarliestUs == 13 && eligible(owner, 14).ordinarySdo);
+    }
+    for (unsigned busOff = 0; busOff < 2; ++busOff) {
+        // Interval evidence kept before routing exists is withdrawn by a controller event too.
+        C::SdoClient owner;
+        CHECK(owner.configure(0, channel(), false, true));
+        const auto id = sent(owner, 1, 2);
+        CHECK(owner.receive(reply(), 3, 5, 6));
+        succeeded(owner, id);
+        if (busOff) {
+            CHECK(owner.reportController(C::ControllerState::BUS_OFF, 7));
+            CHECK(owner.reportController(C::ControllerState::AVAILABLE, 8));
+        }
+        CHECK(owner.configureNetwork(0, route(), C::NetworkObserver(), 9));
+        CHECK(owner.node(0)->serviceQualification.present == !busOff);
+        CHECK(eligible(owner, 9).ordinarySdo == !busOff);
+        if (!busOff) CHECK(owner.node(0)->serviceQualification.receivedEarliestUs == 3);
+    }
+}
+void transitionNeedsTheWholeIntervalAfterIt() {
+    C::SdoClient owner; unconfirmed(owner);
+    const auto first = sent(owner, 1, 2);
+    CHECK(owner.receive(reply(), 3, 5, 6));
+    succeeded(owner, first);
+    const auto inFlight = sent(owner, 6, 7);
+    C::NmtTransfer work;
+    work.target = route(); work.command = C::NmtCommand::START;
+    work.request = 5; work.deadlineUs = 100; work.queueTimeoutUs = 50;
+    C::NmtRequestId nmt;
+    CHECK(owner.admitNmt(work, 7, nmt));
+    M::Frame output;
+    CHECK(owner.nextNmtTx(nmt, 8, output) && owner.confirmNmtTx(nmt, 8) && owner.releaseNmt(nmt));
+    CHECK(owner.node(0)->intentPresent && owner.node(0)->transitionUs == 8);
+    CHECK(!eligible(owner, 8).ordinarySdo); // The earlier proof predates the possible transition.
+    // In flight across it: the interval starts on the transition, so it qualifies nothing.
+    CHECK(owner.receive(reply(), 8, 10, 10));
+    succeeded(owner, inFlight);
+    CHECK(!eligible(owner, 10).ordinarySdo);
+    const auto after = sent(owner, 10, 10);
+    CHECK(owner.receive(reply(), 11, 12, 12));
+    succeeded(owner, after);
+    CHECK(eligible(owner, 12).ordinarySdo && !eligible(owner, 12).exactNmtKnown);
+}
+void rebootRevokesBoundedQualification() {
+    C::SdoClient owner; unconfirmed(owner);
+    const auto first = sent(owner, 1, 2);
+    CHECK(owner.receive(reply(), 3, 5, 6));
+    succeeded(owner, first);
+    const auto inFlight = sent(owner, 6, 7);
+    // A boot-up whose own interval starts after the qualifying reply's earliest bound.
+    CHECK(owner.receive(heartbeat(0), 7, 8, 8));
+    CHECK(owner.result(inFlight)->outcome == C::SdoOutcome::REBOOT && owner.unresolved(0));
+    CHECK(!owner.node(0)->serviceQualification.present && !owner.node(0)->sdo.present);
+    CHECK(!eligible(owner, 8).ordinarySdo);
+    // The in-flight reply, delivered after the boot-up with an interval reaching before it.
+    CHECK(!owner.receive(reply(), 7, 9, 9));
+    CHECK(!owner.node(0)->serviceQualification.present && !eligible(owner, 9).ordinarySdo);
+    CHECK(owner.result(inFlight)->outcome == C::SdoOutcome::REBOOT);
+}
+void olderBoundedReplyCannotRefreshNewerQualification() {
+    // Two channels of one node, both handed off at 2. The newer reply is processed first.
+    // Neither can be told apart by processing order alone; only the receive bounds order them.
+    for (unsigned wide = 0; wide < 2; ++wide) {
+        C::SdoClient owner; unconfirmed(owner);
+        CHECK(owner.configure(1, channel(1), false, true));
+        const auto late = sent(owner, 1, 2, 0);
+        const auto newer = sent(owner, 2, 2, 1);
+        CHECK(owner.receive(reply(1), 10, 12, 12));
+        succeeded(owner, newer);
+        const C::NodeSnapshot& node = *owner.node(0);
+        const Saved<C::ObservationTime> proof(node.serviceQualification), sdo(node.sdo);
+        // Received earlier and processed later. Its upper bound past 12 does not make it newer.
+        CHECK(wide ? owner.receive(reply(0), 9, 15, 20) : owner.receive(reply(0), 3, 5, 20));
+        succeeded(owner, late);
+        CHECK(proof.unchanged(node.serviceQualification) && sdo.unchanged(node.sdo));
+        CHECK(eligible(owner, 30).ordinarySdo && !eligible(owner, 31).ordinarySdo);
+    }
+}
+void invalidReplyBoundsChangeNothing() {
+    C::SdoClient owner; unconfirmed(owner);
+    const auto id = sent(owner, 1, 2);
+    const Saved<C::SdoClient> before(owner);
+    CHECK(!owner.receive(reply(), 5, 4, 6) && before.unchanged(owner)); // Inverted.
+    CHECK(!owner.receive(reply(), 3, 7, 6) && before.unchanged(owner)); // Upper bound in the future.
+    CHECK(!owner.result(id));
+    CHECK(owner.receive(reply(), 3, 5, 6));
+    succeeded(owner, id);
+    CHECK(eligible(owner, 6).ordinarySdo);
 }
 } // namespace
 int main() {
@@ -211,5 +427,13 @@ int main() {
     contradictoryOverlapWithdrawsState();
     nmtTransitionNeedsLowerBoundAndOriginalDeadline();
     sdoDeadlinesAndCorrelationStayConservative();
+    boundedReplyQualifiesFromItsEarliestBound();
+    intervalMustStartAfterItsHandoff();
+    nodeBoundaryKeepsItsStrictness();
+    recoveryClearsBoundedQualification();
+    transitionNeedsTheWholeIntervalAfterIt();
+    rebootRevokesBoundedQualification();
+    olderBoundedReplyCannotRefreshNewerQualification();
+    invalidReplyBoundsChangeNothing();
     std::printf("Conservative network receive time: %u checks\n", checks);
 }

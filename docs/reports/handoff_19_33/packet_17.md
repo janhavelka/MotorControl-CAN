@@ -1,6 +1,6 @@
 # Packet 17: explicit alarm clearing and retained fault evidence
 
-Resumes the alarm-clear part of prompt 32. Host and fake evidence only: **no specimen has had an alarm, so no clear has run.** A physical trial needs a naturally present, identified fault.
+Resumes the alarm-clear part of prompt 32. Host and fake evidence only: **no retained read has reported an alarm on either specimen, so no clear has run.** A physical trial needs a naturally present, identified fault.
 
 ## Delivered
 
@@ -10,6 +10,8 @@ See the [fault and reference guide](../../fault_reference_actions.md) and the [c
 - **Unresolved fault identity is explicit.** `AlarmIncident::codeLink` is always `UNRESOLVED`: a retained `603F=FF05` plus a later alarm does not show the same resettable event, and the p16 to p20 link is an inference (D-26). The overclaiming refusal text, "documented resettable FF05", is gone. No `FF02..FF04` from LED counts.
 - **`valueOneMayRemain`** is set when `2301=1` may have landed and the final `0` has no positive acknowledgement. An SDO abort counts as a possible effect. Nothing clears it or resends.
 - `test/alarm_clear_test.cpp`, 9,774 checks through the real owner, with exact frames and no enable, motion, save, restore, NMT or retry.
+
+The independent review covered packets 17 and 18 together; its findings and fixes are in [packet 18](packet_18.md#independent-review).
 
 ## Decisions
 
@@ -28,8 +30,8 @@ Only for a naturally present, identified alarm, one drive, cutoff in hand. Recor
 
 ## Open
 
-- `AxisSession` has no clear-alarm member yet. It should keep a per-axis block when `valueOneMayRemain` is set, surviving result release, as RS `actionConflicts` does.
-- `s2_bench` has no route for it.
+- **No application caller.** `AxisSession` has no clear-alarm member yet. It should keep a per-axis block when `valueOneMayRemain` is set, surviving result release, as RS `actionConflicts` does, and copy the EMCY on the ordinary path. Tracked as backlog S12.
+- `s2_bench` has no route for it (S12).
 - Q13's physical qualification.
 
 ## Sibling refresh
@@ -37,10 +39,11 @@ Only for a naturally present, identified alarm, one drive, cutoff in hand. Recor
 | Sibling | Revision | Dirty | Disposition |
 | --- | --- | --- | --- |
 | MotorControl-RS | `6499571` | Clean | Adopted: no replay; separate write, observation and failure evidence (`ess_rs/Actions.h:52`). Rejected: completion requiring the alarm word to read 0 (`Actions.cpp:64-65`) |
+| ADS1115 | `d613a13` | Clean | Adopted: an uncertain effect ends in its own terminal that keeps the uncertainty (`INDETERMINATE`, `hardwareStateUncertain`, `include/ADS1115/ADS1115.h:51,134`). Rejected: `OperationKind::RECOVER`, which replays the desired profile; a clear is never replayed |
 | INA228 | `73f9548` | Clean | Adopted: first dirty cause, less trusted and never more |
 | PCA9555 | `414e0f6` | Clean | Adopted: only a matching full readback revalidates |
 | FieldCore-node | `5ad9292` | Clean | Rejected: reusing `RodCycleCoordinator` auto-reconcile for faults |
 
 ## Checks
 
-See the [execution table](README.md).
+The tests passed the local gates recorded for `01190cf` in the [execution table](README.md). CI failed at `01190cf` on a test registered twice, which is unrelated to this packet. The full verifier then ran on the exact commit `f1116b1` in a clean detached worktree, which includes every test named here, and CI passed at `f1116b1`.

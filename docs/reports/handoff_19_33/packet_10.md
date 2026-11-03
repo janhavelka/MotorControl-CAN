@@ -43,6 +43,8 @@ The reviewer's findings, fixed here: DEC-2's "independent physical stop stays ma
 
 Clang failed `stop_action` on every commit from packet 7 on. CI named the line once a diagnostic was added: `byte 301 of 4896 changed` at a compare of two separate stack objects, which are padding bytes on the host layout. So this was a test defect rather than a rejected call writing its output. Packet 8's "no rejected call changed a byte" had GCC evidence only until then.
 
+GCC also failed at `9685200`, in `stack_check_contract`: a `C:/` path counted as relative on Linux and resolved under the working directory. `988e655` fixed it, and GCC passed there.
+
 ## Override
 
 CI passed on `5306eaf`, the first green run since `25a332f`, once the clang test defects above and a reference bound to too small an object in the corruption suite were fixed. So the [audit's](../../prompts/PROMPTSET_AUDIT_34_50_2026-11-02.md) hold is lifted. No script pins its text, and the audit file stays as the source of its decisions.

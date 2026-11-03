@@ -28,14 +28,26 @@
  *   000F, the earlier 6081/6083/6084/607A for the record, then 607A, 6081, 6083, 6084 and one
  *   6040=001F trigger as host-reviewed native values, each after the previous acknowledgement, then
  *   fresh cycles and an optional named stop. MotionPreview stays an offline review artifact.
+ * - REARM, packet 19. The post-terminal 000F as its own visible step, project policy until the mode 1
+ *   falling-edge behavior is measured. Admitted only while the session's latest controlword is the
+ *   acknowledged 001F of a finished POSITION record on that node. A fresh full read and a check,
+ *   then exactly one 6040=000F through the session, each like POSITION's own writes, then the stated
+ *   number of fresh cycles, recorded and never judged as the success of anything physical.
+ * - MOVE, packet 20. A fresh identity read and full read, a check like POSITION's against the host's
+ *   reviewed start position, then AxisSession::requestMove with MoveEvidence (record, acceptance and
+ *   completion signals, rule and firmware identity) taken from the host's line, never defaulted here.
+ *   The session runs the move to its own terminal, its rearm included; an optional named stop after a
+ *   stated number of move cycles goes through STOP's path with the move's last complete cycle.
+ *   Relative moves are not routed: their wire base is unevidenced.
  *
- * Every motion route (MODE_ONE, ENABLE, STOP, POSITION) needs an attended flag that the host sets
- * only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion routes and
- * ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside POSITION
- * counts as one more. Any failed terminal, lost reply, grant or admission refusal, changed epoch,
- * nonzero EMCY from the node or local abort ends the route and keeps its evidence; nothing is
- * retried, enabled, cleared, zeroed, restored or switched to another mode, and an abort sends no
- * stop. A request already on its way always settles first.
+ * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE) needs an attended flag that the
+ * host sets only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion routes
+ * and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside POSITION
+ * or MOVE counts as one more. These caps restart with the MCU: scripts/s2_bench.py keeps the
+ * campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
+ * changed epoch, nonzero EMCY from the node or local abort ends the route and keeps its evidence;
+ * nothing is retried, enabled, cleared, zeroed, restored or switched to another mode, and an abort
+ * sends no stop. A request already on its way always settles first.
  *
  * Sessions stay open for the life of the firmware once a route has opened them: their history,
  * latest controlword and trial record must survive between routes. While one is open, routes that
@@ -57,7 +69,9 @@ enum class RouteKind : uint8_t {
     MODE_ONE,     ///< Packet 15 P2, one 6060:00=1; `TM`.
     ENABLE,       ///< Packet 15 P3, AxisSession::requestEnable; `TE`.
     STOP,         ///< Packet 15 P4 and packet 16, AxisSession::requestStop; `TS`.
-    POSITION      ///< Packet 19 isolated absolute experiment; `TP`.
+    POSITION,     ///< Packet 19 isolated absolute experiment; `TP`.
+    REARM,        ///< Packet 19 post-terminal 000F after POSITION; `TR`.
+    MOVE          ///< Packet 20 gated absolute move, AxisSession::requestMove; `TG`.
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -71,20 +85,40 @@ struct RoutePlan {
     uint16_t reviewedStatus = 0;        ///< ENABLE: exact reviewed 6041.
     int32_t reviewedPositionTarget = 0; ///< ENABLE: exact reviewed 607A, history and not intent.
     int32_t reviewedVelocityTarget = 0; ///< ENABLE: exact reviewed 60FF, history and not intent.
-    uint32_t deadlineMs = 0; ///< ENABLE and STOP: action deadline after the request, 1..55000.
-    /** MODE_ONE and POSITION: cycle spacing. ENABLE and STOP: the action's observation interval. */
+    /** ENABLE and STOP: action deadline after the request. MOVE: the move's immutable deadline after
+     * its request, which the library also bounds below. 1..55000. */
+    uint32_t deadlineMs = 0;
+    /** MODE_ONE, POSITION and REARM: cycle spacing. ENABLE and STOP: the action's observation
+     * interval. MOVE: the move's MoveOptions::observationIntervalUs, in milliseconds. */
     uint32_t intervalMs = 0;
-    uint16_t cycles = 0;   ///< MODE_ONE 1..10 and POSITION 1..16 fresh observation cycles.
-    uint8_t stopKind = 0;  ///< STOP: 1 HALT or 2 QUICK_STOP. POSITION: 0 none, 1 HALT, 2 QUICK_STOP.
-    uint32_t bestEffortMs = 0;   ///< STOP and POSITION stop: best-effort cutoff, 0 refuses that branch.
-    uint16_t stopAfter = 0;      ///< POSITION: request the stop after this many cycles, 1..cycles.
-    uint32_t stopDeadlineMs = 0; ///< POSITION: the stop's sequenced deadline.
-    uint32_t stopIntervalMs = 0; ///< POSITION: the stop's observation interval.
-    int32_t startPosition = 0;   ///< POSITION: exact reviewed 6064 the fresh read must show.
-    int32_t target = 0;          ///< POSITION: 607A, -1000000..1000000 pulses (EN86/ZH86 p11).
-    uint32_t rpm = 0;            ///< POSITION: 6081, 0..3000 rpm (EN86/ZH86 p11).
-    uint32_t rampUpMs = 0;       ///< POSITION: 6083, 0..2000 ms (EN86/ZH86 p11).
-    uint32_t rampDownMs = 0;     ///< POSITION: 6084, 0..2000 ms (EN86/ZH86 p11).
+    uint16_t cycles = 0; ///< MODE_ONE 1..10, POSITION and REARM 1..16 fresh observation cycles.
+    /** STOP: 1 HALT or 2 QUICK_STOP. POSITION and MOVE: 0 none, 1 HALT, 2 QUICK_STOP. */
+    uint8_t stopKind = 0;
+    uint32_t bestEffortMs = 0; ///< STOP, POSITION and MOVE stop: best-effort cutoff, 0 refuses that branch.
+    /** POSITION: request the stop after this many route cycles, 1..cycles. MOVE: after this many
+     * complete move cycles, 1..16, while no completion is observed; a move that ends first is not
+     * stopped. */
+    uint16_t stopAfter = 0;
+    uint32_t stopDeadlineMs = 0; ///< POSITION and MOVE: the stop's sequenced deadline.
+    uint32_t stopIntervalMs = 0; ///< POSITION and MOVE: the stop's observation interval.
+    int32_t startPosition = 0;   ///< POSITION and MOVE: exact reviewed 6064 the fresh read must show.
+    /** POSITION: 607A, -1000000..1000000 pulses (EN86/ZH86 p11). MOVE: the same range, as an absolute
+     * STEPS request in the native frame, quantized exactly. */
+    int32_t target = 0;
+    uint32_t rpm = 0;        ///< POSITION: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000.
+    uint32_t rampUpMs = 0;   ///< POSITION: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
+    uint32_t rampDownMs = 0; ///< POSITION: 6084, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
+    /** MOVE: MoveEvidence::record, the nonzero identity of the host's reviewed measurement. */
+    uint32_t record = 0;
+    uint8_t acceptSource = 0;    ///< MOVE: MoveSignalSource of acceptance, 1 STATUSWORD or 2 MONITOR.
+    uint16_t acceptMask = 0;     ///< MOVE: nonzero acceptance mask.
+    uint16_t acceptValue = 0;    ///< MOVE: acceptance value, within its mask.
+    uint8_t completeSource = 0;  ///< MOVE: MoveSignalSource of completion, 1 STATUSWORD or 2 MONITOR.
+    uint16_t completeMask = 0;   ///< MOVE: nonzero completion mask.
+    uint16_t completeValue = 0;  ///< MOVE: completion value, within its mask.
+    uint8_t rule = 0;            ///< MOVE: CompletionRule, 1 AFTER_ABSENCE or 2 AFTER_ACCEPTANCE.
+    /** MOVE: raw identity of the measurement, compared exactly with the route's fresh identity read. */
+    MotorControlCAN::LICHUAN_C::MoveFirmware firmware;
 };
 /** Parse the text after the `T` command byte: a route letter, then decimal fields separated by
  * commas, with a leading minus only on signed fields and nothing else:
@@ -94,7 +128,12 @@ struct RoutePlan {
  * <deadlineMs>,<intervalMs>`;
  * `S<node>,<trial>,<attended>,<kind>,<deadlineMs>,<bestEffortMs>,<intervalMs>`;
  * `P<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<cycles>,<intervalMs>,
- * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each).
+ * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
+ * `R<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
+ * `G<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<deadlineMs>,<intervalMs>,
+ * <record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,
+ * <rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stopKind>,<stopAfter>,
+ * <stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each, at most ROUTE_LINE bytes).
  * @param text Borrowed characters; no terminator required.
  * @param size Character count.
  * @param output Published only on success.
@@ -115,8 +154,8 @@ enum class RouteFailure : uint8_t {
     DEADLINE,      ///< The route cutoff or an operation deadline was reached between steps.
     PREREQUISITE,  ///< A fresh read before any write did not meet the route's stated condition.
     OBSERVATION,   ///< After a write, a fresh read or a nonzero EMCY met a stated stop condition.
-    ACTION,        ///< The session's enable or stop ended without its success outcome.
-    REFUSED,       ///< The library refused the enable or stop request; nothing of it was sent.
+    ACTION,        ///< The session's enable, move or stop ended without its success outcome.
+    REFUSED,       ///< The library refused the enable, move or stop request; nothing of it was sent.
     ABORTED        ///< Local abort; no stop was sent.
 };
 /** Local resource sample; the SDK calls behind it live in the firmware entry. */
@@ -141,7 +180,8 @@ enum {
     ROUTE_CUTOFF_MS = 60000,    ///< Route cutoff after admission (packet 22: sixty seconds a case).
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
-    ROUTE_OPERATION_US = 5000000 ///< Deadline of one read or write operation, clamped to the cutoff.
+    ROUTE_OPERATION_US = 5000000, ///< Deadline of one read or write operation, clamped to the cutoff.
+    ROUTE_LINE = 256 ///< Longest request text after `T` the firmware collects; a longer one is refused.
 };
 /** First grant identity; RawEvidence uses 1000..4029 and ProbeApp reads count from 1. */
 constexpr uint32_t ROUTE_GRANT_BASE = 100000;
@@ -235,6 +275,11 @@ struct RouteRecord {
     uint64_t actionRequestedUs = 0; ///< When the enable or stop was requested.
     bool emcy = false;              ///< A nonzero EMCY of this node was copied.
     uint8_t emcyData[8] = {};       ///< Its bytes.
+    bool moveRequested = false;     ///< MOVE: requestMove accepted; AxisSession::moveAction holds it.
+    uint8_t movePhases = 0;         ///< MOVE: bit per MovePhase seen at a service turn while active.
+    uint64_t moveRequestedUs = 0;   ///< MOVE: when requestMove was accepted.
+    uint32_t rearmFollows = 0;      ///< REARM: operation of the acknowledged 001F it was admitted after.
+    uint64_t rearmFollowsUs = 0;    ///< REARM: that 001F terminal's completion time.
 };
 /** One attended route at a time over borrowed sessions. Large and stationary; allocates nothing.
  * The caller places it, attaches one session per node before that node's first route, services the
@@ -277,7 +322,7 @@ class BenchRoute {
      */
     void service(uint64_t nowUs) noexcept;
     /** Withdraw the active route locally. Sends no stop. A request on its way settles first; an
-     * active enable is withdrawn through AxisSession::cancelEnable.
+     * active enable or move is withdrawn through AxisSession::cancelEnable or cancelMove.
      * @param nowUs Owner time.
      * @return Null when the route will end ABORTED; otherwise a static refusal token. A stop in
      * progress refuses: it settles by itself.
@@ -304,12 +349,17 @@ class BenchRoute {
   private:
     enum StepKind : uint8_t {
         STEP_STATE, STEP_GROUP, STEP_TUNING, STEP_SINGLE, STEP_CHECK_MODE, STEP_CHECK_POSITION,
-        STEP_MODE_WRITE, STEP_ENABLE, STEP_STOP, STEP_POSITION_WRITES, STEP_OBSERVE, STEP_END
+        STEP_MODE_WRITE, STEP_ENABLE, STEP_STOP, STEP_POSITION_WRITES, STEP_OBSERVE, STEP_END,
+        STEP_IDENTITY, STEP_CHECK_REARM, STEP_REARM_WRITE, STEP_CHECK_MOVE, STEP_MOVE
     };
     struct Step {
         uint8_t kind;
         uint8_t arg;
     };
+    // Registered with the firmware's owner transport: each attached session rechecks its own move
+    // downloads when they are handed over, so a reference invalidated after admission still holds.
+    static bool preflight(void* context, MotorControlCANOwner::SequenceId sequence,
+                          const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept;
     FirmwareProbe& firmware_;
     MotorControlCAN::CANOPEN::SdoClient& services_;
     RouteCallbacks callbacks_;
@@ -320,14 +370,27 @@ class BenchRoute {
     MotorControlCAN::LICHUAN_C::StateObservation block_;
     MotorControlCANOwner::Diagnostic diagnostic_;
     MotorControlCAN::CANOPEN::SdoTransfer expected_, single_;
+    // MOVE: the identity read the move is checked against, and each node's coordinate configuration,
+    // which requestMove borrows until that node's move is terminal. Written only while it is idle.
+    MotorControlCAN::LICHUAN_C::IdentityObservation identity_;
+    MotorControlCAN::AxisConfig moveAxes_[2];
+    // requestMove's other inputs, borrowed for that call only; kept here, off the owner task's stack.
+    MotorControlCAN::LICHUAN_C::MoveEvidence moveEvidence_;
+    MotorControlCAN::MoveRequest moveRequest_;
+    MotorControlCAN::LICHUAN_C::MoveProfile moveProfile_;
+    MotorControlCAN::LICHUAN_C::MoveOptions moveOptions_;
     RouteRecord record_;
     uint64_t lastUs_ = 0, cutoffUs_ = 0, nextCycleUs_ = 0, cycleStartUs_ = 0, writeDeadlineUs_ = 0;
     uint32_t lastTrial_ = 0, grant_ = ROUTE_GRANT_BASE - 1, grantedOperation_ = 0, grantedStep_ = 0;
     uint32_t writeOperation_ = 0, overwritten_ = 0, rxLost_ = 0;
-    uint8_t motionTotal_ = 0, motionCases_[8][2] = {};
+    // Each node's latest acknowledged POSITION trigger: the only 001F a REARM may follow.
+    uint32_t triggerOperation_[2] = {0, 0};
+    uint64_t triggerUs_[2] = {0, 0};
+    uint8_t motionTotal_ = 0, motionCases_[10][2] = {};
     uint8_t stepIndex_ = 0, subStep_ = 0, readMode_ = 0, readArg_ = 0;
     bool occupied_ = false, pending_ = false, stepActive_ = false, readActive_ = false;
     bool singleAdmitted_ = false, actionStarted_ = false, abortRequested_ = false, emcyHandled_ = false;
+    bool stopAttempted_ = false; ///< MOVE: the planned stop was asked for, whatever its path.
     bool modeAdmitted_[2] = {false, false};
     RouteFailure endFailure_ = RouteFailure::NONE; ///< Abort or EMCY, applied once work settles.
     const char* endWhy_ = "none";
@@ -354,10 +417,16 @@ class BenchRoute {
     void serviceWrite(uint64_t nowUs) noexcept;
     bool writeTransfer(MotorControlCAN::CANOPEN::SdoTransfer& output) const noexcept;
     const char* checkMode() const noexcept;
+    const char* checkIdle() const noexcept;
     const char* checkPosition() const noexcept;
+    const char* checkRearm() const noexcept;
+    const char* checkMove() const noexcept;
+    bool rearmable(uint8_t slot, const AxisSession& session) const noexcept;
     void startEnable(uint64_t nowUs) noexcept;
+    void startMove(uint64_t nowUs) noexcept;
     void startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffortMs, uint32_t intervalMs,
-                   uint64_t nowUs) noexcept;
+                   const MotorControlCAN::LICHUAN_C::ReadContext& state, uint64_t nowUs) noexcept;
+    void serviceMove(uint64_t nowUs) noexcept;
     void serviceAction(uint64_t nowUs) noexcept;
     void serviceObserve(uint64_t nowUs) noexcept;
     void observeDone(uint64_t nowUs) noexcept;

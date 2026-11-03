@@ -209,9 +209,10 @@ independent drive-power cutoff in hand and a free, table-mounted shaft.
    motion, alarm, uncertain write or bus fault; a missing final `0` keeps
    `valueOneMayRemain` and the route's quarantine.
 
-Storage is fixed and caller-owned. On the pinned Xtensa compiler the action
-context occupies 5,152 bytes, 32 of them the counter baseline added by packet 18,
-so keep it in static or owner storage, not a task local. Calls validate and then write that storage in place,
+Storage is fixed and caller-owned. The action context takes several kilobytes on
+the pinned Xtensa compiler; `scripts/check_stack.py` measures the current size of
+`ActionContext` per target in its report's `context_sizes`. Keep it in static or
+owner storage, not a task local. Calls validate and then write that storage in place,
 with no context copy on the stack; `scripts/check_stack.py` holds their frames
 and known call chains to the project limits. Those are compiler measurements
 with visible unknown edges, not a measured task high-water mark. No heap or

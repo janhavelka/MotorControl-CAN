@@ -590,6 +590,12 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
         (boundsKnown && (timeKnown || earliest > latest || latest > now))) return false;
     // A caller may return our borrowed observation frame; copy before replacing it.
     const Frame f = input;
+    ObservationTime capture; // At most one representation; both flags false means unknown.
+    capture.present = true;
+    capture.receivedTimeKnown = timeKnown; capture.receivedUs = received;
+    capture.receiveBoundsKnown = boundsKnown;
+    capture.receivedEarliestUs = earliest; capture.receivedLatestUs = latest;
+    capture.processedUs = now;
     service(now);
     bool pdoMatched = false;
     const bool pdoAccepted = dispatchPdo(f, timeKnown, received, now, pdoMatched);
@@ -708,7 +714,7 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
             }
             if (c.work.direction == SdoDirection::UPLOAD && (f.data[0] == 0x40 || f.data[0] == 0x41)) {
                 if (!c.work.allowSegmentedUpload) {
-                    if (!c.unresolved) recordSdo(c, timeKnown, received, now);
+                    if (!c.unresolved) recordSdo(c, capture);
                     abort(c, SdoOutcome::UNSUPPORTED, CO_SDO_AB_UNSUPPORTED_ACCESS, now);
                     return true;
                 }
@@ -739,7 +745,7 @@ bool SdoClient::receiveFrame(const Frame& input, bool timeKnown, uint64_t receiv
         c.port.rx.CANrx_callback(c.port.rx.object, &incoming);
         pump(c, now); // Drain the single native mailbox before accepting another frame.
         if (!c.terminal || c.completion.outcome == SdoOutcome::SUCCESS || c.completion.outcome == SdoOutcome::SERVER_ABORT)
-            if (!c.unresolved) recordSdo(c, timeKnown, received, now);
+            if (!c.unresolved) recordSdo(c, capture);
         return true;
     }
     return false;

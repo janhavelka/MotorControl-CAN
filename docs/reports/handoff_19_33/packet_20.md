@@ -36,7 +36,7 @@ The session keeps **two** reads alternating, rather than one move member, so the
 
 ## Independent review, all fixed
 
-A reused read not retained; an aborted trigger not fenced; the partial-setup summary; and `nextMove` re-offering a download already noted. It confirmed that no path replays `001F` or reports a completion the evidence rule did not qualify. 21 hand mutants: 20 killed, and the survivor is a defensive check the API cannot reach.
+A reused read not retained; an aborted trigger not fenced; the partial-setup summary; and `nextMove` re-offering a download already noted. It confirmed that no path replays `001F` or reports a completion the evidence rule did not qualify. 21 hand mutants (not retained): 20 killed, and the survivor is a defensive check the API cannot reach.
 
 ## What packet 19 must supply
 
@@ -52,11 +52,13 @@ Per specimen and firmware, with raw traffic and a shaft observation:
 
 ## Open
 
-- Relative moves and immediate update (packet 21).
-- An explicit `000F` rearm after a stop or an unknown trigger needs its own action.
-- `MoveContext` is not yet in `check_stack.py`'s list of measured context types.
-- Ledger rows and coverage for `607A`, `6081`, `6083`, `6084`.
-- `AxisSession` is now 23,536 bytes; the bench routes allocate it from the heap.
+- **Closed by packet 21:** relative moves share this path (`prepareMoveRelative`) and are refused before work until a wire base is evidenced. Immediate update (`003F`, `007F`) stays unsupported.
+- **Closed by packet 21:** `MoveContext` (3,008 bytes) is in `check_stack.py`'s measured context types.
+- **Tested here for packet 18:** a counter zero advances the configuration epoch, so a move prepared before it can neither run nor be admitted again (`counterZeroInvalidates`).
+- An explicit `000F` rearm after a stop or an unknown trigger needs its own action. The move's own rearm, after an observed completion, is part of this lifecycle, and the bench `rearm` route covers only the isolated `position` experiment.
+- **Bench caller added 2026-11-03:** the attended `move` route runs this lifecycle through `AxisSession::requestMove`, with `MoveEvidence` taken only from the host command and a route-owned `AxisConfig` kept alive for the whole move. It is for use after packet 19's evidence is reviewed, and has not run.
+- **Ledger:** not a gap. Every one of the 99 objects in `lichuan_objects.json`, `6040`, `2301` and `2302` included, keeps whole-object `coverage` false by design, because the ledger is a documentary dictionary with no command-coverage field. Command coverage is recorded in the [coverage matrix](../../coverage.md).
+- `AxisSession` is 23,544 bytes after packet 21; the bench routes allocate it from the heap.
 
 ## Sibling refresh
 
@@ -69,4 +71,4 @@ Per specimen and firmware, with raw traffic and a shaft observation:
 
 ## Checks
 
-See the [execution table](README.md).
+The tests passed the local gates recorded for `01190cf` in the [execution table](README.md). CI failed at `01190cf` on a test registered twice, which is unrelated to this packet. The full verifier then ran on the exact commit `f1116b1` in a clean detached worktree, and CI passed there.

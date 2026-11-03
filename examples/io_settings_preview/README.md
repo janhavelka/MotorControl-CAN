@@ -20,7 +20,9 @@ these separate reads are not an atomic device snapshot.
 No function assignment establishes wiring, electrical level or homing/stop
 prerequisites. `wiringKnown`, `electricalLevelsKnown` and `outputMappingKnown`
 remain false. Upload effects remain unqualified even with synthetic successful
-terminals. The example prepares an explicit DI2 function candidate, inspects its one changed
+terminals. The example then reads STATUS and MONITORS, which `prepareIoSettings` requires: a
+clean read under the reservation with no `2100` running, alarm or undocumented bit. Its words
+are fixtures too. It prepares an explicit DI2 function candidate, inspects its one changed
 download, then withdraws it before admission. Its model/reservation are clearly
 synthetic premises. No controller handoff or output/motion action occurs; no
 configuration epoch changes. The real fake-controller transaction and readback

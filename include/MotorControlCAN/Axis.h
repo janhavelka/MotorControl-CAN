@@ -205,8 +205,11 @@ struct PreparedVelocityTarget {
  * @param[in] config Caller-owned configuration. @return Local status. */
 Status validateAxisConfig(const AxisConfig& config);
 /** Validate stationary idle evidence and publish a new configuration epoch.
- * Binding and epochs must match current; only this function advances epochs.
- * Origins cannot be injected through candidate. Position-scale/format changes clear
+ * Binding and epochs must match current: candidate cannot set them, and this function advances
+ * both by one. It is not the only epoch writer: setAxisOrigin and invalidateAxisReference advance
+ * them too, and a profile's settings or PDO configuration transmission notice advances the
+ * binding's configuration epoch before a possible write. Origins cannot be injected through
+ * candidate. Position-scale/format changes clear
  * origins and soft limits. Unchanged interpretation may retain evidence with
  * its ORIGINAL observedUs/maximumAgeUs and updated epochs. Both outputs are
  * atomic on failure; candidate may alias current and retainedReference evidence.

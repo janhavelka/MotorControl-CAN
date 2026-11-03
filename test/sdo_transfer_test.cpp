@@ -720,8 +720,10 @@ void acceptedUploads() {
         upload.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
         CHECK(client.checkAdmission(0, upload, 0));
     }
-    // Each receive-time representation confirms the route. Today only an exact time qualifies
-    // ordinary work: the service record keeps neither an unknown time nor an ingress interval.
+    // Each receive-time representation confirms the route. Contract change (bounds qualification,
+    // decided from the 2026-11-03 S2 soaks): an ingress interval starting strictly after the
+    // handoff now qualifies ordinary work as an exact capture does, aged from its lower bound.
+    // Unknown time still qualifies nothing. network_receive_time_test covers the refusals.
     enum { UNKNOWN_TIME, EXACT_TIME, INTERVAL_TIME };
     for (unsigned known = UNKNOWN_TIME; known <= INTERVAL_TIME; ++known) {
         C::SdoClient client; CHECK(client.configure(0, route(), false, true));
@@ -750,7 +752,7 @@ void acceptedUploads() {
         CHECK(request.id == 0x601 && std::memcmp(request.data, upload, 8) == 0);
         M::Frame answer = reply(0x4b); answer.data[4] = 0x37; answer.data[5] = 0x80;
         CHECK(known == EXACT_TIME      ? client.receive(answer, 1, 1)
-              : known == INTERVAL_TIME ? client.receive(answer, 0, 1, 1)
+              : known == INTERVAL_TIME ? client.receive(answer, 1, 1, 1)
                                        : client.receive(answer, 1));
         terminal(client, id, C::SdoOutcome::SUCCESS);
         CHECK(client.result(id)->effectPossible && !client.result(id)->effectUncertain);
@@ -762,13 +764,14 @@ void acceptedUploads() {
         C::ServiceEligibility now;
         CHECK(C::serviceEligibility(*client.node(0), 1, now));
         CHECK(!now.exactNmtKnown && now.probeUpload && !now.pdoTransmit);
-        CHECK(now.ordinarySdo == (known == EXACT_TIME));
+        CHECK(now.ordinarySdo == (known != UNKNOWN_TIME));
         CHECK(client.node(0)->serviceQualification.receivedTimeKnown == (known == EXACT_TIME));
+        CHECK(client.node(0)->serviceQualification.receiveBoundsKnown == (known == INTERVAL_TIME));
         C::HeartbeatFreshness heartbeat = C::HeartbeatFreshness::FRESH;
         CHECK(C::heartbeatFreshness(*client.node(0), 1, 1000, heartbeat));
         CHECK(heartbeat == C::HeartbeatFreshness::PRODUCER_UNKNOWN);
-        CHECK(client.checkAdmission(0, work(2, true), 1) == (known == EXACT_TIME));
-        CHECK(client.checkAdmission(0, work(), 1) == (known == EXACT_TIME));
+        CHECK(client.checkAdmission(0, work(2, true), 1) == (known != UNKNOWN_TIME));
+        CHECK(client.checkAdmission(0, work(), 1) == (known != UNKNOWN_TIME));
         CHECK(client.checkAdmission(0, accepted, 1));
         // Once the application's service age passes, ordinary work needs fresh evidence. An accepted
         // upload remains available to obtain it, because confirmation itself was never freshness.

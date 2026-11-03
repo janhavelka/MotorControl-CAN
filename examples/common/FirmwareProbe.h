@@ -16,6 +16,15 @@ enum class FirmwareFailure : uint8_t {
     APPLICATION, ///< ProbeApp service, which includes the owner turn, was rejected.
     EVIDENCE     ///< DeviceEvidence service was rejected.
 };
+/** Application check of one download just before the owner hands it over, forwarded from
+ * Transport::beforeTransmit. AxisSession::preflight is the intended callee. */
+struct DownloadPreflight {
+    void* context = nullptr; ///< Borrowed; outlives the registration.
+    /** False withdraws the download: the owner closes it PREFLIGHT_REJECTED, provably unsent.
+     * Runs inside the owner's turn and must not call the owner. */
+    bool (*check)(void*, MotorControlCANOwner::SequenceId, const MotorControlCAN::CANOPEN::SdoTransfer&,
+                  uint64_t) = nullptr;
+};
 /** Explicit local controller configuration; default leaves CAN disabled.
  * Applies to the S3 USB Serial/JTAG examples, which reserve GPIO19/20 for USB.
  * No node, drive, model, firmware, session or physical presence is inferred.
@@ -78,9 +87,18 @@ class FirmwareProbe {
     ProbePlatform& platform() noexcept { return platform_; }
     /** @return Controller transport for diagnostics and explicit checked shutdown. */
     TwaiAdapter& transport() noexcept { return transport_; }
+    /** Register the check the owner runs before each download leaves; a null check removes it.
+     * Call between service turns. Without one, every download is handed over unchecked.
+     * @param preflight Copied; its context outlives the registration. */
+    void setPreflight(const DownloadPreflight& preflight) noexcept { preflight_ = preflight; }
 
   private:
+    // The owner holds one context for every transport callback, so it gets this assembly and
+    // each callback forwards to the adapter's own. Only beforeTransmit adds anything.
+    MotorControlCANOwner::Transport ownerTransport() noexcept;
     TwaiAdapter transport_;
+    MotorControlCANOwner::Transport adapter_; // The adapter's callbacks, copied once.
+    DownloadPreflight preflight_;
     CanBusOwner owner_;
     ProbePlatform platform_;
     ProbeApp app_;

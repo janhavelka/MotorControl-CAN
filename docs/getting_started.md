@@ -29,8 +29,9 @@ add_executable(my_app main.cpp)
 target_link_libraries(my_app PRIVATE MotorControlCAN::MotorControlCAN)
 ```
 
-Include `<MotorControlCAN/MotorControlCAN.h>` for the small complete interface,
-or `<MotorControlCAN/Axis.h>`, `<MotorControlCAN/Units.h>`, `<MotorControlCAN/Endpoint.h>` and
+Include `<MotorControlCAN/MotorControlCAN.h>` for every core header, including the
+operation and CANopen codec headers; profile headers such as the Lichuan ones are
+included separately. Or include `<MotorControlCAN/Axis.h>`, `<MotorControlCAN/Units.h>`, `<MotorControlCAN/Endpoint.h>` and
 `<MotorControlCAN/can/Frame.h>` individually. The [units/status guide](units_status.md)
 documents exact inputs, scale dependencies, rounding and explicit approximation.
 The [axis guide](axis_contract.md) covers configuration, origins, references and

@@ -8,7 +8,7 @@ See the [tuning guide](../../tuning.md) and the [changelog](../../../CHANGELOG.m
 
 - **The 2500 write, verified through the real owner, found no defect.** Literal frames for every transition, both models and stored words `0, 1, 2, 3, 0x1234, 0xffff`; no-op silence; whole-candidate refusal; frozen tokens and aliases; immutable queued bytes; aborted and lost downloads with no replay; aborted, lost and mismatched readback at each word; cancellation; deadlines; boot-up, bus-off and EMCY; notice before TX; retirement before epoch migration; and that no other word or object is written. The unchanged 2501 stays unchanged.
 - Every prompt 22 ledger row carries `review.next_evidence`, and the checker refuses a row without one.
-- 21 hand mutants of the control logic are killed.
+- 21 hand mutants of the control logic are killed (not retained).
 
 ## Contract changes, both project policy
 

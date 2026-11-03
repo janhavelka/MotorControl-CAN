@@ -1,5 +1,7 @@
 # Audit and repair instructions: prompts 34-50 and the code they build on, 2 November 2026
 
+> **Closed for W1 to W8, 2026-11-03.** Handoff packets 1 to 10 delivered W1 to W8 for host scope, and [packet 10](../reports/handoff_19_33/packet_10.md)'s closure audit lists what stays open. The hold below was lifted on green CI at `5306eaf`, in `19d48e7`. This file stays the source of its decisions and findings, but its baseline line numbers and its description of the current code are historical. A-15, A-16, A-18 and A-19 had no W1 to W8 owner and are tracked in the [backlog](../backlog.md). For the current state read [PROGRESS.md](PROGRESS.md) and the [execution table](../reports/handoff_19_33/README.md). Nothing here is drive evidence: no specimen has run a stop, enable or move.
+
 Instructions for the AI coder who will repair and execute these prompts. This file
 gives settled decisions, ordered work packets and the findings behind them. It changes
 nothing by itself: writing it edited no prompt, code, ledger or test, and touched no
@@ -42,12 +44,16 @@ independently. Nothing here is a measurement of a real drive.
 
 ## Start here
 
-1. **Do not build any finite move, velocity or homing lifecycle yet.** That means prompt 33's
-   `prepareMoveAbsolute`, `nextMove` and `advanceMove`, and prompts 34-36. Finish W1 to W8 first.
-   On the current code a running move cannot be stopped (C-16), a stop would overflow the
-   firmware task stack (A-11) and the velocity API returns the wrong unit (A-01). Building on
-   those seams copies the defects into four more operations. Prompt 33's pure
-   `preparePositionParameters` landed at `c329c7e`, sends nothing, and stays.
+1. **Build a finite move, velocity or homing lifecycle only on consumed, qualified contracts.**
+   At the baseline this item said not to build prompt 33's `prepareMoveAbsolute`, `nextMove` and
+   `advanceMove`, or prompts 34-36, until W1 to W8 were done, because a running move could not be
+   stopped (C-16), a stop would overflow the firmware task stack (A-11) and the velocity API
+   returned the wrong unit (A-01). Packets 7, 8 and 9 fixed those seams on the host, and W1 to W8
+   closed with packet 10. Packet 20 then built the absolute lifecycle behind a gate that is closed
+   by default. The lifted hold qualifies no release command, moving stop, relative wire base or
+   physical scale: whether a stop works on the drive is packet 16's measurement, and acceptance
+   and completion are packet 19's. Prompt 33's pure `preparePositionParameters` landed at
+   `c329c7e`, sends nothing, and stays.
 2. **The decisions in section 3 are settled.** Do not reopen them or ask again. If
    primary evidence contradicts one, record the evidence, stop that packet and report it.
 3. **Work through section 4 in order,** one packet at a time. Prompts 40 and 43 are the
@@ -128,6 +134,25 @@ are in what those subsets leave out and in how the prompts compose them:
    resets. Both paths are reproduced with a fake driver; the arbitration-loss trigger in C-03
    is unmeasured on hardware.
 8. **The real bench board cannot run the firmware** (G-04).
+
+**Status of the verdict, 2026-11-03.** The list above describes the baseline. Host repairs, with no
+drive evidence for any of them:
+
+1. Packets 6 and 7: a stop follows the DEC-8 predecessors, and a best-effort `000B` route serves a
+   lost history or an unconfirmed write. Each best-effort stop costs the axis's route until an MCU
+   restart, and whether any row stops the drive is packet 16's measurement.
+2. Packet 8: every frame and known chain is under the project limits on S2 and S3. These are
+   compile-time lower bounds; the live stack during a stop is unmeasured.
+3. Packet 1 repaired the graph (W1).
+4. Packets 9 and 10: the native rate basis (A-01), `retireMotionParameters` (A-02) and
+   `interpretStatusword` (A-03). Packet 20's move routes its speed through the rate basis.
+5. Packet 4: DEC-1 admits the accepted read list as risk acceptance. Q20 stays open as a device
+   fact.
+6. W1 states D-02 in prompt 33. It is still undocumented by the manuals.
+7. Packet 3 fixed both TWAI paths on the host (W3). Its physical questions 1, 4 and 6 stay
+   unanswered after packet 11.
+8. G-04 moved to W9. The S2 board runs the bench firmware, and packet 11's baseline and soak ran
+   on it.
 
 ## 3. Settled decisions
 

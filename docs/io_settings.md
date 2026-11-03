@@ -94,9 +94,13 @@ Typed device CLI routes remain planned under prompts 40-42.
 ## Explicit DI settings
 
 `Settings.h` adds `IoSettings`, `DriverSettingsContext` and `prepareIoSettings`.
-Supply a fresh complete input-configuration context, actual continuous
-sole-owner `AxisReservation`, the actual current `ReadTarget`, explicit CL86-C/OL86-C
-model and a complete candidate. Defaults are deliberately invalid: select every function code 0..13
+Supply a fresh complete input-configuration context, a clean STATUS and MONITORS
+read made under the reservation, actual continuous sole-owner `AxisReservation`, the
+actual current `ReadTarget`, explicit CL86-C/OL86-C model and a complete candidate.
+The state read must report no `2100` running, alarm or undocumented bit 7..15, as
+for 2202 and 2500: reassigning an input can change enable, stop or limit inputs. This
+is project policy taken from RS `validatePriorSettingsAndStandstill`, not a source rule,
+and it refuses a no-op candidate the same way. Defaults are deliberately invalid: select every function code 0..13
 and the desired polarity bits 0..6. Unknown high polarity bits are copied from
 matched prior readback. Invalid model/epochs/codes/masks/time, a reservation not at the current target, aliasing or
 generation exhaustion rejects atomically before any work. A stored undocumented function

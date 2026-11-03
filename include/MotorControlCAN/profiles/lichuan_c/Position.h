@@ -1,22 +1,28 @@
 /** @file Position.h
- * @brief 86C position parameters and the finite absolute move lifecycle.
+ * @brief 86C position parameters and the finite absolute and relative move lifecycle.
  * Functions perform bounded C++11 work without I/O, allocation, clock access, retries or replay.
  * SPDX-License-Identifier: MIT
  *
- * preparePositionParameters is pure arithmetic. The absolute move is GATED: the acceptance and
- * completion reports of these specimens are not established, so MoveEvidence carries the caller's
- * reviewed measurement and a closed gate refuses. A success with those reports unqualified cannot
- * happen. Fake-owner tests are the only evidence that this lifecycle runs; no specimen has run it.
+ * preparePositionParameters is pure arithmetic. Both moves are GATED: the acceptance and completion
+ * reports of these specimens are not established, so MoveEvidence carries the caller's reviewed
+ * measurement and a closed gate refuses. A success with those reports unqualified cannot happen.
+ * A relative move is gated twice: the manuals give the bit 6 trigger but not what the drive adds
+ * the displacement to, so MoveEvidence::relativeBase must name the measured base. No base is
+ * measured on any specimen, so every relative request is refused with UNSUPPORTED today. Fake-owner
+ * tests are the only evidence that either lifecycle runs; no specimen has run one.
  *
  * Phase order (D-01): the caller's fresh state read proves mode 1, low bits 111 and released clear
  * after the actual latest acknowledged 000F under this reservation, which no move writes itself.
- * Then 607A, 6081, 6083, 6084 in that order (EN86/ZH86 p11-12, OP86 p9-10), then the bit 4 edge 000F
- * to 001F, which is held until the move is terminal (DEC-8). Then fresh observation cycles collect a
- * new acceptance and a new completion under the caller's evidence. Only after an observed completion
- * is 000F written, as its own visible step; its result never erases that observation, and a failed
- * or uncertain 000F is never retried. No 6060 or 6061 write, enable, fault clear or stop is emitted.
- * Immediate update (003F/007F) is refused. Every yielded download and observation needs the actual
- * live reservation; contexts are written in place, never copied onto the stack.
+ * Then 607A, 6081, 6083, 6084 in that order (EN86/ZH86 p11-12; OP86 p9-10, whose running header names
+ * CL57-C/OL57-C), then the bit 4 edge, 000F
+ * to 001F for an absolute target or 000F to 005F for a relative one, held until the move is terminal
+ * (DEC-8). Then fresh observation cycles collect a new acceptance and a new completion under the
+ * caller's evidence. Only after an observed completion is 000F written, as its own visible step; its
+ * result never erases that observation, and a failed or uncertain 000F is never retried. No 6060 or
+ * 6061 write, enable, fault clear, counter zero, origin change or stop is emitted. Immediate update
+ * (003F/007F) is refused. A relative move is never converted to an absolute one. Every yielded
+ * download and observation needs the actual live reservation; contexts are written in place, never
+ * copied onto the stack.
  */
 #pragma once
 #include <MotorControlCAN/MoveOperation.h>
@@ -35,8 +41,8 @@ enum class PositionParameterError : int32_t {
     AXIS_ERROR_BASE = 1000 ///< Added to an underlying AxisError, preserving its Err and message.
 };
 /** Owned parameter intent, independent of settings readback or device admission.
- * EN86/ZH86 PDF p11 and EDS [607A]/[6081]/[6083]/[6084] provide the object
- * widths and documentary ranges. Neither zero speed/ramp nor zero displacement
+ * EDS [607A]/[6081]/[6083]/[6084] provide the object widths, and EN86/ZH86 PDF p11
+ * and OP86 p9 the documentary ranges; the EDS gives no limits. Neither zero speed/ramp nor zero displacement
  * establishes a useful trajectory, standstill or completion. Retain this value
  * without editing fields; later admission must independently check current
  * binding, configuration, reference, firmware and operation prerequisites.
@@ -89,16 +95,16 @@ Status preparePositionParameters(PreparedPositionParameters& output, SettingsMod
                                  const AxisReference* reference, const DriverSettings& settings,
                                  uint64_t nowUs) noexcept;
 
-/** Services one absolute move schedules at least: up to four parameter downloads, the trigger, one
- * seven-field observation cycle and the rearm. prepareMoveAbsolute needs a deadline beyond this many
- * queue-and-response budgets. Further cycles are not counted, so it guarantees no completion. */
+/** Services one absolute or relative move schedules at least: up to four parameter downloads, the
+ * trigger, one seven-field observation cycle and the rearm. Both preparations need a deadline beyond
+ * this many queue-and-response budgets. Further cycles are not counted, so it guarantees no completion. */
 constexpr uint64_t MOVE_SERVICE_STEPS = 13;
 /** Fields of one move observation cycle: MONITORS 2100..2102, STATUS 6041 and 6061, FEEDBACK 6064
  * and 606C, read in that order, sequentially and not as an atomic snapshot. */
 constexpr unsigned MOVE_OBSERVATION_FIELDS = 7;
-/** Whether an absolute move may run at all. The capability gate, not a readiness claim. */
+/** Whether a move may run at all. The capability gate, not a readiness claim. */
 enum class MoveGate : uint8_t {
-    CLOSED,  ///< Default: prepareMoveAbsolute returns UNSUPPORTED with nothing changed.
+    CLOSED,  ///< Default: both move preparations return UNSUPPORTED with nothing changed.
     /** The caller's reviewed measurement of acceptance and completion on this exact firmware, from the
      * packet 19 trial. The library cannot check the measurement, only bind and apply it. */
     MEASURED
@@ -138,6 +144,22 @@ struct MoveFirmware {
     uint16_t modelCode = 0;       ///< 2000 raw.
     uint16_t firmwareCode = 0;    ///< 2001 raw.
 };
+/** What the drive adds a relative displacement to on the 000F to 005F edge, as the caller's
+ * measurement established on this exact firmware. EN86/ZH86 p12 and OP86 p10 give the 15 to 95
+ * trigger and bit 6 as relative positioning, but no base. A queued base is absent: this lifecycle
+ * admits a move only from an idle drive and never puts an edge into a running curve. Bit 5 = 0 is
+ * documented as updating the parameters after the current curve completes (EN86/ZH86 p12), with no
+ * capacity, acknowledgement or base.
+ */
+enum class RelativeBase : uint8_t {
+    UNMEASURED, ///< Default: every relative request returns UNSUPPORTED with RELATIVE_BASIS.
+    /** Measured: the drive adds the displacement to its actual position at the edge. Admits a
+     * relative request whose basis and witness are ACTUAL. */
+    ACTUAL,
+    /** Measured: the drive adds the displacement to its last commanded position, which may differ
+     * from its actual one. Admits a relative request whose basis and witness are COMMANDED. */
+    COMMANDED
+};
 /** The caller's explicit move capability evidence. Defaults refuse. It is copied and frozen as the
  * move's dialect: a later change of evidence does not reach a running move.
  */
@@ -151,6 +173,10 @@ struct MoveEvidence {
     MoveSignal acceptance;
     MoveSignal completion; ///< Report that the controller considers the move complete.
     CompletionRule rule = CompletionRule::NONE; ///< What makes a completion report new.
+    /** Relative moves only: the drive's own base, measured in the same record. Ignored by
+     * prepareMoveAbsolute. The acceptance and completion signals apply to the 005F trigger only if
+     * the record measured them on it. */
+    RelativeBase relativeBase = RelativeBase::UNMEASURED;
 };
 /** How the move treats 6081, 6083 and 6084. 607A is always written. */
 enum class MoveSetup : uint8_t {
@@ -164,8 +190,8 @@ struct MoveProfile {
     uint32_t rampUpTimeMs = UINT32_MAX;   ///< 6083 acceleration time, 1..2000 ms; zero refused (Q11).
     uint32_t rampDownTimeMs = UINT32_MAX; ///< 6084 deceleration time, 1..2000 ms; zero refused (Q11).
     MoveSetup setup = MoveSetup::WRITE_ALL; ///< Parameter write policy.
-    /** Bit 5 immediate update (003F). A new edge during a curve is unqualified, so true is
-     * UNSUPPORTED. */
+    /** Bit 5 immediate update (003F, or 007F for a relative target). A new edge during a curve is
+     * unqualified, so true is UNSUPPORTED for both moves. */
     bool immediateUpdate = false;
 };
 /** Caller policy, not manufacturer timing. Defaults refuse. */
@@ -179,7 +205,7 @@ struct MoveOptions {
 /** Concrete phase of an active move. */
 enum class MovePhase : uint8_t {
     PARAMETERS, ///< Current parameter download pending; never replayed.
-    TRIGGER,    ///< 6040=001F pending; never replayed.
+    TRIGGER,    ///< 6040=001F, or 005F for a relative move, pending; never replayed.
     WAITING,    ///< Next observation cycle due at eligibleUs; beginMoveObservation prepares it.
     OBSERVING,  ///< The borrowed observation read's cycle is in progress.
     REARM       ///< Completion observed; 6040=000F pending as its own step.
@@ -197,23 +223,36 @@ struct MoveSample {
     uint64_t earliestUs = 0; ///< Earliest bound of the fields kept here.
     uint64_t latestUs = 0;   ///< Latest bound of the fields kept here.
 };
-/** Caller-owned concrete absolute move. The terminal context is the result. Serialize access and do
- * not edit fields. Histories survive failure. Inputs are borrowed during calls only; the context owns
- * everything it keeps, and it never holds a ReadContext: observations run in a borrowed one.
+/** Caller-owned concrete absolute or relative move. The terminal context is the result. Serialize
+ * access and do not edit fields. Histories survive failure. Inputs are borrowed during calls only;
+ * the context owns everything it keeps, and it never holds a ReadContext: observations run in a
+ * borrowed one.
+ *
+ * A relative move keeps two different bases apart. The host arithmetic reference is
+ * parameters.target.retainedReference, the witness snapshot the endpoint was computed from. The
+ * drive's native base is evidence.relativeBase, the caller's measurement of what the drive adds the
+ * displacement to. They name the same basis, or preparation refused. parameters.target.endpointNative
+ * is the host's expected endpoint; whether the drive reaches it depends on its base equalling the
+ * witness at the edge, which the idle, stationary, fresh witness supports and nothing here observes.
+ * A completion report never establishes that endpoint.
  */
 struct MoveContext {
     AxisReservation reservation; ///< Frozen route, model, epochs and continuous exclusion.
-    MoveEvidence evidence;       ///< Frozen capability evidence: the dialect.
+    MoveEvidence evidence;       ///< Frozen capability evidence: the dialect, and the native base.
     MoveProfile profile;         ///< Frozen native profile choices.
     MoveOptions options;         ///< Frozen caller budgets.
-    /** Frozen requested and effective 607A target, quantization error, units and frame, scale, origin,
-     * limits, binding and configuration epochs, any witness, and the 6081/6083/6084 values written. */
+    /** Frozen requested and effective 607A value, quantization error, units and frame, scale, origin,
+     * limits, binding, configuration and reference epochs, the exact witness snapshot, and the
+     * 6081/6083/6084 values written. target.requested.relative selects the trigger word. For a
+     * relative move targetNative is the displacement and target.endpointNative the host endpoint. */
     PreparedPositionParameters parameters;
     /** Frozen speed: requested rate, quantized once in rpm (MOTOR_TURNS per MINUTE), with its error.
      * Its effectiveNative is parameters.settings.positionSpeedRpm. */
     PreparedVelocityTarget speed;
     MoveDisplacement displacement = MoveDisplacement::UNKNOWN; ///< Whether a witness fixed it.
-    int64_t displacementNative = 0; ///< KNOWN only: endpoint minus witness, never zero.
+    /** KNOWN only: endpoint minus witness, never zero. For a relative move, the quantized
+     * displacement written to 607A. */
+    int64_t displacementNative = 0;
     ActionState state = ActionState::EMPTY;    ///< Overall phase, distinct from drive state.
     MovePhase phase = MovePhase::PARAMETERS;   ///< Current concrete work.
     ActionOutcome outcome = ActionOutcome::NONE; ///< Immutable first terminal cause.
@@ -224,7 +263,7 @@ struct MoveContext {
     /** Parameter downloads together: ACKNOWLEDGED once every planned one was, UNKNOWN for a partial
      * setup in which some may have reached the drive; setupHistory says which. */
     ActionExecution setup = ActionExecution::NOT_TRANSMITTED;
-    ActionExecution execution = ActionExecution::NOT_TRANSMITTED; ///< The 001F trigger only.
+    ActionExecution execution = ActionExecution::NOT_TRANSMITTED; ///< The 001F or 005F trigger only.
     /** Controller report under the frozen evidence only, never independent motion or standstill. Once
      * OBSERVED it stays, whatever the rearm does. */
     ActionCompletion completion = ActionCompletion::NOT_OBSERVED;
@@ -250,7 +289,7 @@ struct MoveContext {
     bool readUncertain = false; ///< An observation upload left an unqualified read effect; never refined.
     CANOPEN::SdoCompletion control; ///< Predecessor: the acknowledged 000F the move followed.
     CANOPEN::SdoCompletion setupHistory[4]; ///< Each parameter terminal by bit, including failure.
-    CANOPEN::SdoCompletion trigger;      ///< 001F terminal, when triggerPresent.
+    CANOPEN::SdoCompletion trigger;      ///< 001F or 005F terminal, when triggerPresent.
     bool triggerPresent = false;         ///< Makes trigger meaningful.
     CANOPEN::SdoCompletion rearmEvidence; ///< 000F terminal, when rearmPresent.
     bool rearmPresent = false;           ///< Makes rearmEvidence meaningful.
@@ -323,8 +362,8 @@ Status validateMoveAbsolute(const MoveContext& output, const AxisReservation& re
  * prepareVelocityTarget and must come out integer rpm: MOTOR_TURNS per MINUTE. Any other destination,
  * such as COMMAND_INCREMENTS per SECOND, is refused even when its value fits 6081.
  * @param[in] reference Optional witness. A supplied established one must be idle, stationary, ACTUAL
- * and fresh, and fixes the displacement, which must not be zero. Without one the displacement stays
- * UNKNOWN and an absolute zero is an ordinary target.
+ * and fresh, observed at or after control completed, and fixes the displacement, which must not be
+ * zero. Without one the displacement stays UNKNOWN and an absolute zero is an ordinary target.
  * @param[in] operation Nonzero identity, unique while old owner work exists.
  * @param[in] nowUs Nondecreasing monotonic microseconds, 0..INT64_MAX.
  * @param[in] deadlineUs Immutable exclusive cutoff, beyond MOVE_SERVICE_STEPS queue-and-response
@@ -341,6 +380,71 @@ Status prepareMoveAbsolute(MoveContext& output, const AxisReservation& reservati
                            const MoveEvidence& evidence, const MoveRequest& request,
                            const MoveProfile& profile, const DriverContext* stored,
                            const AxisConfig& axis, const AxisReference* reference,
+                           uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                           const MoveOptions& options) noexcept;
+/** Report what prepareMoveRelative would refuse, changing nothing.
+ * @param[in] output The context prepareMoveRelative would write; read only for overlap checks.
+ * @param[in] reservation As prepareMoveRelative.
+ * @param[in] current As prepareMoveRelative.
+ * @param[in] state As prepareMoveRelative.
+ * @param[in] control As prepareMoveRelative.
+ * @param[in] identity As prepareMoveRelative.
+ * @param[in] evidence As prepareMoveRelative.
+ * @param[in] request As prepareMoveRelative.
+ * @param[in] profile As prepareMoveRelative.
+ * @param[in] stored As prepareMoveRelative.
+ * @param[in] axis As prepareMoveRelative.
+ * @param[in] reference As prepareMoveRelative.
+ * @param[in] operation As prepareMoveRelative.
+ * @param[in] nowUs As prepareMoveRelative.
+ * @param[in] deadlineUs As prepareMoveRelative.
+ * @param[in] options As prepareMoveRelative.
+ * @return The status prepareMoveRelative would give. OK means it cannot refuse the same values.
+ */
+Status validateMoveRelative(const MoveContext& output, const AxisReservation& reservation,
+                            const ReadTarget& current, const ReadContext& state,
+                            const CANOPEN::SdoCompletion& control,
+                            const IdentityObservation& identity, const MoveEvidence& evidence,
+                            const MoveRequest& request, const MoveProfile& profile,
+                            const DriverContext* stored, const AxisConfig& axis,
+                            const AxisReference& reference, uint32_t operation, uint64_t nowUs,
+                            uint64_t deadlineUs, const MoveOptions& options) noexcept;
+/** Prepare one finite relative move: the same phases, gates and progression as prepareMoveAbsolute,
+ * with 607A holding the displacement and the edge 000F to 005F. GATED twice: a closed gate returns
+ * UNSUPPORTED with CAPABILITY, and a request whose basis the evidence's relativeBase does not name,
+ * including every QUEUED request, returns UNSUPPORTED with RELATIVE_BASIS. No relative base is
+ * measured on any specimen. Writes nothing itself; all refusals leave output unchanged.
+ * @param[out] output Owned context, constructed in place on success; must not overlap any input.
+ * @param[in] reservation As prepareMoveAbsolute.
+ * @param[in] current As prepareMoveAbsolute.
+ * @param[in] state As prepareMoveAbsolute.
+ * @param[in] control As prepareMoveAbsolute: exactly 000F.
+ * @param[in] identity As prepareMoveAbsolute.
+ * @param[in] evidence As prepareMoveAbsolute, with relativeBase equal to request.position.basis.
+ * @param[in] request Unwrapped relative position whose basis is the measured base, and positive speed,
+ * both with configuration epoch axis.binding.configurationGeneration. Absolute or wrapped intent is
+ * refused here. Never converted to an absolute target, and no origin or counter is changed.
+ * @param[in] profile As prepareMoveAbsolute. Immediate update (007F) returns UNSUPPORTED.
+ * @param[in] stored As prepareMoveAbsolute.
+ * @param[in] axis Current coordinate configuration, whose supportedRelativeBases must admit the basis.
+ * The displacement must fit -1000000..1000000 pulses requested and quantized, and both endpoints must
+ * fit the axis's native and soft limits.
+ * @param[in] reference Required host witness of the request's basis: known, idle, stationary, fresh,
+ * with a nonzero age cap, observed at or after control completed. Its snapshot is frozen, and every
+ * parameter and trigger notice rechecks it against the caller's current witness.
+ * @param[in] operation As prepareMoveAbsolute.
+ * @param[in] nowUs As prepareMoveAbsolute.
+ * @param[in] deadlineUs As prepareMoveAbsolute.
+ * @param[in] options As prepareMoveAbsolute.
+ * @return Local validation only, with prepareMoveAbsolute's details. A zero effective displacement
+ * returns ZERO_DISPLACEMENT (R-08) before any write. No I/O.
+ */
+Status prepareMoveRelative(MoveContext& output, const AxisReservation& reservation,
+                           const ReadTarget& current, const ReadContext& state,
+                           const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                           const MoveEvidence& evidence, const MoveRequest& request,
+                           const MoveProfile& profile, const DriverContext* stored,
+                           const AxisConfig& axis, const AxisReference& reference,
                            uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                            const MoveOptions& options) noexcept;
 /** Return a context to EMPTY in place, without a stack temporary.
@@ -376,21 +480,33 @@ Status beginMoveObservation(MoveContext& context, ReadContext& observation,
                             const AxisReservation& live, const ReadTarget& current,
                             uint64_t nowUs) noexcept;
 /** Record that the current download may now be transmitted. Call after owner admission and preflight,
- * before the next owner turn. For a parameter download it first calls retireMotionParameters on each
- * retained context, so that a settings call cannot report an unchanged value with no TX while the drive
- * holds the move's. If one refuses, nothing here changes and the download must not be transmitted:
- * cancel its admission. Contexts listed before the refused one stay retired, which only withdraws trust.
+ * before the next owner turn. A parameter or trigger download is the move's actual admission, so it
+ * is rechecked here first: validatePreparedTarget against the current axis and witness, which must
+ * still be idle and stationary, and the admission state read's age against options.maximumAgeUs.
+ * A parameter download then calls retireMotionParameters on each retained context, so that a
+ * settings call cannot report an unchanged value with no TX while the drive holds the move's. If any
+ * of this refuses, the context does not change and the download must not be transmitted: cancel its
+ * admission. Contexts listed before a refused retirement stay retired, which only withdraws trust.
+ * The rearm takes no recheck: it follows an observed completion.
  * @param[in,out] context Active move with a pending download; one notice per download.
  * @param[in] live Actual reservation. @param[in] current Actual target and epochs.
+ * @param[in] axis The caller's current coordinate configuration of this axis, so that a later
+ * configureAxis, origin change or reference invalidation refuses the next write.
+ * @param[in] reference The caller's current witness when the move used one, null otherwise. A changed,
+ * aged, moving or invalidated witness refuses.
  * @param[in,out] retained Every retained MOTION_PARAMETERS-capable settings context of this axis,
  * including a finished settings context's readback; null only with count zero.
  * @param[in] count Entries in retained; each must be non-null.
  * @param[in] nowUs Time at or after eligibility and before the cutoff.
- * @return Local status. Observation uploads take no notice: their owner terminal settles them.
+ * @return Local status. A recheck failure on the target or witness returns the AxisError detail plus
+ * PARAMETER_ERROR_BASE and PositionParameterError::AXIS_ERROR_BASE, REFERENCE for a moving witness,
+ * or STATE for an expired admission read. Observation uploads take no notice: their owner terminal
+ * settles them.
  */
 Status noteMoveTransmission(MoveContext& context, const AxisReservation& live,
-                            const ReadTarget& current, DriverContext* const* retained, uint8_t count,
-                            uint64_t nowUs) noexcept;
+                            const ReadTarget& current, const AxisConfig& axis,
+                            const AxisReference* reference, DriverContext* const* retained,
+                            uint8_t count, uint64_t nowUs) noexcept;
 /** Record a local reason while work is in flight, so its terminal is kept as evidence and cannot
  * advance the move. Sends nothing and stops nothing.
  * @param[in,out] context Active move with no earlier withdrawal; unchanged on refusal.

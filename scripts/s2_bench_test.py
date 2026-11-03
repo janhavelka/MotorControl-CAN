@@ -15,8 +15,9 @@ import s2_evidence as evidence  # noqa: E402
 
 PONG = "PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent=0 pinsReady=1 soak=%d t=5%s\n"
 NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning", "M": "mode1", "E": "enable",
-         "S": "stop", "P": "position"}
-ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position"}
+         "S": "stop", "P": "position", "R": "rearm", "G": "move"}
+ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
+          "R": "rearm", "G": "move"}
 
 
 def check_trial_transcript(path):
@@ -24,8 +25,12 @@ def check_trial_transcript(path):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    if len(parts) < 7:
-        problems.append("expected seven records, found %d" % len(parts))
+    if len(parts) < 12:
+        problems.append("expected twelve records, found %d" % len(parts))
+    letters = {part[:1].decode("ascii") for part in parts}
+    for letter in NAMES:
+        if letter not in letters:
+            problems.append("no %s record" % NAMES[letter])
     for part in parts:
         head, _, body = part.partition(b"\n")
         line = head.decode("ascii")
@@ -45,8 +50,14 @@ def check_trial_transcript(path):
                 problems.append("%s: no %s line" % (line, kind))
         if line.startswith("E") and not {"TRIAL_ENABLE", "TRIAL_ENABLE_STEP"} <= kinds:
             problems.append("%s: no enable summary" % line)
-        if line.startswith("P") and not {"TRIAL_CHECK", "TRIAL_STOP", "TRIAL_BEST_EFFORT"} <= kinds:
+        # Only a position line naming a stop kind (its eleventh field) has stop summaries.
+        if line.startswith("P") and not ({"TRIAL_CHECK"} | ({"TRIAL_STOP", "TRIAL_BEST_EFFORT"}
+                                                            if fields[10] != "0" else set())) <= kinds:
             problems.append("%s: no check or stop summary" % line)
+        if line.startswith("R") and not {"TRIAL_CHECK", "TRIAL_REARM"} <= kinds:
+            problems.append("%s: no check or rearm summary" % line)
+        if line.startswith("G") and not {"TRIAL_CHECK", "TRIAL_EVIDENCE", "TRIAL_MOVE", "TRIAL_MOVE_SAMPLE"} <= kinds:
+            problems.append("%s: no check, evidence or move summary" % line)
         if line[0] in "AIU" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
     return problems
@@ -84,7 +95,8 @@ class Item:
 class Board:
     """The firmware console as the runner sees it."""
 
-    def __init__(self):
+    def __init__(self, on_line=None):
+        self.on_line = on_line  # Called with each T line as it is written, before any reply.
         self.writes = []
         self.queue = bytearray(b"stale\n")
         self.routes = 1
@@ -109,6 +121,8 @@ class Board:
             routes = " routes=%d trial=%d motion=0" % (self.routes, self.trial) if self.routes else ""
             self.queue.extend((PONG % ("a" * 40, "b" * 64, self.active, self.soak, routes)).encode("ascii"))
         elif data.startswith(b"T"):
+            if self.on_line:
+                self.on_line(data)
             text = data.decode("ascii").strip()
             fields = text[2:].split(",")
             body = self.answer if self.answer is not None else record(ROUTES[text[1]], int(fields[0]), int(fields[1]))
@@ -160,22 +174,63 @@ class Operator:
 BASE = ["--port", "COM15", "--serial", "94A990398B40"]
 ENABLE = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8037", "--position-target", "5000",
           "--velocity-target", "120", "--deadline-ms", "10000", "--interval-ms", "800", "--no-motion-write-recorded"]
+LEDGER = ["--campaign", "campaign.jsonl"]  # For argument parsing only: nothing is read.
+# A move line's evidence: this test's numbers, not any measurement.
+MOVE = ["--command", "move", "--node", "1", "--trial", "20", "--start-position", "0", "--target", "16", "--rpm", "1",
+        "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--deadline-ms", "10000", "--interval-ms", "1000",
+        "--record", "19", "--accept-source", "statusword", "--accept-mask", "0x1000", "--accept-value", "0x1000",
+        "--complete-source", "statusword", "--complete-mask", "0x8000", "--complete-value", "0x8000",
+        "--rule", "after-absence", "--device-type", "0x00040192", "--hardware-version", "0x12",
+        "--software-version", "0x34", "--vendor-id", "0x300", "--product-code", "0x8605", "--revision", "0x10001",
+        "--model-code", "0x86", "--firmware-code", "0x123", "--stop-kind", "none"]
+MOVE_LINE = "TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,0,0,0,0,0\n"
+
+
+def position(node, trial, stop="none"):
+    argv = ["--command", "position", "--node", str(node), "--trial", str(trial), "--start-position", "0",
+            "--target", "16", "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4",
+            "--interval-ms", "100", "--stop-kind", stop]
+    if stop != "none":
+        argv += ["--stop-after", "2", "--stop-deadline-ms", "2000", "--stop-best-effort-ms", "0",
+                 "--stop-interval-ms", "200"]
+    return argv
+
+
+def send_entry(route, node, trial, motion=1, stop=0):
+    return {"event": "send", "route": route, "node": node, "trial": trial, "motion": motion, "stop": stop}
 
 
 class BenchTest(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.output = Path(self.directory.name) / "capture"
+        self.ledger = Path(self.directory.name) / "campaign.jsonl"
+        self.ledger.write_bytes(b"")  # An existing, empty campaign.
 
     def tearDown(self):
         self.directory.cleanup()
 
     def run_main(self, argv, backend, operator=None):
         out, err = io.StringIO(), io.StringIO()
+        command = argv[argv.index("--command") + 1]
+        if command in bench.TRIALS and bench.TRIALS[command][1] and "--campaign" not in argv:
+            argv = argv + ["--campaign", str(self.ledger)]
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             status = bench.main(BASE + argv + ["--output", str(self.output)], backend, Clock(),
                                 operator or Operator())
         return status, out.getvalue(), err.getvalue()
+
+    def entries(self):
+        return [json.loads(line) for line in self.ledger.read_text(encoding="utf-8").splitlines()]
+
+    def write_ledger(self, entries):
+        self.ledger.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
+
+    def clear_output(self):
+        if self.output.exists():
+            for item in self.output.iterdir():
+                item.unlink()
+            self.output.rmdir()
 
     def meta(self):
         return json.loads((self.output / "request.json").read_text(encoding="utf-8"))
@@ -183,11 +238,20 @@ class BenchTest(unittest.TestCase):
     def test_dry_run_touches_nothing(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            status = bench.main(BASE + ENABLE + ["--dry-run"], Untouchable(), Clock(), Operator())
+            status = bench.main(BASE + ENABLE + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(),
+                                Clock(), Operator())
         self.assertEqual(status, 0)
         self.assertIn("TE1,12,1,1,0,32823,5000,120,10000,800", out.getvalue())
         self.assertIn("ATTENDED 12", out.getvalue())
+        self.assertIn("motion_total': 0", out.getvalue())
         self.assertFalse(self.output.exists())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        # Starting a campaign is a plan too: nothing is created.
+        fresh = Path(self.directory.name) / "new.jsonl"
+        with contextlib.redirect_stdout(io.StringIO()):
+            bench.main(BASE + ENABLE + ["--dry-run", "--campaign", str(fresh), "--new-campaign"], Untouchable(),
+                       Clock(), Operator())
+        self.assertFalse(fresh.exists())
 
     def test_every_route_value_is_explicit(self):
         for missing in ("--status", "--position-target", "--deadline-ms", "--interval-ms", "--no-motion-write-recorded"):
@@ -195,7 +259,18 @@ class BenchTest(unittest.TestCase):
             index = argv.index(missing)
             del argv[index:index + (1 if missing.startswith("--no-") else 2)]
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
-                bench.arguments(BASE + argv + ["--output", "x"])
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        # Every move evidence value is required: none has a default.
+        for index in range(MOVE.index("--rpm"), len(MOVE), 2):
+            argv = MOVE[:index] + MOVE[index + 2:]
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        for name, value in (("--accept-value", "0x1001"), ("--accept-mask", "0"), ("--rpm", "0"),
+                            ("--ramp-up-ms", "0"), ("--target", "1000001"), ("--hardware-version", "0x10000")):
+            argv = list(MOVE)
+            argv[argv.index(name) + 1] = value
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
         bad = [["--command", "stop", "--node", "1", "--trial", "1", "--deadline-ms", "2000", "--best-effort-ms", "0",
                 "--interval-ms", "100"],  # No kind.
                ["--command", "stop", "--node", "1", "--trial", "1", "--kind", "halt", "--deadline-ms", "2000",
@@ -209,10 +284,12 @@ class BenchTest(unittest.TestCase):
                ["--command", "position", "--node", "1", "--trial", "1", "--start-position", "0",
                 "--target", "1000001", "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000",
                 "--cycles", "4", "--interval-ms", "100", "--stop-kind", "none"],
-               ["--command", "ping", "--node", "1"]]
+               ["--command", "ping", "--node", "1"],
+               ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "17", "--interval-ms", "100"],
+               ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms", "19"]]
         for argv in bad:
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
-                bench.arguments(BASE + argv + ["--output", "x"])
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
 
     def test_lines_match_the_firmware_grammar(self):
         cases = {
@@ -228,10 +305,26 @@ class BenchTest(unittest.TestCase):
             ("--command", "position", "--node", "1", "--trial", "8", "--start-position", "0", "--target", "16",
              "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4", "--interval-ms", "100",
              "--stop-kind", "none"): "TP1,8,1,0,16,1,1000,1000,4,100,0,0,0,0,0\n",
+            ("--command", "rearm", "--node", "2", "--trial", "9", "--cycles", "3", "--interval-ms", "100"):
+                "TR2,9,1,3,100\n",
+            tuple(MOVE): MOVE_LINE,
+            tuple(MOVE[:-1] + ["halt", "--stop-after", "2", "--stop-deadline-ms", "2000", "--stop-best-effort-ms",
+                               "3000", "--stop-interval-ms", "500"]): MOVE_LINE.replace(",0,0,0,0,0\n",
+                                                                                    ",1,2,2000,3000,500\n"),
         }
         for argv, line in cases.items():
-            args, fields = bench.arguments(BASE + list(argv) + ["--output", "x"])
+            args, fields = bench.arguments(BASE + list(argv) + LEDGER + ["--output", "x"])
             self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
+        # The longest move line fits the firmware's ROUTE_LINE (256 bytes after T).
+        widest = list(MOVE)
+        for name, value in (("--trial", "4294967295"), ("--start-position", "-2147483648"), ("--target", "-1000000"),
+                            ("--record", "4294967295"), ("--device-type", "0xffffffff"), ("--vendor-id", "0xffffffff"),
+                            ("--product-code", "0xffffffff"), ("--revision", "0xffffffff")):
+            widest[widest.index(name) + 1] = value
+        args, fields = bench.arguments(BASE + widest[:-1] + ["quick", "--stop-after", "16", "--stop-deadline-ms",
+                                                             "55000", "--stop-best-effort-ms", "55000",
+                                                             "--stop-interval-ms", "10000"] + LEDGER + ["--output", "x"])
+        self.assertLessEqual(len(bench.encode(args.command, fields)) - 2, 256)
 
     def test_wrong_board_refuses_before_anything(self):
         for ports in ([], [Item(serial="OTHER")], [Item(), Item()], [Item(vid=0x10C4)]):
@@ -352,6 +445,147 @@ class BenchTest(unittest.TestCase):
         self.assertEqual((signed.status, signed.values["6064"], signed.values["606c"]), ("parsed", -16, -2))
         self.assertEqual(evidence.parse_line(1, "TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0004 "
                                                 "6041=8037 6061=01 6064=--1 606c=0").status, "malformed")
+
+    def test_motion_needs_a_named_campaign(self):
+        for argv in (ENABLE, MOVE, position(1, 1),
+                     ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms", "100"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + ["--output", "x"])
+        for argv in (["--command", "ping"] + LEDGER, ["--command", "ping", "--new-campaign"],
+                     ENABLE + ["--new-campaign"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + ["--output", "x"])
+        # A read route may name one, and its sends are then kept, uncounted.
+        bench.arguments(BASE + ["--command", "readiness-io", "--node", "1", "--trial", "1"] + LEDGER +
+                        ["--output", "x"])
+
+    def test_missing_or_existing_ledger_refuses(self):
+        missing = Path(self.directory.name) / "typo.jsonl"
+        board = Board()
+        status, _, err = self.run_main(position(1, 5) + ["--campaign", str(missing)], Backend(board),
+                                       Operator("ATTENDED 5"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("does not exist", err)
+        self.assertEqual(board.writes, [])
+        self.assertFalse(missing.exists() or self.output.exists())
+        board = Board()
+        status, _, err = self.run_main(position(1, 5) + ["--campaign", str(self.ledger), "--new-campaign"],
+                                       Backend(board), Operator("ATTENDED 5"))
+        self.assertEqual(status, 2, err)
+        self.assertEqual(board.writes, [])
+        # A new campaign is created by its first send, and holds it before the line is written.
+        seen = []
+        board = Board(lambda line: seen.append(missing.read_text(encoding="utf-8")))
+        status, _, err = self.run_main(position(1, 5) + ["--campaign", str(missing), "--new-campaign"],
+                                       Backend(board), Operator("ATTENDED 5", "none"))
+        self.assertEqual(status, 0, err)
+        self.assertEqual(len(seen), 1)
+        sent = json.loads(seen[0])
+        self.assertEqual((sent["event"], sent["route"], sent["node"], sent["trial"], sent["motion"], sent["stop"]),
+                         ("send", "P", 1, 5, 1, 0))
+        self.assertEqual(sent["line"], "TP1,5,1,0,16,1,1000,1000,4,100,0,0,0,0,0")
+        lines = [json.loads(line) for line in missing.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual([entry["event"] for entry in lines], ["send", "result"])
+        self.assertEqual(lines[1]["reason"], "ended")
+        self.assertEqual(self.meta()["campaign"]["motion_total"], 0)
+
+    def test_campaign_caps_hold_across_boots(self):
+        # Three position trials on node 1, each perhaps on another boot: the board reports motion=0.
+        self.write_ledger([send_entry("P", 1, 1), send_entry("R", 1, 2), send_entry("P", 1, 3),
+                           send_entry("P", 1, 4)])
+        board = Board()
+        status, _, err = self.run_main(position(1, 5), Backend(board), Operator("ATTENDED 5"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("position admissions on node 1", err)
+        self.assertEqual(board.writes, [])
+        self.assertFalse(self.output.exists())
+        status, _, err = self.run_main(position(2, 6), Backend(Board()), Operator("ATTENDED 6", "none"))
+        self.assertEqual(status, 0, err)
+        self.clear_output()
+        # A planned stop counts against stop as well, as in the firmware.
+        self.write_ledger([send_entry("S", 2, 1), send_entry("S", 2, 2), send_entry("P", 2, 3, 2, 1)])
+        board = Board()
+        status, _, err = self.run_main(position(2, 7, "halt"), Backend(board), Operator("ATTENDED 7"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("planned stop", err)
+        self.assertEqual(board.writes, [])
+        status, _, err = self.run_main(position(2, 8), Backend(Board()), Operator("ATTENDED 8", "none"))
+        self.assertEqual(status, 0, err)
+        self.assertEqual(self.entries()[-2]["motion"], 1)
+        self.clear_output()
+        # Twelve in all, whatever the route and node; reads stay outside the count.
+        self.write_ledger([send_entry("AIU"[i % 3], 1, i + 1, 0) for i in range(5)] +
+                          [send_entry("MESPRG"[i % 6], 1 + i % 2, i + 10) for i in range(11)])
+        board = Board()
+        board.routes = 2
+        argv = list(MOVE)
+        argv[argv.index("--node") + 1], argv[argv.index("--trial") + 1] = "2", "40"
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 40", "none"))
+        self.assertEqual(status, 0, err)  # The eleven motion sends make twelve with this one.
+        self.clear_output()
+        argv[argv.index("--trial") + 1] = "41"
+        board = Board()
+        board.routes = 2
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 41"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("over 12", err)
+        self.assertEqual(board.writes, [])
+        # Reads are still allowed, and still need a new trial identity.
+        status, _, err = self.run_main(["--command", "readiness-io", "--node", "1", "--trial", "41",
+                                        "--campaign", str(self.ledger)], Backend(Board()))
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual(self.entries()[-2]["motion"], 0)
+
+    def test_trial_reuse_and_damaged_ledger_refuse(self):
+        self.write_ledger([send_entry("A", 1, 9, 0)])
+        board = Board()
+        status, _, err = self.run_main(position(1, 9), Backend(board), Operator("ATTENDED 9"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("not above every trial", err)
+        self.assertEqual(board.writes, [])
+        for text in (b'{"event": "send", "route": "P"', b"not json\n", b'{"event": "other"}\n',
+                     b'{"event": "send", "route": "P", "node": 3, "trial": 1, "motion": 1, "stop": 0}\n'):
+            self.ledger.write_bytes(text)
+            board = Board()
+            status, _, err = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+            self.assertEqual(status, 2, (text, err))
+            self.assertEqual(board.writes, [])
+            self.assertEqual(self.ledger.read_bytes(), text)  # Never repaired or rewritten.
+
+    def test_unwritable_ledger_sends_nothing(self):
+        board = Board()
+        original = bench.Campaign.append
+
+        def failing(campaign, entry):
+            raise OSError("disk full")
+        bench.Campaign.append = failing
+        try:
+            status, _, err = self.run_main(position(1, 5), Backend(board), Operator("ATTENDED 5"))
+        finally:
+            bench.Campaign.append = original
+        self.assertEqual(status, 2, err)
+        self.assertEqual(board.writes, [b"p"])
+        self.assertEqual(self.meta()["reason"], "campaign_unwritten")
+
+    def test_rearm_and_move_need_the_new_image(self):
+        for command, argv, typed in (("rearm", ["--command", "rearm", "--node", "1", "--trial", "3", "--cycles", "3",
+                                                "--interval-ms", "100"], "ATTENDED 3"),
+                                     ("move", MOVE, "ATTENDED 20")):
+            self.clear_output()
+            board = Board()  # routes=1: no rearm or move route.
+            status, _, err = self.run_main(argv, Backend(board), Operator(typed))
+            self.assertEqual(status, 2, err)
+            self.assertEqual(board.writes, [b"p"])
+            self.assertEqual(self.meta()["reason"], "image_route_version")
+            self.clear_output()
+            board = Board()
+            board.routes = 2
+            status, _, err = self.run_main(argv, Backend(board), Operator(typed, "none"))
+            self.assertEqual(status, 0, err)
+            self.assertEqual(board.writes[-1], (MOVE_LINE if command == "move" else "TR1,3,1,3,100\n").encode())
+            report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
+            self.assertEqual(report.verdict, "complete")
+            self.ledger.write_bytes(b"")
 
     def test_single_byte_commands_unchanged(self):
         board = Board()

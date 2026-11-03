@@ -15880,6 +15880,10 @@
             },
             {
               "id": "ZH86",
+              "page": 11
+            },
+            {
+              "id": "ZH86",
               "page": 12
             },
             {
@@ -15888,7 +15892,7 @@
             },
             {
               "id": "ZH86",
-              "page": 17
+              "page": 16
             },
             {
               "id": "OP86",
@@ -15962,6 +15966,10 @@
                 },
                 {
                   "id": "ZH86",
+                  "page": 11
+                },
+                {
+                  "id": "ZH86",
                   "page": 12
                 },
                 {
@@ -15970,7 +15978,7 @@
                 },
                 {
                   "id": "ZH86",
-                  "page": 17
+                  "page": 16
                 },
                 {
                   "id": "OP86",
@@ -22601,7 +22609,7 @@
       "decision": "DEC-1",
       "selected_by": "repository owner",
       "selected_on": "2026-11-02",
-      "fixture_status": "fixture not yet run",
+      "fixture_status": "run live on two specimens by packet 11 on 2026-11-03, with no read-effect observation",
       "meaning": "Risk acceptance for bounded polling of the listed rows, not evidence that an upload has no effect. Results keep effectPossible true. 603F, 1001 and 1003 history stay unqualified explicit single reads and are never polled."
     },
     "action_read_acceptance": {

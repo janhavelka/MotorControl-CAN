@@ -212,4 +212,7 @@ sequence inside the current gates can supply it.
 
 Current/holding remains solely prompt 22. No request writes a native setting merely
 because an EDS flag is RW. The position-parameter physical path needs acknowledged
-`6040=000F`, which is an enable, so packet 15 owns its first bench use.
+`6040=000F`, which is an enable. Packet 15 added the gated enable but ran no bench
+trial, so the position parameters have had no bench use. The first needs packet 15's
+attended enable trial P3, then the `position` bench route with packet 19's reviewed
+values; neither has run.

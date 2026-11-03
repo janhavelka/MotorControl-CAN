@@ -555,9 +555,10 @@ void ownerTask(void*) {
     bool soakCollecting = false;
     uint64_t soakCollectUs = 0;
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
-    // drained whole each turn, because it can be longer than the platform's 64-byte input ring.
+    // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
+    // move line is the longest, within E::ROUTE_LINE. A longer one is refused whole, never cut.
     E::BenchRoute* route = nullptr;
-    char trialText[128] = {};
+    char trialText[E::ROUTE_LINE] = {};
     size_t trialLength = 0;
     bool trialCollecting = false;
     uint64_t trialCollectUs = 0;
@@ -891,7 +892,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=1 trial=%u motion=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=2 trial=%u motion=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
                            unsigned(silent), unsigned(silentReady), unsigned(soakActive),

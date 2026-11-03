@@ -138,6 +138,8 @@ static_assert(OBJECT_607A_00.sdoAccess == SdoAccess::READ_WRITE &&
 const ObjectDescriptor* const SETUP[4] = {&OBJECT_607A_00, &OBJECT_6081_00, &OBJECT_6083_00,
                                           &OBJECT_6084_00};
 constexpr uint16_t TRIGGER_WORD = 0x001f; // 15 to 31: bit 4 rising, bit 6 clear (absolute).
+// 15 to 95: bit 4 rising, bit 6 set (relative), EN86/ZH86 p12 and OP86 p10. Bit 5 stays clear.
+constexpr uint16_t RELATIVE_TRIGGER_WORD = 0x005f;
 constexpr uint16_t REARM_WORD = 0x000f;   // Project policy after completion (DEC-8).
 constexpr uint8_t OBSERVATION_MASK =
     uint8_t((1u << unsigned(StateBlock::MONITORS)) | (1u << unsigned(StateBlock::STATUS)) |
@@ -276,13 +278,53 @@ struct Checked {
     int64_t displacement = 0;
     uint8_t mask = 0xf;
 };
-// Every refusal of prepareMoveAbsolute, in one place, writing only the caller's local result.
+// The relative capability gate: the request's host basis must be the drive's measured native base.
+// A queued base would need an edge in a running curve, which the idle admission excludes, and a
+// target queue no source documents, so no evidence value can admit it.
+Status checkBasis(const MoveEvidence& e, RelativeBasis basis) {
+    if (e.relativeBase > RelativeBase::COMMANDED)
+        return moveError(MoveError::ARGUMENT, "invalid relative base evidence");
+    if (basis == RelativeBasis::QUEUED)
+        return moveError(MoveError::RELATIVE_BASIS,
+                         "a queued relative base needs a target queue; moves start only from idle",
+                         Err::UNSUPPORTED);
+    if (e.relativeBase == RelativeBase::UNMEASURED)
+        return moveError(MoveError::RELATIVE_BASIS,
+                         "the drive's relative base is not measured for this firmware",
+                         Err::UNSUPPORTED);
+    const RelativeBasis measured =
+        e.relativeBase == RelativeBase::ACTUAL ? RelativeBasis::ACTUAL : RelativeBasis::COMMANDED;
+    if (basis != measured)
+        return moveError(MoveError::RELATIVE_BASIS,
+                         "the requested basis is not the drive's measured relative base",
+                         Err::UNSUPPORTED);
+    return Ok();
+}
+// The witness rules before arithmetic. An absolute move needs none, and refuses a supplied known one
+// that is not idle, stationary ACTUAL. A relative move needs one of its own basis with an age cap,
+// because the drive's base at the edge must still be what it says.
+Status checkWitness(const AxisReference* reference, bool relative, RelativeBasis basis) {
+    if (!relative)
+        return reference && reference->nativeKnown &&
+                       (!reference->idle || !reference->stationary ||
+                        reference->basis != RelativeBasis::ACTUAL)
+                   ? moveError(MoveError::REFERENCE,
+                               "a supplied witness must be idle, stationary actual command coordinates")
+                   : Ok();
+    if (!reference->idle || !reference->stationary || reference->basis != basis ||
+        !reference->maximumAgeUs)
+        return moveError(MoveError::REFERENCE,
+                         "a relative witness must be idle, stationary, of the request's basis and "
+                         "with an age cap");
+    return Ok();
+}
+// Every refusal of both move preparations, in one place, writing only the caller's local result.
 Status checkMove(const MoveContext& output, const AxisReservation& r, const ReadTarget& current,
                  const ReadContext& state, const CANOPEN::SdoCompletion& control,
                  const IdentityObservation& identity, const MoveEvidence& e,
                  const MoveRequest& request, const MoveProfile& profile,
                  const DriverContext* stored, const AxisConfig& axis,
-                 const AxisReference* reference, uint32_t operation, uint64_t now,
+                 const AxisReference* reference, bool relative, uint32_t operation, uint64_t now,
                  uint64_t deadline, const MoveOptions& options, Checked& result) {
     const void* inputs[] = {&r, &current, &state, &control, &identity, &e, &request,
                             &profile, &axis, &options, &result};
@@ -297,16 +339,27 @@ Status checkMove(const MoveContext& output, const AxisReservation& r, const Read
         return moveError(MoveError::OVERLAP, "move preparation overlaps input");
     if (e.gate == MoveGate::CLOSED)
         return moveError(MoveError::CAPABILITY,
-                         "absolute move is gated: acceptance and completion are not established",
+                         "move is gated: acceptance and completion are not established",
                          Err::UNSUPPORTED);
     if (e.gate > MoveGate::MEASURED || !e.record || !signalValid(e.acceptance) ||
         !signalValid(e.completion) || e.rule == CompletionRule::NONE ||
         e.rule > CompletionRule::AFTER_ACCEPTANCE || profile.setup > MoveSetup::REUSE_STORED)
         return moveError(MoveError::ARGUMENT, "invalid move evidence record, signals or setup");
+    // Each preparation takes only its own form: a relative intent is never run as an absolute one.
+    if (request.position.relative != relative || request.position.wrapped ||
+        request.position.basis > RelativeBasis::QUEUED)
+        return moveError(MoveError::ARGUMENT,
+                         relative ? "relative move needs an unwrapped relative target"
+                                  : "absolute move needs an unwrapped absolute target");
     if (profile.immediateUpdate)
         return moveError(MoveError::CAPABILITY,
-                         "immediate update (003F) puts a new edge in a curve: unsupported",
+                         "immediate update (003F, 007F) puts a new edge in a curve: unsupported",
                          Err::UNSUPPORTED);
+    if (relative) {
+        const Status basis = checkBasis(e, request.position.basis);
+        if (!basis)
+            return basis;
+    }
     if (!validReservation(r) || !operation || deadline <= now || now > uint64_t(INT64_MAX) ||
         r.acquiredUs > now || !optionsValid(options))
         return moveError(MoveError::ARGUMENT, "invalid move reservation, identity, time or budgets");
@@ -329,16 +382,13 @@ Status checkMove(const MoveContext& output, const AxisReservation& r, const Read
     if (reported(e.acceptance, result.admission))
         return moveError(MoveError::ACCEPTANCE,
                          "acceptance is reported before the trigger, so it cannot show this one");
-    if (request.position.relative || request.position.wrapped)
-        return moveError(MoveError::ARGUMENT, "absolute move needs an unwrapped absolute target");
     if (!profile.rampUpTimeMs || profile.rampUpTimeMs > MAXIMUM_RAMP_TIME_MS ||
         !profile.rampDownTimeMs || profile.rampDownTimeMs > MAXIMUM_RAMP_TIME_MS)
         return moveError(MoveError::RANGE, "ramp times must be 1..2000 ms; zero is unqualified",
                          Err::ILLEGAL_VALUE);
-    if (reference && reference->nativeKnown &&
-        (!reference->idle || !reference->stationary || reference->basis != RelativeBasis::ACTUAL))
-        return moveError(MoveError::REFERENCE,
-                         "a supplied witness must be idle, stationary actual command coordinates");
+    s = checkWitness(reference, relative, request.position.basis);
+    if (!s)
+        return s;
     s = prepareVelocityTarget(request.speed, axis, result.speed);
     if (!s)
         return based(s, MoveError::RATE_ERROR_BASE);
@@ -356,10 +406,16 @@ Status checkMove(const MoveContext& output, const AxisReservation& r, const Read
     if (!s)
         return based(s, MoveError::PARAMETER_ERROR_BASE);
     const PreparedTarget& target = result.parameters.target;
+    // Like the state read, a witness must describe the drive after the 000F it follows: an earlier
+    // one may predate an enable or an earlier move, and its value says nothing about the base now.
+    if (target.referenceUsed && target.retainedReference.observedUs < control.completedUs)
+        return moveError(MoveError::REFERENCE,
+                         "the witness was observed before the latest acknowledged 000F");
     result.known = target.referenceUsed && target.retainedReference.nativeKnown;
     if (result.known) {
-        // R-08. The endpoint is inside the documented range and the witness inside int64, so only
-        // a witness near either end of int64 can make this difference unrepresentable.
+        // R-08. For a relative move this difference is the quantized displacement itself. For an
+        // absolute one the endpoint is inside the documented range and the witness inside int64,
+        // so only a witness near either end of int64 can make it unrepresentable.
         const int64_t endpoint = target.endpointNative;
         const int64_t witness = target.retainedReference.nativePosition;
         if ((witness > 0 && endpoint < INT64_MIN + witness) ||
@@ -415,6 +471,9 @@ Status shape(const MoveContext& c, uint64_t now) {
         !o.maximumAgeUs || c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs ||
         now < c.servicedUs || !(c.setupMask & 1u) || (c.setupMask & ~0xfu) || c.setupCursor > 3 ||
         !(c.setupMask & (1u << c.setupCursor)) || (c.setupEvidenceMask & ~c.setupMask) ||
+        (c.parameters.target.requested.relative &&
+         (c.evidence.relativeBase == RelativeBase::UNMEASURED ||
+          c.evidence.relativeBase > RelativeBase::COMMANDED || !c.parameters.target.referenceUsed)) ||
         (c.phase == MovePhase::PARAMETERS && c.triggerPresent) ||
         (waitingPhase(c.phase) && (!c.triggerPresent || c.execution != ActionExecution::ACKNOWLEDGED)) ||
         (c.phase == MovePhase::REARM && c.completion != ActionCompletion::OBSERVED))
@@ -440,7 +499,9 @@ CANOPEN::SdoTransfer download(const MoveContext& c) {
     t.queueTimeoutUs = c.options.service.queueTimeoutUs;
     t.responseTimeoutUs = c.options.service.responseTimeoutUs;
     const ObjectDescriptor* object = &OBJECT_6040_00;
-    uint32_t value = c.phase == MovePhase::TRIGGER ? TRIGGER_WORD : REARM_WORD;
+    const uint16_t trigger =
+        c.parameters.target.requested.relative ? RELATIVE_TRIGGER_WORD : TRIGGER_WORD;
+    uint32_t value = c.phase == MovePhase::TRIGGER ? trigger : REARM_WORD;
     if (c.phase == MovePhase::PARAMETERS) {
         const DriverSettings& s = c.parameters.settings;
         object = SETUP[c.setupCursor];
@@ -607,34 +668,13 @@ void finishCycle(MoveContext& c, const ReadContext& read, uint64_t now, bool ano
 }
 } // namespace
 
-Status validateMoveAbsolute(const MoveContext& output, const AxisReservation& reservation,
-                            const ReadTarget& current, const ReadContext& state,
-                            const CANOPEN::SdoCompletion& control,
-                            const IdentityObservation& identity, const MoveEvidence& evidence,
-                            const MoveRequest& request, const MoveProfile& profile,
-                            const DriverContext* stored, const AxisConfig& axis,
-                            const AxisReference* reference, uint32_t operation, uint64_t nowUs,
-                            uint64_t deadlineUs, const MoveOptions& options) noexcept {
-    Checked result;
-    return checkMove(output, reservation, current, state, control, identity, evidence, request,
-                     profile, stored, axis, reference, operation, nowUs, deadlineUs, options, result);
-}
-
-Status prepareMoveAbsolute(MoveContext& output, const AxisReservation& reservation,
-                           const ReadTarget& current, const ReadContext& state,
-                           const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
-                           const MoveEvidence& evidence, const MoveRequest& request,
-                           const MoveProfile& profile, const DriverContext* stored,
-                           const AxisConfig& axis, const AxisReference* reference,
-                           uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
-                           const MoveOptions& options) noexcept {
-    Checked result;
-    const Status s = checkMove(output, reservation, current, state, control, identity, evidence,
-                               request, profile, stored, axis, reference, operation, nowUs,
-                               deadlineUs, options, result);
-    if (!s)
-        return s;
-    // Nothing below can fail, and output is disjoint from every input.
+namespace {
+// Both preparations after checkMove passed. Nothing here can fail, and output is disjoint from
+// every input.
+void publishMove(MoveContext& output, const Checked& result, const AxisReservation& reservation,
+                 const CANOPEN::SdoCompletion& control, const MoveEvidence& evidence,
+                 const MoveProfile& profile, uint32_t operation, uint64_t nowUs,
+                 uint64_t deadlineUs, const MoveOptions& options) {
     new (static_cast<void*>(&output)) MoveContext();
     MoveContext& c = output;
     c.reservation = reservation;
@@ -653,7 +693,71 @@ Status prepareMoveAbsolute(MoveContext& output, const AxisReservation& reservati
     c.setupMask = result.mask;
     c.control = control;
     c.admission = result.admission;
-    return Ok();
+}
+} // namespace
+
+Status validateMoveAbsolute(const MoveContext& output, const AxisReservation& reservation,
+                            const ReadTarget& current, const ReadContext& state,
+                            const CANOPEN::SdoCompletion& control,
+                            const IdentityObservation& identity, const MoveEvidence& evidence,
+                            const MoveRequest& request, const MoveProfile& profile,
+                            const DriverContext* stored, const AxisConfig& axis,
+                            const AxisReference* reference, uint32_t operation, uint64_t nowUs,
+                            uint64_t deadlineUs, const MoveOptions& options) noexcept {
+    Checked result;
+    return checkMove(output, reservation, current, state, control, identity, evidence, request,
+                     profile, stored, axis, reference, false, operation, nowUs, deadlineUs, options,
+                     result);
+}
+
+Status prepareMoveAbsolute(MoveContext& output, const AxisReservation& reservation,
+                           const ReadTarget& current, const ReadContext& state,
+                           const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                           const MoveEvidence& evidence, const MoveRequest& request,
+                           const MoveProfile& profile, const DriverContext* stored,
+                           const AxisConfig& axis, const AxisReference* reference,
+                           uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                           const MoveOptions& options) noexcept {
+    Checked result;
+    const Status s = checkMove(output, reservation, current, state, control, identity, evidence,
+                               request, profile, stored, axis, reference, false, operation, nowUs,
+                               deadlineUs, options, result);
+    if (s)
+        publishMove(output, result, reservation, control, evidence, profile, operation, nowUs,
+                    deadlineUs, options);
+    return s;
+}
+
+Status validateMoveRelative(const MoveContext& output, const AxisReservation& reservation,
+                            const ReadTarget& current, const ReadContext& state,
+                            const CANOPEN::SdoCompletion& control,
+                            const IdentityObservation& identity, const MoveEvidence& evidence,
+                            const MoveRequest& request, const MoveProfile& profile,
+                            const DriverContext* stored, const AxisConfig& axis,
+                            const AxisReference& reference, uint32_t operation, uint64_t nowUs,
+                            uint64_t deadlineUs, const MoveOptions& options) noexcept {
+    Checked result;
+    return checkMove(output, reservation, current, state, control, identity, evidence, request,
+                     profile, stored, axis, &reference, true, operation, nowUs, deadlineUs, options,
+                     result);
+}
+
+Status prepareMoveRelative(MoveContext& output, const AxisReservation& reservation,
+                           const ReadTarget& current, const ReadContext& state,
+                           const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                           const MoveEvidence& evidence, const MoveRequest& request,
+                           const MoveProfile& profile, const DriverContext* stored,
+                           const AxisConfig& axis, const AxisReference& reference,
+                           uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                           const MoveOptions& options) noexcept {
+    Checked result;
+    const Status s = checkMove(output, reservation, current, state, control, identity, evidence,
+                               request, profile, stored, axis, &reference, true, operation, nowUs,
+                               deadlineUs, options, result);
+    if (s)
+        publishMove(output, result, reservation, control, evidence, profile, operation, nowUs,
+                    deadlineUs, options);
+    return s;
 }
 
 void resetMove(MoveContext& c) noexcept {
@@ -737,8 +841,11 @@ Status beginMoveObservation(MoveContext& c, ReadContext& observation, const Axis
 }
 
 Status noteMoveTransmission(MoveContext& c, const AxisReservation& live, const ReadTarget& current,
+                            const AxisConfig& axis, const AxisReference* reference,
                             DriverContext* const* retained, uint8_t count, uint64_t now) noexcept {
-    if (overlaps(&c, sizeof c, &live, sizeof live) || overlaps(&c, sizeof c, &current, sizeof current))
+    if (overlaps(&c, sizeof c, &live, sizeof live) || overlaps(&c, sizeof c, &current, sizeof current) ||
+        overlaps(&c, sizeof c, &axis, sizeof axis) ||
+        (reference && overlaps(&c, sizeof c, reference, sizeof *reference)))
         return moveError(MoveError::OVERLAP, "move TX notice overlaps input");
     if (count && !retained)
         return moveError(MoveError::ARGUMENT, "retained settings list missing");
@@ -752,6 +859,20 @@ Status noteMoveTransmission(MoveContext& c, const AxisReservation& live, const R
     if (c.state != ActionState::ACTIVE || !downloading(c) || c.transmissionNoted ||
         now >= c.deadlineUs || now < c.eligibleUs || c.withdrawal != MoveInterruption::NONE)
         return moveError(MoveError::STATE, "no new live move download");
+    if (c.phase != MovePhase::REARM) {
+        // The actual admission of a parameter or trigger write: what preparation checked must
+        // still hold now, not only when the move was prepared.
+        s = validatePreparedTarget(c.parameters.target, axis, reference, now);
+        if (!s) {
+            s.detail += int32_t(PositionParameterError::AXIS_ERROR_BASE) +
+                        int32_t(MoveError::PARAMETER_ERROR_BASE);
+            return s;
+        }
+        if (c.parameters.target.referenceUsed && (!reference->idle || !reference->stationary))
+            return moveError(MoveError::REFERENCE, "the move's witness is no longer idle and stationary");
+        if (now - c.admission.earliestUs > c.options.maximumAgeUs)
+            return moveError(MoveError::STATE, "the admission state read is older than its age cap");
+    }
     if (c.phase == MovePhase::PARAMETERS) {
         // The packet 10 hook: an operation's own write never moves the configuration epoch, so the
         // move's target stays valid, but every retained MOTION_PARAMETERS observation is withdrawn.

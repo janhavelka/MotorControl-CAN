@@ -194,7 +194,32 @@ int main() {
     candidate.functions[0] = LICHUAN_C::InputFunction::USER0;
     LICHUAN_C::DriverSettingsContext settings;
     LICHUAN_C::PreparedRead prepared;
-    if (!LICHUAN_C::prepareIoSettings(settings, reservation, reservation.target, inputs, candidate, 5, 38, 100,
+    // A DI write also needs a clean state read under the reservation: nothing running, no alarm.
+    const uint8_t ioStateBlocks = (1u << static_cast<unsigned>(LICHUAN_C::StateBlock::STATUS)) |
+                                  (1u << static_cast<unsigned>(LICHUAN_C::StateBlock::MONITORS));
+    LICHUAN_C::ReadContext ioState, ioRunning;
+    for (unsigned variant = 0; variant < 2; ++variant) {
+        LICHUAN_C::ReadContext& read = variant ? ioRunning : ioState;
+        if (!LICHUAN_C::prepareState(read, readTarget, 6 + variant, 38, 100, readOptions, ioStateBlocks))
+            return 72;
+        for (unsigned i = 0; i < 5; ++i) {
+            LICHUAN_C::PreparedRead work;
+            if (!LICHUAN_C::nextRead(read, 38, work) || !work.ready) return 73;
+            CANOPEN::SdoCompletion e;
+            e.transfer = work.transfer; e.nodeGeneration = readTarget.nodeGeneration;
+            e.admittedUs = e.completedUs = 38;
+            e.outcome = CANOPEN::SdoOutcome::SUCCESS;
+            e.queued = e.transmissionPossible = e.protocolAcknowledged = e.effectPossible = true;
+            e.size = work.transfer.size;
+            if (variant && work.transfer.index == 0x2100) e.data[0] = uint8_t(LICHUAN_C::MONITOR_RUNNING);
+            if (!LICHUAN_C::advanceRead(read, e, 38)) return 74;
+        }
+    }
+    const Status running = LICHUAN_C::prepareIoSettings(settings, reservation, reservation.target, inputs, ioRunning,
+                                                        candidate, 5, 38, 100, readOptions, 20);
+    if (running || running.detail != static_cast<int32_t>(ReadError::STATE) ||
+        settings.state != LICHUAN_C::SettingsState::EMPTY) return 75;
+    if (!LICHUAN_C::prepareIoSettings(settings, reservation, reservation.target, inputs, ioState, candidate, 5, 38, 100,
                                      readOptions, 20) ||
         !LICHUAN_C::nextDriver(settings, reservation, readTarget.channel.binding, 38, prepared) ||
         !prepared.ready || prepared.transfer.direction != CANOPEN::SdoDirection::DOWNLOAD ||
@@ -395,5 +420,97 @@ int main() {
     LICHUAN_C::resetMove(move);
     if (move.state != ActionState::EMPTY || move.interruption != MoveInterruption::NONE)
         return 71;
+    // The best-effort stop (DEC-2) yields only 000B and never succeeds: a reply cannot confirm it.
+    static LICHUAN_C::BestEffortStop bestEffort, neverAdmitted;
+    if (!LICHUAN_C::prepareBestEffortStop(bestEffort, readTarget, 20, 70, 200, readOptions) ||
+        bestEffort.state != ActionState::ACTIVE || bestEffort.admitted)
+        return 76;
+    LICHUAN_C::PreparedAction bestEffortWork;
+    if (!LICHUAN_C::nextBestEffortStop(bestEffort, readTarget, 70, bestEffortWork) || !bestEffortWork.ready ||
+        bestEffortWork.transfer.index != 0x6040 || bestEffortWork.transfer.subindex ||
+        bestEffortWork.transfer.direction != CANOPEN::SdoDirection::DOWNLOAD ||
+        bestEffortWork.transfer.size != 2 || bestEffortWork.transfer.data[0] != 0x0b ||
+        bestEffortWork.transfer.data[1])
+        return 77;
+    if (!LICHUAN_C::noteBestEffortAdmission(bestEffort, 70) || !bestEffort.admitted) return 78;
+    CANOPEN::SdoCompletion stopSent;
+    stopSent.transfer = bestEffortWork.transfer;
+    stopSent.nodeGeneration = readTarget.nodeGeneration;
+    stopSent.admittedUs = 70; stopSent.completedUs = 71;
+    stopSent.outcome = CANOPEN::SdoOutcome::SUCCESS;
+    stopSent.queued = stopSent.transmissionPossible = stopSent.transmissionConfirmed = true;
+    stopSent.effectPossible = stopSent.effectUncertain = true;
+    if (LICHUAN_C::advanceBestEffortStop(bestEffort, stopSent, 71) || bestEffort.state != ActionState::ACTIVE)
+        return 79; // A matching-looking SUCCESS is refused and changes nothing.
+    stopSent.outcome = CANOPEN::SdoOutcome::UNCONFIRMED_SENT;
+    if (!LICHUAN_C::advanceBestEffortStop(bestEffort, stopSent, 71) || bestEffort.state != ActionState::FAILED ||
+        bestEffort.outcome != ActionOutcome::STOP_SENT_UNCONFIRMED ||
+        bestEffort.execution != ActionExecution::UNKNOWN || !bestEffort.effectsPossible)
+        return 80;
+    if (!LICHUAN_C::prepareBestEffortStop(neverAdmitted, readTarget, 21, 72, 200, readOptions) ||
+        !LICHUAN_C::advanceBestEffortStop(neverAdmitted, ActionOutcome::CANCELLED, 72) ||
+        neverAdmitted.outcome != ActionOutcome::CANCELLED ||
+        neverAdmitted.execution != ActionExecution::NOT_TRANSMITTED || neverAdmitted.effectsPossible)
+        return 81;
+    // A HALT prepared from the latest acknowledged 000F and the fresh state read above, then
+    // escalation refused: the HALT itself has no acknowledgement, so it falls to the best-effort path.
+    CANOPEN::SdoCompletion latestControl;
+    latestControl.transfer.channel = readTarget.channel;
+    latestControl.transfer.operation = latestControl.transfer.request = latestControl.transfer.step = 1;
+    latestControl.transfer.index = 0x6040;
+    latestControl.transfer.direction = CANOPEN::SdoDirection::DOWNLOAD;
+    latestControl.transfer.size = 2;
+    latestControl.transfer.data[0] = 0x0f;
+    latestControl.transfer.deadlineUs = 100;
+    latestControl.transfer.queueTimeoutUs = latestControl.transfer.responseTimeoutUs = 20;
+    latestControl.nodeGeneration = readTarget.nodeGeneration;
+    latestControl.admittedUs = 55; latestControl.completedUs = 56;
+    latestControl.outcome = CANOPEN::SdoOutcome::SUCCESS;
+    latestControl.queued = latestControl.transmissionPossible = latestControl.protocolAcknowledged = true;
+    latestControl.effectPossible = true;
+    LICHUAN_C::ActionOptions haltOptions;
+    haltOptions.service = readOptions;
+    haltOptions.observationIntervalUs = 10;
+    haltOptions.maximumAgeUs = 200; // Five fields at the 20 + 20 us budgets.
+    static LICHUAN_C::ActionContext halt, quick;
+    if (!LICHUAN_C::prepareStop(halt, reservation, state, latestControl, LICHUAN_C::StopKind::HALT, 18, 65, 300,
+                                haltOptions) ||
+        halt.state != ActionState::ACTIVE || halt.actionKind != ActionKind::STOP)
+        return 82;
+    const Status checkedEscalation = LICHUAN_C::validateEscalation(quick, halt, 19, 65, 300, haltOptions);
+    const Status escalation = LICHUAN_C::prepareEscalation(quick, halt, 19, 65, 300, haltOptions);
+    if (escalation || escalation.detail != static_cast<int32_t>(ActionError::STATE) ||
+        checkedEscalation.detail != escalation.detail || quick.state != ActionState::EMPTY)
+        return 83;
+    // The native rate basis: MOTOR_TURNS with MINUTE is rpm, of the motor shaft, never the load.
+    AxisConfig rateAxis = config;
+    rateAxis.nativeRateBasis = NativeRateBasis::MOTOR_TURNS;
+    rateAxis.nativeVelocityTime = TimeUnit::MINUTE;
+    VelocityRequest rate;
+    rate.value = Rational(2);
+    rate.unit = VelocityUnit(PositionUnit::TURNS, TimeUnit::MINUTE);
+    rate.frame = CoordinateFrame::LOAD;
+    rate.configurationGeneration = rateAxis.binding.configurationGeneration;
+    PreparedVelocityTarget rpm;
+    if (!prepareVelocityTarget(rate, rateAxis, rpm) || rpm.rateBasis != NativeRateBasis::MOTOR_TURNS ||
+        rpm.rateTime != TimeUnit::MINUTE || rpm.effectiveNative != 3)
+        return 84; // 2 load turns/min at gear 3/2.
+    rate.value = Rational(1);
+    if (prepareVelocityTarget(rate, rateAxis, rpm) || rpm.effectiveNative != 3)
+        return 85; // 3/2 rpm is not an exact integer, and the earlier result stays.
+    rateAxis.nativeRateBasis = NativeRateBasis::COMMAND_INCREMENTS;
+    rateAxis.nativeVelocityTime = TimeUnit::SECOND;
+    rate.unit = VelocityUnit(PositionUnit::TURNS, TimeUnit::SECOND);
+    if (!prepareVelocityTarget(rate, rateAxis, rpm) ||
+        rpm.rateBasis != NativeRateBasis::COMMAND_INCREMENTS || rpm.effectiveNative != 6144)
+        return 86; // 1 load turn/s is 4096 x 3/2 increments/s.
+    // PDO freshness, from the umbrella header: an unconfirmed map is NO_MAP, a zero age policy refuses.
+    CANOPEN::PdoRecord pdoRecord;
+    CANOPEN::PdoFreshness freshness = CANOPEN::PdoFreshness::FRESH;
+    if (!CANOPEN::pdoFreshness(pdoRecord, 1, 1, freshness) || freshness != CANOPEN::PdoFreshness::NO_MAP)
+        return 87;
+    freshness = CANOPEN::PdoFreshness::FRESH;
+    if (CANOPEN::pdoFreshness(pdoRecord, 1, 0, freshness) || freshness != CANOPEN::PdoFreshness::FRESH)
+        return 88;
     return 0;
 }

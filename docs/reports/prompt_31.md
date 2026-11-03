@@ -2,6 +2,8 @@
 
 **Reopened by audit W6.** [Packet 6](handoff_19_33/packet_6.md) delivered the owner half: per-channel urgent capacity, in-flight settlement, and the narrow `6040:00=000B` best-effort route. [Packet 7](handoff_19_33/packet_7.md) delivered the DEC-8 predecessors, `BestEffortStop`, `AxisSession` history and the pending-stop policy, so the predecessor and owner-handoff statements below describe the earlier contract. [Packet 10](handoff_19_33/packet_10.md) consolidated the control evidence, keeping stop's running-allowed predicate. This prompt stays Partial: Q02 and Q12 are open, and no drive has run these paths.
 
+**Packet 16, 2026-11-03: physical scope not run.** [Packet 16](handoff_19_33/packet_16.md) prepared the attended bench `stop` route and rechecked the lifecycle above. No drive has been enabled, moved or stopped by this library. Still owed, in order: the DEC-8 rows, `000B` on a released state, a moving stop, and the live stack and service gap during each stop. A stop requested after `6060=1` but before an acknowledged `000F` sends best-effort `000B` to a drive whose power-up state this library never set ([stop guide](../stop_actions.md)).
+
 Subsequent [independent audit of prompts 31/32](prompts_31_32_audit.md) rechecked
 the actual implementation, source evidence, owner paths and tests. The original
 scope and firmware gates below remain in effect.
