@@ -6,9 +6,9 @@ Resumes prompt 20. Host and fake evidence only, because bench time went to the c
 
 See the [settings guide](../../driver_settings.md) and the [changelog](../../../CHANGELOG.md).
 
-- `prepareDirectionSettings` (2200) and `prepareSoftLimitSettings` (2202), which establish a stored code only.
-- `test/settings_owner_test.cpp` runs settings through the real `CanBusOwner` and `SdoClient` against a scripted dictionary holding the specimens' values, with the packet's whole case list. 25 hand mutants of `Settings.cpp` are killed.
-- Packet 10's distinction proved end to end: an explicit call advances the generation once, at the first possible download. Admission alone, queue or preflight rejection and a pre-TX cancel do not. A move's own writes through the hook leave its prepared target valid and retire the prior and a finished `readback`.
+- `prepareSoftLimitSettings` (2202), which establishes a stored code only.
+- `test/settings_owner_test.cpp` runs settings through the real `CanBusOwner` and `SdoClient` against a scripted dictionary holding the specimens' values, with the packet's whole case list. Hand mutants of `Settings.cpp` are killed.
+- Packet 10's distinction is proved end to end: an explicit call advances the generation once, at the first possible download. Admission alone, queue or preflight rejection and a pre-TX cancel do not. A move's own writes through the hook leave its prepared target valid and retire the prior and a finished `readback`.
 
 ## Decisions per setting
 
@@ -16,22 +16,31 @@ Pages are PDF pages.
 
 | Object | Ruling | Evidence | What closes the rest |
 | --- | --- | --- | --- |
-| 2200 | Typed write, codes 0 and 1. Stored code only | EN86 and ZH86 p18 agree; EDS U16 RW default 0 | Same native target at each code, a finite move, independent shaft observation and raw `6064`. That is motion, so packet 19 or later |
+| 2200 | **Gate kept, no write.** The packet requires an effect as well as a domain, and EN86 and ZH86 p18 say only `0 Pulse Sign`, `1 Pulse /Sign`, with nothing on what the codes do under CAN | EN86 and ZH86 p18; EDS U16 RW default 0 | Same native target at each code, a finite move, independent shaft observation and raw `6064`, and a power cycle for activation. That is motion, so packet 19 or later |
 | 2201 | **Gate kept, no write** | p11 `0..65535` against p18 `400..51200`; EDS default 0; specimens 1000. Every later pulse target would change by an unmeasured ratio | Manufacturer range, then the baseline and one other in-range value: raw `6064`, `607A`, `607D`, measured displacement for one fixed native target, and a power cycle |
-| 2202 | Typed write, codes 0 and 1, from a documented prior code only. Code 1 needs observed `607D:01 < :02`. A prior or candidate 10 refuses | EN86 and ZH86 p18; EDS default 10 is undocumented; specimens 0 | Enforcement: completed homing and one finite move toward a limit under independent travel protection |
-| `607D:01/:02` | **Gate kept, no write.** I32 and a name are not a domain | EDS; EN86 p16-17, ZH86 p17 | Manufacturer range and coordinate basis, or the 2202 test |
+| 2202 | Typed write, codes 0 and 1, from a documented prior code only. Code 1 needs observed `607D:01 < :02`, which is project policy, and is refused while 2100 reports homing complete, because p18's deferral no longer applies and the effect would be immediate. A prior or candidate 10 refuses | EN86 and ZH86 p18; EDS default 10 is undocumented; specimens 0 | Enforcement needs a finite `607D`, so a manufacturer range or coordinate basis |
+| `607D:01/:02` | **Gate kept, no write.** I32 and a name are not a domain. The 2202 test cannot close it: that test needs a finite `607D` first | EDS; EN86 p16-17, ZH86 p17 | Manufacturer range and coordinate basis |
 | 6060 | **Gate kept, no write here** | p11, p13; EDS WO U8 against manual RW I8; ZH86 p13 starts the motor at the end of `6,7,15` in mode 3, and `60FF` reads 120 | Packet 15 step 3 |
 
-The state prerequisite for 2200 and 2202 is **project policy; no source gives one**: a live reservation, explicit model, a clean STATUS and MONITORS read, and no 2100 running or alarm bit. 2100 bit 4 (released) is deliberately unused, because both specimens report it clear with no enable in any retained record.
+The state prerequisite for 2202 is **project policy; no source gives one**: a live reservation, explicit model, a clean STATUS and MONITORS read, and no 2100 running, alarm or undocumented bit 7..15. 2100 bit 4 (released) is deliberately unused, because both specimens report it clear with no enable in any retained record. Bit 4 clear and `6041=0x8037` also match the documented enabled pattern, so on these specimens a write's effect on a possibly energized drive is unestablished.
 
 ## Rulings on questions left by earlier packets
 
 - **Packet 10, a failed state read.** `prepareDriverSettings` now refuses a failed or uncertain state read even when STATUS and MONITORS completed. A settings call is never urgent, so the cost is one fresh read.
 - **Packet 9, raw `positionSpeedRpm`.** It stays raw: a native register value with its unit in its name. So the `preparePositionParameters` caller is the seam: packet 20 must route common rates through `prepareVelocityTarget` under `MOTOR_TURNS` and `MINUTE`, and check the frozen fields. **That gap stays open until the caller exists.**
 
-## Documented hazard
+## Independent review, all fixed
 
-A finished transaction keeps its frozen `AxisReservation`. A stale token plus old evidence can still prepare, including a false no-op with `state==SUCCEEDED`. `nextDriver`, `noteDriverTransmission` and `getDriver` all refuse it, and a test proves this. So read results through `getDriver`, not `state`.
+An independent reviewer rendered the pages and probed the code. It found no frame commanding motion, and T1's bytes as captured through the real owner are correct. It did find these:
+
+| Finding | Fix |
+| --- | --- |
+| A frozen token plus old evidence prepared a no-op with `state=SUCCEEDED` and `uncertain=false`, sending nothing while the drive held another value, even after a lost reply | Every settings `prepare*` takes the actual current target and refuses a stale reservation before publishing |
+| A typed 2200 write established a domain and no effect, which the packet does not allow | Withdrawn, and gated |
+| 2202 could arm on a homed drive, where p18's deferral was the reason for dropping RS's gate | Refused while homing is reported. **RS requires homing complete to enable, so this is the opposite, a recorded delta**: arming must precede homing. A stored code already 1 is refused too while homed |
+| Closure conditions for 2202 and `607D` were circular | Stated plainly: they need a manufacturer range or coordinate basis |
+| Undocumented 2100 bits passed | Bits 7..15 refuse for 2202 |
+| Selector wire bytes were never asserted, and three mutants survived | Pinned |
 
 ## Physical tests not run
 
@@ -39,9 +48,8 @@ They need a bounded harness route that does not exist yet, and neither enables n
 
 | Trial | Node | Expected on the wire | Closes |
 | --- | --- | --- | --- |
-| T1, 2202 selector | 1 | `601: 2B 02 22 00 01 00 00 00`, readback, then `2B 02 22 00 00 00 00 00`, readback, then no frames on a repeat | Code acceptance and the default-10 question on this firmware only, not enforcement |
-| T2, 2200 selector, after T1 | 1 | `2B 00 22 00 01 00 00 00`, readback, then `2B 00 22 00 00 00 00 00`, readback | Code acceptance and whether 2201 or status reacts, not direction |
-| T3 | 2 | The same | The same |
+| T1, 2202 selector | 1 | `601: 2B 02 22 00 01 00 00 00`, readback, then `2B 02 22 00 00 00 00 00`, readback. A repeat of the last value sends no write, after its fresh evidence reads | Code acceptance and the default-10 question on this firmware only, not enforcement |
+| T2 | 2 | The same | The same |
 
 The return write is a separate explicit operation, sent only if the forward write was acknowledged and read back. An uncertain write is not replayed, and the possibly non-default value is reported. Volatility across a power cycle is unknown, and nothing is saved.
 
@@ -57,7 +65,7 @@ The return write is a separate explicit operation, sent only if the forward writ
 
 ## Open
 
-Prompt 20 stays Partial: the 2201, 607D and 6060 gates above, the physical meaning of 2200 and enforcement of 2202. `examples/driver_settings_preview` stays read-only.
+Prompt 20 stays Partial: the 2200, 2201, 607D and 6060 gates above and enforcement of 2202. A stored 2202 of 10 has no typed way out, deliberately. `examples/driver_settings_preview` stays read-only.
 
 ## Checks
 

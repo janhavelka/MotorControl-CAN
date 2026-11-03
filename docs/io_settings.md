@@ -3,9 +3,11 @@
 The installed `MotorControlCAN::LICHUAN_C` API in
 `MotorControlCAN/profiles/lichuan_c/IoSettings.h` provides four finite typed
 read groups and checked `getIo`. [Prompt 21](reports/prompt_21.md) is **Partial**:
-explicit 86C DI function/polarity settings are implemented; DO assignment, filter
-writes and output actions retain their actual source gates. No generic port
-writer or always-rejecting settings/action stub is provided.
+explicit 86C DI function/polarity settings are implemented and proved through the
+real owner; DO assignment, filter writes and output actions keep the per-field
+decisions below. No
+generic port writer or always-rejecting settings/action stub is provided. Nothing here
+has been accepted by a specimen: every write below is host-tested only.
 
 ## Frozen rows and classification
 
@@ -93,11 +95,12 @@ Typed device CLI routes remain planned under prompts 40-42.
 
 `Settings.h` adds `IoSettings`, `DriverSettingsContext` and `prepareIoSettings`.
 Supply a fresh complete input-configuration context, actual continuous
-sole-owner `AxisReservation`, explicit CL86-C/OL86-C model and a complete
-candidate. Defaults are deliberately invalid: select every function code 0..13
+sole-owner `AxisReservation`, the actual current `ReadTarget`, explicit CL86-C/OL86-C
+model and a complete candidate. Defaults are deliberately invalid: select every function code 0..13
 and the desired polarity bits 0..6. Unknown high polarity bits are copied from
-matched prior readback. Invalid model/epochs/codes/masks/time, aliasing or generation
-exhaustion rejects atomically before any work. Duplicate documented function
+matched prior readback. Invalid model/epochs/codes/masks/time, a reservation not at the current target, aliasing or
+generation exhaustion rejects atomically before any work. A stored undocumented function
+code stays raw in `getIo` and is replaced by the candidate, since a candidate cannot name one. Duplicate documented function
 codes are accepted; no manufacturer uniqueness rule is supplied by the sources.
 
 EN86/ZH86 p8 explicitly permit CANopen configuration and p18/p19 give RW types,
@@ -108,7 +111,8 @@ claims; they do not prohibit an explicit register-setting operation. The
 
 The finite sequence writes **only changed** `2400:01..08` fields in ascending
 subindex order, with individual matching acknowledgements and full exact group
-readback. It never writes count/reserved/DO/filter/output-command entries.
+readback, including the `2400:00` count no write can touch. It never writes
+count/reserved/DO/filter/output-command entries.
 Host order is not a manufacturer atomicity or safety guarantee. Changing an
 active enable/stop/limit assignment or polarity may affect the drive immediately.
 No controlword/mode/save/reset preamble or implicit protective reassignment is
@@ -123,38 +127,49 @@ is distinct from electrical observation or protective effectiveness. No-op
 candidates use fresh prior evidence without TX/epoch change. Per-field confirmed
 writes, raw terminal/abort, uncertainty and mismatches stay inspectable on failure.
 
-The [native settings caller](../test/settings_write_test.cpp) exercises the
-ordinary owner path, full candidate rejection, all codes/boundary masks, partial
-reconfiguration, uncertain writes, mismatches, stale epochs and invalidation.
-The offline preview also prepares and withdraws an explicit candidate before
-admission. Actual owner construction remains prompt 23; those groups must use
-its integration path when that owner exists.
+The [real-owner suite](../test/settings_owner_test.cpp) runs DI through `CanBusOwner`
+and `SdoClient` against a scripted dictionary, with literal bytes: every code on every
+input, every polarity bit from words holding high bits, each failure position of abort,
+lost reply, mismatch and failed readback, cancellation, preflight refusal, deadlines,
+reboot, bus-off, a drive fault event, queued-work exclusion, generations and old-target
+admission. The [native settings caller](../test/settings_write_test.cpp) covers every
+changed subset of the eight words. A partial write stays written: a later explicit
+operation on a fresh read sends only what still differs. No test asserts a device fact,
+and a fake signal in a method fixture does not qualify hardware.
 
-## Remaining mutation evidence
+## Per-field decisions for DO, filters and output commands
 
-DO polarity is `2400:0C`, with assignments at `:0D/:0E/:0F`, in EDS and ZH86
-p19. EN86 p8/p18, ZH86 p8 and OP86 p6 instead use `:0B/:0C/:0D/:0E`.
-Wiring and dictionary tables swap function codes 2/3 between running/drive-state
-and homing-completion meanings. Only two polarity bits are described. Selected
-firmware evidence must resolve the affected address/function/bit scope; trying
-both addresses is prohibited.
+No typed write exists for any field here. A raw accessor would not close one. Pages are
+PDF pages. All sources below claim CL86-C/OL86-C, except that OP86's page headers read
+CL57-C/OL57-C and its pages 5-14 match the 57C operating manual. No source names a
+firmware, and the specimens' `2000`/`2001` codes have no published table.
 
-Filter defaults `50,40,100,4000,10,2,16` in EDS conflict with OP86's 2. Neither
-source supplies complete accepted ranges, equation or time units. Those numbers
-are retained metadata, not milliseconds or a reset recipe.
+| Field | Claims | Decision | What closes it |
+| --- | --- | --- | --- |
+| DO polarity address | `2400:0B`: EN86 p8/p18, ZH86 p8, OP86 p6. `2400:0C`: EDS `Obj.Dolevel`, ZH86 p19 | **Gate.** No write at either | Manufacturer map, or the observations below, for this firmware |
+| DO0/1/2 function addresses | `:0C/:0D/:0E`: same pages. `:0D/:0E/:0F`: EDS `Obj.Do0..2`, ZH86 p19. So `:0D` and `:0E` are function selectors under both, for different terminals, and `:0C` and `:0F` are not | **Gate** | The same, and the terminal check below, since readback at an address does not identify a function |
+| DO function codes | 0 undefined, 1 alarm, 4 in-position, 5 brake, 9..11 user 0..2 agree. 2 running, 3 homing complete: EN86/ZH86 p8, OP86 p7. 2 homing complete, 3 drive status: EN86 p18, ZH86 p19. 6..8 absent | **Gate.** A later candidate has no basis for 2 or 3 | Manufacturer table, or an electrical check per code |
+| DO polarity bits | Bits 0/1 for Y0/Y1 only: EN86 p18, ZH86 p19, for three outputs. No value semantics beyond "level reversal" | **Gate.** Bit 2 is not inferred, and unknown bits would need the DI rule | Manufacturer table, and an electrical check per bit |
+| Terminal names | Y0..Y2 on p18/p19 and DO0..DO2 on p8 are equated by nothing but order. OP86 p6 says brake DO2 is `PA_01E` while its table says `PA_02E` | **Gate** | The terminal check below |
+| `60FE:01/:02` address | EDS RW U32, no default; EN86/ZH86 p17 `Physical Outputs`, `Bit mask`, no bit map. Not disputed | Readable. **No action** | The rows below |
+| `60FE` terminal bits | Bits 16/17/18 are DO0/1/2: OP86 p7 (57C header), ZH57 p8. DO1/2/3: ZH57 p17. Nothing in EN86 or ZH86 | **Gate.** No 86C source, and no fourth terminal | Manufacturer table for 86C, or the terminal check |
+| `60FE` value and mask | "Both bits 1 gives output, for a user-defined DO": OP86 p7, ZH57 p8 only. Mask zero, value zero with mask one, clear, untouched bits and order: no source. It also presumes function 9..11, so it depends on the rows above | **Gate.** A value/mask pair cannot be chosen | A manufacturer truth table, or the isolated output check below |
+| `2401..2407` filters | Address agreed, RW U16. EDS defaults 50,40,100,4000,10,2,16; EN86/ZH86 p8 and OP86 p6-7 all 2. No range, equation or unit | **Gate.** A default is not a domain and not a reset recipe | Manufacturer range and equation, then a timed input stimulus. Read the specimens' values meanwhile |
+| `2400:0A` filter alias | Manuals call it a filter coefficient, default 0; EDS `rsvd2` | **Excluded**, with `:09/:0B/:10` | The same manufacturer map |
 
-`60FE` terminal mapping is not qualified for the selected 86C scope. OP86 p7
-has a CL57-C/OL57-C header. ZH57 p8 labels bits 16/17/18 DO0/1/2 while p17
-labels them DO1/2/3. No fourth terminal or transfer to 86C is inferred. The
-statement that value and mask both equal one activates an output does not
-establish mask-zero, clear, untouched-bit or safe sequential update behavior.
-Source-confirmed model-bound terminal and value/mask semantics are required
-before an explicit output action can be implemented.
+The register column adds one thing the subindex column does not. EN86 p18 and ZH86 p19 agree
+on registers: polarity `0x002B`, DO0..2 `0x002C..E`, and on `0x002A` for the filter
+alias. DI rows run register `0x0020` at `:01` through `0x0027` at `:08`. Continuing that
+step puts `0x002B` at `:0C`, as the EDS and ZH86 p19 do. **This is an inference from
+table regularity, and resolves nothing:** ZH86 p19 itself breaks the step at `:0A`, and no
+document binds any of this to a firmware. Separately, both specimens hold DI defaults 1, 2, 3
+as p8 prints them, where the EDS prints 0, so EDS defaults are not this firmware's values.
 
-When those remaining DO/filter/output gates close, 21 still owes their
-whole-candidate validation, partial effects, exact readback and dependent
-configuration/prerequisite invalidation. The confirmed DI group already has
-those software contracts and tests.
-These tests and later real owner integration remain pending here. Reads and
-synthetic method fixtures do not close them. No path may silently disable a
-protective input, save/reset, clear a fault, enable or change wiring assumptions.
+`2102` bits 0..2 are logical outputs and `60FE` bits 16..18 are a separate layout. Register
+readback of `60FE` is not a measured terminal. No startup, recovery or motion-preparation
+path touches any of these, and writing both disputed layouts to see which works is prohibited.
+
+A later `60FE` candidate should follow what RS requires of its custom output: a
+terminal's bit only while that terminal holds its own user-defined function, with no cross
+mapping, unrelated bits preserved from matched readback, and any accepted mask semantics
+sourced rather than assumed.

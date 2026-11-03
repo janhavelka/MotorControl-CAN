@@ -9040,11 +9040,10 @@
           "scaling": "Physical positive direction not established.",
           "pdo_mapping_eds": "1",
           "pdo_mapping_reviewed": null,
-          "effect": "Named default direction. The typed write establishes the stored code only; its effect on CAN motion, 6064, 607A, 607D or homing and its activation are not established.",
+          "effect": "Named default direction; actual effect on CAN motion is not established by the retained labels.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. Also 2202=0 from a fresh read, adopted from RS's geometry dependency."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -9077,7 +9076,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; the typed candidate is exactly these two codes, on EN86 and ZH86 p18 with no contradiction and the EDS default 0 inside. Raw values stay raw until actual direction is qualified; 2201 is retained and rechecked, never written.",
+            "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; retain raw values until actual direction is qualified. No typed write: a domain is not enough, and neither manual says what the codes do under CAN. Closing observation: the same native target at each code, a finite move, independent shaft observation and raw 6064, plus a power cycle for activation.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -9089,13 +9088,6 @@
           },
           "read_owner_prompt": 20,
           "read_coverage": {
-            "documented": true,
-            "implemented": true,
-            "host_tested": true,
-            "hardware_qualified": false
-          },
-          "setting_scope": "explicit_direction_selector_86c",
-          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
@@ -9274,7 +9266,7 @@
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
             "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
-            "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. AFTER_HOMING also needs observed 607D:01 strictly below 607D:02; 607D is retained and rechecked, never written. Neither a prior nor a candidate may be 10."
+            "Project policy, as no source gives a state for this object: continuous sole-owner reservation at the actual current target, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running, alarm or undocumented (7..15) bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is deliberately unused: both specimens report it clear before any enable. AFTER_HOMING is refused while 2100 reports homing complete, since p18's deferral no longer applies and the effect would be immediate and unqualified. AFTER_HOMING also needs observed 607D:01 strictly below 607D:02, which is project policy; disarming does not. 607D is retained and rechecked, never written. Neither a prior nor a candidate may be 10."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [

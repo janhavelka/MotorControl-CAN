@@ -470,7 +470,7 @@ void loopCandidatesAndRealWrite() {
             L::DriverSettingsContext c;
             const Saved<L::DriverSettingsContext> old(c);
             const bool expected = model && value <= (model == 1 ? 2u : 1u);
-            CHECK(bool(L::prepareControlSettings(c, owner.reservation, prior, candidate, 41,
+            CHECK(bool(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41,
                                                  owner.now, 5000, options(), 100)) == expected);
             if (!expected)
                 old.unchanged(c);
@@ -493,7 +493,7 @@ void loopCandidatesAndRealWrite() {
         L::ControlSettings candidate;
         candidate.loopMode = L::LoopMode::CLOSED_LOOP;
         L::DriverSettingsContext c;
-        CHECK(L::prepareControlSettings(c, owner.reservation, prior, candidate, 41, owner.now, 5000,
+        CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now, 5000,
                                         options(), 100));
         candidate.loopMode = L::LoopMode::OPEN_LOOP;
         L::PreparedRead p;
@@ -563,7 +563,7 @@ void settingsAdmissionAndShape() {
     L::ControlSettings candidate;
     candidate.loopMode = L::LoopMode::OPEN_LOOP;
     L::DriverSettingsContext valid;
-    CHECK(L::prepareControlSettings(valid, owner.reservation, prior, candidate, 41, owner.now, 5000,
+    CHECK(L::prepareControlSettings(valid, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now, 5000,
                                     options(), 100));
     for (unsigned bad = 0; bad < 10; ++bad) {
         auto r = owner.reservation;
@@ -593,8 +593,18 @@ void settingsAdmissionAndShape() {
             opt.responseTimeoutUs = 0;
         auto c = valid;
         const Saved<L::DriverSettingsContext> old(c);
-        CHECK(!L::prepareControlSettings(c, r, p, candidate, operation, owner.now, deadline, opt,
+        CHECK(!L::prepareControlSettings(c, r, r.target, p, candidate, operation, owner.now, deadline, opt,
                                          age));
+        old.unchanged(c);
+    }
+    { // The reservation must be at the actual current target, or old evidence could report a no-op.
+        L::ReadTarget moved = owner.reservation.target;
+        ++moved.channel.binding.configurationGeneration;
+        auto c = valid;
+        const Saved<L::DriverSettingsContext> old(c);
+        const M::Status status = L::prepareControlSettings(c, owner.reservation, moved, prior, candidate,
+                                                           41, owner.now, 5000, options(), 100);
+        CHECK(!status && status.detail == int32_t(M::ReadError::TARGET));
         old.unchanged(c);
     }
     for (unsigned bad = 0; bad < 10; ++bad) {
@@ -643,7 +653,7 @@ void loopFailureRetentionAndPublication() {
             L::ControlSettings candidate;
             candidate.loopMode = L::LoopMode::CLOSED_LOOP;
             L::DriverSettingsContext c;
-            CHECK(L::prepareControlSettings(c, owner.reservation, prior, candidate, 41, owner.now,
+            CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now,
                                             5000, options(), 100));
             L::ControlObservation out;
             out.encoderResolutionRaw = 0xa55a;
@@ -712,7 +722,7 @@ void loopFailureRetentionAndPublication() {
     L::ControlSettings candidate;
     candidate.loopMode = L::LoopMode::OPEN_LOOP;
     L::DriverSettingsContext c;
-    CHECK(L::prepareControlSettings(c, owner.reservation, prior, candidate, 41, owner.now, 5000,
+    CHECK(L::prepareControlSettings(c, owner.reservation, owner.reservation.target, prior, candidate, 41, owner.now, 5000,
                                     options(), 100));
     L::PreparedRead p;
     CHECK(L::nextDriver(c, owner.reservation, owner.current, owner.now, p) && p.ready);
@@ -739,7 +749,7 @@ void loopFailureRetentionAndPublication() {
     for (unsigned i = 0; i < 7; ++i)
         io.functions[i] = L::InputFunction::UNDEFINED;
     L::DriverSettingsContext wrong;
-    CHECK(L::prepareIoSettings(wrong, owner.reservation, ioPrior, io, 42, owner.now, 5000,
+    CHECK(L::prepareIoSettings(wrong, owner.reservation, owner.reservation.target, ioPrior, io, 42, owner.now, 5000,
                                options(), 100));
     CHECK(wrong.state == L::SettingsState::SUCCEEDED && !wrong.changed);
     L::ControlObservation out;
@@ -751,7 +761,7 @@ void loopFailureRetentionAndPublication() {
     Owner exhausted(UINT32_MAX);
     const auto maximumPrior = exhausted.controlPrior();
     const Saved<L::DriverSettingsContext> untouched(c);
-    CHECK(!L::prepareControlSettings(c, exhausted.reservation, maximumPrior, candidate, 43,
+    CHECK(!L::prepareControlSettings(c, exhausted.reservation, exhausted.reservation.target, maximumPrior, candidate, 43,
                                      exhausted.now, 5000, options(), 100));
     untouched.unchanged(c);
     CHECK(exhausted.current.configurationGeneration == UINT32_MAX);

@@ -59,7 +59,7 @@ struct Entry {
 // A scripted dictionary, not a drive model: it stores what is written and answers what it holds.
 struct Drive {
     enum Fault { NONE, ABORT, LOST };
-    Entry table[27] = {{0x2100, 0, 2, 1},      {0x2101, 0, 2, 0},
+    Entry table[41] = {{0x2100, 0, 2, 1},      {0x2101, 0, 2, 0},
                        {0x2102, 0, 2, 0},      {0x6041, 0, 2, 0x8037},
                        {0x6061, 0, 1, 0},      {0x6040, 0, 2, 0},
                        {0x2200, 0, 2, 0},      {0x2201, 0, 2, 1000},
@@ -72,7 +72,14 @@ struct Drive {
                        {0x2400, 2, 2, 1},      {0x2400, 3, 2, 2},
                        {0x2400, 4, 2, 3},      {0x2400, 5, 2, 0},
                        {0x2400, 6, 2, 0},      {0x2400, 7, 2, 0},
-                       {0x2400, 8, 2, 0}};
+                       {0x2400, 8, 2, 0},      {0x2400, 0xc, 2, 0},
+                       {0x2400, 0xd, 2, 0},    {0x2400, 0xe, 2, 0},
+                       {0x2400, 0xf, 2, 0},    {0x2401, 0, 2, 2},
+                       {0x2402, 0, 2, 2},      {0x2403, 0, 2, 2},
+                       {0x2404, 0, 2, 2},      {0x2405, 0, 2, 2},
+                       {0x2406, 0, 2, 2},      {0x2407, 0, 2, 2},
+                       {0x60fe, 0, 1, 2},      {0x60fe, 1, 4, 0},
+                       {0x60fe, 2, 4, 0}};
     Entry* find(uint16_t index, uint8_t subindex) {
         for (Entry& e : table)
             if (e.index == index && e.subindex == subindex)
@@ -142,6 +149,8 @@ struct Drive {
         return true;
     }
     static void store(Entry& e, const M::Frame& request) {
+        // An expedited download names its width in its command byte, so a wrong width cannot pass.
+        CHECK(request.data[0] == (e.width == 1 ? 0x2f : e.width == 2 ? 0x2b : 0x23));
         uint32_t raw = 0;
         for (unsigned i = 0; i < e.width && i < 4; ++i)
             raw |= uint32_t(request.data[4 + i]) << (8 * i);
@@ -335,11 +344,6 @@ L::DriverSettings motion(uint32_t speed = 120, uint32_t up = 200, uint32_t down 
     s.rampDownTimeMs = down;
     return s;
 }
-L::DirectionSettings direction(uint16_t code) {
-    L::DirectionSettings s;
-    s.direction = static_cast<L::DefaultDirection>(code);
-    return s;
-}
 L::SoftLimitSettings limit(uint16_t code) {
     L::SoftLimitSettings s;
     s.enable = static_cast<L::SoftLimitEnable>(code);
@@ -360,29 +364,47 @@ struct MotionEvidence {
 M::Status prepareMotion(L::DriverSettingsContext& out, Bench& b, const MotionEvidence& e,
                         const L::DriverSettings& s, uint64_t deadline = DEADLINE) {
     const uint32_t op = b.begin(deadline);
-    return L::prepareDriverSettings(out, b.wire.live, e.prior, e.state, e.control, s, op, b.now,
+    return L::prepareDriverSettings(out, b.wire.live, b.current(), e.prior, e.state, e.control, s, op, b.now,
                                     deadline, options(), AGE);
 }
 struct SelectorEvidence {
     L::ReadContext state;
-    L::DriverContext driver, limits;
+    L::DriverContext limits;
     explicit SelectorEvidence(Bench& b) {
         b.readState(state);
         b.read(limits, L::DriverGroup::SOFT_LIMITS);
-        b.read(driver, L::DriverGroup::DRIVER);
     }
 };
-M::Status prepareDirection(L::DriverSettingsContext& out, Bench& b, const SelectorEvidence& e,
-                           uint16_t code, uint64_t deadline = DEADLINE) {
-    const uint32_t op = b.begin(deadline);
-    return L::prepareDirectionSettings(out, b.wire.live, e.driver, e.limits, e.state,
-                                       direction(code), op, b.now, deadline, options(), AGE);
-}
 M::Status prepareLimit(L::DriverSettingsContext& out, Bench& b, const SelectorEvidence& e,
                        uint16_t code, uint64_t deadline = DEADLINE) {
     const uint32_t op = b.begin(deadline);
-    return L::prepareSoftLimitSettings(out, b.wire.live, e.limits, e.state, limit(code), op, b.now,
+    return L::prepareSoftLimitSettings(out, b.wire.live, b.current(), e.limits, e.state, limit(code), op, b.now,
                                        deadline, options(), AGE);
+}
+// DI through the real owner. What the fixture holds matches the specimens' reported assignment, with
+// unexplained high polarity bits added: origin and both limits on DI0..2, the rest undefined.
+L::IoSettings asFound() {
+    L::IoSettings s;
+    s.invertedInputs = 0;
+    s.functions[0] = L::InputFunction::ORIGIN;
+    s.functions[1] = L::InputFunction::POSITIVE_LIMIT;
+    s.functions[2] = L::InputFunction::NEGATIVE_LIMIT;
+    for (unsigned i = 3; i < 7; ++i)
+        s.functions[i] = L::InputFunction::UNDEFINED;
+    return s;
+}
+// All eight words differ from the fixture.
+L::IoSettings everyField() {
+    L::IoSettings s;
+    s.invertedInputs = 0x55;
+    for (unsigned i = 0; i < 7; ++i)
+        s.functions[i] = static_cast<L::InputFunction>(13 - i);
+    return s;
+}
+M::Status prepareIo(L::DriverSettingsContext& out, Bench& b, const L::DriverContext& prior,
+                    const L::IoSettings& s, uint64_t deadline = DEADLINE) {
+    const uint32_t op = b.begin(deadline);
+    return L::prepareIoSettings(out, b.wire.live, b.current(), prior, s, op, b.now, deadline, options(), AGE);
 }
 M::PreparedTarget preparedTarget(const Bench& b, M::AxisConfig& axis) {
     axis.binding = b.wire.current;
@@ -479,33 +501,31 @@ void everyDocumentedBoundary() {
     }
     for (uint16_t code : {uint16_t(0), uint16_t(1), uint16_t(2), uint16_t(10), uint16_t(0x8000),
                           uint16_t(0xffff)}) {
-        for (bool isDirection : {true, false}) {
-            Bench b;
-            // Start from the other documented code, so codes 0 and 1 both need a real write.
-            if (isDirection)
-                b.drive.set(0x2200, 0, code == 0 ? 1 : 0);
-            else
-                b.drive.set(0x2202, 0, code == 0 ? 1 : 0);
-            const uint32_t before = isDirection ? b.drive.value(0x2200) : b.drive.value(0x2202);
-            SelectorEvidence e(b);
-            L::DriverSettingsContext c;
-            const auto prepare = [&]() {
-                return isDirection ? prepareDirection(c, b, e, code) : prepareLimit(c, b, e, code);
-            };
-            if (code > 1) {
-                refused(b, c, prepare);
-                CHECK((isDirection ? b.drive.value(0x2200) : b.drive.value(0x2202)) == before);
-                continue;
-            }
-            CHECK(prepare());
-            b.run(c);
-            CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 1);
-            CHECK((isDirection ? b.drive.value(0x2200) : b.drive.value(0x2202)) == code);
-            L::DriverObservation seen;
-            CHECK(L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
-            CHECK((isDirection ? seen.directionRaw : seen.softLimitSelectorRaw) == code);
-            CHECK(!seen.interpreted);
+        Bench b;
+        // Start from the other documented code, so codes 0 and 1 both need a real write.
+        b.drive.set(0x2202, 0, code == 0 ? 1 : 0);
+        const uint32_t before = b.drive.value(0x2202);
+        SelectorEvidence e(b);
+        L::DriverSettingsContext c;
+        if (code > 1) {
+            refused(b, c, [&] { return prepareLimit(c, b, e, code); });
+            CHECK(b.drive.value(0x2202) == before);
+            continue;
         }
+        const unsigned first = b.mark();
+        CHECK(prepareLimit(c, b, e, code));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 1);
+        CHECK(b.drive.value(0x2202) == code);
+        // One literal write, then the group's four literal reads, and nothing else.
+        CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2202, 0, code));
+        CHECK(frameIs(b.wire.sent[first + 1], 0x40, 0x2202, 0, 0));
+        for (uint8_t sub = 0; sub < 3; ++sub)
+            CHECK(frameIs(b.wire.sent[first + 2 + sub], 0x40, 0x607d, sub, 0));
+        CHECK(b.wire.sentCount == first + 5);
+        L::DriverObservation seen;
+        CHECK(L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
+        CHECK(seen.softLimitSelectorRaw == code && !seen.interpreted);
     }
     { // The DI group: the seven function codes and the documented polarity bits, literal on the wire.
         Bench b;
@@ -517,7 +537,7 @@ void everyDocumentedBoundary() {
             f = static_cast<L::InputFunction>(13);
         L::DriverSettingsContext c;
         uint32_t op = b.begin();
-        CHECK(L::prepareIoSettings(c, b.wire.live, prior, s, op, b.now, DEADLINE, options(), AGE));
+        CHECK(L::prepareIoSettings(c, b.wire.live, b.current(), prior, s, op, b.now, DEADLINE, options(), AGE));
         const unsigned first = b.mark();
         b.run(c);
         CHECK(c.state == L::SettingsState::SUCCEEDED);
@@ -532,17 +552,17 @@ void everyDocumentedBoundary() {
         op = b.begin();
         L::DriverSettingsContext r;
         refused(b, r, [&] {
-            return L::prepareIoSettings(r, b.wire.live, fresh, reserved, op, b.now, DEADLINE,
+            return L::prepareIoSettings(r, b.wire.live, b.current(), fresh, reserved, op, b.now, DEADLINE,
                                         options(), AGE);
         });
         L::IoSettings badCode = s;
         badCode.functions[6] = static_cast<L::InputFunction>(14);
         refused(b, r, [&] {
-            return L::prepareIoSettings(r, b.wire.live, fresh, badCode, op, b.now, DEADLINE,
+            return L::prepareIoSettings(r, b.wire.live, b.current(), fresh, badCode, op, b.now, DEADLINE,
                                         options(), AGE);
         });
         // The same read admits a valid candidate, so those two refusals isolate the bad value.
-        CHECK(L::prepareIoSettings(r, b.wire.live, fresh, s, op, b.now, DEADLINE, options(), AGE));
+        CHECK(L::prepareIoSettings(r, b.wire.live, b.current(), fresh, s, op, b.now, DEADLINE, options(), AGE));
     }
 }
 
@@ -557,34 +577,18 @@ void unknownRawReadsStayRawAndAdmitNothing() {
         L::DriverSettingsContext c;
         refused(b, c, [&] { return prepareLimit(c, b, e, 0); });
         refused(b, c, [&] { return prepareLimit(c, b, e, 1); });
-        refused(b, c, [&] { return prepareDirection(c, b, e, 1); }); // Not known to be off.
     }
-    { // 2200 outside its documented codes.
+    // 2200 and 2201 are reads only: whatever they hold stays raw, and no call here can write them.
+    for (uint32_t raw : {0u, 1u, 7u, 399u, 400u, 1000u, 51200u, 51201u, 65535u}) {
         Bench b;
-        b.drive.set(0x2200, 0, 7);
-        SelectorEvidence e(b);
-        L::DriverObservation seen;
-        CHECK(L::getDriver(e.driver, b.current(), b.now, AGE, seen));
-        CHECK(seen.directionRaw == 7 && seen.subdivisionRaw == 1000);
-        L::DriverSettingsContext c;
-        refused(b, c, [&] { return prepareDirection(c, b, e, 0); });
-        refused(b, c, [&] { return prepareDirection(c, b, e, 1); });
-    }
-    // The subdivision word is observed, retained and rechecked, never written, whatever it holds:
-    // the EDS default 0, the specimens' 1000, both ends of each documented range, and beyond.
-    for (uint32_t raw : {0u, 399u, 400u, 1000u, 51200u, 51201u, 65535u}) {
-        Bench b;
+        b.drive.set(0x2200, 0, raw);
         b.drive.set(0x2201, 0, raw);
-        SelectorEvidence e(b);
-        L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1));
-        const unsigned downloads = b.drive.downloads;
-        b.run(c);
-        CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.downloads == downloads + 1);
-        CHECK(b.drive.value(0x2201) == raw);
+        L::DriverContext driver;
+        b.read(driver, L::DriverGroup::DRIVER);
         L::DriverObservation seen;
-        CHECK(L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
-        CHECK(seen.subdivisionRaw == raw);
+        CHECK(L::getDriver(driver, b.current(), b.now, AGE, seen));
+        CHECK(seen.directionRaw == raw && seen.subdivisionRaw == raw);
+        CHECK(b.drive.downloads == 0);
     }
     { // A retained odd count is compared, not rewritten, across a 2202 write.
         Bench b;
@@ -704,7 +708,7 @@ void completeCandidateRejectedBeforeTransmission() {
             policy.responseTimeoutUs = 0;
         L::DriverSettingsContext c;
         refused(b, c, [&] {
-            return L::prepareDriverSettings(c, live, prior, state, control, motion(), operation, b.now,
+            return L::prepareDriverSettings(c, live, live.target, prior, state, control, motion(), operation, b.now,
                                             deadline, policy, age);
         });
     }
@@ -714,97 +718,244 @@ void completeCandidateRejectedBeforeTransmission() {
     L::DriverSettingsContext c;
     CHECK(prepareMotion(c, b, e, motion()));
     // A selector candidate is refused whole for the same reasons.
-    for (unsigned k = 0; k < 11; ++k) {
+    enum SelectorCase { S_MODEL, S_WRONG_GROUP, S_NO_OPERATION, S_DEADLINE, S_NO_AGE, S_OTHER_GROUP,
+                        S_BEFORE_RESERVATION, S_CASES };
+    for (unsigned k = 0; k < S_CASES; ++k) {
         Bench s;
-        if (k == 0)
-            s.drive.set(0x2100, 0, 0x0005); // Reports running.
-        if (k == 1)
-            s.drive.set(0x2100, 0, 0x0009); // Reports an alarm.
-        if (k == 2)
-            s.drive.set(0x2202, 0, 1); // Limits on: direction is refused until set off explicitly.
         L::ReadContext state;
-        L::DriverContext limits, driver;
+        L::DriverContext limits, unrelated;
         s.readState(state);
         s.read(limits, L::DriverGroup::SOFT_LIMITS);
-        s.read(driver, L::DriverGroup::DRIVER);
         L::AxisReservation live = s.wire.live;
-        const L::DriverContext* priorRead = &driver;
-        const L::DriverContext* limitsRead = &limits;
-        L::DriverContext unrelated;
+        const L::DriverContext* priorRead = &limits;
+        if (k == S_WRONG_GROUP || k == S_OTHER_GROUP) { // Complete, and its unused fields are 0.
+            s.read(unrelated, k == S_WRONG_GROUP ? L::DriverGroup::DRIVER
+                                                 : L::DriverGroup::MOTION_PARAMETERS);
+            priorRead = &unrelated;
+        }
         uint32_t operation = s.begin();
         uint64_t deadline = DEADLINE, age = AGE;
-        if (k == 3)
+        if (k == S_MODEL)
             live.model = L::SettingsModel::UNKNOWN;
-        if (k == 4)
-            priorRead = &limits; // Wrong group for 2200.
-        if (k == 5)
-            limitsRead = &driver; // Wrong group for 2202.
-        if (k == 6)
+        if (k == S_NO_OPERATION)
             operation = 0;
-        if (k == 7)
+        if (k == S_DEADLINE)
             deadline = s.now;
-        if (k == 8)
+        if (k == S_NO_AGE)
             age = 0;
-        if (k == 9) {
-            s.read(unrelated, L::DriverGroup::MOTION_PARAMETERS); // Complete, but the wrong group.
-            priorRead = &unrelated;
-            operation = s.begin();
-        }
-        if (k == 10)
+        if (k == S_BEFORE_RESERVATION)
             live.acquiredUs = s.now + 1; // The evidence precedes this reservation.
         L::DriverSettingsContext out;
         refused(s, out, [&] {
-            return L::prepareDirectionSettings(out, live, *priorRead, *limitsRead, state, direction(1),
-                                               operation, s.now, deadline, options(), age);
-        });
-    }
-    for (unsigned k = 0; k < 2; ++k) {
-        Bench s;
-        s.drive.set(0x2100, 0, k ? 0x0009 : 0x0005);
-        SelectorEvidence e(s);
-        L::DriverSettingsContext out;
-        refused(s, out, [&] { return prepareLimit(out, s, e, 1); });
-    }
-    { // A complete read of the wrong group is not a soft-limit prior, though its unused fields are 0.
-        Bench s;
-        SelectorEvidence e(s);
-        const uint32_t operation = s.begin();
-        L::DriverSettingsContext out;
-        refused(s, out, [&] {
-            return L::prepareSoftLimitSettings(out, s.wire.live, e.driver, e.state, limit(0), operation,
-                                               s.now, DEADLINE, options(), AGE);
+            return L::prepareSoftLimitSettings(out, live, live.target, *priorRead, state, limit(1), operation, s.now,
+                                               deadline, options(), age);
         });
     }
     // Each prerequisite must follow the reservation on its own: a fresh prior read cannot carry an
-    // older state or soft-limit read across it.
-    for (unsigned stale = 0; stale < 2; ++stale) {
+    // older state read across it.
+    {
         Bench s;
         L::ReadContext state;
-        L::DriverContext limits, driver;
-        if (stale)
-            s.read(limits, L::DriverGroup::SOFT_LIMITS);
-        else
-            s.readState(state);
+        L::DriverContext limits;
+        s.readState(state);
         L::AxisReservation live = s.wire.live;
         live.acquiredUs = s.now + 1;
         s.turn(s.now + 1);
-        if (stale)
-            s.readState(state);
-        else
-            s.read(limits, L::DriverGroup::SOFT_LIMITS);
-        s.read(driver, L::DriverGroup::DRIVER);
+        s.read(limits, L::DriverGroup::SOFT_LIMITS);
         const uint32_t operation = s.begin();
         L::DriverSettingsContext out;
         refused(s, out, [&] {
-            return L::prepareDirectionSettings(out, live, driver, limits, state, direction(1), operation,
-                                               s.now, DEADLINE, options(), AGE);
+            return L::prepareSoftLimitSettings(out, live, live.target, limits, state, limit(1), operation, s.now,
+                                               DEADLINE, options(), AGE);
         });
-        if (!stale) {
-            refused(s, out, [&] {
-                return L::prepareSoftLimitSettings(out, live, limits, state, limit(1), operation, s.now,
-                                                   DEADLINE, options(), AGE);
-            });
+    }
+}
+
+// Project policy on 2100 for the 2202 write. Each case holds alone against the fixture's clean word.
+void softLimitStateRules() {
+    const auto admitted = [](uint32_t word, uint16_t code, uint32_t stored) {
+        Bench b;
+        b.drive.set(0x2100, 0, word);
+        b.drive.set(0x2202, 0, stored);
+        SelectorEvidence e(b);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        const M::Status status = prepareLimit(c, b, e, code);
+        if (status) {
+            b.run(c);
+            CHECK(c.state == L::SettingsState::SUCCEEDED);
+            if (stored != code)
+                CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2202, 0, code));
+        } else {
+            CHECK(b.wire.sentCount == first && b.drive.value(0x2202) == stored);
         }
+        return bool(status);
+    };
+    CHECK(admitted(0x0001, 1, 0)); // Both specimens read 2100=1.
+    CHECK(admitted(0x0000, 1, 0));
+    // Bit 4 is deliberately unused: reported set or clear, it decides nothing here.
+    CHECK(admitted(0x0011, 1, 0));
+    CHECK(admitted(0x0011, 0, 1));
+    // The soft-limit flags are documented, and are not a refusal on their own.
+    CHECK(admitted(0x0021, 1, 0));
+    CHECK(admitted(0x0041, 1, 0));
+    for (uint16_t code : {uint16_t(0), uint16_t(1)}) {
+        const uint32_t stored = code ? 0 : 1;
+        CHECK(!admitted(0x0005, code, stored)); // Running.
+        CHECK(!admitted(0x0009, code, stored)); // Alarm.
+        for (unsigned bit = 7; bit < 16; ++bit) // Undocumented, fail closed one at a time.
+            CHECK(!admitted(0x0001u | (1u << bit), code, stored));
+    }
+    // Homing reported: arming would take effect at once, so it refuses, and so does restating it.
+    CHECK(!admitted(0x0003, 1, 0));
+    CHECK(!admitted(0x0002, 1, 0));
+    CHECK(!admitted(0x0003, 1, 1));
+    // Disarming stays possible then, and even with reversed limits, which only arming cares about.
+    CHECK(admitted(0x0003, 0, 1));
+    {
+        Bench b;
+        b.drive.set(0x2202, 0, 1);
+        b.drive.set(0x607d, 1, 5);
+        b.drive.set(0x607d, 2, uint32_t(-5));
+        SelectorEvidence e(b);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareLimit(c, b, e, 0));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED);
+        CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2202, 0, 0));
+        CHECK(b.drive.value(0x607d, 1) == 5 && b.drive.value(0x607d, 2) == uint32_t(-5));
+    }
+}
+
+// Review finding D1. A frozen token and its old evidence agree with each other, and an unchanged
+// candidate from them would report success with no frame while the drive holds another value.
+void frozenTokenCannotPrepareAFalseNoOp() {
+    const auto noneFrom = [](Bench& b, const M::Status& status, const L::DriverSettingsContext& out,
+                             const Saved<L::DriverSettingsContext>& blank, unsigned sent) {
+        CHECK(!status && status.detail == int32_t(M::ReadError::TARGET));
+        blank.unchanged(out);
+        CHECK(b.wire.sentCount == sent);
+    };
+    { // After a finished transaction: the drive holds 1 and the old evidence says 0.
+        Bench b;
+        SelectorEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLimit(c, b, e, 1));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2202) == 1);
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        const uint32_t op = b.begin();
+        noneFrom(b, L::prepareSoftLimitSettings(out, b.wire.live, b.current(), e.limits, e.state, limit(0),
+                                                op, b.now, DEADLINE, options(), AGE),
+                 out, blank, b.mark());
+    }
+    { // The same for DI.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED);
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        const uint32_t op = b.begin();
+        noneFrom(b, L::prepareIoSettings(out, b.wire.live, b.current(), prior, asFound(), op, b.now,
+                                         DEADLINE, options(), AGE),
+                 out, blank, b.mark());
+    }
+    { // The same for position parameters.
+        Bench b;
+        MotionEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareMotion(c, b, e, motion(70, 110, 120)));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED);
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        const uint32_t op = b.begin();
+        noneFrom(b, L::prepareDriverSettings(out, b.wire.live, b.current(), e.prior, e.state, e.control,
+                                             motion(60, 100, 100), op, b.now, DEADLINE, options(), AGE),
+                 out, blank, b.mark());
+    }
+    // After a lost reply with possible effect: the dictionary took the write, the reservation is gone
+    // and the application still holds the token and the evidence from before it.
+    {
+        Bench b;
+        SelectorEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLimit(c, b, e, 1));
+        b.wire.settings = &c;
+        b.drive.inject(Drive::LOST, 0x2202, 0, true);
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        b.deliver();
+        b.turn(b.now + 100, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.effectUncertain);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && b.drive.value(0x2202) == 1);
+        CHECK(b.wire.current.configurationGeneration == 8);
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        noneFrom(b, L::prepareSoftLimitSettings(out, b.wire.live, b.current(), e.limits, e.state, limit(0),
+                                                99, b.now, DEADLINE, options(), AGE),
+                 out, blank, b.mark());
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A lost DI reply, the same way.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        b.drive.inject(Drive::LOST, 0x2400, 1, true);
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        b.deliver();
+        b.turn(b.now + 100, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.uncertain);
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        noneFrom(b, L::prepareIoSettings(out, b.wire.live, b.current(), prior, asFound(), 99, b.now,
+                                         DEADLINE, options(), AGE),
+                 out, blank, b.mark());
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A new node generation refuses the same way, before the evidence is even looked at.
+        Bench b;
+        SelectorEvidence e(b);
+        L::ReadTarget rebooted = b.current();
+        ++rebooted.nodeGeneration;
+        L::DriverSettingsContext out;
+        const Saved<L::DriverSettingsContext> blank(out);
+        noneFrom(b, L::prepareSoftLimitSettings(out, b.wire.live, rebooted, e.limits, e.state, limit(0), 99,
+                                                b.now, DEADLINE, options(), AGE),
+                 out, blank, b.mark());
+    }
+    { // A new value holding the same owner facts and the current target, with fresh evidence, works.
+        Bench b;
+        SelectorEvidence e(b);
+        L::DriverSettingsContext c;
+        CHECK(prepareLimit(c, b, e, 1));
+        b.run(c);
+        b.renew();
+        SelectorEvidence fresh(b);
+        L::DriverSettingsContext back;
+        CHECK(prepareLimit(back, b, fresh, 0));
+        CHECK(back.state == L::SettingsState::WRITING && back.changed == 1);
     }
 }
 
@@ -815,9 +966,8 @@ void failedStateReadIsRefused() {
         Bench b;
         b.drive.set(0x6061, 0, 1);
         const C::SdoCompletion control = b.control();
-        L::DriverContext prior, driver, limits;
+        L::DriverContext prior, limits;
         b.read(prior, L::DriverGroup::MOTION_PARAMETERS);
-        b.read(driver, L::DriverGroup::DRIVER);
         b.read(limits, L::DriverGroup::SOFT_LIMITS);
         // INPUTS follows MONITORS and STATUS in the read plan, so both finish before it fails.
         b.drive.inject(fault, 0x60fd, 0, false);
@@ -849,15 +999,11 @@ void failedStateReadIsRefused() {
         op = b.operation;
         L::DriverSettingsContext c;
         refused(b, c, [&] {
-            return L::prepareDriverSettings(c, b.wire.live, prior, state, control, motion(), op, b.now,
+            return L::prepareDriverSettings(c, b.wire.live, b.current(), prior, state, control, motion(), op, b.now,
                                             DEADLINE, options(), AGE);
         });
         refused(b, c, [&] {
-            return L::prepareDirectionSettings(c, b.wire.live, driver, limits, state, direction(1), op,
-                                               b.now, DEADLINE, options(), AGE);
-        });
-        refused(b, c, [&] {
-            return L::prepareSoftLimitSettings(c, b.wire.live, limits, state, limit(1), op, b.now,
+            return L::prepareSoftLimitSettings(c, b.wire.live, b.current(), limits, state, limit(1), op, b.now,
                                                DEADLINE, options(), AGE);
         });
         CHECK(b.owner.release(id));
@@ -873,16 +1019,16 @@ void failedStateReadIsRefused() {
         L::ReadContext forged = fresh;
         forged.uncertain = true;
         refused(b, c, [&] {
-            return L::prepareDriverSettings(c, b.wire.live, prior, forged, control, motion(), op, b.now,
+            return L::prepareDriverSettings(c, b.wire.live, b.current(), prior, forged, control, motion(), op, b.now,
                                             DEADLINE, options(), AGE);
         });
         forged = fresh;
         forged.state = M::ReadState::FAILED;
         refused(b, c, [&] {
-            return L::prepareDriverSettings(c, b.wire.live, prior, forged, control, motion(), op, b.now,
+            return L::prepareDriverSettings(c, b.wire.live, b.current(), prior, forged, control, motion(), op, b.now,
                                             DEADLINE, options(), AGE);
         });
-        CHECK(L::prepareDriverSettings(c, b.wire.live, prior, fresh, control, motion(), op, b.now,
+        CHECK(L::prepareDriverSettings(c, b.wire.live, b.current(), prior, fresh, control, motion(), op, b.now,
                                        DEADLINE, options(), AGE));
     }
 }
@@ -906,16 +1052,14 @@ void noOpIsTrafficFree() {
         CHECK(L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
         CHECK(seen.positionSpeedRpm == 60);
     }
-    { // Selectors, and an earlier prepared target stays valid across them.
+    { // The selector, and an earlier prepared target stays valid across it.
         Bench b;
         SelectorEvidence e(b);
         M::AxisConfig axis;
         const M::PreparedTarget prepared = preparedTarget(b, axis);
-        L::DriverSettingsContext direct, limits;
+        L::DriverSettingsContext limits;
         const unsigned sent = b.mark();
-        CHECK(prepareDirection(direct, b, e, 0));
         CHECK(prepareLimit(limits, b, e, 0));
-        CHECK(direct.state == L::SettingsState::SUCCEEDED && !direct.changed);
         CHECK(limits.state == L::SettingsState::SUCCEEDED && !limits.changed);
         b.turn(b.now);
         b.checkSilentSince(sent);
@@ -927,42 +1071,33 @@ void noOpIsTrafficFree() {
 void aliasedAndStaleContexts() {
     Bench b;
     SelectorEvidence e(b);
-    L::DriverSettingsContext c;
-    CHECK(prepareDirection(c, b, e, 1));
+    // Two plans made while the token is current, before another transaction moves the generation.
+    L::DriverSettingsContext heldNoOp, heldWrite, c;
+    CHECK(prepareLimit(heldNoOp, b, e, 0));
+    CHECK(heldNoOp.state == L::SettingsState::SUCCEEDED && !heldNoOp.changed);
+    CHECK(prepareLimit(heldWrite, b, e, 1));
+    CHECK(prepareLimit(c, b, e, 1));
     const uint32_t op = b.operation;
     const Saved<L::DriverSettingsContext> saved(c);
     const auto callAliased = [&](M::Status status) {
         CHECK(!status && status.detail == int32_t(M::ReadError::OVERLAP));
         saved.unchanged(c);
     };
-    L::DirectionSettings wanted = direction(1);
     L::SoftLimitSettings wantedLimit = limit(1);
     L::ReadOptions policy = options();
     // Every input that can sit inside the output refuses, before any work.
-    callAliased(L::prepareDirectionSettings(c, c.reservation, e.driver, e.limits, e.state, wanted, op,
-                                            b.now, DEADLINE, policy, AGE));
-    callAliased(L::prepareDirectionSettings(c, b.wire.live, c.readback, e.limits, e.state, wanted, op,
-                                            b.now, DEADLINE, policy, AGE));
-    callAliased(L::prepareDirectionSettings(c, b.wire.live, e.driver, c.readback, e.state, wanted, op,
-                                            b.now, DEADLINE, policy, AGE));
-    callAliased(L::prepareDirectionSettings(c, b.wire.live, e.driver, e.limits, c.readback.read, wanted,
-                                            op, b.now, DEADLINE, policy, AGE));
-    callAliased(L::prepareDirectionSettings(
-        c, b.wire.live, e.driver, e.limits, e.state,
-        at<L::DirectionSettings>(&c.requested[0]), op, b.now, DEADLINE, policy,
-        AGE));
-    callAliased(L::prepareDirectionSettings(c, b.wire.live, e.driver, e.limits, e.state, wanted, op,
-                                            b.now, DEADLINE, c.readback.read.options, AGE));
-    callAliased(L::prepareSoftLimitSettings(c, c.reservation, e.limits, e.state, wantedLimit, op, b.now,
+    callAliased(L::prepareSoftLimitSettings(c, c.reservation, b.current(), e.limits, e.state, wantedLimit, op, b.now,
                                             DEADLINE, policy, AGE));
-    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, c.readback, e.state, wantedLimit, op, b.now,
+    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, c.reservation.target, e.limits, e.state,
+                                            wantedLimit, op, b.now, DEADLINE, policy, AGE));
+    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, b.current(), c.readback, e.state, wantedLimit, op, b.now,
                                             DEADLINE, policy, AGE));
-    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, e.limits, c.readback.read, wantedLimit, op,
+    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, b.current(), e.limits, c.readback.read, wantedLimit, op,
                                             b.now, DEADLINE, policy, AGE));
-    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, e.limits, e.state,
+    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, b.current(), e.limits, e.state,
                                             at<L::SoftLimitSettings>(&c.requested[0]),
                                             op, b.now, DEADLINE, policy, AGE));
-    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, e.limits, e.state, wantedLimit, op, b.now,
+    callAliased(L::prepareSoftLimitSettings(c, b.wire.live, b.current(), e.limits, e.state, wantedLimit, op, b.now,
                                             DEADLINE, c.readback.read.options, AGE));
     callAliased(L::noteDriverTransmission(c, c.reservation, b.wire.current, b.now));
     callAliased(L::noteDriverTransmission(c, b.wire.live, c.reservation.target.channel.binding, b.now));
@@ -989,28 +1124,23 @@ void aliasedAndStaleContexts() {
     CHECK(binding.configurationGeneration == 7);
     saved.unchanged(c);
     b.run(c);
-    CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2200) == 1);
-    // A preparation checks its evidence against the token's own target, so a frozen token and its
-    // old evidence still agree. Nothing can come of it against the actual binding: the no-op below
-    // would be wrong, since the drive now holds 1, and it publishes nothing.
-    L::DriverSettingsContext stalePlan;
+    CHECK(c.state == L::SettingsState::SUCCEEDED && b.drive.value(0x2202) == 1);
+    // The two earlier plans are stale against the actual binding: next, note and get still refuse
+    // them, including the no-op whose `state` says SUCCEEDED while the drive now holds 1.
     L::DriverObservation seen;
     const Saved<L::DriverObservation> none(seen);
-    CHECK(prepareDirection(stalePlan, b, e, 0));
-    CHECK(stalePlan.state == L::SettingsState::SUCCEEDED && !stalePlan.changed);
-    CHECK(!L::getDriver(stalePlan, b.wire.live, b.current(), b.now, AGE, seen));
+    CHECK(!L::getDriver(heldNoOp, b.wire.live, b.current(), b.now, AGE, seen));
     none.unchanged(seen);
-    CHECK(!L::nextDriver(stalePlan, b.wire.live, b.wire.current, b.now, work));
-    CHECK(prepareLimit(stalePlan, b, e, 1));
-    CHECK(stalePlan.state == L::SettingsState::WRITING);
-    CHECK(!L::nextDriver(stalePlan, b.wire.live, b.wire.current, b.now, work));
+    CHECK(!L::nextDriver(heldNoOp, b.wire.live, b.wire.current, b.now, work));
+    CHECK(heldWrite.state == L::SettingsState::WRITING);
+    CHECK(!L::nextDriver(heldWrite, b.wire.live, b.wire.current, b.now, work));
     binding = b.wire.current;
-    CHECK(!L::noteDriverTransmission(stalePlan, b.wire.live, binding, b.now));
+    CHECK(!L::noteDriverTransmission(heldWrite, b.wire.live, binding, b.now));
     CHECK(binding.configurationGeneration == b.wire.current.configurationGeneration);
-    // With a current token the same old evidence is refused outright.
+    // With a current token the old evidence is refused outright.
     b.renew();
     L::DriverSettingsContext next;
-    refused(b, next, [&] { return prepareDirection(next, b, e, 0); });
+    refused(b, next, [&] { return prepareLimit(next, b, e, 0); });
     refused(b, next, [&] { return prepareLimit(next, b, e, 1); });
     // A settings context that was never prepared yields nothing.
     L::DriverSettingsContext empty;
@@ -1021,7 +1151,7 @@ void aliasedAndStaleContexts() {
     L::DriverSettingsContext active;
     Bench r;
     SelectorEvidence f(r);
-    CHECK(prepareDirection(active, r, f, 1));
+    CHECK(prepareLimit(active, r, f, 1));
     const L::AxisReservation before = r.wire.live;
     CHECK(r.owner.invalidate(r.sequence, r.now) && !r.owner.sequence(r.sequence));
     r.reservation.owner = 0;
@@ -1177,17 +1307,6 @@ void readbackMismatchPublishesNothing() {
             none.unchanged(seen);
         }
     }
-    { // A write that disturbs its retained neighbour is caught: 2201 moved by a 2200 write.
-        Bench b;
-        SelectorEvidence e(b);
-        L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1));
-        b.drive.lieIndex = 0x2201;
-        b.drive.lieRaw = 2000;
-        b.run(c);
-        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::REPLY_ERROR);
-        CHECK(c.confirmed == 1 && c.readback.read.values[1].raw == 2000);
-    }
     // The same for each retained 607D word after a 2202 write.
     for (uint8_t sub = 0; sub < 3; ++sub) {
         Bench b;
@@ -1243,7 +1362,7 @@ void cancellationBeforeAndAfterHandoff() {
         Bench b;
         SelectorEvidence e(b);
         L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1));
+        CHECK(prepareLimit(c, b, e, 1));
         b.wire.settings = &c;
         b.wire.rejectGuard = true;
         L::PreparedRead work;
@@ -1337,7 +1456,7 @@ void rebootEndsTheTransaction() {
         Bench b;
         SelectorEvidence e(b);
         L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1));
+        CHECK(prepareLimit(c, b, e, 1));
         b.wire.settings = &c;
         L::PreparedRead work;
         CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
@@ -1409,7 +1528,7 @@ void deadlineWins() {
         SelectorEvidence e(b);
         const uint64_t deadline = b.now + 6;
         L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1, deadline));
+        CHECK(prepareLimit(c, b, e, 1, deadline));
         b.wire.settings = &c;
         L::PreparedRead work;
         CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
@@ -1436,7 +1555,7 @@ void generationsAndOldTargetAdmission() {
         const M::PreparedTarget prepared = preparedTarget(b, axis);
         CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
         L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1));
+        CHECK(prepareLimit(c, b, e, 1));
         // Preparation alone changes no epoch.
         axis.binding = b.wire.current;
         CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
@@ -1479,7 +1598,7 @@ void generationsAndOldTargetAdmission() {
         CHECK(L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
         CHECK(seen.target.channel.binding.configurationGeneration == 8);
         // Earlier group evidence is now refused.
-        CHECK(!L::getDriver(e.driver, b.current(), b.now, AGE, seen));
+        CHECK(!L::getDriver(e.limits, b.current(), b.now, AGE, seen));
         b.wire.settings = nullptr;
     }
     for (uint16_t index : {uint16_t(0x6081), uint16_t(0x6083), uint16_t(0x6084)}) {
@@ -1533,7 +1652,7 @@ void generationsAndOldTargetAdmission() {
         const uint32_t op = b.begin();
         L::DriverSettingsContext blocked;
         refused(b, blocked, [&] {
-            return L::prepareDriverSettings(blocked, b.wire.live, prior, state, control,
+            return L::prepareDriverSettings(blocked, b.wire.live, b.current(), prior, state, control,
                                             motion(70, 110, 120), op, b.now, DEADLINE, options(), AGE);
         });
         // A fresh read sees the move's value, and the same candidate is real work, not a no-op.
@@ -1541,7 +1660,7 @@ void generationsAndOldTargetAdmission() {
         b.read(fresh, L::DriverGroup::MOTION_PARAMETERS);
         const uint32_t op2 = b.begin();
         L::DriverSettingsContext settings;
-        CHECK(L::prepareDriverSettings(settings, b.wire.live, fresh, state, control, motion(70, 110, 120),
+        CHECK(L::prepareDriverSettings(settings, b.wire.live, b.current(), fresh, state, control, motion(70, 110, 120),
                                        op2, b.now, DEADLINE, options(), AGE));
         CHECK(settings.state == L::SettingsState::WRITING &&
               settings.changed == (index == 0x6081 ? 1 : index == 0x6083 ? 2 : 4));
@@ -1557,7 +1676,7 @@ void generationsAndOldTargetAdmission() {
         M::AxisConfig axis;
         const M::PreparedTarget prepared = preparedTarget(b, axis);
         L::DriverSettingsContext c;
-        CHECK(prepareDirection(c, b, e, 1));
+        CHECK(prepareLimit(c, b, e, 1));
         L::PreparedRead work;
         CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
         O::BusRequest wrong;
@@ -1570,6 +1689,1011 @@ void generationsAndOldTargetAdmission() {
         axis.binding = b.wire.current;
         CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
     }
+}
+
+// No controlword, mode, save, reset, clear, DO, filter, output command or NMT frame since `first`:
+// only single-word 2400:01..08 writes, their own 2400:00..08 reads, and a client abort cleanup.
+void onlyDiTraffic(const Bench& b, unsigned first) {
+    for (unsigned i = first; i < b.wire.sentCount; ++i) {
+        const M::Frame& f = b.wire.sent[i];
+        CHECK(f.id == 0x601);
+        if (f.data[0] == 0x80)
+            continue;
+        CHECK(f.data[1] == 0x00 && f.data[2] == 0x24);
+        if (f.data[0] == 0x40)
+            CHECK(f.data[3] <= 8);
+        else
+            CHECK(f.data[0] == 0x2b && f.data[3] >= 1 && f.data[3] <= 8);
+    }
+}
+unsigned writesTo(const Bench& b, uint8_t subindex) {
+    unsigned writes = 0;
+    for (unsigned i = 0; i < b.wire.sentCount; ++i)
+        if (b.wire.sent[i].id == 0x601 && b.wire.sent[i].data[0] == 0x2b &&
+            b.wire.sent[i].data[3] == subindex)
+            ++writes;
+    return writes;
+}
+void noPublication(const L::DriverSettingsContext& c, Bench& b) {
+    L::IoObservation seen;
+    const Saved<L::IoObservation> none(seen);
+    CHECK(!L::getIo(c, b.wire.live, b.current(), b.now, AGE, seen));
+    none.unchanged(seen);
+}
+M::Frame bootFrame() {
+    M::Frame f;
+    f.id = 0x701;
+    f.dlc = f.payloadLength = 1;
+    return f;
+}
+
+void diEveryCodeAndMaskOnTheWire() {
+    for (unsigned input = 0; input < 7; ++input)
+        for (uint16_t code = 0; code <= 13; ++code) {
+            Bench b;
+            L::DriverContext prior;
+            b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+            const uint8_t sub = uint8_t(input + 2);
+            const uint32_t held = b.drive.value(0x2400, sub);
+            L::IoSettings s = asFound();
+            s.functions[input] = static_cast<L::InputFunction>(code);
+            L::DriverSettingsContext c;
+            const unsigned first = b.mark();
+            CHECK(prepareIo(c, b, prior, s));
+            if (held == code) { // Unchanged: fresh prior evidence, no traffic and no epoch change.
+                CHECK(c.state == L::SettingsState::SUCCEEDED && !c.changed && !c.effectsPossible);
+                b.turn(b.now);
+                b.checkSilentSince(first);
+                CHECK(b.wire.current.configurationGeneration == 7);
+            } else {
+                CHECK(c.changed == (1u << sub));
+                b.run(c);
+                CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == c.changed);
+                CHECK(!c.uncertain && b.wire.notices == 1);
+                CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2400, sub, code));
+                CHECK(b.wire.sentCount == first + 10);
+                for (uint8_t field = 0; field < 9; ++field)
+                    CHECK(frameIs(b.wire.sent[first + 1 + field], 0x40, 0x2400, field, 0));
+                onlyDiTraffic(b, first);
+                CHECK(b.wire.current.configurationGeneration == 8);
+                CHECK(c.readback.read.target.channel.binding.configurationGeneration == 8);
+            }
+            CHECK(b.drive.value(0x2400, sub) == code);
+            L::IoObservation seen;
+            CHECK(L::getIo(c, b.wire.live, b.current(), b.now, AGE, seen));
+            CHECK(seen.inputFunctionRaw[input] == code &&
+                  seen.inputFunctions[input] == static_cast<L::InputFunction>(code));
+            CHECK(!seen.wiringKnown && !seen.electricalLevelsKnown && !seen.outputMappingKnown);
+        }
+    // Polarity at each documented bit and both ends, from words holding unexplained high bits.
+    for (uint32_t word : {0x0000u, 0xa500u, 0xff80u, 0x8000u, 0x0080u, 0x007fu, 0xffffu})
+        for (uint16_t mask : {uint16_t(0), uint16_t(1), uint16_t(2), uint16_t(4), uint16_t(8),
+                              uint16_t(0x10), uint16_t(0x20), uint16_t(0x40), uint16_t(0x3f),
+                              uint16_t(0x7f)}) {
+            Bench b;
+            b.drive.set(0x2400, 1, word);
+            L::DriverContext prior;
+            b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+            L::IoSettings s = asFound();
+            s.invertedInputs = mask;
+            const uint32_t expected = (word & 0xff80u) | mask;
+            L::DriverSettingsContext c;
+            const unsigned first = b.mark();
+            CHECK(prepareIo(c, b, prior, s));
+            CHECK(c.requested[1] == expected);
+            b.run(c);
+            CHECK(c.state == L::SettingsState::SUCCEEDED);
+            if (expected == word) {
+                b.checkSilentSince(first);
+            } else {
+                CHECK(c.changed == 2);
+                CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2400, 1, expected));
+            }
+            CHECK(b.drive.value(0x2400, 1) == expected);
+            L::IoObservation seen;
+            CHECK(L::getIo(c, b.wire.live, b.current(), b.now, AGE, seen));
+            CHECK(seen.inputPolarityRaw == expected);
+            for (unsigned bit = 0; bit < 7; ++bit)
+                CHECK(seen.inputInverted[bit] == bool(mask & (1u << bit)));
+        }
+    // Both documented models send the same words.
+    for (L::SettingsModel model : {L::SettingsModel::CL86_C, L::SettingsModel::OL86_C}) {
+        Bench b(model);
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 0x1fe);
+        CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2400, 1, 0xa555));
+        for (uint8_t i = 0; i < 7; ++i)
+            CHECK(frameIs(b.wire.sent[first + 1 + i], 0x2b, 0x2400, uint8_t(i + 2), 13u - i));
+        onlyDiTraffic(b, first);
+    }
+}
+
+void diCandidatesRefusedWhole() {
+    Bench b;
+    L::DriverContext prior;
+    b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::DriverSettingsContext c;
+    c.operation = 0xbeef;
+    const uint32_t op = b.begin();
+    const auto call = [&](const L::IoSettings& s) {
+        return L::prepareIoSettings(c, b.wire.live, b.current(), prior, s, op, b.now, DEADLINE, options(), AGE);
+    };
+    // Bit 7 would name an eighth terminal, and none exists; the others are undocumented.
+    for (uint16_t mask : {uint16_t(0x80), uint16_t(0x100), uint16_t(0x8000), uint16_t(0xff),
+                          uint16_t(0xff80), uint16_t(0xffff)}) {
+        L::IoSettings s = asFound();
+        s.invertedInputs = mask;
+        refused(b, c, [&] { return call(s); });
+    }
+    for (unsigned input = 0; input < 7; ++input)
+        for (uint16_t code : {uint16_t(14), uint16_t(15), uint16_t(255), uint16_t(0x100),
+                              uint16_t(0x7fff), uint16_t(0x8000), uint16_t(0xfffe),
+                              uint16_t(0xffff)}) {
+            L::IoSettings s = everyField();
+            s.functions[input] = static_cast<L::InputFunction>(code);
+            refused(b, c, [&] { return call(s); });
+        }
+    // Defaults refuse, and so does each field left at its default in an otherwise complete candidate.
+    refused(b, c, [&] { return call(L::IoSettings()); });
+    {
+        L::IoSettings s = everyField();
+        s.invertedInputs = L::IoSettings().invertedInputs;
+        refused(b, c, [&] { return call(s); });
+    }
+    for (unsigned input = 0; input < 7; ++input) {
+        L::IoSettings s = everyField();
+        s.functions[input] = L::IoSettings().functions[input];
+        refused(b, c, [&] { return call(s); });
+    }
+    // The same evidence admits a complete candidate, so the refusals above isolate their values.
+    CHECK(call(everyField()) && c.changed == 0x1fe);
+    { // An undocumented stored code stays raw and is replaced only by an explicit documented one.
+        Bench u;
+        u.drive.set(0x2400, 5, 99);
+        L::DriverContext held;
+        u.read(held, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::IoObservation seen;
+        CHECK(L::getIo(held, u.current(), u.now, AGE, seen));
+        CHECK(seen.inputFunctionRaw[3] == 99 && seen.inputFunctions[3] == L::InputFunction::UNKNOWN);
+        L::IoSettings s = asFound();
+        s.functions[3] = static_cast<L::InputFunction>(99);
+        L::DriverSettingsContext out;
+        refused(u, out, [&] { return prepareIo(out, u, held, s); });
+        s = asFound();
+        const unsigned first = u.mark();
+        CHECK(prepareIo(out, u, held, s));
+        CHECK(out.changed == (1u << 5));
+        u.run(out);
+        CHECK(frameIs(u.wire.sent[first], 0x2b, 0x2400, 5, 0) && u.drive.value(0x2400, 5) == 0);
+    }
+    // No other family reaches this write, whatever value a caller forces into the model.
+    for (L::SettingsModel model : {L::SettingsModel::UNKNOWN, static_cast<L::SettingsModel>(3),
+                                   static_cast<L::SettingsModel>(255)}) {
+        L::AxisReservation live = b.wire.live;
+        live.model = model;
+        L::DriverSettingsContext out;
+        refused(b, out, [&] {
+            return L::prepareIoSettings(out, live, live.target, prior, everyField(), op, b.now, DEADLINE, options(),
+                                        AGE);
+        });
+    }
+}
+
+// Host order is not atomic: each write can act while the next is unsent. Uniqueness is not a
+// documented rule, so the duplicate this passes through, and a requested duplicate, both stand.
+void diOrderIsNotAtomicAndDuplicatesStand() {
+    Bench b;
+    L::DriverContext prior;
+    b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::IoSettings s = asFound();
+    s.functions[0] = L::InputFunction::NEGATIVE_LIMIT; // DI0 and DI2 exchange 1 and 3.
+    s.functions[2] = L::InputFunction::ORIGIN;
+    L::DriverSettingsContext c;
+    const unsigned first = b.mark();
+    CHECK(prepareIo(c, b, prior, s));
+    CHECK(c.changed == ((1u << 2) | (1u << 4)));
+    b.wire.settings = &c;
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const C::SdoCompletion ack = b.exchange(work.transfer);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+    CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2400, 2, 3));
+    CHECK(b.drive.value(0x2400, 2) == 3 && b.drive.value(0x2400, 4) == 3);
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const C::SdoCompletion second = b.exchange(work.transfer);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, second, b.now));
+    CHECK(frameIs(b.wire.sent[first + 1], 0x2b, 0x2400, 4, 1));
+    b.run(c);
+    CHECK(c.state == L::SettingsState::SUCCEEDED && writesTo(b, 3) == 0);
+    Bench d;
+    L::DriverContext held;
+    d.read(held, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::IoSettings duplicate;
+    duplicate.invertedInputs = 0;
+    for (L::InputFunction& f : duplicate.functions)
+        f = L::InputFunction::ORIGIN;
+    L::DriverSettingsContext two;
+    CHECK(prepareIo(two, d, held, duplicate));
+    d.run(two);
+    CHECK(two.state == L::SettingsState::SUCCEEDED);
+    for (uint8_t sub = 2; sub <= 8; ++sub)
+        CHECK(d.drive.value(0x2400, sub) == 1);
+}
+
+void diWrongEvidenceRefused() {
+    // A complete read of any other group is not the input configuration.
+    for (L::DriverGroup group :
+         {L::DriverGroup::IO_OUTPUT_CONFIGURATION, L::DriverGroup::IO_INPUT_FILTERS,
+          L::DriverGroup::IO_OUTPUT_COMMAND, L::DriverGroup::DRIVER, L::DriverGroup::SOFT_LIMITS,
+          L::DriverGroup::MOTION_PARAMETERS}) {
+        Bench b;
+        L::DriverContext wrong;
+        b.read(wrong, group);
+        L::DriverSettingsContext c;
+        refused(b, c, [&] { return prepareIo(c, b, wrong, everyField()); });
+    }
+    { // The empty context, and an incomplete or failed read.
+        Bench b;
+        L::DriverContext empty;
+        L::DriverSettingsContext c;
+        refused(b, c, [&] { return prepareIo(c, b, empty, everyField()); });
+        L::DriverContext partial;
+        const uint32_t op = b.begin();
+        CHECK(L::prepareDriverRead(partial, b.current(), op, b.now, DEADLINE, options(),
+                                   L::DriverGroup::IO_INPUT_CONFIGURATION));
+        for (unsigned i = 0; i < 5; ++i) {
+            L::PreparedRead work;
+            CHECK(L::nextDriver(partial, b.now, work) && work.ready);
+            const C::SdoCompletion terminal = b.exchange(work.transfer);
+            CHECK(L::advanceDriver(partial, terminal, b.now));
+        }
+        refused(b, c, [&] {
+            return L::prepareIoSettings(c, b.wire.live, b.current(), partial, everyField(), op, b.now,
+                                        DEADLINE, options(), AGE);
+        });
+        b.drive.inject(Drive::ABORT, 0x2400, 5, false);
+        L::PreparedRead failing;
+        CHECK(L::nextDriver(partial, b.now, failing) && failing.ready);
+        const C::SdoCompletion aborted = b.exchange(failing.transfer);
+        CHECK(L::advanceDriver(partial, aborted, b.now));
+        CHECK(partial.read.state == M::ReadState::FAILED);
+        refused(b, c, [&] {
+            return L::prepareIoSettings(c, b.wire.live, b.current(), partial, everyField(), op, b.now,
+                                        DEADLINE, options(), AGE);
+        });
+    }
+    enum Case { NO_OWNER, NO_SEQUENCE, NO_GENERATION, BEFORE_RESERVATION, OTHER_NODE, INVALIDATED,
+                EXPIRED, NO_OPERATION, DEADLINE_NOW, NO_QUEUE, NO_RESPONSE, NO_AGE, EXHAUSTED, CASES };
+    for (unsigned k = 0; k < CASES; ++k) {
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::AxisReservation live = b.wire.live;
+        uint32_t op = b.begin();
+        uint64_t deadline = DEADLINE, age = AGE;
+        L::ReadOptions policy = options();
+        if (k == NO_OWNER)
+            live.owner = 0;
+        if (k == NO_SEQUENCE)
+            live.sequence = 0;
+        if (k == NO_GENERATION)
+            live.generation = 0;
+        if (k == BEFORE_RESERVATION)
+            live.acquiredUs = prior.read.startedUs + 1;
+        if (k == OTHER_NODE)
+            ++live.target.nodeGeneration;
+        if (k == INVALIDATED)
+            prior.read.invalidated = true;
+        if (k == EXPIRED)
+            b.turn(b.now + AGE + 1);
+        if (k == NO_OPERATION)
+            op = 0;
+        if (k == DEADLINE_NOW)
+            deadline = b.now;
+        if (k == NO_QUEUE)
+            policy.queueTimeoutUs = 0;
+        if (k == NO_RESPONSE)
+            policy.responseTimeoutUs = 0;
+        if (k == NO_AGE)
+            age = 0;
+        if (k == EXHAUSTED)
+            live.target.channel.binding.configurationGeneration = UINT32_MAX;
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            return L::prepareIoSettings(c, live, live.target, prior, everyField(), op, b.now, deadline, policy, age);
+        });
+    }
+    { // The exact age limit is inclusive, one microsecond later is not.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        b.turn(prior.read.values[0].provenance.earliestUs + AGE);
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.turn(b.now + 1);
+        L::DriverSettingsContext late;
+        refused(b, late, [&] { return prepareIo(late, b, prior, everyField()); });
+    }
+}
+
+void diAliasedAndEditedContexts() {
+    Bench b;
+    L::DriverContext prior;
+    b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::DriverSettingsContext c;
+    L::IoSettings s = everyField();
+    CHECK(prepareIo(c, b, prior, s));
+    const uint32_t op = b.operation;
+    const Saved<L::DriverSettingsContext> saved(c);
+    L::ReadOptions policy = options();
+    const auto aliased = [&](M::Status status) {
+        CHECK(!status && status.detail == int32_t(M::ReadError::OVERLAP));
+        saved.unchanged(c);
+    };
+    aliased(L::prepareIoSettings(c, c.reservation, b.current(), prior, s, op, b.now, DEADLINE, policy, AGE));
+    aliased(L::prepareIoSettings(c, b.wire.live, c.reservation.target, prior, s, op, b.now, DEADLINE,
+                                 policy, AGE));
+    aliased(L::prepareIoSettings(c, b.wire.live, b.current(), c.readback, s, op, b.now, DEADLINE, policy, AGE));
+    // `readback` is larger than the candidate, so the reference stays inside its object.
+    aliased(L::prepareIoSettings(c, b.wire.live, b.current(), prior, at<L::IoSettings>(&c.readback), op, b.now,
+                                 DEADLINE, policy, AGE));
+    aliased(L::prepareIoSettings(c, b.wire.live, b.current(), prior, s, op, b.now, DEADLINE,
+                                 c.readback.read.options, AGE));
+    // A hand-edited context refuses rather than send an undocumented code or a wider word.
+    L::PreparedRead edited;
+    const Saved<L::PreparedRead> blank(edited);
+    for (unsigned field = 2; field < 9; ++field) {
+        const uint32_t held = c.requested[field];
+        for (uint32_t bad : {14u, 0x8000u, 0x1000du}) {
+            c.requested[field] = bad;
+            CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, b.now, edited));
+        }
+        c.requested[field] = held;
+    }
+    for (unsigned field = 0; field < 2; ++field) {
+        const uint32_t held = c.requested[field];
+        c.requested[field] = 0x10000u | held;
+        CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, b.now, edited));
+        c.requested[field] = held;
+    }
+    // The count, and subindices beyond the DI group, are never selectable.
+    const uint16_t changed = c.changed;
+    for (uint16_t extra : {uint16_t(1), uint16_t(1u << 9), uint16_t(1u << 12)}) {
+        c.changed = uint16_t(changed | extra);
+        CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, b.now, edited));
+    }
+    c.changed = changed;
+    // The output groups have no write path: a context retargeted at one refuses.
+    const L::ReadKind kind = c.readback.read.kind;
+    for (L::ReadKind other : {L::ReadKind::IO_OUTPUT_CONFIGURATION, L::ReadKind::IO_INPUT_FILTERS,
+                              L::ReadKind::IO_OUTPUT_COMMAND}) {
+        c.readback.read.kind = other;
+        CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, b.now, edited));
+    }
+    c.readback.read.kind = kind;
+    blank.unchanged(edited);
+    saved.unchanged(c);
+    // The candidate cannot reach the context once prepared, nor the context a queued request.
+    s = asFound();
+    b.wire.settings = &c;
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const O::RequestId id = b.admit(work.transfer);
+    work.transfer.data[0] = 0xee;
+    const uint32_t held = c.requested[1];
+    c.requested[1] = 1;
+    const unsigned first = b.mark();
+    b.turn(b.now);
+    CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2400, 1, 0xa555));
+    c.requested[1] = held;
+    b.deliver();
+    b.turn(b.now + 1, budget(8, 0, 8, 0));
+    const O::Completion* terminal = b.owner.result(id);
+    CHECK(terminal);
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+    CHECK(b.owner.release(id));
+    CHECK(b.drive.value(0x2400, 1) == 0xa555 && c.confirmed == 2);
+    b.wire.settings = nullptr;
+}
+
+void diPartialEffectsSurvive() {
+    for (unsigned position = 0; position < 8; ++position) {
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        const uint32_t before[9] = {16, 0xa500, 1, 2, 3, 0, 0, 0, 0};
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareIo(c, b, prior, everyField()));
+        const uint8_t sub = uint8_t(position + 1);
+        b.drive.inject(Drive::ABORT, 0x2400, sub, true);
+        b.run(c);
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::PROTOCOL_REJECTED);
+        CHECK(c.effectsPossible && c.uncertain);
+        CHECK(c.confirmed == uint16_t(((1u << sub) - 1u) & 0x1fe));
+        CHECK(c.evidencePresent && c.evidence.abortValid && c.evidence.abortCode == 0x08000022u);
+        CHECK(c.requested[1] == 0xa555);
+        for (uint8_t i = 1; i <= 8; ++i) {
+            // Written fields stay written, with no rollback. Nothing after the failure went out.
+            const uint32_t wanted = i == 1 ? 0xa555u : 13u - (i - 2u);
+            CHECK(b.drive.value(0x2400, i) == (i < sub ? wanted : before[i]));
+            CHECK((c.acknowledgedUs[i] != 0) == (i < sub));
+            CHECK(writesTo(b, i) == (i <= sub ? 1u : 0u));
+        }
+        onlyDiTraffic(b, first);
+        CHECK(b.wire.current.configurationGeneration == 8 && b.wire.notices == position + 1u);
+        noPublication(c, b);
+        L::PreparedRead work;
+        work.ready = true;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && !work.ready);
+        const unsigned sent = b.mark();
+        b.turn(b.now + 10);
+        b.checkSilentSince(sent);
+        // Old evidence is stale, and a new explicit operation on a fresh read sends only the rest.
+        L::IoObservation stale;
+        CHECK(!L::getIo(prior, b.current(), b.now, AGE, stale));
+        CHECK(b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+        b.renew();
+        b.drive.fault = Drive::NONE;
+        L::DriverContext fresh;
+        b.read(fresh, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext rest;
+        CHECK(prepareIo(rest, b, fresh, everyField()));
+        CHECK(rest.changed == uint16_t(0x1fe & ~((1u << sub) - 1u)));
+        b.run(rest);
+        CHECK(rest.state == L::SettingsState::SUCCEEDED);
+        for (uint8_t i = 1; i < sub; ++i)
+            CHECK(writesTo(b, i) == 1);
+    }
+}
+
+void diLostReplyIsNeverReplayed() {
+    for (unsigned position = 0; position < 8; ++position) {
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        const uint8_t sub = uint8_t(position + 1);
+        b.wire.settings = &c;
+        b.drive.inject(Drive::LOST, 0x2400, sub, true);
+        for (unsigned i = 0; i <= position; ++i) {
+            L::PreparedRead work;
+            CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+            if (i < position) {
+                const C::SdoCompletion ack = b.exchange(work.transfer);
+                CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+                continue;
+            }
+            const O::RequestId id = b.admit(work.transfer);
+            b.turn(b.now);
+            b.deliver();
+            b.turn(b.now + 100, budget(8, 0, 8, 0));
+            const O::Completion* terminal = b.owner.result(id);
+            CHECK(terminal && terminal->service.outcome == C::SdoOutcome::TIMEOUT);
+            CHECK(terminal->service.effectUncertain);
+            CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+            CHECK(c.state == L::SettingsState::FAILED && c.uncertain);
+            CHECK(c.outcome == M::ReadOutcome::SERVICE_TIMEOUT);
+            CHECK(c.confirmed == uint16_t(((1u << sub) - 1u) & 0x1fe));
+            // The route is unresolved: the write reached the dictionary, and nothing resends it.
+            CHECK(b.services.unresolved(0) && !b.owner.sequence(b.sequence));
+            O::SequenceId another;
+            CHECK(!b.owner.beginSequence(route(1).binding, 2, b.now, another));
+            CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+            b.turn(b.now + 500);
+            CHECK(writesTo(b, sub) == 1);
+            for (uint8_t later = uint8_t(sub + 1); later <= 8; ++later)
+                CHECK(writesTo(b, later) == 0);
+            noPublication(c, b);
+            CHECK(b.owner.release(id));
+        }
+        b.wire.settings = nullptr;
+    }
+}
+
+void diReadbackMismatchAndFailure() {
+    // Every field of the group, including the count and the unwritten words of a sparse candidate.
+    for (uint8_t sub = 0; sub <= 8; ++sub) {
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::IoSettings s = asFound();
+        s.functions[6] = L::InputFunction::USER6; // Writes only 2400:08.
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, s));
+        b.drive.lieIndex = 0x2400;
+        b.drive.lieSubindex = sub;
+        b.drive.lieRaw = c.requested[sub] ^ 1u;
+        b.run(c);
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::REPLY_ERROR);
+        CHECK(c.confirmed == (1u << 8) && c.readback.read.values[sub].raw == (c.requested[sub] ^ 1u));
+        noPublication(c, b);
+        CHECK(writesTo(b, 8) == 1); // No write repeats to repair it.
+    }
+    for (uint8_t sub = 0; sub <= 8; ++sub) {
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.drive.inject(Drive::ABORT, 0x2400, sub, false);
+        b.run(c);
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::PROTOCOL_REJECTED);
+        CHECK(c.confirmed == 0x1fe && b.drive.value(0x2400, 1) == 0xa555);
+        noPublication(c, b);
+    }
+}
+
+void diCancellationAndPreflight() {
+    { // Cancelled before any possible transmission: no epoch change and no uncertainty.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        M::AxisConfig axis;
+        const M::PreparedTarget prepared = preparedTarget(b, axis);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const unsigned sent = b.mark();
+        const O::RequestId id = b.admit(work.transfer);
+        CHECK(b.owner.cancel(id, b.now) == O::Cancel::CANCELLED);
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && !terminal->service.transmissionPossible);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::CANCELLED);
+        CHECK(!c.effectsPossible && !c.uncertain && !c.confirmed);
+        CHECK(b.wire.current.configurationGeneration == 7);
+        b.turn(b.now);
+        b.checkSilentSince(sent);
+        axis.binding = b.wire.current;
+        CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A preflight refusal on the second download: the prefix stays, and nothing new is uncertain.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+        b.wire.rejectGuard = true;
+        const unsigned sent = b.mark();
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->reason == O::CompletionReason::PREFLIGHT_REJECTED);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.confirmed == 2 && !c.uncertain);
+        CHECK(c.effectsPossible && b.wire.current.configurationGeneration == 8);
+        b.checkSilentSince(sent);
+        CHECK(writesTo(b, 2) == 0);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+        b.wire.rejectGuard = false;
+    }
+    { // The controller refuses the frame after the notice: it stays uncertain, and nothing resends.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.wire.accept = false;
+        b.turn(b.now);
+        CHECK(b.wire.notices == 1 && b.wire.current.configurationGeneration == 8);
+        b.turn(b.now + 1, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && c.effectsPossible && !c.confirmed);
+        noPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // Cancelled after handoff: uncertain, and the epoch stays advanced.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        CHECK(b.owner.mayHaveTransmitted(id));
+        CHECK(b.owner.cancel(id, b.now) == O::Cancel::CANCELLED);
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.effectUncertain);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && c.effectsPossible);
+        CHECK(b.wire.current.configurationGeneration == 8 && b.services.unresolved(0));
+        noPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A local withdrawal during readback: not a rollback, and the writes stay as history.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::IoSettings s = asFound();
+        s.functions[6] = L::InputFunction::USER6;
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, s));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+        CHECK(c.state == L::SettingsState::READING_BACK);
+        CHECK(L::advanceDriver(c, M::ReadOutcome::CANCELLED, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.confirmed == (1u << 8));
+        CHECK(b.drive.value(0x2400, 8) == 13);
+        const unsigned sent = b.mark();
+        b.turn(b.now + 1);
+        b.checkSilentSince(sent);
+        noPublication(c, b);
+        b.wire.settings = nullptr;
+    }
+}
+
+void diDeadlines() {
+    { // The cutoff reached while a write waits: not a timeout, and the effect stays uncertain.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        const uint64_t deadline = b.now + 50;
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField(), deadline));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        b.turn(deadline, budget(8, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::DEADLINE);
+        CHECK(c.uncertain && c.effectsPossible && !c.confirmed);
+        noPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // At the cutoff nothing more is yielded or noted.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        const uint64_t deadline = b.now + 5;
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField(), deadline));
+        L::PreparedRead work;
+        const Saved<L::PreparedRead> none(work);
+        CHECK(!L::nextDriver(c, b.wire.live, b.wire.current, deadline, work));
+        none.unchanged(work);
+        M::Binding binding = b.wire.current;
+        CHECK(!L::noteDriverTransmission(c, b.wire.live, binding, deadline));
+        CHECK(binding.configurationGeneration == 7);
+        CHECK(L::advanceDriver(c, M::ReadOutcome::DEADLINE, deadline));
+        CHECK(c.outcome == M::ReadOutcome::DEADLINE && !c.uncertain && !c.effectsPossible);
+    }
+    { // A deadline during readback publishes nothing.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::IoSettings s = asFound();
+        s.functions[6] = L::InputFunction::USER6;
+        const uint64_t deadline = b.now + 6;
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, s, deadline));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+        CHECK(b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+        b.turn(deadline, budget(8, 0, 8, 0));
+        CHECK(L::advanceDriver(c, M::ReadOutcome::DEADLINE, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.confirmed == (1u << 8));
+        noPublication(c, b);
+        b.wire.settings = nullptr;
+    }
+}
+
+void diFaultRebootAndBusOff() {
+    { // A boot-up during a write: uncertain, reservation gone, and the route closed to new work.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        const unsigned first = b.mark();
+        b.wire.push(bootFrame(), b.now + 1);
+        b.turn(b.now + 1, budget(1, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.outcome == C::SdoOutcome::REBOOT);
+        CHECK(terminal->service.effectUncertain && !b.owner.sequence(b.sequence));
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.outcome == M::ReadOutcome::INVALIDATED);
+        CHECK(c.uncertain && c.confirmed == 2);
+        noPublication(c, b);
+        O::SequenceId another;
+        CHECK(!b.owner.beginSequence(route(1).binding, 1, b.now, another));
+        CHECK(b.owner.release(id));
+        b.turn(b.now + 1);
+        b.checkSilentSince(first); // No restore, no replay and no NMT followed the boot-up.
+        b.wire.settings = nullptr;
+    }
+    { // A boot-up during readback: the acknowledged write is recorded, and nothing is published.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::IoSettings s = asFound();
+        s.functions[6] = L::InputFunction::USER6;
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, s));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+        CHECK(b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        b.wire.push(bootFrame(), b.now + 1);
+        b.turn(b.now + 1, budget(1, 0, 8, 0));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.outcome == C::SdoOutcome::REBOOT);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.confirmed == (1u << 8));
+        noPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // Bus-off during a write: the work is invalidated and the effect stays uncertain.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const O::RequestId id = b.admit(work.transfer);
+        b.turn(b.now);
+        b.now += 1;
+        CHECK(b.owner.reportController(C::ControllerState::BUS_OFF, b.now));
+        const O::Completion* terminal = b.owner.result(id);
+        CHECK(terminal && terminal->service.effectUncertain);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+        CHECK(c.state == L::SettingsState::FAILED && c.uncertain && !c.confirmed);
+        noPublication(c, b);
+        CHECK(b.owner.release(id));
+        b.wire.settings = nullptr;
+    }
+    { // A drive fault event mid-transaction is observed, never cleared, and adds no frame.
+        Bench b;
+        L::DriverContext prior;
+        b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+        L::DriverSettingsContext c;
+        const unsigned first = b.mark();
+        CHECK(prepareIo(c, b, prior, everyField()));
+        b.wire.settings = &c;
+        L::PreparedRead work;
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+        M::Frame fault;
+        fault.id = 0x81;
+        fault.dlc = fault.payloadLength = 8;
+        fault.data[0] = 0x01; // The bytes of FF01, an example; no meaning is asserted here.
+        fault.data[1] = 0xff;
+        b.wire.push(fault, b.now + 1);
+        b.turn(b.now + 1, budget(8, 0, 8, 0));
+        CHECK(b.services.node(0)->emcyCount == 1);
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 0x1fe);
+        onlyDiTraffic(b, first);
+        b.wire.settings = nullptr;
+    }
+}
+
+void diGenerationsAndExclusion() {
+    Bench b;
+    L::DriverContext prior;
+    b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::ReadContext state;
+    b.readState(state);
+    M::AxisConfig axis;
+    const M::PreparedTarget prepared = preparedTarget(b, axis);
+    L::DriverSettingsContext same;
+    { // A no-op neither moves the generation nor stales anything.
+        const unsigned sent = b.mark();
+        CHECK(prepareIo(same, b, prior, asFound()));
+        CHECK(same.state == L::SettingsState::SUCCEEDED && !same.changed);
+        b.turn(b.now);
+        b.checkSilentSince(sent);
+        axis.binding = b.wire.current;
+        CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+        L::IoObservation same2;
+        CHECK(L::getIo(same, b.wire.live, b.current(), b.now, AGE, same2));
+        CHECK(same2.inputPolarityRaw == 0xa500);
+    }
+    L::DriverSettingsContext c;
+    CHECK(prepareIo(c, b, prior, everyField()));
+    axis.binding = b.wire.current;
+    CHECK(M::validatePreparedTarget(prepared, axis, nullptr, b.now)); // Preparation alone moves nothing.
+    // The route has one reservation: nothing else can begin on it while this one holds.
+    O::SequenceId other;
+    CHECK(!b.owner.beginSequence(route(1).binding, 2, b.now, other));
+    b.wire.settings = &c;
+    L::PreparedRead work;
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    const O::RequestId id = b.admit(work.transfer);
+    CHECK(b.wire.current.configurationGeneration == 7); // Admission alone moves nothing either.
+    b.turn(b.now);
+    CHECK(b.wire.current.configurationGeneration == 8 && b.wire.notices == 1);
+    axis.binding = b.wire.current;
+    CHECK(!M::validatePreparedTarget(prepared, axis, nullptr, b.now));
+    // The earlier group and state evidence is now refused at the actual target.
+    L::IoObservation seen;
+    const Saved<L::IoObservation> none(seen);
+    CHECK(!L::getIo(prior, b.current(), b.now, AGE, seen));
+    none.unchanged(seen);
+    L::StateObservation block;
+    CHECK(!L::getStateBlock(state, L::StateBlock::STATUS, b.current(), b.now, AGE, block));
+    // New-epoch work waits until the old result is consumed, released and the reservation moved.
+    CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    b.deliver();
+    b.turn(b.now + 1, budget(8, 0, 8, 0));
+    const O::Completion* terminal = b.owner.result(id);
+    CHECK(terminal);
+    CHECK(!b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, terminal->service, b.now));
+    CHECK(b.owner.release(id));
+    // The remaining old-epoch writes keep the frozen epoch; the generation moved only the once.
+    while (c.state == L::SettingsState::WRITING) {
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        CHECK(work.transfer.channel.binding.configurationGeneration == 7);
+        const C::SdoCompletion ack = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, ack, b.now));
+    }
+    CHECK(b.wire.current.configurationGeneration == 8 && b.wire.notices == 8);
+    CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+    CHECK(work.transfer.channel.binding.configurationGeneration == 8);
+    O::BusRequest early;
+    early.sequence = b.sequence;
+    early.transfer = work.transfer;
+    O::RequestId rejected;
+    CHECK(b.owner.admit(early, b.now, rejected) == O::BusAdmission::INVALID);
+    CHECK(b.owner.advanceConfiguration(b.sequence, b.wire.current, b.now));
+    while (c.state == L::SettingsState::READING_BACK) {
+        CHECK(L::nextDriver(c, b.wire.live, b.wire.current, b.now, work) && work.ready);
+        const C::SdoCompletion reply = b.exchange(work.transfer);
+        CHECK(L::advanceDriver(c, b.wire.live, b.wire.current, reply, b.now));
+    }
+    b.wire.settings = nullptr;
+    CHECK(c.state == L::SettingsState::SUCCEEDED);
+    CHECK(L::getIo(c, b.wire.live, b.current(), b.now, AGE, seen));
+    CHECK(seen.target.channel.binding.configurationGeneration == 8);
+    // Publication refuses the frozen token's target and a stale copy of the reservation.
+    const Saved<L::IoObservation> published(seen);
+    CHECK(!L::getIo(c, b.wire.live, b.reservation.target, b.now, AGE, seen));
+    L::AxisReservation stale = b.wire.live;
+    ++stale.sequence;
+    CHECK(!L::getIo(c, stale, b.current(), b.now, AGE, seen));
+    published.unchanged(seen);
+    // A no-op prepared while current says SUCCEEDED, and publishes nothing now the epoch has moved.
+    noPublication(same, b);
+    CHECK(!L::nextDriver(same, b.wire.live, b.wire.current, b.now, work));
+    // The frozen token cannot prepare one any more.
+    L::DriverSettingsContext stalePlan;
+    refused(b, stalePlan, [&] { return prepareIo(stalePlan, b, prior, asFound()); });
+    // With a current token the same evidence is refused outright.
+    b.renew();
+    L::DriverSettingsContext next;
+    refused(b, next, [&] { return prepareIo(next, b, prior, asFound()); });
+    // Revocation: old copies of the reservation stop at the owner.
+    Bench r;
+    L::DriverContext held;
+    r.read(held, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::DriverSettingsContext active;
+    CHECK(prepareIo(active, r, held, everyField()));
+    const L::AxisReservation before = r.wire.live;
+    CHECK(r.owner.invalidate(r.sequence, r.now) && !r.owner.sequence(r.sequence));
+    r.wire.live.owner = 0;
+    CHECK(!L::nextDriver(active, r.wire.live, r.wire.current, r.now, work));
+    O::BusRequest late;
+    late.sequence = r.sequence;
+    CHECK(L::nextDriver(active, before, r.wire.current, r.now, work) && work.ready);
+    late.transfer = work.transfer;
+    O::RequestId refusedId;
+    CHECK(r.owner.admit(late, r.now, refusedId) != O::BusAdmission::ACCEPTED);
+}
+
+// Fixtures only, and no signal here qualifies hardware. The specimens' assignment with all logical
+// levels zero and unconnected terminals is representable, and writing an unrelated input keeps it.
+bool fixtureMethodPermits(const L::IoObservation& io, bool needsOrigin, bool signalKnown, bool active) {
+    if (!needsOrigin)
+        return true;
+    for (unsigned i = 0; i < 7; ++i)
+        if (io.inputFunctions[i] == L::InputFunction::ORIGIN)
+            return signalKnown && active;
+    return false;
+}
+void diUnusedAndMethodFixtures() {
+    Bench b;
+    b.drive.set(0x2400, 1, 0);
+    L::DriverContext prior;
+    b.read(prior, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::IoObservation before;
+    CHECK(L::getIo(prior, b.current(), b.now, AGE, before));
+    // A method that needs no origin is not held back by an unwired one. One that does needs its own
+    // known active signal, whatever the register holds.
+    CHECK(fixtureMethodPermits(before, false, false, false));
+    CHECK(!fixtureMethodPermits(before, true, false, false));
+    CHECK(!fixtureMethodPermits(before, true, true, false));
+    CHECK(fixtureMethodPermits(before, true, true, true));
+    CHECK(!before.wiringKnown && !before.electricalLevelsKnown);
+    L::IoSettings s = asFound();
+    s.functions[3] = L::InputFunction::USER0;
+    L::DriverSettingsContext c;
+    const unsigned first = b.mark();
+    CHECK(prepareIo(c, b, prior, s));
+    b.run(c);
+    CHECK(c.state == L::SettingsState::SUCCEEDED && c.changed == (1u << 5));
+    // The configured origin and limits stayed: nothing reassigned them on the way past.
+    CHECK(writesTo(b, 2) == 0 && writesTo(b, 3) == 0 && writesTo(b, 4) == 0);
+    CHECK(b.drive.value(0x2400, 2) == 1 && b.drive.value(0x2400, 3) == 2 &&
+          b.drive.value(0x2400, 4) == 3);
+    onlyDiTraffic(b, first);
+    // Logical level is a separate read, and this scripted dictionary does not link the two.
+    L::ReadContext state;
+    b.renew();
+    b.readState(state, uint8_t(1u << unsigned(L::StateBlock::MONITORS)));
+    L::StateObservation monitors;
+    CHECK(L::getStateBlock(state, L::StateBlock::MONITORS, b.current(), b.now, AGE, monitors));
+    CHECK(monitors.logicalInputs == 0 && !monitors.interpreted);
+    // A protective assignment changes only when a candidate asks for it.
+    b.renew();
+    L::DriverContext fresh;
+    b.read(fresh, L::DriverGroup::IO_INPUT_CONFIGURATION);
+    L::IoSettings cleared = s;
+    cleared.functions[0] = L::InputFunction::UNDEFINED;
+    L::DriverSettingsContext explicitClear;
+    CHECK(prepareIo(explicitClear, b, fresh, cleared));
+    CHECK(explicitClear.changed == (1u << 2));
+    b.run(explicitClear);
+    L::IoObservation after;
+    CHECK(L::getIo(explicitClear, b.wire.live, b.current(), b.now, AGE, after));
+    CHECK(after.inputFunctions[0] == L::InputFunction::UNDEFINED);
+    CHECK(!fixtureMethodPermits(after, true, true, true));
 }
 } // namespace
 
@@ -1590,6 +2714,21 @@ int main() {
     rebootEndsTheTransaction();
     deadlineWins();
     generationsAndOldTargetAdmission();
+    softLimitStateRules();
+    frozenTokenCannotPrepareAFalseNoOp();
+    diEveryCodeAndMaskOnTheWire();
+    diCandidatesRefusedWhole();
+    diOrderIsNotAtomicAndDuplicatesStand();
+    diWrongEvidenceRefused();
+    diAliasedAndEditedContexts();
+    diPartialEffectsSurvive();
+    diLostReplyIsNeverReplayed();
+    diReadbackMismatchAndFailure();
+    diCancellationAndPreflight();
+    diDeadlines();
+    diFaultRebootAndBusOff();
+    diGenerationsAndExclusion();
+    diUnusedAndMethodFixtures();
     std::printf("settings_owner: %u checks\n", checks);
     return 0;
 }

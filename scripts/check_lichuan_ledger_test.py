@@ -163,8 +163,8 @@ class LedgerTests(unittest.TestCase):
     def test_setting_subsets_keep_scope_policy_and_qualification_separate(self):
         data = self.changed()
         rows = [e for o in data["objects"] for e in o["entries"] if "setting_coverage" in e]
-        self.assertEqual(len(rows), 14)
-        self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 5)
+        self.assertEqual(len(rows), 13)
+        self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 4)
         self.assertEqual(sum(e["owner_prompt"] == 21 for e in rows), 8)
         self.assertEqual(sum(e["owner_prompt"] == 22 for e in rows), 1)
         for row in rows:
@@ -178,15 +178,14 @@ class LedgerTests(unittest.TestCase):
             data = self.changed()
             entry(data, "0x6081:00")[field] = value
             self.reject(data, "setting coverage")
-        for key, wrong in (("0x2200:00", "explicit_soft_limit_selector_86c"),
-                           ("0x2202:00", "explicit_direction_selector_86c")):
-            data = self.changed()
-            entry(data, key)["setting_scope"] = wrong
-            self.reject(data, "setting coverage")
-        for key in ("0x2201:00", "0x607D:01", "0x607D:02"):
+        data = self.changed()
+        entry(data, "0x2202:00")["setting_scope"] = "position_parameters_86c"
+        self.reject(data, "setting coverage")
+        # 2200 is a retained gate: neither manual says what its codes do under CAN.
+        for key in ("0x2200:00", "0x2201:00", "0x607D:01", "0x607D:02"):
             data = self.changed()
             e = entry(data, key)
-            e["setting_scope"] = "explicit_direction_selector_86c"
+            e["setting_scope"] = "explicit_soft_limit_selector_86c"
             e["setting_coverage"] = dict(documented=True, implemented=True,
                                           host_tested=True, hardware_qualified=False)
             self.reject(data, "setting coverage outside")

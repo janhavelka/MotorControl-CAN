@@ -588,6 +588,34 @@ bool fixtureOriginPermits(const L::IoObservation& io, bool methodNeedsOrigin,
            io.inputFunctions[0] == L::InputFunction::ORIGIN && externalSignalKnown &&
            externalSignalActive;
 }
+// Each polarity bit decodes alone, and high bits stay in the raw word without naming a terminal.
+void polarityBitsAndOutputKnowledge() {
+    for (unsigned bit = 0; bit < 16; ++bit) {
+        L::DriverContext c = prepared(0);
+        accept(c, 16, 0);
+        accept(c, 1u << bit, 0);
+        for (unsigned i = 0; i < 7; ++i)
+            accept(c, 0, 0);
+        L::IoObservation o;
+        CHECK(L::getIo(c, target(), 0, 1, o));
+        CHECK(o.inputPolarityRaw == (1u << bit));
+        for (unsigned i = 0; i < 7; ++i)
+            CHECK(o.inputInverted[i] == (i == bit));
+    }
+    CHECK(L::INPUT_POLARITY_BITS == 0x007f);
+    // No read of any group, whatever it holds, claims a mapping, wiring or a measured level. The
+    // manual's documented DO0 default of 1 at either disputed address changes nothing here.
+    for (uint32_t word : {0u, 1u}) {
+        for (unsigned g = 0; g < 4; ++g) {
+            L::DriverContext c = prepared(g);
+            for (unsigned i = 0; i < counts[g]; ++i)
+                accept(c, word, 0);
+            L::IoObservation o;
+            CHECK(L::getIo(c, target(), 0, 1, o));
+            CHECK(!o.outputMappingKnown && !o.wiringKnown && !o.electricalLevelsKnown);
+        }
+    }
+}
 void separateAssignmentValueAndLevel() {
     L::DriverContext configuration = prepared(0);
     for (unsigned i = 0; i < 9; ++i)
@@ -646,6 +674,7 @@ int main() {
     terminalCorrelation();
     partialFailures();
     rawDomainsAndTime();
+    polarityBitsAndOutputKnowledge();
     separateAssignmentValueAndLevel();
     std::printf("io settings: %u checks passed\n", checks);
 }

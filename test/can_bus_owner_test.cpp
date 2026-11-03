@@ -1022,7 +1022,7 @@ void publicReadAndConfirmedControlSetting() {
     L::ControlSettings requested;
     requested.loopMode = L::LoopMode::CLOSED_LOOP;
     L::DriverSettingsContext settings;
-    CHECK(L::prepareControlSettings(settings, r.fake.reservation, prior, requested, 13, r.now, 1000,
+    CHECK(L::prepareControlSettings(settings, r.fake.reservation, r.fake.reservation.target, prior, requested, 13, r.now, 1000,
                                     options(), 100));
     requested.loopMode = L::LoopMode::OPEN_LOOP;
     r.fake.settings = &settings;
@@ -1078,7 +1078,7 @@ O::SequenceId prepareOwnedControlSetting(Rig& r, L::DriverSettingsContext& setti
     CHECK(r.owner.beginOperation(sequence, 12, 1000, r.now));
     L::ControlSettings candidate;
     candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-    CHECK(L::prepareControlSettings(settings, r.fake.reservation, prior, candidate, 12, r.now, 1000,
+    CHECK(L::prepareControlSettings(settings, r.fake.reservation, r.fake.reservation.target, prior, candidate, 12, r.now, 1000,
                                     options(), 100));
     r.fake.settings = &settings;
     return sequence;
