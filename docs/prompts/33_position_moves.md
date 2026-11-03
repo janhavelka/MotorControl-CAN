@@ -6,7 +6,7 @@ Apply [COMMON.md](COMMON.md). Prerequisites: [10](10_axis_coordinates.md), [20](
 
 Deliver complete finite absolute/relative position operations using the exact-axis preparation already implemented, the reviewed Lichuan Profile Position sequence and the real owner/stop path. Wrapped-angle request integration belongs to 34. Do not implement a generic trajectory framework or expand scope to coordinated cyclic motion.
 
-Hold: `prepareMoveAbsolute`, `prepareMoveRelative`, `nextMove` and `advanceMove` wait for W1 to W8 of the [repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md), and prompts 34-36 wait with them. The delivered pure `preparePositionParameters` sends nothing and stays; build on it.
+The audit's hold lifted when [packet 10](../reports/handoff_19_33/packet_10.md) closed W1 to W8. `prepareMoveAbsolute`, `prepareMoveRelative`, `nextMove` and `advanceMove` may proceed for consumed contracts only: closure qualifies no release command, moving stop, relative wire base or physical scale. The delivered pure `preparePositionParameters` sends nothing and stays; build on it.
 
 Apply [CONVENTIONS](CONVENTIONS.md#3-motion-typed-reads-and-terminal-evidence) and [MULTIDRIVE](MULTIDRIVE.md). Native profile parameter units and completion semantics remain explicit; servo and stepper common intent does not impose identical wire behavior.
 

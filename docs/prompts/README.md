@@ -23,9 +23,9 @@ retains the active audit's prerequisites; it is not a replacement sequence.
 
 The first implementation is Lichuan C over Classical CANopen. N5/EPOS4 are test-only design contrasts. Other CAN protocols and CAN FD remain separately implemented future capabilities. The [scope decision](../multidrive_decision.md), [architecture](../architecture_plan.md), [API/CLI map](../api_cli_mapping.md), [requirements](../requirements_matrix.md), [audits](../audit/) and [original references](../reference/README.md) remain authoritative inputs.
 
-## Active repair audit
+## Repair audit
 
-The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) is part of this promptset until its W1 to W8 are done. It holds settled decisions, ordered work packets and verified findings for prompts 33-50 and the code they build on. Its work-packet order replaces the table below for that scope, as [COMMON.md](COMMON.md) item 5 states.
+The [prompts 34-50 repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1 to W8 in [packet 10](../reports/handoff_19_33/packet_10.md). It stays the source of its decisions and findings for prompts 33-50, and its W10 and W11 order still applies, as [COMMON.md](COMMON.md) item 5 states.
 
 ## Execution order
 
