@@ -28,7 +28,16 @@ using OwnerRig::frame;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
-    void unchanged(const T& value) const { CHECK(!std::memcmp(bytes, &value, sizeof value)); }
+    // Report the caller and the first differing byte: a padding difference shows only here.
+    void unchanged(const T& value, int line = __builtin_LINE()) const {
+        ++checks;
+        const unsigned char* now = reinterpret_cast<const unsigned char*>(&value);
+        for (size_t i = 0; i < sizeof value; ++i)
+            if (bytes[i] != now[i]) {
+                std::fprintf(stderr, "%s:%d: byte %u of %u changed\n", __FILE__, line, unsigned(i), unsigned(sizeof value));
+                std::abort();
+            }
+    }
 };
 L::ReadTarget target(unsigned node = 1) {
     L::ReadTarget value;
