@@ -622,6 +622,26 @@ class FirmwareFormats(unittest.TestCase):
                          "SOAK_OUT", "SOAK_ABORT", "SOAK_END", "SOAK_TR", "SOAK_ANOM", "SOAK_OP",
                          "SOAK_TEND", "SOAK_NODE_STOP"} <= found, found)
 
+    def test_every_soak_line_fits_its_buffer_at_type_maxima(self):
+        # SOAK_CON overflowed the 240-byte line at the end of a 3 h soak after a bus fault (2026-11-03).
+        widths = {"llu": 20, "lu": 10, "u": 10, "lx": 8, "x": 8}
+        line = int(re.search(r"LINE_BYTES = (\d+)",
+                             (ROOT / "examples/s2_bench/Soak.h").read_text(encoding="utf-8")).group(1))
+        console = int(re.search(r"OUTPUT_CAPACITY = (\d+)",
+                                (ROOT / "examples/common/ProbePlatform.h").read_text(encoding="utf-8")).group(1))
+        self.assertLessEqual(line, console)
+        text = (ROOT / "examples/s2_bench/Soak.cpp").read_text(encoding="utf-8")
+        found = set()
+        for name, body in re.findall(r'"(SOAK_[A-Z_]+) ((?:[^"]|"\s*")*?)\\n"', text):
+            found.add(name)
+            body = re.sub(r'"\s*"', "", body)
+            widest = re.sub(r"%(\d*)(ll|l)?([ux])",
+                            lambda m: "9" * max(int(m.group(1) or 0), widths[(m.group(2) or "") + m.group(3)]), body)
+            self.assertNotIn("%", widest.replace("%s", ""), name)
+            # Name, space, body with %s at 64 characters, newline; vsnprintf needs one more.
+            self.assertLess(len(name) + 2 + len(widest.replace("%s", "s" * 64)), line, name)
+        self.assertIn("SOAK_CON", found)
+
     def test_every_bench_line_is_in_the_grammar(self):
         text = (ROOT / "examples/s2_bench/main/main.cpp").read_text(encoding="utf-8")
         for name, pattern in (("RESULT", r'"RESULT (.*?)\\n"\s*,'), ("PONG", r'"PONG (.*?)\\n"\s*,'),

@@ -220,7 +220,9 @@ class Soak {
   private:
     enum Phase : uint8_t { PHASE_IDLE, PHASE_RUNNING, PHASE_FINISHING, PHASE_FINAL };
     enum DumpPhase : uint8_t { DUMP_NONE, DUMP_COLLECT, DUMP_EMIT };
-    enum { SIGNAL_SLOTS = 46, LINE_BYTES = 240 };
+    // LINE_BYTES holds the longest line, SOAK_CON at 401 bytes, with every field at its type's
+    // maximum. At 240, SOAK_CON overflowed at the end of a 3 h soak after a bus fault (2026-11-03).
+    enum { SIGNAL_SLOTS = 46, LINE_BYTES = 416 };
     /** One compact copy of an owner diagnostic, a terminal or a submission. */
     struct TraceEntry {
         uint64_t processedUs;
@@ -248,6 +250,7 @@ class Soak {
         uint32_t lastRejectedId;
         uint32_t last[SOAK_NODES + 1][SIGNAL_SLOTS];
         uint64_t known[SOAK_NODES + 1];
+        uint64_t raised[SOAK_NODES + 1]; // Limited signals with an anomaly in this summary window.
         uint64_t heartbeatUs[SOAK_NODES], retireSinceUs[SOAK_NODES];
         SoakNodeStats nodes[SOAK_NODES];
         SoakPressure pressure;

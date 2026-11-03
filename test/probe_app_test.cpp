@@ -229,7 +229,8 @@ void pressureAndBytes() {
     rig.finish();
     CHECK(rig.app.readContext().state == M::ReadState::SUCCEEDED && rig.fake.transmitted() == 9);
     CHECK(rig.platform.stats().inputUsed == 64 && rig.platform.stats().inputDropped == 64);
-    CHECK(rig.platform.stats().outputUsed == 256 && rig.platform.stats().outputRejected == 1);
+    CHECK(rig.platform.stats().outputUsed == E::ProbePlatform::OUTPUT_CAPACITY &&
+          rig.platform.stats().outputRejected == 1);
     CHECK(rig.bytes.outputCount == 0 && rig.bytes.idleCalls > 0);
     // Full input drops newest; embedded zero and FIFO byte ownership survive.
     for (unsigned i = 0; i < 64; ++i) {
@@ -240,12 +241,13 @@ void pressureAndBytes() {
     CHECK(!rig.platform.takeInput(empty) && empty == 123);
     rig.bytes.blocked = false;
     rig.turn(rig.now + 1);
-    CHECK(rig.bytes.outputCount == 16 && rig.platform.stats().outputUsed == 240);
+    CHECK(rig.bytes.outputCount == E::ProbePlatform::OUTPUT_BUDGET &&
+          rig.platform.stats().outputUsed == E::ProbePlatform::OUTPUT_CAPACITY - E::ProbePlatform::OUTPUT_BUDGET);
     // Original copied submission cannot change when its input is overwritten.
     std::memset(output, 0xee, sizeof output);
     while (rig.platform.stats().outputUsed)
         rig.turn(rig.now + 1);
-    for (unsigned i = 0; i < 256; ++i)
+    for (unsigned i = 0; i < sizeof output; ++i)
         CHECK(rig.bytes.output[i] == static_cast<uint8_t>(i));
     CHECK(rig.fake.transmitted() == 9 && rig.app.releaseRead());
 }

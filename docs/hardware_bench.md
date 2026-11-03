@@ -372,8 +372,14 @@ retirement after the operation as `retireMax`.
 one complete line per turn at most, only when it fits. Waiting records sit in a 96-entry queue.
 When full, records are dropped and counted (`evFull`), value and counter records are also rate
 limited to ten per second (`evLimit`), and a dropped change shows as a break in that signal's
-old-to-new chain, which the parser reports as `soak_transition_gap`. The first two anomalies of
-each kind get a dump, sixteen in a soak; the rest are one line each and counted (`dumpSkip`).
+old-to-new chain, which the parser reports as `soak_transition_gap`. A value or counter signal
+raises at most one `SOAK_ANOM` per summary window, at its first change in that window; its later
+changes show only in its rate-limited `SOAK_TR` chain and in the summary's cumulative counters.
+Before this, a lasting fault kept the queue full: after the drives stopped acknowledging on
+2026-11-03, `twaiErrors` raised one anomaly per pass, about a million lines, and no summary
+printed for 3 h. The first two anomalies of each kind get a dump, sixteen in a soak; the rest are
+one line each and counted (`dumpSkip`). Every line fits the 416-byte line buffer with each field at
+its type's maximum, and the console queue takes 512 bytes.
 
 In `SOAK_CON`, `blocked` counts turns a formatted line waited for room. `conRej` is the console's
 total of refused submissions since the MCU booted, from every writer. The other routes' dumps
@@ -388,8 +394,9 @@ the soak takes it, so each single-frame request by an earlier command on the sam
 an untaken one. A constant value through a soak is that history, not loss during it.
 
 The host checks every line's `n`. A gap or a malformed line in the digest, while the firmware's
-`lines` stays contiguous, is loss between the S2's UART and pyserial. Three such losses, each a
-whole transfer of up to 64 bytes, are analysed in the [soak report](reports/2026-11-03_overnight_soak.md).
+`lines` stays contiguous, is loss between the S2's UART and pyserial. These losses, each a whole
+transfer of up to 64 bytes, are analysed in the [soak report](reports/2026-11-03_overnight_soak.md).
+An `OUTPUT_FORMAT_ERROR` line is different: the firmware itself could not format that line.
 
 Timing effects, all in the summary so they can be accounted for: formatting costs a share of a
 1 ms turn, measured by `gapMax`; a dump holds the next scheduled read until it has printed,
@@ -413,10 +420,10 @@ Each trial directory replays through `s2_evidence.py`, which adds verdicts as in
 `docs/bench/SHA256SUMS.json`, as with any other evidence.
 
 **Limits.** A soak does not qualify anything electrical, sustained-load or motion-related, and it
-carries no TPDO load unless a drive was started by other means. `IdfTwaiDriver` exposes the
-error-callback count and flag union but not the TEC and REC counters, so `twaiErrors` and
-`twaiFlags` are the controller's whole error record here. Bench time is MCU uptime; UTC comes only
-from the host's side file.
+carries no TPDO load unless a drive was started by other means. `twaiErrors` and `twaiFlags` are
+the SDK's error-callback count and flag union; `SOAK_GAP` adds the controller's TX and RX error
+counters (`tec`, `rec`), sampled once per summary. Bench time is MCU uptime; UTC comes only from
+the host's side file.
 
 ## Attended bench routes
 
@@ -424,8 +431,8 @@ Named finite routes for the attended trials of packets 13, 14, 15, 16, 19 and 20
 `1003` error history read of packets 4 and 22, in
 [`BenchRoute`](../examples/s2_bench/BenchRoute.h). The [attended session](reports/2026-11-03_attended_bench.md)
 ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`; the
-[unattended session](reports/2026-11-03_unattended_bench.md) ran `move` once and `stop` twice.
-**`history` has not run.** Each is
+[unattended session](reports/2026-11-03_unattended_bench.md) ran `move` once, `stop` twice and
+`history` on both nodes. Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
 typed reads, the session's own `requestEnable`, `requestMove` and `requestStop`, and caller-built
 transfers through `admitPrepared` only for the 6060 write, the position experiment's writes and the

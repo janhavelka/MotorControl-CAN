@@ -301,7 +301,8 @@ struct Rig {
             if (end == std::string::npos)
                 break; // The console is still sending this one.
             const std::string line = console.output.substr(begin, end - begin);
-            CHECK(line.size() < 240);
+            CHECK(line.size() < 416);
+            CHECK(line.rfind("OUTPUT_FORMAT_ERROR", 0) != 0);
             begin = end + 1;
             const size_t mark = line.find(" n=");
             CHECK(line.rfind("SOAK_", 0) == 0 && mark != std::string::npos);
@@ -664,6 +665,32 @@ void testBusOffNoRecovery() {
     CHECK(rig->soak.active()); // Still observing to its stated end.
     rig->linesContiguous();
 }
+// A lasting bus fault, as the missing ACK of 2026-11-03: the error counter changes on every pass.
+// One line per change once kept the event queue full, so no summary printed for 3 h and the first
+// anomaly's dump was never closed.
+void testLastingBusFaultKeepsSummaries() {
+    std::unique_ptr<Rig> rig(new Rig);
+    E::SoakPlan p = plan();
+    p.summaryS = 1;
+    CHECK(rig->soak.begin(p, rig->console.now) == E::SoakAdmission::ACCEPTED);
+    rig->turns(1500);
+    const unsigned summaries = rig->count("SOAK_SUM");
+    for (unsigned i = 0; i < 4000; ++i) {
+        rig->driver.pending.busErrors = 1;
+        rig->turns(1);
+    }
+    rig->turns(1500); // Past the next summary.
+    const unsigned windows = rig->count("SOAK_SUM") - summaries;
+    CHECK(windows >= 4);
+    const unsigned bus = rig->count("kind=bus");
+    CHECK(bus >= 2 && bus <= windows + 1); // The first change, then at most one per window.
+    CHECK(rig->has("sig=twaiErrors from=0 to=1 first=0"));
+    CHECK(rig->has("twaiErr=4000 "));      // The summary still counts every error.
+    CHECK(rig->count(" dump=1 ") == rig->count("SOAK_TEND"));
+    CHECK(rig->soak.pressure().eventsFull == 0);
+    CHECK(rig->soak.nodeStats(1).stepsOk == rig->soak.nodeStats(1).steps);
+    rig->linesContiguous();
+}
 // A scenario with every record kind, for the parser's grammar check in s2_soak_test.py.
 void writeTranscript(const char* path) {
     std::unique_ptr<Rig> rig(new Rig);
@@ -728,6 +755,7 @@ int main(int argc, char** argv) {
     testStopSettlesStartedRead();
     testDurationAndTrialIdentity();
     testBusOffNoRecovery();
+    testLastingBusFaultKeepsSummaries();
     std::printf("soak: %u checks\n", checks);
     return 0;
 }

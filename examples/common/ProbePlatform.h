@@ -37,7 +37,7 @@ class ProbePlatform {
   public:
     enum {
         INPUT_CAPACITY = 64,   ///< Bytes; full ingress drops newest with accounting.
-        OUTPUT_CAPACITY = 256, ///< Bytes; submissions are atomic, no partial enqueue.
+        OUTPUT_CAPACITY = 512, ///< Bytes; submissions are atomic, no partial enqueue.
         INPUT_BUDGET = 8,      ///< Maximum readByte calls per service turn.
         OUTPUT_BUDGET = 16     ///< Maximum writeByte calls per service turn.
     };

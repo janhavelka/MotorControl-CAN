@@ -89,7 +89,7 @@ publication while keeping history inspectable.
 | --- | --- |
 | Selected targets / read contexts | One each; explicit release before replacement. Shared application uses owner producer 1. |
 | Input queue | 64 bytes; at most 8 read callbacks/turn. Full storage drops newly consumed bytes and saturates `inputDropped`. `takeInput` consumes bytes only; no parser exists yet. |
-| Output queue | 256 bytes; complete submissions copy atomically. Insufficient capacity preserves queued bytes and saturates `outputRejected` once per submission. Invalid null spans reject separately. |
+| Output queue | 512 bytes, enough for the bench soak's longest line at its field maxima; complete submissions copy atomically. Insufficient capacity preserves queued bytes and saturates `outputRejected` once per submission. Invalid null spans reject separately. |
 | Output service | At most 16 byte callbacks/turn. A refusal accepts nothing, stops that drain and preserves the suffix; no wait or retry loop in that turn. |
 | Idle/diagnostics | At most one optional bounded callback after byte work; no CAN access, recursion or blocking output. Owner diagnostic copies are pulled through the existing `takeDiagnostic` API. |
 | Owner service | Existing RX 8, TX 2, reports 8, starts 2 and recovery poll 1 maximum per turn; see the authoritative [owner capacity table](can_owner.md). |
