@@ -84,7 +84,7 @@ From each route's `TRIAL_RES`, on the 12,288-byte owner task:
 - **A move on node 2,** with node 1's retained outcome checked unchanged (packet 22 step 6). Two-node work with an urgent stop on the other node has no route: one route runs at a time.
 - **Packet 20's `move` route** through `AxisSession::requestMove`, with acceptance `6041` mask and value `0x1000`, completion `2100` mask and value `0x0001`, and rule `AFTER_ABSENCE`, reviewed first. The library's own move lifecycle has not run on a specimen; trial 111 was the application-local `position` experiment.
 - **Relative moves:** what `005F` adds to (packet 21). Every relative request stays refused.
-- **Error history:** `1003` has never been read; its read effect needs the fault LED observed before and after (backlog H03). The `1001` and `603F` reads of trial 101 had the LED off before and after.
+- **Error history:** `1003` has never been read; its read effect needs the fault LED observed before and after (backlog H03). *Read later, unattended:* an empty history on both nodes, trials 128 and 129 of the [unattended session](2026-11-03_unattended_bench.md). The `1001` and `603F` reads of trial 101 had the LED off before and after.
 - **Physical questions:** whether word 7 pulls the shaft back to its commanded position after a manual displacement; `606C`'s unit.
 - **Next campaign:** these need a new ledger and record, and a reflash: the counter fix above is not on the board.
 

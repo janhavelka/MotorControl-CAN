@@ -38,7 +38,7 @@ The plan was recorded before each send in the ledger [`20261103-campaign.jsonl`]
 | Targets, rates, ramps | Absolute 0 → 250 and 250 → 750 pulses, 2 rpm, 500 ms ramps |
 | Deadlines, polls | Enable 10 s at 800 ms per poll; mode 1 and rearm 500 ms polls; position 15 or 8 cycles of 1000 ms; HALT deadline 2 s polled every 250 ms; route cutoff 60 s |
 | Independent stop and observation | The user at the drive-power cutoff throughout, paper shaft marks |
-| Error history | `1003` was not read (backlog H03). `1001` and `603F` were 0 with the fault LED off before and after |
+| Error history | `1003` was not read in the attended session (backlog H03). `1001` and `603F` were 0 with the fault LED off before and after. After the unattended campaign, on `e724a39`, the first `1003` reads (trials 128 and 129) found `1003:00=0` on both nodes, with `1001` and `603F` 0 before and after; the LED was not observed |
 | Admissions | 17 sends, 12 motion admissions (the cap), at most 3 per route and node |
 
 **Budget.** The firmware caps admissions per boot: 12 motion admissions, 3 per route and node, 60 s per route (`ROUTE_MOTION_TOTAL`, `ROUTE_MOTION_PER_CASE`, `ROUTE_CUTOFF_MS`), and a planned stop inside a move counts as one more. Those counts reset on reboot, so `scripts/s2_bench.py` also keeps a campaign ledger across boots: every motion command needs `--campaign PATH`, a send entry is written before the line goes out, and it refuses at the same caps or a trial number not above every earlier one. A missing ledger is refused unless `--new-campaign` starts it, so a mistyped path cannot reset the count.
@@ -104,7 +104,7 @@ The second campaign covered the plan this section held before it, except the sta
 1. **An attended campaign** with its own ledger and record, attendant and cutoff, after a power cycle of both drives and a reflash to the current commit, so that every record carries controller counters:
    - the enable on one node, with the attendant's power-up shaft observation, then a stationary `000B` from its `000F`: the hardware retest of the fixed quick stop, which should end `OBSERVED` with the release kept if the drive repeats trial 124;
    - a stationary `010F` from idle `000F` on the other node, since a node left released or halted cannot be enabled again on that power-up;
-   - the first `1003` read, with the fault LED observed before and after: pending.
+   - a `1003` read with the fault LED observed before and after. The first reads ran unattended (trials 128 and 129: an empty history, error words unchanged), so only the LED observation is owed.
 2. **Later, each with its own route or measurement:** `000B` during a move; packet 21's relative base; the settings, alarm-clear and counter-zero trials of packets 12 to 14, 17 and 18 (backlog H03, S12); whether word 7 pulls a displaced shaft back; whether completion at `6064=251`, then 250, is overshoot or counter dither.
 3. **Communication:** the unattended console-loss A/B soak, 3 h each with and without `--keepalive-s` (defects table above).
 

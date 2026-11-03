@@ -1,0 +1,42 @@
+{
+  "status": "failed",
+  "reason": "refused:busy",
+  "ended_utc": "2026-11-03T16:42:04.889806+00:00",
+  "trials": [
+    {
+      "trial": 1793724124,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "capture_failed",
+          "line": null,
+          "detail": "refused:busy"
+        },
+        {
+          "code": "soak_no_begin",
+          "line": null,
+          "detail": ""
+        }
+      ],
+      "error_count": 2,
+      "warning_count": 0,
+      "soak": {
+        "trial": null,
+        "end": null,
+        "lines": {},
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 0,
+        "signals": 0,
+        "note_counts": {
+          "soak_no_begin": 1
+        }
+      },
+      "unknown": 0,
+      "malformed": 0,
+      "bytes": 263,
+      "sha256": "a3465aa6a5514f1a679349359363f776f2141e5613ed4afb669589f3fb248645"
+    }
+  ]
+}
