@@ -384,7 +384,7 @@ void triggerPollThenStop() {
             CHECK(stop.predecessorBasis == (word != WORD_ENABLE ? L::PredecessorBasis::PROJECT_DECISION
                                             : kind              ? L::PredecessorBasis::EN86_ZH86_OP86
                                                                 : L::PredecessorBasis::ZH86_OP86));
-            CHECK(stop.operation != pollOperation && stop.commandEvidence.transfer.operation == stop.operation);
+            CHECK(stop.operation != pollOperation && stop.commandHistory[0].transfer.operation == stop.operation);
             CHECK(r.a.stopPath() == E::StopPath::FINISHED);
             CHECK(writes6040(r, pollFrame) == 1);
             CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[1] == (kind ? 0 : 1));
@@ -1317,9 +1317,9 @@ void escalationFromInFlightHalt() {
             r.step();
         }
         const L::ActionContext& halt = r.a.stopAction(L::StopKind::HALT);
-        CHECK(halt.state == M::ActionState::FAILED && halt.commandEvidencePresent &&
-              halt.commandEvidence.transfer.data[0] == 0x0f && halt.commandEvidence.transfer.data[1] == 1 &&
-              halt.commandEvidence.transfer.operation == halt.operation);
+        CHECK(halt.state == M::ActionState::FAILED && (halt.commandEvidenceMask & 1u) &&
+              halt.commandHistory[0].transfer.data[0] == 0x0f && halt.commandHistory[0].transfer.data[1] == 1 &&
+              halt.commandHistory[0].transfer.operation == halt.operation);
         CHECK(halt.execution == (lost ? M::ActionExecution::UNKNOWN : M::ActionExecution::ACKNOWLEDGED));
         CHECK(halt.outcome == (lost ? M::ActionOutcome::DEADLINE : M::ActionOutcome::CANCELLED));
         CHECK(r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::EMPTY);
@@ -1350,7 +1350,7 @@ void escalationFromObservation() {
         const L::ActionContext& halt = r.a.stopAction(L::StopKind::HALT);
         CHECK(halt.observations == 1 && halt.phase == L::ActionPhase::WAITING);
         CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[1] == 1);
-        const Saved<C::SdoCompletion> command(halt.commandEvidence);
+        const Saved<C::SdoCompletion> command(halt.commandHistory[0]);
         unsigned field = 0;
         if (inFlight) {
             r.drive[0].answer = false;
@@ -1379,13 +1379,13 @@ void escalationFromObservation() {
         }
         CHECK(halt.state == M::ActionState::FAILED && halt.outcome == M::ActionOutcome::CANCELLED &&
               halt.execution == M::ActionExecution::ACKNOWLEDGED);
-        command.unchanged(halt.commandEvidence);
+        command.unchanged(halt.commandHistory[0]);
         r.drive[0].monitor = 0;
         finish(r, r.a);
-        CHECK(quick.state == M::ActionState::SUCCEEDED && quick.commandEvidence.transfer.data[0] == 0x0b);
-        CHECK(quick.commandEvidence.transfer.operation == quick.operation);
+        CHECK(quick.state == M::ActionState::SUCCEEDED && quick.commandHistory[0].transfer.data[0] == 0x0b);
+        CHECK(quick.commandHistory[0].transfer.operation == quick.operation);
         CHECK(r.a.bestEffort().state == M::ActionState::EMPTY);
-        command.unchanged(halt.commandEvidence);
+        command.unchanged(halt.commandHistory[0]);
         unsigned halts = 0, quicks = 0;
         for (unsigned i = from; i < r.wire.sentCount; ++i) {
             halts += isWord(r, i, WORD_HALT);
@@ -1416,7 +1416,7 @@ void escalationFromObservation() {
             field = r.wire.sentCount - 1;
             CHECK(r.wire.sent[field].data[0] == 0x40 && frameIndex(r.wire.sent[field]) == 0x2100);
         }
-        const Saved<C::SdoCompletion> command(halt.commandEvidence);
+        const Saved<C::SdoCompletion> command(halt.commandHistory[0]);
         // Without a best-effort branch that evidence gap refuses it, and HALT carries on.
         const Saved<O::OwnerResources> resources(r.owner.resources());
         CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(r.now, 900, 0), r.now) == E::StopPath::NONE);
@@ -1433,7 +1433,7 @@ void escalationFromObservation() {
         }
         CHECK(halt.state == M::ActionState::FAILED && halt.outcome == M::ActionOutcome::CANCELLED &&
               halt.execution == M::ActionExecution::ACKNOWLEDGED);
-        command.unchanged(halt.commandEvidence);
+        command.unchanged(halt.commandHistory[0]);
         CHECK(r.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::EMPTY);
         finish(r, r.a);
         CHECK(writes6040(r, from) == 2 && isWord(r, from, WORD_HALT));
@@ -1478,7 +1478,7 @@ void prepareEscalationUnits() {
             deadline = limit + 101;
             break;
         case 1:
-            running.commandEvidencePresent = false;
+            running.commandEvidenceMask = 0;
             break;
         case 2:
             running.execution = M::ActionExecution::UNKNOWN;
@@ -1496,24 +1496,24 @@ void prepareEscalationUnits() {
             running.actionKind = M::ActionKind::CLEAR_ALARM;
             break;
         case 7:
-            running.commandEvidence.transfer.data[1] = 0; // 000F, not the HALT's word.
+            running.commandHistory[0].transfer.data[1] = 0; // 000F, not the HALT's word.
             break;
         case 8:
-            running.commandEvidence.transfer.data[0] = 0x0b;
-            running.commandEvidence.transfer.data[1] = 0;
+            running.commandHistory[0].transfer.data[0] = 0x0b;
+            running.commandHistory[0].transfer.data[1] = 0;
             break;
         case 9:
-            running.commandEvidence.transfer.data[0] = 0x1f;
-            running.commandEvidence.transfer.data[1] = 1;
+            running.commandHistory[0].transfer.data[0] = 0x1f;
+            running.commandHistory[0].transfer.data[1] = 1;
             break;
         case 10:
-            running.commandEvidence.protocolAcknowledged = false;
+            running.commandHistory[0].protocolAcknowledged = false;
             break;
         case 11:
-            running.commandEvidence.outcome = C::SdoOutcome::TIMEOUT;
+            running.commandHistory[0].outcome = C::SdoOutcome::TIMEOUT;
             break;
         case 12:
-            running.commandEvidence.completedUs = oldest + 1; // The cycle began before the ACK.
+            running.commandHistory[0].completedUs = oldest + 1; // The cycle began before the ACK.
             break;
         case 13:
             running.statusObservation.modeRaw = 3;
@@ -1549,10 +1549,10 @@ void prepareEscalationUnits() {
             budget.maximumAgeUs = 999;
             break;
         case 24:
-            running.commandEvidence.nodeGeneration = 99;
+            running.commandHistory[0].nodeGeneration = 99;
             break;
         case 25:
-            running.statusObservation.fields[0].earliestUs = running.commandEvidence.completedUs - 1;
+            running.statusObservation.fields[0].earliestUs = running.commandHistory[0].completedUs - 1;
             now = limit - 50; // Fresh, so only its order against the acknowledgement can reject it.
             deadline = limit;
             break;
@@ -2271,7 +2271,7 @@ void realServiceGapStillExpires() {
         CHECK(r.a.requestStop(L::StopKind::HALT, state, policy, r.now) == E::StopPath::CONFIRMED);
         const L::ActionContext& stop = r.a.stopAction(L::StopKind::HALT);
         r.steps(2);
-        CHECK(stop.phase == L::ActionPhase::OBSERVING && stop.commandEvidencePresent);
+        CHECK(stop.phase == L::ActionPhase::OBSERVING && (stop.commandEvidenceMask & 1u));
         r.steps(7); // Fields one to three settle, and field four goes out.
         CHECK(r.wire.sentCount == from + 5 && frameIndex(r.wire.sent[from + 4]) == 0x6041);
         const uint64_t limit = stop.read.values[0].provenance.earliestUs + policy.options.maximumAgeUs;
@@ -2366,8 +2366,8 @@ void alarmErrorsReadOnce() {
         CHECK(uploads(r, run.from, 0x1001) == 1 && uploads(r, run.from, 0x603f) == 1);
         CHECK(uploads(r, monitors, 0x1001) == 1 && uploads(r, monitors, 0x603f) == 1);
         CHECK(uploads(r, monitors, 0x2100) == 0);
-        CHECK(run.action.errorObservation.errorCode == 0x1000 + cycles &&
-              run.action.errorObservation.errorRegister == 1);
+        CHECK(run.action.extraObservation.errorCode == 0x1000 + cycles &&
+              run.action.extraObservation.errorRegister == 1);
         CHECK(run.action.monitorObservation.monitor == 0 && run.action.observations == cycles + 1);
         CHECK(run.action.completion == M::ActionCompletion::OBSERVED);
         quiet(r);
@@ -2661,8 +2661,8 @@ void supersededHaltSettlesAfterFinished() {
                 r.answer(from);
                 r.step();
             }
-            CHECK(halt.state == M::ActionState::FAILED && halt.commandEvidencePresent);
-            CHECK(halt.commandEvidence.transfer.data[0] == 0x0f && halt.commandEvidence.transfer.data[1] == 1);
+            CHECK(halt.state == M::ActionState::FAILED && (halt.commandEvidenceMask & 1u));
+            CHECK(halt.commandHistory[0].transfer.data[0] == 0x0f && halt.commandHistory[0].transfer.data[1] == 1);
             CHECK(halt.execution == (lost ? M::ActionExecution::UNKNOWN : M::ActionExecution::ACKNOWLEDGED));
             CHECK(halt.outcome == (lost ? M::ActionOutcome::DEADLINE : M::ActionOutcome::CANCELLED));
             CHECK(!r.a.latestControl()); // Never from a superseded terminal, even a success.
@@ -3227,7 +3227,7 @@ void waitingStopEnds() {
         const L::ActionContext& stop = r.a.stopAction(L::StopKind::HALT);
         r.steps(14);
         CHECK(stop.observations == 1 && stop.phase == L::ActionPhase::WAITING);
-        const Saved<C::SdoCompletion> command(stop.commandEvidence);
+        const Saved<C::SdoCompletion> command(stop.commandHistory[0]);
         const unsigned sent = r.wire.sentCount;
         CHECK(sent == from + 6);
         if (event == 0) {
@@ -3246,7 +3246,7 @@ void waitingStopEnds() {
         }
         CHECK(stop.state == M::ActionState::FAILED && stop.execution == M::ActionExecution::ACKNOWLEDGED &&
               stop.completion == M::ActionCompletion::NOT_OBSERVED && stop.uncertain);
-        command.unchanged(stop.commandEvidence);
+        command.unchanged(stop.commandHistory[0]);
         CHECK(r.a.stopPath() == E::StopPath::FINISHED && r.a.bestEffort().state == M::ActionState::EMPTY);
         quiet(r, sent);
     }
@@ -3262,7 +3262,75 @@ void unsupportedTerminalIsRejected() {
     before.unchanged(stop);
 }
 
+// Options shared with identity reads cannot refuse a stop.
+void identityWidthCannotRefuseStop() {
+    for (unsigned withHistory = 0; withHistory < 2; ++withHistory) {
+        Rig r;
+        openAxis(r, r.a);
+        L::ReadContext state;
+        if (withHistory)
+            history(r, r.a, state);
+        E::StopPolicy policy = stopPolicy(r.now);
+        policy.options.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+        const unsigned from = r.wire.sentCount;
+        CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, policy, r.now) != E::StopPath::NONE);
+        r.step();
+        CHECK(r.wire.sentCount == from + 1 && isWord(r, from, WORD_QUICK));
+    }
+}
+void invalidKindRefuses() {
+    Rig r;
+    openAxis(r, r.a);
+    L::ReadContext state;
+    const unsigned from = r.wire.sentCount;
+    CHECK(r.a.requestStop(static_cast<L::StopKind>(255), state, stopPolicy(r.now), r.now) == E::StopPath::NONE);
+    r.step();
+    CHECK(r.wire.sentCount == from && r.a.stopPath() == E::StopPath::NONE);
+}
+
 #define RUN(name) (scenario = #name, name())
+// A state read held inside the slot this request overwrites counts as missing. The retained
+// stop stays whole and the request takes the unsequenced branch.
+void stateHeldInTheSlotCountsAsMissing() {
+    Rig r;
+    openAxis(r, r.a);
+    r.drive[0].monitor = 0;
+    L::ReadContext state;
+    history(r, r.a, state);
+    CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(r.now), r.now) == E::StopPath::CONFIRMED);
+    finish(r, r.a);
+    write(r, r.a, 0x6040, WORD_ENABLE);
+    const L::ActionContext& slot = r.a.stopAction(L::StopKind::QUICK_STOP);
+    CHECK(slot.read.state == M::ReadState::SUCCEEDED);
+    const Saved<L::ActionContext> retained(slot);
+    const E::StopPath path = r.a.requestStop(L::StopKind::QUICK_STOP, slot.read, stopPolicy(r.now), r.now);
+    CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
+    retained.unchanged(slot);
+    finish(r, r.a);
+    retained.unchanged(slot);
+}
+// A sequenced stop the owner refuses changes nothing, including an earlier stop's history.
+void ownerRefusalKeepsRetainedStop() {
+    Rig r;
+    openAxis(r, r.a);
+    r.drive[0].monitor = 0;
+    L::ReadContext state;
+    history(r, r.a, state);
+    CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(r.now), r.now) == E::StopPath::CONFIRMED);
+    finish(r, r.a);
+    write(r, r.a, 0x6040, WORD_ENABLE);
+    readState(r, r.a, state);
+    const uint64_t at = r.now;
+    // The owner has seen a later time than the session asks with, so it refuses the operation.
+    CHECK(r.owner.service(at + 5, budget()));
+    const L::ActionContext& slot = r.a.stopAction(L::StopKind::QUICK_STOP);
+    CHECK(slot.state == M::ActionState::SUCCEEDED);
+    const Saved<E::AxisSession> session(r.a);
+    const unsigned sent = r.wire.sentCount;
+    CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, stopPolicy(at + 1), at + 1) == E::StopPath::NONE);
+    session.unchanged(r.a);
+    CHECK(r.wire.sentCount == sent);
+}
 void allScenarios() {
     RUN(triggerPollThenStop);
     RUN(lostTriggerThenBestEffort);
@@ -3307,7 +3375,11 @@ void allScenarios() {
     RUN(operationIdentityBoundary);
     RUN(busyExcludesReadsAndOperations);
     RUN(partialStateDecidesWhatItCan);
+    RUN(identityWidthCannotRefuseStop);
+    RUN(invalidKindRefuses);
     RUN(unsupportedTerminalIsRejected);
+    RUN(stateHeldInTheSlotCountsAsMissing);
+    RUN(ownerRefusalKeepsRetainedStop);
     RUN(waitingStopEnds);
 }
 } // namespace

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Native rate basis and soft-limit recovery (audit W8, packet 9)
+
+- Add `NativeRateBasis`, `AxisConfig::nativeRateBasis`, and the frozen `PreparedVelocityTarget::rateBasis` and `rateTime`. Rates quantize once, in the destination unit. **Migration:** the default `COMMAND_INCREMENTS` keeps old behavior, so a Lichuan rpm caller must set `MOTOR_TURNS` with `MINUTE` and check both before writing. A wrong basis gives an in-range wrong value, and nothing in the library refuses it.
+- Wrapped requests follow `supportedRelativeBases`, as relative ones do. **Migration:** the default of 0 rejects them.
+- A fresh native-known witness outside the soft limits may recover toward the range when both endpoints land inside (DEC-6). This deliberately differs from RS.
+- `configureAxis` treats a rate basis or time change like other rate settings.
+
+### Action stack and context size (audit W7)
+
+- Action, read and settings calls validate first and then write the caller's context in place. No call copies a context onto the stack, and a refused call still changes nothing. Every frame is now under 2,048 bytes and every known chain under 6,144 on both targets at `-Os` and `-Og`; those totals stay lower bounds where the graph is incomplete. `scripts/check_stack.py` runs with `--strict` in CI and the baseline is empty.
+- `ActionContext` shrinks from 7,504 to 4,880 bytes on the pinned Xtensa compiler, and `AxisSession` from 16,152 to 10,904.
+- Add `validateStop`, `validateEscalation`, `validateRead` and `validateStateBlock`, which report what the matching call would refuse and change nothing, plus `resetAction`, `resetRead` and `CanBusOwner::canRelease`. Reset with these: `context = ActionContext()` builds the whole temporary on the stack.
+- **Migration:** `ActionContext::originalState` is replaced by `AlarmIncident incident`, set for an alarm clear only. It keeps the raw prerequisite values and one earliest/latest bound, not each field's provenance, which is a contract change. A counter clear no longer retains its prerequisite read, and a stop never did. An application that needs the full read keeps its own copy.
+- **Migration:** `errorObservation` and `feedbackObservation` merge into `extraObservation`, selected by its `block`: raw ERRORS for an alarm clear, FEEDBACK for a counter clear, unused by a stop.
+- **Migration:** `commandEvidence` and `commandEvidencePresent` are removed from `ActionContext`. Read `commandHistory`: the effecting command is slot 0 for a stop or alarm clear and slot 1 for a counter clear, present when its `commandEvidenceMask` bit is set. `BestEffortStop` keeps its own fields.
+- **Migration:** action options with `identityWidths` other than `DECLARED_U16` are refused at admission by `stopOptionsValid`, `prepareStop`, `prepareEscalation`, `prepareClearAlarm` and `prepareSetDevicePosition`. They were accepted, then refused at the first observation after the command had been acknowledged.
+- `AxisSession::requestStop` validates before the owner moves and writes the stop's context only afterward. A state read held inside the `stopAction(kind)` this request overwrites counts as missing, so the request takes the unsequenced branch.
+
 ### Usable stop lifecycle (audit W6)
 
 - `prepareStop` accepts the DEC-8 mode 1 predecessors. `ActionContext` gains `predecessorWord`, `predecessorDocumented`, `predecessorBasis`. Undocumented rows are project decisions. An acknowledged controlword no longer expires by age.

@@ -713,8 +713,11 @@ bool CanBusOwner::localTxRetired(uint8_t slot) const noexcept {
 const Completion* CanBusOwner::result(RequestId id) const noexcept {
     return valid(id) && slots_[id.slot].terminal ? &slots_[id.slot].completion : nullptr;
 }
+bool CanBusOwner::canRelease(RequestId id) const noexcept {
+    return !entered_ && valid(id) && slots_[id.slot].terminal;
+}
 bool CanBusOwner::release(RequestId id) noexcept {
-    if (entered_ || !valid(id) || !slots_[id.slot].terminal)
+    if (!canRelease(id))
         return false;
     slots_[id.slot].occupied = false;
     return true;

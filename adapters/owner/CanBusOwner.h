@@ -258,6 +258,11 @@ class CanBusOwner {
      * @return False unchanged for pending/stale/foreign IDs or callback reentrancy.
      */
     bool release(RequestId id) noexcept;
+    /** Report whether release would succeed now, before work that depends on it.
+     * @param[in] id Request whose result would be released.
+     * @return True with a terminal result and outside an owner call.
+     */
+    bool canRelease(RequestId id) const noexcept;
     /** Synchronize a completed exclusive settings transaction's configuration epoch.
      * @param[in] id Live reservation; every owner request on this node must be released,
      * and every external handoff on the node must have proved local retirement.

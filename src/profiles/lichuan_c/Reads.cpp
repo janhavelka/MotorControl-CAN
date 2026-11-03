@@ -4,6 +4,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
+#include <new>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
@@ -111,42 +112,69 @@ bool driverKind(ReadKind kind) {
     return driverPlan(kind, count) != nullptr;
 }
 
-bool add(ReadContext& c, Address address) {
-    return c.count < READ_FIELDS &&
-           readDescriptor(address.index, address.subindex, c.values[c.count++].object);
-}
-bool plan(ReadContext& c) {
-    unsigned driverCount;
-    const Address* driverFields = driverPlan(c.kind, driverCount);
-    if (driverFields) {
-        for (unsigned i = 0; i < driverCount; ++i)
-            if (!add(c, driverFields[i]))
-                return false;
-    } else if (c.kind == ReadKind::IDENTITY) {
-        for (const Address& address : identity)
-            if (!add(c, address))
-                return false;
-    } else if (c.kind == ReadKind::CONFIG) {
-        for (const Address& address : configuration)
-            if (!add(c, address))
-                return false;
-    } else if (c.kind == ReadKind::PROBE) {
-        if (!add(c, identity[0]))
+// Visits the selected plan in slot order without touching any context.
+template <class Visit> bool visitPlan(ReadKind kind, uint8_t mask, Visit visit) {
+    unsigned count;
+    const Address* fields = driverPlan(kind, count);
+    if (!fields) {
+        if (kind == ReadKind::IDENTITY) {
+            fields = identity;
+            count = 9;
+        } else if (kind == ReadKind::CONFIG) {
+            fields = configuration;
+            count = 6;
+        } else if (kind == ReadKind::PROBE) {
+            fields = identity;
+            count = 1;
+        } else if (kind == ReadKind::STATE && mask && !(mask & 0xc0u)) {
+            for (unsigned b = 0; b < STATE_BLOCKS; ++b) {
+                if (!(mask & (1u << b)))
+                    continue;
+                for (unsigned i = 0; i < lengths[b]; ++i) {
+                    ReadDescriptor object;
+                    const Address address = state[starts[b] + i];
+                    if (!readDescriptor(address.index, address.subindex, object) ||
+                        !visit(object, b, i))
+                        return false;
+                }
+            }
+            return true;
+        } else
             return false;
-    } else if (c.kind == ReadKind::STATE && c.blockMask && !(c.blockMask & 0xc0u)) {
-        for (unsigned b = 0; b < STATE_BLOCKS; ++b) {
-            if (!(c.blockMask & (1u << b)))
-                continue;
-            c.blockStart[b] = c.count;
-            c.blockLength[b] = lengths[b];
-            for (unsigned i = 0; i < lengths[b]; ++i)
-                if (!add(c, state[starts[b] + i]))
-                    return false;
-        }
-    } else
-        return false;
+    }
+    for (unsigned i = 0; i < count; ++i) {
+        ReadDescriptor object;
+        if (!readDescriptor(fields[i].index, fields[i].subindex, object) ||
+            !visit(object, unsigned(STATE_BLOCKS), i))
+            return false;
+    }
     return true;
 }
+struct PlanWriter {
+    ReadContext& c;
+    bool operator()(const ReadDescriptor& object, unsigned block, unsigned slot) const {
+        if (block < STATE_BLOCKS && !slot) {
+            c.blockStart[block] = c.count;
+            c.blockLength[block] = lengths[block];
+        }
+        c.values[c.count++].object = object;
+        return true;
+    }
+};
+struct PlanNoop {
+    bool operator()(const ReadDescriptor&, unsigned, unsigned) const { return true; }
+};
+struct RouteFields {
+    const CANOPEN::PdoLayout& checked;
+    bool operator()(const ReadDescriptor& object, unsigned, unsigned) const {
+        for (unsigned j = 0; j < checked.mapping.count; ++j)
+            if (checked.fields[j].index == object.index &&
+                checked.fields[j].subindex == object.subindex &&
+                checked.fields[j].widthBytes == object.widthBytes)
+                return true;
+        return false;
+    }
+};
 // Slots 1 and 2 of the identity plan are 1009 and 100A. Only an explicit option selects this.
 bool measuredIdentityWidth(const ReadContext& c, unsigned slot) {
     return c.kind == ReadKind::IDENTITY && (slot == 1 || slot == 2) &&
@@ -277,37 +305,25 @@ bool qualified(const ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t 
            CANOPEN::pdoFreshness(record, now, UINT64_MAX, freshness) &&
            freshness == CANOPEN::PdoFreshness::FRESH;
 }
-Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation, uint64_t now,
-               uint64_t deadline, const ReadOptions& options, ReadKind kind, uint8_t mask,
-               const CANOPEN::PdoRoute* route) {
-    if (overlap(&output, sizeof output, &target, sizeof target) ||
-        overlap(&output, sizeof output, &options, sizeof options) ||
-        (route && overlap(&output, sizeof output, route, sizeof *route)))
-        return invalid(ReadError::OVERLAP, "read preparation overlaps input");
+// Everything preparation can refuse, with no output to touch.
+Status validateInputs(const ReadTarget& target, uint32_t operation, uint64_t now, uint64_t deadline,
+                      const ReadOptions& options, ReadKind kind, uint8_t mask,
+                      const CANOPEN::PdoRoute* route) {
     if (!validTarget(target))
         return invalid(ReadError::TARGET, "invalid read target or node epoch");
     if (!operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs ||
         options.identityWidths > IdentityWidths::MEASURED_U8 ||
         (options.identityWidths != IdentityWidths::DECLARED_U16 && kind != ReadKind::IDENTITY))
         return invalid(ReadError::ARGUMENT, "invalid read identity or budgets");
-    ReadContext candidate;
-    candidate.target = target;
-    candidate.operation = operation;
-    candidate.kind = kind;
-    candidate.state = ReadState::ACTIVE;
-    candidate.startedUs = candidate.servicedUs = now;
-    candidate.deadlineUs = deadline;
-    candidate.options = options;
-    candidate.blockMask = mask;
-    if (!plan(candidate))
+    if (!visitPlan(kind, mask, PlanNoop()))
         return invalid(ReadError::ARGUMENT, "invalid read selection");
-    for (unsigned i = 0; i < candidate.count; ++i)
-        if (measuredIdentityWidth(candidate, i))
-            candidate.values[i].object.widthBytes = 1;
-    if (kind == ReadKind::PROBE &&
-        candidate.values[0].object.readEffect != ReadEffect::ACCEPTED_UNQUALIFIED)
-        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::READ_EFFECT),
-                      "Q20: probe object is not on the accepted read list");
+    if (kind == ReadKind::PROBE) {
+        ReadDescriptor object;
+        if (!readDescriptor(identity[0].index, identity[0].subindex, object) ||
+            object.readEffect != ReadEffect::ACCEPTED_UNQUALIFIED)
+            return Status(Err::UNSUPPORTED, static_cast<int32_t>(ReadError::READ_EFFECT),
+                          "Q20: probe object is not on the accepted read list");
+    }
     if (route) {
         CANOPEN::PdoLayout checked;
         if (kind != ReadKind::STATE || !CANOPEN::validatePdoRoute(*route) ||
@@ -320,21 +336,39 @@ Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation
         rebuilt.layout = checked;
         if (!CANOPEN::samePdoRoute(rebuilt, *route))
             return invalid(ReadError::TARGET, "TPDO field facts differ from reviewed profile");
-        for (unsigned i = 0; i < candidate.count; ++i) {
-            const ReadDescriptor& object = candidate.values[i].object;
-            bool found = false;
-            for (unsigned j = 0; j < checked.mapping.count; ++j)
-                if (checked.fields[j].index == object.index &&
-                    checked.fields[j].subindex == object.subindex &&
-                    checked.fields[j].widthBytes == object.widthBytes)
-                    found = true;
-            if (!found)
-                return invalid(ReadError::ARGUMENT, "selected state fields are absent from TPDO");
-        }
-        candidate.source = ReadSource::TPDO;
-        candidate.pdoRoute = *route;
+        if (!visitPlan(kind, mask, RouteFields{checked}))
+            return invalid(ReadError::ARGUMENT, "selected state fields are absent from TPDO");
     }
-    output = candidate;
+    return Ok();
+}
+Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation, uint64_t now,
+               uint64_t deadline, const ReadOptions& options, ReadKind kind, uint8_t mask,
+               const CANOPEN::PdoRoute* route) {
+    if (overlap(&output, sizeof output, &target, sizeof target) ||
+        overlap(&output, sizeof output, &options, sizeof options) ||
+        (route && overlap(&output, sizeof output, route, sizeof *route)))
+        return invalid(ReadError::OVERLAP, "read preparation overlaps input");
+    const Status checked = validateInputs(target, operation, now, deadline, options, kind, mask, route);
+    if (!checked)
+        return checked;
+    // Nothing below can fail, and the overlap check above keeps every input readable.
+    new (static_cast<void*>(&output)) ReadContext();
+    output.target = target;
+    output.operation = operation;
+    output.kind = kind;
+    output.state = ReadState::ACTIVE;
+    output.startedUs = output.servicedUs = now;
+    output.deadlineUs = deadline;
+    output.options = options;
+    output.blockMask = mask;
+    visitPlan(kind, mask, PlanWriter{output});
+    for (unsigned i = 0; i < output.count; ++i)
+        if (measuredIdentityWidth(output, i))
+            output.values[i].object.widthBytes = 1;
+    if (route) {
+        output.source = ReadSource::TPDO;
+        output.pdoRoute = *route;
+    }
     return Ok();
 }
 void fail(ReadContext& c, ReadOutcome outcome, Status status, uint64_t now) {
@@ -419,6 +453,13 @@ Status prepareConfig(ReadContext& c, const ReadTarget& t, uint32_t operation, ui
                      uint64_t deadline, const ReadOptions& options) noexcept {
     return prepare(c, t, operation, now, deadline, options, ReadKind::CONFIG, 0, nullptr);
 }
+Status validateRead(ReadKind kind, const ReadTarget& target, uint32_t operation, uint64_t now,
+                 uint64_t deadline, const ReadOptions& options, uint8_t mask) noexcept {
+    return validateInputs(target, operation, now, deadline, options, kind, mask, nullptr);
+}
+void resetRead(ReadContext& c) noexcept {
+    new (static_cast<void*>(&c)) ReadContext();
+}
 Status nextRead(const ReadContext& c, uint64_t now, PreparedRead& output) noexcept {
     if (overlap(&c, sizeof c, &output, sizeof output))
         return invalid(ReadError::OVERLAP, "read work overlaps context");
@@ -444,7 +485,7 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
     if (!shape(c) || c.state != ReadState::ACTIVE || c.source != ReadSource::SDO ||
         c.cursor >= c.count)
         return invalid(ReadError::STATE, "not an active service read");
-    const CANOPEN::SdoCompletion evidence = input;
+    const CANOPEN::SdoCompletion& evidence = input; // The overlap check makes a copy unnecessary.
     const CANOPEN::SdoTransfer expected = work(c);
     if (!sameWork(evidence.transfer, expected) ||
         evidence.nodeGeneration != c.target.nodeGeneration)
@@ -466,30 +507,33 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
         (evidence.outcome == CANOPEN::SdoOutcome::SERVER_ABORT &&
          (!evidence.abortValid || !evidence.transmissionPossible)))
         return invalid(ReadError::CORRELATION, "inconsistent service terminal evidence");
-    ReadContext candidate = c;
-    candidate.evidence = evidence;
-    candidate.evidencePresent = true;
-    candidate.uncertain |= evidence.effectUncertain;
-    candidate.invalidated = evidence.outcome == CANOPEN::SdoOutcome::REBOOT ||
-                            evidence.outcome == CANOPEN::SdoOutcome::BINDING_INVALIDATED ||
-                            evidence.outcome == CANOPEN::SdoOutcome::BUS_OFF;
-    candidate.servicedUs = now;
-    if (now >= c.deadlineUs || evidence.completedUs >= c.deadlineUs)
-        fail(candidate, ReadOutcome::DEADLINE, invalid(ReadError::TIME, "read overall deadline"),
-             now);
+    const bool expired = now >= c.deadlineUs || evidence.completedUs >= c.deadlineUs;
+    uint32_t raw = 0;
+    if (success && !expired) {
+        // The one refusal left, taken before the first mutation.
+        const Status decoded = CANOPEN::readWord(evidence.data, evidence.size, expected.size, raw);
+        if (!decoded)
+            return decoded;
+    }
+    const unsigned slot = c.cursor;
+    c.evidence = evidence;
+    c.evidencePresent = true;
+    c.uncertain |= evidence.effectUncertain;
+    c.invalidated = evidence.outcome == CANOPEN::SdoOutcome::REBOOT ||
+                    evidence.outcome == CANOPEN::SdoOutcome::BINDING_INVALIDATED ||
+                    evidence.outcome == CANOPEN::SdoOutcome::BUS_OFF;
+    c.servicedUs = now;
+    if (expired)
+        fail(c, ReadOutcome::DEADLINE, invalid(ReadError::TIME, "read overall deadline"), now);
     else if (!success) {
         const ReadOutcome terminal = outcome(evidence.outcome);
-        fail(candidate, terminal,
+        fail(c, terminal,
              terminal == ReadOutcome::PROTOCOL_REJECTED
                  ? Status(Err::PROTOCOL_ERROR, 0, "native SDO rejection")
                  : invalid(ReadError::STATE, "read service failed"),
              now);
     } else {
-        ReadValue& value = candidate.values[c.cursor];
-        uint32_t raw = 0;
-        const Status decoded = CANOPEN::readWord(evidence.data, evidence.size, expected.size, raw);
-        if (!decoded)
-            return decoded;
+        ReadValue& value = c.values[slot];
         value.raw = raw;
         value.valid = true;
         value.provenance.binding = c.target.channel.binding;
@@ -500,12 +544,11 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
         value.provenance.latestUs = evidence.completedUs;
         value.provenance.deliveredUs = now;
         if (expected.index == 0x1003 && expected.subindex == 0 && raw > 4)
-            fail(candidate, ReadOutcome::REPLY_ERROR,
+            fail(c, ReadOutcome::REPLY_ERROR,
                  invalid(ReadError::VALUE, "error history exceeds four source entries"), now);
         else
-            progress(candidate);
+            progress(c);
     }
-    c = candidate;
     return Ok();
 }
 Status advanceRead(ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t now) noexcept {
@@ -519,10 +562,21 @@ Status advanceRead(ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t no
     CANOPEN::PdoSample decoded;
     if (!CANOPEN::decodePdo(record.observation.sample.frame, c.pdoRoute, decoded))
         return invalid(ReadError::VALUE, "invalid complete PDO frame");
-    ReadContext candidate = c;
+    // First pass refuses; the second cannot fail.
     for (unsigned i = 0; i < c.count; ++i) {
-        ReadValue& value = candidate.values[i];
+        const ReadValue& value = c.values[i];
         bool found = false;
+        for (unsigned j = 0; j < decoded.route.layout.mapping.count; ++j) {
+            const CANOPEN::PdoValue& source = decoded.values[j];
+            found |= source.object.index == value.object.index &&
+                     source.object.subindex == value.object.subindex &&
+                     source.object.widthBytes == value.object.widthBytes;
+        }
+        if (!found)
+            return invalid(ReadError::VALUE, "missing selected PDO field");
+    }
+    for (unsigned i = 0; i < c.count; ++i) {
+        ReadValue& value = c.values[i];
         for (unsigned j = 0; j < decoded.route.layout.mapping.count; ++j) {
             const CANOPEN::PdoValue& source = decoded.values[j];
             if (source.object.index != value.object.index ||
@@ -531,7 +585,6 @@ Status advanceRead(ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t no
                 continue;
             value.raw = source.raw;
             value.valid = true;
-            found = true;
             value.provenance.binding = c.target.channel.binding;
             value.provenance.nodeGeneration = c.target.nodeGeneration;
             value.provenance.mappingGeneration = c.pdoRoute.generation;
@@ -544,12 +597,9 @@ Status advanceRead(ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t no
             value.provenance.captureKnown = true;
             value.provenance.evidenceId = record.qualification.evidenceId;
         }
-        if (!found)
-            return invalid(ReadError::VALUE, "missing selected PDO field");
     }
-    candidate.servicedUs = now;
-    progress(candidate);
-    c = candidate;
+    c.servicedUs = now;
+    progress(c);
     return Ok();
 }
 Status advanceRead(ReadContext& c, ReadOutcome reason, uint64_t now) noexcept {
@@ -628,13 +678,13 @@ Status getConfig(const ReadContext& c, const ReadTarget& target, uint64_t now, u
     output = candidate;
     return Ok();
 }
-Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& target, uint64_t now,
-                     uint64_t age, StateObservation& output,
-                     const CANOPEN::PdoRecord* pdo) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target) ||
-        (pdo && overlap(&output, sizeof output, pdo, sizeof *pdo)))
-        return invalid(ReadError::OVERLAP, "state output overlaps input");
+Status validateStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& target,
+                       uint64_t now, uint64_t age, ReadWindow& window,
+                       const CANOPEN::PdoRecord* pdo) noexcept {
+    if (overlap(&window, sizeof window, &c, sizeof c) ||
+        overlap(&window, sizeof window, &target, sizeof target) ||
+        (pdo && overlap(&window, sizeof window, pdo, sizeof *pdo)))
+        return invalid(ReadError::OVERLAP, "state window overlaps input");
     Status status = current(c, target, now, age);
     if (!status)
         return status;
@@ -644,11 +694,9 @@ Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& t
     if ((c.source == ReadSource::TPDO && (!pdo || !qualified(c, *pdo, now))) ||
         (c.source == ReadSource::SDO && pdo))
         return invalid(ReadError::TARGET, "current PDO qualification unavailable");
-    StateObservation candidate;
-    candidate.target = c.target;
-    candidate.block = block;
     const unsigned start = c.blockStart[b], length = c.blockLength[b];
-    status = fields(c, start, length, now, age, candidate.window);
+    ReadWindow bounds;
+    status = fields(c, start, length, now, age, bounds);
     if (!status)
         return status;
     for (unsigned i = start; i < start + length; ++i) {
@@ -660,39 +708,60 @@ Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& t
              c.values[i].provenance.earliestUs <= pdo->qualification.establishedUs ||
              c.values[i].provenance.earliestUs <= pdo->boundaryUs))
             return invalid(ReadError::TARGET, "withdrawn PDO sample provenance");
-        candidate.fields[candidate.fieldCount++] = c.values[i].provenance;
     }
+    if (block == StateBlock::ERROR_HISTORY && c.values[start].raw > 4)
+        return invalid(ReadError::VALUE, "error history count out of range");
+    window = bounds;
+    return Ok();
+}
+Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& target, uint64_t now,
+                     uint64_t age, StateObservation& output,
+                     const CANOPEN::PdoRecord* pdo) noexcept {
+    if (overlap(&output, sizeof output, &c, sizeof c) ||
+        overlap(&output, sizeof output, &target, sizeof target) ||
+        (pdo && overlap(&output, sizeof output, pdo, sizeof *pdo)))
+        return invalid(ReadError::OVERLAP, "state output overlaps input");
+    ReadWindow window;
+    const Status status = validateStateBlock(c, block, target, now, age, window, pdo);
+    if (!status)
+        return status;
+    new (static_cast<void*>(&output)) StateObservation();
+    output.target = c.target;
+    output.block = block;
+    output.window = window;
+    const unsigned b = static_cast<unsigned>(block);
+    const unsigned start = c.blockStart[b], length = c.blockLength[b];
+    for (unsigned i = start; i < start + length; ++i)
+        if (required(c, i))
+            output.fields[output.fieldCount++] = c.values[i].provenance;
     const ReadValue* v = c.values + start;
     switch (block) {
     case StateBlock::ERRORS:
-        candidate.errorRegister = uint8_t(v[0].raw);
-        candidate.errorCode = uint16_t(v[1].raw);
+        output.errorRegister = uint8_t(v[0].raw);
+        output.errorCode = uint16_t(v[1].raw);
         break;
     case StateBlock::ERROR_HISTORY:
-        if (v[0].raw > 4)
-            return invalid(ReadError::VALUE, "error history count out of range");
-        candidate.errorCount = uint8_t(v[0].raw);
-        for (unsigned i = 0; i < candidate.errorCount; ++i)
-            candidate.errorHistory[i] = v[i + 1].raw;
+        output.errorCount = uint8_t(v[0].raw);
+        for (unsigned i = 0; i < output.errorCount; ++i)
+            output.errorHistory[i] = v[i + 1].raw;
         break;
     case StateBlock::MONITORS:
-        candidate.monitor = uint16_t(v[0].raw);
-        candidate.logicalInputs = uint16_t(v[1].raw);
-        candidate.logicalOutputs = uint16_t(v[2].raw);
+        output.monitor = uint16_t(v[0].raw);
+        output.logicalInputs = uint16_t(v[1].raw);
+        output.logicalOutputs = uint16_t(v[2].raw);
         break;
     case StateBlock::STATUS:
-        candidate.statusword = uint16_t(v[0].raw);
-        candidate.modeRaw = uint8_t(v[1].raw);
+        output.statusword = uint16_t(v[0].raw);
+        output.modeRaw = uint8_t(v[1].raw);
         break;
     case StateBlock::FEEDBACK:
-        candidate.actualPosition = signed32(v[0].raw);
-        candidate.actualVelocity = signed32(v[1].raw);
+        output.actualPosition = signed32(v[0].raw);
+        output.actualVelocity = signed32(v[1].raw);
         break;
     case StateBlock::INPUTS:
-        candidate.digitalInputs = v[0].raw;
+        output.digitalInputs = v[0].raw;
         break;
     }
-    output = candidate;
     return Ok();
 }
 Status prepareDriverRead(DriverContext& c, const ReadTarget& target, uint32_t operation,

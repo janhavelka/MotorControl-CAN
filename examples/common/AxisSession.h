@@ -110,8 +110,10 @@ class AxisSession {
      * branch, whatever kind was asked for, when the policy allows it.
      * @param[in] kind Native selection for the sequenced path.
      * @param[in] state Application's latest complete state read. A read still in progress
-     * counts as missing: keep the last complete copy for this.
-     * @param[in] policy Copied caller limits; invalid budgets refuse the request.
+     * counts as missing: keep the last complete copy for this. It must not be held inside
+     * stopAction(kind), which this request overwrites: that also counts as missing.
+     * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity
+     * width setting is ignored, so options shared with identity reads cannot refuse a stop.
      * @param[in] nowUs Nondecreasing supplied microseconds.
      * @return The path taken; NONE when refused, with only a stale controlword withdrawn.
      */

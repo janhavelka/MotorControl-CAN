@@ -59,7 +59,8 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     controllerEpoch_ = owner_.controllerEpoch();
     pending_ = urgent_ = superseded_ = RequestId();
     controlPresent_ = recoveryUsed_ = false;
-    stops_[0] = stops_[1] = L::ActionContext();
+    L::resetAction(stops_[0]);
+    L::resetAction(stops_[1]);
     bestEffort_ = firstBestEffort_ = L::BestEffortStop();
     path_ = StopPath::NONE;
     ownsReservation_ = taken;
@@ -143,8 +144,11 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
             (status.modeRaw != 1 || (status.statusword & 7u) != 7));
 }
 StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
-                                  const StopPolicy& policy, uint64_t now) noexcept {
-    if (!open_ || now < lastUs_ || policy.deadlineUs <= now ||
+                                  const StopPolicy& requested, uint64_t now) noexcept {
+    // This width concerns identity reads. A stop reads none, so it cannot refuse a stop.
+    StopPolicy policy = requested;
+    policy.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+    if (!open_ || kind > L::StopKind::QUICK_STOP || now < lastUs_ || policy.deadlineUs <= now ||
         (policy.bestEffortDeadlineUs && policy.bestEffortDeadlineUs < policy.deadlineUs) ||
         !L::stopOptionsValid(policy.options))
         return StopPath::NONE;
@@ -164,14 +168,15 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     if (last > UINT32_MAX - 3)
         return StopPath::NONE;
     const uint32_t next = last + 1;
-    L::ActionContext candidate;
+    // Check everything before the owner moves; the context is written only once that succeeded.
+    L::ActionContext& slot = stops_[static_cast<unsigned>(kind)];
+    L::ActionContext& halt = stops_[static_cast<unsigned>(L::StopKind::HALT)];
     const M::Status prepared =
         escalating
-            ? L::prepareEscalation(candidate, stops_[static_cast<unsigned>(L::StopKind::HALT)], next,
-                                   now, policy.deadlineUs, policy.options)
+            ? L::validateEscalation(slot, halt, next, now, policy.deadlineUs, policy.options)
         : controlPresent_
-            ? L::prepareStop(candidate, reservation_, state, control_, kind, next, now,
-                             policy.deadlineUs, policy.options)
+            ? L::validateStop(slot, reservation_, state, control_, kind, next, now, policy.deadlineUs,
+                           policy.options)
             : M::Status(M::Err::INVALID_CONFIG, 0, "no latest controlword");
     const bool sequenced = s && prepared.isOk();
     M::Generation node = 0;
@@ -183,6 +188,14 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     const uint64_t deadline = sequenced ? policy.deadlineUs : policy.bestEffortDeadlineUs;
     if (s && !owner_.beginUrgentOperation(sequence_, next, deadline, now) && sequenced)
         return StopPath::NONE;
+    if (sequenced) {
+        // Same values as the check above, and only the owner moved, so neither can refuse.
+        if (escalating)
+            L::prepareEscalation(slot, halt, next, now, policy.deadlineUs, policy.options);
+        else
+            L::prepareStop(slot, reservation_, state, control_, kind, next, now, policy.deadlineUs,
+                           policy.options);
+    }
     if (escalating) {
         // Its in-flight request settles into its own context and holds the slot until then.
         L::ActionContext& old = stops_[static_cast<unsigned>(L::StopKind::HALT)];
@@ -198,7 +211,6 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     epochLimit_ = owner_.recoveryActive() ? epoch : epoch + 1; // A running recovery is the one.
     lastUs_ = now;
     if (sequenced) {
-        stops_[static_cast<unsigned>(kind)] = candidate;
         activeKind_ = kind;
         path_ = StopPath::CONFIRMED;
         serviceConfirmed(now);

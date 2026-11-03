@@ -375,6 +375,72 @@ void fakeBoundsAndAtomicRefusals() {
         CHECK(fake.push(heartbeat(5)));
     CHECK(!fake.push(heartbeat(5)) && fake.ingressUsed() == E::FakeTransport::INGRESS_CAPACITY);
 }
+// Release can refuse only inside an owner call, and then the read must not have moved.
+struct ReentrantFake : E::FakeTransport {
+    E::ProbeApp* app = nullptr;
+    uint64_t now = 0;
+    unsigned refused = 0;
+    bool (*inner)(void*, O::ReceivedFrame&) = nullptr;
+    static bool receive(void* context, O::ReceivedFrame& output) {
+        ReentrantFake& self = *static_cast<ReentrantFake*>(static_cast<E::FakeTransport*>(context));
+        if (self.app) {
+            const Saved<L::ReadContext> before(self.app->readContext());
+            CHECK(!self.app->advanceRead(self.now));
+            before.unchanged(self.app->readContext());
+            self.app = nullptr;
+            ++self.refused;
+        }
+        return self.inner(context, output);
+    }
+    O::Transport reentrantCallbacks() {
+        O::Transport value = callbacks();
+        inner = value.receive;
+        value.receive = receive;
+        return value;
+    }
+};
+void advanceRefusedWhileReleaseCannotRun() {
+    C::SdoClient services;
+    ReentrantFake fake;
+    Bytes bytes;
+    E::ProbePlatform platform(bytes.callbacks());
+    O::CanBusOwner owner(services, fake.reentrantCallbacks(), 126);
+    E::ProbeApp app(owner, platform);
+    const L::ReadTarget target = E::FakeTransport::target();
+    CHECK(services.configure(0, target.channel, true, true));
+    C::NetworkRoute network;
+    network.binding = target.channel.binding;
+    network.generation = target.nodeGeneration;
+    network.heartbeatId = 0x705;
+    network.emcyId = 0x85;
+    CHECK(services.configureNetwork(0, network, C::NetworkObserver(), 0));
+    CHECK(app.select(target));
+    // A refused request moves neither the read nor the owner's operation.
+    const Saved<O::OwnerResources> resources(owner.resources());
+    CHECK(!app.requestIdentity(0, 0, options()));
+    CHECK(app.readContext().state == M::ReadState::EMPTY);
+    resources.unchanged(owner.resources());
+    CHECK(app.requestIdentity(0, 1000, options()));
+    uint64_t now = 0;
+    const O::Completion* terminal = nullptr;
+    for (unsigned i = 0; i < 20 && !terminal; ++i) {
+        CHECK(fake.setTime(++now));
+        bytes.now = now;
+        CHECK(app.service(now));
+        terminal = owner.result(app.pendingRequest());
+    }
+    CHECK(terminal && owner.canRelease(app.pendingRequest()));
+    const O::RequestId pending = app.pendingRequest();
+    fake.app = &app;
+    fake.now = now;
+    CHECK(fake.setTime(++now));
+    bytes.now = now;
+    CHECK(app.service(now));
+    CHECK(fake.refused == 1 && owner.result(pending));
+    CHECK(app.advanceRead(now));
+    CHECK(!owner.result(pending) && !owner.canRelease(pending));
+    CHECK(app.readContext().values[0].valid);
+}
 } // namespace
 int main() {
     startupAndSuccess();
@@ -384,5 +450,6 @@ int main() {
     cancellationAndQueueCutoff();
     resetInvalidatesCurrentEvidence();
     fakeBoundsAndAtomicRefusals();
+    advanceRefusedWhileReleaseCannotRun();
     std::printf("probe_app: %u checks passed (synthetic only)\n", checks);
 }

@@ -273,7 +273,7 @@ void exactCommandsAndObservedReport() {
             CHECK(action.execution == M::ActionExecution::ACKNOWLEDGED &&
                   action.state == M::ActionState::ACTIVE &&
                   action.completion == M::ActionCompletion::NOT_OBSERVED);
-            const Saved<C::SdoCompletion> command(action.commandEvidence);
+            const Saved<C::SdoCompletion> command(action.commandHistory[0]);
             // High status bits, including conflicting source dialect flags, do
             // not decide this narrow monitor-based completion contract.
             r.cycle(action, 0xff80, 0xffff);
@@ -282,7 +282,7 @@ void exactCommandsAndObservedReport() {
                   action.completion == M::ActionCompletion::OBSERVED && action.observationKnown &&
                   action.observations == 1);
             CHECK(r.wire.sentCount == before + 6);
-            command.unchanged(action.commandEvidence);
+            command.unchanged(action.commandHistory[0]);
             const Saved<L::ActionContext> terminal(action);
             CHECK(!r.next(action).ready);
             CHECK(!L::advanceAction(action, r.reservation, target(), M::ActionOutcome::CANCELLED,
@@ -396,7 +396,7 @@ void contradictoryObservationsAndAbort() {
         L::ActionContext action;
         r.prepare(action, L::StopKind::QUICK_STOP);
         r.field(action, 0x6040);
-        const Saved<C::SdoCompletion> command(action.commandEvidence);
+        const Saved<C::SdoCompletion> command(action.commandHistory[0]);
         if (scenario < 3) {
             r.cycle(action, scenario == 0 ? 8 : scenario == 1 ? 16 : 0, 7, scenario == 2 ? 6 : 1);
             CHECK(action.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
@@ -408,7 +408,7 @@ void contradictoryObservationsAndAbort() {
         CHECK(action.state == M::ActionState::FAILED && action.uncertain &&
               action.execution == M::ActionExecution::ACKNOWLEDGED &&
               action.completion == M::ActionCompletion::NOT_OBSERVED);
-        command.unchanged(action.commandEvidence);
+        command.unchanged(action.commandHistory[0]);
     }
     Rig rejected;
     rejected.prerequisites();
@@ -417,8 +417,8 @@ void contradictoryObservationsAndAbort() {
     rejected.field(action, 0x6040, 0x08000022, true);
     CHECK(action.state == M::ActionState::FAILED &&
           action.outcome == M::ActionOutcome::PROTOCOL_REJECTED &&
-          action.execution == M::ActionExecution::REJECTED && action.commandEvidence.abortValid &&
-          action.commandEvidence.abortCode == 0x08000022);
+          action.execution == M::ActionExecution::REJECTED && action.commandHistory[0].abortValid &&
+          action.commandHistory[0].abortCode == 0x08000022);
     CHECK(rejected.wire.sentCount == 7);
 }
 
@@ -656,7 +656,7 @@ void generationsRebootFaultAndCorrelation() {
         L::ActionContext action;
         r.prepare(action);
         r.field(action, 0x6040);
-        const Saved<C::SdoCompletion> command(action.commandEvidence);
+        const Saved<C::SdoCompletion> command(action.commandHistory[0]);
         if (reboot) {
             M::Frame boot = frame(0x701, 1);
             r.wire.push(boot, r.now + 1);
@@ -672,7 +672,7 @@ void generationsRebootFaultAndCorrelation() {
         }
         CHECK(action.state == M::ActionState::FAILED && action.uncertain &&
               action.execution == M::ActionExecution::ACKNOWLEDGED);
-        command.unchanged(action.commandEvidence);
+        command.unchanged(action.commandHistory[0]);
         CHECK(r.wire.sentCount == 7);
     }
     Rig r;
@@ -875,7 +875,7 @@ void everyObservationFieldCanFailIndependently() {
             L::ActionContext action;
             r.prepare(action);
             r.field(action, 0x6040);
-            const Saved<C::SdoCompletion> command(action.commandEvidence);
+            const Saved<C::SdoCompletion> command(action.commandHistory[0]);
             for (unsigned i = 0; i < failed; ++i)
                 r.field(action, indices[i], values[i]);
             const L::PreparedAction work = r.next(action);
@@ -901,7 +901,7 @@ void everyObservationFieldCanFailIndependently() {
                   action.observationEvidence.abortValid == bool(abort));
             if (abort)
                 CHECK(action.observationEvidence.abortCode == 0x08000023);
-            command.unchanged(action.commandEvidence);
+            command.unchanged(action.commandHistory[0]);
             const Saved<L::ActionContext> closed(action);
             const Saved<O::Completion> retained(r.done(id));
             const unsigned count = r.wire.sentCount;
@@ -921,7 +921,7 @@ void cancelBetweenObservationCycles() {
     r.field(action, 0x6040);
     r.cycle(action, 4);
     CHECK(action.phase == L::ActionPhase::WAITING && action.eligibleUs > r.now + 1);
-    const Saved<C::SdoCompletion> command(action.commandEvidence);
+    const Saved<C::SdoCompletion> command(action.commandHistory[0]);
     const Saved<C::SdoCompletion> observation(action.observationEvidence);
     const Saved<L::ReadContext> unadmittedRead(action.read);
     const unsigned count = r.wire.sentCount;
@@ -930,7 +930,7 @@ void cancelBetweenObservationCycles() {
     CHECK(action.state == M::ActionState::FAILED && action.outcome == M::ActionOutcome::CANCELLED &&
           action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain &&
           action.completion == M::ActionCompletion::NOT_OBSERVED);
-    command.unchanged(action.commandEvidence);
+    command.unchanged(action.commandHistory[0]);
     observation.unchanged(action.observationEvidence);
     unadmittedRead.unchanged(action.read); // No fabricated cancellation/effect of an unsent read.
     r.turn(action.eligibleUs);
@@ -961,7 +961,7 @@ void overlappingInputsAndInvalidPoliciesAreAtomic() {
     initial.unchanged(action);
     CHECK(!L::noteActionTransmission(action, r.reservation, action.reservation.target, r.now));
     initial.unchanged(action);
-    CHECK(!L::advanceAction(action, r.reservation, target(), action.commandEvidence, r.now));
+    CHECK(!L::advanceAction(action, r.reservation, target(), action.commandHistory[0], r.now));
     initial.unchanged(action);
     CHECK(!L::advanceAction(action, action.reservation, target(), M::ActionOutcome::CANCELLED,
                             r.now));
@@ -1059,7 +1059,7 @@ void uncertainEnqueueRefusalAndObservedEmcy() {
     L::ActionContext action;
     fault.prepare(action);
     fault.field(action, 0x6040);
-    const Saved<C::SdoCompletion> command(action.commandEvidence);
+    const Saved<C::SdoCompletion> command(action.commandHistory[0]);
     const Saved<L::ActionContext> beforeEvent(action);
     M::Frame emcy = frame(0x81, 8);
     emcy.data[0] = 0x23;
@@ -1077,8 +1077,102 @@ void uncertainEnqueueRefusalAndObservedEmcy() {
     CHECK(action.state == M::ActionState::FAILED &&
           action.outcome == M::ActionOutcome::DRIVE_FAULT &&
           action.execution == M::ActionExecution::ACKNOWLEDGED && action.uncertain);
-    command.unchanged(action.commandEvidence);
+    command.unchanged(action.commandHistory[0]);
     CHECK(fault.wire.sentCount == 7 && fault.services.node(0)->emcy.errorCode == 0x8123);
+}
+void identityWidthsRefusedAtAdmission() {
+    Rig r;
+    r.prerequisites();
+    L::ActionOptions measured = r.actionOptions();
+    measured.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+    CHECK(L::stopOptionsValid(r.actionOptions()) && !L::stopOptionsValid(measured));
+    L::ActionContext action;
+    const Saved<L::ActionContext> empty(action);
+    r.begin();
+    const M::Status refused = L::prepareStop(action, r.reservation, r.state, r.control,
+                                             L::StopKind::HALT, r.operation, r.now, r.deadline, measured);
+    CHECK(!refused && refused.detail == int32_t(M::ActionError::ARGUMENT));
+    empty.unchanged(action);
+    CHECK(!L::validateStop(action, r.reservation, r.state, r.control, L::StopKind::HALT, r.operation,
+                           r.now, r.deadline, measured));
+    L::ActionContext running;
+    CHECK(!L::prepareEscalation(action, running, r.operation, r.now, r.deadline, measured));
+    empty.unchanged(action);
+}
+void validationMatchesPreparationAndChangesNothing() {
+    Rig r;
+    r.prerequisites();
+    L::ActionContext action;
+    const Saved<L::ActionContext> empty(action);
+    const Saved<L::ReadContext> state(r.state);
+    r.begin();
+    CHECK(L::validateStop(action, r.reservation, r.state, r.control, L::StopKind::HALT, r.operation,
+                          r.now, r.deadline, r.actionOptions()));
+    empty.unchanged(action);
+    state.unchanged(r.state);
+    CHECK(L::prepareStop(action, r.reservation, r.state, r.control, L::StopKind::HALT, r.operation,
+                         r.now, r.deadline, r.actionOptions()));
+    CHECK(!action.incident.present && action.extraObservation.fieldCount == 0);
+    CHECK(action.statusObservation.statusword == 7 && action.monitorObservation.monitor == 4);
+    // Output overlap is part of validation, so a caller learns it before anything moves.
+    const Saved<L::ActionContext> prepared(action);
+    const M::Status overlap = L::validateStop(action, r.reservation, action.read, r.control,
+                                              L::StopKind::HALT, r.operation, r.now, r.deadline,
+                                              r.actionOptions());
+    CHECK(!overlap && overlap.detail == int32_t(M::ActionError::OVERLAP));
+    prepared.unchanged(action);
+    const M::Status self = L::validateEscalation(action, action, r.operation, r.now, r.deadline,
+                                                 r.actionOptions());
+    CHECK(!self && self.detail == int32_t(M::ActionError::OVERLAP));
+    L::resetAction(action);
+    CHECK(action.state == M::ActionState::EMPTY && !action.operation && !action.incident.present &&
+          action.read.state == M::ReadState::EMPTY && !action.statusObservation.fieldCount);
+}
+// A forged setting makes the next cycle unpreparable. The refusal must come before the read
+// or anything else moves: at the last command, at every field and at a cycle's last field.
+void unpreparableCycleRefusesBeforeAnyMutation() {
+    Rig r;
+    r.prerequisites();
+    L::ActionContext action;
+    r.prepare(action);
+    const auto refuseThenAccept = [&](const C::SdoCompletion& terminal) {
+        action.options.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+        const Saved<L::ActionContext> refused(action);
+        const M::Status status = L::advanceAction(action, r.reservation, target(), terminal, r.now);
+        CHECK(!status && status.detail == int32_t(M::ReadError::ARGUMENT));
+        refused.unchanged(action);
+        action.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+        CHECK(L::advanceAction(action, r.reservation, target(), terminal, r.now));
+    };
+    L::PreparedAction work = r.next(action);
+    O::RequestId id = r.admit(work.transfer, true);
+    r.turn(r.now);
+    refuseThenAccept(r.complete(id, work.transfer));
+    CHECK(action.phase == L::ActionPhase::OBSERVING && action.read.state == M::ReadState::ACTIVE);
+    const uint32_t values[] = {4, 0xa580, 0xf008, 7, 1};
+    for (uint32_t value : values) {
+        work = r.next(action);
+        id = r.admit(work.transfer, true);
+        r.turn(r.now);
+        refuseThenAccept(r.complete(id, work.transfer, value));
+    }
+    CHECK(action.phase == L::ActionPhase::WAITING && action.observations == 1);
+}
+// The read refuses its own withdrawal, before the action has moved.
+void refusedReadWithdrawalLeavesActionUnchanged() {
+    Rig r;
+    r.prerequisites();
+    L::ActionContext action;
+    r.prepare(action);
+    r.field(action, 0x6040);
+    CHECK(action.phase == L::ActionPhase::OBSERVING);
+    ++action.read.values[0].object.index;
+    const Saved<L::ActionContext> refused(action);
+    CHECK(!L::advanceAction(action, r.reservation, target(), M::ActionOutcome::CANCELLED, r.now));
+    refused.unchanged(action);
+    --action.read.values[0].object.index;
+    CHECK(L::advanceAction(action, r.reservation, target(), M::ActionOutcome::CANCELLED, r.now));
+    CHECK(action.state == M::ActionState::FAILED && action.outcome == M::ActionOutcome::CANCELLED);
 }
 } // namespace
 
@@ -1100,5 +1194,9 @@ int main() {
     overlappingInputsAndInvalidPoliciesAreAtomic();
     nearMaximumTimeAndBackwardCalls();
     uncertainEnqueueRefusalAndObservedEmcy();
+    identityWidthsRefusedAtAdmission();
+    validationMatchesPreparationAndChangesNothing();
+    unpreparableCycleRefusesBeforeAnyMutation();
+    refusedReadWithdrawalLeavesActionUnchanged();
     std::printf("stop action: %u checks\n", checks);
 }

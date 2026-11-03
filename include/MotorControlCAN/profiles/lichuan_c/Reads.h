@@ -244,6 +244,24 @@ Status prepareState(ReadContext& output, const ReadTarget& target, uint32_t oper
  */
 Status prepareConfig(ReadContext& output, const ReadTarget& target, uint32_t operation,
                      uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options) noexcept;
+/** Report what preparing this read would refuse, changing nothing. For a caller that must
+ * know before it moves other state, and only then writes a context.
+ * @param[in] kind Read to prepare; IDENTITY, CONFIG, PROBE, STATE and driver kinds alike.
+ * @param[in] target As the prepare call.
+ * @param[in] operation As the prepare call.
+ * @param[in] nowUs As the prepare call.
+ * @param[in] deadlineUs As the prepare call.
+ * @param[in] options As the prepare call.
+ * @param[in] blockMask StateBlock bits for STATE, zero for every other kind.
+ * @return The status the prepare call would give, overlap with its output aside. OK means that
+ * call with these same unchanged SDO values cannot refuse. TPDO routes are not checked here.
+ */
+Status validateRead(ReadKind kind, const ReadTarget& target, uint32_t operation, uint64_t nowUs,
+                    uint64_t deadlineUs, const ReadOptions& options, uint8_t blockMask = 0) noexcept;
+/** Return a context to EMPTY in place. `context = ReadContext()` builds a stack temporary.
+ * @param[out] context Context to reset; its retained history is gone.
+ */
+void resetRead(ReadContext& context) noexcept;
 /** Yield current owned work without admission, I/O or mutation.
  * @param[in] context Prepared context; EMPTY is invalid.
  * @param[in] nowUs Supplied time at least servicedUs; active calls precede deadline.
@@ -310,6 +328,20 @@ Status getIdentity(const ReadContext& context, const ReadTarget& current, uint64
 Status getStateBlock(const ReadContext& context, StateBlock block, const ReadTarget& current,
                      uint64_t nowUs, uint64_t maximumAgeUs, StateObservation& output,
                      const CANOPEN::PdoRecord* currentPdo = nullptr) noexcept;
+/** Report what getStateBlock would refuse, publishing nothing.
+ * @param[in] context As getStateBlock.
+ * @param[in] block As getStateBlock.
+ * @param[in] current As getStateBlock.
+ * @param[in] nowUs As getStateBlock.
+ * @param[in] maximumAgeUs As getStateBlock.
+ * @param[out] window Earliest, latest and skew of the block's required fields; set only on OK.
+ * @param[in] currentPdo As getStateBlock.
+ * @return The status getStateBlock would give, overlap with its output aside. OK means that call
+ * with these same unchanged values cannot refuse.
+ */
+Status validateStateBlock(const ReadContext& context, StateBlock block, const ReadTarget& current,
+                          uint64_t nowUs, uint64_t maximumAgeUs, ReadWindow& window,
+                          const CANOPEN::PdoRecord* currentPdo = nullptr) noexcept;
 /** Publish the complete current six-field communication configuration read.
  * @param[in] context Successful CONFIG context; partial values remain historical only.
  * @param[in] current Full current channel/binding/node epochs.
