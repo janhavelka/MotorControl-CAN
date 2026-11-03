@@ -314,7 +314,7 @@ struct SettingsWriteRig {
             finishRead(prior.read, now, {});
             L::DriverSettings candidate;
             candidate.positionSpeedRpm = candidate.rampUpTimeMs = candidate.rampDownTimeMs = 2;
-            CHECK(L::prepareDriverSettings(c, live, prior, state, control, candidate, 41, STEP_AT,
+            CHECK(L::prepareDriverSettings(c, live, live.target, prior, state, control, candidate, 41, STEP_AT,
                                            CUTOFF, o, 100000));
         } else if (variant == 1) {
             CHECK(L::prepareDriverRead(prior, target(), 3, now, CUTOFF, options(),
@@ -324,13 +324,13 @@ struct SettingsWriteRig {
             candidate.invertedInputs = 0x55;
             for (L::InputFunction& function : candidate.functions)
                 function = L::InputFunction::STOP;
-            CHECK(L::prepareIoSettings(c, live, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
+            CHECK(L::prepareIoSettings(c, live, live.target, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
         } else {
             CHECK(L::prepareControlRead(prior, target(), 3, now, CUTOFF, options()));
             finishRead(prior.read, now, {});
             L::ControlSettings candidate;
             candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-            CHECK(L::prepareControlSettings(c, live, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
+            CHECK(L::prepareControlSettings(c, live, live.target, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
         }
         L::PreparedRead p;
         CHECK(L::nextDriver(c, live, binding, STEP_AT, p) && p.ready);
@@ -382,14 +382,14 @@ struct SettingsReadbackRig {
             finishRead(prior.read, now, {});
             L::DriverSettings candidate;
             candidate.positionSpeedRpm = candidate.rampUpTimeMs = candidate.rampDownTimeMs = 2;
-            CHECK(L::prepareDriverSettings(c, live, prior, state, control, candidate, 41, now, CUTOFF,
+            CHECK(L::prepareDriverSettings(c, live, live.target, prior, state, control, candidate, 41, now, CUTOFF,
                                            o, 100000));
         } else {
             CHECK(L::prepareControlRead(prior, target(), 3, now, CUTOFF, options()));
             finishRead(prior.read, now, {});
             L::ControlSettings candidate;
             candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-            CHECK(L::prepareControlSettings(c, live, prior, candidate, 41, now, CUTOFF, o, 100000));
+            CHECK(L::prepareControlSettings(c, live, live.target, prior, candidate, 41, now, CUTOFF, o, 100000));
         }
         while (c.state == L::SettingsState::WRITING) {
             L::PreparedRead p;
@@ -821,7 +821,7 @@ void correlationLossWithdrawsEarlierBlocks() {
         const Saved<L::DriverSettingsContext> blankSettings(settings);
         L::DriverSettings candidate;
         candidate.positionSpeedRpm = candidate.rampUpTimeMs = candidate.rampDownTimeMs = 2;
-        CHECK(refusedAs(L::prepareDriverSettings(settings, reservation(), prior, c, control, candidate, 41, later,
+        CHECK(refusedAs(L::prepareDriverSettings(settings, reservation(), reservation().target, prior, c, control, candidate, 41, later,
                                                  CUTOFF, options(), 100000),
                         M::ReadError::STATE));
         CHECK(blankSettings.same(settings));
@@ -936,7 +936,7 @@ struct RetirementRig {
         return read;
     }
     M::Status prepareNoOp(L::DriverSettingsContext& out, const L::DriverContext& from) {
-        return L::prepareDriverSettings(out, live, from, state, control, retainedValues(), 41, now, 1000000,
+        return L::prepareDriverSettings(out, live, live.target, from, state, control, retainedValues(), 41, now, 1000000,
                                         options(), 1000000);
     }
 };
@@ -1185,7 +1185,7 @@ void transact(RetirementRig& r, L::DriverSettingsContext& c, M::Binding& binding
     candidate.positionSpeedRpm = 500;
     candidate.rampUpTimeMs = 600;
     candidate.rampDownTimeMs = 700;
-    CHECK(L::prepareDriverSettings(c, r.live, r.prior, r.state, r.control, candidate, 41, r.now, 1000000,
+    CHECK(L::prepareDriverSettings(c, r.live, r.live.target, r.prior, r.state, r.control, candidate, 41, r.now, 1000000,
                                    options(), 1000000));
     while (c.state == L::SettingsState::WRITING || c.state == L::SettingsState::READING_BACK) {
         const bool writing = c.state == L::SettingsState::WRITING;
@@ -1223,7 +1223,7 @@ void settingsContextsAreRetiredToo() {
         L::AxisReservation newer = r.live;
         newer.target = route;
         const Saved<L::DriverSettingsContext> blank(next);
-        CHECK(refused(L::prepareDriverSettings(next, newer, c.readback, r.state, r.control, retainedValues(), 42,
+        CHECK(refused(L::prepareDriverSettings(next, newer, newer.target, c.readback, r.state, r.control, retainedValues(), 42,
                                                r.now, 1000000, options(), 1000000)));
         CHECK(blank.same(next));
     }
@@ -1571,7 +1571,7 @@ struct Predicate {
     M::Status settings(L::DriverSettingsContext& out, uint64_t age, uint64_t at) const {
         L::DriverSettings candidate;
         candidate.positionSpeedRpm = candidate.rampUpTimeMs = candidate.rampDownTimeMs = 2;
-        return L::prepareDriverSettings(out, live, prior, state, control, candidate, 41, at, at + 100000, options(), age);
+        return L::prepareDriverSettings(out, live, live.target, prior, state, control, candidate, 41, at, at + 100000, options(), age);
     }
     M::Status stop(L::ActionContext& out, L::StopKind kind, uint64_t age, uint64_t at) const {
         return L::prepareStop(out, live, state, control, kind, 41, at, at + 100000, actionOptions(options(), age));
@@ -1705,7 +1705,7 @@ void predicatesStaySeparate() {
         static L::DriverSettingsContext settings;
         settings = L::DriverSettingsContext();
         const Saved<L::DriverSettingsContext> blank(settings);
-        const M::Status s = L::prepareDriverSettings(settings, reservation(), prior, state, control, candidate,
+        const M::Status s = L::prepareDriverSettings(settings, reservation(), reservation().target, prior, state, control, candidate,
                                                      41, at, at + 100000, options(), 1000000);
         CHECK(s.isOk() == expected && (expected || blank.same(settings)));
         static L::ActionContext stop;
@@ -1755,7 +1755,7 @@ void predicatesStaySeparate() {
         L::DriverSettings candidate;
         candidate.positionSpeedRpm = candidate.rampUpTimeMs = candidate.rampDownTimeMs = 2;
         L::DriverSettingsContext settings;
-        CHECK(L::prepareDriverSettings(settings, reservation(), prior, state, control, candidate, 41, later,
+        CHECK(L::prepareDriverSettings(settings, reservation(), reservation().target, prior, state, control, candidate, 41, later,
                                        later + 100000, options(), 1000000).isOk() == !late);
         L::ActionContext stop;
         CHECK(L::validateStop(stop, reservation(), state, control, L::StopKind::HALT, 41, later, later + 100000,

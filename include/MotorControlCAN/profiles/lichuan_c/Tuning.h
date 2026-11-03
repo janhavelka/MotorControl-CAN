@@ -119,6 +119,7 @@ Status getTuning(const DriverContext& context, const ReadTarget& current, uint64
 /** Prepare explicit 86C loop selection using the existing settings lifecycle.
  * @param[out] output Replaced on success only; no overlap with inputs.
  * @param[in] reservation Live exclusive model-bound owner reservation acquired before prior.
+ * @param[in] current Actual current route and epochs. The reservation's target must equal it.
  * @param[in] prior Complete fresh CONTROL read under the same reservation/epochs.
  * @param[in] settings Explicit enum candidate; no encoder setting or hidden state preamble.
  * @param[in] operation Nonzero operation identity, distinct from live work.
@@ -131,9 +132,10 @@ Status getTuning(const DriverContext& context, const ReadTarget& current, uint64
  * do not establish physical activation or motion. No enable/save/reset/retry occurs.
  */
 Status prepareControlSettings(DriverSettingsContext& output, const AxisReservation& reservation,
-                              const DriverContext& prior, const ControlSettings& settings,
-                              uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
-                              const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
+                              const ReadTarget& current, const DriverContext& prior,
+                              const ControlSettings& settings, uint32_t operation, uint64_t nowUs,
+                              uint64_t deadlineUs, const ReadOptions& options,
+                              uint64_t maximumAgeUs) noexcept;
 /** Publish current matched control readback, with settings exclusion still live.
  * @param[in] context Successful explicit loop settings transaction.
  * @param[in] live Actual still-exclusive reservation; never a host wire-correlation tag.

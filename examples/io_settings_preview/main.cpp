@@ -101,7 +101,7 @@ int main() {
         candidate.functions[i] = observed.inputFunctions[i];
     candidate.functions[2] = L::InputFunction::USER2; // Explicit replacement for raw unknown99.
     L::DriverSettingsContext settings;
-    if (!checked(L::prepareIoSettings(settings, reservation, context, candidate, 2, now, now + 1000,
+    if (!checked(L::prepareIoSettings(settings, reservation, reservation.target, context, candidate, 2, now, now + 1000,
                                       options, 1000),
                  "prepareIoSettings") ||
         !checked(L::nextDriver(settings, reservation, target.channel.binding, now, done),

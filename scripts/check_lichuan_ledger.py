@@ -155,7 +155,7 @@ def setting_coverage_errors(entry):
         return [label + "fields must be four booleans"]
     index, sub = entry.get("index"), entry.get("subindex")
     motion = index in (0x6081, 0x6083, 0x6084) and sub == 0
-    selector = index in (0x2200, 0x2202) and sub == 0
+    selector = index == 0x2202 and sub == 0
     di = index == 0x2400 and type(sub) is int and 1 <= sub <= 8
     loop_mode = (index == 0x2500 and type(sub) is int and sub == 0 and
                  entry.get("read_owner_prompt") == 22 and not read_owner_errors(entry))
@@ -166,7 +166,6 @@ def setting_coverage_errors(entry):
             review.get("write_policy") != "qualification_required"):
         return [label + "outside the reviewed conditional typed subset"]
     expected_scope = ("position_parameters_86c" if motion else
-                      "explicit_direction_selector_86c" if index == 0x2200 else
                       "explicit_soft_limit_selector_86c" if index == 0x2202 else
                       "explicit_di_configuration_86c" if di else "explicit_loop_mode_86c")
     errors = []

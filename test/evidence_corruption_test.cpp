@@ -592,18 +592,18 @@ void settingsEntry(SettingsKind kind, const char* where) {
         candidate.positionSpeedRpm = 101;
         candidate.rampUpTimeMs = 201;
         candidate.rampDownTimeMs = 301;
-        CHECK(L::prepareDriverSettings(c, live, prior, state, control, candidate, 41, now, DEADLINE,
+        CHECK(L::prepareDriverSettings(c, live, live.target, prior, state, control, candidate, 41, now, DEADLINE,
                                        options(), 100000));
     } else if (kind == SettingsKind::IO) {
         L::IoSettings candidate;
         candidate.invertedInputs = 0x55;
         for (L::InputFunction& function : candidate.functions)
             function = L::InputFunction::STOP;
-        CHECK(L::prepareIoSettings(c, live, prior, candidate, 41, now, DEADLINE, options(), 100000));
+        CHECK(L::prepareIoSettings(c, live, live.target, prior, candidate, 41, now, DEADLINE, options(), 100000));
     } else {
         L::ControlSettings candidate;
         candidate.loopMode = L::LoopMode::CLOSED_LOOP;
-        CHECK(L::prepareControlSettings(c, live, prior, candidate, 41, now, DEADLINE, options(),
+        CHECK(L::prepareControlSettings(c, live, live.target, prior, candidate, 41, now, DEADLINE, options(),
                                         100000));
     }
     CHECK(c.state == L::SettingsState::WRITING);
@@ -931,7 +931,7 @@ void controlEvidenceEntries() {
     validated.operation = 0xbeef;
     const Times t = {ACQUIRED, DEADLINE, now};
     const auto prepareSettings = [&](L::DriverSettingsContext& out, const C::SdoCompletion& e, uint64_t at) {
-        return L::prepareDriverSettings(out, live, prior, state, e, candidate, 41, at, DEADLINE,
+        return L::prepareDriverSettings(out, live, live.target, prior, state, e, candidate, 41, at, DEADLINE,
                                         options(), 100000);
     };
     const auto prepareStop = [&](L::ActionContext& out, const C::SdoCompletion& e, uint64_t at) {
@@ -952,7 +952,7 @@ void controlEvidenceEntries() {
     for (unsigned which = 0; which < TARGET_MUTANTS; ++which) {
         L::AxisReservation wrong = live;
         mutateTarget(wrong.target, which);
-        CHECK(refused(L::prepareDriverSettings(settings, wrong, prior, state, control, candidate, 41,
+        CHECK(refused(L::prepareDriverSettings(settings, wrong, wrong.target, prior, state, control, candidate, 41,
                                                now, DEADLINE, options(), 100000)));
         CHECK(refused(L::prepareStop(stop, wrong, state, control, L::StopKind::QUICK_STOP, 41, now,
                                      DEADLINE, actionOptions())));

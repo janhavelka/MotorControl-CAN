@@ -20,7 +20,7 @@ bool settingsShape(const DriverSettingsContext& c) {
     const ReadContext& read = c.readback.read;
     const bool io = read.kind == ReadKind::IO_INPUT_CONFIGURATION;
     const bool control = read.kind == ReadKind::CONTROL;
-    const bool selector = read.kind == ReadKind::DRIVER || read.kind == ReadKind::DRIVER_SOFT_LIMITS;
+    const bool selector = read.kind == ReadKind::DRIVER_SOFT_LIMITS;
     const GroupPlan* plan = groupPlan(read.kind);
     if ((!io && !control && !selector && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) || !plan ||
         read.count != plan->count)
@@ -36,6 +36,12 @@ bool settingsShape(const DriverSettingsContext& c) {
         return false;
     if (selector && c.requested[0] > 1)
         return false;
+    // Prepared words are U16 and DI codes documented. High polarity bits have no bound to check.
+    if (io && (c.requested[0] > UINT16_MAX || c.requested[1] > UINT16_MAX))
+        return false;
+    for (unsigned i = 2; io && i < read.count; ++i)
+        if (c.requested[i] > 13)
+            return false;
     for (unsigned i = 0; i < read.count; ++i) {
         const ReadDescriptor& actual = read.values[i].object;
         ReadDescriptor expected;
@@ -59,9 +65,15 @@ Status current(const DriverSettingsContext& c, const AxisReservation& live,
         return error(ReadError::STATE, "invalid settings context or time");
     return Ok();
 }
-Status validatePreparation(const AxisReservation& r, const DriverContext& prior, ReadKind kind,
-                        uint32_t operation, uint64_t now, uint64_t deadline,
-                        const ReadOptions& options, uint64_t age) {
+// A token keeps its frozen target. If that is no longer the actual one, its old evidence would still
+// agree with it, and an unchanged candidate would report success with no write against a drive that
+// may hold anything. The same comparison stops a token left from a finished or uncertain transaction.
+Status validatePreparation(const AxisReservation& r, const ReadTarget& currentTarget,
+                           const DriverContext& prior, ReadKind kind, uint32_t operation,
+                           uint64_t now, uint64_t deadline, const ReadOptions& options,
+                           uint64_t age) {
+    if (validReservation(r) && !sameTarget(r.target, currentTarget))
+        return error(ReadError::TARGET, "reservation is not at the actual current target");
     if (!validReservation(r) || r.acquiredUs > prior.read.startedUs || prior.read.startedUs > now || !age ||
         !operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs ||
         r.target.channel.binding.configurationGeneration == UINT32_MAX)
@@ -143,37 +155,44 @@ bool cleanState(const ReadContext& state, const AxisReservation& r, uint64_t now
            validateStateBlock(state, StateBlock::STATUS, r.target, now, age, status) &&
            validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors);
 }
-// Project policy for objects with no documented state: a clean read under this reservation, no
-// running or alarm report. Bit 4 is unused: both specimens report it clear before any enable.
-Status validateStopped(const AxisReservation& r, const DriverContext& prior, ReadKind kind,
-                       const ReadContext& state, uint32_t operation, uint64_t now, uint64_t deadline,
+// Project policy for an object with no documented state: a clean read under this reservation, no
+// running or alarm report and no undocumented bit. Bit 4 is deliberately unused: both specimens
+// report it clear before any enable, so it does not say what its label says.
+Status validateStopped(const AxisReservation& r, const ReadTarget& currentTarget,
+                       const DriverContext& prior, ReadKind kind, const ReadContext& state,
+                       uint32_t operation, uint64_t now, uint64_t deadline,
                        const ReadOptions& options, uint64_t age) {
-    const Status s = validatePreparation(r, prior, kind, operation, now, deadline, options, age);
+    const Status s =
+        validatePreparation(r, currentTarget, prior, kind, operation, now, deadline, options, age);
     if (!s)
         return s;
     ReadWindow status, monitors;
     if (!cleanState(state, r, now, age, status, monitors) || status.earliestUs < r.acquiredUs ||
         monitors.earliestUs < r.acquiredUs ||
-        (stateWord(state, StateBlock::MONITORS, 0) & (MONITOR_RUNNING | MONITOR_ALARM)))
-        return error(ReadError::STATE, "clean reserved state with no running or alarm report required");
+        (stateWord(state, StateBlock::MONITORS, 0) &
+         (MONITOR_RUNNING | MONITOR_ALARM | ~uint32_t(MONITOR_DOCUMENTED_BITS))))
+        return error(ReadError::STATE,
+                     "clean reserved state with no running, alarm or undocumented report required");
     return Ok();
 }
 } // namespace
 
 Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservation& r,
-                             const DriverContext& prior, const ReadContext& state,
+                             const ReadTarget& currentTarget, const DriverContext& prior,
+                             const ReadContext& state,
                              const CANOPEN::SdoCompletion& control, const DriverSettings& settings,
                              uint32_t operation, uint64_t now, uint64_t deadline,
                              const ReadOptions& options, uint64_t age) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
         overlaps(&output, sizeof output, &prior, sizeof prior) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
         overlaps(&output, sizeof output, &control, sizeof control) ||
         overlaps(&output, sizeof output, &settings, sizeof settings) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "settings preparation overlaps input");
-    Status s = validatePreparation(r, prior, ReadKind::DRIVER_MOTION_PARAMETERS, operation, now,
-                                deadline, options, age);
+    Status s = validatePreparation(r, currentTarget, prior, ReadKind::DRIVER_MOTION_PARAMETERS,
+                                   operation, now, deadline, options, age);
     if (!s)
         return s;
     DriverObservation old;
@@ -198,51 +217,21 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
     select(output, prior, 0);
     return Ok();
 }
-Status prepareDirectionSettings(DriverSettingsContext& output, const AxisReservation& r,
-                                const DriverContext& prior, const DriverContext& limits,
-                                const ReadContext& state, const DirectionSettings& settings,
-                                uint32_t operation, uint64_t now, uint64_t deadline,
-                                const ReadOptions& options, uint64_t age) noexcept {
-    if (overlaps(&output, sizeof output, &r, sizeof r) ||
-        overlaps(&output, sizeof output, &prior, sizeof prior) ||
-        overlaps(&output, sizeof output, &limits, sizeof limits) ||
-        overlaps(&output, sizeof output, &state, sizeof state) ||
-        overlaps(&output, sizeof output, &settings, sizeof settings) ||
-        overlaps(&output, sizeof output, &options, sizeof options))
-        return error(ReadError::OVERLAP, "direction settings preparation overlaps input");
-    Status s = validateStopped(r, prior, ReadKind::DRIVER, state, operation, now, deadline, options,
-                               age);
-    if (!s)
-        return s;
-    DriverObservation old;
-    if (limits.read.startedUs < r.acquiredUs || !getDriver(limits, r.target, now, age, old) ||
-        old.group != DriverGroup::SOFT_LIMITS || old.softLimitSelectorRaw != 0)
-        return error(ReadError::STATE, "fresh reserved soft-limit read with limits off required");
-    if (!getDriver(prior, r.target, now, age, old) || old.group != DriverGroup::DRIVER ||
-        old.directionRaw > 1)
-        return error(ReadError::STATE, "fresh reserved read of a documented 2200 code required");
-    const uint16_t code = static_cast<uint16_t>(settings.direction);
-    if (code > 1)
-        return error(ReadError::VALUE, "2200 candidate outside documented codes");
-    publish(output, r, DriverGroup::DRIVER, operation, now, deadline, options);
-    output.requested[0] = code;
-    output.requested[1] = old.subdivisionRaw;
-    select(output, prior, 0);
-    return Ok();
-}
 Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReservation& r,
-                                const DriverContext& prior, const ReadContext& state,
+                                const ReadTarget& currentTarget, const DriverContext& prior,
+                                const ReadContext& state,
                                 const SoftLimitSettings& settings, uint32_t operation, uint64_t now,
                                 uint64_t deadline, const ReadOptions& options,
                                 uint64_t age) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
         overlaps(&output, sizeof output, &prior, sizeof prior) ||
         overlaps(&output, sizeof output, &state, sizeof state) ||
         overlaps(&output, sizeof output, &settings, sizeof settings) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "soft-limit settings preparation overlaps input");
-    Status s = validateStopped(r, prior, ReadKind::DRIVER_SOFT_LIMITS, state, operation, now,
-                               deadline, options, age);
+    Status s = validateStopped(r, currentTarget, prior, ReadKind::DRIVER_SOFT_LIMITS, state, operation,
+                               now, deadline, options, age);
     if (!s)
         return s;
     DriverObservation old;
@@ -253,6 +242,11 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
     if (code > 1 || (settings.enable == SoftLimitEnable::AFTER_HOMING &&
                      old.minimumNative >= old.maximumNative))
         return error(ReadError::VALUE, "2202 candidate undocumented or limits not ordered");
+    // p18's "effective after homing" defers the effect. Once 2100 reports homing complete nothing
+    // defers it, and an immediate limit in an unqualified frame is not what the candidate names.
+    if (settings.enable == SoftLimitEnable::AFTER_HOMING &&
+        (stateWord(state, StateBlock::MONITORS, 0) & MONITOR_HOMING_COMPLETE))
+        return error(ReadError::STATE, "2202 arming refused while 2100 reports homing complete");
     publish(output, r, DriverGroup::SOFT_LIMITS, operation, now, deadline, options);
     output.requested[0] = code;
     output.requested[1] = old.softLimitEntries;
@@ -262,16 +256,17 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
     return Ok();
 }
 Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r,
-                         const DriverContext& prior, const IoSettings& settings, uint32_t operation,
-                         uint64_t now, uint64_t deadline, const ReadOptions& options,
-                         uint64_t age) noexcept {
+                         const ReadTarget& currentTarget, const DriverContext& prior,
+                         const IoSettings& settings, uint32_t operation, uint64_t now,
+                         uint64_t deadline, const ReadOptions& options, uint64_t age) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
         overlaps(&output, sizeof output, &prior, sizeof prior) ||
         overlaps(&output, sizeof output, &settings, sizeof settings) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "DI settings preparation overlaps input");
-    Status s = validatePreparation(r, prior, ReadKind::IO_INPUT_CONFIGURATION, operation, now, deadline,
-                                options, age);
+    Status s = validatePreparation(r, currentTarget, prior, ReadKind::IO_INPUT_CONFIGURATION, operation,
+                                   now, deadline, options, age);
     if (!s)
         return s;
     IoObservation old;
@@ -291,16 +286,17 @@ Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& r
     return Ok();
 }
 Status prepareControlSettings(DriverSettingsContext& output, const AxisReservation& r,
-                              const DriverContext& prior, const ControlSettings& settings,
-                              uint32_t operation, uint64_t now, uint64_t deadline,
-                              const ReadOptions& options, uint64_t age) noexcept {
+                              const ReadTarget& currentTarget, const DriverContext& prior,
+                              const ControlSettings& settings, uint32_t operation, uint64_t now,
+                              uint64_t deadline, const ReadOptions& options, uint64_t age) noexcept {
     if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &currentTarget, sizeof currentTarget) ||
         overlaps(&output, sizeof output, &prior, sizeof prior) ||
         overlaps(&output, sizeof output, &settings, sizeof settings) ||
         overlaps(&output, sizeof output, &options, sizeof options))
         return error(ReadError::OVERLAP, "control settings preparation overlaps input");
-    Status s =
-        validatePreparation(r, prior, ReadKind::CONTROL, operation, now, deadline, options, age);
+    Status s = validatePreparation(r, currentTarget, prior, ReadKind::CONTROL, operation, now, deadline,
+                                   options, age);
     if (!s)
         return s;
     ControlObservation old;
@@ -398,9 +394,8 @@ Status advanceDriver(DriverSettingsContext& c, const AxisReservation& live,
         if (c.readback.read.state == ReadState::FAILED)
             fail(c, c.readback.read.outcome, now, "settings readback failed");
         else {
-            const bool compare =
-                c.readback.read.kind != ReadKind::IO_INPUT_CONFIGURATION || field != 0;
-            if (compare && c.readback.read.values[field].raw != c.requested[field])
+            // Every field, including retained words and the 2400:00 count no write can touch.
+            if (c.readback.read.values[field].raw != c.requested[field])
                 fail(c, ReadOutcome::REPLY_ERROR, now, "settings readback contradicts candidate");
             else if (c.readback.read.state == ReadState::SUCCEEDED) {
                 c.state = SettingsState::SUCCEEDED;

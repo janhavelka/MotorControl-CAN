@@ -2,9 +2,18 @@
 
 ## Unreleased
 
-### Direction and soft-limit selectors, stricter state evidence (packet 12)
+### DI proof, per-field output gates and the review of packet 12 (packet 13)
 
-- Add `prepareDirectionSettings` with `DirectionSettings` and `DefaultDirection`, a typed write of `2200` codes 0 and 1, and `prepareSoftLimitSettings` with `SoftLimitSettings` and `SoftLimitEnable`, a typed write of `2202` codes 0 and 1. They use `DriverSettingsContext`, `nextDriver`, `noteDriverTransmission`, `advanceDriver` and `getDriver`, advance the configuration generation like other explicit settings, and retain and recheck `2201` and `607D` without writing them. A match proves the stored code only: no physical direction, activation or protection is claimed.
+- **Migration:** `prepareDriverSettings`, `prepareSoftLimitSettings`, `prepareIoSettings` and `prepareControlSettings` take the actual current `ReadTarget` after the reservation, and refuse with `ReadError::TARGET` when the reservation's target differs. A frozen token and its old evidence could prepare a no-op reporting `SUCCEEDED` with no frame while the drive held another value, including after a lost reply. Take a new reservation value and fresh evidence.
+- **Migration:** remove `prepareDirectionSettings`, `DirectionSettings` and `DefaultDirection`, added earlier in this release. EN86 and ZH86 p18 give `2200` two labels and do not say what the codes do under CAN, so it is a gate with a stated closing observation. `getDriver` still reads it.
+- **Migration:** `prepareSoftLimitSettings` refuses `AFTER_HOMING` while `2100` reports homing complete, and refuses on any undocumented `2100` bit 7..15. Bit 4 stays deliberately unused. Ordered `607D` for arming is labelled project policy, and disarming needs no order.
+- **Migration:** settings readback now compares the DI group's `2400:00` count too, so a changed count fails with `REPLY_ERROR`. An active DI context refuses a hand-edited code above 13 or word above 16 bits.
+- DO polarity and functions, DO codes 2 and 3, `60FE` terminal bits and value/mask semantics, and `2401..2407` keep gates with no typed write; [the I/O guide](docs/io_settings.md#per-field-decisions-for-do-filters-and-output-commands) gives each field's sources and closing evidence.
+- `2202` and `607D` cannot close each other at the bench; [the driver guide](docs/driver_settings.md#setting-decisions) says a manufacturer range or coordinate basis is needed first.
+
+### Soft-limit selector, stricter state evidence (packet 12)
+
+- Add `prepareSoftLimitSettings` with `SoftLimitSettings` and `SoftLimitEnable`, a typed write of `2202` codes 0 and 1. They use `DriverSettingsContext`, `nextDriver`, `noteDriverTransmission`, `advanceDriver` and `getDriver`, advance the configuration generation like other explicit settings, and retain and recheck `607D` without writing it. A match proves the stored code only: no physical direction, activation or protection is claimed.
 - **Migration:** `prepareDriverSettings` now refuses a failed or uncertain state read even when its STATUS and MONITORS blocks completed, as `prepareStop` does. Take a fresh state read. `getStateBlock` still returns those blocks as history.
 - Add `test/settings_owner_test.cpp`, which runs explicit settings through the real `CanBusOwner`.
 - `2201`, `607D` and `6060` keep their gates with no typed write; [the guide](docs/driver_settings.md#setting-decisions) gives each one's closing observation.

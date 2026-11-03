@@ -18,7 +18,7 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
 | Read shape descriptors | 95 | Prompt 19/20/21/22 source width/representation only; read effects remain unqualified |
 | Typed reads | 95 | Implemented scalar read rows; see separate read coverage, not whole-object support |
-| Typed settings | 14 | Conditional scalar setting rows, not complete object permission; model/state scope below |
+| Typed settings | 13 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 0 | Assigned semantic prompts remain pending |
 
@@ -3438,17 +3438,17 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Units | direction selector |
 | Scaling | Physical positive direction not established. |
 | Original low / high / default | [null, null, "0"] |
-| Effect | Named default direction. The typed write establishes the stored code only; its effect on CAN motion, 6064, 607A, 607D or homing and its activation are not established. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. Also 2202=0 from a fresh read, adopted from RS's geometry dependency."] |
+| Effect | Named default direction; actual effect on CAN motion is not established by the retained labels. |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; the typed candidate is exactly these two codes, on EN86 and ZH86 p18 with no contradiction and the EDS default 0 inside. Raw values stay raw until actual direction is qualified; 2201 is retained and rechecked, never written.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q04", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; retain raw values until actual direction is qualified. No typed write: a domain is not enough, and neither manual says what the codes do under CAN. Closing observation: the same native target at each code, a finite move, independent shaft observation and raw 6064, plus a power cycle for activation.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 20 |
 | Read owner prompt | 20 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
-| Typed setting scope | explicit_direction_selector_86c |
-| Setting coverage D/I/H/Q | yes/yes/yes/no |
+| Typed setting scope | `null` (not stated) |
+| Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "1", "ParameterName": "Obj.DefautDir"} |
 
@@ -3493,7 +3493,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Scaling | Native enumerated choice. |
 | Original low / high / default | [null, null, "10"] |
 | Effect | Selects documented 0 noneffective or 1 effective after homing. The typed write establishes the stored code only; enforcement, coordinate frame and reaction are not established. |
-| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. AFTER_HOMING also needs observed 607D:01 strictly below 607D:02; 607D is retained and rechecked, never written. Neither a prior nor a candidate may be 10."] |
+| Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.", "Project policy, as no source gives a state for this object: continuous sole-owner reservation at the actual current target, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running, alarm or undocumented (7..15) bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is deliberately unused: both specimens report it clear before any enable. AFTER_HOMING is refused while 2100 reports homing complete, since p18's deferral no longer applies and the effect would be immediate and unqualified. AFTER_HOMING also needs observed 607D:01 strictly below 607D:02, which is project policy; disarming does not. 607D is retained and rechecked, never written. Neither a prior nor a candidate may be 10."] |
 | Edge behavior | Not specified by the retained source. |
 | Documentary review | {"gate_ids": ["Q01", "Q05", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0 disabled / 1 effective after homing, on EN86 and ZH86 p18. The typed candidate is exactly these codes, from a documented prior code only. EDS default 10 is not an accepted option or transition source; both specimens read 0. Matching readback is not protection.", "write_policy": "qualification_required"} |
 | Conflicts | ["C13"] |

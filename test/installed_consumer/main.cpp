@@ -193,7 +193,7 @@ int main() {
     candidate.functions[0] = LICHUAN_C::InputFunction::USER0;
     LICHUAN_C::DriverSettingsContext settings;
     LICHUAN_C::PreparedRead prepared;
-    if (!LICHUAN_C::prepareIoSettings(settings, reservation, inputs, candidate, 5, 38, 100,
+    if (!LICHUAN_C::prepareIoSettings(settings, reservation, reservation.target, inputs, candidate, 5, 38, 100,
                                      readOptions, 20) ||
         !LICHUAN_C::nextDriver(settings, reservation, readTarget.channel.binding, 38, prepared) ||
         !prepared.ready || prepared.transfer.direction != CANOPEN::SdoDirection::DOWNLOAD ||
@@ -231,7 +231,7 @@ int main() {
     LICHUAN_C::ControlSettings loop;
     loop.loopMode = LICHUAN_C::LoopMode::CLOSED_LOOP;
     LICHUAN_C::DriverSettingsContext controlWrite;
-    if (!LICHUAN_C::prepareControlSettings(controlWrite, reservation, control, loop, 11, 52, 100,
+    if (!LICHUAN_C::prepareControlSettings(controlWrite, reservation, reservation.target, control, loop, 11, 52, 100,
                                            readOptions, 10))
         return 47;
     LICHUAN_C::PreparedRead loopWork;

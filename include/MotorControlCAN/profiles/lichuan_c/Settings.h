@@ -45,16 +45,6 @@ struct DriverSettings {
     uint32_t rampUpTimeMs = UINT32_MAX;     ///< Explicit requested 6083, inclusive 0..2000 ms.
     uint32_t rampDownTimeMs = UINT32_MAX;   ///< Explicit requested 6084, inclusive 0..2000 ms.
 };
-/** 2200 codes under their EN86/ZH86 p18 labels. Neither label states a physical or CAN direction. */
-enum class DefaultDirection : uint16_t {
-    PULSE_SIGN = 0,          ///< Code 0, "Pulse Sign"; no positive-direction claim.
-    PULSE_INVERTED_SIGN = 1, ///< Code 1, "Pulse /Sign"; no positive-direction claim.
-    UNKNOWN = 0xffff         ///< Invalid candidate default.
-};
-/** Explicit 2200 candidate; the default is invalid until set. */
-struct DirectionSettings {
-    DefaultDirection direction = DefaultDirection::UNKNOWN; ///< Requested 2200 code 0 or 1.
-};
 /** 2202 codes under their EN86/ZH86 p18 labels. The EDS default 10 is not a documented code. */
 enum class SoftLimitEnable : uint16_t {
     LIMITS_OFF = 0,   ///< Code 0, "noneffective".
@@ -65,7 +55,10 @@ enum class SoftLimitEnable : uint16_t {
 struct SoftLimitSettings {
     SoftLimitEnable enable = SoftLimitEnable::UNKNOWN; ///< Requested 2202 code 0 or 1.
 };
-/** Complete explicit DI register candidate; no DO, filter or electrical-level request. */
+/** Complete explicit DI register candidate for the seven documented 86C inputs.
+ * It has no DO, filter or output-command field: those keep the per-field gates in docs/io_settings.md.
+ * A code says what a register holds, not that the terminal is wired or the function effective.
+ */
 struct IoSettings {
     uint16_t invertedInputs =
         0xffff; ///< Invalid until explicitly set to bits0..6; high bits come from prior readback.
@@ -73,7 +66,7 @@ struct IoSettings {
                                   InputFunction::UNKNOWN, InputFunction::UNKNOWN,
                                   InputFunction::UNKNOWN, InputFunction::UNKNOWN,
                                   InputFunction::UNKNOWN};
-    ///< DI0..6: explicitly select all codes0..13; defaults cannot disable protections.
+    ///< DI0..6: explicitly select all codes 0..13. Code 0 is undefined, not proof of disabled or unused.
 };
 /** Concrete bounded settings phase. */
 enum class SettingsState : uint8_t {
@@ -95,7 +88,7 @@ struct DriverSettingsContext {
     Status status;                           ///< Retained local/native operation result.
     uint32_t operation = 0;                  ///< Nonzero caller operation/request identity.
     uint32_t requested[9] =
-        {}; ///< Owned exact native candidate, count fields retained but never written.
+        {}; ///< Owned exact native candidate. Count fields are compared on readback, never written.
     uint16_t changed =
         0; ///< Selected changed fields only; source-order writes, not device atomicity.
     uint16_t confirmed = 0; ///< Individually acknowledged write fields, retained on later failure.
@@ -116,6 +109,8 @@ struct DriverSettingsContext {
 /** Prepare explicit position parameters using actual retained pre-trigger evidence.
  * @param[out] output Owned context, unchanged on rejection; no input overlap.
  * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
+ * @param[in] current Actual current route and epochs. The reservation's target must equal it: a token
+ * left from a finished or uncertain transaction is refused here, before any no-op can report success.
  * @param[in] prior Complete fresh MOTION_PARAMETERS context on reservation.target.
  * @param[in] state STATUS and MONITORS read after control completion. The whole read must have
  * succeeded with no uncertain effect, as a stop requires: a settings call is never urgent, so a
@@ -133,43 +128,27 @@ struct DriverSettingsContext {
  * This conservative host subset never writes 6040/6060 or relies on disputed status bits.
  */
 Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservation& reservation,
-                             const DriverContext& prior, const ReadContext& state,
+                             const ReadTarget& current, const DriverContext& prior,
+                             const ReadContext& state,
                              const CANOPEN::SdoCompletion& control, const DriverSettings& settings,
                              uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                              const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
-/** Prepare one explicit write of the 2200 selector, without a position-mode preamble.
- * Only the stored code is established. Whether it reverses CAN motion or changes 6064, 607A, 607D or
- * homing, and when it takes effect, stay Q04 gates. The application still owns its sign and witness.
- * Prerequisites are project policy, as no source gives a state for this object: both documented prior
- * codes, limits off (RS's geometry dependency) and no running or alarm report. Bit 4 of 2100 is not
- * used, since both specimens report it clear at power-up with no enable.
- * @param[out] output Owned context, unchanged on rejection; no input overlap.
- * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
- * @param[in] prior Fresh complete DRIVER context; 2201 is retained, never written, and rechecked.
- * @param[in] limits Fresh complete SOFT_LIMITS context reporting 2202=0. Set it off explicitly first.
- * @param[in] state Clean STATUS and MONITORS read under the reservation, as prepareDriverSettings.
- * @param[in] settings Explicit code 0 or 1.
- * @param[in] operation Nonzero unique live operation identity.
- * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
- * @param[in] deadlineUs Exclusive overall cutoff strictly after nowUs.
- * @param[in] options Nonzero service budgets, clamped by the overall deadline.
- * @param[in] maximumAgeUs Nonzero inclusive earliest-observation age cap for all prerequisites.
- * @return Local status. An unchanged candidate succeeds from fresh evidence without TX or epoch change.
- */
-Status prepareDirectionSettings(DriverSettingsContext& output, const AxisReservation& reservation,
-                                const DriverContext& prior, const DriverContext& limits,
-                                const ReadContext& state, const DirectionSettings& settings,
-                                uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
-                                const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
 /** Prepare one explicit write of the 2202 selector; 607D stays read-only here.
  * Matching readback proves the stored code only. It is not protection: the coordinate frame, boundary
  * and reaction of the limits stay Q05 gates. A prior code outside 0/1, such as the EDS default 10, is
- * refused, as no source describes leaving it.
+ * refused, as no source describes leaving it. All prerequisites are project policy, as no source gives
+ * a state for this object: a clean state read, and no running, alarm or undocumented 2100 bit. Bit 4
+ * is deliberately unused, since both specimens report it clear at power-up with no enable.
  * @param[out] output Owned context, unchanged on rejection; no input overlap.
  * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
+ * @param[in] current Actual current route and epochs. The reservation's target must equal it: a token
+ * left from a finished or uncertain transaction is refused here, before any no-op can report success.
  * @param[in] prior Fresh complete SOFT_LIMITS context; 607D is retained, never written, and rechecked.
- * AFTER_HOMING needs its observed minimum strictly below its maximum.
- * @param[in] state Clean STATUS and MONITORS read under the reservation, reporting no running or alarm.
+ * AFTER_HOMING needs its observed minimum strictly below its maximum, which is project policy: no
+ * source orders them. Disarming needs no order, so reversed limits can still be turned off.
+ * @param[in] state Clean STATUS and MONITORS read under the reservation. AFTER_HOMING is also refused
+ * while 2100 reports homing complete: p18's deferral no longer applies, so the effect would be
+ * immediate and unqualified.
  * @param[in] settings Explicit code 0 or 1.
  * @param[in] operation Nonzero unique live operation identity.
  * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
@@ -179,13 +158,16 @@ Status prepareDirectionSettings(DriverSettingsContext& output, const AxisReserva
  * @return Local status. An unchanged candidate succeeds from fresh evidence without TX or epoch change.
  */
 Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReservation& reservation,
-                                const DriverContext& prior, const ReadContext& state,
-                                const SoftLimitSettings& settings, uint32_t operation,
-                                uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options,
-                                uint64_t maximumAgeUs) noexcept;
+                                const ReadTarget& current, const DriverContext& prior,
+                                const ReadContext& state, const SoftLimitSettings& settings,
+                                uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                                const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
 /** Prepare complete explicit DI assignment/polarity, preserving unknown polarity bits.
+ * A stored undocumented function code is replaced, never carried: a candidate cannot name one.
  * @param[out] output Owned context, unchanged on rejection; no input overlap.
  * @param[in] reservation Actual live owner exclusion, CL86_C or OL86_C only.
+ * @param[in] current Actual current route and epochs. The reservation's target must equal it: a token
+ * left from a finished or uncertain transaction is refused here, before any no-op can report success.
  * @param[in] prior Fresh complete IO_INPUT_CONFIGURATION acquired under that reservation.
  * @param[in] settings Complete explicit codes/bits; no invented uniqueness or drive-mode rule.
  * @param[in] operation Nonzero unique live operation identity.
@@ -198,8 +180,9 @@ Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReserva
  * intermediate effects are possible, not an atomic or electrically safe transition.
  */
 Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& reservation,
-                         const DriverContext& prior, const IoSettings& settings, uint32_t operation,
-                         uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options,
+                         const ReadTarget& current, const DriverContext& prior,
+                         const IoSettings& settings, uint32_t operation, uint64_t nowUs,
+                         uint64_t deadlineUs, const ReadOptions& options,
                          uint64_t maximumAgeUs) noexcept;
 /** Yield owned work without admitting or transmitting it.
  * @param[in] context Prepared transaction. @param[in] live Actual current reservation, not stale copy.
