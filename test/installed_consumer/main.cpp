@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include <MotorControlCAN/MotorControlCAN.h>
+#include <MotorControlCAN/MoveOperation.h>
 #include <MotorControlCAN/canopen/Network.h>
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
@@ -381,5 +382,18 @@ int main() {
             17, 65, 100, readOptions, 10) ||
         remap.state != LICHUAN_C::PdoConfigurationState::EMPTY)
         return 58;
+    // The absolute move is gated: default evidence refuses before anything else is looked at.
+    static LICHUAN_C::MoveContext move;
+    static LICHUAN_C::ReadContext moveState;
+    static LICHUAN_C::IdentityObservation moveIdentity;
+    const Status gated = LICHUAN_C::validateMoveAbsolute(
+        move, LICHUAN_C::AxisReservation(), readTarget, moveState, CANOPEN::SdoCompletion(),
+        moveIdentity, LICHUAN_C::MoveEvidence(), MoveRequest(), LICHUAN_C::MoveProfile(), nullptr,
+        config, nullptr, 1, 0, 100, LICHUAN_C::MoveOptions());
+    if (gated.code != Err::UNSUPPORTED || gated.detail != int32_t(MoveError::CAPABILITY))
+        return 70;
+    LICHUAN_C::resetMove(move);
+    if (move.state != ActionState::EMPTY || move.interruption != MoveInterruption::NONE)
+        return 71;
     return 0;
 }

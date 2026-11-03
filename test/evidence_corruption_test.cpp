@@ -542,6 +542,7 @@ void finishRead(L::ReadContext& c, uint64_t& now, const Answers& answers) {
         case 0x6041: raw = answers.statusword; break;
         case 0x6061: raw = answers.mode; break;
         case 0x603f: raw = answers.errorCode; break;
+        case 0x606c: raw = 0; break; // A counter clear admits only 606C zero.
         default: break;
         }
         CHECK(L::advanceRead(c, acknowledged(work.transfer, now, now, raw), now));
@@ -719,6 +720,8 @@ void actionEntry(M::ActionKind kind, L::StopKind stop, const char* where) {
                           kind == M::ActionKind::CLEAR_ALARM
                               ? mask({L::StateBlock::ERRORS, L::StateBlock::ERROR_HISTORY,
                                       L::StateBlock::MONITORS, L::StateBlock::STATUS})
+                          : kind == M::ActionKind::SET_DEVICE_POSITION
+                              ? mask({L::StateBlock::MONITORS, L::StateBlock::STATUS, L::StateBlock::FEEDBACK})
                               : mask({L::StateBlock::MONITORS, L::StateBlock::STATUS})));
     finishRead(state, now, answers);
     if (kind == M::ActionKind::STOP)

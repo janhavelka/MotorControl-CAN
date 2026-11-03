@@ -20,6 +20,23 @@ bool enabling(const ActionContext& c) {
 bool effecting(const ActionContext& c) {
     return enabling(c) || c.commandCursor == (c.actionKind == ActionKind::SET_DEVICE_POSITION ? 1 : 0);
 }
+// The two actions that write a 1 and then return their object to 0.
+bool twoValued(const ActionContext& c) {
+    return c.actionKind == ActionKind::CLEAR_ALARM || c.actionKind == ActionKind::SET_DEVICE_POSITION;
+}
+// D-27 and Q14: may the object still hold the 1? True when the 1 may have reached the drive and
+// the 0 after it has no positive acknowledgement. Read only once the action fails.
+bool oneMayRemain(const ActionContext& c) {
+    if (!twoValued(c))
+        return false;
+    const unsigned one = c.actionKind == ActionKind::SET_DEVICE_POSITION ? 1 : 0;
+    const bool oneSettled = (c.commandEvidenceMask >> one) & 1u;
+    const bool onePossible = oneSettled ? c.commandHistory[one].effectPossible
+                                        : c.commandCursor == one && c.transmissionNoted;
+    const bool zeroAcknowledged = ((c.commandEvidenceMask >> (one + 1)) & 1u) &&
+                                  c.commandHistory[one + 1].outcome == CANOPEN::SdoOutcome::SUCCESS;
+    return onePossible && !zeroAcknowledged;
+}
 // The documented word of each enable step and the low bits manuals show beside it.
 const uint16_t ENABLE_WORDS[3] = {6, 7, 15};
 const uint16_t ENABLE_LOW_BITS[3] = {1, 3, 7};
@@ -64,7 +81,8 @@ Status shape(const ActionContext& c, uint64_t now) {
           c.reservation.target.channel.binding.configurationGeneration == UINT32_MAX ||
           (c.commandCursor == 2 && !c.coordinatesInvalidated))) ||
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
-        (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM))
+        (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
+        c.valueOneMayRemain != (c.state == ActionState::FAILED && oneMayRemain(c)))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND && c.phase != ActionPhase::TARGETS &&
         (c.execution != ActionExecution::ACKNOWLEDGED ||
@@ -211,6 +229,7 @@ void fail(ActionContext& c, ActionOutcome reason, uint64_t now, const char* mess
                     message);
     c.servicedUs = now;
     c.uncertain |= c.effectsPossible && c.completion != ActionCompletion::OBSERVED;
+    c.valueOneMayRemain = oneMayRemain(c);
 }
 Status prepareCycle(ActionContext& c, uint64_t at) {
     return prepareState(c.read, expectedTarget(c), c.operation, at, c.deadlineUs, c.options.service,
@@ -403,15 +422,25 @@ Status validateExplicit(const AxisReservation& r, const ReadContext& state, Acti
         return error(ActionError::STATE, "fresh mode 1 not-running SDO evidence required");
     const bool alarmed = (raw(state, StateBlock::MONITORS, 0) & MONITOR_ALARM) != 0;
     if (kind == ActionKind::CLEAR_ALARM) {
+        // EN86 p16 names FF05 position deviation and p20 lists a resettable position
+        // out-of-tolerance LED class; linking them is an inference (D-26). FF05 only narrows the
+        // attempt: 603F may keep an earlier code, so it cannot say the reported alarm is that event.
         ReadWindow errors, history;
         if (!alarmed || !validateStateBlock(state, StateBlock::ERRORS, r.target, now, age, errors) ||
             !validateStateBlock(state, StateBlock::ERROR_HISTORY, r.target, now, age, history) ||
             errors.earliestUs < r.acquiredUs || history.earliestUs < r.acquiredUs ||
             uint16_t(raw(state, StateBlock::ERRORS, 1)) != 0xff05)
             return error(ActionError::STATE,
-                         "retained history and documented resettable FF05 alarm required");
-    } else if (alarmed)
+                         "alarm reported with raw 603F FF05 and error history required; "
+                         "the code does not identify the alarm");
+        return Ok();
+    }
+    if (alarmed)
         return error(ActionError::STATE, "counter clear requires no reported alarm");
+    ReadWindow feedback;
+    if (!validateStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, feedback) ||
+        feedback.earliestUs < r.acquiredUs || raw(state, StateBlock::FEEDBACK, 1))
+        return error(ActionError::STATE, "counter clear requires fresh 6064 and 606C zero");
     return Ok();
 }
 void publishExplicit(ActionContext& c, const AxisReservation& r, const ReadContext& state,
@@ -428,14 +457,24 @@ void publishExplicit(ActionContext& c, const AxisReservation& r, const ReadConte
     const uint64_t age = options.maximumAgeUs;
     getStateBlock(state, StateBlock::STATUS, r.target, now, age, c.statusObservation);
     getStateBlock(state, StateBlock::MONITORS, r.target, now, age, c.monitorObservation);
-    if (kind != ActionKind::CLEAR_ALARM)
+    if (kind != ActionKind::CLEAR_ALARM) {
+        // Later cycles replace extraObservation; the baseline keeps what admission saw.
+        getStateBlock(state, StateBlock::FEEDBACK, r.target, now, age, c.extraObservation);
+        CounterBaseline& b = c.baseline;
+        b.present = true;
+        b.startPosition = c.extraObservation.actualPosition;
+        b.startVelocity = c.extraObservation.actualVelocity;
+        b.earliestUs = c.extraObservation.window.earliestUs;
+        b.latestUs = c.extraObservation.window.latestUs;
         return;
+    }
     getStateBlock(state, StateBlock::ERRORS, r.target, now, age, c.extraObservation);
     // The incident record outlives them: later cycles replace the observations above.
     StateObservation history;
     getStateBlock(state, StateBlock::ERROR_HISTORY, r.target, now, age, history);
     AlarmIncident& i = c.incident;
     i.present = true;
+    i.codeLink = AlarmCodeLink::UNRESOLVED;
     i.readOperation = state.operation;
     i.errorRegister = c.extraObservation.errorRegister;
     i.errorCode = c.extraObservation.errorCode;

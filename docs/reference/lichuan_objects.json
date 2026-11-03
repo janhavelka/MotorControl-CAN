@@ -20002,7 +20002,7 @@
         ],
         "write_policy": "qualification_required"
       },
-      "implementation_scope": "Prompt 32 implements zero-only prepareSetDevicePosition with acknowledged 2302 U16 values 0,1,0, coordinate/reference withdrawal before possible value-1 transmission, owner epoch synchronization and fresh raw 6064 zero observation. See docs/fault_reference_actions.md and test/reference_action_test.cpp. Arbitrary positions, physical home, exact affected counter mapping and firmware qualification remain unsupported/unqualified; whole-function coverage is not claimed."
+      "implementation_scope": "Prompt 32 and packet 18 implement zero-only prepareSetDevicePosition with acknowledged 2302 U16 values 0,1,0. Admission needs fresh MONITORS, STATUS and FEEDBACK (mode 1, running and alarm clear, 606C raw zero) and keeps admission 6064 in CounterBaseline. Coordinate/reference withdrawal happens exactly once before possible value-1 transmission, owner epoch synchronization only after retirement, then fresh raw 6064 zero observation. A failure after a possible value 1 without an acknowledged final 0 sets valueOneMayRemain. See docs/fault_reference_actions.md, test/counter_clear_test.cpp and test/reference_action_test.cpp. Arbitrary positions, physical home, exact affected counter mapping, held-1 effects and firmware qualification remain unsupported/unqualified; no specimen has run it; whole-function coverage is not claimed."
     },
     {
       "key": "save_parameters",
@@ -20160,7 +20160,7 @@
         ],
         "write_policy": "qualification_required"
       },
-      "implementation_scope": "Prompt 32 implements a conditional CL86-C/OL86-C mode-1 FF05 alarm-clear attempt through prepareClearAlarm: 2301 U16 writes 1 then 0 (explicit ineffective-value policy, not a proved edge/rearm), new monitor alarm-clear observation, preserved raw 603F/history. See docs/fault_reference_actions.md and test/reference_action_test.cpp. Other fault classes, internal resume/rearm behavior and firmware qualification remain gated; whole-function coverage is not claimed."
+      "implementation_scope": "Prompt 32 and packet 17 implement a conditional CL86-C/OL86-C mode-1 alarm-clear attempt through prepareClearAlarm, admitted with a reported 2100 alarm and raw 603F=FF05. The code narrows the attempt but does not identify the alarm: AlarmIncident.codeLink is UNRESOLVED (D-26). 2301 U16 writes 1 then 0 (explicit ineffective-value policy, not a proved edge/rearm; no arming 0, D-27), new monitor alarm-clear observation, one final ERRORS read, preserved raw 603F/history. A failure after a possible 1 without an acknowledged 0 sets valueOneMayRemain. See docs/fault_reference_actions.md, test/alarm_clear_test.cpp and test/reference_action_test.cpp. Other fault classes, fault identity, internal resume/rearm behavior and firmware qualification remain gated; no specimen has run it; whole-function coverage is not claimed."
     },
     {
       "key": "motion_monitor",
@@ -22826,7 +22826,7 @@
       {
         "id": "Q13",
         "feature": "Fault-clear effect / rearm",
-        "required_evidence": "Establish which faults are resettable, 6040 bit-7 assertion/manual-return behavior, 2301 trigger/rearm and equivalence or differences. Record current state; never enable as reset preparation or write 603F.",
+        "required_evidence": "Establish which faults are resettable, 6040 bit-7 assertion/manual-return behavior, 2301 trigger/rearm and equivalence or differences. Check whether 603F keeps a stale FF05 that admits a clear for a later alarm, and whether a later 2301=1 without an acknowledged 0 before it is a new edge. Record current state; never enable as reset preparation or write 603F.",
         "owner_prompts": [
           32
         ],
@@ -22841,7 +22841,7 @@
       {
         "id": "Q14",
         "feature": "Position clear / offset reference effects",
-        "required_evidence": "Verify 2302 zero-to-one clear and manual return, affected command/feedback counters, 607C application point and resulting reference validity. A zero command is not arbitrary position setting, host-origin setting or successful homing.",
+        "required_evidence": "Verify 2302 zero-to-one clear and manual return, affected command/feedback counters, any effect of a held 1, 607C application point and resulting reference validity, from a nonzero baseline. A zero command is not arbitrary position setting, host-origin setting or successful homing.",
         "owner_prompts": [
           32,
           34,

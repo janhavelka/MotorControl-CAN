@@ -93,6 +93,14 @@ struct PreparedAction {
     bool ready = false;            ///< False for terminal or not-yet-eligible work.
     uint64_t eligibleUs = 0;       ///< Earliest caller processing time for this work.
 };
+/** What ties the admission's 603F code to the alarm that 2100 reported in the same read. */
+enum class AlarmCodeLink : uint8_t {
+    NONE,      ///< Not a CLEAR_ALARM context.
+    /** The only value admission produces. 603F read FF05 and 2100 reported an alarm, but no source
+     * ties the code to that alarm, and 603F may keep an earlier code (Q13, D-26). So the alarm being
+     * cleared may be another event than the FF05 one, and may not be a resettable class at all. */
+    UNRESOLVED
+};
 /** What a clear attempt set out to clear: raw prerequisite values, as read at admission.
  * Later cycles replace the context's observations, so this keeps the incident. Per-field
  * provenance is not kept: all four blocks share the reservation's route and node epoch,
@@ -101,18 +109,31 @@ struct PreparedAction {
  */
 struct AlarmIncident {
     bool present = false;          ///< True only in a CLEAR_ALARM context.
+    /** Always UNRESOLVED in a CLEAR_ALARM context: the identity of the reported alarm is unknown. */
+    AlarmCodeLink codeLink = AlarmCodeLink::NONE;
     uint32_t readOperation = 0;    ///< Operation of the read that established the prerequisite.
     uint64_t earliestUs = 0;       ///< Earliest observation bound across the four blocks.
     uint64_t latestUs = 0;         ///< Latest observation bound across the four blocks.
     uint8_t errorRegister = 0;     ///< ERRORS: 1001 raw.
-    uint16_t errorCode = 0;        ///< ERRORS: 603F raw, FF05 at admission.
+    uint16_t errorCode = 0;        ///< ERRORS: 603F raw, FF05 at admission; possibly an earlier event's.
     uint8_t errorCount = 0;        ///< ERROR_HISTORY: active entries, 0..4.
-    uint32_t errorHistory[4] = {}; ///< ERROR_HISTORY: native error values.
+    uint32_t errorHistory[4] = {}; ///< ERROR_HISTORY: native error values, layout undocumented.
     uint16_t monitor = 0;          ///< MONITORS: 2100 raw.
     uint16_t logicalInputs = 0;    ///< MONITORS: 2101 raw.
     uint16_t logicalOutputs = 0;   ///< MONITORS: 2102 raw.
     uint16_t statusword = 0;       ///< STATUS: 6041 raw.
     uint8_t modeRaw = 0;           ///< STATUS: 6061 complete byte.
+};
+/** SET_DEVICE_POSITION only: the raw feedback read at admission, kept after later cycles replace
+ * extraObservation. When startPosition was already zero, a later raw zero shows no change at all.
+ * Neither value says which internal counter 2302 clears (Q14).
+ */
+struct CounterBaseline {
+    bool present = false;       ///< True only in a SET_DEVICE_POSITION context.
+    int32_t startPosition = 0;  ///< FEEDBACK: 6064 raw at admission, no scale or home meaning.
+    int32_t startVelocity = 0;  ///< FEEDBACK: 606C raw at admission; admission requires zero.
+    uint64_t earliestUs = 0;    ///< Earliest bound of that FEEDBACK block.
+    uint64_t latestUs = 0;      ///< Latest bound of that FEEDBACK block.
 };
 /** Whether enable may run at all. This is the capability gate, not a readiness claim. */
 enum class EnableGate : uint8_t {
@@ -226,10 +247,16 @@ struct ActionContext {
     uint8_t commandEvidenceMask = 0; ///< Bits identify retained commandHistory slots.
     uint8_t commandCursor = 0;       ///< Current download slot: stop 0, alarm 0..1, counter 0..2, enable 0..2.
     AlarmIncident incident; ///< CLEAR_ALARM only: the prerequisite, kept after later cycles.
+    CounterBaseline baseline; ///< SET_DEVICE_POSITION only: admission feedback, kept after later cycles.
     EnableRecord enable;    ///< ENABLE only: evidence, targets and per-step observations.
     Generation originalReferenceGeneration = 0; ///< Counter action's frozen confidence epoch.
     bool coordinatesInvalidated =
         false; ///< Counter trigger crossed possible-TX boundary; never undone.
+    /** CLEAR_ALARM and SET_DEVICE_POSITION only, set when the action fails: its value-1 write may
+     * have reached the drive and the 0 after it has no positive acknowledgement. The object may still
+     * hold 1. What a held 1 does, and whether a later 1 is a new edge, is undocumented (Q13, Q14,
+     * D-27). Never cleared, and nothing resends either value: a later attempt is new intent. */
+    bool valueOneMayRemain = false;
     CANOPEN::SdoCompletion
         observationEvidence; ///< Latest actual external read terminal, including failure.
     bool observationEvidencePresent = false; ///< Makes observationEvidence meaningful.
@@ -239,7 +266,8 @@ struct ActionContext {
     StateObservation
         monitorObservation; ///< Latest complete cycle MONITORS; sequential, not atomic.
     /** Selected by its block. CLEAR_ALARM: raw 1001/603F, the prerequisite until the final read.
-     * SET_DEVICE_POSITION and ENABLE: signed 6064/606C of the latest cycle, no scale/home proof.
+     * SET_DEVICE_POSITION and ENABLE: signed 6064/606C, the admission's until the first cycle
+     * replaces it, no scale/home proof.
      * Stop: unused.
      * The default block is ERRORS with fieldCount 0, so check fieldCount before reading it. */
     StateObservation extraObservation;
@@ -340,44 +368,55 @@ Status prepareStop(ActionContext& output, const AxisReservation& reservation,
  */
 Status prepareEscalation(ActionContext& output, const ActionContext& running, uint32_t operation,
                          uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
-/** Prepare a CL86-C/OL86-C clear attempt; emits no enable or motion command.
+/** Prepare one CL86-C/OL86-C alarm-clear attempt; emits no enable, controlword or motion command.
  * Requires complete fresh SDO ERRORS/ERROR_HISTORY/MONITORS/STATUS acquired under
- * reservation: mode 1, monitor not-running, alarm set, raw 603F=FF05. Writes
- * 2301 U16=1 then 0 only after each ACK. Returning to ineffective 0 is library
- * policy, not a claimed vendor edge/rearm requirement. Completion requires fresh
- * mode 1/not-running/alarm-clear reports, then one ERRORS read: these reads may
- * consume data, so polling never repeats them. 603F may retain its old raw value.
- * maximumAgeUs must cover five fields at the queue plus response budgets, and
- * service.identityWidths must stay DECLARED_U16.
+ * reservation: mode 1, 2100 running clear and alarm set, raw 603F=FF05. That code narrows the
+ * attempt; it does not identify the reported alarm, so incident.codeLink is UNRESOLVED (D-26).
+ * Writes 2301 U16=1, then 0 only after the 1's acknowledgement. The 0 returns to the documented
+ * ineffective value as library policy: no source requires an edge, a rearm or a pulse, and no
+ * arming 0 precedes the 1 (D-27). Completion requires fresh mode 1, running and alarm clear in
+ * 2100 after the 0's acknowledgement, then one ERRORS read: ERRORS and ERROR_HISTORY may consume
+ * data, so polling reads MONITORS and STATUS only and never rereads the history. 603F may keep
+ * its old raw value; the final read keeps it raw. A persisting alarm repolls until the deadline
+ * and never repeats a write. maximumAgeUs must cover five fields at the queue plus response
+ * budgets, and service.identityWidths must stay DECLARED_U16.
  * @param[out] output Owned context, unchanged on failure and disjoint from inputs.
  * @param[in] reservation Continuous actual owner exclusion, CL86-C/OL86-C.
  * @param[in] state Complete fresh prerequisite; its raw values stay in incident.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Nonzero caller policies.
  * @return Local validation only. Caller/owner separately retains EMCY/error history;
- * this action never erases failed operations, retries, enables or resumes work.
+ * this action never erases failed operations, retries, enables or resumes work. An observed
+ * alarm-clear report is not proof that the cause is gone or permission to close an incident.
  */
 Status prepareClearAlarm(ActionContext& output, const AxisReservation& reservation,
                          const ReadContext& state, uint32_t operation, uint64_t nowUs,
                          uint64_t deadlineUs, const ActionOptions& options) noexcept;
-/** Prepare an explicit zero-only device counter clear; nonzero is UNSUPPORTED.
- * Writes 2302 U16 values 0,1,0, each ACK before the next. Fresh initial mode 1,
- * monitor not-running/alarm-clear is required. At possible trigger transmission
- * use the axis-aware notice below. It withdraws coordinates before any possible
- * effect. Post-ACK reads use that new configuration epoch and observe signed
- * raw 6064 zero only; no host origin, physical home, arbitrary setter, feedback
- * mapping, standstill or zero-velocity claim is established.
+/** Prepare an explicit zero-only device counter clear; nonzero is UNSUPPORTED right after the
+ * overlap check, before any state, axis or budget check.
+ * Writes 2302 U16 values 0, 1, 0, each after the previous acknowledgement. The leading 0 arms the
+ * documented 0 to 1 change and the last 0 is the manual return (EN86/ZH86 p15). At every possible
+ * transmission use the axis-aware notice below: the first possible 1 withdraws origins, soft-limit
+ * qualification, the reference witness and so every prepared target and cached observation,
+ * exactly once, before the 1 can leave. Configured limit values stay. Post-ACK reads use that new
+ * configuration epoch and observe signed raw 6064 zero only; no host origin, physical home,
+ * arbitrary setter, counter mapping, standstill or zero-velocity claim is established, and an
+ * already-zero baseline shows no change at all.
  * @param[out] output Owned atomic context, disjoint from all inputs.
  * @param[in] reservation Actual continuous CL86-C/OL86-C exclusion.
- * @param[in] state Fresh successful SDO MONITORS/STATUS under reservation.
+ * @param[in] state Complete fresh SDO MONITORS, STATUS and FEEDBACK under reservation: mode 1,
+ * 2100 running and alarm clear, 606C raw zero. 6064 is kept raw in baseline. This is the library's
+ * conservative stationarity evidence, not an observed shaft: a live test also needs that.
  * @param[in] nativePosition Native device request; only exactly zero supported.
  * @param[in] axis Valid matching axis with room in both configuration/confidence epochs.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Explicit caller policies;
  * maximumAgeUs must cover seven fields at the queue plus response budgets, and
  * service.identityWidths must stay DECLARED_U16.
- * @return Local validation. After trigger, retire old owner results/work and advance
- * owner configuration before admitting the new-epoch observation uploads.
+ * @return Local validation. All three writes keep the original binding. After the last
+ * acknowledgement, release old-epoch results and call CanBusOwner::advanceConfiguration before
+ * admitting the new-epoch observation uploads. An uncertain write leaves its route unresolved:
+ * no epoch advance, result release, new reservation or MCU restart qualifies it.
  */
 Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& reservation,
                                 const ReadContext& state, int64_t nativePosition,
@@ -472,8 +511,10 @@ Status noteActionTransmission(ActionContext& context, const AxisReservation& liv
 /** Axis-aware counter notice; required for every counter-action download.
  * First possible U16=1 trigger atomically invalidates coordinates/origins/limits,
  * advances both axis epochs and current's configuration, and records uncertainty.
- * Initial/final zero only note possible TX. No rollback follows owner refusal or
- * cancellation after this conservative boundary. Does no I/O or persistence.
+ * Initial/final zero only note possible TX and never withdraw again. No rollback follows
+ * owner refusal or cancellation after this conservative boundary. A trigger refused or
+ * cancelled before this notice leaves coordinatesInvalidated false and every epoch as it
+ * was. Does no I/O or persistence.
  * @param[in,out] context Active counter context. @param[in] live Frozen live reservation.
  * @param[in,out] current Actual current target, old then exactly one advanced configuration.
  * @param[in,out] axis Actual frozen matching axis interpretation.

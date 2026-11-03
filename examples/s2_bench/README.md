@@ -48,9 +48,12 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `r` / `release` | Release after output and local TX/cleanup retirement; never reopen or retry |
 | `S...` / `scripts/s2_soak.py` | Finite communication soak, below; the one request longer than a byte |
 | `X` / `soak-stop` | Stop a running soak after any started read settles |
+| `T...` / `scripts/s2_bench.py --command readiness-actions` and the other routes | One named attended route, below |
+| `A` / `trial-abort` | Withdraw the active route locally; sends no stop |
 
 While a soak runs, only `p`, `s` and `X` are served; anything else answers
-`SOAK_REFUSED reason=active`. A response that finds the console queue full waits in
+`SOAK_REFUSED reason=active`. While a route's record is held, only `p`, `s`, `d`, `r` and `A`
+are served; anything else answers `TRIAL_REFUSED reason=active`. A response that finds the console queue full waits in
 one retained buffer, and no further command is taken until it has gone.
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
@@ -183,3 +186,14 @@ are in [hardware_bench.md](../../docs/hardware_bench.md#communication-soak).
 linker's `dram0_0_seg` limit has little room left. `SOAK_REFUSED reason=memory` reports a failed
 allocation, and a build that never soaks spends nothing. Free heap is reported in `SOAK_BEGIN`
 and every `SOAK_GAP`.
+
+## Attended bench routes
+
+`T` followed by a route letter and its fields starts one finite route of
+[`BenchRoute`](BenchRoute.h): the packet 13, 14 and 15 reads, one `6060:00=1`, the session's
+enable and stop, and the isolated packet 19 position experiment. The line is drained whole each
+turn, because it can be longer than the platform's 64-byte input ring. `BenchRoute` and one
+`AxisSession` per node are allocated from internal heap on first use and never freed; `PONG` gains
+`routes=1`, `trial` and `motion`. Routes, prerequisites, records and the runner are in
+[hardware_bench.md](../../docs/hardware_bench.md#attended-bench-routes). `MotionPreview` stays an
+offline review artifact, and its `executionReady` stays false.

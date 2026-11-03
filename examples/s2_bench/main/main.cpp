@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Finite board bring-up on OPTAK_FGI_2025. No motor command or startup CAN request.
+#include "BenchRoute.h"
 #include "EspProbeMain.h"
 #include "EspProbePlatform.h"
 #include "FirmwareProbe.h"
@@ -470,6 +471,57 @@ const char* startSoak(E::FirmwareProbe& firmware, C::SdoClient& services, E::Soa
         return "invalid";
     }
 }
+// Route resources, sampled at admission and at the terminal: the high-water mark is the least
+// stack ever free, so a lower value at the terminal was reached during that route.
+void routeSample(void*, E::RouteResources& output) {
+    output.stackFree = uint32_t(uxTaskGetStackHighWaterMark(nullptr));
+    output.heapFree = uint32_t(heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+    output.heapMinimum = uint32_t(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
+    output.largestBlock = uint32_t(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL));
+}
+// Like the soak: one allocation on the first explicit route request and one per node's first
+// route, never freed, because dram0_0_seg cannot hold them. A failure refuses the route.
+E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services) {
+    static E::BenchRoute* route = nullptr;
+    if (route)
+        return route;
+    void* memory = heap_caps_aligned_alloc(alignof(E::BenchRoute), sizeof(E::BenchRoute),
+                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!memory)
+        return nullptr;
+    E::RouteCallbacks callbacks;
+    callbacks.sample = routeSample;
+    route = new (memory) E::BenchRoute(firmware, services, callbacks);
+    return route;
+}
+bool sessionStorage(E::FirmwareProbe& firmware, E::BenchRoute& route, unsigned node) {
+    if (route.attached(node))
+        return true;
+    void* memory = heap_caps_aligned_alloc(alignof(E::AxisSession), sizeof(E::AxisSession),
+                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    return memory && route.attach(node, *new (memory) E::AxisSession(firmware.owner()));
+}
+const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::BenchRoute*& route,
+                       bool configured[2], const char* text, size_t size, uint64_t now) {
+    E::RoutePlan plan;
+    if (!E::parseRouteCommand(text, size, plan))
+        return "parse";
+    if (!ensureRoute(services, plan.node, configured[plan.node - 1], now))
+        return "route";
+    route = routeStorage(firmware, services);
+    if (!route || !sessionStorage(firmware, *route, plan.node))
+        return "memory";
+    return route->begin(plan, now);
+}
+// One record line per turn, only when it fits the output queue whole.
+bool dumpTrial(E::FirmwareProbe& firmware, const E::BenchRoute& route, unsigned& cursor) {
+    char out[256];
+    if (!route.formatLine(cursor, out, sizeof out))
+        return false;
+    if (firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out), std::strlen(out)))
+        ++cursor;
+    return true;
+}
 void ownerTask(void*) {
     static DRAM_ATTR C::SdoClient services;
     static DRAM_ATTR E::IdfTwaiDriver driver;
@@ -486,7 +538,7 @@ void ownerTask(void*) {
             vTaskDelay(1);
     }
     line(firmware, "S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats 3/4=raw "
-                   "v/b=motion-reads S=soak X=soak-stop\n");
+                   "v/b=motion-reads S=soak X=soak-stop T=trial A=trial-abort\n");
     bool attempted = false, configured[2] = {}, used[2] = {}, heartbeatUsed[2] = {},
          readinessUsed[2] = {}, dumping = false, reported = false;
     C::NmtRequestId nmtRequest;
@@ -502,6 +554,13 @@ void ownerTask(void*) {
     size_t soakLength = 0;
     bool soakCollecting = false;
     uint64_t soakCollectUs = 0;
+    // The trial request is the other multi-byte command: `T` then text up to a line end. It is
+    // drained whole each turn, because it can be longer than the platform's 64-byte input ring.
+    E::BenchRoute* route = nullptr;
+    char trialText[128] = {};
+    size_t trialLength = 0;
+    bool trialCollecting = false;
+    uint64_t trialCollectUs = 0;
     for (;;) {
         uint64_t now = 0;
         if (firmware.platform().nowUs(now)) {
@@ -538,11 +597,14 @@ void ownerTask(void*) {
                 clock = sample;
             soak->service(clock, retainedSize != 0);
         }
+        if (route)
+            route->service(firmware.owner().lastTimeUs());
         if (firmware.progressionFailed() && !silent)
             silent = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK;
         const E::AcquisitionRecord* record = firmware.evidence().record();
         const E::RawEvidenceRecord* rawRecord = raw.record();
         const auto* pdoRecord = pdo.record();
+        const E::RouteRecord* trialRecord = route ? route->record() : nullptr;
         if (nmtRequest.owner && !nmtReported) {
             const auto* result = firmware.owner().nmtResult(nmtRequest);
             if (result) {
@@ -561,7 +623,7 @@ void ownerTask(void*) {
             }
         }
         if (((record && record->terminal) || (rawRecord && rawRecord->terminal) ||
-             (pdoRecord && pdoRecord->terminal)) &&
+             (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal)) &&
             !reported) {
             reported = true;
             dumping = true;
@@ -570,7 +632,8 @@ void ownerTask(void*) {
             services.clearUploadExperiment(1);
         }
         if (dumping)
-            dumping = pdoRecord   ? dumpPdo(firmware, pdo, dumpCursor)
+            dumping = trialRecord ? dumpTrial(firmware, *route, dumpCursor)
+                      : pdoRecord ? dumpPdo(firmware, pdo, dumpCursor)
                       : rawRecord ? dumpRaw(firmware, raw, dumpCursor)
                                   : dump(firmware, dumpCursor);
         else if (networkDump)
@@ -582,9 +645,54 @@ void ownerTask(void*) {
             soakCollecting = false;
             line(firmware, "SOAK_REFUSED reason=incomplete; no work\n");
         }
+        if (trialCollecting && firmware.platform().nowUs(now) && now - trialCollectUs > 2000000) {
+            trialCollecting = false;
+            line(firmware, "TRIAL_REFUSED reason=incomplete; no work\n");
+        }
+        // A trial record, active or retained, admits nothing else but inspection and release.
+        const bool trialHeld = trialRecord != nullptr;
         if (!retainedSize && firmware.platform().takeInput(command)) {
             char output[256] = {};
-            if (soakCollecting) {
+            if (trialCollecting) {
+                bool ended = false;
+                uint8_t byte = command;
+                do {
+                    if (byte == '\r' || byte == '\n') {
+                        ended = true;
+                        break;
+                    }
+                    if (trialLength < sizeof trialText)
+                        trialText[trialLength] = char(byte);
+                    if (trialLength <= sizeof trialText)
+                        ++trialLength;
+                } while (firmware.platform().takeInput(byte));
+                if (ended) {
+                    trialCollecting = false;
+                    const char* refusal = "length";
+                    if (trialLength <= sizeof trialText) {
+                        refusal = "state";
+                        if (controllerReady && !soakActive && !dumping && !networkDump &&
+                            !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !trialHeld &&
+                            firmware.platform().nowUs(now))
+                            refusal = startRoute(firmware, services, route, configured, trialText,
+                                                 trialLength, now);
+                    }
+                    if (refusal) {
+                        formatLine(output, sizeof output, "TRIAL_REFUSED reason=%s; no work\n",
+                                   refusal);
+                    } else {
+                        reported = false;
+                        const E::RouteRecord& admitted = *route->record();
+                        formatLine(output, sizeof output,
+                                   "TRIAL admitted route=%s node=%u trial=%lu motion=%u case=%u; "
+                                   "finite typed route, no retry\n",
+                                   E::routeName(admitted.plan.kind), unsigned(admitted.plan.node),
+                                   static_cast<unsigned long>(admitted.plan.trial),
+                                   unsigned(admitted.motionTotal), unsigned(admitted.caseCount));
+                    }
+                    line(firmware, output);
+                }
+            } else if (soakCollecting) {
                 if (command != '\r' && command != '\n') {
                     if (soakLength < sizeof soakText)
                         soakText[soakLength] = char(command);
@@ -596,7 +704,7 @@ void ownerTask(void*) {
                         refusal = "state";
                         if (soakLength <= sizeof soakText && controllerReady && !dumping &&
                             !networkDump && !nmtRequest.owner && !record && !rawRecord &&
-                            !pdoRecord && firmware.platform().nowUs(now))
+                            !pdoRecord && !trialHeld && firmware.platform().nowUs(now))
                             refusal = startSoak(firmware, services, tap, driver, soak, configured,
                                                 soakText, soakLength, now);
                     }
@@ -617,6 +725,24 @@ void ownerTask(void*) {
             } else if (soakActive && command != 'p' && command != 's' && command != '\r' &&
                        command != '\n') {
                 line(firmware, "SOAK_REFUSED reason=active; no work\n");
+            } else if (trialHeld && command != 'p' && command != 's' && command != 'd' &&
+                       command != 'r' && command != 'A' && command != '\r' && command != '\n') {
+                line(firmware, "TRIAL_REFUSED reason=active; no work\n");
+            } else if (command == 'T') {
+                trialCollecting = true;
+                trialLength = 0;
+                trialCollectUs = firmware.platform().nowUs(now) ? now : 0;
+            } else if (command == 'A') {
+                const char* refusal =
+                    route && route->active() ? route->abort(firmware.owner().lastTimeUs()) : "none";
+                if (refusal)
+                    formatLine(output, sizeof output,
+                               "TRIAL_ABORT refused reason=%s; nothing changed\n", refusal);
+                else
+                    formatLine(output, sizeof output,
+                               "TRIAL_ABORTING; local only, no stop sent; a request on its way "
+                               "settles first\n");
+                line(firmware, output);
             } else if (command == 'v' || command == 'b') {
                 const unsigned node = command == 'v' ? 1 : 2;
                 const bool accepted =
@@ -708,7 +834,7 @@ void ownerTask(void*) {
                                    : "IDENTITY refused; no work\n");
             } else if (command == 'd') {
                 if (((record && record->terminal) || (rawRecord && rawRecord->terminal) ||
-                     (pdoRecord && pdoRecord->terminal)) &&
+                     (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal)) &&
                     !dumping) {
                     dumping = true;
                     dumpCursor = 0;
@@ -716,6 +842,12 @@ void ownerTask(void*) {
                     line(firmware, "DUMP unavailable\n");
                 }
             } else if (command == 'r') {
+                if (trialRecord) {
+                    line(firmware, !dumping && route->release()
+                                       ? "TRIAL record released; sessions and uncertainty retained\n"
+                                       : "TRIAL release refused\n");
+                    continue;
+                }
                 if (pdoRecord) {
                     line(firmware, !dumping && pdo.release()
                                        ? "PDO record released; configuration/uncertainty retained\n"
@@ -759,11 +891,12 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=1 trial=%u motion=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
                            unsigned(silent), unsigned(silentReady), unsigned(soakActive),
-                           static_cast<unsigned long long>(firmware.owner().lastTimeUs()));
+                           static_cast<unsigned long long>(firmware.owner().lastTimeUs()),
+                           unsigned(trialHeld), unsigned(route ? route->motionAdmissions() : 0));
                 line(firmware, output);
             } else if (command == 'c') {
                 bool ready = false;
