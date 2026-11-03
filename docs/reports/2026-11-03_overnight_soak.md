@@ -39,7 +39,8 @@ Only first observations were recorded in every run, and no signal changed after 
 
 | Signal | Value | Meaning |
 | --- | --- | --- |
-| `health`, `streak`, `lastError`, `unresolved` | 0 | No failure, no unresolved work |
+| `health` | 0 | `DriverState::UNINIT`: no current qualified endpoint evidence. **It stayed so all night**, through 1.5 million successful exchanges, because no reply qualified service; see the defect below |
+| `streak`, `lastError`, `unresolved` | 0 | No failure, no unresolved work |
 | `nmt` | `ff` | No NMT observation: the drives' heartbeat producer is not established (`producer=0`, `heartbeat=0`), so freshness stays producer-unknown, as designed |
 | `eligibility` | `0xC` | Probe upload allowed, and a service qualification recorded but not current, so **no ordinary SDO**. See the defect below |
 | Identity | `1000=00040192`, `1009=0C`, `100A=20`, `1018=5,1000,1,0`, `2000=400`, `2001=200` | Same as packet 11 |
@@ -53,7 +54,7 @@ Two interface counters start nonzero and never change. Both are cumulative since
 
 ## Defect found: no ordinary SDO on this fixture
 
-`eligibility=0xC` means the session could not have sent any write on this fixture: enable, sequenced stop, move and settings routes would all refuse `eligibility`. Service qualification needed an exact receive time; the S2 shim gives only bounds, and the drives send no heartbeat. The fix qualifies service when a reply's earliest receive bound is strictly after its handoff and after the node boundary ([receive-time guide](../adapters/twai_receive_time.md#sdo-service-qualification), regression `test/bounded_service_test.cpp`). Its retest on hardware is the final run below: on the new image, `eligibility` should read `0xE`.
+`eligibility=0xC` and `health=UNINIT` mean the owner never held qualified evidence of these drives, and the session could not have sent any write on this fixture: enable, sequenced stop, move and settings routes would all refuse `eligibility`. Service qualification needed an exact receive time; the S2 shim gives only bounds, and the drives send no heartbeat. The fix qualifies service when a reply's earliest receive bound is strictly after its handoff and after the node boundary ([receive-time guide](../adapters/twai_receive_time.md#sdo-service-qualification), regression `test/bounded_service_test.cpp`). Its retest on hardware is in the final runs below.
 
 ## Console loss at 05:22Z: 64 bytes between the S2 and the host
 
