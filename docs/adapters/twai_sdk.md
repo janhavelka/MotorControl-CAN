@@ -34,9 +34,15 @@ provides API context; the pinned implementation resolves details below.
 
 ## Retransmission consequences (DEC-4)
 
-Bytes leave for as long as a frame is pending. These follow from `fail_retry_cnt=-1`. Packet 11's read-only soak on the S2, two specimens and about 13 minutes with no TPDO load, recorded no TX rejection, controller error or bus-off (`txRej=0`, `twaiErr=0`, `twaiFlags=0`, `busOff=0` in `docs/bench/20261103T0115Z-soak-stop`). So none of the cases below occurred, and each stays unmeasured: no no-ACK, bus-off, late-error or loaded case was induced or observed. Later runs are in the [soak report](../reports/2026-11-03_overnight_soak.md).
+Bytes leave for as long as a frame is pending. These follow from `fail_retry_cnt=-1`. Packet 11's read-only soak on the S2, two specimens and about 13 minutes with no TPDO load, recorded no TX rejection, controller error or bus-off (`txRej=0`, `twaiErr=0`, `twaiFlags=0`, `busOff=0` in `docs/bench/20261103T0115Z-soak-stop`). So none of the cases below occurred there. Later runs are in the [soak report](../reports/2026-11-03_overnight_soak.md). A no-ACK then occurred naturally on 2026-11-03, measured in the first bullet. No bus-off, late-error or loaded case has been induced or observed.
 
-- A no-ACK frame has no limit, timer or abort in the SDK. It stays ACTIVE, stalls the interface for every axis and raises one interrupt and `on_error` per attempt on the owner's core. Only an application-started owner recovery, which deletes the node, ends it.
+- A no-ACK frame has no limit, timer or abort in the SDK. It stays ACTIVE, stalls the interface for every axis and raises one interrupt and `on_error` per attempt on the owner's core. Only an application-started owner recovery, which deletes the node, ends it. *Measured on the S2 at 1 Mbit/s, 2026-11-03, after both drives stopped acknowledging* ([unattended report](../reports/2026-11-03_unattended_bench.md#after-the-campaign-new-image-error-history-final-state)):
+  - One SDO request retried for 4.9 h, until a reflash, at about 7,250 `on_error` per second, all `ack_err` (`0x10`).
+  - TEC rose to 128 (error passive) and stayed there, REC stayed 0, and no bus-off occurred. That fits ISO 11898-1, under which an error-passive transmitter's ACK error does not raise TEC.
+  - The largest service gap stayed under 4.7 ms, and the free stack was unchanged.
+  - Every request for the other node timed out before transmission, with nothing left unresolved.
+
+  The rate fits one attempt of about 138 bit times. This was one controller, one cable and one firmware; nothing here shows what a drive does with the frame once it answers.
 - A frame past its deadline can still be ACKed and take effect arbitrarily late, including on a rebooted drive. Boot-up or rebinding does not stop it.
 - **Retired does not mean undelivered.** A frame can complete before `esp_intr_disable`, with its report discarded by `stop()`, or between that call and reset mode, silently. An attempt in its final bit at reset may already have been accepted.
 - A late error followed by retransmission can deliver a frame twice, so a duplicate reply could reach a later transaction. CAN general knowledge, no retained source.

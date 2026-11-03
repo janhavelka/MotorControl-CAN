@@ -1,0 +1,101 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-03T19:44:08.423487+00:00",
+  "trials": [
+    {
+      "trial": 1793724233,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 817,
+          "detail": "missing ownerGap,qHw,actHw,retHw,trHw,trOver,netDrop"
+        },
+        {
+          "code": "malformed_line",
+          "line": 893,
+          "detail": "missing resFull,timeouts,cancelled,busOff,recov,twaiErr,twaiFlags"
+        },
+        {
+          "code": "malformed_line",
+          "line": 1047,
+          "detail": "missing twaiFlags,twaiDrop"
+        },
+        {
+          "code": "format_error",
+          "line": 513201,
+          "detail": "OUTPUT_FORMAT_ERROR; evidence incomplete"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 818,
+          "detail": "expected 814 found 815"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 894,
+          "detail": "expected 890 found 891"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 1048,
+          "detail": "expected 1044 found 1046"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 513202,
+          "detail": "expected 513199 found 513200"
+        },
+        {
+          "code": "soak_dump_missing",
+          "line": 1164,
+          "detail": "anomaly 4"
+        }
+      ],
+      "error_count": 9,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793724233,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 120,
+          "SOAK_SUM": 88,
+          "SOAK_GAP": 88,
+          "SOAK_CON": 89,
+          "SOAK_NODE": 180,
+          "SOAK_HIST": 180,
+          "SOAK_OUT": 180,
+          "SOAK_ABORT": 180,
+          "SOAK_ANOM": 511998,
+          "SOAK_NODE_STOP": 1,
+          "SOAK_OP": 1,
+          "SOAK_T": 96,
+          "SOAK_TEND": 1,
+          "SOAK_END": 1
+        },
+        "anomalies": {
+          "status": 2,
+          "terminal": 1,
+          "bus": 511995
+        },
+        "nodes_stopped": {
+          "2": "unresolved"
+        },
+        "lost_lines": 5,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 4,
+          "failed_operation": 1,
+          "soak_dump_missing": 1
+        }
+      },
+      "unknown": 0,
+      "malformed": 3,
+      "bytes": 43463875,
+      "sha256": "090b2998a116de1b26e199313637cd4453e2e51bcf720120bfe8d4e1176587d7"
+    }
+  ]
+}

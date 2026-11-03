@@ -1,0 +1,20 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-03T22:44:18.884813+00:00",
+  "trials": [
+    {
+      "trial": 1793735048,
+      "directory": "trial-01",
+      "verdict": "not_replayed",
+      "errors": [],
+      "error_count": 0,
+      "warning_count": 0,
+      "soak": {},
+      "unknown": 0,
+      "malformed": 0,
+      "bytes": 86482223,
+      "sha256": ""
+    }
+  ]
+}

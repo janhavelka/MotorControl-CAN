@@ -1,0 +1,18 @@
+{
+  "name": "xtensa_version",
+  "command": [
+    "C:\\pio\\packages\\toolchain-xtensa-esp-elf\\bin\\xtensa-esp32s2-elf-g++.EXE",
+    "--version"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261103T2307Z-s2-upload\\tools\\20261103T230708373966Z-30892-xgpcog7w\\02_xtensa_version.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 0.016
+}
+
+xtensa-esp-elf-g++.EXE (crosstool-NG esp-14.2.0_20260121) 14.2.0
+Copyright (C) 2024 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+

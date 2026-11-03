@@ -1,0 +1,62 @@
+2026-11-03T23:09:38.346326+00:00 trial=1 SOAK_SUM n=1178 t=96548926 trial=1793747317 up=60006616 rx=0 tx=0 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=213 cancelled=0 busOff=0 recov=0 twaiErr=434641 twaiFlags=10 twaiDrop=0
+2026-11-03T23:09:38.366760+00:00 trial=1 SOAK_GAP n=1179 t=96551954 gapMax=3739 gapWin=3739 ownerGap=3209 qHw=1 actHw=1 retHw=1 trHw=1 trOver=0 netDrop=0 stack=8976 heap=127876 heapMin=123436 tec=128 rec=0
+2026-11-03T23:09:38.406865+00:00 trial=1 SOAK_CON n=1180 t=96554944 lines=1180 blocked=628 conRej=0 conHw=496 evFull=204 evLimit=28785 evHw=81 anomalies=218 dumps=4 dumpSkip=214 dumpAb=0 trLost=0 dumpUs=1648344 defDump=823 defBusy=24754 defTx=0 defInh=0 slips=213 sdkDefer=0
+2026-11-03T23:09:38.416449+00:00 trial=1 SOAK_NODE n=1181 t=96581927 node=1 ops=1 opsOk=0 opsFail=1 refused=0 steps=1 stepsOk=0 min=252871 mean=252871 max=252871 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T23:09:40.392892+00:00 trial=1 SOAK_HIST n=1301 t=98569645 node=1 b=0,0,0,0,0,0,0,1
+2026-11-03T23:09:40.406734+00:00 trial=1 SOAK_OUT n=1302 t=98577654 node=1 sdo=0,0,0,1,0,0,0,0,0,0,0,0 reason=1,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,1
+2026-11-03T23:09:40.422479+00:00 trial=1 SOAK_ABORT n=1303 t=98592809 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:09:40.437482+00:00 trial=1 SOAK_NODE n=1304 t=98606939 node=2 ops=214 opsOk=0 opsFail=213 refused=0 steps=213 stepsOk=0 min=0 mean=0 max=0 retireMax=2904 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-03T23:09:40.452787+00:00 trial=1 SOAK_HIST n=1305 t=98626944 node=2 b=0,0,0,0,0,0,0,0
+2026-11-03T23:09:40.467682+00:00 trial=1 SOAK_OUT n=1306 t=98632930 node=2 sdo=0,0,0,213,0,0,0,0,0,0,0,0 reason=213,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,213
+2026-11-03T23:09:40.477679+00:00 trial=1 SOAK_ABORT n=1308 t=98659942 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:09:40.477679+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=219 stopped=[1] gaps=0 malformed=0 unknown=0
+2026-11-03T23:10:38.336129+00:00 trial=1 SOAK_SUM n=2308 t=156545944 trial=1793747317 up=120003634 rx=0 tx=0 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=424 cancelled=0 busOff=0 recov=0 twaiErr=869402 twaiFlags=10 twaiDrop=0
+2026-11-03T23:10:38.376855+00:00 trial=1 SOAK_GAP n=2310 t=156550961 gapMax=3741 gapWin=3741 ownerGap=3209 qHw=1 actHw=1 retHw=1 trHw=1 trOver=0 netDrop=0 stack=8976 heap=127876 heapMin=123436 tec=128 rec=0
+2026-11-03T23:10:38.397570+00:00 trial=1 SOAK_CON n=2311 t=156553940 lines=2311 blocked=1550 conRej=0 conHw=496 evFull=204 evLimit=57861 evHw=81 anomalies=430 dumps=4 dumpSkip=426 dumpAb=0 trLost=0 dumpUs=3664038 defDump=1821 defBusy=49387 defTx=0 defInh=0 slips=424 sdkDefer=0
+2026-11-03T23:10:38.412572+00:00 trial=1 SOAK_NODE n=2312 t=156582928 node=1 ops=1 opsOk=0 opsFail=1 refused=0 steps=1 stepsOk=0 min=252871 mean=252871 max=252871 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T23:10:38.447095+00:00 trial=1 SOAK_HIST n=2315 t=156629938 node=1 b=0,0,0,0,0,0,0,1
+2026-11-03T23:10:38.462603+00:00 trial=1 SOAK_OUT n=2316 t=156637930 node=1 sdo=0,0,0,1,0,0,0,0,0,0,0,0 reason=1,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,1
+2026-11-03T23:10:38.493401+00:00 trial=1 SOAK_ABORT n=2318 t=156662940 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:10:38.508077+00:00 trial=1 SOAK_NODE n=2319 t=156674929 node=2 ops=425 opsOk=0 opsFail=424 refused=0 steps=424 stepsOk=0 min=0 mean=0 max=0 retireMax=2904 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-03T23:10:38.523077+00:00 trial=1 SOAK_HIST n=2320 t=156696943 node=2 b=0,0,0,0,0,0,0,0
+2026-11-03T23:10:38.538090+00:00 trial=1 SOAK_OUT n=2321 t=156702927 node=2 sdo=0,0,0,424,0,0,0,0,0,0,0,0 reason=424,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,424
+2026-11-03T23:10:38.538090+00:00 trial=1 SOAK_ABORT n=2322 t=156717936 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:10:38.538090+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=431 stopped=[1] gaps=0 malformed=0 unknown=0
+2026-11-03T23:11:38.362874+00:00 trial=1 SOAK_SUM n=3358 t=216546680 trial=1793747317 up=180004370 rx=0 tx=0 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=643 cancelled=0 busOff=0 recov=0 twaiErr=1304191 twaiFlags=10 twaiDrop=0
+2026-11-03T23:11:38.391877+00:00 trial=1 SOAK_GAP n=3360 t=216551684 gapMax=3741 gapWin=3741 ownerGap=3209 qHw=1 actHw=1 retHw=1 trHw=1 trOver=0 netDrop=0 stack=8976 heap=127876 heapMin=123436 tec=128 rec=0
+2026-11-03T23:11:38.415939+00:00 trial=1 SOAK_CON n=3361 t=216572938 lines=3361 blocked=1632 conRej=0 conHw=496 evFull=204 evLimit=86940 evHw=81 anomalies=650 dumps=4 dumpSkip=646 dumpAb=0 trLost=0 dumpUs=3664038 defDump=1821 defBusy=74872 defTx=0 defInh=0 slips=643 sdkDefer=0
+2026-11-03T23:11:38.442430+00:00 trial=1 SOAK_NODE n=3362 t=216603927 node=1 ops=1 opsOk=0 opsFail=1 refused=0 steps=1 stepsOk=0 min=252871 mean=252871 max=252871 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T23:11:38.442430+00:00 trial=1 SOAK_HIST n=3363 t=216623928 node=1 b=0,0,0,0,0,0,0,1
+2026-11-03T23:11:38.458363+00:00 trial=1 SOAK_OUT n=3364 t=216631926 node=1 sdo=0,0,0,1,0,0,0,0,0,0,0,0 reason=1,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,1
+2026-11-03T23:11:38.487010+00:00 trial=1 SOAK_ABORT n=3366 t=216656922 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:11:38.502788+00:00 trial=1 SOAK_NODE n=3367 t=216670937 node=2 ops=643 opsOk=0 opsFail=642 refused=0 steps=642 stepsOk=0 min=0 mean=0 max=0 retireMax=2904 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-03T23:11:38.518498+00:00 trial=1 SOAK_HIST n=3368 t=216691938 node=2 b=0,0,0,0,0,0,0,0
+2026-11-03T23:11:38.533288+00:00 trial=1 SOAK_OUT n=3369 t=216697928 node=2 sdo=0,0,0,642,0,0,0,0,0,0,0,0 reason=642,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,642
+2026-11-03T23:11:38.533288+00:00 trial=1 SOAK_ABORT n=3370 t=216714936 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:11:38.533288+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=650 stopped=[1] gaps=0 malformed=0 unknown=0
+2026-11-03T23:12:38.346099+00:00 trial=1 SOAK_SUM n=4406 t=276546940 trial=1793747317 up=240004630 rx=0 tx=0 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=861 cancelled=0 busOff=0 recov=0 twaiErr=1738974 twaiFlags=10 twaiDrop=0
+2026-11-03T23:12:38.372897+00:00 trial=1 SOAK_GAP n=4408 t=276552942 gapMax=3741 gapWin=3740 ownerGap=3209 qHw=1 actHw=1 retHw=1 trHw=1 trOver=0 netDrop=0 stack=8976 heap=127876 heapMin=123436 tec=128 rec=0
+2026-11-03T23:12:38.398973+00:00 trial=1 SOAK_CON n=4409 t=276555938 lines=4409 blocked=1697 conRej=0 conHw=496 evFull=204 evLimit=116001 evHw=81 anomalies=869 dumps=4 dumpSkip=865 dumpAb=0 trLost=0 dumpUs=3664038 defDump=1821 defBusy=100356 defTx=0 defInh=0 slips=861 sdkDefer=0
+2026-11-03T23:12:38.413971+00:00 trial=1 SOAK_NODE n=4410 t=276582924 node=1 ops=1 opsOk=0 opsFail=1 refused=0 steps=1 stepsOk=0 min=252871 mean=252871 max=252871 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T23:12:38.424976+00:00 trial=1 SOAK_HIST n=4411 t=276605923 node=1 b=0,0,0,0,0,0,0,1
+2026-11-03T23:12:38.440114+00:00 trial=1 SOAK_OUT n=4412 t=276611928 node=1 sdo=0,0,0,1,0,0,0,0,0,0,0,0 reason=1,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,1
+2026-11-03T23:12:38.455432+00:00 trial=1 SOAK_ABORT n=4413 t=276626921 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:12:38.470828+00:00 trial=1 SOAK_NODE n=4414 t=276638927 node=2 ops=861 opsOk=0 opsFail=860 refused=0 steps=860 stepsOk=0 min=0 mean=0 max=0 retireMax=2904 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-03T23:12:38.500236+00:00 trial=1 SOAK_HIST n=4416 t=276671938 node=2 b=0,0,0,0,0,0,0,0
+2026-11-03T23:12:38.500236+00:00 trial=1 SOAK_OUT n=4417 t=276679938 node=2 sdo=0,0,0,860,0,0,0,0,0,0,0,0 reason=860,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,860
+2026-11-03T23:12:38.524768+00:00 trial=1 SOAK_ABORT n=4418 t=276694927 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:12:38.524768+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=869 stopped=[1] gaps=0 malformed=0 unknown=0
+2026-11-03T23:13:37.425286+00:00 trial=1 SOAK_SUM n=5438 t=335619676 trial=1793747317 up=299077366 rx=0 tx=0 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=1076 cancelled=0 busOff=0 recov=0 twaiErr=2167039 twaiFlags=10 twaiDrop=0
+2026-11-03T23:13:37.440765+00:00 trial=1 SOAK_GAP n=5439 t=335622688 gapMax=3741 gapWin=3741 ownerGap=3209 qHw=1 actHw=1 retHw=1 trHw=1 trOver=0 netDrop=0 stack=8976 heap=127876 heapMin=123436 tec=128 rec=0
+2026-11-03T23:13:37.470232+00:00 trial=1 SOAK_CON n=5440 t=335626654 lines=5440 blocked=1761 conRej=0 conHw=496 evFull=204 evLimit=144622 evHw=81 anomalies=1084 dumps=4 dumpSkip=1080 dumpAb=0 trLost=0 dumpUs=3664038 defDump=1821 defBusy=125425 defTx=0 defInh=0 slips=1075 sdkDefer=0
+2026-11-03T23:13:37.500792+00:00 trial=1 SOAK_NODE n=5442 t=335666654 node=1 ops=1 opsOk=0 opsFail=1 refused=0 steps=1 stepsOk=0 min=252871 mean=252871 max=252871 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T23:13:37.514763+00:00 trial=1 SOAK_HIST n=5443 t=335688639 node=1 b=0,0,0,0,0,0,0,1
+2026-11-03T23:13:37.514763+00:00 trial=1 SOAK_OUT n=5444 t=335696646 node=1 sdo=0,0,0,1,0,0,0,0,0,0,0,0 reason=1,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,1
+2026-11-03T23:13:37.530379+00:00 trial=1 SOAK_ABORT n=5445 t=335708647 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:13:37.552847+00:00 trial=1 SOAK_NODE n=5446 t=335722643 node=2 ops=1075 opsOk=0 opsFail=1075 refused=0 steps=1075 stepsOk=0 min=0 mean=0 max=0 retireMax=2904 earlyReply=0 hb=0 hbGapMax=0 stopped=0
+2026-11-03T23:13:37.562720+00:00 trial=1 SOAK_HIST n=5448 t=335754646 node=2 b=0,0,0,0,0,0,0,0
+2026-11-03T23:13:37.573726+00:00 trial=1 SOAK_OUT n=5449 t=335760656 node=2 sdo=0,0,0,1075,0,0,0,0,0,0,0,0 reason=1075,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,1075
+2026-11-03T23:13:37.584088+00:00 trial=1 SOAK_ABORT n=5450 t=335776646 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T23:13:37.584088+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=1084 stopped=[1] gaps=0 malformed=0 unknown=0
+2026-11-03T23:13:37.585780+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=1084 stopped=[1] gaps=0 malformed=0 unknown=0
+2026-11-03T23:13:37.590288+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=1084 stopped=[1] gaps=0 malformed=0 unknown=0
