@@ -367,10 +367,4 @@ class BenchTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "--transcript":
-        found = check_trial_transcript(sys.argv[2])
-        for problem in found:
-            print(problem)
-        print("trial transcript: %s" % ("failed" if found else "passed"))
-        sys.exit(1 if found else 0)
     unittest.main()
