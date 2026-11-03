@@ -1627,13 +1627,15 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     if (index == 1)
         return put(out, size,
                    "TRIAL_RES stack0=%lu stack1=%lu heap0=%lu heap1=%lu heapMin=%lu largest=%lu gap=%llu "
-                   "dropped=%lu admission=%u started=%llu completed=%llu\n",
+                   "dropped=%lu admission=%u started=%llu completed=%llu tec0=%lu rec0=%lu tec1=%lu rec1=%lu\n",
                    static_cast<unsigned long>(r.before.stackFree), static_cast<unsigned long>(r.after.stackFree),
                    static_cast<unsigned long>(r.before.heapFree), static_cast<unsigned long>(r.after.heapFree),
                    static_cast<unsigned long>(r.after.heapMinimum), static_cast<unsigned long>(r.after.largestBlock),
                    static_cast<unsigned long long>(r.maxServiceGapUs), static_cast<unsigned long>(r.dropped),
                    unsigned(r.admission), static_cast<unsigned long long>(r.startedUs),
-                   static_cast<unsigned long long>(r.completedUs));
+                   static_cast<unsigned long long>(r.completedUs),
+                   static_cast<unsigned long>(r.before.txErrors), static_cast<unsigned long>(r.before.rxErrors),
+                   static_cast<unsigned long>(r.after.txErrors), static_cast<unsigned long>(r.after.rxErrors));
     index -= 2;
     const RouteSnapshot* shots[] = {r.checkPresent ? &r.check : nullptr, r.last.blocks ? &r.last : nullptr};
     const char* labels[] = {"TRIAL_CHECK", "TRIAL_LAST"};

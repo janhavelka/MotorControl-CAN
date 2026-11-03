@@ -1,5 +1,7 @@
 # Packet 8: measured action stack and atomic publication
 
+**Live measurement, attended session 2026-11-03.** On the S2 owner task, the least stack ever free was 8,492 of 12,288 bytes, reached during a moving HALT through `AxisSession::requestStop`. The enable reached 8,700 and reads 9,056. That is one image, and `000B` and the production `move` have not run. See the [attended bench report](../2026-11-03_attended_bench.md#resources-during-the-actions). The text below is as written before the session.
+
 Executes audit W7, A-11 and C-15. Host-side compiler measurements only. **The live stop stack is not measured: no firmware holds an `AxisSession` yet, and packet 16 owns that measurement.** Passing here says the statically known chains fit; it does not bound the stack, because every chain has unknown edges.
 
 ## Delivered

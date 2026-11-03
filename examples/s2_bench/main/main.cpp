@@ -473,7 +473,8 @@ const char* startSoak(E::FirmwareProbe& firmware, C::SdoClient& services, E::Soa
 }
 // Route resources, sampled at admission and at the terminal: the high-water mark is the least
 // stack ever free, so a lower value at the terminal was reached during that route.
-void routeSample(void*, E::RouteResources& output) {
+void routeSample(void* context, E::RouteResources& output) {
+    static_cast<const E::IdfTwaiDriver*>(context)->errorCounters(output.txErrors, output.rxErrors);
     output.stackFree = uint32_t(uxTaskGetStackHighWaterMark(nullptr));
     output.heapFree = uint32_t(heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     output.heapMinimum = uint32_t(heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
@@ -481,7 +482,7 @@ void routeSample(void*, E::RouteResources& output) {
 }
 // Like the soak: one allocation on the first explicit route request and one per node's first
 // route, never freed, because dram0_0_seg cannot hold them. A failure refuses the route.
-E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services) {
+E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver) {
     static E::BenchRoute* route = nullptr;
     if (route)
         return route;
@@ -490,6 +491,7 @@ E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services) 
     if (!memory)
         return nullptr;
     E::RouteCallbacks callbacks;
+    callbacks.context = &driver;
     callbacks.sample = routeSample;
     route = new (memory) E::BenchRoute(firmware, services, callbacks);
     return route;
@@ -501,8 +503,8 @@ bool sessionStorage(E::FirmwareProbe& firmware, E::BenchRoute& route, unsigned n
                                            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     return memory && route.attach(node, *new (memory) E::AxisSession(firmware.owner()));
 }
-const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::BenchRoute*& route,
-                       bool configured[2], const char* text, size_t size, uint64_t now) {
+const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver,
+                       E::BenchRoute*& route, bool configured[2], const char* text, size_t size, uint64_t now) {
     // The host's CRC-32 of the whole line first: a corrupted digit can still parse as another plan.
     size_t body = 0;
     if (!E::checkRouteIntegrity(text, size, body))
@@ -512,7 +514,7 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Be
         return "parse";
     if (!ensureRoute(services, plan.node, configured[plan.node - 1], now))
         return "route";
-    route = routeStorage(firmware, services);
+    route = routeStorage(firmware, services, driver);
     if (!route || !sessionStorage(firmware, *route, plan.node))
         return "memory";
     return route->begin(plan, now);
@@ -680,8 +682,8 @@ void ownerTask(void*) {
                         if (controllerReady && !soakActive && !dumping && !networkDump &&
                             !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !trialHeld &&
                             firmware.platform().nowUs(now))
-                            refusal = startRoute(firmware, services, route, configured, trialText,
-                                                 trialLength, now);
+                            refusal = startRoute(firmware, services, driver, route, configured,
+                                                 trialText, trialLength, now);
                     }
                     if (refusal) {
                         formatLine(output, sizeof output, "TRIAL_REFUSED reason=%s; no work\n",

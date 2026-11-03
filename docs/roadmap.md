@@ -24,15 +24,15 @@ implemented, host-tested and observed on node1; broader Q17 gates remain.
 implemented. Packet 4 admits the DEC-1 accepted list and `prepareProbe` as a
 project decision; Q20 read effects stay open, and every other row stays gated.
 
-**Handoff state, 2026-11-03.** Packets 1 to 22 have run their host scope. The
-physical cores of 16, 19 and 22 have not run: they enable or move and need an
-attendant. Packet 22 ran a reads-only communication soak instead. The [execution table](reports/handoff_19_33/README.md)
+**Handoff state, 2026-11-03.** Packets 1 to 22 have run their host scope. The [execution table](reports/handoff_19_33/README.md)
 records each packet's delivery, checks and CI. Packet 10 closed the repair
 audit's W1 to W8 for host scope. Packet 11 ran the first live typed reads and a
-read-only communication soak on two specimens. No physical trial of packets 12
-to 22 has run: no specimen has accepted a setting write, enabled, stopped,
-cleared an alarm, zeroed a counter or moved. The open physical gates are listed
-in the [backlog](backlog.md).
+read-only communication soak on two specimens. A first
+[attended campaign](reports/2026-11-03_attended_bench.md) enabled both
+specimens, and on node 1 ran one absolute experiment move, its rearm and a
+moving HALT. No specimen has accepted a setting write, run `000B`, cleared an
+alarm, zeroed a counter or run the library's move lifecycle. The open physical
+gates are listed in the [backlog](backlog.md).
 
 The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
 26 uploads per node, node1 heartbeat1000, fresh addressed Pre-operational and
@@ -75,10 +75,10 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 27 | Pinned TWAI adapter | Reviewed ESP-IDF 5.5.5 S2/S3 port and compile evidence; packet 3 changed the submit contract and set `fail_retry_cnt=-1`. Partial: the W9 remainder, and packet 3's TWAI questions 1, 4 and 6, which packet 11 left unanswered. [Report](reports/prompt_27.md). Bounded S2 exchanges and a read-only soak observed; broader physical qualification pending. |
 | 28 | Shared Arduino/ESP-IDF application | Arduino/S3 IDF/S2 bench/isolated component build gates; Partial on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). S2 uses explicit fixture configuration and UART; P4 complete firmware remains pending. |
 | 29 | Evidence harness, fixture record and conflict acquisition | Typed and raw finite collectors implemented and host/firmware checked; [two-node S2 raw acquisition](reports/2026-11-02_s2_live_connection.md) observed. Packet 11 added flash, parser and soak tools, and ran typed identity, the readiness image and a read-only soak live on two specimens. Partial on Q20 and remaining [measurement gates](device_conflicts.md); no PDO mutation or motor qualification. |
-| 30 | State interpretation, enable/release | Partial: checked documentary decoder and a [gated enable](drive_actions.md) (packet 15), closed by default, that no specimen has run. The release command remains unresolved and absent. |
-| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. Whether any DEC-8 row or `000B` stops these drives is packet 16's measurement, not yet run; [remaining gates](stop_actions.md). No enabling preamble. |
+| 30 | State interpretation, enable/release | Partial: checked documentary decoder and a [gated enable](drive_actions.md) (packet 15), closed by default, which succeeded on both specimens in the attended session. The release command remains unresolved and absent. |
+| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. One HALT from `001F` stopped and held a 2 rpm move on node 1; the other DEC-8 rows and `000B` are packet 16's measurements, not yet run; [remaining gates](stop_actions.md). No enabling preamble. |
 | 32 | Fault/reference actions | Partial: alarm clear with explicitly unresolved fault identity (packet 17) and zero-only counter clear with a retained baseline (packet 18), with exact owner/reference handoff. No specimen has run either. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
-| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20) that no specimen has run. Acceptance and completion evidence (packet 19), stop rows (packet 16) and relative moves (packet 21) remain. |
+| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20) that no specimen has run. Packet 19 measured node 1's acceptance and completion signals; the `move` route, stop rows (packet 16) and relative moves (packet 21) remain. |
 | 34-36 | Angles, finite velocity and homing | Pending; the repair audit's hold is lifted only for consumed qualified contracts. Explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |

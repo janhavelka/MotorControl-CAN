@@ -10,7 +10,9 @@ node1 reverted to producer0/map3 in that one cycle. Each node also completed a
 30-field read-only readiness inventory; nonzero `607A`/`60FF` reads equal to EDS
 defaults and mode0 do not close motion-admission or completion requirements.
 
-[Prompt 33](reports/prompt_33.md) adds checked native position-parameter arithmetic and owned target/axis/settings snapshots to R06/R13/R20. Packets 20 and 21 add the gated move lifecycles on one path: `prepareMoveAbsolute`, `prepareMoveRelative`, `nextMove`, `advanceMove` and `AxisSession::requestMove`/`requestMoveRelative`, with interruption tests through the real fake owner. The absolute move needs caller-supplied acceptance and completion evidence and refuses by default; every relative request is refused until a wire base is evidenced. No specimen has run either. Acceptance/completion, relative wire semantics and a supported post-trigger stop remain gated in the [guide](position_parameters.md).
+[Prompt 33](reports/prompt_33.md) adds checked native position-parameter arithmetic and owned target/axis/settings snapshots to R06/R13/R20. Packets 20 and 21 add the gated move lifecycles on one path: `prepareMoveAbsolute`, `prepareMoveRelative`, `nextMove`, `advanceMove` and `AxisSession::requestMove`/`requestMoveRelative`, with interruption tests through the real fake owner. The absolute move needs caller-supplied acceptance and completion evidence and refuses by default; every relative request is refused until a wire base is evidenced. No specimen has run either; the
+application-local `position` experiment measured node 1's acceptance and completion signals for
+the absolute move ([packet 19](reports/handoff_19_33/packet_19.md)). Acceptance/completion, relative wire semantics and a supported post-trigger stop remain gated in the [guide](position_parameters.md).
 
 [Prompt 32](reports/prompt_32.md) adds conditional fault-clear and zero-only
 device-position actions to R06/R13/R20. Ordered command terminals, original
@@ -29,13 +31,16 @@ real-owner urgent/interruption tests. It does not qualify other predecessor
 states, velocity/homing stopping, target disposal, braking, torque or reference
 effects. [Stop scope and gates](stop_actions.md) remain separate from host tests.
 Packets 7 and 16 add the DEC-8 predecessors, session history and the best-effort
-`000B`, which never succeeds. The bench `stop` route is ready and has not run (Q12).
+`000B`, which never succeeds. One HALT from `001F` ran on node 1 during a 2 rpm move and was
+observed to stop and hold ([attended report](reports/2026-11-03_attended_bench.md)); `000B` and
+the bench `stop` route have not run (Q12).
 
 [Prompt 30](reports/prompt_30.md) adds checked documentary state interpretation
 to R08/R10/R20: explicit layouts, raw values and acquisition provenance, unknown
 bits and disagreement. It does not close action coverage R06/R13 or firmware
 qualification. `prepareEnable` implements the documented position-enable sequence behind a closed
-gate, host tested only: no specimen has run it, and its initial/no-pending-motion provenance is a
+gate. It succeeded on both specimens in the attended session, after the bit 10 fix (`e17271a`);
+that is one firmware, not a qualification, and its initial/no-pending-motion provenance is a
 caller's statement, not a measured rule. No reviewed source defines release's CAN
 command/effects. Both lifecycles and their action-specific tests remain pending.
 

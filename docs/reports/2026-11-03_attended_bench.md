@@ -23,6 +23,7 @@ The first attended motion session on this library's own routes: packet 15 P1 to 
 | 111 | 1 | Position 0 → 250, 2 rpm | Accepted within 24 ms, complete between 8 and 9 s, `6064=250`. The attendant saw **about a quarter turn counter-clockwise** from the shaft end |
 | 112 | 1 | Rearm `000F` | Bit 12 cleared (`9437` to `8437`), position unchanged |
 | 113 | 1 | Position 250 → 750, HALT after 3 cycles | `010F` from `001F` at 2.05 s; the stop was **observed** (`2100` running cleared). Final `6064=316`, unchanged 26 s later: **no creep** |
+| 114, 115 | 1 | P1 reads | After the stop, `6064=316` still. `6041=0437`: bits 15 and 12 clear. `2100=0000`: in place and running both clear. The halted move reports neither completion signal, so a move halted short of its target never reads as complete |
 | 116 to 118 | 2 | P1, P2, P3 | Same bytes as node 1: `8037`, `8437` in mode 1, shaft HOLDING at power-up, and **the enable succeeded** with identical words |
 
 ## What the drives showed
@@ -40,7 +41,9 @@ The first attended motion session on this library's own routes: packet 15 P1 to 
 
 The specimen sets EN86's bits 10, 12 and 15 and ZH86's bit 14 at once, so neither manual's table alone describes it. For packet 20's `MoveEvidence`, the measured candidates are:
 - **Acceptance:** `6041` bit 12. It is absent at idle and after the rearm, and present from the first cycle after `001F`, latched until the rearm.
-- **Completion:** `2100` bit 0 after acceptance. It was already set before the trigger, so only the after-acceptance rule fits. `6041` bit 15 behaves the same way.
+- **Completion:** `2100` bit 0, which was already set before the trigger, so a bare "present" test would pass at once. In the first cycle after `001F`, bit 12 was set and bit 0 clear (`5037`, `0004`); bit 0 returned in cycle 10. So both rules fit this record: `AFTER_ABSENCE`, which needs that observed absence, and `AFTER_ACCEPTANCE`, which needs acceptance to withdraw the earlier report. `AFTER_ABSENCE` is the conservative choice: a move shorter than one cycle then ends `NOT_OBSERVED` at its deadline, never complete. `6041` bit 15 behaves the same way.
+
+  *Correction, 2026-11-03.* This bullet first said "only the after-acceptance rule fits". The trial 111 bytes (`20261103T1028Z-position-node1`, operations 24 and 33) show the absence that `AFTER_ABSENCE` needs, so that claim was wrong.
 
 **Scale.** `2201` reads 1000 and a target of 250 turned about a quarter turn, so **1000 command pulses per revolution** on this configuration. `6064` reported 250 at the end, the command's own units, not `2501`'s 4000. A positive target turns **counter-clockwise** seen from the shaft end. At 2 rpm, `6064` advanced about 33 pulses a second, consistent with rpm being motor turns per minute. `606C` read 1 while moving at 2 rpm, so its unit is not established.
 
@@ -56,6 +59,18 @@ The specimen sets EN86's bits 10, 12 and 15 and ZH86's bit 14 at once, so neithe
 
 The position rule (`6064` unchanged during an enable) stopped trial 105 correctly: a position change during an enable may be motion. Do not turn a released shaft by hand before an enable.
 
+## Resources during the actions
+
+From each route's `TRIAL_RES`, on the 12,288-byte owner task:
+
+| Measure | Value |
+| --- | --- |
+| Least stack ever free | 8,492 bytes, reached during the moving HALT (trial 113), so at most 3,796 bytes used. The enable reached 8,700 (trial 108) and reads alone 9,056. These are high-water marks since boot, one image |
+| Largest service gap | 5 ms in every enable and in the stop; 3 to 4 ms in reads, the move and the rearm |
+| Record loss | `lost=0`, `dropped=0` and `tailLost=0` on every route; no console loss in any capture |
+| Internal heap | 73,640 bytes free through node 1's routes. Node 2's first route allocated its `AxisSession`: free fell once to 50,060 and the largest block from 49,152 to 25,600, then stayed constant. The drop, 23,580 bytes, is the 23,576-byte session (`check_stack.py` size table) plus the allocator's header: one allocation per node, never freed, by design, not a leak |
+| Controller counters | **Not retained**: the route records had no TEC or REC. Added after the session (`TRIAL_RES tec0 rec0 tec1 rec1`); the next campaign records them. Each route's traffic already copies controller reports and TX reports: no controller report occurred, and all 543 TX reports succeeded |
+
 ## Smaller findings
 
 - A route sent while a record is held is refused before sending, but the host still counts it. Release after every route.
@@ -64,11 +79,13 @@ The position rule (`6064` unchanged during an enable) stopped trial 105 correctl
 
 ## Still owed
 
-- **Quick stop `000B`:** stationary, and on a released state. No admissions were left.
-- **A move on node 2.**
-- **Packet 20's `move` route,** with the evidence above in a `MoveEvidence`, reviewed first.
-- **Relative moves:** what `005F` adds to.
+- **Stationary stops:** `010F` and, on a new power-up, `000B`, both from idle `000F` (packet 15 P4, packet 16 step 3). No admissions were left.
+- **`000B` on a released state** (packet 16 step 4), before the best-effort path is relied on.
+- **A move on node 2,** with node 1's retained outcome checked unchanged (packet 22 step 6). Two-node work with an urgent stop on the other node has no route: one route runs at a time.
+- **Packet 20's `move` route** through `AxisSession::requestMove`, with acceptance `6041` mask and value `0x1000`, completion `2100` mask and value `0x0001`, and rule `AFTER_ABSENCE`, reviewed first. The library's own move lifecycle has not run on a specimen; trial 111 was the application-local `position` experiment.
+- **Relative moves:** what `005F` adds to (packet 21). Every relative request stays refused.
+- **Error history:** `1003` has never been read; its read effect needs the fault LED observed before and after (backlog H03). The `1001` and `603F` reads of trial 101 had the LED off before and after.
 - **Physical questions:** whether word 7 pulls the shaft back to its commanded position after a manual displacement; `606C`'s unit.
-- **Next campaign:** these need a new ledger and record.
+- **Next campaign:** these need a new ledger and record, and a reflash: the counter fix above is not on the board.
 
 **Drive state at the end:** node 1 energized at `6064=316` with latest word `010F`, node 2 enabled at 0 with `000F`. Both hold torque until powered off.

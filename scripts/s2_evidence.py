@@ -182,7 +182,8 @@ GRAMMAR = (
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
-        "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u",
+        "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
+        "tec0:u? rec0:u? tec1:u? rec1:u?",
         "completed", (("health", "stack1"), ("health", "heapMin")), True),
     Row("TRIAL_CHECK", "TRIAL_CHECK ", "summary", _TRIAL_SNAPSHOT),
     Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES, per_node=True),

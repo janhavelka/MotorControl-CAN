@@ -18,8 +18,11 @@ applicability conflict. No manual defines bit 2 or bit 8, or says what a falling
 So every row below the first is a **project decision, not vendor evidence** (DEC-8):
 a running move with no stop is worse, and clearing bit 4 while stopping cannot be the
 wrong direction. `ActionContext::predecessorDocumented` is false for those rows, and
-`predecessorWord` records the word. They stay unmeasured: packet 16's physical trials have
-not run ([packet 16](reports/handoff_19_33/packet_16.md)).
+`predecessorWord` records the word. One has been measured: on 2026-11-03, `010F` from `001F`
+stopped a 2 rpm move on node 1 within its 500 ms ramp, and the shaft held for 26 s; afterwards
+`6041=0437` and `2100=0000`, so the halted move reads neither completion signal. That is one
+specimen, firmware and speed. The other rows, and `000B` from any word, stay unmeasured
+([packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
@@ -32,7 +35,8 @@ not run ([packet 16](reports/handoff_19_33/packet_16.md)).
 | None yet, after `6060=1` only: fresh mode 1, low bits 7, alarm and released clear | `000B` on the best-effort path only | - | DEC-2. The specimens' observed power-up state once in mode 1 |
 
 **The last row is the one to avoid.** The specimens read low bits 7 and released clear at
-power-up, before any enable from this library (packet 11). After packet 15 P2 sets mode 1, a
+power-up, before any enable from this library (packet 11), and the attended session found both
+shafts already holding torque then. After packet 15 P2 sets mode 1, a
 stop requested before P3's acknowledged `000F` therefore sends `000B` to a drive this library
 never enabled, and what `000B` does in that state is the unmeasured question of packet 16.
 Rely on the independent cutoff there, not on a CAN stop.

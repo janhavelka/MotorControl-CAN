@@ -709,6 +709,17 @@ class TransitionLog(unittest.TestCase):
                          ("stopPath", 1, None, 1)} <= found, found)
         self.assertFalse([e for e in log.entries if e["signal"] in ("outcome", "uncertain", "path", "fenced")])
 
+    def test_route_controller_counters_are_parsed_and_older_records_still_fit(self):
+        res = ("TRIAL_RES stack0=8700 stack1=8492 heap0=73640 heap1=73640 heapMin=73640 largest=49152 gap=5000 "
+               "dropped=0 admission=0 started=10 completed=20")
+        records, _ = evidence.parse_bytes((res + " tec0=0 rec0=0 tec1=3 rec1=1\n").encode())
+        self.assertEqual(records[0].status, "parsed", records[0].reason)
+        self.assertEqual([records[0].values[k] for k in ("tec0", "rec0", "tec1", "rec1")], [0, 0, 3, 1])
+        # The 2026-11-03 attended records predate the counters.
+        records, _ = evidence.parse_bytes((res + "\n").encode())
+        self.assertEqual(records[0].status, "parsed", records[0].reason)
+        self.assertNotIn("tec1", records[0].values)
+
     def test_boot_marks_following_observations(self):
         boot = join(["rst:0xc (RTC_SW_CPU_RST),boot:0xa (SPI_FAST_FLASH_BOOT)",
                      "S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats"])

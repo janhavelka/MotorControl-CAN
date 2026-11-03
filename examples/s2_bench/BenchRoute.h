@@ -197,6 +197,8 @@ struct RouteResources {
     uint32_t heapFree = 0;    ///< Internal heap bytes free now.
     uint32_t heapMinimum = 0; ///< Least internal heap bytes ever free.
     uint32_t largestBlock = 0; ///< Largest internal heap block free now: the next session needs one.
+    uint32_t txErrors = 0;    ///< Controller TX error counter when sampled.
+    uint32_t rxErrors = 0;    ///< Controller RX error counter when sampled.
 };
 /** Optional sampling, called at admission and at the terminal only. */
 struct RouteCallbacks {
