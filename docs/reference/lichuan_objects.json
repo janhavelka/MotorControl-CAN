@@ -9040,10 +9040,11 @@
           "scaling": "Physical positive direction not established.",
           "pdo_mapping_eds": "1",
           "pdo_mapping_reviewed": null,
-          "effect": "Named default direction; actual effect on CAN motion is not established by the retained labels.",
+          "effect": "Named default direction. The typed write establishes the stored code only; its effect on CAN motion, 6064, 607A, 607D or homing and its activation are not established.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. Also 2202=0 from a fresh read, adopted from RS's geometry dependency."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -9076,7 +9077,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; retain raw values until actual direction is qualified.",
+            "value_policy": "Manual labels 0 Pulse Sign and 1 Pulse /Sign; the typed candidate is exactly these two codes, on EN86 and ZH86 p18 with no contradiction and the EDS default 0 inside. Raw values stay raw until actual direction is qualified; 2201 is retained and rechecked, never written.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -9088,6 +9089,13 @@
           },
           "read_owner_prompt": 20,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "explicit_direction_selector_86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
@@ -9190,7 +9198,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero.",
+            "value_policy": "EDS default 0; manual summary 0..65535 versus detailed 400..51200. Do not choose a union or initialize from zero. No typed write: a later reviewed candidate could use at most 400..51200, the range both manual claims admit, but scale and activation stay unknown and every later pulse target would change by an unmeasured ratio. Q04 owns the closing measurement.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -9262,10 +9270,11 @@
           "scaling": "Native enumerated choice.",
           "pdo_mapping_eds": "1",
           "pdo_mapping_reviewed": null,
-          "effect": "Changes software-limit enforcement.",
+          "effect": "Selects documented 0 noneffective or 1 effective after homing. The typed write establishes the stored code only; enforcement, coordinate frame and reaction are not established.",
           "prerequisites": [
             "Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.",
-            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."
+            "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates.",
+            "Project policy, as no source gives a state for this object: continuous sole-owner reservation, explicit CL86-C/OL86-C model, a clean STATUS and MONITORS read under it reporting no running or alarm bit in 2100, a documented prior code, whole-candidate validation before TX, withdrawal before possible TX and exact new-epoch readback. 2100 bit 4 is not used: both specimens report it clear before any enable. AFTER_HOMING also needs observed 607D:01 strictly below 607D:02; 607D is retained and rechecked, never written. Neither a prior nor a candidate may be 10."
           ],
           "edge_behavior": "Not specified by the retained source.",
           "source_refs": [
@@ -9300,7 +9309,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Manual 0 disabled / 1 effective after homing; EDS default 10 is not an accepted option.",
+            "value_policy": "Manual 0 disabled / 1 effective after homing, on EN86 and ZH86 p18. The typed candidate is exactly these codes, from a documented prior code only. EDS default 10 is not an accepted option or transition source; both specimens read 0. Matching readback is not protection.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -9312,6 +9321,13 @@
           },
           "read_owner_prompt": 20,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "explicit_soft_limit_selector_86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
@@ -16303,7 +16319,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain raw U8 byte; decode only documented positive codes shared by U8/I8. No negative-mode inference.",
-            "value_policy": "Documented codes 0 undefined,1 position,3 velocity,6 homing; undefined0 is not an operating mode. No negative/other operating codes approved.",
+            "value_policy": "Documented codes 0 undefined,1 position,3 velocity,6 homing; undefined0 is not an operating mode. No negative/other operating codes approved. No typed write: only code 1 has a proposed first transition, under packet 15's bounded experiment; code 3 stays gated by Q03 and code 6 by Q21.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -17286,7 +17302,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. Minimum/maximum ordering and enforcement require qualification.",
+            "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. No typed write: the source gives a width and a name, not a domain, and I32 is not an admissible range. Minimum/maximum ordering and enforcement require qualification.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -17369,7 +17385,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. Minimum/maximum ordering and enforcement require qualification.",
+            "value_policy": "I32; operating bounds/defaults absent. Do not copy 607A/607C ranges. No typed write: the source gives a width and a name, not a domain, and I32 is not an admissible range. Minimum/maximum ordering and enforcement require qualification.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -21913,7 +21929,7 @@
       "owner_prompt": 3,
       "review": {
         "status": "complete",
-        "disposition": "No union range; zero metadata is not an initialization or valid physical scale.",
+        "disposition": "No union range; zero metadata is not an initialization or valid physical scale. Typed write withheld: the two manual ranges still conflict and scale and activation are unmeasured.",
         "consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.",
         "gate_ids": [
           "Q04"
@@ -21948,7 +21964,7 @@
       "owner_prompt": 3,
       "review": {
         "status": "complete",
-        "disposition": "Document0/1 meanings but no initialization from10.",
+        "disposition": "Document0/1 meanings but no initialization from10. Typed write admits 0 or 1 from a documented prior code only; 10 is refused as candidate and as prior. Both specimens read 0, so the conflict is open.",
         "consequence": "Only dependent fields/actions are gated; raw evidence and unrelated operations remain available for later implementation.",
         "gate_ids": [
           "Q05"

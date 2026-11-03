@@ -351,7 +351,8 @@ for the service choice; the proposed production tree is still owned by prompt 6.
 [Settings.h](../include/MotorControlCAN/profiles/lichuan_c/Settings.h) and
 [Settings.cpp](../src/profiles/lichuan_c/Settings.cpp) provide explicit parameter
 and DI candidates, retained transaction contexts and typed matched readback.
-[Settings vectors](../test/settings_write_test.cpp), the extended offline I/O
+[Settings vectors](../test/settings_write_test.cpp), the
+[real-owner suite](../test/settings_owner_test.cpp), the extended offline I/O
 preview and isolated consumer exercise direct public calls. The existing SDO
 owner has a checked idle `advanceConfiguration` seam; its PDO regression proves
 old evidence cannot requalify and explicit new-map installation still requires

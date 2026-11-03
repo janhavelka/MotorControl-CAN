@@ -106,7 +106,7 @@ REQUIRED = {
     "examples/native_probe/FakeTransport.h", "examples/native_probe/FakeTransport.cpp",
     "examples/owner_preview/main.cpp", "examples/owner_preview/CMakeLists.txt", "examples/owner_preview/README.md",
     "test/can_bus_owner_test.cpp", "test/can_bus_recovery_test.cpp",
-    "test/reads_test.cpp", "test/driver_settings_test.cpp", "test/io_settings_test.cpp", "test/settings_write_test.cpp", "test/tuning_test.cpp",
+    "test/reads_test.cpp", "test/driver_settings_test.cpp", "test/io_settings_test.cpp", "test/settings_write_test.cpp", "test/settings_owner_test.cpp", "test/tuning_test.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Tuning.h",
     "include/MotorControlCAN/profiles/lichuan_c/IoSettings.h", "include/MotorControlCAN/profiles/lichuan_c/Settings.h", "src/profiles/lichuan_c/Settings.cpp",
     "examples/io_settings_preview/main.cpp", "examples/io_settings_preview/CMakeLists.txt", "examples/io_settings_preview/README.md",

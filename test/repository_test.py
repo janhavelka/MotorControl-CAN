@@ -104,7 +104,7 @@ FILES = {
     "examples/native_probe/FakeTransport.h", "examples/native_probe/FakeTransport.cpp",
     "examples/owner_preview/main.cpp", "examples/owner_preview/CMakeLists.txt", "examples/owner_preview/README.md",
     "test/can_bus_owner_test.cpp", "test/can_bus_recovery_test.cpp",
-    "test/reads_test.cpp", "test/driver_settings_test.cpp", "test/io_settings_test.cpp", "test/settings_write_test.cpp", "test/tuning_test.cpp",
+    "test/reads_test.cpp", "test/driver_settings_test.cpp", "test/io_settings_test.cpp", "test/settings_write_test.cpp", "test/settings_owner_test.cpp", "test/tuning_test.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Tuning.h",
     "include/MotorControlCAN/profiles/lichuan_c/IoSettings.h", "include/MotorControlCAN/profiles/lichuan_c/Settings.h", "src/profiles/lichuan_c/Settings.cpp",
     "examples/io_settings_preview/main.cpp", "examples/io_settings_preview/CMakeLists.txt", "examples/io_settings_preview/README.md",
@@ -152,7 +152,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "reference_action", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "reference_action", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

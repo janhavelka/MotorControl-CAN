@@ -1090,9 +1090,10 @@ void positionParameters() {
     badReference.nowUs = 101;
     refuse(L::SettingsModel::CL86_C, request, axis, &badReference, settings, 100);
     // Output inside an input.
-    const M::Status overlap = L::preparePositionParameters(
-        reinterpret_cast<L::PreparedPositionParameters&>(axis), L::SettingsModel::CL86_C, request, axis,
-        nullptr, settings, 100);
+    L::PreparedPositionParameters holder;
+    holder.settings = settings;
+    const M::Status overlap = L::preparePositionParameters(holder, L::SettingsModel::CL86_C, request,
+                                                           axis, nullptr, holder.settings, 100);
     CHECK(refused(overlap) && overlap.detail == int32_t(L::PositionParameterError::OVERLAP));
 
     CHECK(L::preparePositionParameters(output, L::SettingsModel::CL86_C, request, axis, &reference,

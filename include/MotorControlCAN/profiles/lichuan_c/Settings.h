@@ -45,6 +45,26 @@ struct DriverSettings {
     uint32_t rampUpTimeMs = UINT32_MAX;     ///< Explicit requested 6083, inclusive 0..2000 ms.
     uint32_t rampDownTimeMs = UINT32_MAX;   ///< Explicit requested 6084, inclusive 0..2000 ms.
 };
+/** 2200 codes under their EN86/ZH86 p18 labels. Neither label states a physical or CAN direction. */
+enum class DefaultDirection : uint16_t {
+    PULSE_SIGN = 0,          ///< Code 0, "Pulse Sign"; no positive-direction claim.
+    PULSE_INVERTED_SIGN = 1, ///< Code 1, "Pulse /Sign"; no positive-direction claim.
+    UNKNOWN = 0xffff         ///< Invalid candidate default.
+};
+/** Explicit 2200 candidate; the default is invalid until set. */
+struct DirectionSettings {
+    DefaultDirection direction = DefaultDirection::UNKNOWN; ///< Requested 2200 code 0 or 1.
+};
+/** 2202 codes under their EN86/ZH86 p18 labels. The EDS default 10 is not a documented code. */
+enum class SoftLimitEnable : uint16_t {
+    LIMITS_OFF = 0,   ///< Code 0, "noneffective".
+    AFTER_HOMING = 1, ///< Code 1, "effective after homing"; enforcement and frame are unqualified.
+    UNKNOWN = 0xffff  ///< Invalid candidate default.
+};
+/** Explicit 2202 candidate; the default is invalid until set. 607D has no typed write. */
+struct SoftLimitSettings {
+    SoftLimitEnable enable = SoftLimitEnable::UNKNOWN; ///< Requested 2202 code 0 or 1.
+};
 /** Complete explicit DI register candidate; no DO, filter or electrical-level request. */
 struct IoSettings {
     uint16_t invertedInputs =
@@ -97,9 +117,13 @@ struct DriverSettingsContext {
  * @param[out] output Owned context, unchanged on rejection; no input overlap.
  * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
  * @param[in] prior Complete fresh MOTION_PARAMETERS context on reservation.target.
- * @param[in] state Complete checked STATUS and MONITORS read context after control completion.
+ * @param[in] state STATUS and MONITORS read after control completion. The whole read must have
+ * succeeded with no uncertain effect, as a stop requires: a settings call is never urgent, so a
+ * failed sibling block costs one fresh read, not an admission on a doubtful window.
  * @param[in] control Actual successful acknowledged 6040:00 U16 download 0x000F under this reservation.
- * @param[in] settings Complete explicit native candidate; validation precedes any yielded work.
+ * @param[in] settings Complete explicit native candidate, in native units: 6081 is rpm whatever the
+ * axis rate basis is. A common rate reaches it only through prepareVelocityTarget under
+ * MOTOR_TURNS and MINUTE; validation precedes any yielded work.
  * @param[in] operation Nonzero unique live operation identity.
  * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
  * @param[in] deadlineUs Exclusive overall cutoff strictly after nowUs.
@@ -113,6 +137,52 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
                              const CANOPEN::SdoCompletion& control, const DriverSettings& settings,
                              uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                              const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
+/** Prepare one explicit write of the 2200 selector, without a position-mode preamble.
+ * Only the stored code is established. Whether it reverses CAN motion or changes 6064, 607A, 607D or
+ * homing, and when it takes effect, stay Q04 gates. The application still owns its sign and witness.
+ * Prerequisites are project policy, as no source gives a state for this object: both documented prior
+ * codes, limits off (RS's geometry dependency) and no running or alarm report. Bit 4 of 2100 is not
+ * used, since both specimens report it clear at power-up with no enable.
+ * @param[out] output Owned context, unchanged on rejection; no input overlap.
+ * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
+ * @param[in] prior Fresh complete DRIVER context; 2201 is retained, never written, and rechecked.
+ * @param[in] limits Fresh complete SOFT_LIMITS context reporting 2202=0. Set it off explicitly first.
+ * @param[in] state Clean STATUS and MONITORS read under the reservation, as prepareDriverSettings.
+ * @param[in] settings Explicit code 0 or 1.
+ * @param[in] operation Nonzero unique live operation identity.
+ * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
+ * @param[in] deadlineUs Exclusive overall cutoff strictly after nowUs.
+ * @param[in] options Nonzero service budgets, clamped by the overall deadline.
+ * @param[in] maximumAgeUs Nonzero inclusive earliest-observation age cap for all prerequisites.
+ * @return Local status. An unchanged candidate succeeds from fresh evidence without TX or epoch change.
+ */
+Status prepareDirectionSettings(DriverSettingsContext& output, const AxisReservation& reservation,
+                                const DriverContext& prior, const DriverContext& limits,
+                                const ReadContext& state, const DirectionSettings& settings,
+                                uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                                const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
+/** Prepare one explicit write of the 2202 selector; 607D stays read-only here.
+ * Matching readback proves the stored code only. It is not protection: the coordinate frame, boundary
+ * and reaction of the limits stay Q05 gates. A prior code outside 0/1, such as the EDS default 10, is
+ * refused, as no source describes leaving it.
+ * @param[out] output Owned context, unchanged on rejection; no input overlap.
+ * @param[in] reservation Actual live sole-owner exclusion acquired before all prerequisites.
+ * @param[in] prior Fresh complete SOFT_LIMITS context; 607D is retained, never written, and rechecked.
+ * AFTER_HOMING needs its observed minimum strictly below its maximum.
+ * @param[in] state Clean STATUS and MONITORS read under the reservation, reporting no running or alarm.
+ * @param[in] settings Explicit code 0 or 1.
+ * @param[in] operation Nonzero unique live operation identity.
+ * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
+ * @param[in] deadlineUs Exclusive overall cutoff strictly after nowUs.
+ * @param[in] options Nonzero service budgets, clamped by the overall deadline.
+ * @param[in] maximumAgeUs Nonzero inclusive earliest-observation age cap for all prerequisites.
+ * @return Local status. An unchanged candidate succeeds from fresh evidence without TX or epoch change.
+ */
+Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReservation& reservation,
+                                const DriverContext& prior, const ReadContext& state,
+                                const SoftLimitSettings& settings, uint32_t operation,
+                                uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options,
+                                uint64_t maximumAgeUs) noexcept;
 /** Prepare complete explicit DI assignment/polarity, preserving unknown polarity bits.
  * @param[out] output Owned context, unchanged on rejection; no input overlap.
  * @param[in] reservation Actual live owner exclusion, CL86_C or OL86_C only.

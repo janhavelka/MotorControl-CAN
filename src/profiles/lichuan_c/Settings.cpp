@@ -20,11 +20,12 @@ bool settingsShape(const DriverSettingsContext& c) {
     const ReadContext& read = c.readback.read;
     const bool io = read.kind == ReadKind::IO_INPUT_CONFIGURATION;
     const bool control = read.kind == ReadKind::CONTROL;
+    const bool selector = read.kind == ReadKind::DRIVER || read.kind == ReadKind::DRIVER_SOFT_LIMITS;
     const GroupPlan* plan = groupPlan(read.kind);
-    if ((!io && !control && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) || !plan ||
+    if ((!io && !control && !selector && read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) || !plan ||
         read.count != plan->count)
         return false;
-    const uint16_t allowed = io ? 0x1fe : control ? 1 : 7;
+    const uint16_t allowed = io ? 0x1fe : control || selector ? 1 : 7;
     if ((c.changed & ~allowed) || (c.confirmed & ~c.changed) || c.cursor > read.count ||
         (c.state == SettingsState::WRITING &&
          (c.cursor >= read.count || !(c.changed & (1u << c.cursor)) ||
@@ -32,6 +33,8 @@ bool settingsShape(const DriverSettingsContext& c) {
         return false;
     if (control && (c.requested[0] > 2 ||
                     (c.reservation.model == SettingsModel::OL86_C && c.requested[0] == 2)))
+        return false;
+    if (selector && c.requested[0] > 1)
         return false;
     for (unsigned i = 0; i < read.count; ++i) {
         const ReadDescriptor& actual = read.values[i].object;
@@ -128,6 +131,33 @@ bool controlEvidence(const CANOPEN::SdoCompletion& e, const AxisReservation& r, 
     return acknowledgedControlWrite(e, r, now) && controlWord(e.transfer) == 0x000f &&
            now - e.admittedUs <= age;
 }
+uint32_t stateWord(const ReadContext& state, StateBlock block, unsigned field) {
+    return state.values[state.blockStart[static_cast<unsigned>(block)] + field].raw;
+}
+// The same read validateStop demands. A settings call is never urgent, so a failed or uncertain
+// sibling block costs one fresh read, not an admission from a window with a known service problem.
+bool cleanState(const ReadContext& state, const AxisReservation& r, uint64_t now, uint64_t age,
+                ReadWindow& status, ReadWindow& monitors) {
+    return state.source == ReadSource::SDO && state.state == ReadState::SUCCEEDED &&
+           !state.uncertain &&
+           validateStateBlock(state, StateBlock::STATUS, r.target, now, age, status) &&
+           validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors);
+}
+// Project policy for objects with no documented state: a clean read under this reservation, no
+// running or alarm report. Bit 4 is unused: both specimens report it clear before any enable.
+Status validateStopped(const AxisReservation& r, const DriverContext& prior, ReadKind kind,
+                       const ReadContext& state, uint32_t operation, uint64_t now, uint64_t deadline,
+                       const ReadOptions& options, uint64_t age) {
+    const Status s = validatePreparation(r, prior, kind, operation, now, deadline, options, age);
+    if (!s)
+        return s;
+    ReadWindow status, monitors;
+    if (!cleanState(state, r, now, age, status, monitors) || status.earliestUs < r.acquiredUs ||
+        monitors.earliestUs < r.acquiredUs ||
+        (stateWord(state, StateBlock::MONITORS, 0) & (MONITOR_RUNNING | MONITOR_ALARM)))
+        return error(ReadError::STATE, "clean reserved state with no running or alarm report required");
+    return Ok();
+}
 } // namespace
 
 Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservation& r,
@@ -148,15 +178,13 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
         return s;
     DriverObservation old;
     ReadWindow status, monitors;
-    const auto word = [&state](StateBlock block, unsigned field) {
-        return state.values[state.blockStart[static_cast<unsigned>(block)] + field].raw;
-    };
     if (!getDriver(prior, r.target, now, age, old) || old.group != DriverGroup::MOTION_PARAMETERS ||
         !controlEvidence(control, r, now, age) || prior.read.startedUs < control.completedUs ||
-        !validateStateBlock(state, StateBlock::STATUS, r.target, now, age, status) ||
-        !validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors) ||
-        uint8_t(word(StateBlock::STATUS, 1)) != 1 || (word(StateBlock::STATUS, 0) & 7u) != 7 ||
-        (word(StateBlock::MONITORS, 0) & (MONITOR_RUNNING | MONITOR_ALARM | MONITOR_RELEASED)) ||
+        !cleanState(state, r, now, age, status, monitors) ||
+        uint8_t(stateWord(state, StateBlock::STATUS, 1)) != 1 ||
+        (stateWord(state, StateBlock::STATUS, 0) & 7u) != 7 ||
+        (stateWord(state, StateBlock::MONITORS, 0) &
+         (MONITOR_RUNNING | MONITOR_ALARM | MONITOR_RELEASED)) ||
         status.earliestUs < control.completedUs ||
         monitors.earliestUs < control.completedUs)
         return error(ReadError::STATE, "current reserved position pre-trigger evidence required");
@@ -167,6 +195,69 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
     output.requested[0] = settings.positionSpeedRpm;
     output.requested[1] = settings.rampUpTimeMs;
     output.requested[2] = settings.rampDownTimeMs;
+    select(output, prior, 0);
+    return Ok();
+}
+Status prepareDirectionSettings(DriverSettingsContext& output, const AxisReservation& r,
+                                const DriverContext& prior, const DriverContext& limits,
+                                const ReadContext& state, const DirectionSettings& settings,
+                                uint32_t operation, uint64_t now, uint64_t deadline,
+                                const ReadOptions& options, uint64_t age) noexcept {
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &limits, sizeof limits) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
+        return error(ReadError::OVERLAP, "direction settings preparation overlaps input");
+    Status s = validateStopped(r, prior, ReadKind::DRIVER, state, operation, now, deadline, options,
+                               age);
+    if (!s)
+        return s;
+    DriverObservation old;
+    if (limits.read.startedUs < r.acquiredUs || !getDriver(limits, r.target, now, age, old) ||
+        old.group != DriverGroup::SOFT_LIMITS || old.softLimitSelectorRaw != 0)
+        return error(ReadError::STATE, "fresh reserved soft-limit read with limits off required");
+    if (!getDriver(prior, r.target, now, age, old) || old.group != DriverGroup::DRIVER ||
+        old.directionRaw > 1)
+        return error(ReadError::STATE, "fresh reserved read of a documented 2200 code required");
+    const uint16_t code = static_cast<uint16_t>(settings.direction);
+    if (code > 1)
+        return error(ReadError::VALUE, "2200 candidate outside documented codes");
+    publish(output, r, DriverGroup::DRIVER, operation, now, deadline, options);
+    output.requested[0] = code;
+    output.requested[1] = old.subdivisionRaw;
+    select(output, prior, 0);
+    return Ok();
+}
+Status prepareSoftLimitSettings(DriverSettingsContext& output, const AxisReservation& r,
+                                const DriverContext& prior, const ReadContext& state,
+                                const SoftLimitSettings& settings, uint32_t operation, uint64_t now,
+                                uint64_t deadline, const ReadOptions& options,
+                                uint64_t age) noexcept {
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &prior, sizeof prior) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &settings, sizeof settings) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
+        return error(ReadError::OVERLAP, "soft-limit settings preparation overlaps input");
+    Status s = validateStopped(r, prior, ReadKind::DRIVER_SOFT_LIMITS, state, operation, now,
+                               deadline, options, age);
+    if (!s)
+        return s;
+    DriverObservation old;
+    if (!getDriver(prior, r.target, now, age, old) || old.group != DriverGroup::SOFT_LIMITS ||
+        old.softLimitSelectorRaw > 1)
+        return error(ReadError::STATE, "fresh reserved read of a documented 2202 code required");
+    const uint16_t code = static_cast<uint16_t>(settings.enable);
+    if (code > 1 || (settings.enable == SoftLimitEnable::AFTER_HOMING &&
+                     old.minimumNative >= old.maximumNative))
+        return error(ReadError::VALUE, "2202 candidate undocumented or limits not ordered");
+    publish(output, r, DriverGroup::SOFT_LIMITS, operation, now, deadline, options);
+    output.requested[0] = code;
+    output.requested[1] = old.softLimitEntries;
+    output.requested[2] = uint32_t(old.minimumNative);
+    output.requested[3] = uint32_t(old.maximumNative);
     select(output, prior, 0);
     return Ok();
 }

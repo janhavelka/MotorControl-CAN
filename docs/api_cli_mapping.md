@@ -94,10 +94,12 @@ rows, conditional mutation and missing evidence. Planned CLI owner is 41; no
 route or broad tuning-write capability is implemented.
 
 The [fresh 20/21 audit](reports/prompts_20_21_audit.md) adds real native
-`prepareDriverSettings` and `prepareIoSettings`, overloaded
+`prepareDriverSettings`, `prepareDirectionSettings`, `prepareSoftLimitSettings`
+and `prepareIoSettings`, overloaded
 `nextDriver/advanceDriver`, `noteDriverTransmission` and checked typed readback
-getters. Confirmed position parameters and DI settings are explicit bounded
-register transactions; no CLI, enable or output-action route is implied.
+getters. Confirmed position parameters, the 2200 and 2202 selectors and DI settings
+are explicit bounded register transactions; no CLI, enable, physical direction or
+output-action route is implied.
 
 
 Prompt 21 adds four [I/O read groups](io_settings.md) through the same
