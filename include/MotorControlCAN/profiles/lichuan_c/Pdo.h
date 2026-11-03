@@ -58,7 +58,7 @@ inline Status pdoTemplate(CANOPEN::PdoDirection direction, uint16_t number,
                           CANOPEN::PdoMap& output) noexcept {
     if ((direction != CANOPEN::PdoDirection::RPDO && direction != CANOPEN::PdoDirection::TPDO) ||
         number < 1 || number > 4) {
-        return Status(Err::INVALID_CONFIG, 0, nullptr);
+        return Status(Err::INVALID_CONFIG, 0, "invalid PDO direction or set number");
     }
     CANOPEN::PdoMap candidate;
     candidate.direction = direction;

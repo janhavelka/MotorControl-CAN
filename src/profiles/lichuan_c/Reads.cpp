@@ -1,27 +1,14 @@
 // SPDX-License-Identifier: MIT
-#include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
-#include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
+#include "ReadPlan.h"
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
-#include <MotorControlCAN/profiles/lichuan_c/Reads.h>
-#include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
 #include <new>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
+using namespace Detail;
 namespace {
 Status invalid(ReadError detail, const char* message) {
-    return Status(Err::INVALID_CONFIG, static_cast<int32_t>(detail), message);
-}
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
-bool sameChannel(const CANOPEN::SdoChannel& a, const CANOPEN::SdoChannel& b) {
-    return sameBinding(a.binding, b.binding) && a.clientToServerId == b.clientToServerId &&
-           a.serverToClientId == b.serverToClientId;
-}
-bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
-    return a.nodeGeneration == b.nodeGeneration && sameChannel(a.channel, b.channel);
+    return readInvalid(detail, message);
 }
 bool validTarget(const ReadTarget& target) {
     return target.nodeGeneration && CANOPEN::validateSdoChannel(target.channel).isOk();
@@ -31,10 +18,6 @@ bool sameDescriptor(const ReadDescriptor& a, const ReadDescriptor& b) {
            a.representation == b.representation && a.readEffect == b.readEffect &&
            a.scope == b.scope;
 }
-struct Address {
-    uint16_t index;
-    uint8_t subindex;
-};
 const Address identity[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, {0x1018, 1},
                             {0x1018, 2}, {0x1018, 3}, {0x2000, 0}, {0x2001, 0}};
 const Address configuration[] = {{0x1005, 0}, {0x1014, 0}, {0x1017, 0},
@@ -44,104 +27,50 @@ const Address state[] = {{0x1001, 0}, {0x603f, 0}, {0x1003, 0}, {0x1003, 1}, {0x
                          {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}, {0x60fd, 0}};
 const uint8_t starts[STATE_BLOCKS] = {0, 2, 7, 10, 12, 14};
 const uint8_t lengths[STATE_BLOCKS] = {2, 5, 3, 2, 2, 1};
-const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
-const Address softLimits[] = {{0x2202, 0}, {0x607d, 0}, {0x607d, 1}, {0x607d, 2}};
-const Address motionParameters[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
-const Address ioInputs[] = {{0x2400, 0}, {0x2400, 1}, {0x2400, 2}, {0x2400, 3}, {0x2400, 4},
-                            {0x2400, 5}, {0x2400, 6}, {0x2400, 7}, {0x2400, 8}};
-const Address ioOutputs[] = {{0x2400, 0x0c}, {0x2400, 0x0d}, {0x2400, 0x0e}, {0x2400, 0x0f}};
-const Address ioFilters[] = {{0x2401, 0}, {0x2402, 0}, {0x2403, 0}, {0x2404, 0},
-                             {0x2405, 0}, {0x2406, 0}, {0x2407, 0}};
-const Address ioCommand[] = {{0x60fe, 0}, {0x60fe, 1}, {0x60fe, 2}};
-const Address control[] = {{0x2500, 0}, {0x2501, 0}};
-const Address currentHolding[] = {{0x2502, 0}, {0x2503, 0}, {0x2504, 0},
-                                  {0x2505, 0}, {0x2506, 0}, {0x2507, 0}};
-const Address filterPosition[] = {{0x2508, 0}, {0x2509, 0}, {0x250a, 0},
-                                  {0x250b, 0}, {0x250c, 0}, {0x250d, 0}};
-const Address loopGains[] = {{0x250e, 0}, {0x250f, 0}, {0x2510, 0}, {0x2511, 0},
-                             {0x2512, 0}, {0x2513, 0}, {0x2514, 0}, {0x2515, 0},
-                             {0x2516, 0}, {0x2517, 0}, {0x2518, 0}, {0x2519, 0}};
-const Address edsGains[] = {{0x251a, 0}, {0x251b, 0}, {0x251c, 0}, {0x251d, 0},
-                            {0x251e, 0}, {0x251f, 0}, {0x2520, 0}};
-
-const Address* driverPlan(ReadKind kind, unsigned& count) {
+// The fixed address list of every kind but STATE, whose blocks are selected by mask.
+const Address* fixedPlan(ReadKind kind, unsigned& count) {
+    if (const GroupPlan* plan = groupPlan(kind)) {
+        count = plan->count;
+        return plan->fields;
+    }
     switch (kind) {
-    case ReadKind::DRIVER:
-        count = 2;
-        return driver;
-    case ReadKind::DRIVER_SOFT_LIMITS:
-        count = 4;
-        return softLimits;
-    case ReadKind::DRIVER_MOTION_PARAMETERS:
-        count = 3;
-        return motionParameters;
-    case ReadKind::IO_INPUT_CONFIGURATION:
+    case ReadKind::IDENTITY:
         count = 9;
-        return ioInputs;
-    case ReadKind::IO_OUTPUT_CONFIGURATION:
-        count = 4;
-        return ioOutputs;
-    case ReadKind::IO_INPUT_FILTERS:
-        count = 7;
-        return ioFilters;
-    case ReadKind::IO_OUTPUT_COMMAND:
-        count = 3;
-        return ioCommand;
-    case ReadKind::CONTROL:
-        count = 2;
-        return control;
-    case ReadKind::TUNING_CURRENT_HOLDING:
+        return identity;
+    case ReadKind::CONFIG:
         count = 6;
-        return currentHolding;
-    case ReadKind::TUNING_FILTER_POSITION:
-        count = 6;
-        return filterPosition;
-    case ReadKind::TUNING_LOOP_GAINS:
-        count = 12;
-        return loopGains;
-    case ReadKind::TUNING_EDS_GAINS:
-        count = 7;
-        return edsGains;
+        return configuration;
+    case ReadKind::PROBE:
+        count = 1;
+        return identity;
     default:
         count = 0;
         return nullptr;
     }
 }
-bool driverKind(ReadKind kind) {
-    unsigned count;
-    return driverPlan(kind, count) != nullptr;
-}
 
 // Visits the selected plan in slot order without touching any context.
 template <class Visit> bool visitPlan(ReadKind kind, uint8_t mask, Visit visit) {
-    unsigned count;
-    const Address* fields = driverPlan(kind, count);
-    if (!fields) {
-        if (kind == ReadKind::IDENTITY) {
-            fields = identity;
-            count = 9;
-        } else if (kind == ReadKind::CONFIG) {
-            fields = configuration;
-            count = 6;
-        } else if (kind == ReadKind::PROBE) {
-            fields = identity;
-            count = 1;
-        } else if (kind == ReadKind::STATE && mask && !(mask & 0xc0u)) {
-            for (unsigned b = 0; b < STATE_BLOCKS; ++b) {
-                if (!(mask & (1u << b)))
-                    continue;
-                for (unsigned i = 0; i < lengths[b]; ++i) {
-                    ReadDescriptor object;
-                    const Address address = state[starts[b] + i];
-                    if (!readDescriptor(address.index, address.subindex, object) ||
-                        !visit(object, b, i))
-                        return false;
-                }
-            }
-            return true;
-        } else
+    if (kind == ReadKind::STATE) {
+        if (!mask || (mask & 0xc0u))
             return false;
+        for (unsigned b = 0; b < STATE_BLOCKS; ++b) {
+            if (!(mask & (1u << b)))
+                continue;
+            for (unsigned i = 0; i < lengths[b]; ++i) {
+                ReadDescriptor object;
+                const Address address = state[starts[b] + i];
+                if (!readDescriptor(address.index, address.subindex, object) ||
+                    !visit(object, b, i))
+                    return false;
+            }
+        }
+        return true;
     }
+    unsigned count;
+    const Address* fields = fixedPlan(kind, count);
+    if (!fields)
+        return false;
     for (unsigned i = 0; i < count; ++i) {
         ReadDescriptor object;
         if (!readDescriptor(fields[i].index, fields[i].subindex, object) ||
@@ -205,17 +134,8 @@ bool shape(const ReadContext& c) {
                 return false;
             addresses = state + starts[b];
             count = lengths[b];
-        } else if (c.kind == ReadKind::IDENTITY) {
-            addresses = identity;
-            count = 9;
-        } else if (c.kind == ReadKind::CONFIG) {
-            addresses = configuration;
-            count = 6;
-        } else if (c.kind == ReadKind::PROBE) {
-            addresses = identity;
-            count = 1;
         } else {
-            addresses = driverPlan(c.kind, count);
+            addresses = fixedPlan(c.kind, count);
             if (!addresses)
                 return false;
         }
@@ -267,15 +187,6 @@ CANOPEN::SdoTransfer work(const ReadContext& c) {
     out.queueTimeoutUs = c.options.queueTimeoutUs;
     out.responseTimeoutUs = c.options.responseTimeoutUs;
     return out;
-}
-bool sameWork(const CANOPEN::SdoTransfer& a, const CANOPEN::SdoTransfer& b) {
-    return sameChannel(a.channel, b.channel) && a.operation == b.operation &&
-           a.request == b.request && a.step == b.step && a.index == b.index &&
-           a.subindex == b.subindex && a.direction == b.direction && a.size == b.size &&
-           a.uploadSize == b.uploadSize &&
-           a.readEffect == b.readEffect && a.allowSegmentedUpload == b.allowSegmentedUpload &&
-           a.deadlineUs == b.deadlineUs && a.queueTimeoutUs == b.queueTimeoutUs &&
-           a.responseTimeoutUs == b.responseTimeoutUs;
 }
 bool qualified(const ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t now) {
     CANOPEN::PdoFreshness freshness;
@@ -344,9 +255,9 @@ Status validateInputs(const ReadTarget& target, uint32_t operation, uint64_t now
 Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation, uint64_t now,
                uint64_t deadline, const ReadOptions& options, ReadKind kind, uint8_t mask,
                const CANOPEN::PdoRoute* route) {
-    if (overlap(&output, sizeof output, &target, sizeof target) ||
-        overlap(&output, sizeof output, &options, sizeof options) ||
-        (route && overlap(&output, sizeof output, route, sizeof *route)))
+    if (overlaps(&output, sizeof output, &target, sizeof target) ||
+        overlaps(&output, sizeof output, &options, sizeof options) ||
+        (route && overlaps(&output, sizeof output, route, sizeof *route)))
         return invalid(ReadError::OVERLAP, "read preparation overlaps input");
     const Status checked = validateInputs(target, operation, now, deadline, options, kind, mask, route);
     if (!checked)
@@ -376,26 +287,6 @@ void fail(ReadContext& c, ReadOutcome outcome, Status status, uint64_t now) {
     c.outcome = outcome;
     c.status = status;
     c.servicedUs = now;
-}
-ReadOutcome outcome(CANOPEN::SdoOutcome value) {
-    switch (value) {
-    case CANOPEN::SdoOutcome::SUCCESS:
-        return ReadOutcome::SUCCESS;
-    case CANOPEN::SdoOutcome::SERVER_ABORT:
-        return ReadOutcome::PROTOCOL_REJECTED;
-    case CANOPEN::SdoOutcome::CLIENT_ABORT:
-    case CANOPEN::SdoOutcome::UNSUPPORTED:
-        return ReadOutcome::REPLY_ERROR;
-    case CANOPEN::SdoOutcome::TIMEOUT:
-        return ReadOutcome::DEADLINE;
-    case CANOPEN::SdoOutcome::CANCELLED:
-        return ReadOutcome::CANCELLED;
-    case CANOPEN::SdoOutcome::REBOOT:
-    case CANOPEN::SdoOutcome::BINDING_INVALIDATED:
-        return ReadOutcome::INVALIDATED;
-    default:
-        return ReadOutcome::TRANSPORT_ERROR;
-    }
 }
 Status current(const ReadContext& c, const ReadTarget& target, uint64_t now, uint64_t age) {
     if (!shape(c) || !validTarget(target) || !sameTarget(c.target, target))
@@ -430,11 +321,28 @@ Status fields(const ReadContext& c, unsigned start, unsigned length, uint64_t no
     window.skewUs = window.latestUs - window.earliestUs;
     return Ok();
 }
-int32_t signed32(uint32_t raw) {
-    return static_cast<int32_t>(raw <= INT32_MAX ? int64_t(raw)
-                                                 : int64_t(raw) - INT64_C(4294967296));
-}
 } // namespace
+
+namespace Detail {
+Status prepareRead(ReadContext& output, const ReadTarget& target, uint32_t operation, uint64_t now,
+                   uint64_t deadline, const ReadOptions& options, ReadKind kind, uint8_t mask,
+                   const CANOPEN::PdoRoute* route) noexcept {
+    return prepare(output, target, operation, now, deadline, options, kind, mask, route);
+}
+Status beginGet(const ReadContext& c, const void* output, size_t outputSize,
+                const ReadTarget& target, uint64_t now, uint64_t age, bool kindMatches,
+                ReadWindow& window) noexcept {
+    if (overlaps(output, outputSize, &c, sizeof c) ||
+        overlaps(output, outputSize, &target, sizeof target))
+        return invalid(ReadError::OVERLAP, "read output overlaps input");
+    const Status status = current(c, target, now, age);
+    if (!status)
+        return status;
+    if (!kindMatches || c.state != ReadState::SUCCEEDED || c.source != ReadSource::SDO)
+        return invalid(ReadError::STATE, "read group incomplete or wrong context");
+    return fields(c, 0, c.count, now, age, window);
+}
+} // namespace Detail
 
 Status prepareProbe(ReadContext& c, const ReadTarget& t, uint32_t operation, uint64_t now,
                     uint64_t deadline, const ReadOptions& options) noexcept {
@@ -461,7 +369,7 @@ void resetRead(ReadContext& c) noexcept {
     new (static_cast<void*>(&c)) ReadContext();
 }
 Status nextRead(const ReadContext& c, uint64_t now, PreparedRead& output) noexcept {
-    if (overlap(&c, sizeof c, &output, sizeof output))
+    if (overlaps(&c, sizeof c, &output, sizeof output))
         return invalid(ReadError::OVERLAP, "read work overlaps context");
     if (!shape(c))
         return invalid(ReadError::STATE, "invalid read context");
@@ -480,14 +388,14 @@ Status nextRead(const ReadContext& c, uint64_t now, PreparedRead& output) noexce
     return Ok();
 }
 Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t now) noexcept {
-    if (overlap(&c, sizeof c, &input, sizeof input))
+    if (overlaps(&c, sizeof c, &input, sizeof input))
         return invalid(ReadError::OVERLAP, "read terminal overlaps context");
     if (!shape(c) || c.state != ReadState::ACTIVE || c.source != ReadSource::SDO ||
         c.cursor >= c.count)
         return invalid(ReadError::STATE, "not an active service read");
     const CANOPEN::SdoCompletion& evidence = input; // The overlap check makes a copy unnecessary.
     const CANOPEN::SdoTransfer expected = work(c);
-    if (!sameWork(evidence.transfer, expected) ||
+    if (!CANOPEN::sameSdoWork(evidence.transfer, expected) ||
         evidence.nodeGeneration != c.target.nodeGeneration)
         return invalid(ReadError::CORRELATION, "read terminal does not match request");
     if (evidence.admittedUs < c.servicedUs || evidence.admittedUs >= c.deadlineUs ||
@@ -495,17 +403,7 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
         now < c.servicedUs)
         return invalid(ReadError::TIME, "invalid read admission or completion time");
     const bool success = evidence.outcome == CANOPEN::SdoOutcome::SUCCESS;
-    const bool possible = evidence.transmissionPossible;
-    if (evidence.outcome > CANOPEN::SdoOutcome::UNSUPPORTED ||
-        (evidence.transmissionPossible && !evidence.queued) ||
-        (evidence.transmissionConfirmed && !evidence.transmissionPossible) ||
-        evidence.effectPossible != possible || evidence.effectUncertain != (possible && !success) ||
-        (success &&
-         (!evidence.protocolAcknowledged || !evidence.queued || !evidence.transmissionPossible ||
-          evidence.abortValid || evidence.size != expected.size)) ||
-        (!success && (evidence.protocolAcknowledged || evidence.size)) ||
-        (evidence.outcome == CANOPEN::SdoOutcome::SERVER_ABORT &&
-         (!evidence.abortValid || !evidence.transmissionPossible)))
+    if (!CANOPEN::checkUploadTerminal(evidence, expected.size))
         return invalid(ReadError::CORRELATION, "inconsistent service terminal evidence");
     const bool expired = now >= c.deadlineUs || evidence.completedUs >= c.deadlineUs;
     uint32_t raw = 0;
@@ -519,17 +417,23 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
     c.evidence = evidence;
     c.evidencePresent = true;
     c.uncertain |= evidence.effectUncertain;
-    c.invalidated = evidence.outcome == CANOPEN::SdoOutcome::REBOOT ||
-                    evidence.outcome == CANOPEN::SdoOutcome::BINDING_INVALIDATED ||
-                    evidence.outcome == CANOPEN::SdoOutcome::BUS_OFF;
+    // Each of these means earlier replies on this route can no longer be assumed fresh. The values
+    // and this terminal stay retained as history; only current publication is withdrawn. Never
+    // cleared here: a retired observation stays retired, whatever its active read later reports.
+    c.invalidated |= evidence.outcome == CANOPEN::SdoOutcome::REBOOT ||
+                     evidence.outcome == CANOPEN::SdoOutcome::BINDING_INVALIDATED ||
+                     evidence.outcome == CANOPEN::SdoOutcome::BUS_OFF ||
+                     evidence.outcome == CANOPEN::SdoOutcome::CORRELATION_LOST;
     c.servicedUs = now;
     if (expired)
         fail(c, ReadOutcome::DEADLINE, invalid(ReadError::TIME, "read overall deadline"), now);
     else if (!success) {
-        const ReadOutcome terminal = outcome(evidence.outcome);
+        const ReadOutcome terminal = readOutcome(evidence.outcome);
         fail(c, terminal,
              terminal == ReadOutcome::PROTOCOL_REJECTED
                  ? Status(Err::PROTOCOL_ERROR, 0, "native SDO rejection")
+             : terminal == ReadOutcome::SERVICE_TIMEOUT
+                 ? invalid(ReadError::TIME, "read queue or response budget expired")
                  : invalid(ReadError::STATE, "read service failed"),
              now);
     } else {
@@ -552,7 +456,7 @@ Status advanceRead(ReadContext& c, const CANOPEN::SdoCompletion& input, uint64_t
     return Ok();
 }
 Status advanceRead(ReadContext& c, const CANOPEN::PdoRecord& record, uint64_t now) noexcept {
-    if (overlap(&c, sizeof c, &record, sizeof record))
+    if (overlaps(&c, sizeof c, &record, sizeof record))
         return invalid(ReadError::OVERLAP, "PDO read overlaps context");
     if (!shape(c) || c.state != ReadState::ACTIVE || c.source != ReadSource::TPDO ||
         c.kind != ReadKind::STATE)
@@ -610,7 +514,7 @@ Status advanceRead(ReadContext& c, ReadOutcome reason, uint64_t now) noexcept {
     if (reason != ReadOutcome::DEADLINE && reason != ReadOutcome::CANCELLED &&
         reason != ReadOutcome::INVALIDATED)
         return invalid(ReadError::ARGUMENT, "invalid local read termination");
-    c.invalidated = reason == ReadOutcome::INVALIDATED;
+    c.invalidated |= reason == ReadOutcome::INVALIDATED;
     if (now >= c.deadlineUs)
         reason = ReadOutcome::DEADLINE;
     c.uncertain |= c.source == ReadSource::SDO;
@@ -623,19 +527,12 @@ Status advanceRead(ReadContext& c, ReadOutcome reason, uint64_t now) noexcept {
 
 Status getIdentity(const ReadContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
                    IdentityObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target))
-        return invalid(ReadError::OVERLAP, "identity output overlaps input");
-    Status status = current(c, target, now, age);
-    if (!status)
-        return status;
-    if (c.kind != ReadKind::IDENTITY || c.state != ReadState::SUCCEEDED)
-        return invalid(ReadError::STATE, "identity incomplete or wrong context");
     IdentityObservation candidate;
-    candidate.target = c.target;
-    status = fields(c, 0, 9, now, age, candidate.window);
+    const Status status = beginGet(c, &output, sizeof output, target, now, age,
+                                   c.kind == ReadKind::IDENTITY, candidate.window);
     if (!status)
         return status;
+    candidate.target = c.target;
     candidate.deviceType = c.values[0].raw;
     candidate.hardwareVersion = uint16_t(c.values[1].raw);
     candidate.hardwareVersionWidth = c.values[1].object.widthBytes;
@@ -647,43 +544,34 @@ Status getIdentity(const ReadContext& c, const ReadTarget& target, uint64_t now,
     candidate.revision = c.values[6].raw;
     candidate.modelCode = uint16_t(c.values[7].raw);
     candidate.firmwareCode = uint16_t(c.values[8].raw);
-    for (unsigned i = 0; i < 9; ++i)
-        candidate.fields[i] = c.values[i].provenance;
+    copyProvenance(c, candidate.fields);
     output = candidate;
     return Ok();
 }
 Status getConfig(const ReadContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
                  ConfigObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target))
-        return invalid(ReadError::OVERLAP, "configuration output overlaps input");
-    Status status = current(c, target, now, age);
-    if (!status)
-        return status;
-    if (c.kind != ReadKind::CONFIG || c.state != ReadState::SUCCEEDED)
-        return invalid(ReadError::STATE, "configuration incomplete or wrong context");
     ConfigObservation candidate;
-    candidate.target = c.target;
-    status = fields(c, 0, 6, now, age, candidate.window);
+    const Status status = beginGet(c, &output, sizeof output, target, now, age,
+                                   c.kind == ReadKind::CONFIG, candidate.window);
     if (!status)
         return status;
+    candidate.target = c.target;
     candidate.syncCobId = c.values[0].raw;
     candidate.emcyCobId = c.values[1].raw;
     candidate.producerTimeMs = uint16_t(c.values[2].raw);
     candidate.sdoEntries = uint8_t(c.values[3].raw);
     candidate.clientToServer = c.values[4].raw;
     candidate.serverToClient = c.values[5].raw;
-    for (unsigned i = 0; i < 6; ++i)
-        candidate.fields[i] = c.values[i].provenance;
+    copyProvenance(c, candidate.fields);
     output = candidate;
     return Ok();
 }
 Status validateStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& target,
                        uint64_t now, uint64_t age, ReadWindow& window,
                        const CANOPEN::PdoRecord* pdo) noexcept {
-    if (overlap(&window, sizeof window, &c, sizeof c) ||
-        overlap(&window, sizeof window, &target, sizeof target) ||
-        (pdo && overlap(&window, sizeof window, pdo, sizeof *pdo)))
+    if (overlaps(&window, sizeof window, &c, sizeof c) ||
+        overlaps(&window, sizeof window, &target, sizeof target) ||
+        (pdo && overlaps(&window, sizeof window, pdo, sizeof *pdo)))
         return invalid(ReadError::OVERLAP, "state window overlaps input");
     Status status = current(c, target, now, age);
     if (!status)
@@ -717,9 +605,9 @@ Status validateStateBlock(const ReadContext& c, StateBlock block, const ReadTarg
 Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& target, uint64_t now,
                      uint64_t age, StateObservation& output,
                      const CANOPEN::PdoRecord* pdo) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target) ||
-        (pdo && overlap(&output, sizeof output, pdo, sizeof *pdo)))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &target, sizeof target) ||
+        (pdo && overlaps(&output, sizeof output, pdo, sizeof *pdo)))
         return invalid(ReadError::OVERLAP, "state output overlaps input");
     ReadWindow window;
     const Status status = validateStateBlock(c, block, target, now, age, window, pdo);
@@ -762,307 +650,6 @@ Status getStateBlock(const ReadContext& c, StateBlock block, const ReadTarget& t
         output.digitalInputs = v[0].raw;
         break;
     }
-    return Ok();
-}
-Status prepareDriverRead(DriverContext& c, const ReadTarget& target, uint32_t operation,
-                         uint64_t now, uint64_t deadline, const ReadOptions& options,
-                         DriverGroup group) noexcept {
-    ReadKind kind;
-    switch (group) {
-    case DriverGroup::DRIVER:
-        kind = ReadKind::DRIVER;
-        break;
-    case DriverGroup::SOFT_LIMITS:
-        kind = ReadKind::DRIVER_SOFT_LIMITS;
-        break;
-    case DriverGroup::MOTION_PARAMETERS:
-        kind = ReadKind::DRIVER_MOTION_PARAMETERS;
-        break;
-    case DriverGroup::IO_INPUT_CONFIGURATION:
-        kind = ReadKind::IO_INPUT_CONFIGURATION;
-        break;
-    case DriverGroup::IO_OUTPUT_CONFIGURATION:
-        kind = ReadKind::IO_OUTPUT_CONFIGURATION;
-        break;
-    case DriverGroup::IO_INPUT_FILTERS:
-        kind = ReadKind::IO_INPUT_FILTERS;
-        break;
-    case DriverGroup::IO_OUTPUT_COMMAND:
-        kind = ReadKind::IO_OUTPUT_COMMAND;
-        break;
-    case DriverGroup::CONTROL:
-        kind = ReadKind::CONTROL;
-        break;
-    case DriverGroup::TUNING_CURRENT_HOLDING:
-        kind = ReadKind::TUNING_CURRENT_HOLDING;
-        break;
-    case DriverGroup::TUNING_FILTER_POSITION:
-        kind = ReadKind::TUNING_FILTER_POSITION;
-        break;
-    case DriverGroup::TUNING_LOOP_GAINS:
-        kind = ReadKind::TUNING_LOOP_GAINS;
-        break;
-    case DriverGroup::TUNING_EDS_GAINS:
-        kind = ReadKind::TUNING_EDS_GAINS;
-        break;
-    default:
-        return invalid(ReadError::ARGUMENT, "unknown native driver group");
-    }
-    return prepare(c.read, target, operation, now, deadline, options, kind, 0, nullptr);
-}
-Status nextDriver(const DriverContext& c, uint64_t now, PreparedRead& output) noexcept {
-    if (!driverKind(c.read.kind))
-        return invalid(ReadError::STATE, "not a driver context");
-    return nextRead(c.read, now, output);
-}
-Status advanceDriver(DriverContext& c, const CANOPEN::SdoCompletion& input, uint64_t now) noexcept {
-    if (!driverKind(c.read.kind))
-        return invalid(ReadError::STATE, "not a driver context");
-    return advanceRead(c.read, input, now);
-}
-Status advanceDriver(DriverContext& c, ReadOutcome reason, uint64_t now) noexcept {
-    if (!driverKind(c.read.kind))
-        return invalid(ReadError::STATE, "not a driver context");
-    return advanceRead(c.read, reason, now);
-}
-Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
-                 DriverObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target))
-        return invalid(ReadError::OVERLAP, "driver output overlaps input");
-    Status status = current(c.read, target, now, age);
-    if (!status)
-        return status;
-    if ((c.read.kind != ReadKind::DRIVER && c.read.kind != ReadKind::DRIVER_SOFT_LIMITS &&
-         c.read.kind != ReadKind::DRIVER_MOTION_PARAMETERS) ||
-        c.read.state != ReadState::SUCCEEDED || c.read.source != ReadSource::SDO)
-        return invalid(ReadError::STATE, "driver group incomplete or wrong context");
-    DriverObservation candidate;
-    candidate.target = c.read.target;
-    status = fields(c.read, 0, c.read.count, now, age, candidate.window);
-    if (!status)
-        return status;
-    candidate.fieldCount = c.read.count;
-    for (unsigned i = 0; i < c.read.count; ++i)
-        candidate.fields[i] = c.read.values[i].provenance;
-    const ReadValue* v = c.read.values;
-    switch (c.read.kind) {
-    case ReadKind::DRIVER:
-        candidate.directionRaw = uint16_t(v[0].raw);
-        candidate.subdivisionRaw = uint16_t(v[1].raw);
-        break;
-    case ReadKind::DRIVER_SOFT_LIMITS:
-        candidate.group = DriverGroup::SOFT_LIMITS;
-        candidate.softLimitSelectorRaw = uint16_t(v[0].raw);
-        candidate.softLimitEntries = uint8_t(v[1].raw);
-        candidate.minimumNative = signed32(v[2].raw);
-        candidate.maximumNative = signed32(v[3].raw);
-        break;
-    case ReadKind::DRIVER_MOTION_PARAMETERS:
-        candidate.group = DriverGroup::MOTION_PARAMETERS;
-        candidate.positionSpeedRpm = v[0].raw;
-        candidate.rampUpTimeMs = v[1].raw;
-        candidate.rampDownTimeMs = v[2].raw;
-        break;
-    default:
-        return invalid(ReadError::STATE, "unknown driver observation");
-    }
-    output = candidate;
-    return Ok();
-}
-Status prepareControlRead(DriverContext& output, const ReadTarget& target, uint32_t operation,
-                          uint64_t now, uint64_t deadline, const ReadOptions& options) noexcept {
-    return prepareDriverRead(output, target, operation, now, deadline, options,
-                             DriverGroup::CONTROL);
-}
-Status prepareTuningRead(DriverContext& output, const ReadTarget& target, uint32_t operation,
-                         uint64_t now, uint64_t deadline, const ReadOptions& options,
-                         TuningGroup group) noexcept {
-    DriverGroup native;
-    switch (group) {
-    case TuningGroup::CURRENT_HOLDING:
-        native = DriverGroup::TUNING_CURRENT_HOLDING;
-        break;
-    case TuningGroup::FILTER_POSITION:
-        native = DriverGroup::TUNING_FILTER_POSITION;
-        break;
-    case TuningGroup::LOOP_GAINS:
-        native = DriverGroup::TUNING_LOOP_GAINS;
-        break;
-    case TuningGroup::EDS_GAINS:
-        native = DriverGroup::TUNING_EDS_GAINS;
-        break;
-    default:
-        return invalid(ReadError::ARGUMENT, "unknown finite tuning group");
-    }
-    return prepareDriverRead(output, target, operation, now, deadline, options, native);
-}
-Status getControl(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
-                  ControlObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target))
-        return invalid(ReadError::OVERLAP, "control output overlaps input");
-    Status s = current(c.read, target, now, age);
-    if (!s)
-        return s;
-    if (c.read.kind != ReadKind::CONTROL || c.read.state != ReadState::SUCCEEDED ||
-        c.read.source != ReadSource::SDO)
-        return invalid(ReadError::STATE, "control read incomplete or wrong context");
-    ControlObservation candidate;
-    s = fields(c.read, 0, c.read.count, now, age, candidate.window);
-    if (!s)
-        return s;
-    candidate.target = c.read.target;
-    candidate.loopModeRaw = uint16_t(c.read.values[0].raw);
-    if (candidate.loopModeRaw <= 2)
-        candidate.loopMode = static_cast<LoopMode>(candidate.loopModeRaw);
-    candidate.encoderResolutionRaw = uint16_t(c.read.values[1].raw);
-    for (unsigned i = 0; i < 2; ++i)
-        candidate.fields[i] = c.read.values[i].provenance;
-    output = candidate;
-    return Ok();
-}
-Status getTuning(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
-                 TuningObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target))
-        return invalid(ReadError::OVERLAP, "tuning output overlaps input");
-    Status s = current(c.read, target, now, age);
-    if (!s)
-        return s;
-    if (c.read.state != ReadState::SUCCEEDED || c.read.source != ReadSource::SDO)
-        return invalid(ReadError::STATE, "tuning read incomplete or wrong source");
-    TuningObservation candidate;
-    switch (c.read.kind) {
-    case ReadKind::TUNING_CURRENT_HOLDING:
-        candidate.group = TuningGroup::CURRENT_HOLDING;
-        break;
-    case ReadKind::TUNING_FILTER_POSITION:
-        candidate.group = TuningGroup::FILTER_POSITION;
-        break;
-    case ReadKind::TUNING_LOOP_GAINS:
-        candidate.group = TuningGroup::LOOP_GAINS;
-        break;
-    case ReadKind::TUNING_EDS_GAINS:
-        candidate.group = TuningGroup::EDS_GAINS;
-        break;
-    default:
-        return invalid(ReadError::STATE, "not a finite tuning context");
-    }
-    s = fields(c.read, 0, c.read.count, now, age, candidate.window);
-    if (!s)
-        return s;
-    candidate.target = c.read.target;
-    candidate.fieldCount = c.read.count;
-    for (unsigned i = 0; i < c.read.count; ++i)
-        candidate.fields[i] = c.read.values[i].provenance;
-    const ReadValue* v = c.read.values;
-    switch (candidate.group) {
-    case TuningGroup::CURRENT_HOLDING:
-        candidate.maximumPeakCurrentMa = uint16_t(v[0].raw);
-        candidate.closedLoopMaximumPercent = uint16_t(v[1].raw);
-        candidate.closedLoopBasePercent = uint16_t(v[2].raw);
-        candidate.openLoopMaximumPercent = uint16_t(v[3].raw);
-        candidate.holdingCurrentPercent = uint16_t(v[4].raw);
-        candidate.holdingTimeMs = uint16_t(v[5].raw);
-        break;
-    case TuningGroup::FILTER_POSITION:
-        candidate.lowPassEnableRaw = uint16_t(v[0].raw);
-        candidate.lowPassCoefficientRaw = uint16_t(v[1].raw);
-        candidate.positionAlarmThresholdRaw = uint16_t(v[2].raw);
-        candidate.inPositionThresholdRaw = uint16_t(v[3].raw);
-        candidate.inPositionTimeRaw = uint16_t(v[4].raw);
-        candidate.averagingFilterRaw = uint16_t(v[5].raw);
-        break;
-    case TuningGroup::LOOP_GAINS:
-        candidate.currentProportionalFactorRaw = uint16_t(v[0].raw);
-        candidate.currentKpRaw = uint16_t(v[1].raw);
-        candidate.currentKiRaw = uint16_t(v[2].raw);
-        candidate.currentKcRaw = uint16_t(v[3].raw);
-        candidate.velocityKp1Raw = uint16_t(v[4].raw);
-        candidate.velocityKv1Raw = uint16_t(v[5].raw);
-        candidate.velocityNode1Raw = uint16_t(v[6].raw);
-        candidate.velocityKp2Raw = uint16_t(v[7].raw);
-        candidate.velocityKv2Raw = uint16_t(v[8].raw);
-        candidate.velocityNode2Raw = uint16_t(v[9].raw);
-        candidate.velocityFeedforwardRaw = uint16_t(v[10].raw);
-        candidate.positionKiRaw = uint16_t(v[11].raw);
-        break;
-    case TuningGroup::EDS_GAINS:
-        for (unsigned i = 0; i < 7; ++i)
-            candidate.edsGainsRaw[i] = uint16_t(v[i].raw);
-        break;
-    }
-    output = candidate;
-    return Ok();
-}
-Status getIo(const DriverContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
-             IoObservation& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &target, sizeof target))
-        return invalid(ReadError::OVERLAP, "I/O output overlaps input");
-    Status status = current(c.read, target, now, age);
-    if (!status)
-        return status;
-    IoObservation candidate;
-    switch (c.read.kind) {
-    case ReadKind::IO_INPUT_CONFIGURATION:
-        candidate.group = DriverGroup::IO_INPUT_CONFIGURATION;
-        break;
-    case ReadKind::IO_OUTPUT_CONFIGURATION:
-        candidate.group = DriverGroup::IO_OUTPUT_CONFIGURATION;
-        break;
-    case ReadKind::IO_INPUT_FILTERS:
-        candidate.group = DriverGroup::IO_INPUT_FILTERS;
-        break;
-    case ReadKind::IO_OUTPUT_COMMAND:
-        candidate.group = DriverGroup::IO_OUTPUT_COMMAND;
-        break;
-    default:
-        return invalid(ReadError::STATE, "not an I/O context");
-    }
-    if (c.read.state != ReadState::SUCCEEDED || c.read.source != ReadSource::SDO)
-        return invalid(ReadError::STATE, "I/O group incomplete or wrong source");
-    status = fields(c.read, 0, c.read.count, now, age, candidate.window);
-    if (!status)
-        return status;
-    candidate.target = c.read.target;
-    candidate.fieldCount = c.read.count;
-    for (unsigned i = 0; i < c.read.count; ++i)
-        candidate.fields[i] = c.read.values[i].provenance;
-    const ReadValue* v = c.read.values;
-    switch (candidate.group) {
-    case DriverGroup::IO_INPUT_CONFIGURATION:
-        candidate.ioEntries = uint16_t(v[0].raw);
-        candidate.inputPolarityRaw = uint16_t(v[1].raw);
-        for (unsigned i = 0; i < 7; ++i) {
-            candidate.inputInverted[i] = (candidate.inputPolarityRaw & (1u << i)) != 0;
-            candidate.inputFunctionRaw[i] = uint16_t(v[i + 2].raw);
-            candidate.inputFunctions[i] =
-                candidate.inputFunctionRaw[i] <= 13
-                    ? static_cast<InputFunction>(candidate.inputFunctionRaw[i])
-                    : InputFunction::UNKNOWN;
-        }
-        break;
-    case DriverGroup::IO_OUTPUT_CONFIGURATION:
-        candidate.outputConfig0CRaw = uint16_t(v[0].raw);
-        candidate.outputConfig0DRaw = uint16_t(v[1].raw);
-        candidate.outputConfig0ERaw = uint16_t(v[2].raw);
-        candidate.outputConfig0FRaw = uint16_t(v[3].raw);
-        break;
-    case DriverGroup::IO_INPUT_FILTERS:
-        for (unsigned i = 0; i < 7; ++i)
-            candidate.inputFilterRaw[i] = uint16_t(v[i].raw);
-        break;
-    case DriverGroup::IO_OUTPUT_COMMAND:
-        candidate.outputEntries = uint8_t(v[0].raw);
-        candidate.outputValueRaw = v[1].raw;
-        candidate.outputMaskRaw = v[2].raw;
-        break;
-    default:
-        return invalid(ReadError::STATE, "unknown I/O observation");
-    }
-    output = candidate;
     return Ok();
 }
 } // namespace LICHUAN_C

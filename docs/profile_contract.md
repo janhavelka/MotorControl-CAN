@@ -67,8 +67,8 @@ Advancement checks the complete binding, operation/step identity, bounded
 payload shape and supplied time before publishing a candidate. `observedUs` is
 the owner's supplied current service time, not a separately sampled core clock
 or drive sample time. It cannot precede preparation/last advancement. Normal
-terminal events precede the fixed exclusive deadline; `DEADLINE` events occur
-at or after it. The core acquires no time and performs no I/O, allocation,
+terminal events precede the fixed exclusive deadline, including a spent service
+budget reported as `SERVICE_TIMEOUT`; `DEADLINE` events occur at or after it. The core acquires no time and performs no I/O, allocation,
 retries, logging or persistence. The owner supplies qualified native evidence.
 
 An `Ok()` return from advancement means the event was validly consumed, including

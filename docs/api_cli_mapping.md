@@ -41,7 +41,8 @@ overload. No corresponding CLI route is installed; the controlword reset route
 and unsupported device-position values do not gain fallback implementations.
 
 Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming checked
-STATUS and MONITORS reads for explicit documentary comparison. Unknown bits and
+STATUS and MONITORS reads for explicit documentary comparison.
+Packet 10 adds `interpretStatusword` for one raw word, with the same meanings. Unknown bits and
 disagreement remain inspectable; no firmware is selected automatically. There is
 no CLI route or implemented `prepareEnable/prepareRelease` yet. The
 [transition guide](drive_actions.md) records their exact remaining gates.

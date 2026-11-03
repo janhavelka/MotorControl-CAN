@@ -22,7 +22,8 @@ enum class ReadOutcome : uint8_t {
     TRANSPORT_ERROR,   ///< Controller or channel failure.
     CANCELLED,         ///< Local cancellation, never a motor stop.
     DEADLINE,          ///< Immutable overall cutoff reached.
-    INVALIDATED        ///< Binding, configuration or node evidence changed.
+    INVALIDATED,       ///< Binding, configuration or node evidence changed.
+    SERVICE_TIMEOUT    ///< Queue or response budget spent before the overall cutoff; possible transmission is separate evidence.
 };
 /** Status detail for the concrete checked read calls. */
 enum class ReadError : int32_t {

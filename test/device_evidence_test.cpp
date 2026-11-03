@@ -423,7 +423,7 @@ void failedEvidenceAndNoReplay() {
     CHECK(silent.evidence.request(silent.plan(), 0) == E::EvidenceAdmission::ACCEPTED);
     silent.finish();
     const E::AcquisitionRecord& timeout = *silent.evidence.record();
-    CHECK(timeout.terminalCount == 1 && timeout.read.outcome == M::ReadOutcome::DEADLINE);
+    CHECK(timeout.terminalCount == 1 && timeout.read.outcome == M::ReadOutcome::SERVICE_TIMEOUT);
     CHECK(timeout.terminals[0].service.outcome == C::SdoOutcome::TIMEOUT);
     CHECK(timeout.terminals[0].service.transfer.readEffect ==
           C::SdoReadEffect::ACCEPTED_UNQUALIFIED);

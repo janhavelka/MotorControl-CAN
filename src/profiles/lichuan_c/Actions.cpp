@@ -1,36 +1,15 @@
 // SPDX-License-Identifier: MIT
+#include "ProfileEvidence.h"
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
+#include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <new>
 
 namespace MotorControlCAN {
 namespace LICHUAN_C {
+using namespace Detail;
 namespace {
-// Object 2100: EN86 p17 and ZH86 p18 agree; these are not 6041 dialect bits.
-constexpr uint16_t monitorRunning = 0x0004;
-constexpr uint16_t monitorAlarm = 0x0008;
-constexpr uint16_t monitorReleased = 0x0010;
 Status error(ActionError reason, const char* message) {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(reason), message);
-}
-bool overlap(const void* a, size_t an, const void* b, size_t bn) {
-    const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
-    return x >= y ? x - y < bn : y - x < an;
-}
-bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
-    return sameBinding(a.channel.binding, b.channel.binding) &&
-           a.nodeGeneration == b.nodeGeneration &&
-           a.channel.clientToServerId == b.channel.clientToServerId &&
-           a.channel.serverToClientId == b.channel.serverToClientId;
-}
-bool valid(const AxisReservation& r) {
-    return r.owner && r.sequence && r.generation && r.target.nodeGeneration &&
-           (r.model == SettingsModel::CL86_C || r.model == SettingsModel::OL86_C) &&
-           CANOPEN::validateSdoChannel(r.target.channel);
-}
-bool sameReservation(const AxisReservation& a, const AxisReservation& b) {
-    return valid(a) && valid(b) && sameTarget(a.target, b.target) && a.model == b.model &&
-           a.owner == b.owner && a.sequence == b.sequence && a.generation == b.generation &&
-           a.acquiredUs == b.acquiredUs;
 }
 uint8_t commandCount(const ActionContext& c) {
     return c.actionKind == ActionKind::STOP ? 1 : c.actionKind == ActionKind::CLEAR_ALARM ? 2 : 3;
@@ -54,12 +33,13 @@ uint8_t observationMask(const ActionContext& c) {
     return mask;
 }
 Status shape(const ActionContext& c, uint64_t now) {
-    if (!valid(c.reservation) || c.kind > StopKind::QUICK_STOP ||
+    if (!validReservation(c.reservation) || c.kind > StopKind::QUICK_STOP ||
         c.actionKind > ActionKind::SET_DEVICE_POSITION || !c.operation || !c.step ||
         c.state == ActionState::EMPTY || c.state > ActionState::FAILED ||
         c.phase > ActionPhase::WAITING || c.execution > ActionExecution::UNKNOWN ||
         c.completion > ActionCompletion::OBSERVED ||
-        c.outcome > ActionOutcome::ITERATION_EXHAUSTED || !c.options.service.queueTimeoutUs ||
+        c.outcome == ActionOutcome::STOP_SENT_UNCONFIRMED ||
+        c.outcome > ActionOutcome::SERVICE_TIMEOUT || !c.options.service.queueTimeoutUs ||
         !c.options.service.responseTimeoutUs || !c.options.observationIntervalUs ||
         !c.options.maximumAgeUs || c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs ||
         now < c.servicedUs || c.commandCursor >= commandCount(c) ||
@@ -98,17 +78,14 @@ Status current(const ActionContext& c, const AxisReservation& live, const ReadTa
 }
 bool commonOverlap(const ActionContext& c, const AxisReservation& live,
                    const ReadTarget& target) {
-    return overlap(&c, sizeof c, &live, sizeof live) ||
-           overlap(&c, sizeof c, &target, sizeof target);
+    return overlaps(&c, sizeof c, &live, sizeof live) ||
+           overlaps(&c, sizeof c, &target, sizeof target);
 }
 bool after(const StateObservation& o, uint64_t at) {
     for (unsigned i = 0; i < o.fieldCount; ++i)
         if (o.fields[i].earliestUs < at)
             return false;
     return true;
-}
-uint16_t controlWord(const CANOPEN::SdoTransfer& t) {
-    return uint16_t(t.data[0] | (uint16_t(t.data[1]) << 8));
 }
 // Each term is at most 2^33 and the field count is single digit, so this cannot wrap.
 // Actual cycle time is unknown here, so service gaps can still expire a cycle.
@@ -122,21 +99,10 @@ bool fresh(const StateObservation& o, uint64_t now, uint64_t age) {
             return false;
     return o.fieldCount != 0;
 }
+// A stop must work on a running drive, and an acknowledged word no longer expires by age.
 bool controlEvidence(const CANOPEN::SdoCompletion& e, const AxisReservation& r, StopKind kind,
                      uint64_t now) {
-    const CANOPEN::SdoTransfer& t = e.transfer;
-    return sameBinding(t.channel.binding, r.target.channel.binding) &&
-           t.channel.clientToServerId == r.target.channel.clientToServerId &&
-           t.channel.serverToClientId == r.target.channel.serverToClientId &&
-           e.nodeGeneration == r.target.nodeGeneration &&
-           e.outcome == CANOPEN::SdoOutcome::SUCCESS &&
-           t.direction == CANOPEN::SdoDirection::DOWNLOAD && t.index == 0x6040 && !t.subindex &&
-           t.size == 2 && stopPredecessorAllowed(controlWord(t), kind) && t.operation && t.request &&
-           t.step &&
-           t.deadlineUs > e.completedUs && t.queueTimeoutUs && t.responseTimeoutUs && e.queued &&
-           e.transmissionPossible && e.protocolAcknowledged && e.effectPossible &&
-           !e.effectUncertain && !e.abortValid && !e.size && r.acquiredUs <= e.admittedUs &&
-           e.admittedUs <= e.completedUs && e.completedUs <= now;
+    return acknowledgedControlWrite(e, r, now) && stopPredecessorAllowed(controlWord(e.transfer), kind);
 }
 CANOPEN::SdoTransfer command(const ActionContext& c) {
     CANOPEN::SdoTransfer t;
@@ -159,29 +125,13 @@ CANOPEN::SdoTransfer command(const ActionContext& c) {
     t.responseTimeoutUs = c.options.service.responseTimeoutUs;
     return t;
 }
-bool sameWork(const CANOPEN::SdoTransfer& a, const CANOPEN::SdoTransfer& b) {
-    if (!sameBinding(a.channel.binding, b.channel.binding) ||
-        a.channel.clientToServerId != b.channel.clientToServerId ||
-        a.channel.serverToClientId != b.channel.serverToClientId || a.operation != b.operation ||
-        a.request != b.request || a.step != b.step || a.index != b.index ||
-        a.subindex != b.subindex || a.direction != b.direction || a.size != b.size ||
-        a.uploadSize != b.uploadSize ||
-        a.readEffect != b.readEffect || a.allowSegmentedUpload != b.allowSegmentedUpload ||
-        a.deadlineUs != b.deadlineUs || a.queueTimeoutUs != b.queueTimeoutUs ||
-        a.responseTimeoutUs != b.responseTimeoutUs)
-        return false;
-    if (a.direction == CANOPEN::SdoDirection::DOWNLOAD)
-        for (unsigned i = 0; i < a.size; ++i)
-            if (a.data[i] != b.data[i])
-                return false;
-    return true;
-}
 ActionOutcome outcome(CANOPEN::SdoOutcome o) {
     switch (o) {
     case CANOPEN::SdoOutcome::SERVER_ABORT:
         return ActionOutcome::PROTOCOL_REJECTED;
     case CANOPEN::SdoOutcome::TIMEOUT:
-        return ActionOutcome::DEADLINE;
+        // Every caller settles the overall cutoff first, so this is a queue or response budget.
+        return ActionOutcome::SERVICE_TIMEOUT;
     case CANOPEN::SdoOutcome::CANCELLED:
         return ActionOutcome::CANCELLED;
     case CANOPEN::SdoOutcome::REBOOT:
@@ -204,6 +154,8 @@ ActionOutcome outcome(ReadOutcome o) {
         return ActionOutcome::CANCELLED;
     case ReadOutcome::DEADLINE:
         return ActionOutcome::DEADLINE;
+    case ReadOutcome::SERVICE_TIMEOUT:
+        return ActionOutcome::SERVICE_TIMEOUT;
     case ReadOutcome::INVALIDATED:
         return ActionOutcome::INVALIDATED;
     default:
@@ -216,7 +168,9 @@ void fail(ActionContext& c, ActionOutcome reason, uint64_t now, const char* mess
     c.status =
         reason == ActionOutcome::PROTOCOL_REJECTED
             ? Status(Err::PROTOCOL_ERROR, 0, message)
-            : error(reason == ActionOutcome::DEADLINE ? ActionError::TIME : ActionError::STATE,
+            : error(reason == ActionOutcome::DEADLINE || reason == ActionOutcome::SERVICE_TIMEOUT
+                        ? ActionError::TIME
+                        : ActionError::STATE,
                     message);
     c.servicedUs = now;
     c.uncertain |= c.effectsPossible && c.completion != ActionCompletion::OBSERVED;
@@ -271,13 +225,13 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     c.observationKnown = true;
     ++c.observations; // Distinct external identities per cycle bound this below UINT32_MAX.
     const uint16_t monitor = c.monitorObservation.monitor;
-    const bool running = (monitor & monitorRunning) != 0;
-    const bool alarm = (monitor & monitorAlarm) != 0;
+    const bool running = (monitor & MONITOR_RUNNING) != 0;
+    const bool alarm = (monitor & MONITOR_ALARM) != 0;
     bool outsideScope = c.statusObservation.modeRaw != 1;
     bool done = false;
     switch (c.actionKind) {
     case ActionKind::STOP:
-        outsideScope |= alarm || (monitor & monitorReleased) != 0;
+        outsideScope |= alarm || (monitor & MONITOR_RELEASED) != 0;
         done = !running;
         break;
     case ActionKind::CLEAR_ALARM:
@@ -340,7 +294,7 @@ void publishStop(ActionContext& output, const AxisReservation& r,
 Status validateExplicit(const AxisReservation& r, const ReadContext& state, ActionKind kind,
                      uint32_t operation, uint64_t now, uint64_t deadline,
                      const ActionOptions& options) {
-    if (!valid(r) || !operation || deadline <= now || r.acquiredUs > now ||
+    if (!validReservation(r) || !operation || deadline <= now || r.acquiredUs > now ||
         !options.service.queueTimeoutUs || !options.service.responseTimeoutUs ||
         options.service.identityWidths != IdentityWidths::DECLARED_U16 ||
         !options.observationIntervalUs || !options.maximumAgeUs ||
@@ -354,9 +308,9 @@ Status validateExplicit(const AxisReservation& r, const ReadContext& state, Acti
         !validateStateBlock(state, StateBlock::MONITORS, r.target, now, age, monitors) ||
         status.earliestUs < r.acquiredUs || monitors.earliestUs < r.acquiredUs ||
         uint8_t(raw(state, StateBlock::STATUS, 1)) != 1 ||
-        (raw(state, StateBlock::MONITORS, 0) & monitorRunning))
+        (raw(state, StateBlock::MONITORS, 0) & MONITOR_RUNNING))
         return error(ActionError::STATE, "fresh mode 1 not-running SDO evidence required");
-    const bool alarmed = (raw(state, StateBlock::MONITORS, 0) & monitorAlarm) != 0;
+    const bool alarmed = (raw(state, StateBlock::MONITORS, 0) & MONITOR_ALARM) != 0;
     if (kind == ActionKind::CLEAR_ALARM) {
         ReadWindow errors, history;
         if (!alarmed || !validateStateBlock(state, StateBlock::ERRORS, r.target, now, age, errors) ||
@@ -440,12 +394,12 @@ bool stopPredecessorAllowed(uint16_t word, StopKind kind) noexcept {
 Status validateStop(const ActionContext& output, const AxisReservation& r, const ReadContext& state,
                  const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                  uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
-    if (overlap(&output, sizeof output, &r, sizeof r) ||
-        overlap(&output, sizeof output, &state, sizeof state) ||
-        overlap(&output, sizeof output, &control, sizeof control) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &control, sizeof control) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "stop preparation overlaps input");
-    if (!valid(r) || kind > StopKind::QUICK_STOP || !operation || deadline <= now ||
+    if (!validReservation(r) || kind > StopKind::QUICK_STOP || !operation || deadline <= now ||
         !stopOptionsValid(options) || r.acquiredUs > now)
         return error(ActionError::ARGUMENT,
                      "invalid stop reservation, selection or caller budgets");
@@ -456,7 +410,7 @@ Status validateStop(const ActionContext& output, const AxisReservation& r, const
         !validateStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs, monitors) ||
         uint8_t(raw(state, StateBlock::STATUS, 1)) != 1 ||
         (raw(state, StateBlock::STATUS, 0) & 7u) != 7 ||
-        (raw(state, StateBlock::MONITORS, 0) & (monitorAlarm | monitorReleased)) ||
+        (raw(state, StateBlock::MONITORS, 0) & (MONITOR_ALARM | MONITOR_RELEASED)) ||
         status.earliestUs < control.completedUs || monitors.earliestUs < control.completedUs)
         return error(ActionError::STATE,
                      "allowed acknowledged predecessor and fresh mode 1 state required");
@@ -477,22 +431,23 @@ Status prepareStop(ActionContext& output, const AxisReservation& r, const ReadCo
 
 Status validateEscalation(const ActionContext& output, const ActionContext& running, uint32_t operation,
                        uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
-    if (overlap(&output, sizeof output, &running, sizeof running) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &running, sizeof running) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "stop escalation overlaps input");
-    if (!valid(running.reservation) || !operation || deadline <= now ||
+    if (!validReservation(running.reservation) || !operation || deadline <= now ||
         !stopOptionsValid(options) || running.reservation.acquiredUs > now)
         return error(ActionError::ARGUMENT, "invalid escalation reservation or budgets");
     const CANOPEN::SdoCompletion& control = running.commandHistory[0]; // A stop has one command.
     const StateObservation& status = running.statusObservation;
     const StateObservation& monitors = running.monitorObservation;
+    // A withdrawn read also withdraws the cycle before it, which came down the same route.
     if (running.actionKind != ActionKind::STOP || running.kind != StopKind::HALT ||
-        !(running.commandEvidenceMask & 1u) || running.execution != ActionExecution::ACKNOWLEDGED ||
+        running.read.invalidated || !(running.commandEvidenceMask & 1u) || running.execution != ActionExecution::ACKNOWLEDGED ||
         !running.observationKnown || !controlEvidence(control, running.reservation, StopKind::QUICK_STOP, now) ||
         controlWord(control.transfer) != 0x010f || !fresh(status, now, options.maximumAgeUs) ||
         !fresh(monitors, now, options.maximumAgeUs) || !after(status, control.completedUs) ||
         !after(monitors, control.completedUs) || status.modeRaw != 1 ||
-        (status.statusword & 7u) != 7 || (monitors.monitor & (monitorAlarm | monitorReleased)))
+        (status.statusword & 7u) != 7 || (monitors.monitor & (MONITOR_ALARM | MONITOR_RELEASED)))
         return error(ActionError::STATE, "acknowledged HALT and a fresh later cycle required");
     return Ok();
 }
@@ -516,9 +471,9 @@ void resetAction(ActionContext& c) noexcept {
 Status prepareClearAlarm(ActionContext& output, const AxisReservation& r,
                          const ReadContext& state, uint32_t operation, uint64_t now,
                          uint64_t deadline, const ActionOptions& options) noexcept {
-    if (overlap(&output, sizeof output, &r, sizeof r) ||
-        overlap(&output, sizeof output, &state, sizeof state) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "alarm preparation overlaps input");
     const Status s =
         validateExplicit(r, state, ActionKind::CLEAR_ALARM, operation, now, deadline, options);
@@ -532,10 +487,10 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& r,
                                 const ReadContext& state, int64_t nativePosition,
                                 const AxisConfig& axis, uint32_t operation, uint64_t now,
                                 uint64_t deadline, const ActionOptions& options) noexcept {
-    if (overlap(&output, sizeof output, &r, sizeof r) ||
-        overlap(&output, sizeof output, &state, sizeof state) ||
-        overlap(&output, sizeof output, &axis, sizeof axis) ||
-        overlap(&output, sizeof output, &options, sizeof options))
+    if (overlaps(&output, sizeof output, &r, sizeof r) ||
+        overlaps(&output, sizeof output, &state, sizeof state) ||
+        overlaps(&output, sizeof output, &axis, sizeof axis) ||
+        overlaps(&output, sizeof output, &options, sizeof options))
         return error(ActionError::OVERLAP, "counter preparation overlaps input");
     if (nativePosition)
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::ARGUMENT),
@@ -556,9 +511,9 @@ Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& r,
 
 Status nextAction(const ActionContext& c, const AxisReservation& live, const ReadTarget& target,
                   uint64_t now, PreparedAction& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &live, sizeof live) ||
-        overlap(&output, sizeof output, &target, sizeof target))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &live, sizeof live) ||
+        overlaps(&output, sizeof output, &target, sizeof target))
         return error(ActionError::OVERLAP, "action work overlaps input");
     const Status s = current(c, live, target, now);
     if (!s)
@@ -612,10 +567,10 @@ Status noteActionTransmission(ActionContext& c, const AxisReservation& live, Rea
     const void* objects[] = {&c, &target, &axis, &reference};
     const size_t sizes[] = {sizeof c, sizeof target, sizeof axis, sizeof reference};
     for (unsigned i = 0; i < 4; ++i) {
-        if (overlap(objects[i], sizes[i], &live, sizeof live))
+        if (overlaps(objects[i], sizes[i], &live, sizeof live))
             return error(ActionError::OVERLAP, "counter notice overlaps reservation");
         for (unsigned j = 0; j < i; ++j)
-            if (overlap(objects[i], sizes[i], objects[j], sizes[j]))
+            if (overlaps(objects[i], sizes[i], objects[j], sizes[j]))
                 return error(ActionError::OVERLAP, "counter notice outputs overlap");
     }
     Status s = current(c, live, target, now);
@@ -654,7 +609,7 @@ Status noteActionTransmission(ActionContext& c, const AxisReservation& live, Rea
 
 Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTarget& target,
                      const CANOPEN::SdoCompletion& input, uint64_t now) noexcept {
-    if (commonOverlap(c, live, target) || overlap(&c, sizeof c, &input, sizeof input))
+    if (commonOverlap(c, live, target) || overlaps(&c, sizeof c, &input, sizeof input))
         return error(ActionError::OVERLAP, "action terminal overlaps input");
     Status s = current(c, live, target, now);
     if (!s)
@@ -667,7 +622,7 @@ Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTa
                    work);
     if (!s)
         return s;
-    if (!work.ready || !sameWork(input.transfer, work.transfer) ||
+    if (!work.ready || !CANOPEN::sameSdoWork(input.transfer, work.transfer) ||
         input.nodeGeneration != c.reservation.target.nodeGeneration ||
         input.admittedUs < c.stepStartedUs || input.admittedUs >= c.deadlineUs ||
         input.completedUs < input.admittedUs || input.completedUs > now ||
@@ -675,16 +630,7 @@ Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTa
         return error(ActionError::CORRELATION, "action terminal does not match current service");
     if (c.phase == ActionPhase::COMMAND) {
         const bool success = input.outcome == CANOPEN::SdoOutcome::SUCCESS;
-        if (input.outcome > CANOPEN::SdoOutcome::UNSUPPORTED ||
-            (input.transmissionPossible && (!input.queued || !c.transmissionNoted)) ||
-            (input.transmissionConfirmed && !input.transmissionPossible) || input.size ||
-            input.effectPossible != input.transmissionPossible ||
-            input.effectUncertain != (input.transmissionPossible && !success) ||
-            (success &&
-             (!input.protocolAcknowledged || !input.transmissionPossible || input.abortValid)) ||
-            (!success && input.protocolAcknowledged) ||
-            (input.outcome == CANOPEN::SdoOutcome::SERVER_ABORT &&
-             (!input.abortValid || !input.transmissionPossible)))
+        if (!CANOPEN::checkDownloadTerminal(input, c.transmissionNoted))
             return error(ActionError::CORRELATION, "inconsistent action command terminal");
         const bool expired = now >= c.deadlineUs || input.completedUs >= c.deadlineUs;
         const unsigned cursor = c.commandCursor;
@@ -800,8 +746,8 @@ Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTa
 
 Status prepareBestEffortStop(BestEffortStop& output, const ReadTarget& target, uint32_t operation,
                              uint64_t now, uint64_t deadline, const ReadOptions& service) noexcept {
-    if (overlap(&output, sizeof output, &target, sizeof target) ||
-        overlap(&output, sizeof output, &service, sizeof service))
+    if (overlaps(&output, sizeof output, &target, sizeof target) ||
+        overlaps(&output, sizeof output, &service, sizeof service))
         return error(ActionError::OVERLAP, "best-effort stop preparation overlaps input");
     if (!operation || deadline <= now || !service.queueTimeoutUs || !service.responseTimeoutUs ||
         !target.nodeGeneration || !CANOPEN::validateSdoChannel(target.channel))
@@ -817,10 +763,25 @@ Status prepareBestEffortStop(BestEffortStop& output, const ReadTarget& target, u
     return Ok();
 }
 
+static CANOPEN::SdoTransfer bestEffortWork(const BestEffortStop& c) noexcept {
+    CANOPEN::SdoTransfer t;
+    t.channel = c.target.channel;
+    t.operation = t.request = c.operation;
+    t.step = 1;
+    t.index = 0x6040;
+    t.direction = CANOPEN::SdoDirection::DOWNLOAD;
+    t.size = 2;
+    t.data[0] = 0x0b;
+    t.deadlineUs = c.deadlineUs;
+    t.queueTimeoutUs = c.service.queueTimeoutUs;
+    t.responseTimeoutUs = c.service.responseTimeoutUs;
+    return t;
+}
+
 Status nextBestEffortStop(const BestEffortStop& c, const ReadTarget& current, uint64_t now,
                           PreparedAction& output) noexcept {
-    if (overlap(&output, sizeof output, &c, sizeof c) ||
-        overlap(&output, sizeof output, &current, sizeof current))
+    if (overlaps(&output, sizeof output, &c, sizeof c) ||
+        overlaps(&output, sizeof output, &current, sizeof current))
         return error(ActionError::OVERLAP, "best-effort stop work overlaps input");
     if (now < c.servicedUs)
         return error(ActionError::TIME, "best-effort stop time moved backward");
@@ -832,17 +793,7 @@ Status nextBestEffortStop(const BestEffortStop& c, const ReadTarget& current, ui
     next.eligibleUs = c.startedUs;
     if (c.state == ActionState::ACTIVE && !c.admitted) {
         next.ready = true;
-        CANOPEN::SdoTransfer& t = next.transfer;
-        t.channel = c.target.channel;
-        t.operation = t.request = c.operation;
-        t.step = 1;
-        t.index = 0x6040;
-        t.direction = CANOPEN::SdoDirection::DOWNLOAD;
-        t.size = 2;
-        t.data[0] = 0x0b;
-        t.deadlineUs = c.deadlineUs;
-        t.queueTimeoutUs = c.service.queueTimeoutUs;
-        t.responseTimeoutUs = c.service.responseTimeoutUs;
+        next.transfer = bestEffortWork(c);
     }
     output = next;
     return Ok();
@@ -858,19 +809,16 @@ Status noteBestEffortAdmission(BestEffortStop& c, uint64_t now) noexcept {
 
 Status advanceBestEffortStop(BestEffortStop& c, const CANOPEN::SdoCompletion& e,
                              uint64_t now) noexcept {
-    if (overlap(&c, sizeof c, &e, sizeof e))
+    if (overlaps(&c, sizeof c, &e, sizeof e))
         return error(ActionError::OVERLAP, "best-effort stop terminal overlaps input");
     if (c.state != ActionState::ACTIVE || !c.admitted || now < c.servicedUs)
         return error(ActionError::STATE, "no admitted best-effort stop");
-    const CANOPEN::SdoTransfer& t = e.transfer;
     const bool sent = e.outcome == CANOPEN::SdoOutcome::UNCONFIRMED_SENT;
-    if (!sameBinding(t.channel.binding, c.target.channel.binding) ||
-        t.channel.clientToServerId != c.target.channel.clientToServerId ||
-        t.channel.serverToClientId != c.target.channel.serverToClientId ||
-        t.operation != c.operation || t.index != 0x6040 || t.subindex || t.size != 2 ||
-        t.direction != CANOPEN::SdoDirection::DOWNLOAD || t.data[0] != 0x0b || t.data[1] ||
-        t.deadlineUs != c.deadlineUs || e.admittedUs < c.startedUs || e.completedUs < e.admittedUs ||
-        e.completedUs > now || e.size || e.abortValid || e.protocolAcknowledged ||
+    if (!CANOPEN::sameSdoWork(e.transfer, bestEffortWork(c)) ||
+        e.nodeGeneration != c.target.nodeGeneration || e.admittedUs < c.startedUs ||
+        e.admittedUs >= c.deadlineUs || e.completedUs < e.admittedUs || e.completedUs > now ||
+        e.size || e.abortValid || e.protocolAcknowledged ||
+        (e.transmissionPossible && !e.queued) || e.effectUncertain != e.transmissionPossible ||
         e.outcome == CANOPEN::SdoOutcome::SUCCESS ||
         e.outcome == CANOPEN::SdoOutcome::SERVER_ABORT ||
         e.outcome == CANOPEN::SdoOutcome::UNSUPPORTED ||
@@ -883,7 +831,12 @@ Status advanceBestEffortStop(BestEffortStop& c, const CANOPEN::SdoCompletion& e,
     c.effectsPossible = e.effectPossible;
     c.execution =
         e.transmissionPossible ? ActionExecution::UNKNOWN : ActionExecution::NOT_TRANSMITTED;
-    c.outcome = sent ? ActionOutcome::STOP_SENT_UNCONFIRMED : outcome(e.outcome);
+    // A cutoff timeout stays DEADLINE here too; only an earlier one is a spent service budget.
+    c.outcome = sent ? ActionOutcome::STOP_SENT_UNCONFIRMED
+                : e.outcome == CANOPEN::SdoOutcome::TIMEOUT &&
+                        (now >= c.deadlineUs || e.completedUs >= c.deadlineUs)
+                    ? ActionOutcome::DEADLINE
+                    : outcome(e.outcome);
     c.state = ActionState::FAILED;
     c.status = sent ? error(ActionError::STATE, "stop frame sent; no reply can confirm it")
                     : error(ActionError::STATE, "best-effort stop did not complete");

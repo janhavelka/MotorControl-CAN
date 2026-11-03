@@ -295,6 +295,54 @@ int main() {
         16, 65, 100, stopOptions);
     if (arbitraryPosition.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
         return 57;
+    // The value decoder and the masks need no read context, and refuse only an unknown document.
+    LICHUAN_C::StatusIndications indications;
+    if (!LICHUAN_C::interpretStatusword(0x0087, LICHUAN_C::StatusLayout::EN86, indications) ||
+        indications.alarm != LICHUAN_C::StateIndication::YES ||
+        LICHUAN_C::MONITOR_RUNNING != 0x0004)
+        return 59;
+    // Early budget expiry stays separate from the overall cutoff in both vocabularies.
+    if (ReadOutcome::SERVICE_TIMEOUT == ReadOutcome::DEADLINE ||
+        ActionOutcome::SERVICE_TIMEOUT == ActionOutcome::DEADLINE)
+        return 60;
+    // A move's own target write has no retained observation to retire.
+    LICHUAN_C::DriverContext retained;
+    CANOPEN::SdoTransfer moveWrite;
+    moveWrite.channel = readTarget.channel;
+    moveWrite.operation = moveWrite.request = moveWrite.step = 1;
+    moveWrite.index = 0x607a;
+    moveWrite.direction = CANOPEN::SdoDirection::DOWNLOAD;
+    moveWrite.size = 4;
+    if (!LICHUAN_C::retireMotionParameters(retained, readTarget, moveWrite) || retained.read.invalidated)
+        return 61;
+    // The rest of the operation-owned set is accepted at its EDS width only.
+    moveWrite.index = 0x6098;
+    moveWrite.size = 1;
+    if (!LICHUAN_C::retireMotionParameters(retained, readTarget, moveWrite))
+        return 62;
+    moveWrite.size = 4;
+    const Status wrongWidth = LICHUAN_C::retireMotionParameters(retained, readTarget, moveWrite);
+    if (wrongWidth || wrongWidth.detail != static_cast<int32_t>(ReadError::ARGUMENT))
+        return 63;
+    // A refusal carries printable text, from the generated template header as anywhere else.
+    CANOPEN::PdoMap refusedTemplate;
+    const Status noTemplate =
+        LICHUAN_C::pdoTemplate(CANOPEN::PdoDirection::TPDO, 5, refusedTemplate);
+    if (noTemplate || !noTemplate.msg || !*noTemplate.msg)
+        return 64;
+    // A budget spent before the overall cutoff is its own retained outcome.
+    LICHUAN_C::ReadContext early;
+    LICHUAN_C::PreparedRead earlyWork;
+    if (!LICHUAN_C::prepareProbe(early, readTarget, 19, 100, 1000, readOptions) ||
+        !LICHUAN_C::nextRead(early, 100, earlyWork) || !earlyWork.ready)
+        return 65;
+    CANOPEN::SdoCompletion budget;
+    budget.transfer = earlyWork.transfer;
+    budget.outcome = CANOPEN::SdoOutcome::TIMEOUT;
+    budget.nodeGeneration = readTarget.nodeGeneration;
+    budget.admittedUs = budget.completedUs = 100;
+    if (!LICHUAN_C::advanceRead(early, budget, 100) || early.outcome != ReadOutcome::SERVICE_TIMEOUT)
+        return 66;
     LICHUAN_C::Tpdo1ConfigurationContext remap;
     if (LICHUAN_C::prepareTpdo1Configuration(
             remap, LICHUAN_C::AxisReservation(), LICHUAN_C::Tpdo1ConfigurationReview(),

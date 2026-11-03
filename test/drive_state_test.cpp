@@ -444,7 +444,69 @@ void overlapAndBootupPreserveHistory() {
     history.unchanged(rig.read);
 }
 } // namespace
+// The word alone decodes, with no read context, SDO block or PDO route behind it.
+void statuswordValueDecoder() {
+    L::StatusIndications value;
+    const Saved<L::StatusIndications> blank(value);
+    const M::Status refused = L::interpretStatusword(0xffff, static_cast<L::StatusLayout>(9), value);
+    CHECK(!refused && refused.code == M::Err::INVALID_CONFIG &&
+          refused.detail == int32_t(M::ReadError::ARGUMENT) && refused.msg && *refused.msg);
+    blank.unchanged(value);
+
+    CHECK(L::interpretStatusword(0xffff, L::StatusLayout::UNSPECIFIED, value));
+    CHECK(value.statusword == 0xffff && value.unlistedStatusBits == 0xffff &&
+          value.lowStatusBits == 7 && !value.lowPatternListed &&
+          value.alarm == L::StateIndication::UNKNOWN &&
+          value.running == L::StateIndication::UNKNOWN &&
+          value.homingComplete == L::StateIndication::UNKNOWN &&
+          value.positionComplete == L::StateIndication::UNKNOWN &&
+          value.targetEffective == L::StateIndication::UNKNOWN);
+
+    // EN86 alarm is bit7 and zero-speed bit10 inverts into running; ZH86 alarm is bit3.
+    CHECK(L::interpretStatusword(0x0087, L::StatusLayout::EN86, value));
+    CHECK(value.alarm == L::StateIndication::YES && value.running == L::StateIndication::YES &&
+          value.targetEffective == L::StateIndication::NO && value.unlistedStatusBits == 0);
+    CHECK(L::interpretStatusword(0x0087, L::StatusLayout::ZH86, value));
+    CHECK(value.alarm == L::StateIndication::NO && value.running == L::StateIndication::NO &&
+          value.targetEffective == L::StateIndication::UNKNOWN &&
+          value.unlistedStatusBits == 0x0080);
+    CHECK(L::interpretStatusword(0x0087, L::StatusLayout::ZH57, value));
+    CHECK(value.alarm == L::StateIndication::YES && value.unlistedStatusBits == 0);
+    CHECK(L::interpretStatusword(0x8107, L::StatusLayout::OP86, value));
+    CHECK(value.homingComplete == L::StateIndication::YES &&
+          value.positionComplete == L::StateIndication::YES && value.lowPatternListed);
+    CHECK(L::interpretStatusword(0x0002, L::StatusLayout::OP86, value));
+    CHECK(!value.lowPatternListed && value.lowStatusBits == 2);
+
+    CHECK(L::MONITOR_POSITION_COMPLETE == 0x0001 && L::MONITOR_HOMING_COMPLETE == 0x0002 &&
+          L::MONITOR_RUNNING == 0x0004 && L::MONITOR_ALARM == 0x0008 &&
+          L::MONITOR_RELEASED == 0x0010 && L::MONITOR_POSITIVE_SOFT_LIMIT == 0x0020 &&
+          L::MONITOR_NEGATIVE_SOFT_LIMIT == 0x0040 && L::MONITOR_DOCUMENTED_BITS == 0x007f);
+
+    // The combined getter gives the same meanings as the value function, for every word and layout.
+    const L::StatusLayout layouts[] = {L::StatusLayout::UNSPECIFIED, L::StatusLayout::EN86,
+                                       L::StatusLayout::ZH86, L::StatusLayout::ZH57,
+                                       L::StatusLayout::OP86};
+    const uint16_t words[] = {0, 7, 0x0087, 0x0407, 0x4007, 0x8107, 0x1000, 0xffff};
+    for (L::StatusLayout layout : layouts)
+        for (uint16_t word : words) {
+            Rig rig;
+            rig.acquire(word, 0);
+            L::StateInterpretation combined;
+            CHECK(L::getStateInterpretation(rig.read, target(), rig.now, 1000, layout, combined));
+            CHECK(L::interpretStatusword(word, layout, value));
+            CHECK(combined.lowStatusBits == value.lowStatusBits &&
+                  combined.lowPatternListed == value.lowPatternListed &&
+                  combined.unlistedStatusBits == value.unlistedStatusBits &&
+                  combined.alarm == value.alarm && combined.running == value.running &&
+                  combined.homingComplete == value.homingComplete &&
+                  combined.positionComplete == value.positionComplete &&
+                  combined.targetEffective == value.targetEffective);
+        }
+}
+
 int main() {
+    statuswordValueDecoder();
     documentaryBits();
     rawModesDisagreementAndCopies();
     rejectionAndPartialHistory();

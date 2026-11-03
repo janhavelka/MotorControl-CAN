@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Service timeouts and withdrawn blocks (audit A-07, A-08, packet 10)
+
+- Add `ReadOutcome::SERVICE_TIMEOUT` and `ActionOutcome::SERVICE_TIMEOUT`. **Migration:** an SDO `TIMEOUT` that completes before the overall deadline now reports this instead of `DEADLINE`, in reads, settings, PDO configuration, actions and best-effort stops. `DEADLINE` now always means the immutable overall cutoff. Code that treated `DEADLINE` as "the reply was lost" must handle both. Whether a frame could have left stays in `transmissionPossible`, `execution` and `uncertain`: this outcome does not imply it. The new values are appended, so earlier numeric values do not move.
+- **Migration:** an SDO `CORRELATION_LOST` terminal now withdraws earlier completed state blocks, as `BUS_OFF` does. `getStateBlock` refuses them with `ReadError::TARGET` even though their raw values, provenance and the terminal stay retained in the context.
+- `ReadContext::invalidated` is never cleared by a later terminal on the same context.
+- `pdoTemplate` refusals now carry a static message. They returned a null `Status::msg`, which is undefined when printed with `%s`.
+
+### Status decoding and monitor bits (audit A-03, packet 10)
+
+- Add `interpretStatusword` and `StatusIndications`, a value function needing no read context, so a STATUS block or a qualified TPDO sample can be decoded without copying masks. `getStateInterpretation` now uses it and is otherwise unchanged. A decoded word is not admission or completion evidence by itself: each caller proves its own route, freshness and firmware applicability.
+- Add the reviewed object 2100 masks, `MONITOR_POSITION_COMPLETE` through `MONITOR_NEGATIVE_SOFT_LIMIT` and `MONITOR_DOCUMENTED_BITS`, in `State.h`.
+
+### Move parameter writes and settings (audit A-02, packet 10)
+
+- Add `retireMotionParameters`. A future move calls it for each retained `MOTION_PARAMETERS` context, before any of its own `6081`, `6083` or `6084` downloads may transmit. `607A` is accepted and retires nothing, and the configuration generation never moves, so a move's own target stays valid. A later settings call then needs a fresh read and cannot report success on old values. Explicit settings calls still advance the generation. No caller exists until the move lifecycle does.
+
+### Shared private evidence checks (audit A-04, A-10, A-12, packet 10)
+
+- Terminal, work and overlap checks move to private `src/canopen/SdoEvidence.h` and `src/profiles/lichuan_c/ProfileEvidence.h`. Read group plans move to one table in `src/profiles/lichuan_c/ReadPlan.h` and `DriverReads.cpp`, and control and tuning reads to `Tuning.cpp`. Package source lists gain these files; a consumer listing core sources by hand must add `DriverReads.cpp` and `Tuning.cpp`.
+- An SDO terminal must now also match its work's `requirePreOperational`. An empty range no longer counts as overlapping anything; no current caller passes one. Typed group getters now use one set of refusal messages, and identity and configuration getters also check the read's source. Details are unchanged.
+- The settings and stop control evidence checks share one helper and keep their different predicates: settings needs `000F`, a bounded age and a nonrunning report, while a stop works on a running drive with its DEC-8 predecessors and no age limit.
+
 ### Axis reservation name (audit A-04, packet 10)
 
 - **Migration:** rename `LICHUAN_C::SettingsReservation` to `LICHUAN_C::AxisReservation`, with the same fields and the same header, `Settings.h`. There is no alias, so code using the old name stops compiling. Settings, stop, action and PDO configuration calls all take it. It means actual continuous exclusion of one axis by the sole owner, not a permission a profile can construct. Behavior is unchanged; one status message now says `axis reservation` where it said `settings reservation`.

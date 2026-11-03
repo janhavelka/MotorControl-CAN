@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "AxisSession.h"
+#include <MotorControlCAN/profiles/lichuan_c/State.h>
 
 namespace MotorControlCANExample {
 using MotorControlCANOwner::BusAdmission;
@@ -13,10 +14,6 @@ namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
 namespace {
-// Object 2100: EN86 p17 and ZH86 p18 agree; these are not 6041 dialect bits.
-constexpr uint16_t monitorRunning = 0x0004;
-constexpr uint16_t monitorAlarm = 0x0008;
-constexpr uint16_t monitorReleased = 0x0010;
 bool isControlWrite(const C::SdoTransfer& t) {
     return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6040 && !t.subindex && t.size == 2;
 }
@@ -137,9 +134,9 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
     L::StateObservation monitors, status;
     const uint64_t age = policy.options.maximumAgeUs;
     if (!L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, age, monitors) ||
-        (monitors.monitor & monitorRunning))
+        (monitors.monitor & L::MONITOR_RUNNING))
         return false;
-    return (monitors.monitor & (monitorAlarm | monitorReleased)) ||
+    return (monitors.monitor & (L::MONITOR_ALARM | L::MONITOR_RELEASED)) ||
            (L::getStateBlock(state, L::StateBlock::STATUS, target_, now, age, status) &&
             (status.modeRaw != 1 || (status.statusword & 7u) != 7));
 }

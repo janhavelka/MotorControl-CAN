@@ -32,9 +32,4 @@ enum {
 bool startProbeFirmware(const FirmwareConfig& config) noexcept;
 /** @return Atomic cached startup state; performs no I/O or clock acquisition. */
 FirmwareBootStatus firmwareBootStatus() noexcept;
-/** Report the owner task's stack high-water mark. It scans the unused stack, so call it from
- * a diagnostic path, not per service turn.
- * @return Least bytes ever free on the task's stack; zero before the task exists.
- */
-size_t firmwareStackFreeBytes() noexcept;
 } // namespace MotorControlCANExample

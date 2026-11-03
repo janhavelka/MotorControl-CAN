@@ -1,0 +1,1 @@
+PONG target=esp32s2 base=b0b5417994dc0b0d6656988b4c560df081ca0a19 elf=6ec2431f0f5f9f5294adfb33fcaca7ed64b84d6c85c3823780a2aacce9401100 sdk=5.5.5 running=0 active=0 silent=1 pinsReady=1 soak=0 t=0

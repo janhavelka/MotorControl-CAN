@@ -98,6 +98,39 @@ def _boot_signals(record, _node):
     return [("health", "boot", None, record.raw)]
 
 
+# Soak status names, by the question they answer. A value signal keeps its object in its name.
+SOAK_HEALTH = {"health", "streak", "lastError"}
+SOAK_NETWORK = {"nmt", "eligibility", "heartbeat", "unresolved", "nodeEpoch", "serverSessions", "producer"}
+SOAK_VALUES = {"6041", "6061", "2100", "2101", "2102", "6064", "606c", "1000", "1009", "100a", "1018:00",
+               "1018:01", "1018:02", "1018:03", "2000", "2001"}
+SOAK_INTERFACE = {"controller", "controllerEpoch", "inhibited", "recovery", "firmware", "busOff",
+                  "recoveries", "twaiErrors", "twaiFlags", "twaiDropped", "rxDropped", "rxLost",
+                  "txRejected", "unmatched", "queueRejected", "resultsRejected", "traceOverwritten",
+                  "networkDropped", "submitOverwritten"}
+
+
+def _soak_category(signal):
+    return ("health" if signal in SOAK_HEALTH else "nmt" if signal in SOAK_NETWORK else
+            "status" if signal in SOAK_VALUES else "controller")
+
+
+def _soak_transition(record, _node):
+    values = record.values
+    return [(_soak_category(values["sig"]), values["sig"], values["node"] or None, "0x%x" % values["to"])]
+
+
+def _soak_emcy(record, _node):
+    return [("health", "emcy", record.values["node"], record.values["data"])]
+
+
+def _soak_boot(record, _node):
+    return [("health", "boot_up", record.values["node"], record.values["data"])]
+
+
+def _soak_stop(record, _node):
+    return [("health", "reads_stopped", record.values["node"], record.values["reason"])]
+
+
 class Row(NamedTuple):
     """One line form. fields tokens are name:type, optional ?, optional >canonical name."""
     kind: str  # Record kind; several rows may share one across firmware versions.
@@ -109,11 +142,15 @@ class Row(NamedTuple):
     per_node: bool = False  # Tuple signals belong to this record's node field.
 
 
+# epoch is the controller epoch of that frame. txk/txr/txf are its local TX identity.
 _FRAME = ("k:u p:u id:x ext:b rtr:b dlc:u data:h ok:b exact:b t:u bounds:b lo:u hi:u "
-          "epoch:u? step:u? op:u? ctrl:s? rec:s?")
+          "epoch:u? step:u? op:u? ctrl:s? rec:s? txk:u? txr:u? txf:u?")
 _FRAME_OLD = "kind:u>k time:u>p id:x ext:b rtr:b dlc:u data:h accepted:b>ok captureKnown:b>exact"
-_RESULT = ("op:u? step:u object:o dir:u? outcome:u ack:b possible:b uncertain:b abort:x cleanup:b? "
-           "size:u data:h admitted:u completed:u epoch:u?")
+# req is the transfer's request, oreq the owner's result handle, ne the node epoch at admission,
+# reason the owner's closure and st its stages: bit0 adapter admitted, bit1 controller accepted,
+# bit2 queued, bit3 possible TX, bit4 confirmed TX, bit5 acknowledged, bit6 uncertain, bit7 cleanup.
+_RESULT = ("op:u? req:u? oreq:u? step:u object:o dir:u? outcome:u ack:b possible:b uncertain:b abort:x "
+           "cleanup:b? size:u data:h admitted:u completed:u epoch:u? ne:u? reason:u? st:x?")
 _STATS = (("controller", "running"), ("controller", "inhibited"), ("controller", "flags"),
           ("health", "dropped"), ("health", "errors"), ("health", "stackFree"))
 _PONG = (("health", "base"), ("health", "elf"), ("health", "sdk"), ("controller", "running"),
@@ -134,6 +171,41 @@ GRAMMAR = (
     Row("REFUSED", "HEARTBEAT refused", "refused"),
     Row("REFUSED", "PDO refused", "refused"),
     Row("REFUSED", "NMT refused", "refused"),
+    Row("REFUSED", "SOAK_REFUSED ", "refused", "reason:s"),
+    Row("SOAK_STOPPING", "SOAK_STOPPING", "response"),
+    Row("SOAK_STOP_REFUSED", "SOAK_STOP refused", "response"),
+    Row("SOAK_BEGIN", "SOAK_BEGIN ", "soak",
+        "n:u t:u trial:u dur:u interval:u summary:u monitors:b identity:b opDeadline:u queue:u resp:u "
+        "stack:u heap:u heapMin:u base:s", "t"),
+    Row("SOAK_TR", "SOAK_TR ", "soak", "n:u t:u node:u sig:s from:x to:x first:b ne:u ce:u", "t",
+        _soak_transition),
+    Row("SOAK_ANOM", "SOAK_ANOM ", "soak", "n:u t:u id:u kind:s node:u dump:b a:x b:x", "t"),
+    Row("SOAK_OP", "SOAK_OP ", "soak",
+        "n:u t:u node:u op:u local:b step:u? object:o? outcome:u? reason:u? stages:x? abort:x? "
+        "kind:u? cursor:u? read:u? detail:u?", "t"),
+    Row("SOAK_EMCY", "SOAK_EMCY ", "soak", "n:u t:u node:u dlc:u data:h disposition:u", "t", _soak_emcy),
+    Row("SOAK_BOOT", "SOAK_BOOT ", "soak", "n:u t:u node:u dlc:u data:h disposition:u", "t", _soak_boot),
+    Row("SOAK_NODE_STOP", "SOAK_NODE_STOP ", "soak", "n:u t:u node:u reason:s lastOp:u", "t", _soak_stop),
+    Row("SOAK_T", "SOAK_T ", "soak",
+        "n:u a:u i:u k:u p:u id:x ext:b rtr:b dlc:u data:h ok:b ex:b bounds:b dlo:u dhi:u ce:u st:u tr:u tf:u",
+        "p"),
+    Row("SOAK_TEND", "SOAK_TEND ", "soak", "n:u t:u a:u abandoned:b held:u unprinted:u", "t"),
+    Row("SOAK_SUM", "SOAK_SUM ", "soak",
+        "n:u t:u trial:u up:u rx:u tx:u txRej:u rxDrop:u rxLost:u unmatched:u qRej:u resFull:u timeouts:u "
+        "cancelled:u busOff:u recov:u twaiErr:u twaiFlags:x twaiDrop:u", "t"),
+    Row("SOAK_GAP", "SOAK_GAP ", "soak",
+        "n:u t:u gapMax:u gapWin:u ownerGap:u qHw:u actHw:u retHw:u trHw:u trOver:u netDrop:u stack:u "
+        "heap:u heapMin:u tec:u? rec:u?", "t"),
+    Row("SOAK_CON", "SOAK_CON ", "soak",
+        "n:u t:u lines:u blocked:u conRej:u conHw:u evFull:u evLimit:u evHw:u anomalies:u dumps:u dumpSkip:u "
+        "dumpAb:u trLost:u dumpUs:u defDump:u defBusy:u defTx:u defInh:u slips:u sdkDefer:u", "t"),
+    Row("SOAK_NODE", "SOAK_NODE ", "soak",
+        "n:u t:u node:u ops:u opsOk:u opsFail:u refused:u steps:u stepsOk:u min:u mean:u max:u retireMax:u "
+        "earlyReply:u hb:u hbGapMax:u stopped:b", "t"),
+    Row("SOAK_HIST", "SOAK_HIST ", "soak", "n:u t:u node:u b:s", "t"),
+    Row("SOAK_OUT", "SOAK_OUT ", "soak", "n:u t:u node:u sdo:s reason:s read:s", "t"),
+    Row("SOAK_ABORT", "SOAK_ABORT ", "soak", "n:u t:u node:u a0:s a1:s a2:s a3:s other:u", "t"),
+    Row("SOAK_END", "SOAK_END ", "soak", "n:u t:u trial:u reason:s up:u lines:u settled:b", "t"),
     Row("RAW", "RAW ", "header",
         "id:u node:u failure:u lost:b terminals:u traffic:u tail:u tailLost:b gap:u epoch:u?",
         signals=_RECORD_HEALTH, per_node=True),
@@ -155,9 +227,10 @@ GRAMMAR = (
     Row("END", "END PDO", "end"),
     Row("END_NETWORK", "END network", "response"),
     Row("PONG", "PONG ", "response",
-        "target:s base:s elf:s sdk:s running:b active:b silent:b pinsReady:b", signals=_PONG),
+        "target:s base:s elf:s sdk:s running:b active:b silent:b pinsReady:b soak:b? t:u?", "t", _PONG),
     Row("STATS", "STATS ", "response",
-        "running:b inhibited:b rx:u tx:u dropped:u errors:u flags:x stackFree:u", signals=_STATS),
+        "running:b inhibited:b rx:u tx:u dropped:u errors:u flags:x stackFree:u t:u? txRej:u? rxLost:u? "
+        "unmatched:u? traceOver:u? ownerGap:u? conRej:u?", "t", _STATS),
     Row("CAN_READY", "CAN ready ", "response", "bitrate:u", signals=(("controller", "bitrate"),)),
     Row("CAN_REFUSED", "CAN start refused", "response"),
     Row("NETWORK", "NETWORK node=", "response",
@@ -217,6 +290,7 @@ EXPECTED = {
     "heartbeat1": Expect("RAW", "HEARTBEAT experiment admitted", 1, "heartbeat"),
     "heartbeat2": Expect("RAW", "HEARTBEAT experiment admitted", 2, "heartbeat"),
     "tpdo1": Expect("PDO", "PDO admitted", 1),
+    "soak-stop": Expect(responses=("SOAK_STOPPING", "SOAK_STOP_REFUSED")),
     "preop1": Expect("", "NMT Pre-operational admitted", 1, responses=("NMT",)),
     "preop2": Expect("", "NMT Pre-operational admitted", 2, responses=("NMT",)),
 }
@@ -407,7 +481,8 @@ def sdo_reply(payload):
 # Everything else (identity, duplicates, contradictions) is always inconsistent.
 INCOMPLETE = {"capture_failed", "empty_capture", "malformed_line", "truncated_line",
               "format_error", "missing_header", "missing_end", "count_short", "missing_start",
-              "missing_response", "reboot_in_capture"}
+              "missing_response", "reboot_in_capture", "soak_no_begin", "soak_no_end", "soak_line_gap",
+              "soak_dump_missing"}
 POSITIONAL = {"step_sequence", "wrong_object_for_step", "wrong_request_object", "stale_reply",
               "success_without_request", "success_without_reply", "unmatched_request",
               "unmatched_tx_report", "tx_report_not_copied", "reply_form_mismatch",
@@ -457,6 +532,8 @@ class Report:
     trace_lost: bool = False
     tail_lost: bool = False
     inventory_checked: bool = False
+    node_epochs: object = "not_emitted"
+    soak: dict = field(default_factory=dict)
     records: list = field(default_factory=list, repr=False)
 
     def error(self, code, line=None, detail=""):
@@ -674,13 +751,21 @@ def _check_duplicates(report, records):
 def _check_epochs(report, records):
     """Controller/node epochs are checked only where a record actually carries them."""
     observed = {}
+    nodes = {}
     for record in records:
         if "epoch" in record.values and record.role in ("header", "terminal", "traffic", "tail"):
             observed.setdefault(record.values["epoch"], record.number)
+        if "ne" in record.values and record.role == "terminal":
+            nodes.setdefault(record.values["ne"], record.number)
     if observed:
         report.epochs = sorted(observed)
+    if nodes:
+        report.node_epochs = sorted(nodes)
     if len(observed) > 1:
         report.error("epoch_changed", max(observed.values()), str(sorted(observed)))
+    # One operation's terminals are admitted in one node epoch; a later one is a new record.
+    if len(nodes) > 1:
+        report.error("node_epoch_changed", max(nodes.values()), str(sorted(nodes)))
 
 
 def _check_record(report, records, expect):
@@ -844,6 +929,8 @@ def replay_bytes(data, meta=None, path="<bytes>", expect_operation=None):
     report.command = meta.get("command", "")
     report.started_utc = meta.get("started_utc", "")
     report.serial = meta.get("serial", "")
+    if report.command == "soak":
+        report.soak = {"requested_trial": meta.get("trial")}
     records, unterminated = parse_bytes(data)
     report.records = records
     for record in records:
@@ -874,7 +961,7 @@ def replay_bytes(data, meta=None, path="<bytes>", expect_operation=None):
 def _check_request(report, meta):
     """Pin the capture to the byte actually requested."""
     command = meta.get("command")
-    if command is None:
+    if command is None or command == "soak":  # Its request is a line, checked against SOAK_BEGIN.
         return Expect()
     if command in COMMANDS and meta.get("tx_hex", COMMANDS[command].hex()) != COMMANDS[command].hex():
         report.error("request_byte_mismatch", None, "%s sent %s" % (command, meta.get("tx_hex")))
@@ -884,8 +971,172 @@ def _check_request(report, meta):
     return EXPECTED[command]
 
 
+class SoakChecker:
+    """Line-by-line consistency of one soak trial, used live by s2_soak.py and offline here.
+
+    Every SOAK record but the transition's own values is checked the same way: line numbers run
+    without a gap, a transition's old value is the previous new value of that signal, and a
+    dump that was announced is present. Notes grow only to a fixed number per code.
+    """
+
+    NOTES_PER_CODE = 50
+
+    def __init__(self, trial=None):
+        self.trial = trial
+        self.errors = []
+        self.warnings = []
+        self.next_line = None
+        self.began = None
+        self.ended = None
+        self.last = {}
+        self.last_time = None
+        self.promised = {}
+        self.delivered = {}
+        self.counts = Counter()
+        self.anomalies = Counter()
+        self.failed = []
+        self.stopped = {}
+        self.latest = {}
+        self.lost_lines = 0
+        self.code_counts = Counter()
+
+    def _keep(self, code):
+        # A failing object read several times a second all night must not fill the host's
+        # memory. The first of each code is the useful one, and the count covers the rest.
+        self.code_counts[code] += 1
+        return self.code_counts[code] <= self.NOTES_PER_CODE
+
+    def _error(self, code, line, detail=""):
+        if self._keep(code):
+            self.errors.append({"code": code, "line": line, "detail": detail})
+
+    def _warn(self, code, line, detail=""):
+        if self._keep(code):
+            self.warnings.append({"code": code, "line": line, "detail": detail})
+
+    def _sequence(self, record):
+        number = record.values["n"]
+        if self.next_line is not None and number != self.next_line:
+            if number < self.next_line:
+                self._error("soak_line_repeated", record.number, "n=%d after %d" % (number, self.next_line - 1))
+            else:
+                self.lost_lines += number - self.next_line
+                self._error("soak_line_gap", record.number, "expected %d found %d" % (self.next_line, number))
+        self.next_line = number + 1
+
+    def feed(self, record):
+        """Take one parsed record of any kind. Other kinds are ignored here."""
+        if record.status != "parsed" or record.role != "soak":
+            return
+        values = record.values
+        self.counts[record.kind] += 1
+        kind = record.kind
+        if kind == "SOAK_BEGIN":
+            if self.began is not None:
+                self._error("soak_begin_repeated", record.number)
+            elif self.trial is not None and values["trial"] != self.trial:
+                self._error("soak_wrong_trial", record.number, "expected %s found %d" % (self.trial, values["trial"]))
+            self.began = values
+        elif self.began is None:
+            # Records of a soak this request did not start, such as one still running.
+            self._warn("soak_before_begin", record.number, kind)
+            return
+        if self.ended is not None:
+            self._error("soak_after_end", record.number, kind)
+        self._sequence(record)
+        if kind == "SOAK_TR":
+            self._transition(record)
+        elif kind == "SOAK_ANOM":
+            self.anomalies[values["kind"]] += 1
+            if values["dump"]:
+                self.promised[values["id"]] = record.number
+        elif kind == "SOAK_T":
+            self.delivered.setdefault(values["a"], 0)
+            self.delivered[values["a"]] += 1
+        elif kind == "SOAK_TEND":
+            if values["a"] not in self.promised:
+                self._error("soak_dump_unannounced", record.number, str(values["a"]))
+            self.promised.pop(values["a"], None)
+            if values["abandoned"]:
+                self._warn("soak_dump_abandoned", record.number, "%d entries unprinted" % values["unprinted"])
+        elif kind == "SOAK_OP":
+            if self._keep("failed_operation"):
+                self.failed.append({"line": record.number, "node": values["node"], "op": values["op"],
+                                    "raw": record.raw})
+        elif kind == "SOAK_NODE_STOP":
+            self.stopped[values["node"]] = values["reason"]
+        elif kind == "SOAK_END":
+            self.ended = values
+            if values["lines"] != values["n"]:
+                self._error("soak_end_differs", record.number, "lines %d n %d" % (values["lines"], values["n"]))
+        else:
+            self.latest[(kind, values.get("node"))] = values
+
+    def _transition(self, record):
+        values = record.values
+        key = (values["node"], values["sig"])
+        if self.last_time is not None and values["t"] < self.last_time:
+            self._error("soak_time_reversed", record.number, "%d after %d" % (values["t"], self.last_time))
+        self.last_time = values["t"]
+        if values["first"]:
+            if key in self.last:
+                self._error("soak_first_repeated", record.number, values["sig"])
+        elif key not in self.last:
+            self._warn("soak_transition_gap", record.number, "%s has no first observation" % values["sig"])
+        elif self.last[key] != values["from"]:
+            # A record dropped under pressure. The firmware counts it; the value chain shows where.
+            self._warn("soak_transition_gap", record.number,
+                       "%s from %x, previous to %x" % (values["sig"], values["from"], self.last[key]))
+        self.last[key] = values["to"]
+
+    def finish(self):
+        """Checks only the whole trial can make."""
+        if self.began is None:
+            self._error("soak_no_begin", None)
+        elif self.ended is None:
+            self._error("soak_no_end", None, "trial did not reach SOAK_END")
+        elif self.ended["trial"] != self.began["trial"]:
+            self._error("soak_wrong_trial", None, "END names %d" % self.ended["trial"])
+        if self.ended is not None:
+            for identity, line in self.promised.items():
+                self._error("soak_dump_missing", line, "anomaly %d" % identity)
+
+
+def check_soak(report, records, trial=None):
+    """Replay one soak trial into a report; a family of its own, as these records are not one SDO."""
+    report.family = "SOAK"
+    checker = SoakChecker(trial)
+    boots = [r for r in records if r.role == "boot"]
+    for record in records:
+        checker.feed(record)
+    checker.finish()
+    begin_line = next((r.number for r in records if r.kind == "SOAK_BEGIN" and r.status == "parsed"), None)
+    for boot in boots:
+        if begin_line is not None and boot.number > begin_line:
+            report.error("reboot_in_capture", boot.number, boot.raw)
+    for item in checker.errors:
+        report.error(item["code"], item["line"], item["detail"])
+    for item in checker.warnings:
+        report.warn(item["code"], item["line"], item["detail"])
+    report.operation = checker.began["trial"] if checker.began else None
+    report.started = checker.began is not None
+    report.ended = checker.ended is not None
+    report.failed = checker.failed
+    report.failure = sum(checker.anomalies.values())
+    report.failure_name = "anomalies" if report.failure else ""
+    report.soak = {"trial": report.operation, "end": checker.ended["reason"] if checker.ended else None,
+                   "lines": dict(checker.counts), "anomalies": dict(checker.anomalies),
+                   "nodes_stopped": {str(k): v for k, v in checker.stopped.items()},
+                   "lost_lines": checker.lost_lines,
+                   "signals": len(checker.last), "note_counts": dict(checker.code_counts)}
+    return checker
+
+
 def _check_run(report, records, expect):
     """Does this output belong to this request? Then validate any SDO record."""
+    if report.command == "soak":
+        check_soak(report, records, report.soak.get("requested_trial"))
+        return
     starts = [r for r in records if r.role == "start" and r.status == "parsed"]
     refused = [r for r in records if r.role == "refused"]
     headers = [r for r in records if r.role == "header"]
@@ -931,8 +1182,8 @@ def _check_run(report, records, expect):
 class Transitions:
     """Every tracked value change, in capture order. Unchanged observations add nothing.
 
-    Time is firmware processing time and is absent for records that carry none, such
-    as STATS; those keep capture order and the capture's host start time. Cumulative
+    Time is firmware processing time. Older captures have STATS and PONG lines with no
+    time, and those keep capture order and the capture's host start time. Cumulative
     rx/tx counters are not transitions and stay in the raw line. A boot makes all
     earlier values stale, so the next observation of each signal is after_boot.
     """

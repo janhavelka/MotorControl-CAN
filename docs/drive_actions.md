@@ -4,7 +4,11 @@
 `getStateInterpretation` getter in `MotorControlCAN::LICHUAN_C`. It interprets
 already acquired STATUS and MONITORS blocks through the existing checked
 `getStateBlock` path. It performs no I/O, changes no drive state and produces
-no action work. Enable and release lifecycles remain unimplemented. The separate
+no action work. A caller holding only one 6041 word, from a STATUS block or a
+qualified TPDO sample, decodes it with `interpretStatusword`, and tests object
+2100 with the `MONITOR_` masks beside it. Those give the same meanings, but
+prove no route, freshness or firmware: a decoded word is not admission or
+completion evidence by itself, and each caller must prove those facts itself. Enable and release lifecycles remain unimplemented. The separate
 [conditional stop lifecycle](stop_actions.md) now uses common `ActionOperation.h`
 evidence and concrete `Actions.h` contexts; it does not establish either missing
 enable/release transition. [Fault clear and counter zero](fault_reference_actions.md)
@@ -82,6 +86,9 @@ it. An owner reservation prevents new competing work but cannot erase unknown
 earlier drive work. A caller permission Boolean is not that evidence. The
 existing settings prerequisite proves an already acknowledged `6040=15` under
 exclusion; it does not establish a released state's pending-motion history.
+Until the enable gate closes, a move needs the same caller-supplied `6040=15`
+evidence and nonrunning report as settings. A stop deliberately does not need the
+nonrunning report, because it must work on a running drive.
 
 Release needs its own documented command, permitted starting states and effects.
 Generic CiA402 meanings for 0, 6 or 7, an NMT stop, an external enable input or a

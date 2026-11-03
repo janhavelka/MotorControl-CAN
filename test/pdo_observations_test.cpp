@@ -577,7 +577,22 @@ void multipleSettingsBeforeMapRestoration() {
     CHECK(owner.node(0)->route.generation == network().generation && !owner.unresolved(0));
 }
 } // namespace
+// Status::msg is static text a caller may print, so a refusal must carry one.
+void templateRefusalHasAMessage() {
+    C::PdoMap map;
+    map.number = 77;
+    const C::PdoMap before = map;
+    const M::Status badNumber = L::pdoTemplate(C::PdoDirection::TPDO, 0, map);
+    CHECK(!badNumber && badNumber.code == M::Err::INVALID_CONFIG && badNumber.msg && *badNumber.msg);
+    const M::Status badHigh = L::pdoTemplate(C::PdoDirection::RPDO, 5, map);
+    CHECK(!badHigh && badHigh.msg && *badHigh.msg);
+    const M::Status badDirection = L::pdoTemplate(static_cast<C::PdoDirection>(9), 1, map);
+    CHECK(!badDirection && badDirection.msg && *badDirection.msg);
+    CHECK(map.number == before.number && map.count == before.count);
+}
+
 int main() {
+    templateRefusalHasAMessage();
     actualMapAndAtomicSamples(); sameWireNewMapRequiresRetirement(); lifecycleAndFullHistory();
     controllerCannotBeBypassedByNewEvidence(); qualificationReplacementAndDistinctRoute();
     collisionsCapacityAndContrasts(); readbackFailureCannotCertify();

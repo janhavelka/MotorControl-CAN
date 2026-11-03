@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+#include "SdoEvidence.h"
 #include <MotorControlCAN/canopen/PdoState.h>
 
 namespace MotorControlCAN {
@@ -8,11 +9,6 @@ Status invalid(const char* message) { return Status(Err::INVALID_CONFIG, 0, mess
 Status illegal(const char* message) { return Status(Err::ILLEGAL_VALUE, 0, message); }
 bool span(const void* value, size_t length) {
     return length <= UINTPTR_MAX - reinterpret_cast<uintptr_t>(value);
-}
-bool overlap(const void* a, size_t aSize, const void* b, size_t bSize) {
-    const uintptr_t first = reinterpret_cast<uintptr_t>(a);
-    const uintptr_t second = reinterpret_cast<uintptr_t>(b);
-    return first <= second ? second - first < aSize : first - second < bSize;
 }
 bool directionValid(PdoDirection direction) { return direction <= PdoDirection::TPDO; }
 bool representationValid(const PdoObject& object) {
@@ -49,8 +45,8 @@ bool communication(uint32_t parameter, const PdoRoute& route) {
 
 Status validatePdoMap(const PdoMap& map, const PdoProfile& profile,
                       PdoLayout& output) noexcept {
-    if (overlap(&map, sizeof(map), &output, sizeof(output)) ||
-        overlap(&profile, sizeof(profile), &output, sizeof(output)))
+    if (overlaps(&map, sizeof(map), &output, sizeof(output)) ||
+        overlaps(&profile, sizeof(profile), &output, sizeof(output)))
         return illegal("PDO layout output overlaps input");
     if (!profile.profile || !profile.sets || profile.sets > 512 || !profile.slots ||
         profile.slots > PDO_ENTRIES || !profile.objects || !profile.objectCount || profile.objectCount > 256)
@@ -58,7 +54,7 @@ Status validatePdoMap(const PdoMap& map, const PdoProfile& profile,
     const size_t objectBytes = profile.objectCount * sizeof(PdoObject);
     if (!span(profile.objects, objectBytes))
         return invalid("invalid PDO object span");
-    if (overlap(profile.objects, objectBytes, &output, sizeof(output)))
+    if (overlaps(profile.objects, objectBytes, &output, sizeof(output)))
         return illegal("PDO layout output overlaps object facts");
     if (!directionValid(map.direction))
         return illegal("invalid PDO direction");
@@ -156,8 +152,8 @@ bool samePdoRoute(const PdoRoute& a, const PdoRoute& b) noexcept {
 }
 
 Status decodePdo(const Frame& frame, const PdoRoute& route, PdoSample& output) noexcept {
-    if (overlap(&frame, sizeof(frame), &output, sizeof(output)) ||
-        overlap(&route, sizeof(route), &output, sizeof(output)))
+    if (overlaps(&frame, sizeof(frame), &output, sizeof(output)) ||
+        overlaps(&route, sizeof(route), &output, sizeof(output)))
         return illegal("PDO sample output overlaps input");
     Status status = validatePdoRoute(route);
     if (!status)
@@ -191,7 +187,7 @@ Status decodePdo(const Frame& frame, const PdoRoute& route, PdoSample& output) n
 
 Status pdoMapFromReadback(const SdoCompletion* results, size_t count, const PdoRoute& expected,
                          Generation nodeGeneration, uint32_t evidenceId, PdoMapEvidence& output) noexcept {
-    if (overlap(&expected, sizeof(expected), &output, sizeof(output)))
+    if (overlaps(&expected, sizeof(expected), &output, sizeof(output)))
         return illegal("PDO evidence output overlaps route");
     if (!validatePdoRoute(expected) || !nodeGeneration || !evidenceId || !results ||
         count != size_t(3 + expected.layout.mapping.count))
@@ -199,7 +195,7 @@ Status pdoMapFromReadback(const SdoCompletion* results, size_t count, const PdoR
     const size_t resultBytes = count * sizeof(SdoCompletion);
     if (!span(results, resultBytes))
         return invalid("invalid PDO completion span");
-    if (overlap(results, resultBytes, &output, sizeof(output)))
+    if (overlaps(results, resultBytes, &output, sizeof(output)))
         return illegal("PDO evidence output overlaps completions");
     PdoMapEvidence candidate;
     candidate.route = expected;
@@ -254,7 +250,7 @@ bool pdoFreshness(const PdoRecord& record, uint64_t now, uint64_t age, PdoFreshn
         (record.qualified && now < record.qualification.establishedUs) ||
         (record.samplePresent && (now < record.observation.time.processedUs ||
          (record.observation.time.receivedTimeKnown && now < record.observation.time.receivedUs))) ||
-        overlap(&record, sizeof record, &output, sizeof output)) return false;
+        overlaps(&record, sizeof record, &output, sizeof output)) return false;
     PdoFreshness result;
     if (!record.confirmed) result = PdoFreshness::NO_MAP;
     else if (!record.qualified) result = PdoFreshness::UNQUALIFIED;

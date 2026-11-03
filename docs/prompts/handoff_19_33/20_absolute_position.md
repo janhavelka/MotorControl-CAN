@@ -41,7 +41,10 @@ time and finite service budgets replace sleeps. Do not invent a refresh lease.
 
 Use operation-owned parameter phases, not `prepareDriverSettings`: they preserve
 this intent's generation while invalidating cached MOTION_PARAMETERS as packet 10
-defines. Explicit external settings still invalidate the move. Capture submitted
+defines. Call `retireMotionParameters(retained, current, work)` for each retained
+context, after queue admission and preflight and before each own download may
+transmit, and do not transmit if it refuses. Explicit external settings still
+invalidate the move. Capture submitted
 objects/bytes, service terminals, readbacks and timestamps so a partial setup or
 unknown trigger is explainable. Retained profile snapshots need precise reuse
 and contradiction invalidation. Successful SDO, old target-reached, or a new

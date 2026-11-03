@@ -25,7 +25,7 @@ enum class SdoOutcome : uint8_t {
     SUCCESS, ///< Matching SDO completed; a download acknowledgement is not motion completion.
     SERVER_ABORT, ///< Matching unsigned server abort; earlier workflow writes are not undone.
     CLIENT_ABORT, ///< Malformed/size/toggle response rejected locally.
-    TIMEOUT, ///< Immutable overall, queue or response cutoff reached.
+    TIMEOUT, ///< Immutable overall, queue or response cutoff reached; completion time tells which.
     CANCELLED, ///< Local cancellation; never a motor stop.
     BUS_OFF, ///< Application reports loss of the physical interface.
     REBOOT, ///< Application reports server reboot and invalidates its channels.

@@ -8,7 +8,7 @@ foreach(section sources include_dirs)
         list(APPEND firmware_${section} "${can_root}/${relative}")
     endforeach()
 endforeach()
-idf_component_register(SRCS main.cpp ../RawEvidence.cpp ../PdoExperiment.cpp ${firmware_sources}
+idf_component_register(SRCS main.cpp ../RawEvidence.cpp ../PdoExperiment.cpp ../Soak.cpp ${firmware_sources}
     INCLUDE_DIRS .. ${firmware_include_dirs}
     REQUIRES MotorControlCAN esp_driver_twai esp_driver_uart esp_driver_gpio esp_timer esp_app_format)
 set_target_properties(${COMPONENT_LIB} PROPERTIES

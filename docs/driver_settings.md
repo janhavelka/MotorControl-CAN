@@ -111,6 +111,21 @@ must not alias context/reservation storage. Retire separately admitted work befo
 local cancel/deadline/invalidation. Cancellation is not motor stop. Unknown
 write or unqualified read effects remain retained and never replay automatically.
 
+An explicit settings call advances configuration confidence this way. A move's
+own `607A`, `6081`, `6083` and `6084` downloads do not: they are phases of that
+move, do not pass through these calls and cannot invalidate its prepared target.
+They do make a retained `MOTION_PARAMETERS` observation untrustworthy, because a
+later no-change candidate would otherwise succeed with no TX while the drive
+holds the move's value. So the move owner calls
+`retireMotionParameters(retained, current, work)`, once per retained context and
+per own download, after queue admission and preflight and before any possible
+transmission. This includes a finished settings context's `readback`. Do not
+transmit if it refuses. After that, `getDriver` and `prepareDriverSettings` refuse
+the context until a fresh read replaces it; its raw values stay as history. A
+copy the owner did not pass is unreachable, so keep one retained context per
+axis. It has no caller until the move lifecycle arrives in packet 20, and it does
+not prove that the write happened. `607C` has no ruling yet and is refused.
+
 The exclusive transaction alone may finish its copied old-epoch downloads.
 After releasing all old results, the application explicitly calls
 `SdoClient::advanceConfiguration` to update the **idle, healthy same route** to

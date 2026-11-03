@@ -32,6 +32,13 @@ class IdfTwaiDriver {
     TwaiDriver driver() noexcept;
     /** @return Last raw SDK error, zero for latest successful SDK call; cached only. */
     int lastError() const noexcept { return lastError_; }
+    /** Read the controller's error counters through the SDK, for diagnostics.
+     * Not for an ISR; call at a diagnostic rate, not per service turn.
+     * @param[out] transmit TX error counter, unchanged on failure.
+     * @param[out] receive RX error counter, unchanged on failure.
+     * @return True when the node exists and the SDK answered.
+     */
+    bool errorCounters(uint32_t& transmit, uint32_t& receive) const noexcept;
 
   private:
     twai_node_handle_t node_ = nullptr;

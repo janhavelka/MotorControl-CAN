@@ -1,5 +1,7 @@
 # Prompt 30: drive-state interpretation and enable/release evidence
 
+**Reopened by audit W8.** [Packet 10](handoff_19_33/packet_10.md) added `interpretStatusword`, which `getStateInterpretation` now calls, with the reviewed `2100` masks beside it.
+
 The [fresh independent 29/30 audit](prompts_29_30_audit.md) rechecks the original
 assignment, implementation and source gates, adding direct overlap and real
 boot-up publication regressions without changing action support.

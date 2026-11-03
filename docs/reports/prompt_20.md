@@ -1,5 +1,7 @@
 # Prompt 20: native driver groups
 
+**Reopened by audit W8.** [Packet 10](handoff_19_33/packet_10.md) renamed the reservation to `AxisReservation` and added `retireMotionParameters`.
+
 **Current correction:** the [fresh independent 20/21 audit](prompts_20_21_audit.md)
 implements the confirmed native setting subsets and corrects this checkpoint's
 blanket blocker rationale. The original read-only checkpoint and its checks

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+#include "SdoEvidence.h"
 #include <MotorControlCAN/canopen/Sdo.h>
 
 namespace MotorControlCAN {
@@ -9,11 +10,6 @@ Status fail(SdoError reason, const char* message, Err code = Err::FRAME_ERROR) {
 }
 bool spanValid(const void* pointer, size_t size) {
     return size <= UINTPTR_MAX - reinterpret_cast<uintptr_t>(pointer);
-}
-bool overlaps(const void* a, size_t aSize, const void* b, size_t bSize) {
-    const uintptr_t first = reinterpret_cast<uintptr_t>(a);
-    const uintptr_t second = reinterpret_cast<uintptr_t>(b);
-    return first < second + bSize && second < first + aSize;
 }
 uint32_t word(const uint8_t* bytes, uint8_t width) {
     uint32_t result = 0;

@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
@@ -687,7 +688,7 @@ void partialFailuresAndHistory() {
     // A completed block remains historical, but known lifecycle withdrawal must
     // reject current publication even when the caller supplies its old target.
     const C::SdoOutcome revoked[] = {C::SdoOutcome::REBOOT, C::SdoOutcome::BINDING_INVALIDATED,
-                                     C::SdoOutcome::BUS_OFF};
+                                     C::SdoOutcome::BUS_OFF, C::SdoOutcome::CORRELATION_LOST};
     for (C::SdoOutcome reason : revoked) {
         L::ReadContext c;
         CHECK(L::prepareState(c, target(), 1, 0, 10000, options(),
@@ -718,6 +719,66 @@ void partialFailuresAndHistory() {
     CHECK(!L::getStateBlock(withdrawn, L::StateBlock::ERRORS, target(), 2, 100, s));
     prior.unchanged(s);
 }
+// An early budget timeout is its own outcome, and whether a frame left stays separate evidence.
+void serviceTimeoutIsNotTheDeadline() {
+    for (bool possible : {false, true}) {
+        L::ReadContext c;
+        CHECK(L::prepareState(
+            c, target(), 1, 0, 100, options(),
+            uint8_t(mask(L::StateBlock::ERRORS) | mask(L::StateBlock::STATUS))));
+        accept(c, 0x80, 0);
+        accept(c, 0x1234, 1);
+        C::SdoCompletion e = success(c, 0, 2, 10);
+        e.outcome = C::SdoOutcome::TIMEOUT;
+        e.protocolAcknowledged = false;
+        e.size = 0;
+        e.queued = e.transmissionPossible = e.effectPossible = e.effectUncertain = possible;
+        e.transmissionConfirmed = false;
+        CHECK(L::advanceRead(c, e, 10));
+        CHECK(c.state == M::ReadState::FAILED && c.outcome == M::ReadOutcome::SERVICE_TIMEOUT);
+        CHECK(c.status.detail == int32_t(M::ReadError::TIME) && c.status.msg && *c.status.msg);
+        CHECK(c.evidence.outcome == C::SdoOutcome::TIMEOUT && c.uncertain == possible);
+        // A timeout says nothing against earlier replies, so that block stays published.
+        L::StateObservation s;
+        CHECK(L::getStateBlock(c, L::StateBlock::ERRORS, target(), 10, 1000, s));
+        CHECK(s.errorRegister == 0x80 && s.errorCode == 0x1234);
+    }
+    // The same terminal at the cutoff is the deadline.
+    L::ReadContext late;
+    CHECK(L::prepareIdentity(late, target(), 1, 0, 100, options()));
+    C::SdoCompletion e = success(late, 0, 2, 100);
+    e.outcome = C::SdoOutcome::TIMEOUT;
+    e.protocolAcknowledged = false;
+    e.size = 0;
+    e.effectUncertain = true;
+    CHECK(L::advanceRead(late, e, 100));
+    CHECK(late.outcome == M::ReadOutcome::DEADLINE);
+}
+// Historical bytes survive the withdrawal, and a later terminal cannot clear it.
+void lostCorrelationWithdrawsButKeepsHistory() {
+    L::ReadContext c;
+    CHECK(L::prepareState(c, target(), 1, 0, 10000, options(),
+                          uint8_t(mask(L::StateBlock::ERRORS) | mask(L::StateBlock::STATUS))));
+    accept(c, 0x80, 0);
+    accept(c, 0x1234, 1);
+    L::StateObservation s;
+    CHECK(L::getStateBlock(c, L::StateBlock::ERRORS, target(), 2, 100, s));
+    const Saved<L::StateObservation> published(s);
+    C::SdoCompletion e = success(c, 0, 2, 3);
+    e.outcome = C::SdoOutcome::CORRELATION_LOST;
+    e.protocolAcknowledged = false;
+    e.size = 0;
+    e.effectUncertain = true;
+    CHECK(L::advanceRead(c, e, 3));
+    CHECK(c.state == M::ReadState::FAILED && c.outcome == M::ReadOutcome::TRANSPORT_ERROR &&
+          c.invalidated);
+    CHECK(c.evidencePresent && c.evidence.outcome == C::SdoOutcome::CORRELATION_LOST);
+    CHECK(c.values[0].valid && c.values[0].raw == 0x80 && c.values[1].raw == 0x1234);
+    CHECK(c.values[0].provenance.index == 0x1001 && c.values[1].provenance.index == 0x603f);
+    const M::Status refused = L::getStateBlock(c, L::StateBlock::ERRORS, target(), 3, 100, s);
+    CHECK(!refused && refused.detail == int32_t(M::ReadError::TARGET));
+    published.unchanged(s);
+}
 void cutoffDoesNotEraseInvalidation() {
     const C::SdoOutcome native[] = {C::SdoOutcome::REBOOT, C::SdoOutcome::BINDING_INVALIDATED,
                                     C::SdoOutcome::BUS_OFF, C::SdoOutcome::TIMEOUT};
@@ -744,7 +805,8 @@ void cutoffDoesNotEraseInvalidation() {
             e.effectUncertain = true;
             CHECK(L::advanceRead(c, e, time.delivered));
             const M::ReadOutcome expected =
-                time.delivered >= 100 || reason == C::SdoOutcome::TIMEOUT ? M::ReadOutcome::DEADLINE
+                time.delivered >= 100              ? M::ReadOutcome::DEADLINE
+                : reason == C::SdoOutcome::TIMEOUT ? M::ReadOutcome::SERVICE_TIMEOUT
                 : reason == C::SdoOutcome::BUS_OFF ? M::ReadOutcome::TRANSPORT_ERROR
                                                    : M::ReadOutcome::INVALIDATED;
             CHECK(c.state == M::ReadState::FAILED && c.outcome == expected);
@@ -1510,6 +1572,8 @@ int main() {
     wrongServiceAndTime();
     partialFailuresAndHistory();
     cutoffDoesNotEraseInvalidation();
+    serviceTimeoutIsNotTheDeadline();
+    lostCorrelationWithdrawsButKeepsHistory();
     passiveProvenance();
     acceptedListIsExact();
     probeIsOneAcceptedUpload();

@@ -37,7 +37,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `p` / runner `ping` | Cached image/base/SDK identity and local startup facts |
 | `c` / `start` | One local CAN initialization attempt; lower S18 on success, no device request |
 | `s` / `stats` | Cached controller/owner counters and task stack high-water mark |
-| `1`, `2` / `identity1`, `identity2` | Typed nine-field identity plan; default `DECLARED_U16` EDS widths apply and fail on these specimens, `MEASURED_U8` is an explicit option |
+| `1`, `2` / `identity1`, `identity2` | Typed nine-field identity plan, selecting `MEASURED_U8` because `DECLARED_U16` fails on these specimens |
 | `3`, `4` / `raw1`, `raw2` | Upload-only raw experiment on node 1/2, with the fixed 26-field inventory below |
 | `v`, `b` / `motion-readiness1`, `motion-readiness2` | Separate finite 30-field upload-only readiness inventory on node 1/2; no motion command |
 | `h`, `j` / `heartbeat1`, `heartbeat2` | Separate exact1017 experiment: require zero, write1000ms, read back; one attempt per node |
@@ -46,6 +46,12 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `m` / `tpdo1` | Node1 only: wait for qualified Pre-operational, nine exact baseline reads, six fixed mapping writes, nine exact final reads |
 | `d` / `dump` | Reprint the retained record, without another upload |
 | `r` / `release` | Release after output and local TX/cleanup retirement; never reopen or retry |
+| `S...` / `scripts/s2_soak.py` | Finite communication soak, below; the one request longer than a byte |
+| `X` / `soak-stop` | Stop a running soak after any started read settles |
+
+While a soak runs, only `p`, `s` and `X` are served; anything else answers
+`SOAK_REFUSED reason=active`. A response that finds the console queue full waits in
+one retained buffer, and no further command is taken until it has gone.
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
 `2000:00`, `2001:00`, `1800:01/:02/:03/:05`, `1A00:00..04`, `6041:00`
@@ -97,7 +103,7 @@ must be new. Capturing bytes is not an assertion that the firmware accepted the
 request. Compare the reported ELF hash with the build record. The Git revision
 is the build's base commit; retained source hashes identify any working changes.
 
-Output is bounded and does not delay CAN service. Raw history holds 26 terminals,
+Output is bounded and does not delay CAN service. Raw history holds 30 terminals,
 112 traffic copies and a separate 16-entry post-terminal tail. The collector waits
 for each preceding accepted TX's final report before granting another field;
 the deadline stays fixed and no refused grant is replayed. Its first terminal
@@ -162,3 +168,18 @@ A processing timestamp is never relabeled as arrival. A boot-up is recorded
 only when an actual matching `00` event is received; absence of such an event
 is not proof of a fresh server session. Network history and serial output are
 bounded, with loss/truncation reported explicitly.
+
+## Communication soak
+
+`S` followed by `TRIAL,DURATION_S,INTERVAL_MS,SUMMARY_S,READS` and a line end starts one
+finite soak. [`Soak`](Soak.h) runs in the owner task through the ordinary `ProbeApp` typed
+reads and the sole owner, one finite operation at a time, alternating nodes 1 and 2. It sends
+no write, NMT command or controlword, and has no raw sender or second receiver. Startup stays
+passive: nothing runs before the request, and the routes are configured by the request with the
+same exclusive-session premise as the other procedures. Details, record grammar and the runner
+are in [hardware_bench.md](../../docs/hardware_bench.md#communication-soak).
+
+`Soak` is allocated once, from internal heap, on the first request (10752 bytes on S2), because the
+linker's `dram0_0_seg` limit has little room left. `SOAK_REFUSED reason=memory` reports a failed
+allocation, and a build that never soaks spends nothing. Free heap is reported in `SOAK_BEGIN`
+and every `SOAK_GAP`.

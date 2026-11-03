@@ -44,7 +44,8 @@ enum class ActionOutcome : uint8_t {
     OBSERVATION_SCOPE, ///< Mode/alarm/release report lies outside the supported observation contract.
     DRIVE_FAULT,       ///< Independently routed checked drive fault; no implicit fault clearing.
     ITERATION_EXHAUSTED, ///< Nonwrapping local step identity exhausted.
-    STOP_SENT_UNCONFIRMED ///< Best-effort stop left the controller; no reply can confirm it or any effect.
+    STOP_SENT_UNCONFIRMED, ///< Best-effort stop left the controller; no reply can confirm it or any effect.
+    SERVICE_TIMEOUT ///< Queue or response budget spent before the overall cutoff. Execution and possible transmission stay separate.
 };
 /** Local validation errors in Status::detail; raw protocol errors are retained separately. */
 enum class ActionError : int32_t {

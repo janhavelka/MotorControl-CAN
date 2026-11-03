@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+#include "SdoEvidence.h"
 #include <MotorControlCAN/canopen/Network.h>
 
 #include <stddef.h>
@@ -6,11 +7,6 @@
 namespace MotorControlCAN {
 namespace CANOPEN {
 namespace {
-bool overlaps(const void* a, size_t aSize, const void* b, size_t bSize) {
-    const uintptr_t first = reinterpret_cast<uintptr_t>(a);
-    const uintptr_t second = reinterpret_cast<uintptr_t>(b);
-    return first <= second ? second - first < aSize : first - second < bSize;
-}
 } // namespace
 
 Status makeNmtRequest(NmtCommand command, uint8_t target, Frame& output) noexcept {

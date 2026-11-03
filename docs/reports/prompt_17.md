@@ -1,5 +1,7 @@
 # Prompt 17: observed PDO maps and decoding
 
+**Reopened by audit W8.** [Packet 10](handoff_19_33/packet_10.md) fixed `pdoTemplate`'s null status message in its generator.
+
 ## Scope and decisions
 
 Implements checked pure mapping/decoding, generated reviewed layout facts,
