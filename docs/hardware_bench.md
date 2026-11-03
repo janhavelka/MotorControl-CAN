@@ -184,6 +184,102 @@ local cancellation/recovery into a motor stop or replay a request automatically.
 Boot-up, bus-off, rebind or configuration change invalidates dependent current
 evidence while the failed historical acquisition remains retained.
 
+## Bench tooling
+
+These tracked scripts replace the ignored `.build` helpers. One lead alone runs
+anything that opens the port; `--dry-run` and the parser never do.
+
+**Build and upload.** [`scripts/s2_flash.py`](../scripts/s2_flash.py) requires one
+explicit mode. Run it from PowerShell or cmd, because ESP-IDF refuses MSYS.
+
+```text
+python scripts/s2_flash.py --dry-run
+python scripts/s2_flash.py --build-only --build-dir .build/s2-bench-live
+python scripts/s2_flash.py --flash --port COM15 --serial 94A990398B40
+```
+
+- `--dry-run` prints the plan from files only. It runs no process, enumerates no
+  USB device and creates nothing, and its verdict is `INCOMPLETE`.
+- `--build-only` never touches a port. Tool paths come from arguments or
+  `IDF_PATH`, `IDF_PYTHON` and `IDF_TOOLS_PATH`, then the known local installs;
+  a named path that does not exist is refused rather than replaced.
+- It requires ESP-IDF v5.5.5 with its reviewed source hashes, the compiler version
+  the SDK's `tools.json` recommends and esptool 4.12.0. A different tool is refused
+  and never upgraded. `IDF_COMPONENT_MANAGER=0` keeps the build from downloading.
+- The build reconfigures first, because the embedded Git revision is set at
+  configure time. It then refuses an image when sources or `HEAD` moved during the
+  build, the compiled revision differs from `HEAD`, or `sdkconfig` drifted from
+  `sdkconfig.defaults`. It also refuses generated flash options, offsets or chip
+  IDs outside the reviewed set, and an application image that does not embed the
+  linked ELF's hash at `0xB0`.
+- `--flash` requires the recorded USB serial and 303A:1002 uniquely on the named
+  port, before the build and again before writing. `read_mac` must then report the
+  recorded chip and MAC, and `write_flash @flash_args` runs once. A failure is
+  retained and never retried, and the image on the target is then unknown. The
+  fixture is a table in the script; a changed fixture needs a reviewed edit there.
+
+No mode erases all flash, changes eFuses or downloads a vendor executable. Each
+real run creates one new directory, by default `docs/bench/<UTC>-s2-upload` for
+`--flash` and `.build/s2-flash-artifacts/` for `--build-only`, or `--output`. It
+holds `build.json` (status, phases, revision, `git status`, dirty and source hashes,
+tool versions, image hashes, USB and target identity, commands), `build.log`,
+`read_mac.log`, `flash.log`, `sdkconfig`, `flash_args`, `flasher_args.json` and
+`project_description.json`. Add a retained upload to `docs/bench/SHA256SUMS.json`
+as with any other evidence. Images are hashed, not copied.
+
+Flashing restarts the MCU. That clears no uncertainty and establishes no fresh SDO
+session. Verify the running image as two separate steps:
+
+```text
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command ping --seconds 2 --output NEW_PING_DIRECTORY
+python scripts/s2_flash.py --check-ping NEW_PING_DIRECTORY --artifact UPLOAD_DIRECTORY
+```
+
+The second step is offline. It compares the reported base revision, ELF hash, SDK
+and target with the build record.
+
+**Offline evidence.** [`scripts/s2_evidence.py`](../scripts/s2_evidence.py) replays
+retained capture directories without changing them. `rx.bin` is authoritative.
+Older captures have CRLF-translated `rx.txt` files, reported as `crlf_only`.
+
+```text
+python scripts/s2_evidence.py docs/bench/20261102-final-node1 docs/bench/20261102-final-node2 --expect-terminals 30 --expect-traffic 90 --require-complete
+python scripts/s2_evidence.py CAPTURE... --report NEW.json --transitions NEW.jsonl
+```
+
+| Verdict | Meaning |
+| --- | --- |
+| `complete` | Consistent and fully terminated successful record; not device qualification |
+| `failed-evidence` | Consistent record of a failure, lost trace or uncertain effect, retained with its successful prefix |
+| `incomplete` | Output missing or damaged: truncation, a dropped or corrupt line, a boot during the record, a failed capture |
+| `inconsistent` | Contradiction: wrong run, node, channel, object, width, bytes, stale or duplicated frame |
+| `control` / `refused` | A console response or refusal, with no SDO record |
+
+It checks the requested byte and procedure, operation and step identities, node and
+channel, address, subindex and direction, actual width and bytes against the wire
+frame, terminal and traffic counts, and start and end completeness. Controller and
+node epochs are checked only on lines that carry them; current `RAW`/`RESULT`/`TRAFFIC`
+lines do not, which the report states as `not_emitted`. Exit status is nonzero for
+`incomplete` and `inconsistent`, and `--require-complete` adds `failed-evidence`.
+
+A raw upload is never a typed success, so `typed_successes` counts only typed
+`EVIDENCE` terminals. The one-byte `1009`/`100A` replies stay listed against their
+EDS U16 widths. The typed rejection in `20261102-s2-identity1-fixed` stays failed
+evidence with its wire width and abort code.
+
+`GRAMMAR` in the script is the record format. A new firmware line needs one row; its
+signals put it in the transition log. An unknown line or field is preserved and
+counted, and does not change a verdict by itself. A record header's tail count is a
+lower bound, because tail copies continue until release; `END` holds the total.
+
+The transition log is JSON lines, in capture order across the listed captures. Each
+entry has category (`health`, `status`, `controller`, `nmt`), signal, node, previous
+and new raw value, firmware processing time where the record has one, receive bounds
+and the source line. Unchanged observations add nothing, and cumulative `rx`/`tx`
+counters are not transitions. After an observed MCU boot, previous values are stale.
+The log shows what the capture recorded, not continuous bus history: `NETWORK` and
+`EVENT` come from bounded copies with their own dropped counter.
+
 ## Conditional state-changing evidence
 
 Some questions cannot be settled by readback: velocity start, target rearm,
