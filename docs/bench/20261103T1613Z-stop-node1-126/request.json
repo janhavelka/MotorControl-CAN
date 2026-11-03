@@ -1,0 +1,93 @@
+{
+  "started_utc": "2026-11-03T16:13:39.020028+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "stop",
+  "seconds": 120.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 126,
+  "plan": "packet 15 P4 / packet 16",
+  "fields": [
+    1,
+    126,
+    1,
+    2,
+    2000,
+    0,
+    200
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "User, 2026-11-03: Do all the tests - i will not be present - i take the reponsibility - nothing can happen, motors bolted, free shafts",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "unattended: not observed"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "stop",
+    "--node",
+    "1",
+    "--trial",
+    "126",
+    "--kind",
+    "quick",
+    "--deadline-ms",
+    "2000",
+    "--best-effort-ms",
+    "0",
+    "--interval-ms",
+    "200",
+    "--campaign",
+    "docs/bench/20261103b-campaign.jsonl",
+    "--unattended-waiver",
+    "User, 2026-11-03: Do all the tests - i will not be present - i take the reponsibility - nothing can happen, motors bolted, free shafts",
+    "--output",
+    "docs/bench/20261103T1613Z-stop-node1-126"
+  ],
+  "host_revision": "0e342b295ae1ea8f9ff4bd8cf5ce7fb3a95e3882",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261103b-campaign.jsonl",
+    "motion_total": 2,
+    "cases": {
+      "G2": 1,
+      "S2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5453312c3132362c312c322c323030302c302c3230302c4b66353331336532340a"
+  ],
+  "image": {
+    "base": "e17271a1baf4e8794e3f0b7ef528f8ef081ba5ba",
+    "elf": "024a653af03c284add2e245d6604b7fddb82b4fcc1284166346e5bda07918f07",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TS1,126,1,2,2000,0,200,Kf5313e24",
+  "tx_hex": "5453312c3132362c312c322c323030302c302c3230302c4b66353331336532340a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-03T16:13:40.438023+00:00"
+}

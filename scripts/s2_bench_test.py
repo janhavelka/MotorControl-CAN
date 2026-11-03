@@ -393,6 +393,38 @@ class BenchTest(unittest.TestCase):
             self.assertEqual(status, 2, err)
             self.assertEqual(board.writes, [])
 
+    def test_unattended_waiver_replaces_the_attendant_questions_only(self):
+        waiver = "I will not be present; I take the responsibility"
+        board = Board()
+        operator = Operator()  # Any question would raise EOFError and refuse.
+        status, out, err = self.run_main(MOVE + ["--unattended-waiver", waiver], Backend(board), operator)
+        self.assertIn(status, (0, 1), err)  # The synthetic read record has no terminals.
+        self.assertEqual(operator.questions, [])
+        self.assertEqual(board.writes, [b"p", MOVE_LINE.encode()])  # The same line: the host gate is met.
+        meta = self.meta()
+        self.assertEqual(meta["operator"]["attended"], {"unattended": True, "waiver": waiver, "accepted": True})
+        self.assertEqual(meta["operator"]["shaft_after"]["typed"], bench.UNOBSERVED)
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([entry.get("unattended_waiver") for entry in send], [waiver])
+        # Nothing an attendant alone could give is accepted without one.
+        for argv in (ENABLE + ["--unattended-waiver", waiver],
+                     ["--command", "readiness-actions", "--node", "1", "--trial", "3", "--fault-led", "prompt",
+                      "--unattended-waiver", waiver],
+                     MOVE + ["--unattended-waiver", "  "],
+                     ["--command", "ping", "--unattended-waiver", waiver]):
+            self.clear_output()
+            board = Board()
+            with self.assertRaises(SystemExit):
+                self.run_main(argv, Backend(board), Operator())
+            self.assertEqual(board.writes, [])
+        self.clear_output()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + MOVE + ["--dry-run", "--unattended-waiver", waiver, "--campaign", str(self.ledger)],
+                       Untouchable(), Clock(), Operator())
+        self.assertIn("unattended under the user's waiver", out.getvalue())
+        self.assertNotIn("ATTENDED 20", out.getvalue())
+
     def test_enable_sends_the_typed_observation(self):
         board = Board()
         operator = Operator("ATTENDED 12", "HOLDING", "no movement", "HOLDING")

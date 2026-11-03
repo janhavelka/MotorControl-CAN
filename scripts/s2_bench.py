@@ -19,6 +19,13 @@ CAMPAIGN_MOTION_TOTAL motion admissions, CAMPAIGN_PER_CASE for one route and nod
 identity at or above this one. A missing ledger is refused unless --new-campaign starts it, so a
 mistyped path cannot reset the counts. The chain cannot show a cut tail or a restored older copy:
 commit the ledger with each session's evidence.
+
+--unattended-waiver TEXT runs a trial with nobody at the bench, only on the user's own written
+statement that they accept it: TEXT is that statement, stored verbatim in request.json and the send
+entry. No attendant question is asked, and every observation only an attendant could make is stored
+as "unattended: not observed". The line's attended field still reads 1: it records that the host's
+gate was satisfied, here by the waiver. An enable is refused, because its start report needs the
+attendant's power-up shaft observation, and so is --fault-led prompt.
 """
 import argparse
 from collections import Counter
@@ -67,6 +74,7 @@ CAMPAIGN_PER_CASE = 3
 SHAFT = {"FREE": 1, "HOLDING": 2}
 PING_TIMEOUT_S = 3.0
 CAPTURE_LIMIT = 1 << 20
+UNOBSERVED = "unattended: not observed"
 
 
 class Refused(RuntimeError):
@@ -415,7 +423,9 @@ def before_send(args, fields, ask, operator):
     """Typed confirmations before anything is sent. The firmware takes these as given."""
     node, trial = fields[0], fields[1]
     _, motion, _ = TRIALS[args.command]
-    if motion:
+    if motion and args.unattended_waiver:
+        operator["attended"] = {"unattended": True, "waiver": args.unattended_waiver, "accepted": True}
+    elif motion:
         wanted = "ATTENDED %d" % trial
         ask_operator(ask, operator, "attended",
                      "Attendant at node %d with the independent drive-power cutoff in hand and a shaft mark "
@@ -446,6 +456,9 @@ def after_capture(args, fields, ask, operator):
     if args.command == "readiness-actions" and args.fault_led == "prompt":
         questions.append(("fault_led_after", "Fault LED of node %d now, as seen: " % node))
     for key, question in questions:
+        if args.unattended_waiver:
+            operator[key] = {"question": question, "typed": UNOBSERVED}
+            continue
         try:
             answer = ask(question).strip()
         except EOFError:
@@ -576,7 +589,10 @@ def dry_run(args, fields):
     print("  require USB %s %04X:%04X uniquely on %s" % (args.serial, FIXTURE["vid"], FIXTURE["pid"], args.port))
     if args.command in TRIALS:
         _, motion, plan = TRIALS[args.command]
-        if motion:
+        if motion and args.unattended_waiver:
+            print("  unattended under the user's waiver %r: no attendant question; observations stored as %r" %
+                  (args.unattended_waiver, UNOBSERVED))
+        elif motion:
             print("  require the operator to type: ATTENDED %d" % fields[1])
         if args.campaign is not None:
             lock = CampaignLock(args.campaign).path
@@ -630,8 +646,20 @@ def arguments(argv):
     trial.add_argument("--fault-led", choices=("prompt", "unobserved"))
     trial.add_argument("--no-motion-write-recorded", action="store_true",
                        help="The trial log shows no motion write since power-up apart from one acknowledged 6060=1")
+    trial.add_argument("--unattended-waiver", metavar="TEXT",
+                       help="The user's own written acceptance of a trial with nobody at the bench, verbatim")
     args = parser.parse_args(argv)
     is_trial = args.command in TRIALS
+    if args.unattended_waiver is not None:
+        if not is_trial:
+            parser.error("--unattended-waiver belongs to trial commands")
+        if not args.unattended_waiver.strip():
+            parser.error("--unattended-waiver needs the user's statement")
+        if args.command == "enable":
+            parser.error("--unattended-waiver refuses enable: its start report needs the attendant's power-up "
+                         "shaft observation")
+        if args.fault_led == "prompt":
+            parser.error("--unattended-waiver refuses --fault-led prompt: nobody can see the drive")
     if args.seconds is None:
         args.seconds = 120.0 if is_trial else 4.0
     if not 1 <= args.seconds <= (300 if is_trial else 30):
@@ -708,10 +736,13 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
         goes out: it counts even if the host then fails."""
         campaign.load()
         campaign.check(args.command, fields)
-        campaign.append({"event": "send", "utc": clock.utc(), "command": args.command,
-                         "route": TRIALS[args.command][0], "node": fields[0], "trial": fields[1],
-                         "motion": motion, "stop": stop, "line": line, "output": str(args.output),
-                         "image": meta.get("image")})
+        entry = {"event": "send", "utc": clock.utc(), "command": args.command,
+                 "route": TRIALS[args.command][0], "node": fields[0], "trial": fields[1],
+                 "motion": motion, "stop": stop, "line": line, "output": str(args.output),
+                 "image": meta.get("image")}
+        if args.unattended_waiver:
+            entry["unattended_waiver"] = args.unattended_waiver
+        campaign.append(entry)
     data = bytearray()
     try:
         port = backend.open(args.port)
