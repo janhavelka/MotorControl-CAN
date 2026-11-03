@@ -86,7 +86,7 @@ that those reads have no effect. Packet 11 read all 16 listed rows live on two
 specimens, through typed identity and the soak, with no read-effect observation.
 Packet 15 adds one `607A` and one `60FF` upload per enable as
 `accepted_action_prerequisite`: a bounded prerequisite, not a poll, with effects
-unknown; no specimen has run an enable. An ordinary
+unknown; both specimens ran an enable in the attended session. An ordinary
 device plan is admitted only when every object is accepted; any other row is
 rejected. `603F`, `1001` and `1003` stay unqualified explicit single reads (first
 bench read records LED fault state before and after). An identity or RO label
@@ -421,7 +421,9 @@ from the host's side file.
 ## Attended bench routes
 
 Named finite routes for the attended trials of packets 13, 14, 15, 16, 19 and 20, in
-[`BenchRoute`](../examples/s2_bench/BenchRoute.h). **No specimen has run any of them.** Each is
+[`BenchRoute`](../examples/s2_bench/BenchRoute.h). The [attended session](reports/2026-11-03_attended_bench.md)
+ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`; **`stop` and
+`move` have not run.** Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
 typed reads, the session's own `requestEnable`, `requestMove` and `requestStop`, and caller-built
 transfers through `admitPrepared` only for the 6060 write, the position experiment's writes and the
@@ -521,7 +523,7 @@ session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 | Line | Meaning |
 | --- | --- |
 | `TRIAL_PLAN` | The parsed request, only the fields the route uses |
-| `TRIAL_RES` | `stack0` and `stack1`, the task stack high-water mark at admission and at the terminal (a lower `stack1` was reached during the route), heap free before and after, least ever, largest free block, service gap, lost records, a refused admission |
+| `TRIAL_RES` | `stack0` and `stack1`, the task stack high-water mark at admission and at the terminal (a lower `stack1` was reached during the route), heap free before and after, least ever, largest free block, service gap, lost records, a refused admission, and the controller TX and RX error counters at admission and terminal (`tec0`, `rec0`, `tec1`, `rec1`; absent from records before 2026-11-03's counter change) |
 | `TRIAL_CHECK`, `TRIAL_LAST` | The values a prerequisite check judged, and the latest fresh read |
 | `TRIAL_EMCY`, `TRIAL_STATUS` | The EMCY that ended it; a library refusal with its code, detail and message |
 | `TRIAL_ENABLE`, `TRIAL_ENABLE_STEP` | The enable context and each word's acknowledgement and accepted report |
@@ -597,12 +599,15 @@ tables and route grammars are in flash, and the CRC-32 is computed bit by bit wi
 takes 41888 bytes of internal heap on the first route request (it holds the move's identity read,
 one coordinate configuration per node and the move request, off the task stack), and each node's `AxisSession` 23576
 bytes on its first route, with the session as in that tree. Like the soak's they are never freed, and a
-failed allocation refuses with `reason=memory`. Whether the largest free block holds both sessions
-beside a soak is unmeasured; `TRIAL_RES largest` reports it.
+failed allocation refuses with `reason=memory`. With no soak run on that boot, both sessions fit:
+node 2's took the internal heap from 73,640 to 50,060 bytes free and the largest block from
+49,152 to 25,600, once. Whether both sessions fit beside a soak is unmeasured; `TRIAL_RES largest`
+reports it.
 
-**Not established.** Nothing here qualifies an enable, stop, move, scale or firmware. The stop's and
-enable's behavior on these specimens, the stack high-water mark during an action and the heap
-margin are unmeasured until the routes run.
+**Not established.** Nothing here qualifies an enable, stop, move, scale or firmware. On one
+image, the least stack ever free during the routes was 8,492 of 12,288 bytes, during a moving
+HALT, and the largest service gap 5 ms ([attended report](reports/2026-11-03_attended_bench.md#resources-during-the-actions)).
+`000B` and the `move` route have not been measured.
 
 ## Conditional state-changing evidence
 

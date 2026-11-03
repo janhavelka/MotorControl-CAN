@@ -1,6 +1,18 @@
 # Packet 19: position evidence and one isolated finite experiment
 
-**Attended session, 2026-11-03: the experiment ran on node 1.** +250 pulses turned about a quarter turn counter-clockwise; `6041` bit 12 marks acceptance (latched until the `000F` rearm, which moved nothing), and `2100` bit 0 marks completion after acceptance. The command and `6064` share 1000 pulses per revolution. See the [attended bench report](../2026-11-03_attended_bench.md).
+**Attended session, 2026-11-03: the experiment ran on node 1.** +250 pulses turned about a quarter turn counter-clockwise; `6041` bit 12 marks acceptance (latched until the `000F` rearm, which moved nothing), and `2100` bit 0 marks completion, absent in the first cycle after the trigger and back at the end, so `AFTER_ABSENCE` fits. The command and `6064` share 1000 pulses per revolution. See the [attended bench report](../2026-11-03_attended_bench.md).
+
+Packet 20's list below, answered for node 1 and this firmware only:
+
+| Item | Trial 111 to 113 |
+| --- | --- |
+| Acceptance | `6041` mask and value `0x1000`, absent at admission, present from cycle 1, latched until the rearm |
+| Completion | `2100` mask and value `0x0001`, rule `AFTER_ABSENCE`; `6041` bit 15 behaves the same |
+| Mode, low bits, `2100` through a move | `6061=1` and low bits 111 throughout; released and alarm clear; running (`0004`) set until completion |
+| Parameter writes before the edge | No motion: `6064=0` at admission and in cycle 1 |
+| Direction and distance | +250 turned about a quarter turn counter-clockwise from the shaft end; 1000 pulses per revolution |
+| Rearm | `000F` only cleared bit 12; nothing moved |
+| Stops from `001F` | `010F` stopped a 2 rpm move and held it; the halted move then reads neither completion signal (`0437`, `0000`). `000B` from `001F` not run |
 
 **Before that session the experiment had not run.** It moves a motor, and the packet requires an independent cutoff, a shaft mark that shows direction and approximate rotation, and an operator. The bench ran an unattended communication soak overnight. Packets 15 and 16's attended prerequisites have not run either.
 

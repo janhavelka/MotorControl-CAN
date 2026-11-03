@@ -1,5 +1,7 @@
 # Packet 20: finite absolute-position lifecycle
 
+**After the attended session, 2026-11-03.** Packet 19's evidence now exists for node 1: acceptance `6041` `0x1000`, completion `2100` `0x0001` under `AFTER_ABSENCE` ([packet 19](packet_19.md)). The library default still refuses, and the `move` route, which passes that evidence through `AxisSession::requestMove`, has not run. It is the next campaign's first case.
+
 Owns the absolute part of original prompt 33. Host and fake evidence only. **The lifecycle is gated: the default `MoveEvidence` returns `UNSUPPORTED`, and no specimen has run it.** Acceptance and completion bits are not established for these specimens, so they are an explicit caller input from packet 19, not a guessed mask.
 
 ## Delivered

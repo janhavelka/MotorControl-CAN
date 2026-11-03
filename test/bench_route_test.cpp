@@ -316,6 +316,8 @@ struct Rig {
         output.stackFree = 9000 - r.samples;
         output.heapFree = 60000;
         output.heapMinimum = 55000;
+        output.txErrors = r.samples;
+        output.rxErrors = 10 + r.samples;
     }
     static E::RouteCallbacks hooks(Rig* rig) {
         E::RouteCallbacks value;
@@ -530,6 +532,8 @@ void testActionsReads() {
     CHECK(has(text, "TRIAL id=5 node=1 route=actions failure=0 why=none lost=0 terminals=22"));
     CHECK(has(text, "TRIAL_PLAN route=actions node=1 trial=5 attended=0\n"));
     CHECK(has(text, "TRIAL_RES stack0=8999 stack1=8998"));
+    // Controller counters at admission and at the terminal, as packet 22 asks of every action.
+    CHECK(has(text, " tec0=1 rec0=11 tec1=2 rec1=12\n"));
     CHECK(has(text, "RESULT op=") && has(text, "object=607a:00 dir=0 outcome=0 ack=1"));
     CHECK(has(text, "TRAFFIC k=1 ") && has(text, "TRAFFIC k=0 "));
     // Each trial identity once, rising, and one route at a time.

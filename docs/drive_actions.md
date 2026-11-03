@@ -55,11 +55,14 @@ does not establish standstill, winding current, brake state or reference validit
 The OP86 filename and cover name 86C, while its relevant internal pages carry a
 CL57-C/OL57-C header; retain that applicability uncertainty.
 
-## Enable: gated, and no specimen has run it
+## Enable: gated, and run on two specimens
 
 `prepareEnable` in `Actions.h` implements the documented position-mode sequence through the
 ordinary `nextAction` and `advanceAction` lifecycle, and `AxisSession::requestEnable` runs it
-through the sole owner. **No specimen has run it. Every result so far comes from a fake drive.**
+through the sole owner. **It succeeded on both bench specimens on 2026-11-03**, after a fix that
+session found (bit 10, below), on one firmware. That is not a qualification: the
+measured paragraph after the transition table and the
+[attended report](reports/2026-11-03_attended_bench.md) say what was and was not observed.
 `EnableEvidence::gate` defaults to `CLOSED`, which returns `UNSUPPORTED`. Opening it to
 `ATTENDED_EXPERIMENT` states an attended trial with an independent drive-power cutoff. It is not a
 readiness claim, and it does not qualify the capability. The evidence is also bound to one trial:

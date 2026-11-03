@@ -41,7 +41,7 @@ It confirmed every source claim and literal byte, and found no replayed or retri
 
 ## Attended session, 2026-11-03
 
-P1 to P3 ran on both nodes; P4 did not, because the campaign cap was reached. Both shafts hold torque at power-up. Word 6 releases the motor, word 7 energizes it and word 15 completes the enable. The first attempt exposed a defect, fixed in `e17271a`: the enable compared `6041` bit 10, which follows the enable state. After it, both enables succeeded with identical bytes. See the [attended bench report](../2026-11-03_attended_bench.md).
+P1 to P3 ran on both nodes; P4 did not, because the campaign cap was reached. Both shafts hold torque at power-up. Word 6 releases the motor, word 7 energizes it and word 15 completes the enable. The first attempt exposed a defect, fixed in `e17271a`: the enable compared `6041` bit 10, which follows the enable state. After it, both enables succeeded with identical bytes. The heap-allocated `mode1` and `enable` bench routes ran them; the enable's live stack low was 8,700 of 12,288 bytes free. P4, the stationary `010F` and `000B`, is still owed. See the [attended bench report](../2026-11-03_attended_bench.md).
 
 ## Physical plan, as written before the session
 
