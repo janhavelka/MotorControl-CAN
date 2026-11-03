@@ -1,5 +1,7 @@
 # Prompt 10 - Axis coordinates and references
 
+**Reopened by audit W8.** [Packet 9](handoff_19_33/packet_9.md) added the native-rate basis, applied the relative-basis policy to wrapped requests and added inward soft-limit recovery. Statements below about those describe the earlier contract.
+
 The [fresh independent prompts 10-11 audit](prompts_10_11_audit.md) rechecked
 the full original requirements and actual implementation. Arithmetic/reference
 review and fresh integrated checks passed; a stale retained-proof comment was

@@ -69,9 +69,6 @@ Status bounds(const NativeQuantity& q, const AxisConfig& c) {
 Status add(const NativeQuantity& q, int64_t n, NativeQuantity& out) {
     return unitStatus(addNativeInteger(q, n, out));
 }
-Status integerBounds(int64_t n, const AxisConfig& c) {
-    NativeQuantity q; q.integral = n; return bounds(q, c);
-}
 Status conversionConfig(CoordinateFrame frame, PositionUnit unit, const AxisConfig& c, UnitConfig& out) {
     if (frame > CoordinateFrame::LOAD || unit > PositionUnit::MILLIMETRES)
         return fail(AxisError::INVALID_ARGUMENT, "invalid coordinate frame/unit");
@@ -100,6 +97,27 @@ Status displacement(const Rational& value, PositionUnit unit, CoordinateFrame fr
     UnitConfig units; Status s = conversionConfig(frame, unit, c, units); if (!s) return s;
     mechanicalUnits(frame, unit, units);
     return unitStatus(convertDisplacement(value, unit, PositionUnit::STEPS, units, out));
+}
+// Describe the native-rate destination in Units vocabulary, which has no motor-turn
+// unit because TURNS means load turns. One increment per motor turn makes STEPS
+// count motor turns while keeping gear, encoder and polarity factors. A STEPS source
+// keeps its real scale and converts to TURNS at unit gear, again counting motor turns.
+Status rateConversion(const VelocityRequest& r, const AxisConfig& c, UnitConfig& units,
+    VelocityUnit& from, VelocityUnit& to) {
+    from = r.unit; to = VelocityUnit(PositionUnit::STEPS, c.nativeVelocityTime);
+    const bool motorTurns = c.nativeRateBasis == NativeRateBasis::MOTOR_TURNS;
+    if (motorTurns && r.frame == CoordinateFrame::NATIVE) {
+        if (r.unit.position != PositionUnit::TURNS)
+            return fail(AxisError::INVALID_ARGUMENT, "native rate requires motor turns");
+        units = c.units; to.position = PositionUnit::TURNS; return Ok();
+    }
+    Status s = conversionConfig(r.frame, r.unit.position, c, units); if (!s) return s;
+    if (!motorTurns) { mechanicalUnits(r.frame, from.position, units); return Ok(); }
+    if (r.unit.position == PositionUnit::STEPS) {
+        units.motorTurnsPerLoadTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
+        to.position = PositionUnit::TURNS;
+    } else units.commandStepsPerMotorTurn = UnitScale(1, 1, ScaleSource::DOCUMENTED);
+    return Ok();
 }
 double errorDouble(const IntegerQuantization& q) {
     if (!q.errorNumerator) return 0;
@@ -354,7 +372,7 @@ Status validateAxisConfig(const AxisConfig& c) {
     if (c.nativeMinimum > c.nativeMaximum || (c.supportedRelativeBases & ~7u) ||
         c.originSource > ScaleSource::QUALIFIED || c.encoderOriginSource > ScaleSource::QUALIFIED ||
         c.positionRepresentation > NativeRepresentation::BINARY32 || c.velocityRepresentation > NativeRepresentation::BINARY32 ||
-        c.nativeVelocityTime > TimeUnit::MILLISECOND ||
+        c.nativeVelocityTime > TimeUnit::MILLISECOND || c.nativeRateBasis > NativeRateBasis::MOTOR_TURNS ||
         (c.originKnown && (!sourceKnown(c.originSource) || c.originNative < c.nativeMinimum || c.originNative > c.nativeMaximum)) ||
         (c.encoderOriginKnown && (!sourceKnown(c.encoderOriginSource) || !c.units.encoder.sourceId ||
             c.units.encoder.countsPerUnit.source == ScaleSource::UNKNOWN || c.encoderOriginNative < c.nativeMinimum || c.encoderOriginNative > c.nativeMaximum)) ||
@@ -431,14 +449,17 @@ Status preparePosition(const PositionRequest& r, const AxisConfig& c, const Axis
     if (r.wrapped && (r.relative || r.frame == CoordinateFrame::NATIVE ||
         (r.unit != PositionUnit::TURNS && r.unit != PositionUnit::DEGREES && r.unit != PositionUnit::RADIANS)))
         return fail(AxisError::INVALID_ARGUMENT, "wrapped orientation requires absolute motor/load angle");
-    if (r.relative && !(c.supportedRelativeBases & (1u << unsigned(r.basis))))
+    if ((r.relative || r.wrapped) && !(c.supportedRelativeBases & (1u << unsigned(r.basis))))
         return fail(AxisError::UNSUPPORTED_BASIS, "relative basis unavailable", Err::UNSUPPORTED);
     if (!ref && (r.relative || r.wrapped || r.referencePolicy == ReferencePolicy::REQUIRED))
         return fail(AxisError::MISSING_REFERENCE, "selected native-position witness required", Err::INVALID_CONFIG);
     if (ref) {
         s = evidence(c, *ref, false, true); if (!s) return s;
         if (ref->basis != r.basis) return fail(AxisError::MISSING_REFERENCE, "reference basis differs", Err::INVALID_CONFIG);
-        s = integerBounds(ref->nativePosition, c); if (!s) return s;
+        // Soft limits are not checked here so an overrun can recover: both endpoints
+        // are checked below, and one inside the range is reached by inward travel.
+        if (ref->nativePosition < c.nativeMinimum || ref->nativePosition > c.nativeMaximum)
+            return fail(AxisError::LIMIT, "witness outside native limits");
     }
     int64_t origin = 0;
     if (!r.relative && r.frame != CoordinateFrame::NATIVE) {
@@ -500,24 +521,23 @@ Status prepareVelocityTarget(const VelocityRequest& r, const AxisConfig& c, Prep
         !std::isfinite(r.maximumApproximationError) || r.maximumApproximationError < 0 ||
         (r.approximate && r.unit.position != PositionUnit::RADIANS))
         return fail(AxisError::INVALID_ARGUMENT, "invalid velocity intent");
-    UnitConfig units; s = conversionConfig(r.frame, r.unit.position, c, units); if (!s) return s;
+    UnitConfig units; VelocityUnit from, to;
+    s = rateConversion(r, c, units, from, to); if (!s) return s;
     if (r.frame == CoordinateFrame::NATIVE && r.unit.time != c.nativeVelocityTime)
         return fail(AxisError::INVALID_ARGUMENT, "native rate time dimension differs");
-    PositionUnit from = r.unit.position;
-    mechanicalUnits(r.frame, from, units);
     PreparedVelocityTarget next; next.requested = r; next.binding = c.binding; next.representation = c.velocityRepresentation;
-    const VelocityUnit destination(PositionUnit::STEPS, c.nativeVelocityTime);
+    next.rateBasis = c.nativeRateBasis; next.rateTime = c.nativeVelocityTime;
     if (r.unit.position == PositionUnit::RADIANS && r.value.numerator) {
         if (!r.approximate || r.maximumApproximationError <= 0)
             return fail(AxisError::INVALID_ARGUMENT, "radian rate needs explicit allowance");
         UnitConversion v;
-        s = unitStatus(convertVelocity(r.value, r.unit, destination, units, r.maximumApproximationError, v)); if (!s) return s;
+        s = unitStatus(convertVelocity(r.value, from, to, units, r.maximumApproximationError, v)); if (!s) return s;
         Interval q; q.value = v.value; q.error = v.absoluteErrorBound;
         s = quantizeInterval(q, c.velocityRepresentation, r.rounding, r.maximumQuantizationError,
             next.effectiveNative, next.effectiveFloat, next.absoluteErrorBound); if (!s) return s;
         next.exactArithmetic = false; next.approximateRequestedNative = q.value;
     } else {
-        s = unitStatus(convertVelocity(r.value, VelocityUnit(from, r.unit.time), destination, units, next.requestedNative)); if (!s) return s;
+        s = unitStatus(convertVelocity(r.value, from, to, units, next.requestedNative)); if (!s) return s;
         s = quantize(next.requestedNative, c.velocityRepresentation, r.rounding, r.maximumQuantizationError,
             next.effectiveNative, next.effectiveFloat, next.quantization, next.absoluteErrorBound); if (!s) return s;
     }

@@ -25,7 +25,7 @@ scales are usable caller assumptions, without becoming qualified device facts.
 
 | Frame | Coordinate interpretation |
 | --- | --- |
-| `NATIVE` | Only `STEPS`, meaning command increments; no host origin or polarity adjustment |
+| `NATIVE` | Position: only `STEPS`, meaning command increments; no host origin or polarity adjustment. Rates use the native-rate dimension defined below |
 | `MOTOR` | Angles refer to motor turns and need no load gear; millimetres are invalid |
 | `LOAD` | Angles refer to load turns; linear travel consumes explicit millimetres per load turn |
 
@@ -45,12 +45,13 @@ encoder scale and source identity.
 ## Checked preparation and quantization
 
 `preparePosition` validates the complete candidate before publishing output.
-Ordinary absolute targets retain all turns. Relative requests always require the
-chosen `ACTUAL`, `COMMANDED` or `QUEUED` reference, admitted by the configuration's
-`supportedRelativeBases` policy; an unavailable basis never falls back to another.
-Absolute unwrapped requests may omit a witness with `ReferencePolicy::OPTIONAL`.
-`REQUIRED` explicitly demands one. A supplied witness is validated even when it
-was optional.
+Ordinary absolute targets retain all turns. Relative and wrapped requests always
+require the chosen `ACTUAL`, `COMMANDED` or `QUEUED` reference, admitted by the
+configuration's `supportedRelativeBases` policy; an unavailable basis never falls
+back to another. Absolute unwrapped requests may omit a witness with
+`ReferencePolicy::OPTIONAL`. `REQUIRED` explicitly demands one. A supplied witness
+is validated even when it was optional; the basis policy governs displacement
+from a witness, so it does not restrict an absolute unwrapped request.
 
 Exact arithmetic uses `Rational` and mixed `NativeQuantity` storage. The latter
 retains an integral part and signed proper fraction, avoiding a large
@@ -62,8 +63,17 @@ Absolute targets add origin before quantization. Relative targets quantize the
 displacement before adding the selected integer basis. Both the requested exact
 endpoint and effective endpoint must satisfy inclusive native and soft limits;
 rounding cannot rescue an out-of-bounds request. Limits constrain absolute
-coordinates, so a negative displacement is legal when its start and endpoint
-are in range. A supplied starting position must also satisfy those limits.
+coordinates, so a negative displacement is legal when its endpoint is in range.
+
+A supplied witness must be inside the native limits but may be outside the soft
+limits, so an overrun can recover. With a fresh native-known witness, a move from
+outside the soft limits is admitted when its requested and effective endpoints
+are inside them, which can only be travel toward the permitted range. Zero
+displacement, outward travel and an endpoint still outside reject with `LIMIT`,
+including a path that crosses the whole range. An unusable witness rejects first:
+recovery never relaxes reference validity. A witness outside the native limits
+rejects with `LIMIT`, even for an absolute request whose endpoint would pass with
+no witness at all.
 
 `INTEGER` produces a checked signed `int64_t`. Selected rounding is exact,
 nearest with ties to even, toward zero, floor or ceiling. The caller supplies a
@@ -82,7 +92,7 @@ An interval crossing a limit or rounding boundary rejects. Exact zero radians
 uses exact arithmetic after the selected scale requirements are validated.
 
 Wrapped orientation is an absolute motor/load angle with a fresh selected-basis
-reference and known mechanical origin. `POSITIVE`, `NEGATIVE` and `SHORTEST`
+reference, admitted by the basis policy, and a known mechanical origin. `POSITIVE`, `NEGATIVE` and `SHORTEST`
 select physical direction before command polarity. Equal orientation stays
 still. Exact half-turn ties reject unless explicitly directed positive or
 negative. Approximation must resolve the direction; a boundary-crossing interval
@@ -106,7 +116,9 @@ epochs and origin fields; route rebinding belongs to the owner. Position-scale,
 polarity, encoder identity/basis or position-format changes clear origins and
 soft limits. Unchanged position interpretation can return retained evidence with
 updated epochs and its original observation time and age policy. New or changed
-soft limits additionally require a known native-position relation.
+soft limits additionally require a known native-position relation. Rate format,
+basis and time do not affect position interpretation: changing them keeps this
+evidence, but still advances the configuration epoch and so retires prepared work.
 
 `validatePreparedTarget` rechecks frozen binding/configuration and any consumed
 reference before admission. Admission time cannot precede that witness's supplied
@@ -128,17 +140,39 @@ never wrap or reuse zero. Once exhausted, retire the binding and old work before
 constructing fresh provenance; clearing the latch is not recovery. Configuration
 and origin changes otherwise reject exhausted generations atomically.
 
-## Signed velocity and an offline example
+## Signed velocity and the native-rate destination
 
 `prepareVelocityTarget` consumes exact signed velocity, including zero, and
-produces command increments per configured `nativeVelocityTime`. Native frame
-requires exactly that spatial/time dimension. Mechanical frames use the same
-independent scale facts; no position origin, witness or position limits are
-consumed. Integer output is wide signed arithmetic, including values beyond
-ESS's 16-bit RPM fields. Binary32 uses the same explicit quantization policy.
-A profile later converts to its documented native representation; zero here is
-arithmetic and does not issue a stop. Dimensional acceleration and millisecond
-ramp parameters remain separate quantities.
+quantizes it once into the configured destination: `nativeRateBasis` units per
+`nativeVelocityTime`. Select the basis from reviewed evidence for the target object.
+
+| `nativeRateBasis` | One native rate unit | `NATIVE` frame source | Scales for mechanical sources |
+| --- | --- | --- | --- |
+| `COMMAND_INCREMENTS` (default) | One command increment per time | `STEPS` | `commandStepsPerMotorTurn` unless the source is `STEPS` |
+| `MOTOR_TURNS` | One motor-shaft turn per time, so `MINUTE` is rpm | `TURNS`, meaning motor turns | `STEPS` needs `commandStepsPerMotorTurn` and no gear; other sources need only their own scales |
+
+The `NATIVE` frame is that exact dimension, with the configured time and no scale
+or polarity adjustment. `MOTOR` and `LOAD` sources convert to it and follow command
+polarity. A position request's `NATIVE` frame still means command increments.
+
+With 3200 command increments per motor turn and gear 5, one load turn/minute is
+5 under `MOTOR_TURNS`/`MINUTE` and 16000 under `COMMAND_INCREMENTS`/`MINUTE`.
+3200 steps/minute is 1 rpm at any gear. A native rpm object takes the first form: a
+copied `1/1` command scale would misconvert `STEPS` sources.
+
+`PreparedVelocityTarget` freezes the destination as `rateBasis` and `rateTime`.
+Allowance, `quantization` and `absoluteErrorBound` are in those units. Before
+writing `effectiveNative` to a native object, check them against the unit of that
+object: an rpm object needs `MOTOR_TURNS` and `MINUTE`. Do not convert a prepared
+rate afterward, which would quantize twice.
+
+No position origin, witness or position limits are consumed. Integer output is
+wide signed arithmetic, including values beyond ESS's 16-bit RPM fields. Binary32
+uses the same explicit quantization policy. A profile later checks its wire width;
+zero here is arithmetic and does not issue a stop. Dimensional acceleration and
+millisecond ramp parameters remain separate quantities.
+
+## An offline example
 
 The [compiled offline preview](../examples/units_preview/README.md) supplies
 4096 command increments/motor turn, gearing `3/2`, 20 mm/load turn, independent
@@ -170,3 +204,19 @@ adds synthetic capability facts and I32 profile limits. Synthetic
 it is not installed drive support or a production finite motion implementation.
 Public motion sequence vocabulary and ownership remain in the
 [profile contract](profile_contract.md).
+
+## Intentional differences from MotorControl-RS
+
+| Behavior | RS `src/Axis.cpp` | CAN |
+| --- | --- | --- |
+| Wrapped basis policy | `:502` applies `supportedRelativeBases` to relative requests only | Also applied to wrapped requests; a queued witness rejects under an `ACTUAL`-only policy |
+| Witness outside soft limits | `:508`, pinned by `test/axis_test.cpp:137`, rejects every such move | Inward recovery to an endpoint inside the limits |
+| Native rate | `:609-611` fixes motor rpm | `nativeRateBasis` and `nativeVelocityTime` select the destination, which the result records |
+| Native-frame sources | `:609-611` accepts turns per minute | Same under `MOTOR_TURNS`/`MINUTE`; other configured dimensions follow their own table row |
+| Rate range and zero | `:647-655` limits to signed 16 bits and rejects zero | Wide signed arithmetic; zero is arithmetic and profiles check width and stop semantics |
+| Allowances | Binary64 values | Exact `Rational` values |
+| Unknown supplied witness | `:505` drops it when no limit needs it | Always checked, never ignored |
+| Relative witness | `:510` needs one only with soft limits | Always needed |
+
+The first two are RS behaviors this library does not copy; they are recorded here
+and RS is unchanged.

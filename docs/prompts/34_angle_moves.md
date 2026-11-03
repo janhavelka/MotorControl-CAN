@@ -1,5 +1,7 @@
 # Prompt 34 Wrapped-angle motion integration
 
+A wrapped request now follows the relative-basis policy (packet 9, A-05): the default `supportedRelativeBases = 0` rejects it, so set the policy explicitly.
+
 Apply [COMMON.md](COMMON.md). Prerequisites: [33](33_position_moves.md).
 
 ## Objective and boundaries

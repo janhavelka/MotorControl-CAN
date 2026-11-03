@@ -15,7 +15,7 @@
 namespace MotorControlCAN {
 /** Coordinate interpretation, independent of the endpoint route. */
 enum class CoordinateFrame : uint8_t {
-    NATIVE, ///< Command increments with no host-origin or polarity adjustment.
+    NATIVE, ///< Position: command increments. Rate: the configured destination dimension. No origin or polarity.
     MOTOR, ///< Mechanical motor coordinates relative to the host origin.
     LOAD ///< Mechanical load coordinates with explicit gearing/travel.
 };
@@ -69,11 +69,18 @@ enum class AxisError : int32_t {
     MISSING_REFERENCE, ///< Required native relation/basis is unavailable.
     UNSUPPORTED_BASIS, ///< Selected relative basis is not admitted by policy.
     ARITHMETIC_OVERFLOW, ///< Fixed exact storage or checked addition overflow.
-    LIMIT, ///< Requested or effective endpoint exceeds inclusive limits.
+    LIMIT, ///< Endpoint exceeds inclusive limits, or a witness exceeds native limits.
     AMBIGUOUS, ///< Approximation/rounding cannot resolve a path or target.
     GENERATION_EXHAUSTED, ///< Epoch cannot advance without reuse; fail closed.
     CLOCK_ERROR, ///< Supplied time moved backwards or exceeds the time domain.
     UNIT_ERROR_BASE = 100 ///< Preserve UnitError plus this offset and original Err/msg.
+};
+/** Spatial unit of a native rate, chosen from reviewed evidence for the target
+ * object. The time denominator is AxisConfig::nativeVelocityTime. Position
+ * coordinates remain command increments whichever basis is selected. */
+enum class NativeRateBasis : uint8_t {
+    COMMAND_INCREMENTS, ///< One native rate unit is one command increment per time.
+    MOTOR_TURNS ///< One native rate unit is one motor-shaft turn per time, never a load turn.
 };
 /** Host interpretation only. Default binding is invalid. Native/soft limits are
  * inclusive absolute command coordinates, never relative displacement limits.
@@ -98,7 +105,8 @@ struct AxisConfig {
     int64_t softMaximum = 0; ///< Inclusive software maximum within native limits.
     NativeRepresentation positionRepresentation = NativeRepresentation::INTEGER; ///< Selected pure position format.
     NativeRepresentation velocityRepresentation = NativeRepresentation::INTEGER; ///< Selected pure rate format.
-    TimeUnit nativeVelocityTime = TimeUnit::SECOND; ///< Native rate is command increments per this time unit.
+    TimeUnit nativeVelocityTime = TimeUnit::SECOND; ///< Time denominator of the native rate.
+    NativeRateBasis nativeRateBasis = NativeRateBasis::COMMAND_INCREMENTS; ///< Spatial unit of the native rate; MOTOR_TURNS with MINUTE is rpm.
 };
 /** Caller-qualified position evidence. Times are monotonic microseconds in one
  * application domain, 0..INT64_MAX (no wrapping). nowUs may advance; observedUs
@@ -160,28 +168,36 @@ struct PreparedTarget {
     bool referenceUsed = false; ///< True makes retainedReference an active dependency.
     AxisReference retainedReference; ///< Frozen observed time/basis/position/provenance when used.
 };
-/** Exact signed rate, including zero. Zero is arithmetic, not a stop command. */
+/** Exact signed rate, including zero. Zero is arithmetic, not a stop command.
+ * NATIVE frame means the configured native-rate dimension itself: STEPS under
+ * COMMAND_INCREMENTS, TURNS (motor turns) under MOTOR_TURNS, per
+ * nativeVelocityTime, with no scale or polarity adjustment. MOTOR and LOAD
+ * sources convert to that dimension and follow commandPolarity. */
 struct VelocityRequest {
     Rational value; ///< Exact requested rate; no int16 RPM bound.
     VelocityUnit unit; ///< Input spatial/time dimension.
     CoordinateFrame frame = CoordinateFrame::NATIVE; ///< Native/motor/load rate interpretation.
     Generation configurationGeneration = 0; ///< Required configuration epoch.
     Rounding rounding = Rounding::EXACT; ///< Integer rounding policy.
-    Rational maximumQuantizationError; ///< Nonnegative native-rate allowance including approximation.
+    Rational maximumQuantizationError; ///< Nonnegative allowance in destination rate units, including approximation.
     bool approximate = false; ///< Explicit permission for nonzero radians/time conversion.
-    double maximumApproximationError = 0; ///< Positive native-rate allowance for radians.
+    double maximumApproximationError = 0; ///< Positive allowance in destination rate units for radians.
 };
-/** Pure native rate evidence. Profiles subsequently check their own wire width,
- * configured native scale/unit and operational permission. No position limits. */
+/** Pure native rate evidence, quantized once in the destination named by rateBasis
+ * and rateTime. Before writing a value to a native object, a profile checks that
+ * destination against the unit of the object, then its own wire width and
+ * operational permission. No position limits. */
 struct PreparedVelocityTarget {
     VelocityRequest requested; ///< Original intent.
     Binding binding; ///< Frozen route/configuration provenance.
+    NativeRateBasis rateBasis = NativeRateBasis::COMMAND_INCREMENTS; ///< Destination spatial unit of every rate below.
+    TimeUnit rateTime = TimeUnit::SECOND; ///< Destination time denominator of every rate below.
     NativeQuantity requestedNative; ///< Exact native rate when exactArithmetic.
     NativeRepresentation representation = NativeRepresentation::INTEGER; ///< Active result format.
-    int64_t effectiveNative = 0; ///< Signed wide native command increments/time for INTEGER.
-    float effectiveFloat = 0; ///< Native binary32 rate for BINARY32.
-    IntegerQuantization quantization; ///< Integer exact-error evidence when applicable.
-    double absoluteErrorBound = 0; ///< Upward native-rate quantization/approximation error bound.
+    int64_t effectiveNative = 0; ///< Signed wide destination rate for INTEGER.
+    float effectiveFloat = 0; ///< Destination binary32 rate for BINARY32.
+    IntegerQuantization quantization; ///< Integer exact error in destination rate units, when applicable.
+    double absoluteErrorBound = 0; ///< Upward quantization/approximation bound in destination rate units.
     bool exactArithmetic = true; ///< False for nonzero radians approximation.
     double approximateRequestedNative = 0; ///< Approximate rate when not exactArithmetic.
 };
@@ -216,9 +232,12 @@ Status setAxisOrigin(AxisConfig& config, int64_t originNative, const AxisReferen
 Status invalidateAxisReference(AxisConfig& config, AxisReference& reference,
     ReferenceLoss loss = ReferenceLoss::COORDINATES);
 /** Prepare exact/explicitly approximate position arithmetic atomically. A supplied
- * witness is checked, never silently ignored. Relative requests cannot fall back
- * to another basis. Requested AND effective endpoints must satisfy inclusive
- * native/soft limits; negative displacement is not an absolute lower-limit test.
+ * witness is checked, never silently ignored. Relative and wrapped requests cannot
+ * fall back to another basis and need supportedRelativeBases to admit theirs.
+ * Requested AND effective endpoints must satisfy inclusive native/soft limits;
+ * negative displacement is not an absolute lower-limit test. A witness must be
+ * inside native limits but may be outside soft limits: such a move is admitted
+ * only if its endpoints are inside them, which makes the travel inward.
  * @param[in] request Intent. @param[in] config Interpretation.
  * @param[in] reference Optional witness (required for relative/wrapped/REQUIRED).
  * @param[out] output Prepared evidence, unchanged on failure. @return Local status. */
@@ -233,8 +252,10 @@ Status preparePosition(const PositionRequest& request, const AxisConfig& config,
  * invalidates their configuration epoch too. */
 Status validatePreparedTarget(const PreparedTarget& prepared, const AxisConfig& config,
     const AxisReference* reference, uint64_t nowUs);
-/** Convert and quantize a pure signed rate using configured command increments
- * per nativeVelocityTime. Native frame requires exactly these dimensions.
+/** Convert and quantize a pure signed rate once, into nativeRateBasis units per
+ * nativeVelocityTime. Native frame requires exactly these dimensions. Under
+ * MOTOR_TURNS, STEPS sources need commandStepsPerMotorTurn and no gear; other
+ * sources need only their own scales, not the command scale.
  * @param[in] request Intent. @param[in] config Scale/configuration facts.
  * @param[out] output Rate evidence, unchanged on failure. @return Local status. */
 Status prepareVelocityTarget(const VelocityRequest& request, const AxisConfig& config,

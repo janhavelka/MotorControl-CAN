@@ -25,7 +25,7 @@ enum class PositionUnit : uint8_t {
     STEPS, ///< Native command increments, following commandPolarity.
     FULL_STEPS, ///< Optional motor full steps; never a servo prerequisite.
     ENCODER_COUNTS, ///< Selected feedback counts, following encoder polarity/basis.
-    TURNS, ///< Load turns; no wrapping or origin change.
+    TURNS, ///< Load turns; no wrapping or origin change. Axis MOTOR and motor-turn native-rate frames select motor turns.
     DEGREES, ///< Exactly 360 per load turn.
     RADIANS, ///< Requires explicit approximation when converted to another dimension.
     MILLIMETRES ///< Linear travel using explicit millimetresPerLoadTurn.
