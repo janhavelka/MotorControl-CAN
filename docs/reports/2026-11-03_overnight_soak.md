@@ -89,6 +89,20 @@ At stress1's rate, the 1 s run would have shown about 19 losses, the 10 s run ab
 
 **Mitigation now.** Loss is detected by the line numbers, never silent, and costs at most one summary window's `gapWin`. Runs whose quiet spells are at most about 10 s showed none.
 
+### A/B attempt, 2026-11-03 evening
+
+Run on `e724a39`, on a fresh boot flashed at 16:42Z, unattended under the user's waiver. Both runs used stress1's settings: run A plain from 16:43:53, then run B with `--keepalive-s 1` from 19:44:08, 3 h each ([A](../bench/20261103-soak-ab-plain2/summary.txt), [B](../bench/20261103-soak-ab-keepalive2/summary.txt)).
+
+| Phase | Console | Bursts after about 60 s of quiet | Transfers lost |
+| --- | --- | --- | --- |
+| A, 16:43 to 18:13, drives answering | Idle between summary bursts | 89 | **3**, at 17:51:54, 17:58:54 and 18:12:54, 64 bytes each, in the first lines of a burst |
+| A, 18:13 to 19:44, drives silent | Continuously busy | 0 | 0 |
+| B, 19:44 to 22:44, drives silent, keepalive on | Continuously busy | 0 | 0 |
+
+At 18:13:49 both drives stopped acknowledging; the cause was not observed. After that, the soak firmware printed one bus anomaly per pass, so the link was never idle. That made about 1.5 million lines with no transfer loss. Run B started with both nodes stopped, still unresolved from A, and never had a quiet spell, so **the keepalive's effect was not tested.** At the end of each run, the firmware could not format its final `SOAK_CON` (`OUTPUT_FORMAT_ERROR`). That was a firmware formatting failure, not loss on the link; it and the flood are fixed in `711c632` (see the [unattended report](2026-11-03_unattended_bench.md#after-the-campaign-new-image-error-history-final-state)).
+
+So far: 6 losses in 278 bursts that followed about a minute of quiet (stress1 and A), and none in 4.5 h of continuous output or in 1,379 bursts after quiet spells of at most about 10 s. A fresh bridge session did not prevent loss: A's first loss came 68 minutes after the flash. These results still fit loss following the idle link, but they do not prove it, because the 20 ms read load ran only in the phases that lost data. The next measurement is unchanged and needs the drives answering.
+
 **Effect on the evidence.** The line numbering detected each loss, as designed. Bus, owner and node counters are cumulative, so the next summary restored them; only `gapWin` for those minutes is lost. A lost transition would show as a chain break, and none occurred. No CAN behavior is implicated.
 
 ## Final runs on the new image

@@ -1,0 +1,6 @@
+{"number": 1, "trial": 1793735048, "remaining_s": 10799, "usb": {"port": "COM15", "serial": "94A990398B40", "vid": 12346, "pid": 4098}, "event": "trial_start", "utc": "2026-11-03T19:44:08.599970+00:00"}
+{"trial": 1793735048, "tx_hex": "70", "text": "p", "event": "send", "utc": "2026-11-03T19:44:08.884766+00:00"}
+{"trial": 1793735048, "base": "e724a39a05f26e2eca0d75a451d70bd766090060", "elf": "4edbc0e3cee9681e2c1c808a258b9187ce50f0a90490c88649f90019fe256c49", "active": 1, "running": 1, "soak": 0, "event": "ping", "utc": "2026-11-03T19:44:08.909780+00:00"}
+{"trial": 1793735048, "tx_hex": "53313739333733353034382c31303739392c32302c36302c330a", "text": "S1793735048,10799,20,60,3", "event": "send", "utc": "2026-11-03T19:44:08.911782+00:00"}
+{"trial": 1793735048, "reason": "end:duration", "bytes": 86482223, "event": "trial_end", "utc": "2026-11-03T22:44:18.884813+00:00"}
+{"trial": 1793735048, "verdict": "not_replayed", "errors": 0, "soak": {}, "sha256": "", "event": "verdict", "utc": "2026-11-03T22:44:18.885813+00:00"}

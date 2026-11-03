@@ -1,0 +1,54 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-03T23:13:37.648362+00:00",
+  "trials": [
+    {
+      "trial": 1793747317,
+      "directory": "trial-01",
+      "verdict": "failed-evidence",
+      "errors": [],
+      "error_count": 0,
+      "warning_count": 50,
+      "soak": {
+        "trial": 1793747317,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 3119,
+          "SOAK_ANOM": 1084,
+          "SOAK_NODE_STOP": 1,
+          "SOAK_OP": 1076,
+          "SOAK_T": 111,
+          "SOAK_TEND": 4,
+          "SOAK_SUM": 5,
+          "SOAK_GAP": 5,
+          "SOAK_CON": 5,
+          "SOAK_NODE": 10,
+          "SOAK_HIST": 10,
+          "SOAK_OUT": 10,
+          "SOAK_ABORT": 10,
+          "SOAK_END": 1
+        },
+        "anomalies": {
+          "bus": 6,
+          "status": 2,
+          "terminal": 1076
+        },
+        "nodes_stopped": {
+          "1": "unresolved"
+        },
+        "lost_lines": 0,
+        "signals": 39,
+        "note_counts": {
+          "soak_transition_gap": 3029,
+          "failed_operation": 1076
+        }
+      },
+      "unknown": 0,
+      "malformed": 0,
+      "bytes": 498891,
+      "sha256": "80457fec85c6b1dd674615e61b0ac68a6e302964970fa48beca1c4c593ebfe40"
+    }
+  ]
+}

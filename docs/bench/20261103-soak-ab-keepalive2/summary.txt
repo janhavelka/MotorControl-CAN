@@ -1,0 +1,13 @@
+2026-11-03T22:44:18.782811+00:00 trial=1 SOAK_SUM n=997710 t=21656434636 trial=1793735048 up=10809717047 rx=651036 tx=651037 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=2 cancelled=0 busOff=0 recov=0 twaiErr=117592923 twaiFlags=10 twaiDrop=0
+2026-11-03T22:44:18.793817+00:00 trial=1 SOAK_GAP n=997711 t=21656453619 gapMax=2127 gapWin=2127 ownerGap=5188 qHw=0 actHw=0 retHw=0 trHw=0 trOver=0 netDrop=0 stack=8976 heap=128332 heapMin=123892 tec=128 rec=0
+2026-11-03T22:44:18.813842+00:00 trial=1 SOAK_NODE n=997713 t=21656472655 node=1 ops=0 opsOk=0 opsFail=0 refused=0 steps=0 stepsOk=0 min=0 mean=0 max=0 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T22:44:18.813842+00:00 trial=1 SOAK_HIST n=997714 t=21656485630 node=1 b=0,0,0,0,0,0,0,0
+2026-11-03T22:44:18.824841+00:00 trial=1 SOAK_OUT n=997715 t=21656490617 node=1 sdo=0,0,0,0,0,0,0,0,0,0,0,0 reason=0,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,0
+2026-11-03T22:44:18.835126+00:00 trial=1 SOAK_ABORT n=997716 t=21656500620 node=1 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T22:44:18.855954+00:00 trial=1 SOAK_NODE n=997717 t=21656509636 node=2 ops=0 opsOk=0 opsFail=0 refused=0 steps=0 stepsOk=0 min=0 mean=0 max=0 retireMax=0 earlyReply=0 hb=0 hbGapMax=0 stopped=1
+2026-11-03T22:44:18.855954+00:00 trial=1 SOAK_HIST n=997718 t=21656523635 node=2 b=0,0,0,0,0,0,0,0
+2026-11-03T22:44:18.866461+00:00 trial=1 SOAK_OUT n=997719 t=21656528633 node=2 sdo=0,0,0,0,0,0,0,0,0,0,0,0 reason=0,0,0,0,0,0,0,0 read=0,0,0,0,0,0,0,0,0
+2026-11-03T22:44:18.877294+00:00 trial=1 SOAK_ABORT n=997720 t=21656538623 node=2 a0=00000000:0 a1=00000000:0 a2=00000000:0 a3=00000000:0 other=0
+2026-11-03T22:44:18.877294+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=997649 stopped=[1, 2] gaps=1 malformed=0 unknown=0
+2026-11-03T22:44:18.880809+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=997649 stopped=[1, 2] gaps=1 malformed=0 unknown=0
+2026-11-03T22:44:18.884813+00:00 trial=1 DIGEST ops=0/0 steps=0/0 anomalies=997649 stopped=[1, 2] gaps=1 malformed=0 unknown=0

@@ -38,7 +38,7 @@ Packet 3's seven:
 | Question | Status |
 | --- | --- |
 | 1. Failed TX and `on_error` under TPDO load | **Not answered.** The soak gives a no-load baseline only: `twaiErrors`, flags, TEC and REC |
-| 2. No-ACK retry loop | Only if one happens. Not injected |
+| 2. No-ACK retry loop | **Answered by a natural one, 2026-11-03**, not injected: after both drives stopped acknowledging, one frame retried for 4.9 h at about 7,250 `ack_err` per second. TEC stayed at 128 and REC at 0, with no bus-off, and service gaps stayed under 4.7 ms. One specimen pair and one firmware ([SDK guide](../../adapters/twai_sdk.md#retransmission-consequences-dec-4)) |
 | 3. Lost TX command against a pending frame | Visible if it occurs: a submission with no report and no error delta |
 | 4. `twai_node_disable` stopping a retrying frame | **Not answered.** Needs a listen-only observer |
 | 5. `is_tx_success` on a bus-off TX-done | Only on a natural bus-off |

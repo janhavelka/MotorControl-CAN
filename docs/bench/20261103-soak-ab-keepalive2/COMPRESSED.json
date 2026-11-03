@@ -1,0 +1,31 @@
+{
+  "why": "Each original is larger than a Git host accepts for one file (a bus fault flooded the console, see docs/reports/2026-11-03_unattended_bench.md). It is stored losslessly as xz; decompressing reproduces the original bytes, whose SHA-256 is recorded here.",
+  "method": "Python lzma, FORMAT_XZ, CHECK_SHA256, preset 6; round trip verified before the original was removed",
+  "restore": "xz -dk <stored_as>, or Python lzma.decompress",
+  "files": [
+    {
+      "file": "transitions.txt",
+      "bytes": 127387959,
+      "sha256": "59125f15a25ccd2d79604d5d3eb3a2a4a34752b71169eb788241281c25f3ff9c",
+      "stored_as": "transitions.txt.xz",
+      "stored_bytes": 9804088,
+      "stored_sha256": "ce5bb233e1a15a5bf26420ccf7488c990fcf804451c951834538ab496304a99b"
+    },
+    {
+      "file": "trial-01/rx.bin",
+      "bytes": 86482223,
+      "sha256": "8a3a96ba4bbefbe698cc25db0a81dcdf312117711d78c9e3d33e1699d2c9c41f",
+      "stored_as": "trial-01/rx.bin.xz",
+      "stored_bytes": 8294832,
+      "stored_sha256": "dfc91e7efd2fc8af0bb120cc5f59924a869515f71bcdf9c2f2f89d12a69e4bf5"
+    },
+    {
+      "file": "trial-01/rx.times.csv",
+      "bytes": 120345706,
+      "sha256": "1d36c76530cc415c47e46e2e98172c14884d98531f71fd3a292518f917254ec0",
+      "stored_as": "trial-01/rx.times.csv.xz",
+      "stored_bytes": 8455268,
+      "stored_sha256": "f1422a93330bd7aae90eb9444eedb319c337785633a4bc6366ec18c17dbfa826"
+    }
+  ]
+}

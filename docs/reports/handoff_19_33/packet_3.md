@@ -45,7 +45,7 @@ A separate reviewer recomputed the hashes against `docs/adapters/twai_sources.js
 These are the exact physical questions this packet cannot answer:
 
 1. Failed TX and `on_error` counts under TPDO load; how often arbitration loss occurs.
-2. A no-ACK retry loop: `ack_err` per attempt, interrupt load on the single S2 core and service gaps, and whether it reaches bus-off.
+2. A no-ACK retry loop: `ack_err` per attempt, interrupt load on the single S2 core and service gaps, and whether it reaches bus-off. *Measured 2026-11-03:* `ack_err` only, about 7,250 per second, service gaps under 4.7 ms, and no bus-off, with TEC held at 128 ([packet 11](packet_11.md#physical-questions)).
 3. A lost TX command (`LL:277-279`) separated from a pending frame by the absence of `ack_err`.
 4. Whether `twai_node_disable` stops a retrying frame on the wire, which needs an independent listen-only observer, and the TX pin's level after deletion.
 5. What `is_tx_success` reads on a bus-off TX-done.
