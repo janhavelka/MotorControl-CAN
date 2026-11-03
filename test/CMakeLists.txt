@@ -405,8 +405,8 @@ add_test(NAME s2_soak_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOUR
 set_tests_properties(s2_soak_transcript PROPERTIES DEPENDS soak_transcript)
 add_test(NAME s2_bench_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_bench_test.py")
 # Every trial record the firmware's BenchRoute prints, read by the same parser as bench captures.
-add_test(NAME s2_trial_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_bench_test.py"
-         --transcript "${CMAKE_CURRENT_BINARY_DIR}/bench_route_transcript.bin")
+add_test(NAME s2_trial_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_trial_transcript.py"
+         "${CMAKE_CURRENT_BINARY_DIR}/bench_route_transcript.bin")
 set_tests_properties(s2_trial_transcript PROPERTIES DEPENDS bench_route_transcript)
 set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract frame sdo_codec sdo_adapter objects PROPERTIES TIMEOUT 10)
 set_tests_properties(package_contract PROPERTIES TIMEOUT 180)
