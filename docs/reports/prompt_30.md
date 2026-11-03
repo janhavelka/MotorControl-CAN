@@ -2,6 +2,8 @@
 
 **Reopened by audit W8.** [Packet 10](handoff_19_33/packet_10.md) added `interpretStatusword`, which `getStateInterpretation` now calls, with the reviewed `2100` masks beside it.
 
+**Resumed by packet 15, 2026-11-03.** [Packet 15](handoff_19_33/packet_15.md) added `prepareEnable`, `AxisSession::requestEnable` and `noteActionWithdrawal`. The enable gate is closed by default: only an attended trial opens it. **No specimen has run it.** `prepareRelease` stays absent, because no source establishes a release command. An `enable` bench route was added later in `01190cf`; it has not run. Prompt 30 stays Partial. Gates: local full verifier and firmware gates; CI passed at `3b0ce14`. Statements below that the enable lifecycle is pending describe the earlier contract.
+
 The [fresh independent 29/30 audit](prompts_29_30_audit.md) rechecks the original
 assignment, implementation and source gates, adding direct overlap and real
 boot-up publication regressions without changing action support.

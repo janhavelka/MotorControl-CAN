@@ -25,11 +25,39 @@ bool isModeOneWrite(const C::SdoTransfer& t) {
     return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6060 && !t.subindex &&
            t.size == 1 && t.data[0] == 1;
 }
+bool sameRequest(RequestId a, RequestId b) {
+    return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
+}
+bool sameSequence(SequenceId a, SequenceId b) {
+    return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
+}
 } // namespace
+
+// The owner refuses a time before its own last one, so a session call at such a time would fail part
+// way through, after this session had already changed.
+uint64_t AxisSession::latestUs() const noexcept {
+    const uint64_t owner = owner_.lastTimeUs();
+    return owner > lastUs_ ? owner : lastUs_;
+}
+void AxisSession::dropControl() noexcept {
+    controlPresent_ = false;
+    suspended_ = RequestId();
+}
+// A download that closed with no frame able to have left changed nothing on the drive, so the word
+// it withdrew is the latest again, unless a stop has taken over since.
+void AxisSession::keepUnsentControl(const C::SdoCompletion& terminal) noexcept {
+    if (!suspended_.owner || !sameRequest(suspended_, pending_))
+        return;
+    suspended_ = RequestId();
+    if (!terminal.transmissionPossible && !stopActive()) {
+        controlPresent_ = true;
+        withdrawIfStale();
+    }
+}
 
 bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint8_t producer,
                        uint64_t now) noexcept {
-    if (open_ || now < lastUs_ || !target.nodeGeneration ||
+    if (open_ || now < latestUs() || !target.nodeGeneration ||
         !C::validateSdoChannel(target.channel))
         return false;
     M::Generation node = 0;
@@ -60,7 +88,8 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     serverSessions_ = sessions;
     controllerEpoch_ = owner_.controllerEpoch();
     pending_ = urgent_ = superseded_ = RequestId();
-    controlPresent_ = recoveryUsed_ = false;
+    dropControl();
+    recoveryUsed_ = false;
     L::resetAction(stops_[0]);
     L::resetAction(stops_[1]);
     L::resetAction(enable_);
@@ -72,6 +101,9 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     moveRead_ = 0;
     moveComplete_ = 1;
     moveWithdrawn_ = M::MoveInterruption::NONE;
+    moveRefusal_ = M::Status();
+    moveAxis_ = nullptr;
+    moveReference_ = nullptr;
     bestEffort_ = firstBestEffort_ = L::BestEffortStop();
     path_ = StopPath::NONE;
     ownsReservation_ = taken;
@@ -82,7 +114,8 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
 bool AxisSession::close() noexcept {
     if (!open_ || busy() || (ownsReservation_ && !owner_.releaseSequence(sequence_)))
         return false;
-    open_ = controlPresent_ = false;
+    open_ = false;
+    dropControl();
     path_ = StopPath::NONE;
     return true;
 }
@@ -92,11 +125,12 @@ bool AxisSession::usable() const noexcept {
            M::sameBinding(s->binding, target_.channel.binding);
 }
 void AxisSession::withdrawIfStale() noexcept {
-    if (controlPresent_ && (!usable() || owner_.controllerEpoch() != controllerEpoch_))
-        controlPresent_ = false;
+    if ((controlPresent_ || suspended_.owner) &&
+        (!usable() || owner_.controllerEpoch() != controllerEpoch_))
+        dropControl();
 }
 uint32_t AxisSession::beginOperation(uint64_t deadline, uint64_t now) noexcept {
-    if (now < lastUs_ || !usable() || busy())
+    if (now < latestUs() || !usable() || busy())
         return 0;
     const uint32_t current = owner_.sequence(sequence_)->operation;
     const uint32_t next = current > operation_ ? current : operation_;
@@ -107,7 +141,7 @@ uint32_t AxisSession::beginOperation(uint64_t deadline, uint64_t now) noexcept {
     return operation_;
 }
 BusAdmission AxisSession::admitPrepared(const C::SdoTransfer& transfer, uint64_t now) noexcept {
-    if (now < lastUs_ || !open_ || busy())
+    if (now < latestUs() || !open_ || busy())
         return BusAdmission::INVALID;
     return admitWork(transfer, now);
 }
@@ -121,7 +155,10 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
         pending_ = id;
         lastUs_ = now;
         if (transfer.direction == C::SdoDirection::DOWNLOAD) {
-            controlPresent_ = false;
+            const bool present = controlPresent_;
+            dropControl();
+            if (present)
+                suspended_ = id; // Its terminal decides whether control_ is the latest again.
             motionWritten_ |= !isModeOneWrite(transfer);
         }
     }
@@ -137,6 +174,7 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     const C::SdoCompletion copy = terminal->service;
     if (!owner_.release(pending_))
         return false;
+    keepUnsentControl(copy);
     pending_ = RequestId();
     const Sequence* s = owner_.sequence(sequence_);
     // A write settling after a stop was admitted is older intent, not the latest word.
@@ -144,6 +182,7 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
         s->operation == copy.transfer.operation && !stopActive()) {
         control_ = copy;
         controlPresent_ = true;
+        suspended_ = RequestId();
         controllerEpoch_ = owner_.controllerEpoch();
     }
     // A 6060=1 that may have reached the drive unacknowledged leaves its effect unknown.
@@ -156,7 +195,10 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
                                      const L::ActionOptions& options, uint64_t deadline,
                                      uint64_t now) noexcept {
     const int32_t stateError = static_cast<int32_t>(M::ActionError::STATE);
-    if (now < lastUs_ || !open_ || !usable())
+    if (now < latestUs())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TIME),
+                         "time is behind this session's or the owner's last time");
+    if (!open_ || !usable())
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TARGET),
                          "no usable reservation for an enable");
     if (busy())
@@ -195,7 +237,7 @@ uint32_t AxisSession::nextOperation() const noexcept {
     return last == UINT32_MAX ? 0 : last + 1;
 }
 bool AxisSession::cancelEnable(uint64_t now, M::ActionOutcome reason) noexcept {
-    if (now < lastUs_ || !enableActive() ||
+    if (now < latestUs() || !enableActive() ||
         (reason != M::ActionOutcome::CANCELLED && reason != M::ActionOutcome::DRIVE_FAULT))
         return false;
     lastUs_ = now;
@@ -255,8 +297,8 @@ void AxisSession::serviceEnable(uint64_t now) noexcept {
         L::advanceAction(enable_, reservation_, frozen, M::ActionOutcome::INVALIDATED, now);
         return;
     }
-    // As for a stop: no adapter gives a pre-transmit hook, nothing leaves before the next owner
-    // turn, and the terminal refines this notice.
+    // As for a stop: nothing leaves before the next owner turn, so the notice is made here, and the
+    // terminal refines it.
     if (enable_.phase == L::ActionPhase::COMMAND)
         L::noteActionTransmission(enable_, reservation_, frozen, now);
 }
@@ -266,8 +308,35 @@ M::Status AxisSession::requestMove(const L::ReadContext& state, const L::Identit
                                    const M::AxisConfig& axis, const M::AxisReference* reference,
                                    const L::MoveOptions& options, uint64_t deadline,
                                    uint64_t now) noexcept {
+    return startMove(false, state, identity, evidence, request, profile, stored, axis, reference,
+                     options, deadline, now);
+}
+M::Status AxisSession::requestMoveRelative(const L::ReadContext& state,
+                                           const L::IdentityObservation& identity,
+                                           const L::MoveEvidence& evidence,
+                                           const M::MoveRequest& request,
+                                           const L::MoveProfile& profile,
+                                           const L::DriverContext* stored, const M::AxisConfig& axis,
+                                           const M::AxisReference& reference,
+                                           const L::MoveOptions& options, uint64_t deadline,
+                                           uint64_t now) noexcept {
+    return startMove(true, state, identity, evidence, request, profile, stored, axis, &reference,
+                     options, deadline, now);
+}
+// One request path for both moves; only the library call differs, and a relative witness is never
+// null here.
+M::Status AxisSession::startMove(bool relative, const L::ReadContext& state,
+                                 const L::IdentityObservation& identity,
+                                 const L::MoveEvidence& evidence, const M::MoveRequest& request,
+                                 const L::MoveProfile& profile, const L::DriverContext* stored,
+                                 const M::AxisConfig& axis, const M::AxisReference* reference,
+                                 const L::MoveOptions& options, uint64_t deadline,
+                                 uint64_t now) noexcept {
     const int32_t stateError = static_cast<int32_t>(M::MoveError::STATE);
-    if (now < lastUs_ || !open_ || !usable())
+    if (now < latestUs())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::TIME),
+                         "time is behind this session's or the owner's last time");
+    if (!open_ || !usable())
         return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::TARGET),
                          "no usable reservation for a move");
     if (busy())
@@ -291,26 +360,39 @@ M::Status AxisSession::requestMove(const L::ReadContext& state, const L::Identit
         return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
     // Check everything before the owner moves; the context is written only once that succeeded.
     const M::Status checked =
-        L::validateMoveAbsolute(move_, reservation_, target_, state, control_, identity, evidence,
-                                request, profile, stored, axis, reference, next, now, deadline, options);
+        relative ? L::validateMoveRelative(move_, reservation_, target_, state, control_, identity,
+                                           evidence, request, profile, stored, axis, *reference, next,
+                                           now, deadline, options)
+                 : L::validateMoveAbsolute(move_, reservation_, target_, state, control_, identity,
+                                           evidence, request, profile, stored, axis, reference, next,
+                                           now, deadline, options);
     if (!checked)
         return checked;
     if (!owner_.beginOperation(sequence_, next, deadline, now))
         return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
     // Same values as the check above, and only the owner moved, so this cannot refuse.
-    L::prepareMoveAbsolute(move_, reservation_, target_, state, control_, identity, evidence, request,
-                           profile, stored, axis, reference, next, now, deadline, options);
+    if (relative)
+        L::prepareMoveRelative(move_, reservation_, target_, state, control_, identity, evidence,
+                               request, profile, stored, axis, *reference, next, now, deadline,
+                               options);
+    else
+        L::prepareMoveAbsolute(move_, reservation_, target_, state, control_, identity, evidence,
+                               request, profile, stored, axis, reference, next, now, deadline,
+                               options);
     L::resetRead(moveReads_[0]);
     L::resetRead(moveReads_[1]);
     moveRead_ = 0;
     moveComplete_ = 1;
     moveWithdrawn_ = M::MoveInterruption::NONE;
+    moveRefusal_ = M::Status();
+    moveAxis_ = &axis;
+    moveReference_ = reference;
     operation_ = next;
     lastUs_ = now;
     return M::Ok();
 }
 bool AxisSession::cancelMove(uint64_t now, M::MoveInterruption reason) noexcept {
-    if (now < lastUs_ || !moveActive() ||
+    if (now < latestUs() || !moveActive() ||
         (reason != M::MoveInterruption::CANCELLED && reason != M::MoveInterruption::DRIVE_FAULT))
         return false;
     lastUs_ = now;
@@ -335,6 +417,8 @@ void AxisSession::afterMove() noexcept {
     if (move_.execution != M::ActionExecution::NOT_TRANSMITTED &&
         move_.completion != M::ActionCompletion::OBSERVED)
         moveFenced_ = true;
+    moveAxis_ = nullptr; // The borrow ends with the move.
+    moveReference_ = nullptr;
 }
 // Nothing in flight: end it now. The move withdraws its admitted cycle, which no owner turn has
 // carried yet, and keeps every earlier terminal.
@@ -346,11 +430,22 @@ void AxisSession::endMove(M::MoveInterruption reason, uint64_t now) noexcept {
     afterMove();
 }
 // As for an enable: the first reason wins, and a request in flight keeps the slot and settles into
-// this context as evidence, so that it cannot complete the move.
+// this context as evidence, so that it cannot complete the move. Unlike an enable, work the owner has
+// not yet handed to the controller is cancelled here: a queued parameter or trigger must not leave
+// after the caller withdrew the move, even when the stop that withdrew it is then refused. Only its
+// terminal says what happened. One that shows no frame could have left also leaves the controlword
+// before it as the latest. Without a terminal, as after a cancel the owner refused, nothing is assumed:
+// the work settles into the context later with its own evidence, and preflight() refuses it should it
+// come up for transmission. Work that may have left is never cancelled, because that could quarantine
+// the route.
 void AxisSession::withdrawMove(M::MoveInterruption reason, uint64_t now) noexcept {
     if (!moveActive() || moveWithdrawn_ != M::MoveInterruption::NONE)
         return;
     moveWithdrawn_ = reason;
+    if (pending_.owner && !owner_.result(pending_) && !owner_.mayHaveTransmitted(pending_))
+        owner_.cancel(pending_, now);
+    if (const Completion* closed = pending_.owner ? owner_.result(pending_) : nullptr)
+        keepUnsentControl(closed->service);
     if (!pending_.owner)
         endMove(reason, now);
     else if (!L::noteMoveWithdrawal(move_, reservation_, reservation_.target, reason, now).isOk())
@@ -364,9 +459,25 @@ void AxisSession::serviceMove(uint64_t now) noexcept {
     // below, so that a terminal is consumed with its evidence even after its route has gone.
     const L::ReadTarget& frozen = reservation_.target;
     if (pending_.owner) {
+        const Completion* closed = owner_.result(pending_);
+        const bool guarded = closed && closed->reason == CompletionReason::PREFLIGHT_REJECTED;
         C::SdoCompletion evidence;
         if (!takeTerminal(evidence))
             return;
+        // This session cancels move work only after recording a withdrawal, and preflight() refuses a
+        // live move's download only with a reason. So a closure without a withdrawal is the owner
+        // closing a withdrawn reservation's work, or a transmit guard: preflight's recheck or the
+        // application's own. Record that actual reason first: the terminal is then kept as evidence,
+        // and the move does not report a cancel it never made. A lost reply that quarantines the route
+        // keeps its own outcome.
+        if ((guarded || evidence.outcome == C::SdoOutcome::CANCELLED) &&
+            moveWithdrawn_ == M::MoveInterruption::NONE) {
+            if (guarded && moveRefusal_.isOk())
+                moveRefusal_ = M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::STATE),
+                                         "the application's transmit guard withdrew the move's download");
+            moveWithdrawn_ = M::MoveInterruption::INVALIDATED;
+            L::noteMoveWithdrawal(move_, reservation_, frozen, M::MoveInterruption::INVALIDATED, now);
+        }
         L::ReadContext& read = moveReads_[moveRead_];
         if (!L::advanceMove(move_, read, reservation_, frozen, evidence, now).isOk())
             L::advanceMove(move_, read, reservation_, frozen,
@@ -414,13 +525,53 @@ void AxisSession::serviceMove(uint64_t now) noexcept {
     }
     if (work.transfer.direction != C::SdoDirection::DOWNLOAD)
         return;
-    // As for a stop: no adapter gives a pre-transmit hook, and nothing leaves before the next owner
-    // turn. So the notice, and the retirement of every retained setting it performs, happen here. If
-    // that refuses, the download is cancelled before any turn could carry it.
-    if (!L::noteMoveTransmission(move_, reservation_, frozen, retained_, retainedCount_, now).isOk()) {
-        owner_.cancel(pending_, now);
+    // Nothing leaves before the next owner turn, which may hand the frame over. So the notice, and the
+    // retirement of every retained setting it performs, happen here. The notice is also the move's
+    // actual admission: it rechecks the borrowed axis and witness, so a later configureAxis, origin
+    // change, reference invalidation or aged witness stops this write. preflight() reruns that recheck
+    // at the handover when the application wires it. If the notice refuses, withdrawing the move
+    // cancels the download before any turn could carry it.
+    const M::Status noted = L::noteMoveTransmission(move_, reservation_, frozen, *moveAxis_, moveReference_,
+                                                    retained_, retainedCount_, now);
+    if (!noted.isOk()) {
+        moveRefusal_ = noted;
         withdrawMove(M::MoveInterruption::INVALIDATED, now);
     }
+}
+// noteMoveTransmission's recheck of a parameter or trigger download, without its notice or
+// retirements, so that it can run again at the handover. Keep the two in step.
+M::Status AxisSession::recheckMove(uint64_t now) const noexcept {
+    const M::PreparedTarget& target = move_.parameters.target;
+    M::Status s = M::validatePreparedTarget(target, *moveAxis_, moveReference_, now);
+    if (!s) {
+        s.detail += static_cast<int32_t>(L::PositionParameterError::AXIS_ERROR_BASE) +
+                    static_cast<int32_t>(M::MoveError::PARAMETER_ERROR_BASE);
+        return s;
+    }
+    // validatePreparedTarget has refused a used witness that is missing.
+    if (target.referenceUsed && (!moveReference_->idle || !moveReference_->stationary))
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::REFERENCE),
+                         "the move's witness is no longer idle and stationary");
+    if (now - move_.admission.earliestUs > move_.options.maximumAgeUs)
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::STATE),
+                         "the admission state read is older than its age cap");
+    return M::Ok();
+}
+// Inside the owner's turn: reads this session and its borrowed inputs, and makes no owner call.
+bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now) noexcept {
+    if (!moveActive() || !sameSequence(sequence, sequence_) ||
+        transfer.direction != C::SdoDirection::DOWNLOAD || transfer.operation != move_.operation)
+        return true;
+    if (moveWithdrawn_ != M::MoveInterruption::NONE)
+        return false; // Withdrawn while it waited, and its cancel did not win.
+    if (move_.phase == L::MovePhase::REARM)
+        return true; // As at its notice: the rearm follows an observed completion.
+    // A session time ahead of the owner's can only have aged the inputs further.
+    const M::Status checked = recheckMove(now < lastUs_ ? lastUs_ : now);
+    if (checked.isOk())
+        return true;
+    moveRefusal_ = checked;
+    return false;
 }
 // Fresh MONITORS reporting the controller not running. Absent or stale state is not this report.
 bool AxisSession::freshlyIdle(const L::ReadContext& state, const StopPolicy& policy,
@@ -445,16 +596,21 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
 }
 StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                   const StopPolicy& requested, uint64_t now) noexcept {
-    // Even a stop refused below ends the enable. Asking for a stop means no further word, so a time
-    // that moved backward still ends it, at the last valid time.
-    if (open_) {
-        withdrawEnable(M::ActionOutcome::CANCELLED, now < lastUs_ ? lastUs_ : now);
-        withdrawMove(M::MoveInterruption::STOP, now < lastUs_ ? lastUs_ : now);
+    // Even a stop refused below ends the enable and the move. Asking for a stop means no further word,
+    // so a time that moved backward still ends them, at the last valid time: the later of this
+    // session's and the owner's, at which the owner can still cancel a queued download.
+    const uint64_t latest = latestUs();
+    const uint64_t at = now < latest ? latest : now;
+    if (open_ && ((enableActive() && enableWithdrawn_ == M::ActionOutcome::NONE) ||
+                  (moveActive() && moveWithdrawn_ == M::MoveInterruption::NONE))) {
+        withdrawEnable(M::ActionOutcome::CANCELLED, at);
+        withdrawMove(M::MoveInterruption::STOP, at);
+        lastUs_ = at;
     }
     // This width concerns identity reads. A stop reads none, so it cannot refuse a stop.
     StopPolicy policy = requested;
     policy.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
-    if (!open_ || kind > L::StopKind::QUICK_STOP || now < lastUs_ || policy.deadlineUs <= now ||
+    if (!open_ || kind > L::StopKind::QUICK_STOP || now < latest || policy.deadlineUs <= now ||
         (policy.bestEffortDeadlineUs && policy.bestEffortDeadlineUs < policy.deadlineUs) ||
         !L::stopOptionsValid(policy.options))
         return StopPath::NONE;
@@ -520,6 +676,7 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     }
     policy_ = policy;
     operation_ = next;
+    suspended_ = RequestId(); // From here the stop decides the latest word.
     motionWritten_ = true; // Whichever path this takes, a stop frame may reach the drive.
     recoveryUsed_ = false;
     const uint32_t epoch = owner_.controllerEpoch();
@@ -537,7 +694,7 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     return path_;
 }
 void AxisSession::service(uint64_t now) noexcept {
-    if (!open_ || now < lastUs_)
+    if (!open_ || now < latestUs())
         return;
     lastUs_ = now;
     withdrawIfStale();
@@ -634,9 +791,9 @@ void AxisSession::serviceConfirmed(uint64_t now) noexcept {
     }
     urgent_ = id;
     if (a.phase == L::ActionPhase::COMMAND) {
-        // No adapter provides a pre-transmit hook yet, so note the boundary here. Nothing
-        // can leave before the next owner turn, and the terminal refines this notice.
-        controlPresent_ = false;
+        // Nothing can leave before the next owner turn, so the boundary is noted here, and the
+        // terminal refines this notice.
+        dropControl();
         L::noteActionTransmission(a, reservation_, frozen, now);
     }
 }
@@ -713,7 +870,7 @@ void AxisSession::serviceHeld(uint64_t now) noexcept {
     const BusAdmission admission = owner_.admitBestEffortStop(work.transfer, now, id);
     if (admission == BusAdmission::ACCEPTED) {
         urgent_ = id;
-        controlPresent_ = false;
+        dropControl();
         L::noteBestEffortAdmission(bestEffort_, now);
         path_ = StopPath::BEST_EFFORT;
     } else if (admission != BusAdmission::INHIBITED && admission != BusAdmission::RESULTS_FULL) {

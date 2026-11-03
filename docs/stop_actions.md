@@ -12,13 +12,14 @@ The manuals give whole-word stop arrows only from word 15. ZH86 PDF p12 places b
 arrows in the position-mode procedure. EN86 p12 has the quick-stop arrow and omits
 halt. OP86 p10 agrees with ZH86, with the retained 57C/86C internal-heading
 applicability conflict. No manual defines bit 2 or bit 8, or says what a falling bit
-4 does in mode 1. EDS `[6040]` establishes a U16 write-only object, so a controlword
-read-modify-write is not required.
+4 does in mode 1. EDS `[6040]` gives a U16 write-only object while every manual page prints it RW
+(conflict C08), so this library never reads it back and needs no read-modify-write.
 
 So every row below the first is a **project decision, not vendor evidence** (DEC-8):
 a running move with no stop is worse, and clearing bit 4 while stopping cannot be the
 wrong direction. `ActionContext::predecessorDocumented` is false for those rows, and
-`predecessorWord` records the word. They stay unmeasured until packet 16.
+`predecessorWord` records the word. They stay unmeasured: packet 16's physical trials have
+not run ([packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
@@ -28,6 +29,13 @@ wrong direction. `ActionContext::predecessorDocumented` is false for those rows,
 | `010F` | `000B` only | False | DEC-8, escalation of a running normal stop |
 | `000B`, `010F` for `HALT`, any other word | Rejected, output unchanged | - | No rearm, enabling preamble or inferred idempotence |
 | Unknown or withdrawn word, or stale state | `000B` on the best-effort path below only | - | DEC-2 |
+| None yet, after `6060=1` only: fresh mode 1, low bits 7, alarm and released clear | `000B` on the best-effort path only | - | DEC-2. The specimens' observed power-up state once in mode 1 |
+
+**The last row is the one to avoid.** The specimens read low bits 7 and released clear at
+power-up, before any enable from this library (packet 11). After packet 15 P2 sets mode 1, a
+stop requested before P3's acknowledged `000F` therefore sends `000B` to a drive this library
+never enabled, and what `000B` does in that state is the unmeasured question of packet 16.
+Rely on the independent cutoff there, not on a CAN stop.
 
 The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS reporting mode
 1 and low bits 7, and fresh MONITORS reporting alarm and released clear. Fresh reports of an
@@ -48,11 +56,15 @@ download through that path, because that write may reach the drive before any re
 says so. That covers `6040`, target, mode, RPDO and configuration writes alike. It also
 withdraws on a reset, rebind, recovery, bus-off, boot, route quarantine or a stop's own
 admission. Reopening the session does not restore it, and a write settling after a stop
-was admitted is older intent and does not restore it. A copied evidence struct is not a
+was admitted is older intent and does not restore it. A download whose terminal shows that
+no frame of it could have left, because it was cancelled, expired or refused by the transmit
+guard before the owner handed it over, changed nothing on the drive: the word before it is the
+latest again, unless a stop was requested meanwhile. A copied evidence struct is not a
 new observation. A stop never writes `000F` or the `6,7,15` enable sequence. The separately gated
 [enable](drive_actions.md) does, through this same path, so its acknowledged `000F` is such a word. A
-stop request ends an active enable first, even when the stop itself is refused, and even with a
-time that moved backward. `AxisSession` refuses after a known word with no arrow, such as enable
+stop request ends an active enable or move first, even when the stop itself is refused, and even
+with a time behind the session's or the owner's last time. It ends them at the later of those
+times, at which the owner can still cancel a queued move download. `AxisSession` refuses after a known word with no arrow, such as enable
 word 6 or 7, only on a fresh report that the drive is not running. A fresh running report, or no
 fresh report, takes the best-effort `000B`, exactly as when that word is still in flight. This
 changes the earlier rule, under which any such word refused the request.
@@ -133,8 +145,9 @@ has no such check, so this differs on purpose.
 
 Keep the last complete state read for `requestStop`: a read still in progress counts as
 missing, and the request then takes the best-effort path. `ProbeApp` holds only its one
-current read, so a caller polling through it must copy the last complete one. Packet 7 does
-not add that storage, because prompt 33's move context owns its own polling.
+current read, so a caller polling through it must copy the last complete one. During or after
+a move, `AxisSession::moveObservation()` (packet 20) is that copy: the last complete cycle,
+never the one in progress.
 
 ## Best-effort stop
 
@@ -146,7 +159,8 @@ reservation. It uses `CanBusOwner::admitBestEffortStop`, and `000B` is never rep
 **An independent physical stop stays mandatory.** Nothing here is a safety function, and a best-effort stop may not reach or affect the drive.
 
 **It is not a confirmed stop and it never reaches `SUCCEEDED`.** No claim is made that
-`000B` stops or does not enable this drive: packet 16 owns that measurement.
+`000B` stops or does not enable this drive: packet 16 owns that measurement, which has not
+run ([packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Owner terminal | `outcome` | `execution` |
 | --- | --- | --- |

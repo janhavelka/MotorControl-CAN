@@ -170,7 +170,8 @@ that route to ordinary service eligibility.
 Read-effect policy has three members. `REVIEWED_NON_CHANGING` needs an actual
 source review; no Lichuan row uses it today. `ACCEPTED_UNQUALIFIED` is the
 repository owner's risk acceptance of 2026-11-02 (DEC-1) for a fixed object
-list, with the fixture not yet run. It is not evidence that a read has no
+list. Packet 11 ran those reads live on two specimens with no read-effect
+observation. It is not evidence that a read has no
 effect: `effectPossible` stays true and the ledger `read_effect` stays
 `not_established`. A first accepted upload can confirm an unconfirmed channel;
 it cannot establish freshness. Everything else is `UNQUALIFIED` (Q20). The
@@ -514,8 +515,15 @@ qualification require the whole interval strictly after the relevant boundary.
 Contradictory overlapping NMT observations withdraw state qualification until a
 provably later observation arrives. See the [TWAI receive-time proof](adapters/twai_receive_time.md).
 SDO deadlines and correlation remain independent; a wholly pre-handoff interval
-quarantines stale traffic. Bounds never promote SDO/PDO observations to exact
-capture or qualify reused PDO routes.
+quarantines stale traffic. A checked reply records SDO service evidence from its
+interval under the exact-capture rule, with the lower bound as its receive time:
+it must start strictly after the request's handoff and after the node boundary
+(strictly after an invalidation), it orders and ages by that bound, and it is
+current only when that bound follows a possible NMT transition. An interval
+reaching back to its handoff or straddling a boundary still settles the request
+but records nothing ([the rule and its evidence](adapters/twai_receive_time.md#sdo-service-qualification)).
+Bounds never promote SDO/PDO observations to exact capture or qualify reused PDO
+routes.
 
 `invalidateProducerInterval` explicitly withdraws effective heartbeat producer
 timing before a requested change can transmit. It preserves raw old timing,
@@ -704,7 +712,11 @@ An experimental upload updates the separate raw SDO observation only and leaves
 The same rule applies to experimental downloads; their success cannot qualify
 later ordinary services.
 An older or unknown-capture response may update separate raw SDO history but
-cannot replace a newer known service proof. Configuring an externally confirmed
+cannot replace a newer known service proof. Receive intervals are ordered by their
+lower bound, so an interval's upper bound never makes it newer. Since 2026-11-03 a
+qualifying interval counts as known service proof; before, only exact capture or
+an external confirmation did, and S2 ordinary work waited for a heartbeat.
+Configuring an externally confirmed
 SDO route uses the owner's last supplied processing time as a conservative
 confirmation bound; attaching passive routing later cannot renew that bound.
 

@@ -317,6 +317,9 @@ struct SettingsWriteRig {
             CHECK(L::prepareDriverSettings(c, live, live.target, prior, state, control, candidate, 41, STEP_AT,
                                            CUTOFF, o, 100000));
         } else if (variant == 1) {
+            L::ReadContext state;
+            CHECK(L::prepareState(state, target(), 2, now, CUTOFF, options(), PREREQUISITE));
+            finishRead(state, now, {{0x2100, 0}, {0x6041, 7}, {0x6061, 1}});
             CHECK(L::prepareDriverRead(prior, target(), 3, now, CUTOFF, options(),
                                        L::DriverGroup::IO_INPUT_CONFIGURATION));
             finishRead(prior.read, now, {});
@@ -324,7 +327,8 @@ struct SettingsWriteRig {
             candidate.invertedInputs = 0x55;
             for (L::InputFunction& function : candidate.functions)
                 function = L::InputFunction::STOP;
-            CHECK(L::prepareIoSettings(c, live, live.target, prior, candidate, 41, STEP_AT, CUTOFF, o, 100000));
+            CHECK(L::prepareIoSettings(c, live, live.target, prior, state, candidate, 41, STEP_AT, CUTOFF, o,
+                                       100000));
         } else {
             L::ReadContext state;
             CHECK(L::prepareState(state, target(), 2, now, CUTOFF, options(), PREREQUISITE));

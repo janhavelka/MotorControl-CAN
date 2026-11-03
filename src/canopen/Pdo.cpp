@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "SdoEvidence.h"
-#include <MotorControlCAN/canopen/PdoState.h>
+#include <MotorControlCAN/canopen/Pdo.h>
 
 namespace MotorControlCAN {
 namespace CANOPEN {
@@ -228,8 +228,11 @@ Status pdoMapFromReadback(const SdoCompletion* results, size_t count, const PdoR
             candidate.cobIdParameter = value;
         }
         if (i == 1) {
+            // Accept only the types the pinned CANopenNode lists (CO_PDO.h 141-145): 0, 1-240, 254
+            // and 255. No CiA 301 copy is retained, so 241-253 are not classified here. Some of them
+            // may be RTR-only rather than reserved, and these data-frame codecs take neither.
             if (value > 240 && value != 254 && value != 255)
-                return invalid("reserved PDO transmission type");
+                return invalid("PDO transmission type outside 0-240, 254, 255");
             candidate.transmissionType = uint8_t(value);
         }
         if (i == 2 && value != expected.layout.mapping.count)
@@ -244,23 +247,6 @@ Status pdoMapFromReadback(const SdoCompletion* results, size_t count, const PdoR
     candidate.communicationKnown = true;
     output = candidate;
     return Ok();
-}
-bool pdoFreshness(const PdoRecord& record, uint64_t now, uint64_t age, PdoFreshness& output) {
-    if (!age || now < record.boundaryUs || (record.confirmed && now < record.map.observedUs) ||
-        (record.qualified && now < record.qualification.establishedUs) ||
-        (record.samplePresent && (now < record.observation.time.processedUs ||
-         (record.observation.time.receivedTimeKnown && now < record.observation.time.receivedUs))) ||
-        overlaps(&record, sizeof record, &output, sizeof output)) return false;
-    PdoFreshness result;
-    if (!record.confirmed) result = PdoFreshness::NO_MAP;
-    else if (!record.qualified) result = PdoFreshness::UNQUALIFIED;
-    else if (!record.samplePresent || !record.observation.time.receivedTimeKnown ||
-        !samePdoRoute(record.observation.sample.route, record.map.route) ||
-        record.observation.evidenceId != record.qualification.evidenceId ||
-        record.observation.time.receivedUs <= record.qualification.establishedUs) result = PdoFreshness::NEVER_OBSERVED;
-    else result = now - record.observation.time.receivedUs <= age ? PdoFreshness::FRESH : PdoFreshness::EXPIRED;
-    output = result;
-    return true;
 }
 } // namespace CANOPEN
 } // namespace MotorControlCAN

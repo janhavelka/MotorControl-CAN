@@ -5185,7 +5185,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Fact | Reviewed/source value |
 | --- | --- |
 | EDS name | ControlWord |
-| Sources | EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 17; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13 |
+| Sources | EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 11; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 16; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13 |
 | Applicability | eds_family_unbound |
 | Declaration disposition | resolved |
 | Documentary disposition | pending_qualification |
@@ -5196,7 +5196,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 
 | Effect | Enable/release, trigger motion, stop or reset through separate explicit operations. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Bit4 rising target trigger in position mode; bit7 assertion/manual return for reset, edge unspecified. |
-| Documentary review | {"gate_ids": ["Q01", "Q11", "Q12", "Q13", "Q03"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1840, "line_start": 1832, "section": "6040"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 15}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 12}, {"id": "ZH86", "page": 15}, {"id": "ZH86", "page": 17}, {"id": "OP86", "page": 9}, {"id": "OP86", "page": 10}, {"id": "OP86", "page": 13}, {"id": "EDS", "line_end": 612, "line_start": 604, "section": "1600sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "6,7,15 enable example;15-&gt;271 normal stop;15-&gt;11 emergency stop;15-&gt;128 reset. Never enable as stop/reset preamble.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q11", "Q12", "Q13", "Q03"], "generation_type": "resolved", "pdo_observation": {"directions": ["RPDO"], "live_qualification_required": true, "representation": "UNSIGNED", "role": "RAW", "source_refs": [{"id": "EDS", "line_end": 1840, "line_start": 1832, "section": "6040"}, {"id": "EN86", "page": 11}, {"id": "EN86", "page": 12}, {"id": "EN86", "page": 15}, {"id": "EN86", "page": 16}, {"id": "ZH86", "page": 11}, {"id": "ZH86", "page": 12}, {"id": "ZH86", "page": 15}, {"id": "ZH86", "page": 16}, {"id": "OP86", "page": 9}, {"id": "OP86", "page": 10}, {"id": "OP86", "page": 13}, {"id": "EDS", "line_end": 612, "line_start": 604, "section": "1600sub1"}]}, "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "6,7,15 enable example;15-&gt;271 normal stop;15-&gt;11 emergency stop;15-&gt;128 reset. Never enable as stop/reset preamble.", "write_policy": "qualification_required"} |
 | Conflicts | ["C08", "C17"] |
 | Owner prompt | 30 |
 | Read owner prompt | `null` (not stated) |

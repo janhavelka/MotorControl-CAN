@@ -21,7 +21,18 @@ SDO lifecycle with passing local and Windows/GCC/Clang sanitizer CI.
 [Prompt 18](reports/prompt_18.md) is Partial: fixed TPDO1 configuration is
 implemented, host-tested and observed on node1; broader Q17 gates remain.
 [Prompt 19](reports/prompt_19.md) is Partial: all 30 assigned raw read rows are
-implemented; Q20 still blocks a documented non-consuming probe.
+implemented. Packet 4 admits the DEC-1 accepted list and `prepareProbe` as a
+project decision; Q20 read effects stay open, and every other row stays gated.
+
+**Handoff state, 2026-11-03.** Packets 1 to 22 have run their host scope. The
+physical cores of 16, 19 and 22 have not run: they enable or move and need an
+attendant. Packet 22 ran a reads-only communication soak instead. The [execution table](reports/handoff_19_33/README.md)
+records each packet's delivery, checks and CI. Packet 10 closed the repair
+audit's W1 to W8 for host scope. Packet 11 ran the first live typed reads and a
+read-only communication soak on two specimens. No physical trial of packets 12
+to 22 has run: no specimen has accepted a setting write, enabled, stopped,
+cleared an alarm, zeroed a counter or moved. The open physical gates are listed
+in the [backlog](backlog.md).
 
 The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
 26 uploads per node, node1 heartbeat1000, fresh addressed Pre-operational and
@@ -47,28 +58,28 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 9-10 | Status, exact units and axis/reference conversions | 9 complete: production exact units/status and quantization with local/CI evidence. 10 complete: pure axis/reference conversions, offline preview and local/Windows/GCC/Clang sanitizer CI. No native RPM width, mandatory step geometry or guessed feedback scale. |
 | 11 | Classical CAN and checked SDO codec boundary | Complete: local full and exact-commit Windows/GCC/Clang sanitizer CI pass. One selected encoder, explicit channel/width correlation, full aborts and unchanged failure outputs. |
 | 12 | Reviewed generated object metadata and coverage | Complete: 194 resolved descriptors, four withheld/four excluded and active freshness; local and exact-commit Windows/GCC/Clang sanitizer CI pass. No semantic operation is implemented. |
-| 13 | Bounded SDO lifecycle | Complete: optional selected-stack adapter, two unique channels, copied intent, immutable cutoffs, retained terminals, 1-32-byte forms and persistent quarantine; [local/CI evidence](reports/prompt_13.md) |
+| 13 | Bounded SDO lifecycle | Complete: optional selected-stack adapter, two unique channels, copied intent, immutable cutoffs, retained terminals, 1-32-byte forms and quarantine; packet 5 narrowed quarantine and added a drain marker no real route can use until Q18; [local/CI evidence](reports/prompt_13.md) |
 | 14 | SDO ambiguity/reconciliation | Complete: processing/capture precedence, retained observations, invalidation and TX eligibility; permanent quarantine without proven reopening. Local/CI evidence in [report](reports/prompt_14.md) |
 | 15 | Passive network events and invalidation | Complete: pure codecs, shared node anchors, captured-time/epoch facts, four copied diagnostics and synchronous cache invalidation; checks in [report](reports/prompt_15.md) |
 | 16 | Explicit NMT requests and service eligibility | Complete: native producer, intent/TX/observations, domain effects and heartbeat-disabled service evidence; [report](reports/prompt_16.md) |
 | 17 | Observed PDO maps and decoding | Complete: checked layouts, explicit actual-map acquisition, independent sample qualification and atomic passive routing; [report](reports/prompt_17.md) |
 | 18 | Explicit PDO remapping | Partial: fixed TPDO1 map3-to-map2 implemented and specimen-observed; [checkpoint and remaining Q17 gates](reports/2026-11-02_nmt_pdo_checkpoint.md). Broader settings/timers/SYNC, persistence and sample qualification remain. |
-| 19 | Typed raw identity/state/configuration reads | Partial: 30 rows, checked SDO/PDO evidence and getters implemented; close Q20 read-effect evidence before a non-consuming probe is usable. |
-| 20 | Native driver, limit and motion-parameter groups | Partial: nine typed raw read rows and position-parameter settings complete; direction/scale/limits/mode gates remain [owned here](reports/prompt_20.md). Current/holding remains solely 22. |
-| 21 | I/O settings and output actions | Partial: all 23 I/O reads and explicit DI settings implemented; DO, filter and output actions retain the precise [evidence gates](io_settings.md). Those remaining mutations retain their own partial-effect/invalidation obligations. |
-| 22 | Tuning/current groups | Partial: all 33 typed reads and explicit 86C loop selection implemented; other writes retain precise admissible-domain/scale/effect gates in the [tuning guide](tuning.md). Current/holding remains solely here. |
-| 23 | Ordinary owner dispatch/results | Owned software implemented/tested, including actual typed read/loop-setting integration; Partial only on inherited 19/Q20. See [report](reports/prompt_23.md). |
-| 24 | Urgent/cancel/recovery | Owned mechanisms implemented/tested; Partial only on inherited 23/19/Q20. [Report](reports/prompt_24.md) retains real-adapter and remote-session limits. |
-| 25 | Passive health/statistics | Owned software implemented/tested: cached projection, exact saturating counters/reset, eight copied diagnostics; Partial only on inherited 24/23/19/Q20. [Report](reports/prompt_25.md). No drive or machine-health policy is inferred. |
-| 26 | Shared native application and fake/offline examples | Owned software implemented/tested; Partial only on inherited 19/25/Q20. [Application contract](native_application.md), [report](reports/prompt_26.md). |
-| 27 | Pinned TWAI adapter | Reviewed ESP-IDF 5.5.5 S2/S3 port and compile evidence; Partial on inherited 24/26/Q20. [Report](reports/prompt_27.md). Bounded S2 exchanges observed; broader physical qualification pending. |
+| 19 | Typed raw identity/state/configuration reads | Partial: 30 rows, checked SDO/PDO evidence and getters implemented. Packet 4 admits the DEC-1 list and `prepareProbe`; packet 11 read the list live on two specimens. Q20 read effects stay open for every row. |
+| 20 | Native driver, limit and motion-parameter groups | Partial: nine typed raw read rows, position-parameter settings and the `2202` selector (packet 12); the `2200`, `2201`, `607D` and `6060` gates remain [owned here](reports/prompt_20.md). No specimen has accepted a write. Current/holding remains solely 22. |
+| 21 | I/O settings and output actions | Partial: all 23 I/O reads and explicit DI settings implemented, the DI writes verified through the real owner (packet 13); DO, filter and output actions retain the precise [evidence gates](io_settings.md). Those remaining mutations retain their own partial-effect/invalidation obligations. No specimen evidence. |
+| 22 | Tuning/current groups | Partial: all 33 typed reads and explicit 86C loop selection implemented, the `2500` write verified through the real owner (packet 14); the other 32 writes retain precise admissible-domain/scale/effect gates in the [tuning guide](tuning.md). Current/holding remains solely here. No specimen evidence. |
+| 23 | Ordinary owner dispatch/results | Complete: owned software implemented/tested, including actual typed read/loop-setting integration; packet 2 moved the owner to `adapters/owner/`. Inherited gates are listed in PROGRESS. See [report](reports/prompt_23.md). |
+| 24 | Urgent/cancel/recovery | Complete: owned mechanisms implemented/tested; packets 5 to 7 added settlement, one urgent slot per channel and the best-effort stop route. Inherited gates are listed in PROGRESS. [Report](reports/prompt_24.md) retains real-adapter and remote-session limits. |
+| 25 | Passive health/statistics | Complete: cached projection, exact saturating counters/reset, eight copied diagnostics. Inherited gates are listed in PROGRESS. [Report](reports/prompt_25.md). No drive or machine-health policy is inferred. |
+| 26 | Shared native application and fake/offline examples | Complete: owned software implemented/tested. Inherited gates are listed in PROGRESS. [Application contract](native_application.md), [report](reports/prompt_26.md). |
+| 27 | Pinned TWAI adapter | Reviewed ESP-IDF 5.5.5 S2/S3 port and compile evidence; packet 3 changed the submit contract and set `fail_retry_cnt=-1`. Partial: the W9 remainder, and packet 3's TWAI questions 1, 4 and 6, which packet 11 left unanswered. [Report](reports/prompt_27.md). Bounded S2 exchanges and a read-only soak observed; broader physical qualification pending. |
 | 28 | Shared Arduino/ESP-IDF application | Arduino/S3 IDF/S2 bench/isolated component build gates; Partial on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). S2 uses explicit fixture configuration and UART; P4 complete firmware remains pending. |
-| 29 | Evidence harness, fixture record and conflict acquisition | Typed and raw finite collectors implemented and host/firmware checked; [two-node S2 raw acquisition](reports/2026-11-02_s2_live_connection.md) observed. Partial on Q20 and remaining [measurement gates](device_conflicts.md); no PDO mutation or motor qualification. |
-| 30 | State interpretation, enable/release | Partial: checked documentary decoder implemented. [Enable admission provenance and release command](drive_actions.md) remain unresolved; action lifecycles/tests pending. |
-| 31 | Stop actions and urgent owner integration | Partial: conditional 000F halt/quick-stop command and fresh not-running report implemented; [broader state/firmware gates](stop_actions.md) remain. No enabling preamble. |
-| 32 | Fault/reference actions | Partial: conditional FF05 alarm clear and zero-only counter sequence implemented with exact owner/reference handoff. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
-| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) implemented; motion lifecycle, qualified acceptance/completion and post-trigger stop integration remain gated. |
-| 34-36 | Angles, finite velocity and homing | Pending; explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
+| 29 | Evidence harness, fixture record and conflict acquisition | Typed and raw finite collectors implemented and host/firmware checked; [two-node S2 raw acquisition](reports/2026-11-02_s2_live_connection.md) observed. Packet 11 added flash, parser and soak tools, and ran typed identity, the readiness image and a read-only soak live on two specimens. Partial on Q20 and remaining [measurement gates](device_conflicts.md); no PDO mutation or motor qualification. |
+| 30 | State interpretation, enable/release | Partial: checked documentary decoder and a [gated enable](drive_actions.md) (packet 15), closed by default, that no specimen has run. The release command remains unresolved and absent. |
+| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. Whether any DEC-8 row or `000B` stops these drives is packet 16's measurement, not yet run; [remaining gates](stop_actions.md). No enabling preamble. |
+| 32 | Fault/reference actions | Partial: alarm clear with explicitly unresolved fault identity (packet 17) and zero-only counter clear with a retained baseline (packet 18), with exact owner/reference handoff. No specimen has run either. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
+| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20) that no specimen has run. Acceptance and completion evidence (packet 19), stop rows (packet 16) and relative moves (packet 21) remain. |
+| 34-36 | Angles, finite velocity and homing | Pending; the repair audit's hold is lifted only for consumed qualified contracts. Explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |
 | 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |

@@ -2,6 +2,8 @@
 
 **Reopened by audit W8.** [Packet 10](handoff_19_33/packet_10.md) renamed the reservation to `AxisReservation` and added `retireMotionParameters`.
 
+**Resumed by packet 12, 2026-11-03.** [Packet 12](handoff_19_33/packet_12.md) added `prepareSoftLimitSettings`, a typed `2202` write of codes 0 and 1 that establishes the stored code only, and runs settings through the real owner in `test/settings_owner_test.cpp`. A typed `2200` write added in `5306eaf` was withdrawn after packet 12's review, in `99ff2b0`: the manuals give its codes labels but no effect. `2200`, `2201`, `607D` and `6060` keep their gates with no typed write. No specimen has accepted any of these writes, and physical trials T1 and T2 have not run. Prompt 20 stays Partial. Gates: local full verifier; CI passed at `5306eaf` and `99ff2b0`.
+
 **Current correction:** the [fresh independent 20/21 audit](prompts_20_21_audit.md)
 implements the confirmed native setting subsets and corrects this checkpoint's
 blanket blocker rationale. The original read-only checkpoint and its checks

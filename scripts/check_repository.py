@@ -96,6 +96,7 @@ REQUIRED = {
     "include/MotorControlCAN/profiles/lichuan_c/Position.h", "src/profiles/lichuan_c/Position.cpp",
     "test/position_parameters_test.cpp", "docs/position_parameters.md",
     "include/MotorControlCAN/MoveOperation.h", "test/move_absolute_test.cpp",
+    "test/move_relative_test.cpp", "test/move_common_test.cpp", "test/support/MoveRig.h",
     "examples/position_preview/main.cpp", "examples/position_preview/CMakeLists.txt", "examples/position_preview/README.md",
     "adapters/owner/CanBusTypes.h", "adapters/owner/CanBusOwner.h", "adapters/owner/CanBusOwner.cpp", "adapters/owner/CMakeLists.txt", "adapters/owner/README.md", "examples/common/CMakeLists.txt",
     "adapters/owner/CanBusDiagnostics.cpp", "adapters/owner/OwnerCounters.h", "test/can_bus_health_test.cpp",

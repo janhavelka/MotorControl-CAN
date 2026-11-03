@@ -33,6 +33,10 @@ struct StopPolicy {
  * authority. Writes outside the session need the reservation it holds. No clock, I/O,
  * retry or replay. One cooperative caller serializes all calls.
  *
+ * Time: every member that takes a time refuses one before the later of this session's last time and
+ * owner.lastTimeUs(), with nothing changed, because the owner would refuse it part way through.
+ * requestStop alone still ends an active enable or move, at that later time.
+ *
  * A stop waits for in-flight work to settle and never cancels it. If that leaves no
  * usable route before any stop frame could leave, the request takes the 000B best-effort
  * branch, when the policy allows. A stop proved never sent by a controller fault waits
@@ -47,12 +51,25 @@ struct StopPolicy {
  * object, across close and open, because reopening cannot retire earlier drive work. A new object
  * knows nothing, as after an MCU restart, so the caller's EnableEvidence must speak for that time.
  *
- * The absolute move is gated too. It also takes one member, one request, one service branch and one
- * advance. Its observation cycles run in two session-owned reads in turn, so the last complete cycle
- * stays available to requestStop while the next one runs: pass moveObservation(). A stop request ends
- * an active move first, even if the stop itself is refused, and the held trigger word is the stop's
- * predecessor. After a move whose trigger may have reached the drive without an observed completion,
- * new moves stay fenced for this object's life: nothing here can show that motion ended.
+ * The absolute and relative moves are gated too. They share one member, one request path, one
+ * service branch and one advance; only the trigger word differs. Observation cycles run in two
+ * session-owned reads in turn, so the last complete cycle stays available to requestStop while the
+ * next one runs: pass moveObservation(). A stop request ends an active move first, even if the stop
+ * itself is refused, and the held trigger word is the stop's predecessor. Withdrawing a move cancels
+ * a download the owner has not yet handed to the controller. Only a cancel the owner reports as won
+ * proves it unsent; otherwise its own terminal settles into the move and says whether it left, and
+ * preflight() refuses it if it comes up for transmission. A download that closed provably unsent
+ * leaves the controlword before it as the latest. After a move whose trigger may have reached the
+ * drive without an observed completion, new moves stay fenced for this object's life: nothing here
+ * can show that motion ended. No relative base is measured on any specimen, so every relative request
+ * is refused today.
+ *
+ * The move's actual admission is rechecked when each parameter or trigger download is admitted:
+ * the borrowed axis, the witness and the admission read's age. The owner hands the frame over at a
+ * later turn. For the recheck to hold up to that moment, the application's Transport::beforeTransmit
+ * must call preflight() of the session that holds the sequence. Without it the recheck holds only at
+ * admission: an invalidateAxisReference, configureAxis or witness expiry in between does not stop that
+ * frame, though it still refuses the next one.
  */
 class AxisSession {
   public:
@@ -140,8 +157,9 @@ class AxisSession {
      * a move pass moveObservation(), whose cycle began after the held trigger word.
      * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity
      * width setting is ignored, so options shared with identity reads cannot refuse a stop.
-     * @param[in] nowUs Nondecreasing supplied microseconds. A time before the last one refuses the
-     * stop but still ends an active enable, at the last valid time.
+     * @param[in] nowUs Nondecreasing supplied microseconds. A time before this session's or the
+     * owner's last time refuses the stop but still ends an active enable or move, at the later of
+     * those two times, where the owner can still cancel the move's unsent download.
      * @return The path taken; NONE when refused, with only a stale controlword withdrawn and an
      * active enable or move ended, because asking for a stop means no further enable or move word. A
      * read held in enableAction() is judged after that enable has ended.
@@ -160,7 +178,7 @@ class AxisSession {
      * @param[in] options Copied budgets, as prepareEnable requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareEnable's status, or a local refusal with ActionError::STATE or TARGET. On any
+     * @return prepareEnable's status, or a local refusal with ActionError::STATE, TARGET or TIME. On any
      * refusal nothing changes, and on success no word has yet been admitted.
      */
     MotorControlCAN::Status requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -189,13 +207,16 @@ class AxisSession {
      * @param[in] profile Native ramps and policies.
      * @param[in] stored MOTION_PARAMETERS read for REUSE_STORED, or null. For REUSE_STORED it must be
      * one of the contexts named with retainSettings, so every move write retires it.
-     * @param[in] axis Current coordinate configuration of this axis.
-     * @param[in] reference Optional idle stationary witness, or null.
+     * @param[in] axis The application's coordinate configuration of this axis. Borrowed until the move
+     * is terminal: every parameter and trigger admission, and preflight() when it is wired, rechecks
+     * the move against it, so keep it stationary and current, and a later configureAxis or
+     * invalidateAxisReference reaches the move.
+     * @param[in] reference Optional idle stationary witness, or null; borrowed like axis when supplied.
      * @param[in] options Copied budgets.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole move.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE or TARGET. On any
-     * refusal nothing changes, and on success nothing has been admitted.
+     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE, TARGET or TIME. On
+     * any refusal nothing changes, and on success nothing has been admitted.
      */
     MotorControlCAN::Status requestMove(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                         const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
@@ -207,15 +228,72 @@ class AxisSession {
                                         const MotorControlCAN::AxisReference* reference,
                                         const MotorControlCAN::LICHUAN_C::MoveOptions& options,
                                         uint64_t deadlineUs, uint64_t nowUs) noexcept;
-    /** Withdraw an active move locally: no further download or read is admitted. It sends no stop,
-     * rearm or replay, so the drive may still be moving. A request in flight settles into the context
-     * later as evidence only. An application that routes a drive fault reports it here.
-     * @param[in] nowUs Nondecreasing supplied microseconds.
+    /** Request the gated finite relative move on this axis, through the same path as requestMove. No
+     * relative base is measured on any specimen, so this refuses with UNSUPPORTED unless the caller's
+     * evidence names one. Each call is one new explicitly admitted edge: identical values twice are two
+     * moves with two witnesses, never a retry.
+     * @param[in] state As requestMove.
+     * @param[in] identity As requestMove.
+     * @param[in] evidence As requestMove, with the measured relativeBase.
+     * @param[in] request Unwrapped relative position whose basis is that base, and positive speed.
+     * @param[in] profile As requestMove.
+     * @param[in] stored As requestMove.
+     * @param[in] axis As requestMove, borrowed until the move is terminal.
+     * @param[in] reference Required host witness of the request's basis, observed after the latest
+     * acknowledged 000F; borrowed until the move is terminal and rechecked at every parameter and
+     * trigger admission. A witness from before an earlier move is refused.
+     * @param[in] options As requestMove.
+     * @param[in] deadlineUs As requestMove.
+     * @param[in] nowUs As requestMove.
+     * @return prepareMoveRelative's status, or a local refusal as requestMove's.
+     */
+    MotorControlCAN::Status requestMoveRelative(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                                                const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                                                const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+                                                const MotorControlCAN::MoveRequest& request,
+                                                const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                                                const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+                                                const MotorControlCAN::AxisConfig& axis,
+                                                const MotorControlCAN::AxisReference& reference,
+                                                const MotorControlCAN::LICHUAN_C::MoveOptions& options,
+                                                uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Withdraw an active move locally: no further download or read is admitted, and one the owner has
+     * not yet handed to the controller is cancelled. It sends no stop, rearm or replay, so the drive
+     * may still be moving. A request in flight, or one whose cancel the owner did not report as won,
+     * settles into the context later as evidence only, and its terminal says whether it left. An
+     * application that routes a drive fault reports it here.
+     * @param[in] nowUs Nondecreasing supplied microseconds, at or after owner.lastTimeUs().
      * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault.
-     * @return False when no move is active, the reason is another value or time moved backward.
+     * @return False, with nothing changed, when no move is active, the reason is another value or the
+     * time is behind this session's or the owner's last time.
      */
     bool cancelMove(uint64_t nowUs, MotorControlCAN::MoveInterruption reason =
                                         MotorControlCAN::MoveInterruption::CANCELLED) noexcept;
+    /** The pre-transmit recheck of this session's move downloads. Call it from the application's
+     * Transport::beforeTransmit, for the session that holds the sequence, and return its result. It
+     * runs inside the owner's service turn, performs no owner call and keeps only a refusal reason.
+     * For a parameter or trigger download of the active move it reruns the recheck its admission ran,
+     * at this time: the borrowed axis and witness by validatePreparedTarget, an idle stationary witness
+     * and the admission read's age. A download of a withdrawn move is refused too, so it never leaves
+     * after the withdrawal even if its cancel did not win. The owner then closes the download with
+     * CompletionReason::PREFLIGHT_REJECTED, provably unsent, and the move ends INVALIDATED, or with its
+     * withdrawal's reason, and moveRefusal() keeps why.
+     * @param[in] sequence Reservation of the work about to be handed over.
+     * @param[in] transfer Its download, borrowed for this call.
+     * @param[in] nowUs The owner turn's processing time.
+     * @return False to withdraw the download; true for every other sequence, operation, the rearm and
+     * uploads.
+     */
+    bool preflight(MotorControlCANOwner::SequenceId sequence,
+                   const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t nowUs) noexcept;
+    /** @return Why the latest move's actual admission refused a download: the status
+     * noteMoveTransmission gave at admission, or the same recheck in preflight() just before
+     * transmission. Its detail is noteMoveTransmission's: an AxisError plus PARAMETER_ERROR_BASE and
+     * PositionParameterError::AXIS_ERROR_BASE for a changed, aged or invalidated target or witness,
+     * REFERENCE for a moving witness, STATE for an aged admission read. A transmit guard of the
+     * application's own that withdrew the download gives STATE. OK when no recheck refused. A refused
+     * recheck ends the move INVALIDATED, with nothing of that download sent. Reset when a move starts. */
+    const MotorControlCAN::Status& moveRefusal() const noexcept { return moveRefusal_; }
     /** Name the retained settings contexts of this axis that a move's parameter writes must retire.
      * Each is borrowed until replaced and must outlive this session's moves. Include a finished
      * settings context's readback. A context not named here cannot be reached.
@@ -272,6 +350,9 @@ class AxisSession {
     MotorControlCAN::LICHUAN_C::AxisReservation reservation_;
     MotorControlCANOwner::SequenceId sequence_;
     MotorControlCANOwner::RequestId pending_, urgent_, superseded_;
+    // The admitted download that withdrew a present control_; if it closes provably unsent, control_
+    // is the latest again. Cleared by any other change of the latest word.
+    MotorControlCANOwner::RequestId suspended_;
     MotorControlCAN::CANOPEN::SdoCompletion control_;
     MotorControlCAN::LICHUAN_C::ActionContext stops_[2];
     MotorControlCAN::LICHUAN_C::ActionContext enable_;
@@ -292,16 +373,34 @@ class AxisSession {
     MotorControlCAN::LICHUAN_C::ReadContext moveReads_[2];
     uint8_t moveRead_ = 0, moveComplete_ = 1;
     MotorControlCAN::MoveInterruption moveWithdrawn_ = MotorControlCAN::MoveInterruption::NONE;
+    MotorControlCAN::Status moveRefusal_;
     bool moveFenced_ = false;
+    // The application's axis and witness, borrowed for the active move's admission rechecks only.
+    const MotorControlCAN::AxisConfig* moveAxis_ = nullptr;
+    const MotorControlCAN::AxisReference* moveReference_ = nullptr;
     MotorControlCAN::LICHUAN_C::DriverContext* retained_[4] = {};
     uint8_t retainedCount_ = 0;
 
     bool usable() const noexcept;
+    uint64_t latestUs() const noexcept;
+    void dropControl() noexcept;
+    void keepUnsentControl(const MotorControlCAN::CANOPEN::SdoCompletion& terminal) noexcept;
+    MotorControlCAN::Status recheckMove(uint64_t nowUs) const noexcept;
     MotorControlCANOwner::BusAdmission admitWork(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                                                  uint64_t nowUs) noexcept;
     bool takeTerminal(MotorControlCAN::CANOPEN::SdoCompletion& output) noexcept;
     void withdrawEnable(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void serviceEnable(uint64_t nowUs) noexcept;
+    MotorControlCAN::Status startMove(bool relative, const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                                      const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                                      const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+                                      const MotorControlCAN::MoveRequest& request,
+                                      const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                                      const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+                                      const MotorControlCAN::AxisConfig& axis,
+                                      const MotorControlCAN::AxisReference* reference,
+                                      const MotorControlCAN::LICHUAN_C::MoveOptions& options,
+                                      uint64_t deadlineUs, uint64_t nowUs) noexcept;
     void withdrawMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
     void endMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
     void afterMove() noexcept;

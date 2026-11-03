@@ -88,15 +88,67 @@ Intervals do not become exact capture in SDO/PDO observations. TX success and a
 subsequent NMT observation remain separate; the interval does not prove causation,
 drive enablement, motion completion or a host-loss watchdog response.
 
+## SDO service qualification
+
+A checked SDO reply records service evidence (`NodeSnapshot::sdo` and
+`serviceQualification`) from bounds `[L,U]` under the rule that applies to an
+exact capture, with `L` standing for the receive time:
+
+| Boundary | Exact capture `R` | Bounds `[L,U]` |
+| --- | --- | --- |
+| Request handoff | `R < handoff` quarantines; equality records | `U < handoff` quarantines; `L <= handoff` settles the request but records nothing |
+| Node boundary after configuration | `R >= boundary` | `L >= boundary` |
+| Node boundary after invalidation (strict) | `R > boundary` | `L > boundary` |
+| Possible NMT transition | Current only when `R > transition` | Current only when `L > transition` |
+| Ordering against retained evidence | Replaces unless `R` is older | Replaces unless `L` is older; `U` is never used |
+| Service age | `now - R` | `now - L`, the oldest possible receive time |
+
+An interval that straddles a boundary therefore does not qualify. An inverted or
+future interval is rejected before any mutation. A reply that settles its request
+without qualifying leaves both records unchanged. The handoff row is deliberately
+stricter for bounds: `L` equal to the handoff time could include the instant of
+handoff, while an exact capture at that instant is a timestamp-resolution tie the
+existing contract already accepts. SDO matching, quarantine, settlement, unknown
+time and passive NMT handling are unchanged. NMT already used `L` for the
+boundary, transition and age rules above.
+
+Until 2026-11-03 an interval-only reply never qualified service. On the S2
+fixture, which has no exact capture, ordinary SDO work then needed a heartbeat
+that reports exact NMT state, and the session's writes, enable words and
+sequenced stop were refused `INVALID` (packets 4 and 11). The decision came from
+two soaks on the attended fixture (COM15, two CL86-C specimens, one firmware
+image): [20261103-soak-night2](../bench/20261103-soak-night2/summary.txt), 200 ms
+interval for two hours, 63,531 completed steps per node, and
+[20261103-soak-stress1](../bench/20261103-soak-stress1/summary.txt), 20 ms
+interval, 246,197 completed steps on node 1 by its 04:27 UTC summary. Neither
+recorded a timeout or an unmatched frame. Reviewing those traces, the lead found
+each reply's interval was about 1.6 ms wide and started after its own handoff.
+This note does not recompute that width: the retained summaries hold counters and
+latency histograms, not per-frame bounds. Soaks are communication evidence only,
+not electrical, sustained-load or motion qualification.
+
+Residual risk. Bounds are host processing windows, not wire time. On the S2, `L`
+is the shim's last proven-empty FIFO check and `U` is the ISR's clock sample
+after the SDK supplies the frame. Neither is a hardware timestamp. `handoff` is
+the owner's processing time, so a reply can follow the handoff timestamp and
+still precede the actual controller submission by a short margin. Qualification
+therefore keeps the existing sole-client and no-delayed-duplicate premise; it does
+not prove which request a reply answers. A wider interval only delays
+qualification and ages it sooner. A change of SDK, target, ISR placement or
+shim boundary needs this review again.
+
 ## Verification and limits
 
 `test/twai_driver_test.cpp` compiles the actual shim against narrow SDK fakes.
 Its timing cases exercise delayed callbacks, pending hardware FIFO despite an
 empty software ring, arrivals on either side of the empty check, future-frame
 deferral, restart and invalid clocks. `test/network_receive_time_test.cpp` checks
-age boundaries, interval ambiguity, lifecycle/NMT fences, unchanged SDO deadlines
-and stale-response quarantine. These are host contracts, not physical timing
-measurements.
+age boundaries, interval ambiguity, lifecycle/NMT fences, unchanged SDO deadlines,
+stale-response quarantine and every SDO qualification row above.
+`test/bounded_service_test.cpp` runs the session's writes, enable words and
+sequenced stop on bounds-only ingress through the real owner, and the same refusals
+for unknown time and handoff-reaching intervals. These are host contracts, not
+physical timing measurements.
 
 The SDK may lose frames on hardware FIFO overrun without a public loss report;
 this change does not establish complete reception. Continuous ingress may prevent

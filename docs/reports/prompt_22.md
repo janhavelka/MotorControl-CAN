@@ -1,5 +1,7 @@
 # Prompt 22 — control and tuning groups
 
+**Resumed by packet 14, 2026-11-03.** [Packet 14](handoff_19_33/packet_14.md) verified the `2500` loop selector through the real owner and found no defect. As project policy, `prepareControlSettings` now takes a clean STATUS and MONITORS read under the reservation, and refuses `CLOSED_LOOP` while the stored `2501` reads 0. The other 32 rows keep their gates, each with `review.next_evidence` in the ledger. No specimen has accepted a `2500` write, and physical trials T0 to T2 have not run. Prompt 22 stays Partial. Gates: local full verifier and firmware gates; CI passed at `3b0ce14`.
+
 Date: 2026-10-30. Execution identity: promptset version 2, existing branch
 `promptset/motorcontrol-can`, upstream `origin/promptset/motorcontrol-can`.
 Entry commit `3aa1817ff916f96951c8991f898d78ee30511f52` was clean, with no staged

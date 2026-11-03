@@ -1,8 +1,8 @@
-# Lichuan native position parameters and absolute moves
+# Lichuan native position parameters and finite moves
 
 `LICHUAN_C::preparePositionParameters` prepares an owned numeric candidate for
 the documented CL86-C/OL86-C position objects. It performs no I/O and yields no
-service work; the gated absolute move below builds on it. The
+service work; the gated absolute and relative moves below build on it. The
 [native example](../examples/position_preview/README.md) uses the installed
 C++11 core without a CLI, SDK, CAN controller or stack.
 
@@ -10,8 +10,8 @@ C++11 core without a CLI, SDK, CAN controller or stack.
 
 | Candidate | Source and checked limits |
 | --- | --- |
-| `targetNative` | EN86/ZH86 PDF p11 and EDS `607A`: I32, -1,000,000 through +1,000,000 command pulses |
-| `settings.positionSpeedRpm` | `6081`: U32, 0 through 3000 rpm |
+| `targetNative` | `607A`: I32 (EDS), -1,000,000 through +1,000,000 command pulses (EN86/ZH86 PDF p11, OP86 p9). The EDS gives types and defaults, no limits |
+| `settings.positionSpeedRpm` | `6081`: U32, 0 through 3000 rpm (p11). EN86/ZH86 p17 name it profile velocity, and the EDS posmode speed; the unit rests on p11 |
 | `settings.rampUpTimeMs` | `6083`: U32, 0 through 2000 ms |
 | `settings.rampDownTimeMs` | `6084`: U32, 0 through 2000 ms |
 
@@ -35,8 +35,9 @@ Approximate requests conservatively require the entire existing error interval
 to remain inside that range.
 
 ACTUAL, COMMANDED and QUEUED bases are tested as common host arithmetic with
-explicit matching witnesses and axis policy. None is advertised as a supported
-Lichuan relative execution basis. Current preparation time is used to recheck a
+explicit matching witnesses and axis policy. None is a supported Lichuan
+relative execution basis: the relative move below needs separate evidence of
+the drive's own base. Current preparation time is used to recheck a
 supplied witness without renewing its observation time or age limit. A zero
 native target without a witness says nothing about displacement or standstill;
 a zero relative displacement is also only arithmetic. Numeric zero speed and
@@ -62,7 +63,8 @@ A move's own parameter writes do not move the epoch; see the move section below.
 `noteMoveWithdrawal` and `advanceMove` in the same header run one finite
 absolute move through the sole owner. The concrete `MoveContext` is the result.
 Common intent and outcome names are in `MotorControlCAN/MoveOperation.h`.
-Relative moves belong to packet 21 and are refused here.
+`prepareMoveAbsolute` refuses relative intent; the relative move further down
+uses the same calls.
 
 **The move is gated.** No source or specimen establishes which report shows that
 this trigger was accepted, or that a completion report is new. `MoveEvidence`
@@ -82,7 +84,7 @@ fake-owner tests have run this lifecycle. No drive has.
 | Target | Unwrapped absolute intent. `607A` must fit -1,000,000..1,000,000 pulses both as requested and as quantized |
 | Speed | Prepared once with `prepareVelocityTarget` and refused unless it comes out integer motor turns per minute, because `6081` is rpm. 1 load turn/min at 3,200 increments per turn and gear 5 is 267 under the default `COMMAND_INCREMENTS` per `SECOND`: inside `0..3000` and wrong, so it is refused. Requested and quantized values must be in 1..3000 rpm |
 | Ramps | `6083` and `6084` in 1..2000 ms. Zero is a documentary value with no qualified meaning (Q11) |
-| Witness | Optional. A supplied one must be idle, stationary, `ACTUAL` and fresh, and then fixes the displacement, which must not be zero (R-08). Without one the displacement stays `UNKNOWN`; an absolute zero is an ordinary target, and nothing manufactures a no-op success |
+| Witness | Optional. A supplied one must be idle, stationary, `ACTUAL`, fresh and observed at or after the predecessor `000F` completed, and then fixes the displacement, which must not be zero (R-08). Without one the displacement stays `UNKNOWN`; an absolute zero is an ordinary target, and nothing manufactures a no-op success |
 | Deadline | Beyond `MOVE_SERVICE_STEPS` (13) queue-and-response budgets. That cannot guarantee completion |
 | Refused forms | Immediate update (`003F`), relative or wrapped intent, `MEASURED_U8` widths, an age cap below seven fields |
 
@@ -94,19 +96,30 @@ owner operation can be started only once admission is known to pass.
 
 | Phase | Frames, node 1 | Note |
 | --- | --- | --- |
-| `PARAMETERS` | `23 7A 60 00 ..`, `23 81 60 00 ..`, `23 83 60 00 ..`, `23 84 60 00 ..` | EN86/ZH86 p11-12, OP86 p9-10 order. `REUSE_STORED` skips each of `6081`, `6083`, `6084` that a fresh, unretired MOTION_PARAMETERS read shows already equal |
+| `PARAMETERS` | `23 7A 60 00 ..`, `23 81 60 00 ..`, `23 83 60 00 ..`, `23 84 60 00 ..` | EN86/ZH86 p11-12, OP86 p9-10 order (OP86 under a CL57-C/OL57-C running header, C18). `REUSE_STORED` skips each of `6081`, `6083`, `6084` that a fresh, unretired MOTION_PARAMETERS read shows already equal |
 | `TRIGGER` | `2B 40 60 00 1F 00 00 00` | `000F` to `001F`, held until the move is terminal (DEC-8) |
 | `WAITING`, `OBSERVING` | Uploads of `2100`, `2101`, `2102`, `6041`, `6061`, `6064`, `606C` | One cycle per interval, each beginning after the trigger's acknowledgement |
 | `REARM` | `2B 40 60 00 0F 00 00 00` | Only after an observed completion, as its own visible step |
 
 No `6060` or `6061` write, enable word, fault clear or stop is ever emitted. Each
 download takes `noteMoveTransmission` after owner admission and before any owner
-turn could carry it. For a parameter download that call runs
-`retireMotionParameters` on every retained context first; if one refuses, the
-download must be cancelled unsent. The configuration epoch does not move, so the
-move's own target stays valid while a later settings call needs a fresh read.
-Any explicit settings call, or a device counter zero, does move it, and the move
-then refuses every call but its own ending.
+turn could carry it. A parameter or trigger notice is the move's actual
+admission, so it first rechecks what preparation checked: `validatePreparedTarget`
+against the caller's current `AxisConfig` and witness, a witness still idle and
+stationary, and the admission state read within `maximumAgeUs`. A later
+`configureAxis`, origin change, `invalidateAxisReference` or replaced, moving or
+aged witness therefore refuses the next write, and the download must be
+cancelled unsent; the rearm takes no recheck. The owner hands the frame over
+only at a later turn. `AxisSession::preflight`, called from the application's
+`Transport::beforeTransmit`, reruns the same recheck at that handover, and a
+refusal there closes the download provably unsent (`PREFLIGHT_REJECTED`).
+Without that hook the recheck holds at admission only. For a parameter download the call
+then runs `retireMotionParameters` on every retained context; if one refuses,
+the download must be cancelled unsent too. The configuration epoch does not
+move, so the move's own target stays valid while a later settings call needs a
+fresh read. Any explicit settings call, or a device counter zero, does move it,
+and the move then refuses every call but its own ending. A target with no
+witness survives a `POSITION` loss, as `validatePreparedTarget` defines.
 
 Observations run in a borrowed `ReadContext`, never inside the move context, so
 the application can keep the last complete cycle for a stop. Each cycle must
@@ -140,6 +153,13 @@ and a stop request all end the move; work in flight settles first and its
 terminal is kept as evidence. Nothing is resumed or replayed, and a local cancel
 is not a motor stop. A trigger that may have reached the drive leaves the move
 `uncertain` until a completion is observed.
+
+`AxisSession` closes a move download the owner has not yet handed to the
+controller when the move is withdrawn, so a queued parameter or trigger never
+leaves after a cancel, fault or stop request, even a refused one. Work that may
+have left is never cancelled; it settles. When the owner closes the work of a
+withdrawn reservation as `CANCELLED`, the session records `INVALIDATED` first,
+so the move does not report a cancel it never made.
 
 `AxisSession` integrates it with one member, one request, one service branch and
 one advance. Its two observation reads alternate, so `moveObservation()` holds
@@ -178,3 +198,64 @@ observation:
 6. What the `001F` to `000F` rearm does after completion: any change in position,
    acceptance or completion.
 7. The DEC-8 stop rows from `001F` belong to packet 16.
+
+## Finite relative move (gated twice, supported for no specimen)
+
+`prepareMoveRelative` and `validateMoveRelative` run a relative move through the
+same `nextMove`, `beginMoveObservation`, `noteMoveTransmission`,
+`noteMoveWithdrawal` and `advanceMove`, on the same `MoveContext`. There is no
+second engine: the phases, gates, observation rules, rearm and uncertainty above
+all apply. The differences:
+
+| Item | Relative move |
+| --- | --- |
+| `607A` | The quantized displacement, -1,000,000..1,000,000 pulses requested and quantized. Both endpoints must fit the axis's native and soft limits; the `607A` table bounds the displacement only |
+| Trigger | `000F` to `005F` (EN86/ZH86 p12, OP86 p10: 15 to 95, bit 6 relative), held until terminal. `007F` immediate update is `UNSUPPORTED` |
+| Witness | Required, of the request's basis: known, idle, stationary, fresh, with a nonzero age cap, and observed at or after the predecessor `000F` completed, so a witness from before an earlier move or enable is refused |
+| Displacement | Always `KNOWN`; zero, including a request that quantizes to zero, is `ZERO_DISPLACEMENT` before any write (R-08) |
+| Snapshot | `parameters.target` keeps the request, the displacement and its exact quantization error, the host endpoint and the exact witness snapshot with its epochs |
+
+**The drive's base is a second gate.** The manuals give the relative trigger
+but not what the drive adds the displacement to. `MoveEvidence::relativeBase`
+names the caller's measurement of that base on the exact firmware:
+
+| Request basis | `relativeBase` needed | Otherwise |
+| --- | --- | --- |
+| `ACTUAL` | `ACTUAL` | `UNSUPPORTED`, `RELATIVE_BASIS` |
+| `COMMANDED` | `COMMANDED` | `UNSUPPORTED`, `RELATIVE_BASIS` |
+| `QUEUED` | None exists | Always `UNSUPPORTED`, `RELATIVE_BASIS`: a queued base needs an edge in a running curve, and this lifecycle starts a move only from an idle drive. The manuals document bit 5 = 0 as updating the parameters after the current curve completes (EN86/ZH86 p12, OP86 p10), but give no capacity, acknowledgement or base for it |
+
+The default is `UNMEASURED`, and no specimen has measured a base, so every
+relative request is refused today. The axis's `supportedRelativeBases` is a
+separate host-arithmetic policy and is still checked.
+
+Two bases stay apart in the context. `parameters.target.retainedReference` is
+the host arithmetic reference; `evidence.relativeBase` is the drive's measured
+base. `parameters.target.endpointNative` is only the host's expected endpoint:
+the drive reaches it only if its base equals the witness at the edge. A
+completion report never establishes it, nothing writes it back into a witness,
+and after a reference change `validatePreparedTarget` refuses the frozen target.
+Revalidation is explicit, with a new witness, and starts a new move.
+
+`AxisSession::requestMoveRelative` takes the same path as `requestMove`. Both
+borrow the axis configuration and witness until the move is terminal, for the
+admission rechecks and their `preflight` repeat. A refused recheck ends the move
+`INVALIDATED`, and `AxisSession::moveRefusal` keeps its reason: a changed, aged
+or invalidated target or witness, a moving witness, or an aged admission read.
+Each call is one explicit edge: identical values twice are
+two moves with two witnesses, and nothing retries a trigger, a parameter or a
+rearm. After a trigger that may have reached the drive without an observed
+completion, new moves stay fenced as for an absolute move.
+
+### Evidence a relative base needs
+
+Per specimen and firmware, with raw traffic and an independent shaft
+observation, beside the absolute items above:
+
+1. Whether `000F` to `005F` moves the shaft by the written displacement from
+   its actual position, from the last commanded endpoint, or otherwise. The two
+   differ only when actual and commanded positions differ, for example after a
+   halted move or a stall, so the trial needs such a start.
+2. That the absolute acceptance and completion signals behave the same after
+   `005F`, or the record must carry measured ones for it.
+3. What `005F` does with a zero `607A`, which the library never sends.

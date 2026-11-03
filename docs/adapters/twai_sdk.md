@@ -34,7 +34,7 @@ provides API context; the pinned implementation resolves details below.
 
 ## Retransmission consequences (DEC-4)
 
-Bytes leave for as long as a frame is pending. These follow from `fail_retry_cnt=-1`, and each stays unmeasured until packet 11:
+Bytes leave for as long as a frame is pending. These follow from `fail_retry_cnt=-1`. Packet 11's read-only soak on the S2, two specimens and about 13 minutes with no TPDO load, recorded no TX rejection, controller error or bus-off (`txRej=0`, `twaiErr=0`, `twaiFlags=0`, `busOff=0` in `docs/bench/20261103T0115Z-soak-stop`). So none of the cases below occurred, and each stays unmeasured: no no-ACK, bus-off, late-error or loaded case was induced or observed. Later runs are in the [soak report](../reports/2026-11-03_overnight_soak.md).
 
 - A no-ACK frame has no limit, timer or abort in the SDK. It stays ACTIVE, stalls the interface for every axis and raises one interrupt and `on_error` per attempt on the owner's core. Only an application-started owner recovery, which deletes the node, ends it.
 - A frame past its deadline can still be ACKed and take effect arbitrarily late, including on a rebooted drive. Boot-up or rebinding does not stop it.

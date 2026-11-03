@@ -421,8 +421,14 @@ void checkedReadbackEvidence() {
         successful[1].data[0] = uint8_t(type);
         const bool valid = type <= 240 || type >= 254;
         const Retained<PdoMapEvidence> before(output);
-        CHECK(bool(pdoMapFromReadback(successful, 6, route, 2, 99, output)) == valid);
-        if (!valid) before.unchanged(output);
+        const Status status = pdoMapFromReadback(successful, 6, route, 2, 99, output);
+        CHECK(bool(status) == valid);
+        // The refusal names the accepted set and does not classify 241-253, as no CiA 301 copy is kept.
+        if (!valid) {
+            before.unchanged(output);
+            CHECK(status.code == Err::INVALID_CONFIG &&
+                  !std::strcmp(status.msg, "PDO transmission type outside 0-240, 254, 255"));
+        }
     }
     for (unsigned count = 0; count <= 11; ++count) {
         if (count == 6) continue;

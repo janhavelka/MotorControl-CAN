@@ -198,17 +198,17 @@ struct Fixture {
     bool io;
     explicit Fixture(bool input, M::Generation configuration = 7)
         : owner(configuration), io(input) {
-        if (!io) {
+        // Both kinds need a clean state read under the reservation; motion also needs 000F first.
+        if (!io)
             control = owner.control();
-            state = owner.state();
-        }
+        state = owner.state();
         prior = owner.readGroup(io ? L::DriverGroup::IO_INPUT_CONFIGURATION
                                    : L::DriverGroup::MOTION_PARAMETERS,
                                 io ? oldIo : oldMotion, io ? 9 : 3);
     }
     M::Status prepare(L::DriverSettingsContext& out, uint64_t deadline = 1000) {
-        return io ? L::prepareIoSettings(out, owner.live(), owner.currentTarget(), prior, ioCandidate(), 41, owner.now,
-                                         deadline, options(), 100)
+        return io ? L::prepareIoSettings(out, owner.live(), owner.currentTarget(), prior, state, ioCandidate(), 41,
+                                         owner.now, deadline, options(), 100)
                   : L::prepareDriverSettings(out, owner.live(), owner.currentTarget(), prior, state, control,
                                              motionCandidate(), 41, owner.now, deadline, options(),
                                              100);
@@ -221,12 +221,12 @@ void preparation() {
         L::DriverSettingsContext output;
         const Saved<L::DriverSettingsContext> saved(output);
         L::IoSettings unset;
-        CHECK(!L::prepareIoSettings(output, f.owner.live(), f.owner.currentTarget(), f.prior, unset, 41, f.owner.now, 1000,
-                                    options(), 100));
+        CHECK(!L::prepareIoSettings(output, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, unset, 41,
+                                    f.owner.now, 1000, options(), 100));
         saved.unchanged(output);
         unset.invertedInputs = 0;
-        CHECK(!L::prepareIoSettings(output, f.owner.live(), f.owner.currentTarget(), f.prior, unset, 41, f.owner.now, 1000,
-                                    options(), 100));
+        CHECK(!L::prepareIoSettings(output, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, unset, 41,
+                                    f.owner.now, 1000, options(), 100));
         saved.unchanged(output);
         CHECK(f.owner.settingsDownloads == 0);
     }
@@ -281,8 +281,8 @@ void preparation() {
                 ++prior.read.target.channel.binding.configurationGeneration;
                 break;
             }
-            CHECK(!(io ? L::prepareIoSettings(out, live, f.owner.currentTarget(), prior, inputs, operation, f.owner.now,
-                                              deadline, policy, age)
+            CHECK(!(io ? L::prepareIoSettings(out, live, f.owner.currentTarget(), prior, f.state, inputs, operation,
+                                              f.owner.now, deadline, policy, age)
                        : L::prepareDriverSettings(out, live, f.owner.currentTarget(), prior, f.state, f.control, motion,
                                                   operation, f.owner.now, deadline, policy, age)));
             initial.unchanged(out);
@@ -371,14 +371,14 @@ void preparation() {
     for (uint16_t mask : {uint16_t(0), uint16_t(1), uint16_t(0x40), uint16_t(0x7f)}) {
         L::IoSettings candidate = ioCandidate();
         candidate.invertedInputs = mask;
-        CHECK(L::prepareIoSettings(out, inputs.owner.live(), inputs.owner.currentTarget(), inputs.prior, candidate, 41,
-                                   inputs.owner.now, 1000, options(), 100));
+        CHECK(L::prepareIoSettings(out, inputs.owner.live(), inputs.owner.currentTarget(), inputs.prior, inputs.state,
+                                   candidate, 41, inputs.owner.now, 1000, options(), 100));
         CHECK(out.requested[1] == uint16_t(0xa500 | mask));
     }
     for (unsigned code = 0; code <= 13; ++code) {
         // Repeated functions are accepted; uniqueness is not a documented constraint.
-        CHECK(L::prepareIoSettings(out, inputs.owner.live(), inputs.owner.currentTarget(), inputs.prior, ioCandidate(code), 41,
-                                   inputs.owner.now, 1000, options(), 100));
+        CHECK(L::prepareIoSettings(out, inputs.owner.live(), inputs.owner.currentTarget(), inputs.prior, inputs.state,
+                                   ioCandidate(code), 41, inputs.owner.now, 1000, options(), 100));
         CHECK(out.requested[1] == 0xa555);
     }
     for (unsigned bad = 0; bad < 3; ++bad) {
@@ -390,8 +390,8 @@ void preparation() {
         if (bad == 2)
             candidate.functions[0] = L::InputFunction::UNKNOWN;
         const Saved<L::DriverSettingsContext> before(out);
-        CHECK(!L::prepareIoSettings(out, inputs.owner.live(), inputs.owner.currentTarget(), inputs.prior, candidate, 41,
-                                    inputs.owner.now, 1000, options(), 100));
+        CHECK(!L::prepareIoSettings(out, inputs.owner.live(), inputs.owner.currentTarget(), inputs.prior, inputs.state,
+                                    candidate, 41, inputs.owner.now, 1000, options(), 100));
         before.unchanged(out);
     }
     for (unsigned bad = 0; bad < 3; ++bad) {
@@ -603,8 +603,8 @@ void unchangedAndSparseCandidates() {
         for (unsigned i = 0; i < 7; ++i)
             inputs.functions[i] = static_cast<L::InputFunction>(oldIo[i + 2]);
         L::DriverSettingsContext c;
-        CHECK(io ? L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, inputs, 41, f.owner.now, 1000,
-                                        options(), 100)
+        CHECK(io ? L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, inputs, 41,
+                                        f.owner.now, 1000, options(), 100)
                  : L::prepareDriverSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, f.control, motion,
                                             41, f.owner.now, 1000, options(), 100));
         CHECK(c.state == L::SettingsState::SUCCEEDED && !c.changed && !c.confirmed &&
@@ -626,8 +626,8 @@ void unchangedAndSparseCandidates() {
             inputs.functions[6] = L::InputFunction::USER6;
         else
             motion.rampDownTimeMs = 400;
-        CHECK(io ? L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, inputs, 41, f.owner.now, 1000,
-                                        options(), 100)
+        CHECK(io ? L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, inputs, 41,
+                                        f.owner.now, 1000, options(), 100)
                  : L::prepareDriverSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, f.control, motion,
                                             41, f.owner.now, 1000, options(), 100));
         CHECK(c.changed == (1u << field));
@@ -651,7 +651,7 @@ void everyChangedSubset() {
             inputs.functions[i] = static_cast<L::InputFunction>(
                 selected & (2u << i) ? oldIo[i + 2] + 7 : oldIo[i + 2]);
         L::DriverSettingsContext c;
-        CHECK(L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, inputs, 41,
+        CHECK(L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, inputs, 41,
                                    f.owner.now, 1000, options(), 100));
         CHECK(c.changed == selected << 1);
         unsigned writes = 0;
@@ -700,7 +700,7 @@ void preparationNeedsTheCurrentTarget() {
             if (bad == 2)
                 ++moved.channel.binding.bindingGeneration;
             const M::Status s =
-                io ? L::prepareIoSettings(out, f.owner.live(), moved, f.prior, ioCandidate(), 41,
+                io ? L::prepareIoSettings(out, f.owner.live(), moved, f.prior, f.state, ioCandidate(), 41,
                                           f.owner.now, 1000, options(), 100)
                    : L::prepareDriverSettings(out, f.owner.live(), moved, f.prior, f.state, f.control,
                                               motionCandidate(), 41, f.owner.now, 1000, options(), 100);
@@ -712,7 +712,7 @@ void preparationNeedsTheCurrentTarget() {
         CHECK(f.prepare(out));
         const Saved<L::DriverSettingsContext> prepared(out);
         const M::Status s =
-            io ? L::prepareIoSettings(out, f.owner.live(), out.reservation.target, f.prior, ioCandidate(),
+            io ? L::prepareIoSettings(out, f.owner.live(), out.reservation.target, f.prior, f.state, ioCandidate(),
                                       41, f.owner.now, 1000, options(), 100)
                : L::prepareDriverSettings(out, f.owner.live(), out.reservation.target, f.prior, f.state,
                                           f.control, motionCandidate(), 41, f.owner.now, 1000, options(),
@@ -1142,8 +1142,8 @@ void refusedPreparationKeepsRetainedTransaction() {
         if (io) {
             L::IoSettings bad = ioCandidate();
             bad.functions[6] = static_cast<L::InputFunction>(14);
-            CHECK(!L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, bad, 42, f.owner.now, 1000,
-                                        options(), 100));
+            CHECK(!L::prepareIoSettings(c, f.owner.live(), f.owner.currentTarget(), f.prior, f.state, bad, 42,
+                                        f.owner.now, 1000, options(), 100));
         } else {
             L::DriverSettings bad = motionCandidate();
             bad.rampDownTimeMs = 2001;

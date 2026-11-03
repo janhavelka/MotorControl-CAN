@@ -29,9 +29,9 @@ Stationary, alarm-free, mode 1, `606C=0`, a shaft mark, one drive and the cutoff
 
 ## Open
 
-- Move admission must check `configurationGeneration`, so a counter zero invalidates prepared moves; packet 20 owns that test.
-- `AxisSession` has no counter-zero member, and its configuration callback must not withdraw a second time on counter sync.
-- `s2_bench` has no route.
+- **Closed by packet 20:** move admission checks `configurationGeneration`, so a counter zero invalidates prepared moves (`counterZeroInvalidates` in `test/move_absolute_test.cpp` and `test/move_relative_test.cpp`).
+- **No application caller.** `AxisSession` has no counter-zero member, and its configuration callback must not withdraw a second time on counter sync. Tracked as backlog S12.
+- `s2_bench` has no route (S12). Step 4's finite experiment exists only as the plan above and in the [guide](../../fault_reference_actions.md).
 - Q14's physical qualification.
 
 ## Sibling refresh
@@ -40,8 +40,10 @@ Stationary, alarm-free, mode 1, `606C=0`, a shaft mark, one drive and the cutoff
 | --- | --- | --- | --- |
 | MotorControl-RS | `6499571` | Clean | Adopted: zero-only `UNSUPPORTED` (`Actions.cpp:31-37`); raw kept beside a known flag. Rejected: withdrawal only after `txAccepted` (`ProbeApp.cpp:2272-2279`), where CAN withdraws earlier; the `positionClearQualified` operator flag |
 | FieldCore-node | `5ad9292` | Clean | Adopted: reset or origin does not establish a reference (`contracts/MotorControl.h:13-15,103`) |
-| INA228, PCA9555 | Unchanged | Clean | As packet 17 |
+| ADS1115 | `d613a13` | Clean | Adopted: `INDETERMINATE` with `hardwareStateUncertain` (`include/ADS1115/ADS1115.h:51,134`), as a possible `2302=1` stays uncertain. Rejected: `OperationKind::RECOVER` replay |
+| INA228 | `73f9548` | Clean | Adopted, the closest seam: a destructive accumulator reset withdraws accumulated validity as soon as the write returns (`_accumulationReady = false` in `JobPhase::ACCUMULATOR_WRITE`, `src/INA228.cpp:1368`), and a failed side-effecting write counts as possibly applied (`INA228::_failJob`, `:777`). Counter zero withdraws coordinates at the first possible trigger, earlier still |
+| PCA9555 | `414e0f6` | Clean | Adopted: ambiguous writes stay recorded (`uncertainPairs`, `include/PCA9555/PCA9555.h:186`) until a matching full readback (`VERIFY_IMAGE`) |
 
 ## Checks
 
-See the [execution table](README.md).
+The tests passed the local gates recorded for `01190cf` in the [execution table](README.md). CI failed at `01190cf` on a test registered twice, which is unrelated to this packet. The full verifier then ran on the exact commit `f1116b1` in a clean detached worktree, which includes every test named here, and CI passed at `f1116b1`.

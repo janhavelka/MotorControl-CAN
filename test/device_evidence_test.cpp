@@ -1021,8 +1021,12 @@ void receiveIntervalsStayIntervals() {
     }
     CHECK(observed.window.earliestUs == observed.fields[0].earliestUs);
     CHECK(observed.window.latestUs == observed.fields[8].latestUs);
-    const C::ObservationTime& sdo = rig.services.node(0)->sdo;
-    CHECK(sdo.present && !sdo.receivedTimeKnown && sdo.receivedUs == 0 && !rig.services.node(0)->nmtTime.present);
+    // Contract change (bounds qualification): this fake's interval reaches back to its own
+    // handoff, so each reply settles its read but records no SDO or service evidence. An
+    // interval used to leave a timeless record here. The external premise stays as configured.
+    const C::NodeSnapshot& node = *rig.services.node(0);
+    CHECK(!node.sdo.present && !node.nmtTime.present && !node.serviceFromSdo);
+    CHECK(node.serviceQualification.receivedTimeKnown && node.serviceQualification.receivedUs == 0);
     // An interval wholly before the handoff is old traffic, exactly as an old timestamp would be.
     Rig stale;
     stale.wire.interval = true;

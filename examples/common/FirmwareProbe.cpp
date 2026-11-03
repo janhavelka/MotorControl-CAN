@@ -4,9 +4,60 @@
 namespace MotorControlCANExample {
 FirmwareProbe::FirmwareProbe(MotorControlCAN::CANOPEN::SdoClient& services, TwaiDriver driver,
                              const ProbeCallbacks& callbacks) noexcept
-    : transport_(services, driver), owner_(services, transport_.transport(), 28),
-      platform_(callbacks), app_(owner_, platform_), evidence_(app_, owner_),
-      callbacksValid_(callbacks.nowUs && !callbacks.idle) {}
+    : transport_(services, driver), adapter_(transport_.transport()),
+      owner_(services, ownerTransport(), 28), platform_(callbacks), app_(owner_, platform_),
+      evidence_(app_, owner_), callbacksValid_(callbacks.nowUs && !callbacks.idle) {}
+MotorControlCANOwner::Transport FirmwareProbe::ownerTransport() noexcept {
+    using MotorControlCANOwner::ReceivedFrame;
+    using MotorControlCANOwner::TransportTxId;
+    MotorControlCANOwner::Transport t;
+    t.context = this;
+    // A missing adapter callback stays missing: the owner treats absence as a fact.
+    if (adapter_.receive)
+        t.receive = [](void* p, ReceivedFrame& frame) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            return a.receive(a.context, frame);
+        };
+    if (adapter_.transmit)
+        t.transmit = [](void* p, const MotorControlCAN::Frame& frame, TransportTxId id, uint32_t epoch) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            return a.transmit(a.context, frame, id, epoch);
+        };
+    if (adapter_.takeTxReport)
+        t.takeTxReport = [](void* p, MotorControlCANOwner::TxReport& report) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            return a.takeTxReport(a.context, report);
+        };
+    if (adapter_.observe)
+        t.observe = [](void* p, const ReceivedFrame& frame, uint64_t now) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            a.observe(a.context, frame, now);
+        };
+    if (adapter_.retire)
+        t.retire = [](void* p, TransportTxId id, uint32_t epoch) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            return a.retire(a.context, id, epoch);
+        };
+    if (adapter_.beginRecovery)
+        t.beginRecovery = [](void* p, uint32_t epoch) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            return a.beginRecovery(a.context, epoch);
+        };
+    if (adapter_.pollRecovery)
+        t.pollRecovery = [](void* p, uint32_t epoch) {
+            const auto& a = static_cast<FirmwareProbe*>(p)->adapter_;
+            return a.pollRecovery(a.context, epoch);
+        };
+    t.beforeTransmit = [](void* p, MotorControlCANOwner::SequenceId sequence,
+                          const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) {
+        const auto& self = *static_cast<FirmwareProbe*>(p);
+        const auto& a = self.adapter_;
+        if (a.beforeTransmit && !a.beforeTransmit(a.context, sequence, transfer, now))
+            return false;
+        return !self.preflight_.check || self.preflight_.check(self.preflight_.context, sequence, transfer, now);
+    };
+    return t;
+}
 bool FirmwareProbe::begin(const FirmwareConfig& config) noexcept {
     if (attempted_)
         return false;

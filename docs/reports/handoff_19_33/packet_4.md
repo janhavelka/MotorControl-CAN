@@ -33,7 +33,7 @@ A mutation check compiled 21 mutated production copies. 19 were caught, one surv
 
 | Sibling | Revision | Dirty | Seam | Disposition |
 | --- | --- | --- | --- | --- |
-| MotorControl-RS | `776facd` | Clean | `profiles/ess_rs/Reads` and getter callers | Fixed plans and checked getters already match. Identity-width selection is CAN-specific |
+| MotorControl-RS | `776facd`; HEAD was `3f871c7`, which adds only two lines to an RS audit report, so the seam is the same | Clean | `profiles/ess_rs/Reads` and getter callers | Fixed plans and checked getters already match. Identity-width selection is CAN-specific |
 | ADS1115 | `d613a13` | Clean | `consumeTerminalResult` in `02_owner_safe_poll` | Unchanged; terminal consumption pattern already followed |
 | INA228 | `73f9548` | Clean | Freshness and configuration generation checks | Unchanged; no behavior adopted |
 | FieldCore-node | `5ad9292` | Clean | Observation projection | Unchanged; read-only |

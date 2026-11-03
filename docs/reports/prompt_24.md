@@ -4,6 +4,8 @@
 
 **Reopened by audit W6.** [Packet 6](handoff_19_33/packet_6.md) replaced the one urgent slot with one per channel and added `beginUrgentOperation`, `findSequence` and the best-effort stop route. [Packet 7](handoff_19_33/packet_7.md) consumes them. Capacity statements below describe the earlier contract.
 
+**W5 and W6 closed, 2026-11-03.** Packets 5, 6 and 7 delivered them in `73f029b`, `25a332f` and `9685200`, and [packet 10](handoff_19_33/packet_10.md)'s closure audit confirmed them for host scope, with CI green at `5306eaf`. Still open: no real route can reopen until Q18 closes, which [packet 11](handoff_19_33/packet_11.md) left unresolved; no drive has run a stop path (packet 16); and the C-09 remainder belongs to prompt 38.
+
 Date: 2026-10-31. Promptset v2 continues on `promptset/motorcontrol-can`, upstream
 `origin/promptset/motorcontrol-can`, original base `7878f7c`. Entry commit
 `29906a203cf2a988cc9c393ea97f019d3443e36d` had a clean worktree/index; fresh

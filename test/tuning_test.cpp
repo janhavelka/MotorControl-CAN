@@ -774,8 +774,8 @@ void loopFailureRetentionAndPublication() {
     for (unsigned i = 0; i < 7; ++i)
         io.functions[i] = L::InputFunction::UNDEFINED;
     L::DriverSettingsContext wrong;
-    CHECK(L::prepareIoSettings(wrong, owner.reservation, owner.reservation.target, ioPrior, io, 42, owner.now, 5000,
-                               options(), 100));
+    CHECK(L::prepareIoSettings(wrong, owner.reservation, owner.reservation.target, ioPrior, owner.state(), io, 42,
+                               owner.now, 5000, options(), 100));
     CHECK(wrong.state == L::SettingsState::SUCCEEDED && !wrong.changed);
     L::ControlObservation out;
     out.loopModeRaw = 0xa55a;

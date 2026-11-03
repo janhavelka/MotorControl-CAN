@@ -81,8 +81,12 @@ observations and per-feature gates. The canonical ledger's Q20 remains open as
 a device fact: no reviewed upload descriptor has established non-consuming
 effects, and `read_effect` stays `not_established`. The owner's DEC-1 acceptance
 of 2026-11-02 (`1000`, `1018:00..03`, `1009`, `100A`, `2000`, `2001`, `6041`,
-`6061`, `6064`, `606C`, `2100`, `2101`, `2102`) is risk acceptance with the
-fixture not yet run, not evidence that those reads have no effect. An ordinary
+`6061`, `6064`, `606C`, `2100`, `2101`, `2102`) is risk acceptance, not evidence
+that those reads have no effect. Packet 11 read all 16 listed rows live on two
+specimens, through typed identity and the soak, with no read-effect observation.
+Packet 15 adds one `607A` and one `60FF` upload per enable as
+`accepted_action_prerequisite`: a bounded prerequisite, not a poll, with effects
+unknown; no specimen has run an enable. An ordinary
 device plan is admitted only when every object is accepted; any other row is
 rejected. `603F`, `1001` and `1003` stay unqualified explicit single reads (first
 bench read records LED fault state before and after). An identity or RO label
@@ -365,6 +369,22 @@ limited to ten per second (`evLimit`), and a dropped change shows as a break in 
 old-to-new chain, which the parser reports as `soak_transition_gap`. The first two anomalies of
 each kind get a dump, sixteen in a soak; the rest are one line each and counted (`dumpSkip`).
 
+In `SOAK_CON`, `blocked` counts turns a formatted line waited for room. `conRej` is the console's
+total of refused submissions since the MCU booted, from every writer. The other routes' dumps
+retry a refused line on the next turn, so there it counts retries, not lost lines. The soak
+writes only after measuring room and never adds to it, so a constant `conRej` through a soak
+comes from earlier commands on the same boot. `defBusy` counts turns a due read waited for the
+previous operation. `slips` counts ticks that had already passed when the next was set; the next
+read then starts one interval later, with no catch-up burst. When the interval is shorter than
+one operation, both grow every minute by design: the run is bound by the drives' reply time.
+`submitOverwritten` is also a since-boot total: the TWAI tap keeps one submission record and only
+the soak takes it, so each single-frame request by an earlier command on the same boot replaces
+an untaken one. A constant value through a soak is that history, not loss during it.
+
+The host checks every line's `n`. A gap or a malformed line in the digest, while the firmware's
+`lines` stays contiguous, is loss between the S2's UART and pyserial. One such loss, exactly one
+64-byte USB packet, is analysed in the [soak report](reports/2026-11-03_overnight_soak.md).
+
 Timing effects, all in the summary so they can be accounted for: formatting costs a share of a
 1 ms turn, measured by `gapMax`; a dump holds the next scheduled read until it has printed,
 about a second at this baud by calculation, recorded in `dumpUs` and `defDump`, and bounded
@@ -394,12 +414,12 @@ from the host's side file.
 
 ## Attended bench routes
 
-Named finite routes for the attended trials of packets 13, 14, 15, 16 and 19, in
+Named finite routes for the attended trials of packets 13, 14, 15, 16, 19 and 20, in
 [`BenchRoute`](../examples/s2_bench/BenchRoute.h). **No specimen has run any of them.** Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
-typed reads, the session's own `requestEnable` and `requestStop`, and caller-built transfers
-through `admitPrepared` only for the 6060 write and the position experiment's writes. There is no
-raw sender, object selector or command language. Startup is passive. A route is refused while a
+typed reads, the session's own `requestEnable`, `requestMove` and `requestStop`, and caller-built
+transfers through `admitPrepared` only for the 6060 write, the position experiment's writes and the
+rearm's `000F`. There is no raw sender, object selector or command language. Startup is passive. A route is refused while a
 soak runs or any other record is retained, and nothing else but `p`, `s`, `d`, `r` and `A` is served
 while its own record is held.
 
@@ -412,26 +432,36 @@ while its own record is held.
 | `enable` (packet 15 P3) | `TE<node>,<trial>,1,1,<shaft>,<6041>,<607A>,<60FF>,<deadline>,<interval>` | A fresh `ERRORS`/`MONITORS`/`STATUS`/`FEEDBACK` read, then `requestEnable` with `ATTENDED_EXPERIMENT`, the host's trial, reviewed values and `NO_MOTION_WRITE_RECORDED`, and the attendant's typed `FREE` or `HOLDING` | The library's own conditions; a nonzero EMCY of the node withdraws it with `DRIVE_FAULT` |
 | `stop` (packet 15 P4, packet 16) | `TS<node>,<trial>,1,<1 halt/2 quick>,<deadline>,<best effort or 0>,<interval>` | A fresh `MONITORS`/`STATUS` read, then `requestStop` with that kind and policy | The session decides the path |
 | `position` (packet 19) | `TP<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<cycles>,<interval>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | A fresh full read and a check: latest controlword the session's acknowledged `000F`, mode 1, low bits 111, released, alarm and running clear, `606C` 0, `6064` equal to the reviewed start. Then `6081`, `6083`, `6084`, `607A` read for the record; `607A`, `6081`, `6083`, `6084` and `6040=001F` written, each after the previous acknowledgement; 1..16 fresh image cycles; an optional `requestStop` after a named cycle | Alarm, a failed terminal, EMCY. No stop follows unless planned |
+| `rearm` (packet 19) | `TR<node>,<trial>,1,<cycles>,<interval>` | Admitted only while the session's latest controlword is the acknowledged `001F` of a finished `position` record on that node: missing, uncertain or any other word refuses with `control`. A fresh full read and the `position` check without the start position. Then `2B 40 60 00 0F 00 00 00` once through the session, so it becomes the latest word when acknowledged, then 1..16 fresh image cycles, recorded and never judged. Project policy until the mode 1 falling-edge behavior is measured | Alarm, a failed terminal, EMCY. A lost reply leaves no latest word: `position`, `rearm` and `move` then refuse |
+| `move` (packet 20) | `TG<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<deadline>,<interval>,<record>,<accept source>,<accept mask>,<accept value>,<complete source>,<complete mask>,<complete value>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Refused unless the latest word is the acknowledged `000F` and no earlier move is fenced. A fresh identity read (`1009`/`100A` one byte), a fresh full read and the `position` check, then `requestMove` with `MoveEvidence` built only from the line: the record, both signals (1 `6041`, 2 `2100`), the rule (1 after absence, 2 after acceptance) and the raw identity, which must equal the fresh read. An absolute `STEPS` target in the native frame and rpm as motor turns per minute, with no scale claimed. The session writes `607A`, `6081`, `6083`, `6084`, `001F`, runs its cycles to its own terminal and writes its own `000F` only after an observed completion. An optional `requestStop` after a named number of move cycles, with the move's last complete cycle | The library's refusals (`TRIAL_STATUS`), the move's own outcome, EMCY (`DRIVE_FAULT`), abort (`cancelMove`). A trigger without an observed completion fences later moves |
 
 `trial-abort` sends `A`: a local withdrawal, with no stop sent. A request on its way settles first,
-an active enable ends through `cancelEnable`, and a stop in progress refuses it. The runner sends
-one `A` on Ctrl-C.
+an active enable ends through `cancelEnable` and an active move through `cancelMove`, and a stop in
+progress refuses it. The runner sends one `A` on Ctrl-C.
 
-**Prerequisite for an enable.** The session admits its enable words as ordinary SDO work, which
-needs a current exact NMT state or service qualification. This fixture's ingress carries receive
-bounds only, and `SdoClient` records an SDO reply's service qualification only with an exact
-receive time, so a reply never qualifies service here. In practice an observed heartbeat is
-needed: `enable` is refused with `reason=eligibility` before anything is sent otherwise. Run
-`heartbeat1` and `release` before the first route on that node, because `RawEvidence` takes its own
-reservation and refuses once a session holds one. Without it, a stop can only take the policy's
-best-effort `000B` branch. The routes' own writes take one-use download grants and do not need it.
+Relative moves are not routed: no specimen has measured what the drive adds a displacement to. A
+`move` refused by the library still counts as a motion admission, as every motion route does.
+
+**Prerequisite for an enable.** The session admits its enable words and a sequenced stop as
+ordinary SDO work, which needs a current exact NMT state or service qualification. This fixture's
+ingress carries receive bounds only. A checked SDO reply now qualifies service from its bounds when
+the earliest bound is strictly after the request's handoff and after the node boundary; the full
+rule and its residual risk are in [SDO service qualification](adapters/twai_receive_time.md#sdo-service-qualification).
+Before any such reply nothing qualifies, so a route's fresh reads come first, and `enable` is
+refused with `reason=eligibility` before anything is sent when no current qualification exists. A
+heartbeat is no longer needed for this. `heartbeat1` stays a separate `1017` write experiment, not a
+route prerequisite; if it is run, run it and `release` before the first route on that node, because
+`RawEvidence` takes its own reservation and refuses once a session holds one. Without current
+qualification, a stop can only take the policy's best-effort `000B` branch. The routes' own writes
+take one-use download grants and do not need it.
 
 **Every route** records its admission in `TRIAL admitted` and has a new trial identity, rising for
 the firmware's life; the host's trial log must never reissue one across boots. Motion routes
-(`mode1`, `enable`, `stop`, `position`) need the attended flag the runner sets only after the
-operator typed `ATTENDED <trial>`. Packet 22's campaign cap is enforced per boot at admission: at
-most twelve motion admissions, and three per route and node. A planned stop inside `position`
-counts against `stop` as well. Every unqualified upload and every write of the route's own takes
+(`mode1`, `enable`, `stop`, `position`, `rearm`, `move`) need the attended flag the runner sets only
+after the operator typed `ATTENDED <trial>`. Packet 22's campaign cap is enforced per boot at
+admission: at most twelve motion admissions, and three per route and node. A planned stop inside
+`position` or `move` counts against `stop` as well. Across boots the runner enforces the same caps
+from the campaign ledger below. Every unqualified upload and every write of the route's own takes
 an exact one-use grant, numbered from 100000. Queue budgets are 100 ms and response budgets 250 ms,
 as host policy; with them the shortest enable deadline the library admits is 9.13 s. A plan whose
 polls could exceed the record (128 terminals) or the sixty-second cutoff is refused before anything
@@ -457,6 +487,9 @@ session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 | `TRIAL_EMCY`, `TRIAL_STATUS` | The EMCY that ended it; a library refusal with its code, detail and message |
 | `TRIAL_ENABLE`, `TRIAL_ENABLE_STEP` | The enable context and each word's acknowledgement and accepted report |
 | `TRIAL_STOP`, `TRIAL_BEST_EFFORT` | The requested and final path, the sequenced context with its predecessor, and both best-effort contexts; `own=1` marks this route's |
+| `TRIAL_REARM` | The operation and completion time of the `001F` the rearm followed, and the session's latest word afterwards (`latest=0` after a lost `000F`) |
+| `TRIAL_EVIDENCE` | The move's evidence exactly as the line gave it: record, signals, rule, raw identity |
+| `TRIAL_MOVE`, `TRIAL_MOVE_SAMPLE` | The session's `MoveContext`: state, final phase and phases seen, outcome, interruption, setup, trigger, completion and rearm execution, uncertainty, cycles, fence; then its admission, latest, acceptance, absence and completed samples, raw |
 
 `failure` values: 0 none, 1 grant, 2 admission, 3 service, 4 correlation, 5 evidence loss,
 6 invalidated, 7 deadline, 8 prerequisite, 9 observation, 10 action, 11 refused, 12 aborted.
@@ -466,25 +499,44 @@ replays a record of every route that the real `BenchRoute` printed against a syn
 
 ```text
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 1 --trial 101 --fault-led prompt --output NEW_DIRECTORY
-python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command mode1 --node 1 --trial 104 --cycles 5 --interval-ms 500 --output NEW_DIRECTORY
-python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command enable --node 1 --trial 105 --status 0x8037 --position-target 5000 --velocity-target 120 --deadline-ms 10000 --interval-ms 800 --no-motion-write-recorded --output NEW_DIRECTORY
-python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 1 --trial 106 --kind quick --deadline-ms 2000 --best-effort-ms 0 --interval-ms 200 --output NEW_DIRECTORY
-python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command position --node 1 --trial 107 --start-position 0 --target 16 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 8 --interval-ms 250 --stop-kind halt --stop-after 4 --stop-deadline-ms 2000 --stop-best-effort-ms 0 --stop-interval-ms 200 --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command mode1 --node 1 --trial 104 --cycles 5 --interval-ms 500 --campaign CAMPAIGN.jsonl --new-campaign --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command enable --node 1 --trial 105 --status 0x8037 --position-target 5000 --velocity-target 120 --deadline-ms 10000 --interval-ms 800 --no-motion-write-recorded --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 1 --trial 106 --kind quick --deadline-ms 2000 --best-effort-ms 0 --interval-ms 200 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command position --node 1 --trial 107 --start-position 0 --target 16 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 8 --interval-ms 250 --stop-kind halt --stop-after 4 --stop-deadline-ms 2000 --stop-best-effort-ms 0 --stop-interval-ms 200 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command rearm --node 1 --trial 108 --cycles 4 --interval-ms 250 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command move --node 1 --trial 109 --start-position 16 --target 32 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --deadline-ms 10000 --interval-ms 1000 --record RECORD --accept-source SOURCE --accept-mask MASK --accept-value VALUE --complete-source SOURCE --complete-mask MASK --complete-value VALUE --rule RULE --device-type RAW --hardware-version RAW --software-version RAW --vendor-id RAW --product-code RAW --revision RAW --model-code RAW --firmware-code RAW --stop-kind none --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 ```
 
 The values are placeholders for review, not recommendations: P2 and P3 take theirs from P1's fresh
-reads, and the position values need packet 19's reviewed bounds. Every route value is required; the
+reads, and the position values need packet 19's reviewed bounds. The move's evidence has no
+placeholder at all: every signal, rule and identity value comes from packet 19's reviewed
+measurement record, and without one the move stays unrun. Every route value is required; the
 runner refuses a missing one. Each command checks the recorded USB identity, pings, and refuses
-unless the image reports `routes=1`, no soak, no held record and a started controller. It asks the
+unless the image reports `routes=1` (`routes=2` for `rearm` and `move`), no soak, no held record and
+a started controller. It asks the
 operator to type the attended confirmation, the shaft observation for `enable` and the fault LED for
 `readiness-actions` with `--fault-led prompt`, and after the route a free-text shaft observation.
 These go to `request.json` and are never interpreted; only the enable's `FREE` or `HOLDING` is
 sent. `--dry-run` prints the plan without enumerating, prompting or creating anything. Exit status: 0
 complete, 3 a consistent record of a failure, 2 nothing admitted, 1 damaged or unfinished.
 
-**Memory.** Static DRAM is unchanged: `dram0_0_seg` has 2576 bytes left. `BenchRoute` takes 40328
-bytes of internal heap on the first route request, and each node's `AxisSession` 23536 bytes on its
-first route, with the session as in the current tree. Like the soak's they are never freed, and a
+**Campaign ledger.** The firmware's caps restart with the MCU, so every motion command needs
+`--campaign PATH`, a JSON-lines file the operator names for the whole campaign. Before a motion line
+is written its `send` entry (route, node, trial, motion weight, planned stop, line, image) is
+appended and flushed; a `result` entry follows the capture. Every send counts, admitted or refused by
+the firmware. The runner refuses before prompting or opening the port once the ledger holds twelve
+motion admissions, three for one route and node (a planned stop also counts against `stop`), or any
+trial identity at or above the requested one. A missing ledger is refused unless `--new-campaign`
+starts it, and `--new-campaign` on an existing one is refused, so a mistyped path cannot reset the
+counts. A partial last line or a malformed entry is refused and never repaired. If the send entry
+cannot be written nothing is sent (`reason=campaign_unwritten`). Read routes may name the ledger too;
+their entries count toward trial identities only.
+
+**Memory.** Static DRAM is unchanged by `rearm` and `move`: `dram0_0_seg` has 2576 bytes left
+(169456 used, 98.5%); the parser's field tables are in flash. On the 2026-11-03 tree `BenchRoute`
+takes 41888 bytes of internal heap on the first route request (it holds the move's identity read,
+one coordinate configuration per node and the move request, off the task stack), and each node's `AxisSession` 23576
+bytes on its first route, with the session as in that tree. Like the soak's they are never freed, and a
 failed allocation refuses with `reason=memory`. Whether the largest free block holds both sessions
 beside a soak is unmeasured; `TRIAL_RES largest` reports it.
 

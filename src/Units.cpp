@@ -2,23 +2,21 @@
 // Adapted from MotorControl-RS Units.cpp, UnitFactors.h and Axis.cpp
 // Copyright (c) 2026 Jan Havelka. See LICENSE and docs/units_status.md.
 #include "MotorControlCAN/Units.h"
+#include "ExactArithmetic.h"
 #include <cmath>
 #include <cstring>
 #include <limits>
 
 namespace MotorControlCAN {
 namespace {
+using Detail::gcd;
+using Detail::magnitude;
 static_assert(std::numeric_limits<double>::is_iec559 && std::numeric_limits<double>::digits == 53,
               "Exact floating comparisons require IEEE binary64");
 static_assert(std::numeric_limits<float>::is_iec559 && std::numeric_limits<float>::digits == 24 &&
               sizeof(float) == sizeof(uint32_t), "Native float quantization requires IEEE binary32");
 Status fail(UnitError reason, const char* text, Err code = Err::ILLEGAL_VALUE) {
     return Status(code, static_cast<int32_t>(reason), text);
-}
-uint64_t magnitude(int64_t n) { return n < 0 ? uint64_t(-(n + 1)) + 1 : uint64_t(n); }
-uint64_t gcd(uint64_t a, uint64_t b) {
-    while (b) { const uint64_t r = a % b; a = b; b = r; }
-    return a;
 }
 bool signedMagnitude(uint64_t n, bool negative, int64_t& out) {
     const uint64_t limit = uint64_t(INT64_MAX) + (negative ? 1u : 0u);

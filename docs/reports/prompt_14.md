@@ -2,6 +2,8 @@
 
 **Reopened by audit W5.** [Packet 5](handoff_19_33/packet_5.md) changed abort and controller-event settlement and added the drain marker. Quarantine statements below describe the earlier contract.
 
+**W5 closed, 2026-11-03.** Packet 5 delivered W5 in `73f029b`, and [packet 10](handoff_19_33/packet_10.md)'s closure audit confirmed it for host scope, with CI green at `5306eaf`. The drain marker stays partial by design: no real route can reopen until Q18 closes, and [packet 11](handoff_19_33/packet_11.md) left Q18 unresolved.
+
 A [fresh independent audit](prompt_14_audit.md) subsequently clarified the
 per-segment freshness premise and strengthened upload cancellation/toggle-wrap
 regressions. No runtime defect was reproduced; its fresh checks are recorded

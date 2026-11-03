@@ -402,7 +402,8 @@ class LedgerTests(unittest.TestCase):
         acceptance = LEDGER["semantic_review"]["read_acceptance"]
         self.assertEqual((acceptance["decision"], acceptance["selected_on"],
                           acceptance["fixture_status"]),
-                         ("DEC-1", "2026-11-02", "fixture not yet run"))
+                         ("DEC-1", "2026-11-02",
+                          "run live on two specimens by packet 11 on 2026-11-03, with no read-effect observation"))
         q20 = next(gate for gate in LEDGER["semantic_review"]["gates"] if gate["id"] == "Q20")
         self.assertEqual(q20["status"], "open")
         self.assertEqual(q20["owner_prompts"], [19, 29, 37, 41, 44, 47])

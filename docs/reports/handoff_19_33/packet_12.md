@@ -7,7 +7,7 @@ Resumes prompt 20. Host and fake evidence only, because bench time went to the c
 See the [settings guide](../../driver_settings.md) and the [changelog](../../../CHANGELOG.md).
 
 - `prepareSoftLimitSettings` (2202), which establishes a stored code only.
-- `test/settings_owner_test.cpp` runs settings through the real `CanBusOwner` and `SdoClient` against a scripted dictionary holding the specimens' values, with the packet's whole case list. Hand mutants of `Settings.cpp` are killed.
+- `test/settings_owner_test.cpp` runs settings through the real `CanBusOwner` and `SdoClient` against a scripted dictionary holding the specimens' values, with the packet's whole case list. Hand mutants of `Settings.cpp` are killed (not retained).
 - Packet 10's distinction is proved end to end: an explicit call advances the generation once, at the first possible download. Admission alone, queue or preflight rejection and a pre-TX cancel do not. A move's own writes through the hook leave its prepared target valid and retire the prior and a finished `readback`.
 
 ## Decisions per setting
@@ -40,7 +40,7 @@ An independent reviewer rendered the pages and probed the code. It found no fram
 | 2202 could arm on a homed drive, where p18's deferral was the reason for dropping RS's gate | Refused while homing is reported. **RS requires homing complete to enable, so this is the opposite, a recorded delta**: arming must precede homing. A stored code already 1 is refused too while homed |
 | Closure conditions for 2202 and `607D` were circular | Stated plainly: they need a manufacturer range or coordinate basis |
 | Undocumented 2100 bits passed | Bits 7..15 refuse for 2202 |
-| Selector wire bytes were never asserted, and three mutants survived | Pinned |
+| Selector wire bytes were never asserted, and three mutants survived (not retained) | Pinned |
 
 ## Physical tests not run
 
@@ -57,7 +57,7 @@ The return write is a separate explicit operation, sent only if the forward writ
 
 | Sibling | Revision | Dirty | Adopted | Rejected |
 | --- | --- | --- | --- | --- |
-| MotorControl-RS | `e59c5ca` | Clean | `validatePriorSettingsAndStandstill` and `LIMIT_DEPENDENCY`: limits known off before geometry; `DefaultDirection`, `SoftLimitEnable` | `legal()` subdivision `400..51200` is ESS, not evidence here. `limitSemanticsQualified` before arming: a recorded delta, since p18 defers the effect until homing. Snapshot restore |
+| MotorControl-RS | `e59c5ca` | Clean | `validatePriorSettingsAndStandstill` and `LIMIT_DEPENDENCY`: limits known off before geometry; `SoftLimitEnable`. `DefaultDirection` was adopted here and then withdrawn with the typed `2200` write in `99ff2b0`, beside packet 13 | `legal()` subdivision `400..51200` is ESS, not evidence here. `limitSemanticsQualified` before arming: a recorded delta, since p18 defers the effect until homing. Snapshot restore |
 | BME280 | `48b8214` | Clean | Staging, then a generation that stales old samples | Local rollback: a motor write is not rolled back |
 | INA228 | `73f9548` | Clean | Less trusted, evidence kept | Driver-object flag |
 | ADS1115 | `d613a13` | Clean | Single owner; a dirty observation needs fresh acquisition | Sensor auto-recovery and retry |

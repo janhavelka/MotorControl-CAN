@@ -95,14 +95,41 @@ int main() {
     reservation.target = target;
     reservation.model = L::SettingsModel::CL86_C;
     reservation.owner = reservation.sequence = reservation.generation = 1;
+    // A DI write also needs a clean STATUS and MONITORS read under the reservation: no running,
+    // alarm or undocumented 2100 report. These words are fixtures, not a drive's report.
+    L::ReadContext state;
+    const uint8_t blocks = uint8_t((1u << unsigned(L::StateBlock::MONITORS)) |
+                                   (1u << unsigned(L::StateBlock::STATUS)));
+    if (!checked(L::prepareState(state, target, 3, now, now + 1000, options, blocks), "prepareState"))
+        return 1;
+    for (;;) {
+        L::PreparedRead work;
+        if (!checked(L::nextRead(state, now, work), "nextRead"))
+            return 1;
+        if (!work.ready)
+            break;
+        C::SdoCompletion terminal;
+        terminal.transfer = work.transfer;
+        terminal.nodeGeneration = target.nodeGeneration;
+        terminal.admittedUs = terminal.completedUs = now;
+        terminal.outcome = C::SdoOutcome::SUCCESS;
+        terminal.queued = terminal.transmissionPossible = terminal.protocolAcknowledged = true;
+        terminal.effectPossible = true;
+        terminal.size = work.transfer.size;
+        const uint32_t raw = work.transfer.index == 0x2100 ? 1u : work.transfer.index == 0x6041 ? 0x8037u : 0u;
+        for (unsigned i = 0; i < 4 && i < terminal.size; ++i)
+            terminal.data[i] = uint8_t(raw >> (8 * i));
+        if (!checked(L::advanceRead(state, terminal, now), "advanceRead"))
+            return 1;
+    }
     L::IoSettings candidate;
     candidate.invertedInputs = observed.inputPolarityRaw & L::INPUT_POLARITY_BITS;
     for (unsigned i = 0; i < 7; ++i)
         candidate.functions[i] = observed.inputFunctions[i];
     candidate.functions[2] = L::InputFunction::USER2; // Explicit replacement for raw unknown99.
     L::DriverSettingsContext settings;
-    if (!checked(L::prepareIoSettings(settings, reservation, reservation.target, context, candidate, 2, now, now + 1000,
-                                      options, 1000),
+    if (!checked(L::prepareIoSettings(settings, reservation, reservation.target, context, state, candidate, 2, now,
+                                      now + 1000, options, 1000),
                  "prepareIoSettings") ||
         !checked(L::nextDriver(settings, reservation, target.channel.binding, now, done),
                  "settings nextDriver") ||

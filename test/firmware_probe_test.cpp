@@ -595,6 +595,63 @@ void failureReportsTheRealReason() {
     }
 }
 } // namespace
+// The firmware hands the owner a transport whose beforeTransmit reaches the registered preflight,
+// as the bench routes register AxisSession::preflight. A refusal closes the download unsent and
+// nothing reaches the controller; with the check removed the same download is handed over.
+struct Gate {
+    unsigned calls = 0;
+    bool allow = false;
+    static bool check(void* context, O::SequenceId, const C::SdoTransfer& transfer, uint64_t) {
+        Gate& g = *static_cast<Gate*>(context);
+        ++g.calls;
+        CHECK(transfer.direction == C::SdoDirection::DOWNLOAD && transfer.index == 0x2500);
+        return g.allow;
+    }
+};
+O::RequestId download(Rig& r, uint32_t operation, uint64_t now, O::SequenceId& sequence) {
+    O::CanBusOwner& owner = r.firmware.owner();
+    CHECK(owner.beginSequence(target().channel.binding, 1, now, sequence));
+    CHECK(owner.beginOperation(sequence, operation, now + 1000, now));
+    O::BusRequest request;
+    request.sequence = sequence;
+    request.transfer.channel = target().channel;
+    request.transfer.operation = request.transfer.request = operation;
+    request.transfer.step = 1;
+    request.transfer.index = 0x2500;
+    request.transfer.size = 2;
+    request.transfer.direction = C::SdoDirection::DOWNLOAD;
+    request.transfer.queueTimeoutUs = request.transfer.responseTimeoutUs = 100;
+    request.transfer.deadlineUs = now + 1000;
+    O::RequestId id;
+    CHECK(owner.admit(request, now, id) == O::BusAdmission::ACCEPTED);
+    return id;
+}
+void preflightReachesTheOwner() {
+    Rig r;
+    CHECK(r.firmware.begin(config()));
+    M::Frame heartbeat = frame(0x705, 1);
+    heartbeat.data[0] = 5;
+    r.driver.push(heartbeat); // A current NMT state, so an ordinary download is admissible.
+    r.turn(0);
+    Gate gate;
+    E::DownloadPreflight preflight;
+    preflight.context = &gate;
+    preflight.check = Gate::check;
+    r.firmware.setPreflight(preflight);
+    O::SequenceId sequence;
+    const O::RequestId refused = download(r, 1, 1, sequence);
+    r.turn(2);
+    const O::Completion* c = r.firmware.owner().result(refused);
+    CHECK(gate.calls == 1 && c && c->reason == O::CompletionReason::PREFLIGHT_REJECTED);
+    CHECK(!c->controllerAccepted && !c->service.transmissionPossible && r.driver.submits == 0);
+    CHECK(r.firmware.owner().release(refused) && r.firmware.owner().releaseSequence(sequence));
+    r.firmware.setPreflight(E::DownloadPreflight());
+    download(r, 2, 3, sequence);
+    r.turn(4);
+    CHECK(gate.calls == 1 && r.driver.submits == 1 && r.driver.sent[0].id == 0x605 &&
+          r.driver.sent[0].data[0] == 0x2b && r.driver.sent[0].data[1] == 0x00 &&
+          r.driver.sent[0].data[2] == 0x25);
+}
 int main() {
     startup();
     clockBoundariesAndRetirement();
@@ -603,6 +660,7 @@ int main() {
     firmwareEvidenceAdmissionAndCollection();
     firmwareEvidenceFailuresNeverReplay();
     failureReportsTheRealReason();
+    preflightReachesTheOwner();
     std::printf("firmware_probe_test: %u checks; sizeof FirmwareProbe=%zu, CanBusOwner=%zu, "
                 "TwaiAdapter=%zu, ProbeApp=%zu, ProbePlatform=%zu, SdoClient=%zu\n",
                 checks, sizeof(E::FirmwareProbe), sizeof(O::CanBusOwner), sizeof(E::TwaiAdapter),

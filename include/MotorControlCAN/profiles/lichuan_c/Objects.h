@@ -1396,7 +1396,7 @@ constexpr ObjectDescriptor OBJECT_603F_00 = {
     19, 0x00081001u, SourceScope::EDS_FAMILY_UNBOUND
 };
 
-/** @brief 0x6040:00 U16 value declaration; EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 17; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13.
+/** @brief 0x6040:00 U16 value declaration; EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 11; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 16; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13.
  * No operation is implemented or authorized; gates Q01, Q11, Q12, Q13, Q03 remain open. */
 constexpr ObjectDescriptor OBJECT_6040_00 = {
     0x6040, 0x00, ScalarType::U16, 2, false, SdoAccess::WRITE_ONLY,

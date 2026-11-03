@@ -49,7 +49,7 @@ The reviewer's probes and the test worker's pins found these in the first implem
 
 | Sibling | Revision | Dirty | Seam | Disposition |
 | --- | --- | --- | --- | --- |
-| MotorControl-RS | `776facd` | Clean | Retirement, in-flight settling | Adopted: in-flight work settles (R-14). A marker has no RS analogue, because RTU replies are solicited in a strict window |
+| MotorControl-RS | `776facd`; HEAD was `3f871c7`, which adds only two lines to an RS audit report, so the seam is the same | Clean | Retirement, in-flight settling | Adopted: in-flight work settles (R-14). A marker has no RS analogue, because RTU replies are solicited in a strict window |
 | ADS1115 | `d613a13` | Clean | Owner service | Unchanged; no behavior adopted |
 | INA228 | `73f9548` | Clean | Validity | Unchanged; no behavior adopted |
 | FieldCore-node | `5ad9292` | Clean | Invalidation | Unchanged; read-only |

@@ -19,9 +19,11 @@ every row, including read-only objects.
 On 2026-11-02 the repository owner accepted the risk (DEC-1) for these objects:
 `1000`, `1018:00..03`, `1009`, `100A`, `2000`, `2001`, `6041`, `6061`, `6064`,
 `606C`, `2100`, `2101`, `2102`. They carry `ACCEPTED_UNQUALIFIED`. That is a
-project decision with the fixture not yet run; it is not evidence about the
-device, and these reads are not called non-changing or harmless. `603F`, `1001`
-and `1003` stay `UNQUALIFIED`: explicit single reads, never polled, reached
+project decision; it is not evidence about the device, and these reads are not
+called non-changing or harmless. Packet 11 read all 16 rows live on two
+specimens, with no read-effect observation, so success there settles nothing
+about effects. `603F`, `1001` and `1003` stay `UNQUALIFIED`: explicit single
+reads, never polled, reached
 through `requestExperiment` or an action's prerequisites. The first bench read
 of each records LED fault state before and after. Every other row stays gated by
 Q20 (owner prompts 19, 29, 37, 41, 44, 47). Ordinary reads need an already

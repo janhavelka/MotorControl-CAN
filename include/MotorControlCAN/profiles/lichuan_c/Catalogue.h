@@ -3153,7 +3153,7 @@ constexpr ObjectMetadata METADATA_603F_00 = {
 constexpr ObjectMetadata METADATA_6040_00 = {
     OBJECT_6040_00,
     "ControlWord",
-    "EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 17; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13",
+    "EDS [6040] lines 1832-1840; EN86 PDF page 11; EN86 PDF page 12; EN86 PDF page 15; EN86 PDF page 16; ZH86 PDF page 11; ZH86 PDF page 12; ZH86 PDF page 15; ZH86 PDF page 16; OP86 PDF page 9; OP86 PDF page 10; OP86 PDF page 13",
     "controlword bits",
     "Mode and current-state dependent.",
     "Enable/release, trigger motion, stop or reset through separate explicit operations.",

@@ -502,7 +502,12 @@ public:
     /** Offer one frame with conservative completed-frame ingress bounds.
      * Bounds may qualify passive network evidence without claiming exact capture.
      * SDO still requires its existing external correlation premise and processing
-     * deadlines; a definitely pre-handoff interval quarantines the channel. PDO
+     * deadlines; a definitely pre-handoff interval quarantines the channel. A checked
+     * reply that would record service evidence with an exact capture records it from
+     * an interval only when earliestUs is strictly after its own handoff and after the
+     * node boundary (strictly after an invalidation). earliestUs then orders it against
+     * retained evidence and sets its age; latestUs never makes it newer. Any other
+     * interval still settles the request but records no service evidence. PDO
      * capture/route qualification is unchanged and receives unknown capture.
      * @param frame Borrowed frame, copied before mutation or callbacks.
      * @param earliestUs Inclusive lower receive bound in the owner clock domain.
@@ -740,7 +745,7 @@ private:
                          uint64_t earliestUs = 0, uint64_t latestUs = 0);
     void invalidateNode(unsigned anchor, NetworkInvalidation cause, uint64_t nowUs, bool resetObserved = false);
     void stopSdo(unsigned anchor, uint64_t nowUs);
-    void recordSdo(Channel& channel, bool timeKnown, uint64_t receivedUs, uint64_t nowUs);
+    void recordSdo(Channel& channel, const ObservationTime& time);
 };
 } // namespace CANOPEN
 } // namespace MotorControlCAN

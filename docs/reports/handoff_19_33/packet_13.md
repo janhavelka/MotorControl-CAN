@@ -6,7 +6,7 @@ Resumes prompt 21. Host and fake evidence only. **No specimen has accepted a DI 
 
 See the [I/O guide](../../io_settings.md) and the [changelog](../../../CHANGELOG.md).
 
-DI writes verified through the real owner: every code 0..13 on every input, every polarity bit with high bits set, refused values refused whole, duplicates accepted, the non-atomic order of exchanged codes, failures at each write and readback position, cancel before and after handoff, deadlines, reboot, bus-off and EMCY. `onlyDiTraffic` asserts no controlword, save, reset, NMT, DO, filter or `60FE` frame. 46 hand mutants of `Settings.cpp` are killed.
+DI writes verified through the real owner: every code 0..13 on every input, every polarity bit with high bits set, refused values refused whole, duplicates accepted, the non-atomic order of exchanged codes, failures at each write and readback position, cancel before and after handoff, deadlines, reboot, bus-off and EMCY. `onlyDiTraffic` asserts no controlword, save, reset, NMT, DO, filter or `60FE` frame. 46 hand mutants of `Settings.cpp` are killed (not retained).
 
 Two gaps repaired: DI readback skipped the `2400:00` count, despite the documented full exact group; and a hand-edited active context could send an undocumented code.
 

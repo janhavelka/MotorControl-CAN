@@ -190,6 +190,32 @@ int main() {
     simulated.acceptance.mask = simulated.acceptance.value = 0x1000;
     simulated.completion.mask = simulated.completion.value = 0x8000;
     simulated.rule = L::CompletionRule::AFTER_ABSENCE;
+
+    // A relative move needs one more measurement: what the drive adds the displacement to on the 005F
+    // edge. No specimen has measured it, so even with the gate open the request is refused before any
+    // write, and this example runs no relative simulation. The witness is an illustrative host input.
+    M::AxisConfig relativeAxis = axis;
+    relativeAxis.supportedRelativeBases = 1; // Host arithmetic may use an ACTUAL witness.
+    M::AxisReference witness;
+    witness.binding = relativeAxis.binding;
+    witness.referenceGeneration = relativeAxis.referenceGeneration;
+    witness.idle = witness.stationary = witness.nativeKnown = true;
+    witness.basis = M::RelativeBasis::ACTUAL;
+    witness.source = M::ScaleSource::ASSUMED;
+    witness.observedUs = witness.nowUs = now;
+    witness.maximumAgeUs = 100000;
+    M::MoveRequest relative = move;
+    relative.position.relative = true;
+    relative.position.basis = M::RelativeBasis::ACTUAL;
+    const M::Status unmeasured = L::prepareMoveRelative(
+        context, reservation, target, state, control, identity, simulated, relative, profile,
+        nullptr, relativeAxis, witness, 4, now, now + 400000, options);
+    std::printf("Relative move: %s (UNSUPPORTED is expected; no relative base is measured)\n",
+                unmeasured.msg);
+    if (unmeasured.code != M::Err::UNSUPPORTED ||
+        unmeasured.detail != int32_t(M::MoveError::RELATIVE_BASIS))
+        return 11;
+
     if (!L::prepareMoveAbsolute(context, reservation, target, state, control, identity, simulated,
                                 move, profile, nullptr, axis, nullptr, 4, now, now + 400000, options))
         return 5;
@@ -206,7 +232,7 @@ int main() {
         }
         // An application calls this after owner admission, naming its retained settings contexts.
         if (work.transfer.direction == C::SdoDirection::DOWNLOAD &&
-            !L::noteMoveTransmission(context, reservation, target, nullptr, 0, now))
+            !L::noteMoveTransmission(context, reservation, target, axis, nullptr, nullptr, 0, now))
             return 8;
         if (work.transfer.direction == C::SdoDirection::DOWNLOAD)
             std::printf("SIMULATED download %04X: %02X %02X %02X %02X\n",

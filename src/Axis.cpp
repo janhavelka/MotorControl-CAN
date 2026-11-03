@@ -2,22 +2,20 @@
 // Adapted from MotorControl-RS Axis.cpp, copyright (c) 2026 Jan Havelka.
 // See LICENSE and docs/axis_contract.md for intentional CAN differences.
 #include "MotorControlCAN/Axis.h"
+#include "ExactArithmetic.h"
 #include <cmath>
 #include <limits>
 
 namespace MotorControlCAN {
 namespace {
+using Detail::gcd;
+using Detail::magnitude;
 Status fail(AxisError e, const char* text, Err code = Err::ILLEGAL_VALUE) {
     return Status(code, static_cast<int32_t>(e), text);
 }
 Status unitStatus(Status s) {
     if (!s) s.detail += static_cast<int32_t>(AxisError::UNIT_ERROR_BASE);
     return s;
-}
-uint64_t magnitude(int64_t n) { return n < 0 ? uint64_t(-(n + 1)) + 1 : uint64_t(n); }
-uint64_t gcd(uint64_t a, uint64_t b) {
-    while (b) { const uint64_t r = a % b; a = b; b = r; }
-    return a;
 }
 bool sourceKnown(ScaleSource s) { return s >= ScaleSource::ASSUMED && s <= ScaleSource::QUALIFIED; }
 bool sameScale(const UnitScale& a, const UnitScale& b) {
