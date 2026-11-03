@@ -22,12 +22,12 @@ bool sameTarget(const ReadTarget& a, const ReadTarget& b) {
            a.channel.clientToServerId == b.channel.clientToServerId &&
            a.channel.serverToClientId == b.channel.serverToClientId;
 }
-bool valid(const SettingsReservation& r) {
+bool valid(const AxisReservation& r) {
     return r.owner && r.sequence && r.generation && r.target.nodeGeneration &&
            (r.model == SettingsModel::CL86_C || r.model == SettingsModel::OL86_C) &&
            CANOPEN::validateSdoChannel(r.target.channel);
 }
-bool sameReservation(const SettingsReservation& a, const SettingsReservation& b) {
+bool sameReservation(const AxisReservation& a, const AxisReservation& b) {
     return valid(a) && valid(b) && sameTarget(a.target, b.target) && a.model == b.model &&
            a.owner == b.owner && a.sequence == b.sequence && a.generation == b.generation &&
            a.acquiredUs == b.acquiredUs;
@@ -87,7 +87,7 @@ Status shape(const ActionContext& c, uint64_t now) {
         return error(ActionError::STATE, "observation plan differs from admitted action");
     return Ok();
 }
-Status current(const ActionContext& c, const SettingsReservation& live, const ReadTarget& target,
+Status current(const ActionContext& c, const AxisReservation& live, const ReadTarget& target,
                uint64_t now) {
     Status s = shape(c, now);
     if (!s)
@@ -96,7 +96,7 @@ Status current(const ActionContext& c, const SettingsReservation& live, const Re
         return error(ActionError::TARGET, "action reservation or target changed");
     return Ok();
 }
-bool commonOverlap(const ActionContext& c, const SettingsReservation& live,
+bool commonOverlap(const ActionContext& c, const AxisReservation& live,
                    const ReadTarget& target) {
     return overlap(&c, sizeof c, &live, sizeof live) ||
            overlap(&c, sizeof c, &target, sizeof target);
@@ -122,7 +122,7 @@ bool fresh(const StateObservation& o, uint64_t now, uint64_t age) {
             return false;
     return o.fieldCount != 0;
 }
-bool controlEvidence(const CANOPEN::SdoCompletion& e, const SettingsReservation& r, StopKind kind,
+bool controlEvidence(const CANOPEN::SdoCompletion& e, const AxisReservation& r, StopKind kind,
                      uint64_t now) {
     const CANOPEN::SdoTransfer& t = e.transfer;
     return sameBinding(t.channel.binding, r.target.channel.binding) &&
@@ -319,7 +319,7 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     }
 }
 // Every caller has validated; output is disjoint from inputs, and nothing here can fail.
-void publishStop(ActionContext& output, const SettingsReservation& r,
+void publishStop(ActionContext& output, const AxisReservation& r,
                  const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                  uint64_t now, uint64_t deadline, const ActionOptions& options) {
     new (static_cast<void*>(&output)) ActionContext();
@@ -337,7 +337,7 @@ void publishStop(ActionContext& output, const SettingsReservation& r,
     output.state = ActionState::ACTIVE;
     output.controlEvidence = control;
 }
-Status validateExplicit(const SettingsReservation& r, const ReadContext& state, ActionKind kind,
+Status validateExplicit(const AxisReservation& r, const ReadContext& state, ActionKind kind,
                      uint32_t operation, uint64_t now, uint64_t deadline,
                      const ActionOptions& options) {
     if (!valid(r) || !operation || deadline <= now || r.acquiredUs > now ||
@@ -369,7 +369,7 @@ Status validateExplicit(const SettingsReservation& r, const ReadContext& state, 
         return error(ActionError::STATE, "counter clear requires no reported alarm");
     return Ok();
 }
-void publishExplicit(ActionContext& c, const SettingsReservation& r, const ReadContext& state,
+void publishExplicit(ActionContext& c, const AxisReservation& r, const ReadContext& state,
                      ActionKind kind, uint32_t operation, uint64_t now, uint64_t deadline,
                      const ActionOptions& options) {
     new (static_cast<void*>(&c)) ActionContext();
@@ -437,7 +437,7 @@ bool stopPredecessorAllowed(uint16_t word, StopKind kind) noexcept {
     }
 }
 
-Status validateStop(const ActionContext& output, const SettingsReservation& r, const ReadContext& state,
+Status validateStop(const ActionContext& output, const AxisReservation& r, const ReadContext& state,
                  const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                  uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
     if (overlap(&output, sizeof output, &r, sizeof r) ||
@@ -463,7 +463,7 @@ Status validateStop(const ActionContext& output, const SettingsReservation& r, c
     return Ok();
 }
 
-Status prepareStop(ActionContext& output, const SettingsReservation& r, const ReadContext& state,
+Status prepareStop(ActionContext& output, const AxisReservation& r, const ReadContext& state,
                    const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                    uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
     const Status s = validateStop(output, r, state, control, kind, operation, now, deadline, options);
@@ -513,7 +513,7 @@ void resetAction(ActionContext& c) noexcept {
     new (static_cast<void*>(&c)) ActionContext();
 }
 
-Status prepareClearAlarm(ActionContext& output, const SettingsReservation& r,
+Status prepareClearAlarm(ActionContext& output, const AxisReservation& r,
                          const ReadContext& state, uint32_t operation, uint64_t now,
                          uint64_t deadline, const ActionOptions& options) noexcept {
     if (overlap(&output, sizeof output, &r, sizeof r) ||
@@ -528,7 +528,7 @@ Status prepareClearAlarm(ActionContext& output, const SettingsReservation& r,
     return Ok();
 }
 
-Status prepareSetDevicePosition(ActionContext& output, const SettingsReservation& r,
+Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& r,
                                 const ReadContext& state, int64_t nativePosition,
                                 const AxisConfig& axis, uint32_t operation, uint64_t now,
                                 uint64_t deadline, const ActionOptions& options) noexcept {
@@ -554,7 +554,7 @@ Status prepareSetDevicePosition(ActionContext& output, const SettingsReservation
     return Ok();
 }
 
-Status nextAction(const ActionContext& c, const SettingsReservation& live, const ReadTarget& target,
+Status nextAction(const ActionContext& c, const AxisReservation& live, const ReadTarget& target,
                   uint64_t now, PreparedAction& output) noexcept {
     if (overlap(&output, sizeof output, &c, sizeof c) ||
         overlap(&output, sizeof output, &live, sizeof live) ||
@@ -588,7 +588,7 @@ Status nextAction(const ActionContext& c, const SettingsReservation& live, const
     return Ok();
 }
 
-Status noteActionTransmission(ActionContext& c, const SettingsReservation& live,
+Status noteActionTransmission(ActionContext& c, const AxisReservation& live,
                               const ReadTarget& target, uint64_t now) noexcept {
     if (commonOverlap(c, live, target))
         return error(ActionError::OVERLAP, "action TX notice overlaps input");
@@ -607,7 +607,7 @@ Status noteActionTransmission(ActionContext& c, const SettingsReservation& live,
     return Ok();
 }
 
-Status noteActionTransmission(ActionContext& c, const SettingsReservation& live, ReadTarget& target,
+Status noteActionTransmission(ActionContext& c, const AxisReservation& live, ReadTarget& target,
                               AxisConfig& axis, AxisReference& reference, uint64_t now) noexcept {
     const void* objects[] = {&c, &target, &axis, &reference};
     const size_t sizes[] = {sizeof c, sizeof target, sizeof axis, sizeof reference};
@@ -652,7 +652,7 @@ Status noteActionTransmission(ActionContext& c, const SettingsReservation& live,
     return Ok();
 }
 
-Status advanceAction(ActionContext& c, const SettingsReservation& live, const ReadTarget& target,
+Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTarget& target,
                      const CANOPEN::SdoCompletion& input, uint64_t now) noexcept {
     if (commonOverlap(c, live, target) || overlap(&c, sizeof c, &input, sizeof input))
         return error(ActionError::OVERLAP, "action terminal overlaps input");
@@ -765,7 +765,7 @@ Status advanceAction(ActionContext& c, const SettingsReservation& live, const Re
     return Ok();
 }
 
-Status advanceAction(ActionContext& c, const SettingsReservation& live, const ReadTarget& target,
+Status advanceAction(ActionContext& c, const AxisReservation& live, const ReadTarget& target,
                      ActionOutcome reason, uint64_t now) noexcept {
     if (commonOverlap(c, live, target))
         return error(ActionError::OVERLAP, "action withdrawal overlaps input");

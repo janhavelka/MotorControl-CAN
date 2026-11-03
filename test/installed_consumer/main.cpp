@@ -183,7 +183,7 @@ int main() {
         if (i == 0) completed.data[0] = 16;
         if (!LICHUAN_C::advanceDriver(inputs, completed, 30+i)) return 39;
     }
-    LICHUAN_C::SettingsReservation reservation;
+    LICHUAN_C::AxisReservation reservation;
     reservation.target = readTarget; reservation.model = LICHUAN_C::SettingsModel::OL86_C;
     reservation.owner = reservation.sequence = reservation.generation = 1;
     reservation.acquiredUs = 30; // Synthetic model/exclusion premise, no controller in this consumer.
@@ -283,21 +283,21 @@ int main() {
     LICHUAN_C::ActionOptions stopOptions;
     stopOptions.service = readOptions;
     stopOptions.maximumAgeUs = stopOptions.observationIntervalUs = 10;
-    if (LICHUAN_C::prepareStop(stop, LICHUAN_C::SettingsReservation(), state,
+    if (LICHUAN_C::prepareStop(stop, LICHUAN_C::AxisReservation(), state,
                               CANOPEN::SdoCompletion(), LICHUAN_C::StopKind::HALT,
                               14, 65, 100, stopOptions) || stop.state != ActionState::EMPTY)
         return 55;
-    if (LICHUAN_C::prepareClearAlarm(stop, LICHUAN_C::SettingsReservation(), state,
+    if (LICHUAN_C::prepareClearAlarm(stop, LICHUAN_C::AxisReservation(), state,
                                     15, 65, 100, stopOptions) || stop.state != ActionState::EMPTY)
         return 56;
     const Status arbitraryPosition = LICHUAN_C::prepareSetDevicePosition(
-        stop, LICHUAN_C::SettingsReservation(), state, 1, AxisConfig(),
+        stop, LICHUAN_C::AxisReservation(), state, 1, AxisConfig(),
         16, 65, 100, stopOptions);
     if (arbitraryPosition.code != Err::UNSUPPORTED || stop.state != ActionState::EMPTY)
         return 57;
     LICHUAN_C::Tpdo1ConfigurationContext remap;
     if (LICHUAN_C::prepareTpdo1Configuration(
-            remap, LICHUAN_C::SettingsReservation(), LICHUAN_C::Tpdo1ConfigurationReview(),
+            remap, LICHUAN_C::AxisReservation(), LICHUAN_C::Tpdo1ConfigurationReview(),
             nullptr, 0, CANOPEN::NmtState::PRE_OPERATIONAL, CANOPEN::ObservationTime(),
             17, 65, 100, readOptions, 10) ||
         remap.state != LICHUAN_C::PdoConfigurationState::EMPTY)

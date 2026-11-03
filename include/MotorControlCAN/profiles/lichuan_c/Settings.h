@@ -16,18 +16,21 @@ enum class SettingsModel : uint8_t {
     CL86_C,  ///< EN86/ZH86 documented closed-loop 86C scope; firmware qualification separate.
     OL86_C   ///< EN86/ZH86 documented open-loop 86C scope; firmware qualification separate.
 };
-/** Application-issued continuous exclusive sequence reservation, never a wire token.
- * The sole owner issues this before prerequisite acquisition, prevents competing
- * control/mode/target/RPDO/settings work, and revokes it on contradictory state,
- * reboot/rebind/recovery or uncertainty. Pass the actual live reservation on
- * every call; copying an expired token does not establish exclusion.
+/** Actual continuous exclusion of one axis, held by the sole application owner.
+ * It records exclusion that already exists; it is not a permission a profile can
+ * construct, and it is never carried on the wire. The owner establishes it before
+ * prerequisite acquisition, prevents competing control/mode/target/RPDO/settings
+ * work, and revokes it on contradictory state, reboot/rebind/recovery or
+ * uncertainty. Settings, stop, action and PDO configuration work all use it. Pass
+ * the actual live reservation on every call; a copy of an expired reservation does
+ * not establish exclusion.
  */
-struct SettingsReservation {
+struct AxisReservation {
     ReadTarget target; ///< Frozen pre-transaction service route, binding/config/node epochs.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Actual application/nameplate model binding.
     uint32_t owner = 0;                           ///< Nonzero stable local owner identity.
     uint32_t sequence = 0;     ///< Nonzero exclusive sequence identity, not reused with live work.
-    Generation generation = 0; ///< Nonzero owner control epoch; never wrap/reuse live tokens.
+    Generation generation = 0; ///< Nonzero owner control epoch; never wrap/reuse a live one.
     uint64_t acquiredUs = 0;   ///< Supplied acquisition time, zero valid.
 };
 /** Native position-mode parameters; native times are not acceleration rates. Defaults are invalid until explicitly set. */
@@ -59,9 +62,8 @@ enum class SettingsState : uint8_t {
  * requested[]; the last exact terminal/abort is in evidence. No heap/hidden retry.
  */
 struct DriverSettingsContext {
-    SettingsReservation
-        reservation;        ///< Copied continuous reservation and original transport epoch.
-    DriverContext readback; ///< Fixed group plan and later new-generation readback/provenance.
+    AxisReservation reservation; ///< Copied continuous reservation and original transport epoch.
+    DriverContext readback;      ///< Fixed group plan and later new-generation readback/provenance.
     SettingsState state = SettingsState::EMPTY; ///< Current explicit phase.
     ReadOutcome outcome = ReadOutcome::NONE; ///< Terminal cause, independent of call status/health.
     Status status;                           ///< Retained local/native operation result.
@@ -100,7 +102,7 @@ struct DriverSettingsContext {
  * @return Local status. Requires mode1, status low bits7, monitor running/alarm/disabled bits clear.
  * This conservative host subset never writes 6040/6060 or relies on disputed status bits.
  */
-Status prepareDriverSettings(DriverSettingsContext& output, const SettingsReservation& reservation,
+Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservation& reservation,
                              const DriverContext& prior, const ReadContext& state,
                              const CANOPEN::SdoCompletion& control, const DriverSettings& settings,
                              uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
@@ -119,7 +121,7 @@ Status prepareDriverSettings(DriverSettingsContext& output, const SettingsReserv
  * Writes only changed fields in ascending subindex order;
  * intermediate effects are possible, not an atomic or electrically safe transition.
  */
-Status prepareIoSettings(DriverSettingsContext& output, const SettingsReservation& reservation,
+Status prepareIoSettings(DriverSettingsContext& output, const AxisReservation& reservation,
                          const DriverContext& prior, const IoSettings& settings, uint32_t operation,
                          uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options,
                          uint64_t maximumAgeUs) noexcept;
@@ -131,7 +133,7 @@ Status prepareIoSettings(DriverSettingsContext& output, const SettingsReservatio
  * @return Local status. Readback requests use the new config epoch; owner must update its
  * idle binding after releasing old write results, without resetting or retrying the device.
  */
-Status nextDriver(const DriverSettingsContext& context, const SettingsReservation& live,
+Status nextDriver(const DriverSettingsContext& context, const AxisReservation& live,
                   const Binding& current, uint64_t nowUs, PreparedRead& output) noexcept;
 /** Withdraw actual configuration prerequisites immediately BEFORE possible download TX.
  * @param[in,out] context Active write; one notice per yielded download.
@@ -142,7 +144,7 @@ Status nextDriver(const DriverSettingsContext& context, const SettingsReservatio
  * application preflight, before SdoClient::nextTx/handoff. Queue rejection requires no notice.
  * Exhaustion rejects preparation.
  */
-Status noteDriverTransmission(DriverSettingsContext& context, const SettingsReservation& live,
+Status noteDriverTransmission(DriverSettingsContext& context, const AxisReservation& live,
                               Binding& current, uint64_t nowUs) noexcept;
 /** Consume a matching retained terminal; failures are operation outcomes, not retries.
  * @param[in,out] context Active settings. @param[in] live Actual live reservation.
@@ -152,7 +154,7 @@ Status noteDriverTransmission(DriverSettingsContext& context, const SettingsRese
  * @return Local validation status; valid failures settle context with retained partial effects.
  * Possible downloads require noteDriverTransmission before handoff. Readback mismatch fails atomically.
  */
-Status advanceDriver(DriverSettingsContext& context, const SettingsReservation& live,
+Status advanceDriver(DriverSettingsContext& context, const AxisReservation& live,
                      const Binding& current, const CANOPEN::SdoCompletion& evidence,
                      uint64_t nowUs) noexcept;
 /** Local withdrawal after separately retiring owner work; never stop/rollback/replay.
@@ -167,7 +169,7 @@ Status advanceDriver(DriverSettingsContext& context, ReadOutcome reason, uint64_
  * @param[in] maximumAgeUs Nonzero inclusive age cap. @param[out] output Unchanged on failure, no overlap.
  * @return Checked raw register result, not physical activation or motion completion.
  */
-Status getDriver(const DriverSettingsContext& context, const SettingsReservation& live,
+Status getDriver(const DriverSettingsContext& context, const AxisReservation& live,
                  const ReadTarget& current, uint64_t nowUs, uint64_t maximumAgeUs,
                  DriverObservation& output) noexcept;
 /** Publish complete matched DI readback at the actual configuration epoch (unchanged for no-op).
@@ -176,7 +178,7 @@ Status getDriver(const DriverSettingsContext& context, const SettingsReservation
  * @param[in] maximumAgeUs Nonzero inclusive age cap. @param[out] output Unchanged on failure, no overlap.
  * @return Checked documentary/raw result, not electrical level, wiring or protective effectiveness.
  */
-Status getIo(const DriverSettingsContext& context, const SettingsReservation& live,
+Status getIo(const DriverSettingsContext& context, const AxisReservation& live,
              const ReadTarget& current, uint64_t nowUs, uint64_t maximumAgeUs,
              IoObservation& output) noexcept;
 } // namespace LICHUAN_C

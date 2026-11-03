@@ -68,7 +68,7 @@ M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = fal
 }
 struct Wire : OwnerRig::WireBase {
     L::ActionContext* action = nullptr;
-    const L::SettingsReservation* reservation = nullptr;
+    const L::AxisReservation* reservation = nullptr;
     C::SdoCompletion* latestControl = nullptr;
     static bool guard(void* context, O::SequenceId, const C::SdoTransfer& work, uint64_t now) {
         Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
@@ -95,7 +95,7 @@ struct Rig {
     Wire wire;
     O::CanBusOwner owner;
     O::SequenceId sequence;
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     L::ReadContext state;
     C::SdoCompletion control;
     uint64_t now = 0;
@@ -325,7 +325,7 @@ void unsupportedPrerequisitesAreAtomic() {
                                         : 4,
                         scenario == 3 ? 3 : 1);
         r.begin();
-        L::SettingsReservation reservation = r.reservation;
+        L::AxisReservation reservation = r.reservation;
         C::SdoCompletion control = r.control;
         L::ActionOptions policy = r.actionOptions();
         L::StopKind kind = L::StopKind::HALT;
@@ -627,7 +627,7 @@ void generationsRebootFaultAndCorrelation() {
         r.prerequisites();
         L::ActionContext action;
         r.prepare(action);
-        L::SettingsReservation live = r.reservation;
+        L::AxisReservation live = r.reservation;
         L::ReadTarget current = target();
         if (change == 0)
             ++live.generation;

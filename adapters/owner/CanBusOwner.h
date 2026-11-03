@@ -32,7 +32,7 @@ class CanBusOwner {
     /** Borrow stationary exclusive resources; construction performs no I/O.
      * @param[in] services Sole existing adapter, already configured or configured while idle.
      * @param[in] transport Copied callback bundle; context remains borrowed for owner lifetime.
-     * @param[in] identity Nonzero application owner identity, suitable for settings reservations.
+     * @param[in] identity Nonzero application owner identity, suitable for `AxisReservation`.
      * @param[in] lastIssued Last local serial; never wraps. Nonzero may preserve an application
      * serial domain, but never establishes wire freshness or revives prior handles.
      * @param[in] controllerEpoch Nonzero local transport epoch; initial ingress uses it.

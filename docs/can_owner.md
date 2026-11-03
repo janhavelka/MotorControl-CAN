@@ -409,7 +409,7 @@ automatically harmless.
 The [confirmed settings](driver_settings.md#explicit-position-parameter-settings)
 and [loop selection](tuning.md#explicit-loop-mutation-and-retained-effects)
 use ordinary copied work and retained completions. Acquire the reservation
-before prerequisite reads. Construct `SettingsReservation` from that actual
+before prerequisite reads. Construct `AxisReservation` from that actual
 owner identity/sequence generation/acquisition time and explicit model/target
 facts; consult `sequence(id)` for current exclusion validity. Do not refresh a
 revoked reservation from an obsolete copy.
@@ -418,7 +418,7 @@ The application's `beforeTransmit` calls `noteDriverTransmission` with the actua
 settings context, live reservation and actual axis/configuration binding.
 Each changed download is notified; the configuration epoch increases only for
 the first possible effect of the transaction. Only that exclusive transaction
-finishes its original-epoch downloads. The fixed settings token retains its
+finishes its original-epoch downloads. The fixed reservation retains its
 original target; it is not rewritten for readback.
 
 After writes and service terminals are released, call the owner's checked
@@ -432,7 +432,7 @@ stay independent; no hidden save, reset, enable or retry occurs.
 
 Typed contexts stay outside the owner. Native tests trace a public state read
 and actual loop-setting ACK/readback through this path, keeping the original
-settings token unchanged. They also retain an unconfirmed write and an
+reservation unchanged. They also retain an unconfirmed write and an
 acknowledged write followed by failed readback, without replay or loss of the
 confirmed prefix. Unrelated nodes continue while these results remain unread.
 Future confirmed groups in 20–22 use this same boundary;

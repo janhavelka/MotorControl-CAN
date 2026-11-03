@@ -130,7 +130,7 @@ Status getTuning(const DriverContext& context, const ReadTarget& current, uint64
  * and advanceDriver. Possible transmission withdraws configuration once; ACK/readback
  * do not establish physical activation or motion. No enable/save/reset/retry occurs.
  */
-Status prepareControlSettings(DriverSettingsContext& output, const SettingsReservation& reservation,
+Status prepareControlSettings(DriverSettingsContext& output, const AxisReservation& reservation,
                               const DriverContext& prior, const ControlSettings& settings,
                               uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                               const ReadOptions& options, uint64_t maximumAgeUs) noexcept;
@@ -143,7 +143,7 @@ Status prepareControlSettings(DriverSettingsContext& output, const SettingsReser
  * @param[out] output Owned result, unchanged on error; no input overlap.
  * @return OK confirms matching register readback only; partial/uncertain history stays in context.
  */
-Status getControl(const DriverSettingsContext& context, const SettingsReservation& live,
+Status getControl(const DriverSettingsContext& context, const AxisReservation& live,
                   const ReadTarget& current, uint64_t nowUs, uint64_t maximumAgeUs,
                   ControlObservation& output) noexcept;
 } // namespace LICHUAN_C

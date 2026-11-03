@@ -6,10 +6,10 @@
  * STATUS (mode 1, low bits 7) and MONITORS (alarm/released clear, running either)
  * must follow that acknowledgement. The application proves no intervening
  * control/mode/target/RPDO/configuration write, uncertain work or lifecycle change.
- * A copied or reacquired token cannot establish this continuous history. The
+ * A copied or reacquired reservation cannot establish this continuous history. The
  * library cannot see that history, so the application's session must supply it
  * (see examples/common/AxisSession.h): a successful stop consumes the prior
- * eligibility even if its copied token remains available.
+ * eligibility even if its copied reservation remains available.
  * Allowed predecessors (DEC-8): 000F documented, EN86/ZH86 p12 and OP86 p10 for 000B,
  * ZH86 p12 and OP86 p10 only for 010F. 001F/005F/003F/007F, and 010F to 000B only, are
  * project decisions with no documented arrow, so predecessorDocumented is false.
@@ -95,7 +95,7 @@ struct AlarmIncident {
  * during calls only. Every yielded/advanced service needs the actual live reservation.
  */
 struct ActionContext {
-    SettingsReservation reservation; ///< Frozen route, model and continuous exclusion.
+    AxisReservation reservation; ///< Frozen route, model and continuous exclusion.
     ActionKind actionKind =
         ActionKind::STOP;                   ///< Explicit operation; kind remains the stop selector.
     StopKind kind = StopKind::HALT;         ///< Explicit native selection.
@@ -196,7 +196,7 @@ void resetAction(ActionContext& context) noexcept;
  * @return The status prepareStop would give. OK means prepareStop with these same unchanged
  * values cannot refuse.
  */
-Status validateStop(const ActionContext& output, const SettingsReservation& reservation,
+Status validateStop(const ActionContext& output, const AxisReservation& reservation,
                  const ReadContext& state, const CANOPEN::SdoCompletion& control, StopKind kind,
                  uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                  const ActionOptions& options) noexcept;
@@ -225,7 +225,7 @@ Status validateEscalation(const ActionContext& output, const ActionContext& runn
  * service.identityWidths must stay DECLARED_U16.
  * @return Local validation status only; emits no I/O and establishes no firmware qualification.
  */
-Status prepareStop(ActionContext& output, const SettingsReservation& reservation,
+Status prepareStop(ActionContext& output, const AxisReservation& reservation,
                    const ReadContext& state, const CANOPEN::SdoCompletion& control, StopKind kind,
                    uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                    const ActionOptions& options) noexcept;
@@ -258,7 +258,7 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
  * @return Local validation only. Caller/owner separately retains EMCY/error history;
  * this action never erases failed operations, retries, enables or resumes work.
  */
-Status prepareClearAlarm(ActionContext& output, const SettingsReservation& reservation,
+Status prepareClearAlarm(ActionContext& output, const AxisReservation& reservation,
                          const ReadContext& state, uint32_t operation, uint64_t nowUs,
                          uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Prepare an explicit zero-only device counter clear; nonzero is UNSUPPORTED.
@@ -280,7 +280,7 @@ Status prepareClearAlarm(ActionContext& output, const SettingsReservation& reser
  * @return Local validation. After trigger, retire old owner results/work and advance
  * owner configuration before admitting the new-epoch observation uploads.
  */
-Status prepareSetDevicePosition(ActionContext& output, const SettingsReservation& reservation,
+Status prepareSetDevicePosition(ActionContext& output, const AxisReservation& reservation,
                                 const ReadContext& state, int64_t nativePosition,
                                 const AxisConfig& axis, uint32_t operation, uint64_t nowUs,
                                 uint64_t deadlineUs, const ActionOptions& options) noexcept;
@@ -290,7 +290,7 @@ Status prepareSetDevicePosition(ActionContext& output, const SettingsReservation
  * @param[out] output Unchanged on rejection; no overlap with inputs. ready=false during wait/terminal.
  * @return Local status; active calls at/after cutoff reject until explicitly advanced to DEADLINE.
  */
-Status nextAction(const ActionContext& context, const SettingsReservation& live,
+Status nextAction(const ActionContext& context, const AxisReservation& live,
                   const ReadTarget& current, uint64_t nowUs, PreparedAction& output) noexcept;
 /** Record possible stop/alarm command transmission; never sends or modifies a binding.
  * Counter actions reject this overload to prevent bypassing coordinate invalidation.
@@ -299,7 +299,7 @@ Status nextAction(const ActionContext& context, const SettingsReservation& live,
  * @param[in] nowUs Nondecreasing time before cutoff and not before eligibility.
  * @return Local status; rejected/overlapping inputs leave context unchanged.
  */
-Status noteActionTransmission(ActionContext& context, const SettingsReservation& live,
+Status noteActionTransmission(ActionContext& context, const AxisReservation& live,
                               const ReadTarget& current, uint64_t nowUs) noexcept;
 /** Axis-aware counter notice; required for every counter-action download.
  * First possible U16=1 trigger atomically invalidates coordinates/origins/limits,
@@ -313,7 +313,7 @@ Status noteActionTransmission(ActionContext& context, const SettingsReservation&
  * @param[in] nowUs Monotonic time before cutoff. @return Atomic status on rejection;
  * all mutable outputs and borrowed reservation must be mutually disjoint.
  */
-Status noteActionTransmission(ActionContext& context, const SettingsReservation& live,
+Status noteActionTransmission(ActionContext& context, const AxisReservation& live,
                               ReadTarget& current, AxisConfig& axis, AxisReference& reference,
                               uint64_t nowUs) noexcept;
 /** Consume actual matching retained owner terminal; invalid evidence is atomic.
@@ -324,7 +324,7 @@ Status noteActionTransmission(ActionContext& context, const SettingsReservation&
  * Matching owner evidence supersedes a conservative possible-TX notice. It cannot prove wire
  * freshness: channel ambiguity/quarantine must already be handled by the sole owner.
  */
-Status advanceAction(ActionContext& context, const SettingsReservation& live,
+Status advanceAction(ActionContext& context, const AxisReservation& live,
                      const ReadTarget& current, const CANOPEN::SdoCompletion& evidence,
                      uint64_t nowUs) noexcept;
 /** Local termination after separately retiring any admitted work; never another stop/replay.
@@ -335,7 +335,7 @@ Status advanceAction(ActionContext& context, const SettingsReservation& live,
  * @param[in] nowUs Nondecreasing supplied time; inclusive deadline wins over local reason.
  * @return Local status. Earlier terminal is immutable; command ACK survives observer cancellation.
  */
-Status advanceAction(ActionContext& context, const SettingsReservation& live,
+Status advanceAction(ActionContext& context, const AxisReservation& live,
                      const ReadTarget& current, ActionOutcome reason, uint64_t nowUs) noexcept;
 /** Prepare a best-effort stop; no state evidence, no history and no traffic.
  * @param[out] output Owned context; unchanged on failure; must not overlap any input.

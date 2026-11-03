@@ -112,7 +112,7 @@ void checkMembers(const L::TuningObservation& o, unsigned group) {
 }
 struct Owner {
     C::SdoClient service;
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     M::Binding current;
     uint64_t now = 0;
     explicit Owner(M::Generation configuration = 7) {

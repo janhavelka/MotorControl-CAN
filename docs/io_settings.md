@@ -93,7 +93,7 @@ Typed device CLI routes remain planned under prompts 40-42.
 
 `Settings.h` adds `IoSettings`, `DriverSettingsContext` and `prepareIoSettings`.
 Supply a fresh complete input-configuration context, actual continuous
-sole-owner `SettingsReservation`, explicit CL86-C/OL86-C model and a complete
+sole-owner `AxisReservation`, explicit CL86-C/OL86-C model and a complete
 candidate. Defaults are deliberately invalid: select every function code 0..13
 and the desired polarity bits 0..6. Unknown high polarity bits are copied from
 matched prior readback. Invalid model/epochs/codes/masks/time, aliasing or generation

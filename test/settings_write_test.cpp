@@ -67,7 +67,7 @@ M::Frame reply(const C::SdoTransfer& work, uint32_t raw, bool abort = false) {
 // work. It never reconstructs a token from transaction history after revocation.
 struct Owner {
     C::SdoClient service;
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     M::Binding current = target().channel.binding;
     uint64_t now = 0;
     unsigned settingsDownloads = 0;
@@ -92,7 +92,7 @@ struct Owner {
         reservation.generation = 9;
         reservation.acquiredUs = now;
     }
-    const L::SettingsReservation& live() const { return reservation; }
+    const L::AxisReservation& live() const { return reservation; }
     void revoke() {
         exclusive = false;
         reservation.owner = 0;
@@ -235,7 +235,7 @@ void preparation() {
         out.operation = 0xbeef;
         const Saved<L::DriverSettingsContext> initial(out);
         for (unsigned bad = 0; bad < 12; ++bad) {
-            L::SettingsReservation live = f.owner.live();
+            L::AxisReservation live = f.owner.live();
             L::DriverContext prior = f.prior;
             L::DriverSettings motion = motionCandidate();
             L::IoSettings inputs = ioCandidate();

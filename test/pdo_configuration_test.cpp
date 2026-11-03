@@ -59,7 +59,7 @@ C::SdoCompletion terminal(const C::SdoTransfer& t, uint64_t at, uint32_t value,
     return e;
 }
 struct Fixture {
-    L::SettingsReservation reservation;
+    L::AxisReservation reservation;
     L::Tpdo1ConfigurationReview review;
     C::ObservationTime preOp;
     C::SdoCompletion baseline[9];

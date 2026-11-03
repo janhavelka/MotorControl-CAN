@@ -147,7 +147,7 @@ class AxisSession {
   private:
     MotorControlCANOwner::CanBusOwner& owner_;
     MotorControlCAN::LICHUAN_C::ReadTarget target_;
-    MotorControlCAN::LICHUAN_C::SettingsReservation reservation_;
+    MotorControlCAN::LICHUAN_C::AxisReservation reservation_;
     MotorControlCANOwner::SequenceId sequence_;
     MotorControlCANOwner::RequestId pending_, urgent_, superseded_;
     MotorControlCAN::CANOPEN::SdoCompletion control_;
