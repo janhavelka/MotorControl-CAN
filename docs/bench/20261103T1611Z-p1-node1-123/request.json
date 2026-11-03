@@ -1,0 +1,76 @@
+{
+  "started_utc": "2026-11-03T16:11:47.744472+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-actions",
+  "seconds": 120.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 123,
+  "plan": "packet 15 P1",
+  "fields": [
+    1,
+    123
+  ],
+  "operator": {
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-actions",
+    "--node",
+    "1",
+    "--trial",
+    "123",
+    "--fault-led",
+    "unobserved",
+    "--campaign",
+    "docs/bench/20261103b-campaign.jsonl",
+    "--unattended-waiver",
+    "User, 2026-11-03: Do all the tests - i will not be present - i take the reponsibility - nothing can happen, motors bolted, free shafts",
+    "--output",
+    "docs/bench/20261103T1611Z-p1-node1-123"
+  ],
+  "host_revision": "0e342b295ae1ea8f9ff4bd8cf5ce7fb3a95e3882",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261103b-campaign.jsonl",
+    "motion_total": 1,
+    "cases": {
+      "G2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5441312c3132332c4b38663565663036330a"
+  ],
+  "image": {
+    "base": "e17271a1baf4e8794e3f0b7ef528f8ef081ba5ba",
+    "elf": "024a653af03c284add2e245d6604b7fddb82b4fcc1284166346e5bda07918f07",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TA1,123,K8f5ef063",
+  "tx_hex": "5441312c3132332c4b38663565663036330a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-03T16:11:50.011859+00:00"
+}
