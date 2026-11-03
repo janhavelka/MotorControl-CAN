@@ -1,10 +1,11 @@
 /** @file AxisSession.h
- * @brief One axis's application state: reservation, latest controlword, stop and enable work.
+ * @brief One axis's application state: reservation, latest controlword, stop, enable and move work.
  * SPDX-License-Identifier: MIT
  */
 #pragma once
 #include "CanBusOwner.h"
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
+#include <MotorControlCAN/profiles/lichuan_c/Position.h>
 
 namespace MotorControlCANExample {
 /** Where a requested stop stands. Never a claim about the drive. */
@@ -45,6 +46,13 @@ struct StopPolicy {
  * it has itself admitted a write other than an acknowledged 6060=1. That record lasts as long as this
  * object, across close and open, because reopening cannot retire earlier drive work. A new object
  * knows nothing, as after an MCU restart, so the caller's EnableEvidence must speak for that time.
+ *
+ * The absolute move is gated too. It also takes one member, one request, one service branch and one
+ * advance. Its observation cycles run in two session-owned reads in turn, so the last complete cycle
+ * stays available to requestStop while the next one runs: pass moveObservation(). A stop request ends
+ * an active move first, even if the stop itself is refused, and the held trigger word is the stop's
+ * predecessor. After a move whose trigger may have reached the drive without an observed completion,
+ * new moves stay fenced for this object's life: nothing here can show that motion ended.
  */
 class AxisSession {
   public:
@@ -86,10 +94,13 @@ class AxisSession {
     bool enableActive() const noexcept {
         return enable_.state == MotorControlCAN::ActionState::ACTIVE;
     }
-    /** @return True with a stop or enable in progress or a request unsettled, which excludes new
+    /** @return True while a move is neither finished nor failed. */
+    bool moveActive() const noexcept { return move_.state == MotorControlCAN::ActionState::ACTIVE; }
+    /** @return True with a stop, enable or move in progress or a request unsettled, which excludes new
      * operations and reads: starting one would orphan that terminal's history. */
     bool busy() const noexcept {
-        return stopActive() || enableActive() || pending_.owner || urgent_.owner || superseded_.owner;
+        return stopActive() || enableActive() || moveActive() || pending_.owner || urgent_.owner ||
+               superseded_.owner;
     }
     /** Start a new operation for the next commands on this reservation.
      * @param[in] deadlineUs Immutable exclusive future cutoff.
@@ -125,14 +136,15 @@ class AxisSession {
      * @param[in] kind Native selection for the sequenced path.
      * @param[in] state Application's latest complete state read. A read still in progress
      * counts as missing: keep the last complete copy for this. It must not be held inside
-     * stopAction(kind), which this request overwrites: that also counts as missing.
+     * stopAction(kind), which this request overwrites: that also counts as missing. During or after
+     * a move pass moveObservation(), whose cycle began after the held trigger word.
      * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity
      * width setting is ignored, so options shared with identity reads cannot refuse a stop.
      * @param[in] nowUs Nondecreasing supplied microseconds. A time before the last one refuses the
      * stop but still ends an active enable, at the last valid time.
      * @return The path taken; NONE when refused, with only a stale controlword withdrawn and an
-     * active enable ended, because asking for a stop means no further enable word. A read held in
-     * enableAction() is judged after that enable has ended.
+     * active enable or move ended, because asking for a stop means no further enable or move word. A
+     * read held in enableAction() is judged after that enable has ended.
      */
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -165,6 +177,63 @@ class AxisSession {
      */
     bool cancelEnable(uint64_t nowUs,
                       MotorControlCAN::ActionOutcome reason = MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
+    /** Request the gated finite absolute move on this axis. No specimen has run it.
+     * Starts a new owner operation, then prepares in place. Yields no traffic here: service() does.
+     * The session supplies the reservation, its actual latest acknowledged controlword, which must be
+     * 000F, and the operation identity; prepareMoveAbsolute refuses anything else.
+     * @param[in] state Complete fresh SDO read under this reservation after that 000F, as
+     * prepareMoveAbsolute requires.
+     * @param[in] identity Current identity read on this route and node epoch.
+     * @param[in] evidence Caller's capability evidence; a closed gate refuses with UNSUPPORTED.
+     * @param[in] request Unwrapped absolute target and positive speed.
+     * @param[in] profile Native ramps and policies.
+     * @param[in] stored MOTION_PARAMETERS read for REUSE_STORED, or null. For REUSE_STORED it must be
+     * one of the contexts named with retainSettings, so every move write retires it.
+     * @param[in] axis Current coordinate configuration of this axis.
+     * @param[in] reference Optional idle stationary witness, or null.
+     * @param[in] options Copied budgets.
+     * @param[in] deadlineUs Immutable exclusive cutoff of the whole move.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE or TARGET. On any
+     * refusal nothing changes, and on success nothing has been admitted.
+     */
+    MotorControlCAN::Status requestMove(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                                        const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                                        const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+                                        const MotorControlCAN::MoveRequest& request,
+                                        const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                                        const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+                                        const MotorControlCAN::AxisConfig& axis,
+                                        const MotorControlCAN::AxisReference* reference,
+                                        const MotorControlCAN::LICHUAN_C::MoveOptions& options,
+                                        uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Withdraw an active move locally: no further download or read is admitted. It sends no stop,
+     * rearm or replay, so the drive may still be moving. A request in flight settles into the context
+     * later as evidence only. An application that routes a drive fault reports it here.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault.
+     * @return False when no move is active, the reason is another value or time moved backward.
+     */
+    bool cancelMove(uint64_t nowUs, MotorControlCAN::MoveInterruption reason =
+                                        MotorControlCAN::MoveInterruption::CANCELLED) noexcept;
+    /** Name the retained settings contexts of this axis that a move's parameter writes must retire.
+     * Each is borrowed until replaced and must outlive this session's moves. Include a finished
+     * settings context's readback. A context not named here cannot be reached.
+     * @param[in] contexts Up to four non-null contexts, or null with count zero.
+     * @param[in] count Entries in contexts.
+     * @return False, with nothing changed, while busy or for an invalid list.
+     */
+    bool retainSettings(MotorControlCAN::LICHUAN_C::DriverContext* const* contexts, uint8_t count) noexcept;
+    /** @return Retained context of the latest move; EMPTY if never prepared. */
+    const MotorControlCAN::LICHUAN_C::MoveContext& moveAction() const noexcept { return move_; }
+    /** @return The move's last complete observation cycle, or an EMPTY read before the first one. A
+     * valid requestStop state once fresh; never the cycle in progress. */
+    const MotorControlCAN::LICHUAN_C::ReadContext& moveObservation() const noexcept {
+        return moveReads_[moveComplete_];
+    }
+    /** @return True once a move's trigger may have reached the drive without an observed completion;
+     * new moves are refused for this object's life. */
+    bool moveFenced() const noexcept { return moveFenced_; }
     /** @return The operation identity requestEnable would run under now, for EnableEvidence::operation;
      * zero without a usable reservation or with identities exhausted. */
     uint32_t nextOperation() const noexcept;
@@ -218,6 +287,14 @@ class AxisSession {
     bool motionWritten_ = false;
     uint32_t lastTrial_ = 0;
     MotorControlCAN::ActionOutcome enableWithdrawn_ = MotorControlCAN::ActionOutcome::NONE;
+    MotorControlCAN::LICHUAN_C::MoveContext move_;
+    // Observation cycles alternate between these, so the last complete one survives the next.
+    MotorControlCAN::LICHUAN_C::ReadContext moveReads_[2];
+    uint8_t moveRead_ = 0, moveComplete_ = 1;
+    MotorControlCAN::MoveInterruption moveWithdrawn_ = MotorControlCAN::MoveInterruption::NONE;
+    bool moveFenced_ = false;
+    MotorControlCAN::LICHUAN_C::DriverContext* retained_[4] = {};
+    uint8_t retainedCount_ = 0;
 
     bool usable() const noexcept;
     MotorControlCANOwner::BusAdmission admitWork(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
@@ -225,6 +302,10 @@ class AxisSession {
     bool takeTerminal(MotorControlCAN::CANOPEN::SdoCompletion& output) noexcept;
     void withdrawEnable(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void serviceEnable(uint64_t nowUs) noexcept;
+    void withdrawMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
+    void endMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
+    void afterMove() noexcept;
+    void serviceMove(uint64_t nowUs) noexcept;
     bool stateRefuses(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,
                       uint64_t nowUs) const noexcept;
     bool freshlyIdle(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,

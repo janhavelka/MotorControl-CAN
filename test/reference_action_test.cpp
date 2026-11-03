@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Real service/owner integration with synthetic controller traffic only.
 // No physical drive, firmware qualification or implicit enabling is represented.
-#include "CanBusOwner.h"
-#include <MotorControlCAN/profiles/lichuan_c/Actions.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-namespace M = MotorControlCAN;
-namespace C = MotorControlCAN::CANOPEN;
-namespace L = MotorControlCAN::LICHUAN_C;
-namespace O = MotorControlCANOwner;
 static unsigned checks = 0;
 #define CHECK(condition)                                                                           \
     do {                                                                                           \
@@ -20,314 +14,8 @@ static unsigned checks = 0;
             std::abort();                                                                          \
         }                                                                                          \
     } while (false)
-#include "support/OwnerRig.h"
+#include "support/ReferenceRig.h"
 namespace {
-using OwnerRig::budget;
-using OwnerRig::frame;
-template <class T> struct Saved {
-    unsigned char bytes[sizeof(T)];
-    explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
-    void unchanged(const T& value) const { CHECK(!std::memcmp(bytes, &value, sizeof value)); }
-};
-L::ReadTarget target(unsigned node = 1) {
-    L::ReadTarget value;
-    value.channel.binding.logicalAxisId = 100 + node;
-    value.channel.binding.endpoint.profile = 41;
-    value.channel.binding.endpoint.address = node;
-    value.channel.binding.bindingGeneration = 3;
-    value.channel.binding.configurationGeneration = 7;
-    value.channel.clientToServerId = 0x600 + node;
-    value.channel.serverToClientId = 0x580 + node;
-    value.nodeGeneration = 11;
-    return value;
-}
-L::ReadOptions options() {
-    L::ReadOptions value;
-    value.queueTimeoutUs = value.responseTimeoutUs = 100;
-    return value;
-}
-M::Frame reply(const C::SdoTransfer& request, uint32_t raw = 0, bool abort = false) {
-    M::Frame value = frame(request.channel.serverToClientId, 8);
-    value.data[0] = abort                                            ? 0x80
-                    : request.direction == C::SdoDirection::DOWNLOAD ? 0x60
-                    : request.size == 1                              ? 0x4f
-                    : request.size == 2                              ? 0x4b
-                                                                     : 0x43;
-    value.data[1] = uint8_t(request.index);
-    value.data[2] = uint8_t(request.index >> 8);
-    value.data[3] = request.subindex;
-    if (abort || request.direction == C::SdoDirection::UPLOAD)
-        for (unsigned i = 0; i < 4; ++i)
-            value.data[4 + i] = uint8_t(raw >> (8 * i));
-    return value;
-}
-struct Wire : OwnerRig::WireBase {
-    L::ActionContext* action = nullptr;
-    const L::AxisReservation* reservation = nullptr;
-    L::ReadTarget* current = nullptr;
-    M::AxisConfig* axis = nullptr;
-    M::AxisReference* reference = nullptr;
-    static bool guard(void* context, O::SequenceId, const C::SdoTransfer& work, uint64_t now) {
-        Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
-        if (!w.action || work.operation != w.action->operation)
-            return true;
-        CHECK(w.reservation && w.current && (work.index == 0x2301 || work.index == 0x2302));
-        if (work.index == 0x2302) {
-            CHECK(w.axis && w.reference);
-            return bool(L::noteActionTransmission(*w.action, *w.reservation, *w.current, *w.axis,
-                                                  *w.reference, now));
-        }
-        return bool(L::noteActionTransmission(*w.action, *w.reservation, *w.current, now));
-    }
-    O::Transport callbacks() {
-        O::Transport value = plumbing();
-        value.beforeTransmit = guard;
-        return value;
-    }
-};
-struct Rig {
-    C::SdoClient services;
-    Wire wire;
-    O::CanBusOwner owner;
-    O::SequenceId sequence;
-    L::AxisReservation reservation;
-    L::ReadTarget current = target();
-    L::ReadContext state;
-    M::AxisConfig axis;
-    M::AxisReference reference;
-    M::PreparedTarget prepared;
-    unsigned invalidations = 0;
-    uint64_t now = 0, deadline = 10000;
-    uint32_t operation = 0;
-
-    static void invalidated(void* context, const C::NetworkInvalidationEvent& event) {
-        Rig& r = *static_cast<Rig*>(context);
-        ++r.invalidations;
-        if (event.cause == C::NetworkInvalidation::CONFIGURATION) {
-            // This callback synchronizes a withdrawal already made at possible
-            // trigger TX. A second invalidation would create the wrong epoch.
-            CHECK(r.axis.binding.configurationGeneration ==
-                  event.previous.binding.configurationGeneration + 1);
-            CHECK(!r.axis.originKnown && !r.reference.nativeKnown);
-        } else {
-            CHECK(M::invalidateAxisReference(r.axis, r.reference));
-            r.current.channel.binding = r.axis.binding;
-            r.current.nodeGeneration = event.generation;
-        }
-    }
-    explicit Rig(M::Generation configuration = 7, M::Generation confidence = 1)
-        : owner(services, wire.callbacks(), 73) {
-        current.channel.binding.configurationGeneration = configuration;
-        axis.binding = current.channel.binding;
-        axis.referenceGeneration = confidence;
-        axis.units.commandStepsPerMotorTurn = M::UnitScale(3200, 1, M::ScaleSource::READBACK);
-        axis.units.encoder.countsPerUnit = M::UnitScale(4000, 1, M::ScaleSource::READBACK);
-        axis.units.encoder.sourceId = 6;
-        axis.supportedRelativeBases = 1;
-        axis.originKnown = axis.encoderOriginKnown = axis.softLimitsKnown = true;
-        axis.originNative = 10;
-        axis.encoderOriginNative = 20;
-        axis.originSource = axis.encoderOriginSource = M::ScaleSource::READBACK;
-        axis.softMinimum = -10000;
-        axis.softMaximum = 10000;
-        reference.binding = axis.binding;
-        reference.referenceGeneration = axis.referenceGeneration;
-        reference.nativeKnown = reference.idle = reference.stationary = true;
-        reference.nativePosition = 123;
-        reference.source = M::ScaleSource::QUALIFIED;
-        reference.maximumAgeUs = 1000;
-        M::PositionRequest request;
-        request.configurationGeneration = axis.binding.configurationGeneration;
-        request.value = M::Rational(10);
-        CHECK(M::preparePosition(request, axis, nullptr, prepared));
-        CHECK(M::validatePreparedTarget(prepared, axis, nullptr, now));
-        CHECK(services.configure(0, current.channel, true, true));
-        C::NetworkRoute network;
-        network.binding = current.channel.binding;
-        network.generation = 11;
-        network.heartbeatId = 0x701;
-        network.emcyId = 0x81;
-        C::NetworkObserver observer;
-        observer.context = this;
-        observer.invalidate = invalidated;
-        CHECK(services.configureNetwork(0, network, observer, 0));
-        CHECK(owner.beginSequence(current.channel.binding, 1, now, sequence));
-        reservation.target = current;
-        reservation.model = L::SettingsModel::CL86_C;
-        reservation.owner = owner.identity();
-        reservation.sequence = uint32_t(sequence.slot + 1);
-        reservation.generation = sequence.generation;
-        reservation.acquiredUs = owner.sequence(sequence)->acquiredUs;
-        wire.reservation = &reservation;
-        wire.current = &current;
-        wire.axis = &axis;
-        wire.reference = &reference;
-    }
-    void begin() { CHECK(owner.beginOperation(sequence, ++operation, deadline, now)); }
-    void turn(uint64_t time, const O::ServiceBudget& work = budget()) {
-        now = time;
-        CHECK(owner.service(now, work));
-    }
-    O::RequestId admit(const C::SdoTransfer& transfer) {
-        O::BusRequest work;
-        work.sequence = sequence;
-        work.transfer = transfer;
-        O::RequestId id;
-        CHECK(owner.admit(work, now, id) == O::BusAdmission::ACCEPTED);
-        return id;
-    }
-    C::SdoCompletion result(O::RequestId id, bool release = true) {
-        const O::Completion* terminal = owner.result(id);
-        CHECK(terminal);
-        const C::SdoCompletion value = terminal->service;
-        if (release)
-            CHECK(owner.release(id));
-        return value;
-    }
-    C::SdoCompletion exchange(const C::SdoTransfer& work, uint32_t raw = 0, bool abort = false) {
-        const O::RequestId id = admit(work);
-        turn(now);
-        wire.push(reply(work, raw, abort), now + 1);
-        turn(now + 1, budget(8, 0, 8, 0));
-        return result(id);
-    }
-    uint32_t raw(const C::SdoTransfer& work, uint16_t monitor, uint8_t mode, uint16_t error,
-                 int32_t position) const {
-        switch (work.index) {
-        case 0x1001:
-            return error ? 1 : 0;
-        case 0x1003:
-            return work.subindex ? 0x12340000u + work.subindex : 2;
-        case 0x2100:
-            return monitor;
-        case 0x2101:
-            return 0xa580;
-        case 0x2102:
-            return 0xf008;
-        case 0x603f:
-            return error;
-        case 0x6041:
-            return 0xffff; // Conflicting statusword dialect never decides success.
-        case 0x6061:
-            return mode;
-        case 0x6064:
-            return uint32_t(position);
-        case 0x606c:
-            return 0;
-        default:
-            CHECK(false);
-            return 0;
-        }
-    }
-    void acquire(uint16_t monitor, uint8_t mode = 1, uint16_t error = 0xff05, uint8_t mask = 0x1f) {
-        begin();
-        CHECK(L::prepareState(state, current, operation, now, deadline, options(), mask));
-        while (state.state == M::ReadState::ACTIVE) {
-            L::PreparedRead work;
-            CHECK(L::nextRead(state, now, work) && work.ready);
-            const C::SdoCompletion terminal =
-                exchange(work.transfer, raw(work.transfer, monitor, mode, error, 123));
-            CHECK(L::advanceRead(state, terminal, now));
-        }
-        CHECK(state.state == M::ReadState::SUCCEEDED);
-    }
-    L::ActionOptions policy() const {
-        L::ActionOptions value;
-        value.service = options();
-        value.observationIntervalUs = 10;
-        value.maximumAgeUs = 1400; // A-20: at least 7 x (queue + response), for the counter clear.
-        return value;
-    }
-    void prepare(L::ActionContext& action, bool position) {
-        begin();
-        if (position)
-            CHECK(L::prepareSetDevicePosition(action, reservation, state, 0, axis, operation, now,
-                                              deadline, policy()));
-        else
-            CHECK(L::prepareClearAlarm(action, reservation, state, operation, now, deadline,
-                                       policy()));
-        wire.action = &action;
-    }
-    L::PreparedAction next(const L::ActionContext& action) {
-        L::PreparedAction work;
-        CHECK(L::nextAction(action, reservation, current, now, work));
-        return work;
-    }
-    void field(L::ActionContext& action, uint32_t rawValue = 0, bool abort = false) {
-        const L::PreparedAction work = next(action);
-        CHECK(work.ready);
-        const C::SdoCompletion terminal = exchange(work.transfer, rawValue, abort);
-        CHECK(L::advanceAction(action, reservation, current, terminal, now));
-    }
-    void command(L::ActionContext& action, uint16_t index, uint16_t value) {
-        const auto work = next(action);
-        CHECK(work.ready && work.transfer.index == index && work.transfer.subindex == 0 &&
-              work.transfer.direction == C::SdoDirection::DOWNLOAD && work.transfer.size == 2 &&
-              work.transfer.channel.binding.configurationGeneration == 7);
-        CHECK(work.transfer.data[0] == uint8_t(value) &&
-              work.transfer.data[1] == uint8_t(value >> 8));
-        const unsigned sent = wire.sentCount;
-        field(action);
-        CHECK(wire.sentCount == sent + 1);
-        const uint8_t expected[] = {
-            0x2b, uint8_t(index), uint8_t(index >> 8), 0, uint8_t(value), uint8_t(value >> 8), 0,
-            0};
-        CHECK(wire.sent[sent].id == 0x601 && wire.sent[sent].payloadLength == 8 &&
-              !std::memcmp(wire.sent[sent].data, expected, sizeof expected));
-    }
-    void synchronize() {
-        CHECK(axis.binding.configurationGeneration == 8 && axis.referenceGeneration == 2);
-        CHECK(owner.advanceConfiguration(sequence, current.channel.binding, now));
-        CHECK(invalidations == 1 && axis.binding.configurationGeneration == 8 &&
-              axis.referenceGeneration == 2);
-    }
-    void cycle(L::ActionContext& action, uint16_t monitor = 0, int32_t position = 0,
-               uint16_t error = 0xff05, uint8_t mode = 1) {
-        const uint32_t before = action.observations;
-        unsigned fields = 0;
-        do {
-            const auto work = next(action);
-            CHECK(work.ready && work.transfer.direction == C::SdoDirection::UPLOAD);
-            CHECK(work.transfer.channel.binding.configurationGeneration ==
-                  current.channel.binding.configurationGeneration);
-            field(action, raw(work.transfer, monitor, mode, error, position));
-            CHECK(++fields <= 7);
-        } while (action.state == M::ActionState::ACTIVE &&
-                 (action.observations == before || action.finalErrorRead));
-    }
-    void commands(L::ActionContext& action, bool position) {
-        if (position) {
-            command(action, 0x2302, 0);
-            command(action, 0x2302, 1);
-            command(action, 0x2302, 0);
-            synchronize();
-        } else {
-            command(action, 0x2301, 1);
-            command(action, 0x2301, 0);
-        }
-    }
-    void checkWithdrawn() {
-        CHECK(axis.binding.configurationGeneration == 8 && axis.referenceGeneration == 2 &&
-              !axis.originKnown && !axis.encoderOriginKnown && !axis.softLimitsKnown &&
-              !reference.nativeKnown);
-        CHECK(!M::validatePreparedTarget(prepared, axis, nullptr, now));
-        L::StateObservation stale;
-        CHECK(!L::getStateBlock(state, L::StateBlock::FEEDBACK, current, now, 1000, stale));
-        M::PositionRequest request;
-        request.configurationGeneration = axis.binding.configurationGeneration;
-        request.value = M::Rational(1);
-        request.frame = M::CoordinateFrame::MOTOR;
-        M::PreparedTarget output = prepared;
-        const Saved<M::PreparedTarget> saved(output);
-        CHECK(!M::preparePosition(request, axis, nullptr, output));
-        saved.unchanged(output); // No new physical-coordinate target without an origin.
-        request.frame = M::CoordinateFrame::NATIVE;
-        request.relative = true;
-        CHECK(!M::preparePosition(request, axis, &reference, output));
-        saved.unchanged(output); // A zero report never restores a relative witness.
-    }
-};
-
 void successfulActionsRetainEvidence() {
     for (unsigned position = 0; position < 2; ++position) {
         Rig r;
@@ -924,17 +612,24 @@ void unpreparableFinalReadRefusesBeforeAnyMutation() {
     CHECK(action.extraObservation.block == L::StateBlock::ERRORS &&
           action.extraObservation.errorCode == 0xff05 && action.incident.errorCode == 0xff05);
 }
-// Admission reads no more than it needs: a counter clear carries no alarm incident or ERRORS.
+// Admission reads no more than it needs: a counter clear carries no alarm incident or ERRORS,
+// only its admission FEEDBACK, which the baseline keeps after the cycles replace it.
 void counterClearHoldsItsFeedbackOnly() {
     Rig r;
     r.acquire(0);
     L::ActionContext action;
     r.prepare(action, true);
-    CHECK(!action.incident.present && action.extraObservation.fieldCount == 0);
+    CHECK(!action.incident.present && action.incident.codeLink == L::AlarmCodeLink::NONE);
+    CHECK(action.extraObservation.block == L::StateBlock::FEEDBACK &&
+          action.extraObservation.actualPosition == 123 && action.baseline.present &&
+          action.baseline.startPosition == 123 && action.baseline.startVelocity == 0);
+    const Saved<L::CounterBaseline> baseline(action.baseline);
     r.commands(action, true);
     r.cycle(action);
     CHECK(action.state == M::ActionState::SUCCEEDED &&
-          action.extraObservation.block == L::StateBlock::FEEDBACK);
+          action.extraObservation.block == L::StateBlock::FEEDBACK &&
+          action.extraObservation.actualPosition == 0);
+    baseline.unchanged(action.baseline);
     CHECK(action.commandHistory[1].transfer.index == 0x2302 && action.commandHistory[1].transfer.data[0] == 1);
 }
 } // namespace

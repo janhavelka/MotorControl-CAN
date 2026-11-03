@@ -2285,7 +2285,7 @@ void freshnessBudgetBoundaries() {
                           uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::ERROR_HISTORY) | STATE_MASK));
             } else {
                 r.drive[0].monitor = 0;
-                readState(r, r.a, state);
+                readState(r, r.a, state, 1, uint8_t(bit(L::StateBlock::FEEDBACK) | STATE_MASK));
             }
             const L::AxisReservation reservation = reservationOf(r, r.a);
             const M::AxisConfig axis = axisFor(r.current());

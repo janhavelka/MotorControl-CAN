@@ -19,7 +19,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
-           "MotorControlCAN/ActionOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
+           "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
            "MotorControlCAN/profiles/lichuan_c/Position.h",
            "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h",

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Gated finite absolute move (packet 20)
+
+- Add common `MoveOperation.h` with `MoveRequest` (position and speed intent), `MoveDisplacement`, `MoveInterruption` and `MoveError`, and in `profiles/lichuan_c/Position.h` `prepareMoveAbsolute`, `validateMoveAbsolute`, `nextMove`, `beginMoveObservation`, `noteMoveTransmission`, `noteMoveWithdrawal`, `advanceMove` (terminal and local overloads), `resetMove`, `MoveContext`, `MoveEvidence`, `MoveProfile`, `MoveOptions` and `PreparedMove`. The terminal context is the result. **It is gated: acceptance and completion are not established for any specimen, the default `MoveEvidence` returns `UNSUPPORTED`, and only fake-owner tests have run it.** See the [move guide](docs/position_parameters.md).
+- Phase order per D-01: the caller's fresh state read after the actual latest acknowledged `000F` (mode 1, low bits 111, `2100` idle), then `607A`, `6081`, `6083`, `6084`, then `000F` to `001F`, held until the move is terminal (DEC-8), then fresh observation cycles, then `000F` only after an observed completion. Never `6060`, `6061`, an enable, a fault clear or a stop. Immediate update returns `UNSUPPORTED`.
+- The speed goes through `prepareVelocityTarget` and is refused unless it comes out integer motor turns per minute: 1 load turn/min at 3,200 increments per turn and gear 5 is 267 under the default basis, and that is refused before any write. Zero ramps, zero speed and a zero known displacement (R-08) are refused before any write; an absolute zero with no witness is an ordinary target.
+- Each parameter download calls `retireMotionParameters` on every retained context before it may transmit, and does not transmit if one refuses. The configuration epoch does not move, so the move's own target stays valid while a later settings call needs a fresh read.
+- `AxisSession` gains `requestMove`, `cancelMove`, `retainSettings`, `moveAction`, `moveActive`, `moveObservation` and `moveFenced`. **Migration:** `busy()` is also true during a move, `settle` returns false while a move owns the request, and `requestStop` ends an active move first. Observation cycles alternate between two session-owned reads, so the last complete cycle can serve a sequenced stop from the held `001F`. After a trigger that may have reached the drive with no observed completion, an aborted one included, new moves are refused for the object's life. A read reused under `REUSE_STORED` must be named with `retainSettings`. `AxisSession` is now 23,536 bytes on the S2 and S3 builds, of which the move context and its two reads are about 7 KB; no firmware holds one.
+- Add `test/move_absolute_test.cpp`, and the gated sequence to `examples/position_preview` with a labelled host simulation.
+
+### Device counter zero: baseline and held value 1 (packet 18)
+
+- **Migration:** `prepareSetDevicePosition` needs a fresh FEEDBACK block in its state read as well as MONITORS and STATUS, and refuses with `ActionError::STATE` unless `606C` reads raw zero. This is project policy beside `2100` running clear, not an observed shaft. Add `StateBlock::FEEDBACK` to the prerequisite read. Nonzero requests still return `UNSUPPORTED` before any other check.
+- Add `CounterBaseline` and `ActionContext::baseline`: the admission `6064` and `606C` raw, kept after the cycles replace `extraObservation`, which now holds the admission FEEDBACK until the first cycle. A raw zero after an already-zero baseline shows no change at all.
+- Add `ActionContext::valueOneMayRemain`, also used by the alarm clear: set when the action fails after its value-1 write may have reached the drive and the `0` after it has no positive acknowledgement. Nothing clears it or resends a value.
+- No wire value, write order, withdrawal point or epoch rule changed. `test/counter_clear_test.cpp` fails each of `0`, `1`, `0` before admission, in the queue, in the controller, after a TX report, on an abort, after an ACK processed at the cutoff and on a reply at the cutoff, and follows each into later reads, target validity and owner admission. See the [guide](docs/fault_reference_actions.md).
+
+### Alarm clear: unresolved fault identity (packet 17)
+
+- Add `AlarmCodeLink` and `AlarmIncident::codeLink`, always `UNRESOLVED` in an alarm clear: `603F=FF05` beside a reported alarm narrows the attempt but does not identify the alarm, since `603F` may keep an earlier code (D-26). The refusal text no longer calls the alarm a documented resettable `FF05`.
+- The `2301` writes, the polling of MONITORS and STATUS only, and the single final ERRORS read are unchanged. A failure after a possible `1` without an acknowledged `0` sets `valueOneMayRemain` (D-27).
+- Add `test/alarm_clear_test.cpp` and the shared `test/support/ReferenceRig.h`: admission per code and state, a stale `FF05` with a later incident, a persisting alarm, latched error values, the controlword route, every write at every failure stage, a delayed final ACK, boot-up, EMCY during clearing, two-node isolation, cancellation and deadline races, and stale configuration. Each checks the exact frames: no enable, controlword, motion, save, restore or retry.
+
 ### Gated enable through the owner; release stays absent (packet 15)
 
 - Add `prepareEnable` and `validateEnable` with `EnableEvidence`, `EnableGate`, `EnableStart` and `ENABLE_WORD_INTERVAL_US` in `Actions.h`, running the documented position-mode words 6, 7, 15 through `nextAction`, `noteActionTransmission` and `advanceAction`. **It is gated: no specimen has run it, the default gate returns `UNSUPPORTED`, and even success is a drive report rather than torque.** See the [transition table](docs/drive_actions.md).

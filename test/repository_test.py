@@ -90,8 +90,10 @@ FILES = {
     "include/MotorControlCAN/ActionOperation.h", "include/MotorControlCAN/profiles/lichuan_c/Actions.h",
     "src/profiles/lichuan_c/Actions.cpp", "test/stop_action_test.cpp", "docs/stop_actions.md",
     "test/reference_action_test.cpp", "docs/fault_reference_actions.md", "test/enable_action_test.cpp",
+    "test/alarm_clear_test.cpp", "test/counter_clear_test.cpp",
     "include/MotorControlCAN/profiles/lichuan_c/Position.h", "src/profiles/lichuan_c/Position.cpp",
     "test/position_parameters_test.cpp", "docs/position_parameters.md",
+    "include/MotorControlCAN/MoveOperation.h", "test/move_absolute_test.cpp",
     "examples/position_preview/main.cpp", "examples/position_preview/CMakeLists.txt", "examples/position_preview/README.md",
     "adapters/owner/CanBusTypes.h", "adapters/owner/CanBusOwner.h", "adapters/owner/CanBusOwner.cpp", "adapters/owner/CMakeLists.txt", "adapters/owner/README.md", "examples/common/CMakeLists.txt",
     "adapters/owner/CanBusDiagnostics.cpp", "adapters/owner/OwnerCounters.h", "test/can_bus_health_test.cpp",
@@ -126,7 +128,7 @@ FILES = {
     "include/MotorControlCAN/profiles/lichuan_c/Objects.h",
     "include/MotorControlCAN/profiles/lichuan_c/Catalogue.h", "test/objects_test.cpp",
     "scripts/check_promptset_test.py", "scripts/check_lichuan_ledger_test.py",
-    "test/support/OwnerRig.h",
+    "test/support/OwnerRig.h", "test/support/ReferenceRig.h",
     "test/CMakeLists.txt", "test/core_test.cpp", "test/api_ownership_test.cpp",
     "test/multidrive_contract_test.cpp", "test/version_test.py", "test/package_test.py",
     "test/repository_test.py", "test/verification_test.py", "test/documentation_test.py",
@@ -153,7 +155,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "action_preview", "reference_action", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

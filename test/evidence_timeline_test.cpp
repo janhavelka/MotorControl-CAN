@@ -453,13 +453,16 @@ struct ActionCommandRig {
         L::ReadContext state;
         const bool clearing = which == 2 || which == 3;
         CHECK(L::prepareState(state, target(), 2, now, CUTOFF, options(),
-                              clearing ? mask({L::StateBlock::ERRORS, L::StateBlock::ERROR_HISTORY,
-                                               L::StateBlock::MONITORS, L::StateBlock::STATUS})
-                                       : PREREQUISITE));
+                              clearing    ? mask({L::StateBlock::ERRORS, L::StateBlock::ERROR_HISTORY,
+                                                  L::StateBlock::MONITORS, L::StateBlock::STATUS})
+                              : counter() ? mask({L::StateBlock::MONITORS, L::StateBlock::STATUS,
+                                                  L::StateBlock::FEEDBACK})
+                                          : PREREQUISITE));
         if (clearing)
             finishRead(state, now, {{0x2100, L::MONITOR_ALARM}, {0x6041, 7}, {0x6061, 1}, {0x603f, 0xff05}, {0x1003, 0}});
-        else
-            finishRead(state, now, {{0x2100, which < 2 ? uint32_t(L::MONITOR_RUNNING) : 0u}, {0x6041, 7}, {0x6061, 1}});
+        else // A counter clear also needs 606C zero; a stop does not read it.
+            finishRead(state, now,
+                       {{0x2100, which < 2 ? uint32_t(L::MONITOR_RUNNING) : 0u}, {0x6041, 7}, {0x6061, 1}, {0x606c, 0}});
         const L::ActionOptions policy = actionOptions(o);
         if (which < 2)
             CHECK(L::prepareStop(c, live, state, control, which ? L::StopKind::QUICK_STOP : L::StopKind::HALT,

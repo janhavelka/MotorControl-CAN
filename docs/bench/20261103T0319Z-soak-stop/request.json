@@ -1,0 +1,13 @@
+{
+  "started_utc": "2026-11-03T03:19:31.443003+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "command": "soak-stop",
+  "tx_hex": "58",
+  "seconds": 5.0,
+  "reset": false,
+  "retry": false,
+  "prefix_bytes": 0,
+  "status": "captured"
+}

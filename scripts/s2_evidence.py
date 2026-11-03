@@ -36,6 +36,9 @@ OUTCOMES = ("SUCCESS", "SERVER_ABORT", "CLIENT_ABORT", "TIMEOUT", "CANCELLED", "
             "UNCONFIRMED_SENT")
 FAILURES = ("NONE", "AUTHORIZATION", "ADMISSION", "SERVICE", "CORRELATION", "EVIDENCE_LOSS",
             "INVALIDATED", "DEADLINE", "READBACK")
+# BenchRoute RouteFailure, printed in a TRIAL header.
+TRIAL_FAILURES = ("NONE", "AUTHORIZATION", "ADMISSION", "SERVICE", "CORRELATION", "EVIDENCE_LOSS",
+                  "INVALIDATED", "DEADLINE", "PREREQUISITE", "OBSERVATION", "ACTION", "REFUSED", "ABORTED")
 RX, TX, TX_REPORT, TERMINAL, CONTROLLER, RECOVERY = range(6)  # owner DiagnosticKind
 
 # Native values worth tracking as status. Anything else stays in the record list.
@@ -159,8 +162,47 @@ _NETWORK = (("nmt", "state"), ("nmt", "qualified"), ("nmt", "pending"), ("nmt", 
             ("nmt", "expired"), ("nmt", "producerKnown"), ("nmt", "ms"), ("nmt", "epoch"),
             ("health", "dropped"))
 _RECORD_HEALTH = (("health", "failure"), ("health", "lost"), ("health", "tailLost"))
+# One fresh state read of a trial route: blocks present, then raw 1001/603F/2100/6041/6061/6064/606C.
+_TRIAL_SNAPSHOT = "passed:b blocks:x 1001:x 603f:x 2100:x 6041:x 6061:x 6064:i 606c:i"
+_TRIAL_VALUES = (("status", "2100"), ("status", "6041"), ("status", "6061"))
 
 GRAMMAR = (
+    # Attended bench routes (examples/s2_bench/BenchRoute.h). The admission row precedes the
+    # header row, whose prefix it shares. Summaries sit between the header and the terminals.
+    Row("ADMITTED", "TRIAL admitted", "start", "route:s node:u trial:u motion:u case:u"),
+    Row("REFUSED", "TRIAL_REFUSED ", "refused", "reason:s"),
+    Row("TRIAL_ABORTING", "TRIAL_ABORTING", "response"),
+    Row("TRIAL_ABORT_REFUSED", "TRIAL_ABORT refused", "response", "reason:s"),
+    Row("TRIAL", "TRIAL ", "header",
+        "id:u node:u route:s failure:u why:s lost:b terminals:u traffic:u tail:u tailLost:b summaries:u "
+        "step:u cycles:u motion:u case:u unsettled:b gap:u",
+        signals=_RECORD_HEALTH + (("health", "why"),), per_node=True),
+    Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
+        "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
+        "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u?"),
+    Row("TRIAL_RES", "TRIAL_RES ", "summary",
+        "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u",
+        "completed", (("health", "stack1"), ("health", "heapMin")), True),
+    Row("TRIAL_CHECK", "TRIAL_CHECK ", "summary", _TRIAL_SNAPSHOT),
+    Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES, per_node=True),
+    Row("TRIAL_EMCY", "TRIAL_EMCY ", "summary", "data:h", signals=(("health", "data"),), per_node=True),
+    Row("TRIAL_STATUS", "TRIAL_STATUS ", "summary", "code:u detail:i"),
+    Row("TRIAL_ENABLE", "TRIAL_ENABLE ", "summary",
+        "own:b state:u outcome:u exec:u completion:u uncertain:b effects:b mask:x cursor:u observations:u "
+        "op:u pt:i vt:i s0:x m0:x p0:i",
+        signals=(("health", "outcome"), ("health", "uncertain")), per_node=True),
+    Row("TRIAL_ENABLE_STEP", "TRIAL_ENABLE_STEP ", "summary",
+        "word:u present:b status:x monitor:x position:i velocity:i history:b outcome:u ack:b possible:b "
+        "uncertain:b"),
+    Row("TRIAL_STOP", "TRIAL_STOP ", "summary",
+        "kind:u path:u final:u own:b state:u outcome:u exec:u completion:u uncertain:b effects:b pred:x "
+        "documented:b basis:u observations:u op:u",
+        signals=(("health", "path"), ("health", "outcome")), per_node=True),
+    Row("TRIAL_BEST_EFFORT", "TRIAL_BEST_EFFORT ", "summary",
+        "which:u own:b state:u outcome:u exec:u admitted:b effects:b op:u"),
+    Row("END", "END trial ", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
+    Row("RELEASED", "TRIAL record released", "response"),
+    Row("RELEASE_REFUSED", "TRIAL release refused", "response"),
     Row("ADMITTED", "MOTION_READINESS admitted", "start"),
     Row("ADMITTED", "IDENTITY admitted", "start"),
     Row("ADMITTED", "HEARTBEAT experiment admitted", "start"),
@@ -227,7 +269,8 @@ GRAMMAR = (
     Row("END", "END PDO", "end"),
     Row("END_NETWORK", "END network", "response"),
     Row("PONG", "PONG ", "response",
-        "target:s base:s elf:s sdk:s running:b active:b silent:b pinsReady:b soak:b? t:u?", "t", _PONG),
+        "target:s base:s elf:s sdk:s running:b active:b silent:b pinsReady:b soak:b? t:u? routes:u? trial:b? "
+        "motion:u?", "t", _PONG + (("controller", "trial"), ("health", "motion"))),
     Row("STATS", "STATS ", "response",
         "running:b inhibited:b rx:u tx:u dropped:u errors:u flags:x stackFree:u t:u? txRej:u? rxLost:u? "
         "unmatched:u? traceOver:u? ownerGap:u? conRej:u?", "t", _STATS),
@@ -293,7 +336,15 @@ EXPECTED = {
     "soak-stop": Expect(responses=("SOAK_STOPPING", "SOAK_STOP_REFUSED")),
     "preop1": Expect("", "NMT Pre-operational admitted", 1, responses=("NMT",)),
     "preop2": Expect("", "NMT Pre-operational admitted", 2, responses=("NMT",)),
+    "trial-abort": Expect(responses=("TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")),
 }
+# Trial route commands: s2_bench.py sends a ping, then one T line; the node comes from request.json.
+# Ctrl-C during the route sends one local abort, so its response may appear too.
+_TRIAL_RESPONSES = ("PONG", "TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")
+TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness-tuning": "tuning",
+                "mode1": "mode1", "enable": "enable", "stop": "stop", "position": "position"}
+for _command, _route in TRIAL_ROUTES.items():
+    EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
 # Fixed firmware inventories: (index, subindex, EDS width in bytes). Tests compare
 # them with examples/s2_bench/RawEvidence.cpp and the retained EDS. A disagreement
@@ -310,12 +361,26 @@ _MOTION = (
     (0x605D, 0, 2), (0x60FF, 0, 4), (0x2200, 0, 2), (0x2201, 0, 2), (0x2202, 0, 2), (0x607D, 1, 4),
     (0x607D, 2, 4), (0x2500, 0, 2), (0x2501, 0, 2), (0x2400, 1, 2), (0x2400, 2, 2), (0x2400, 3, 2),
     (0x2400, 4, 2), (0x2400, 5, 2), (0x2400, 6, 2), (0x2400, 7, 2), (0x2400, 8, 2), (0x60FD, 0, 4))
+# Fixed trial read routes, from examples/s2_bench/BenchRoute.cpp and the typed read plans.
+_IMAGE = ((0x2100, 0, 2), (0x2101, 0, 2), (0x2102, 0, 2), (0x6041, 0, 2), (0x6061, 0, 1), (0x6064, 0, 4),
+          (0x606C, 0, 4))
+_FULL = ((0x1001, 0, 1), (0x603F, 0, 2)) + _IMAGE
+_TRIAL_ACTIONS = _FULL + ((0x6081, 0, 4), (0x6083, 0, 4), (0x6084, 0, 4), (0x1017, 0, 2), (0x607A, 0, 4),
+                          (0x60FF, 0, 4)) + _IMAGE
+_TRIAL_IO = (_IMAGE + tuple((0x2400, sub, 2) for sub in range(9)) +
+             tuple((0x2400, sub, 2) for sub in range(0x0C, 0x10)) +
+             tuple((index, 0, 2) for index in range(0x2401, 0x2408)) +
+             ((0x60FE, 0, 1), (0x60FE, 1, 4), (0x60FE, 2, 4)) + _IMAGE)
+_TRIAL_TUNING = _IMAGE + tuple((index, 0, 2) for index in range(0x2502, 0x2521)) + _IMAGE
 # name: (rows, plan sizes a successful record may have).
 INVENTORIES = {
     "identity": (_IDENTITY, (9,)),
     "identity_network": (_NETWORK_FIELDS, (18, 20, 26)),
     "motion_readiness": (_MOTION, (30,)),
     "heartbeat": (((0x1017, 0, 2),) * 3, (3,)),
+    "trial_actions": (_TRIAL_ACTIONS, (22,)),
+    "trial_io": (_TRIAL_IO, (37,)),
+    "trial_tuning": (_TRIAL_TUNING, (45,)),
 }
 
 
@@ -336,6 +401,12 @@ def _flag(text):
     return int(text)
 
 
+def _int(text):
+    if not (text[1:] if text.startswith("-") else text).isdigit():
+        raise ValueError(text)
+    return int(text)
+
+
 def _bytes(text):
     bytes.fromhex(text)
     if len(text) % 2 or not text:
@@ -350,7 +421,7 @@ def _object(text):
     return [int(index, 16), int(subindex, 16)]
 
 
-TYPES = {"u": _uint, "x": _hex, "b": _flag, "h": _bytes, "o": _object, "s": str}
+TYPES = {"u": _uint, "x": _hex, "b": _flag, "h": _bytes, "o": _object, "s": str, "i": _int}
 
 
 @lru_cache(maxsize=None)
@@ -797,7 +868,8 @@ def _check_record(report, records, expect):
         report.failure = 0  # ReadOutcome::SUCCESS.
     report.trace_lost = bool(values.get("lost"))
     report.tail_lost = bool(values.get("tailLost"))
-    names = READ_OUTCOMES if header.kind == "EVIDENCE" else FAILURES
+    names = (READ_OUTCOMES if header.kind == "EVIDENCE" else TRIAL_FAILURES if header.kind == "TRIAL"
+             else FAILURES)
     if report.failure is not None and report.failure < len(names):
         report.failure_name = names[report.failure]
     if expect.family and expect.family != "any" and header.kind != expect.family:
@@ -961,8 +1033,37 @@ def replay_bytes(data, meta=None, path="<bytes>", expect_operation=None):
     _check_run(report, records, expect)
     if expect_operation is not None and report.operation != expect_operation:
         report.error("wrong_operation", None, "expected %d found %s" % (expect_operation, report.operation))
+    _check_trial(report, records, meta)
     report.verdict = _verdict(report, records)
     return report
+
+
+def _check_trial(report, records, meta):
+    """A trial record's admission, plan and summaries must name the request and its own header."""
+    headers = [r for r in records if r.role == "header" and r.status == "parsed" and r.kind == "TRIAL"]
+    if not headers:
+        return
+    header = headers[0].values
+    summaries = [r for r in records if r.role == "summary" and r.status == "parsed"]
+    if len(summaries) != header["summaries"]:
+        code = "count_short" if len(summaries) < header["summaries"] else "count_excess"
+        report.error(code, headers[0].number, "summaries header %d found %d" % (header["summaries"], len(summaries)))
+    body = [r.number for r in records if r.role in ("terminal", "traffic", "tail", "end")]
+    for summary in summaries:
+        if summary.number < headers[0].number or (body and summary.number > body[0]):
+            report.error("record_order", summary.number, "summary outside its header")
+    for summary in summaries:
+        if summary.kind == "TRIAL_PLAN" and any(summary.values[k] != header[n] for k, n in
+                                                (("route", "route"), ("node", "node"), ("trial", "id"))):
+            report.error("plan_differs_from_header", summary.number)
+    requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
+                 "trial": meta.get("trial")}
+    for start in (r for r in records if r.role == "start" and r.kind == "ADMITTED" and "route" in r.values):
+        if any(start.values[k] != header[n] for k, n in (("route", "route"), ("node", "node"), ("trial", "id"))):
+            report.error("start_differs_from_header", start.number)
+        for name, wanted in requested.items():
+            if wanted is not None and start.values[name] != wanted:
+                report.error("wrong_procedure", start.number, "%s requested %s" % (name, wanted))
 
 
 def _check_request(report, meta):
@@ -975,6 +1076,11 @@ def _check_request(report, meta):
     if command not in EXPECTED:
         report.warn("command_not_in_grammar", None, command)
         return Expect()
+    if command in TRIAL_ROUTES:
+        line = meta.get("line")  # Absent when the runner refused before sending it.
+        if line is not None and (not isinstance(line, str) or not line.startswith("T")):
+            report.error("request_byte_mismatch", None, "%s sent %r" % (command, line))
+        return EXPECTED[command]._replace(node=int(meta.get("node") or 0))
     return EXPECTED[command]
 
 

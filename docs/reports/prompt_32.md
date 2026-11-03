@@ -1,5 +1,7 @@
 # Prompt 32: explicit fault clear and device-position zero
 
+**Changed by packets 17 and 18.** The alarm clear no longer claims a "documented resettable `FF05`": the code narrows the attempt and `AlarmIncident::codeLink` records the alarm's identity as `UNRESOLVED` (D-26). Both actions set `valueOneMayRemain` when a possible `1` lacks an acknowledged `0` (D-27, Q14). The counter clear also needs FEEDBACK with `606C` zero and keeps the admission `6064` in `CounterBaseline`. Wire values and order are unchanged; nothing physical ran. See the [guide](../fault_reference_actions.md).
+
 **Changed by audit W6.** [Packet 7](handoff_19_33/packet_7.md) made the alarm clear poll MONITORS and STATUS only, then read ERRORS once after the alarm clears, and rejects a `maximumAgeUs` below the cycle's service budget. Statements below about reads per cycle describe the earlier contract. [Packet 8](handoff_19_33/packet_8.md) replaced `originalState` with `AlarmIncident`, so where this report says the context owns the original typed read, it now keeps raw values and one earliest and latest bound.
 
 Subsequent [independent audit of prompts 31/32](prompts_31_32_audit.md) adds
@@ -21,9 +23,11 @@ broader state/fault scope and firmware qualification remain gated. Inherited
 typed reads, action lifecycle and reference machinery, not unimplemented APIs.
 
 The [action guide](../fault_reference_actions.md) owns the transition table and
-application handoff. `prepareClearAlarm` supports the documented resettable
-position-deviation alarm `FF05`, with fresh mode-1/nonrunning/alarm evidence and
-retained error history. It writes `2301` U16 `1,0`; the second write returns to
+application handoff. `prepareClearAlarm` admits a reported alarm with raw
+`603F=FF05`, fresh mode-1/nonrunning evidence and retained error history. Packet
+17 corrected the earlier claim that this is the documented resettable alarm: the
+`FF05` to resettable-class link is an inference by name (D-26), and the code may
+be an earlier event's. It writes `2301` U16 `1,0`; the second write returns to
 the documented ineffective value as explicit library policy, not a vendor edge
 or rearm claim. New monitor alarm-clear evidence establishes the narrow observed
 result. Raw `603F` may remain nonzero because its latching behavior is unknown.
@@ -80,8 +84,9 @@ The exit snapshot is `.build/p32-source-audit-exit.json`.
 Reopened original EN86/ZH86 p15, EN86 p16-18/p20, ZH86 p18, ZH86 p12 and
 OP86 p10/p13, plus EDS `[2301]`, `[2302]`, `[603F]`, `[6064]`. Source-confirmed:
 U16 objects, explicit position-clear edge/manual return, EN86 alarm object values,
-FF05/resettable cross-reference, signed raw actual position and agreed monitor
-bits. Unknown/contradicted: `2301` absent from ZH86 table, disputed `6041` alarm
+signed raw actual position and agreed monitor bits. Inference only (packet 17,
+D-26): the `FF05` to resettable-class cross-reference, which is by name and has no
+code on p20. Unknown/contradicted: `2301` absent from ZH86 table, disputed `6041` alarm
 bits, controlword reset forms, reset timing, counter mapping and physical effects.
 Nothing was physically measured. Original bytes/hashes are unchanged.
 

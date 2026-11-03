@@ -65,6 +65,13 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     L::resetAction(stops_[1]);
     L::resetAction(enable_);
     enableWithdrawn_ = M::ActionOutcome::NONE;
+    // moveFenced_ stays: reopening cannot show that an earlier move's motion ended.
+    L::resetMove(move_);
+    L::resetRead(moveReads_[0]);
+    L::resetRead(moveReads_[1]);
+    moveRead_ = 0;
+    moveComplete_ = 1;
+    moveWithdrawn_ = M::MoveInterruption::NONE;
     bestEffort_ = firstBestEffort_ = L::BestEffortStop();
     path_ = StopPath::NONE;
     ownsReservation_ = taken;
@@ -121,7 +128,7 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
     return admission;
 }
 bool AxisSession::settle(C::SdoCompletion& output) noexcept {
-    return !enableActive() && takeTerminal(output);
+    return !enableActive() && !moveActive() && takeTerminal(output);
 }
 bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     const Completion* terminal = owner_.result(pending_);
@@ -253,6 +260,168 @@ void AxisSession::serviceEnable(uint64_t now) noexcept {
     if (enable_.phase == L::ActionPhase::COMMAND)
         L::noteActionTransmission(enable_, reservation_, frozen, now);
 }
+M::Status AxisSession::requestMove(const L::ReadContext& state, const L::IdentityObservation& identity,
+                                   const L::MoveEvidence& evidence, const M::MoveRequest& request,
+                                   const L::MoveProfile& profile, const L::DriverContext* stored,
+                                   const M::AxisConfig& axis, const M::AxisReference* reference,
+                                   const L::MoveOptions& options, uint64_t deadline,
+                                   uint64_t now) noexcept {
+    const int32_t stateError = static_cast<int32_t>(M::MoveError::STATE);
+    if (now < lastUs_ || !open_ || !usable())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::TARGET),
+                         "no usable reservation for a move");
+    if (busy())
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
+    if (moveFenced_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError,
+                         "an earlier trigger may still be moving the drive: new moves stay fenced");
+    withdrawIfStale();
+    if (!controlPresent_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "no latest acknowledged controlword");
+    // A reused read must be one this session retires on every move write, or a later reuse could
+    // skip a value an earlier move changed.
+    bool retained = false;
+    for (unsigned i = 0; i < retainedCount_; ++i)
+        retained |= stored && retained_[i] == stored;
+    if (profile.setup == L::MoveSetup::REUSE_STORED && !retained)
+        return M::Status(M::Err::INVALID_CONFIG, stateError,
+                         "a reused profile read must be named with retainSettings");
+    const uint32_t next = nextOperation();
+    if (!next)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
+    // Check everything before the owner moves; the context is written only once that succeeded.
+    const M::Status checked =
+        L::validateMoveAbsolute(move_, reservation_, target_, state, control_, identity, evidence,
+                                request, profile, stored, axis, reference, next, now, deadline, options);
+    if (!checked)
+        return checked;
+    if (!owner_.beginOperation(sequence_, next, deadline, now))
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
+    // Same values as the check above, and only the owner moved, so this cannot refuse.
+    L::prepareMoveAbsolute(move_, reservation_, target_, state, control_, identity, evidence, request,
+                           profile, stored, axis, reference, next, now, deadline, options);
+    L::resetRead(moveReads_[0]);
+    L::resetRead(moveReads_[1]);
+    moveRead_ = 0;
+    moveComplete_ = 1;
+    moveWithdrawn_ = M::MoveInterruption::NONE;
+    operation_ = next;
+    lastUs_ = now;
+    return M::Ok();
+}
+bool AxisSession::cancelMove(uint64_t now, M::MoveInterruption reason) noexcept {
+    if (now < lastUs_ || !moveActive() ||
+        (reason != M::MoveInterruption::CANCELLED && reason != M::MoveInterruption::DRIVE_FAULT))
+        return false;
+    lastUs_ = now;
+    withdrawMove(reason, now);
+    return true;
+}
+bool AxisSession::retainSettings(L::DriverContext* const* contexts, uint8_t count) noexcept {
+    if (busy() || count > 4 || (count && !contexts))
+        return false;
+    for (unsigned i = 0; i < count; ++i)
+        if (!contexts[i])
+            return false;
+    for (unsigned i = 0; i < 4; ++i)
+        retained_[i] = i < count ? contexts[i] : nullptr;
+    retainedCount_ = count;
+    return true;
+}
+// A trigger that may have reached the drive with no observed completion leaves motion unknown, and
+// nothing in this session can show it ended: a stop reports the controller, not the shaft. A server
+// abort counts too: the frame reached the drive, and an abort does not establish that it had no effect.
+void AxisSession::afterMove() noexcept {
+    if (move_.execution != M::ActionExecution::NOT_TRANSMITTED &&
+        move_.completion != M::ActionCompletion::OBSERVED)
+        moveFenced_ = true;
+}
+// Nothing in flight: end it now. The move withdraws its admitted cycle, which no owner turn has
+// carried yet, and keeps every earlier terminal.
+void AxisSession::endMove(M::MoveInterruption reason, uint64_t now) noexcept {
+    const L::ReadTarget& frozen = reservation_.target;
+    L::ReadContext& read = moveReads_[moveRead_];
+    if (!L::advanceMove(move_, read, reservation_, frozen, reason, now).isOk())
+        L::advanceMove(move_, read, reservation_, frozen, M::MoveInterruption::INVALIDATED, now);
+    afterMove();
+}
+// As for an enable: the first reason wins, and a request in flight keeps the slot and settles into
+// this context as evidence, so that it cannot complete the move.
+void AxisSession::withdrawMove(M::MoveInterruption reason, uint64_t now) noexcept {
+    if (!moveActive() || moveWithdrawn_ != M::MoveInterruption::NONE)
+        return;
+    moveWithdrawn_ = reason;
+    if (!pending_.owner)
+        endMove(reason, now);
+    else if (!L::noteMoveWithdrawal(move_, reservation_, reservation_.target, reason, now).isOk())
+        L::noteMoveWithdrawal(move_, reservation_, reservation_.target,
+                              M::MoveInterruption::INVALIDATED, now);
+}
+void AxisSession::serviceMove(uint64_t now) noexcept {
+    if (!moveActive())
+        return;
+    // As for a stop: the frozen reservation identifies this move, and real currentness is checked
+    // below, so that a terminal is consumed with its evidence even after its route has gone.
+    const L::ReadTarget& frozen = reservation_.target;
+    if (pending_.owner) {
+        C::SdoCompletion evidence;
+        if (!takeTerminal(evidence))
+            return;
+        L::ReadContext& read = moveReads_[moveRead_];
+        if (!L::advanceMove(move_, read, reservation_, frozen, evidence, now).isOk())
+            L::advanceMove(move_, read, reservation_, frozen,
+                           moveWithdrawn_ != M::MoveInterruption::NONE ? moveWithdrawn_
+                                                                       : M::MoveInterruption::INVALIDATED,
+                           now);
+        if (read.state == M::ReadState::SUCCEEDED && read.operation == move_.operation &&
+            read.startedUs == move_.observationStartedUs)
+            moveComplete_ = moveRead_;
+        if (!moveActive()) {
+            afterMove();
+            return;
+        }
+    }
+    if (moveWithdrawn_ != M::MoveInterruption::NONE || now >= move_.deadlineUs || !usable()) {
+        endMove(now >= move_.deadlineUs                     ? M::MoveInterruption::DEADLINE
+                : moveWithdrawn_ != M::MoveInterruption::NONE ? moveWithdrawn_
+                                                              : M::MoveInterruption::INVALIDATED,
+                now);
+        return;
+    }
+    L::PreparedMove work;
+    if (!L::nextMove(move_, moveReads_[moveRead_], reservation_, frozen, now, work).isOk()) {
+        endMove(M::MoveInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.observe) {
+        // The other read keeps the last complete cycle for a stop request.
+        const uint8_t slot = uint8_t(1u - moveComplete_);
+        if (!L::beginMoveObservation(move_, moveReads_[slot], reservation_, frozen, now).isOk() ||
+            !L::nextMove(move_, moveReads_[slot], reservation_, frozen, now, work).isOk()) {
+            endMove(M::MoveInterruption::INVALIDATED, now);
+            return;
+        }
+        moveRead_ = slot;
+    }
+    if (!work.ready)
+        return;
+    const BusAdmission admission = admitWork(work.transfer, now);
+    if (admission == BusAdmission::RESULTS_FULL)
+        return; // Unsent, so the same work is simply offered again.
+    if (admission != BusAdmission::ACCEPTED) {
+        endMove(M::MoveInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.transfer.direction != C::SdoDirection::DOWNLOAD)
+        return;
+    // As for a stop: no adapter gives a pre-transmit hook, and nothing leaves before the next owner
+    // turn. So the notice, and the retirement of every retained setting it performs, happen here. If
+    // that refuses, the download is cancelled before any turn could carry it.
+    if (!L::noteMoveTransmission(move_, reservation_, frozen, retained_, retainedCount_, now).isOk()) {
+        owner_.cancel(pending_, now);
+        withdrawMove(M::MoveInterruption::INVALIDATED, now);
+    }
+}
 // Fresh MONITORS reporting the controller not running. Absent or stale state is not this report.
 bool AxisSession::freshlyIdle(const L::ReadContext& state, const StopPolicy& policy,
                               uint64_t now) const noexcept {
@@ -278,8 +447,10 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                   const StopPolicy& requested, uint64_t now) noexcept {
     // Even a stop refused below ends the enable. Asking for a stop means no further word, so a time
     // that moved backward still ends it, at the last valid time.
-    if (open_)
+    if (open_) {
         withdrawEnable(M::ActionOutcome::CANCELLED, now < lastUs_ ? lastUs_ : now);
+        withdrawMove(M::MoveInterruption::STOP, now < lastUs_ ? lastUs_ : now);
+    }
     // This width concerns identity reads. A stop reads none, so it cannot refuse a stop.
     StopPolicy policy = requested;
     policy.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
@@ -372,6 +543,7 @@ void AxisSession::service(uint64_t now) noexcept {
     withdrawIfStale();
     settleSuperseded(now);
     serviceEnable(now);
+    serviceMove(now);
     switch (path_) {
     case StopPath::CONFIRMED:
         serviceConfirmed(now);

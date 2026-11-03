@@ -6,82 +6,119 @@ the same continuous owner reservation, current binding, time and finite budgets.
 These operations are explicit requests, never startup, recovery or retry policy.
 The core performs no I/O and owns copies of the evidence it consumes.
 
-## Reviewed transition table
+Evidence classes below: **source** means the original vendor page or EDS says it;
+**inference** is our reading of a source; **policy** is a project decision;
+**host** is fake-owner test evidence. Nothing here is **physical**: no specimen
+has run either action (packets 17 and 18).
 
-This table defines the scoped implementation. Mode and monitor restrictions
-below are conservative library admission policy, not a claimed manufacturer
-state machine. All prerequisites are fresh checked SDO observations acquired
-under the actual live reservation; selecting CL86-C/OL86-C remains an explicit
-model binding, not automatic firmware detection.
+## Supported transition tables
 
-| Action | Admission | Exact native sequence | New completion evidence | Consequences not established |
-| --- | --- | --- | --- | --- |
-| Alarm clear | Mode 1, monitor not running and alarm present, `603F=FF05`; complete ERRORS, ERROR_HISTORY, MONITORS and STATUS retained | `2301:00` U16 `1`, then `0`, each with its own matching acknowledgement | Fresh mode 1 / not-running report and `2100` alarm bit clear, after both writes, then one ERRORS read: these reads may consume data, so polling never repeats them | Fault cause removed, repeat-trigger/edge semantics, torque, reference or absence of internal resumption |
-| Device-position zero | Requested native position exactly zero; mode 1, monitor not running and no alarm; matching valid axis epochs with room to advance | `2302:00` U16 `0`, `1`, `0`, acknowledging each before the next | Fresh mode 1 / not-running / no-alarm reports and `6064` raw signed actual position equal to zero | Physical home, arbitrary position setting, all internal counters cleared, command/feedback scale or preserved coordinate reference |
-| Other position value, unsupported state/mode/fault or stale binding | Reject preparation atomically | No work | None | No clamp, guessed reset route, enabling preamble or factory reset |
+Mode and monitor restrictions are conservative library admission policy, not a
+claimed manufacturer state machine. All prerequisites are fresh checked SDO
+observations acquired under the actual live reservation. Selecting CL86-C or
+OL86-C is an explicit model binding, not firmware detection. No row sends an
+enable, a controlword, a mode, a target, a save, a restore or an NMT command.
 
-EN86 PDF p18 and EDS `[2301]` define U16 `0` ineffective / `1` effective.
-The second write explicitly returns to the documented ineffective value. It is
-a library policy, **not** a manufacturer-specified pulse, edge or rearm rule.
-No hold time, auto-clear behavior or equivalence to controlword reset is known.
-`2301` has no documented arming zero: if a final `0` was never sent and the object
-is edge-triggered, which is undocumented, a later `1` would produce no edge (Q13).
-An acknowledged attempt that leaves the alarm present waits for new bounded
-observations until its deadline; it does not repeat the writes.
+### Alarm clear (packet 17)
 
-EN86 p16 identifies `FF05` as position deviation and p20 lists a position
-out-of-tolerance alarm as resettable. The two are linked only by name: p20 gives no
-code and no reset route, so that link is an inference. This guide also notes `603F`
-may retain its value, so a stale `FF05` could admit a clear for a later alarm; Q13
-keeps both open, and packet 17 corrects the action's error text. `FF01` overcurrent requires restart under the source's fault table;
-this API does not restart it. No `FF02..FF04` code mapping is inferred from LED
-counts. Other faults remain outside this action's admitted scope.
+| Case | Fault provenance | Mode and state | Native route and values | Rearm and ACK | Required new observation | Raw error and history | Final uncertainty |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Admitted attempt | One read under the reservation: `2100` alarm set and raw `603F=FF05`, with `1001` and the `1003` count and entries. `incident.codeLink=UNRESOLVED`: the code does not identify the alarm (D-26) | `6061=1`, `2100` running clear. `6041` kept raw, never decisive | `2301:00` U16 `1`, then `0` (source: EN86 p18 and EDS; ZH86 p18 and OP86 omit `2301`) | The `0` returns to the documented ineffective value as policy. No source requires an edge, rearm or pulse, and no arming `0` precedes the `1` (D-27). Each write needs its own matching ACK before the next; the `1`'s ACK is `execution=ACKNOWLEDGED` | After the `0`'s ACK, MONITORS and STATUS until `2100` alarm clear with mode 1 and running clear, then one ERRORS read | `incident` keeps the admission values. The final ERRORS read is kept raw, even when `603F` still reads `FF05`. `1003` is never read again | `OBSERVED` means a later report without the alarm bit, not that the cause is gone. `valueOneMayRemain` if the `0` lacks a positive ACK |
+| Alarm persists after both ACKs | As admitted | Each cycle needs mode 1 and running clear, else `OBSERVATION_SCOPE` | No further write | No write repeats | Repolls MONITORS and STATUS only, at `observationIntervalUs`, until the deadline | Unchanged | `DEADLINE`, `execution=ACKNOWLEDGED`, `uncertain` |
+| Withdrawal during the attempt | A new EMCY, boot-up, lifecycle change or cancel, delivered by the application | Any | The admitted write or read settles; nothing new is yielded | A terminal that still correlates joins `commandHistory` or the observation evidence. After a node-epoch change it no longer does, and the application ends the attempt locally with `INVALIDATED` | None | Unchanged; the owner's newest EMCY is separate | Outcome is the withdrawal reason; `valueOneMayRemain` follows the same rule |
+| Rejected before work | Any other code, including `FF01` overcurrent, `FF02..FF04` (never mapped from LED counts) and `0`; no alarm; missing ERRORS or ERROR_HISTORY; stale or foreign read | Mode other than 1, running | None | None | None | None | Output unchanged |
+| Controlword reset | `6040` bit 7 (EN86/ZH86 p15) or `15->128` (ZH86 p12, OP86 p10) | n/a | Not implemented. No API sends it; `stopPredecessorAllowed(0x0080)` is false and a `6040` terminal does not correlate with a clear | n/a | n/a | n/a | Separate question in Q13 |
 
-EN86/ZH86 p15 explicitly describe the `2302` rising `0 -> 1` and manual return
-to zero. EDS `[2302]` confirms the U16 object. EN86 p16 names `6064` actual
-position, I32 RO. The clear prose does not explicitly map every internal counter
-to that object: the result is an observed raw zero, not proof of which counters
-changed or that a previously zero counter changed at all.
+### Device counter zero (packet 18)
 
-`6040` bit-7 reset prose and the full-word `15 -> 128` table remain a separate,
-unimplemented route. Nothing sends `000F`, `6,7,15`, NMT reset/start, `2300`
-save/factory-reset or a motion trigger. Mode is observed, never changed by these
-actions. Digital-output and tuning operations keep their existing owners.
+| Case | Admission evidence | Mode and state | Native route and values | ACK and withdrawal | Required new observation | Final uncertainty |
+| --- | --- | --- | --- | --- | --- | --- |
+| Admitted zero | Requested native position exactly `0`; one read under the reservation of MONITORS, STATUS and FEEDBACK; matching axis with room in both epochs | `6061=1`, `2100` running and alarm clear, `606C` raw `0` (policy). `6064` kept raw in `baseline` | `2302:00` U16 `0`, `1`, `0` (source: EN86/ZH86 p15 describe the `0 -> 1` change and the manual return; EDS U16 RW) | Each write needs its ACK before the next. At the first possible transmission of the `1`, the axis-aware notice withdraws origins, soft-limit qualification and the reference witness, and advances the configuration and reference epochs, exactly once. Configured limit values and units stay | After the last ACK and owner epoch synchronization, MONITORS, STATUS and FEEDBACK on the new epoch until raw `6064` reads `0`, with mode 1 and running and alarm clear | `OBSERVED` is a raw zero, not a home, an origin or a counter mapping. An already-zero `baseline` shows no change at all |
+| Nonzero request | Any | Any | None: `UNSUPPORTED` right after the overlap check, before any state, axis or budget check | None | None | Output unchanged |
+| Rejected before possible effect | Alarm, running, other mode, nonzero `606C`, missing FEEDBACK, stale or exhausted epochs; or the trigger refused or cancelled before its notice | Any | None or a prefix of `0` | `coordinatesInvalidated=false`, epochs and validity as they were | None | Distinguishable from a withdrawal: nothing moved |
+| Trigger possibly sent, then failure | Admitted | Any | `0`, possibly `1` | Withdrawal stays; no later result restores it. A definite later no-TX result refines `execution` only | None for this action | `valueOneMayRemain` if the final `0` lacks a positive ACK; an uncertain write leaves the route unresolved |
+
+## Fault identity and the FF05 admission
+
+EN86 p16 names `603F` codes `FF01` overcurrent and `FF05` "too high position
+deviation" (source). EN86 p20 lists LED flash classes, with "Position
+out-of-tolerance alarm" marked resettable (source). The link between the two is
+by name only: p20 gives no code and no reset route, so the link is an inference
+(D-26). Matching five flashes to `FF05`, or deriving `FF02..FF04` from flash
+counts, is not done.
+
+`603F` latching is undocumented, and EDS says RO where EN86 says RW (C07). A
+`603F` that still reads `FF05` from an earlier event, beside a new alarm with
+another cause, admits the attempt in exactly the same way. The library cannot
+tell these apart, so admission records `incident.codeLink=UNRESOLVED` and claims
+nothing about which event, or which reset class, the reported alarm belongs to.
+The `FF05` requirement only narrows the attempt. An application that saw `603F`
+already reading `FF05` while the alarm was clear (for instance a previous
+attempt's final ERRORS read) has direct evidence that the code is not fresh.
+
+## Rearm and the final zero
+
+EN86 p18 and EDS `[2301]` define U16 `0` ineffective and `1` effective. The
+second write returns to the documented ineffective value as library policy, not
+a manufacturer pulse, edge or rearm rule. No hold time, auto-clear behavior or
+equivalence to the controlword reset is known.
+
+`2301` has no documented arming zero (D-27). If the `0` failed, timed out, was
+rejected or never left, the object may still hold `1`, and if it is
+edge-triggered, which is undocumented, a later `1` would make no edge. The
+context then sets `valueOneMayRemain` when it fails: the `1` may have taken
+effect (its terminal says an effect was possible, or its possible transmission
+was noted before any terminal) and the `0` has no positive acknowledgement. An SDO
+abort of the `1` sets it too, conservatively: the service layer counts an abort
+as a possible effect. The
+same field covers `2302`, where a held `1` has undocumented effects of its own.
+Nothing clears the flag or resends either value, and a new operation identity
+does not make a new edge. A further attempt is new user intent, after the cause
+of the failure is established and the route is resolved.
 
 ## Historical errors and independent results
 
 An alarm clear keeps `AlarmIncident incident`: the raw prerequisite values of
 all four retained blocks, namely `1001`, `603F`, the error-history count and
 entries, `2100` to `2102`, `6041` and `6061`, with the read's operation and one
-earliest/latest bound across them. Later cycles replace the context's observations;
-this record stays. It does not keep each field's own provenance: every field shares
-the frozen reservation's route and node epoch, and the application keeps its own
-read if it needs per-field times. A device-position zero keeps no such record, and
-its first observations are replaced by later cycles.
+earliest/latest bound across them. Later cycles replace the context's
+observations; this record stays. It does not keep each field's own provenance:
+every field shares the frozen reservation's route and node epoch, and the
+application keeps its own read if it needs per-field times. A device-position
+zero keeps `CounterBaseline baseline`, its admission `6064` and `606C` raw with
+their bounds.
 
-The sole owner's original EMCY records and interrupted operation results remain
-separate; the application retains its incident snapshot before requesting clear.
-Neither action clears host event history, releases another result or declares
-application health restored.
+The sole owner's network state keeps only the **latest** EMCY and a count, so an
+application that needs the original EMCY copies it before requesting a clear.
+Interrupted operation results stay in the owner until released. Neither action
+clears host event history, releases another result or declares application
+health restored. An acknowledged clear is not permission to close the incident.
 
 `2100` bit 3 has consistent alarm meaning in EN86 p17 and ZH86 p18. The
 conflicting `6041` alarm bits are retained raw and are not combined into a reset
-success mask. `603F` latching/clearing semantics are unspecified: a subsequent
-nonzero raw value is preserved even if the monitor no longer reports alarm.
-This difference from the RS profile is intentional.
+success mask. A subsequent nonzero `603F` is preserved even when the monitor no
+longer reports alarm. This differs from the RS ESS profile, whose completion
+needs its alarm word to read zero: CAN has no source that `603F` returns to zero.
 
-Each download terminal is retained separately in `commandHistory`: the effecting
-write is slot 0 for `2301=1` and slot 1 for `2302=1`. `execution` describes that
-write, while the other slots record the arm and return-to-zero writes. A successful trigger followed by a failed final zero
-keeps its trigger acknowledgement; it does not claim rearm or completion.
-`completion=OBSERVED` requires the new typed observations, never just an SDO
-reply. Their sequential acquisition window is not an atomic physical snapshot.
-All read effects remain `UNQUALIFIED` under the existing reviewed ledger.
+ERRORS and ERROR_HISTORY may consume data, as reviewed for packet 7, so an
+attempt reads ERRORS once, after the alarm has cleared, and never rereads the
+history. Each download terminal is retained separately in `commandHistory`: the
+effecting write is slot 0 for `2301=1` and slot 1 for `2302=1`. `execution`
+describes that write, while the other slots record the arm and return-to-zero
+writes. A successful trigger followed by a failed final zero keeps its trigger
+acknowledgement; it does not claim rearm or completion. `completion=OBSERVED`
+requires the new typed observations, never just an SDO reply. Their sequential
+acquisition window is not an atomic physical snapshot. All read effects remain
+`UNQUALIFIED` under the existing reviewed ledger.
 
-The application delivers new fault/lifecycle evidence before advancing older
-read results. It distinguishes the known incident being cleared from a newly
-reported fault; neither an old EMCY nor an EMCY reset envelope supplies physical
-recovery evidence. Alarm clear grants no permission to resume an old operation.
+The application delivers new fault and lifecycle evidence before advancing older
+read results: `noteActionWithdrawal` while a service is in flight, or the local
+`advanceAction` overload once it has been retired. Whether an EMCY during a clear
+is a new fault is application policy. An EMCY whose code is `0000` is retained
+raw like any other; it is neither a new fault nor recovery evidence, and neither
+is an old EMCY. A fault on another node, with its own route, reservation and
+network slot, changes nothing in this node's action. Alarm clear grants no
+permission to resume an old operation.
 
 ## Coordinate withdrawal and owner synchronization
 
@@ -90,16 +127,19 @@ Device counter changes use the existing `invalidateAxisReference` contract with
 is mandatory for this action; the ordinary overload rejects it.
 
 Before the `2302=1` trigger may leave the owner, the checked overload atomically
-withdraws both origins, soft limits and the supplied reference, and advances
-configuration/reference generations exactly once. The application current
-target advances with the axis. Old prepared targets and cached observations
-then fail generation checks, including reference-free native absolute targets.
-Units/scales are retained; no replacement origin or known-home witness appears.
+withdraws both origins, soft-limit qualification and the supplied reference, and
+advances configuration/reference generations exactly once. The application
+current target advances with the axis. Old prepared targets and cached
+observations then fail generation checks, including reference-free native
+absolute targets. Units, scales and the configured soft and native limit values
+are retained: this withdraws validity, it does not disable limits, and the action
+writes no input assignment. No replacement origin or known-home witness appears.
 
-The preceding arm-zero does not claim a counter change. After possible trigger
-transmission, failure, cancellation or even a later definite no-TX result cannot
-silently restore old coordinate confidence. Epoch exhaustion rejects before
-work; it never wraps into a previously valid identity.
+The preceding arm-zero does not claim a counter change, and a trigger refused by
+the guard or cancelled while still queued leaves every epoch and validity as it
+was. After possible trigger transmission, failure, cancellation or even a later
+definite no-TX result cannot silently restore old coordinate confidence. Epoch
+exhaustion rejects before work; it never wraps into a previously valid identity.
 
 All three writes retain the original wire binding and continuous reservation.
 After their old-epoch results and external TX have been released/retired, call
@@ -114,22 +154,26 @@ A failed final-zero write with definite retirement still permits explicit
 synchronization after its retained old-epoch result is released, provided the
 SDO channel is resolved. Any later read is a new operation using the new epoch.
 It neither completes the failed action nor restores an origin or home. An
-uncertain trigger is different: releasing its result or sequence, a late TX
-report and a late acknowledgement do not permit a fresh reservation on the
-unresolved channel.
+uncertain trigger or final zero is different: releasing its result or sequence,
+a late TX report, a late acknowledgement and an advanced host epoch do not
+permit a fresh reservation on the unresolved channel.
 
 If a trigger/rearm reply is lost or retirement is unproved, the existing SDO
 quarantine remains. No trailing cleanup, write replay, reset, new reservation or
 alternate receiver bypasses it. Later observations belong to a new explicitly
-admitted acquisition; they cannot rewrite the failed action's terminal.
+admitted acquisition; they cannot rewrite the failed action's terminal. An MCU
+restart loses the context, the axis epochs and the quarantine together: the new
+`SdoClient` may claim `freshSessionQualified` only on its own external evidence,
+and the restarted application has no coordinate confidence to restore.
 
 ## Time, support and remaining qualification
 
 Caller time is nondecreasing monotonic microseconds. The immutable deadline is
-exclusive: processing at or after it expires the action. Poll intervals and queue/response budgets are caller
-policy. A reply captured before a cutoff but processed afterward does not turn
-an expired action into success. Cancellation is local withdrawal after retiring
-admitted work, not another drive command. Rejected calls preserve their outputs.
+exclusive: processing at or after it expires the action. Poll intervals and
+queue/response budgets are caller policy. A reply captured before a cutoff but
+processed afterward does not turn an expired action into success. Cancellation
+is local withdrawal after retiring admitted work, not another drive command.
+Rejected calls preserve their outputs.
 
 The [prompt 32 report](reports/prompt_32.md) separates implemented conditional
 paths and host tests from missing model/firmware qualification. The controlword
@@ -138,11 +182,37 @@ resume/counter relationships remain precise gates. Counter zero, host origin,
 successful homing, release and factory reset stay distinct. No action here
 publishes a home reference or qualified physical measurement.
 
+### Physical cases still required
+
+Neither case has run. Both need the lead at the bench, one drive, the
+independent drive-power cutoff in hand and a free, table-mounted shaft.
+
+1. **Alarm clear.** Needs a naturally present, identified alarm: `2100` alarm
+   set, the LED flash count recorded, and `603F`, `1001`, `1003` read once. Do
+   not create one by electrical fault, shaft obstruction, wiring disconnection
+   or overcurrent. Record the raw blocks and the EMCY copy, then run one
+   `prepareClearAlarm` through the public path, recording the exact bytes
+   `2B 01 23 00 01 00 00 00` and `2B 01 23 00 00 00 00 00`, each TX report and
+   ACK, the later cycles and the single final ERRORS read, and the LED. Abort,
+   with no further write, on any running report, mode change, uncertain write,
+   lost evidence or bus fault. A persisting alarm is retained as the result.
+   One attempt per identified incident; a repeat is a new reviewed trial.
+2. **Counter zero.** Stationary, alarm-free drive in mode 1 with `606C` zero and
+   an independent shaft mark. Record `607A`, `6064`, `606C`, the monitor words,
+   `6041` and the axis reference metadata. Both specimens read actual `0` and
+   `607A=5000`, its EDS default, so the first run can only show that an
+   already-zero raw stays zero; a nonzero baseline needs a later, separately
+   qualified move. Do not write an arbitrary counter to manufacture one. Run one
+   `prepareSetDevicePosition` with the bytes `2B 02 23 00 00 00 00 00`,
+   `2B 02 23 00 01 00 00 00` and `2B 02 23 00 00 00 00 00`, then the owner epoch
+   synchronization, the new-epoch cycles and the shaft check. Abort on any
+   motion, alarm, uncertain write or bus fault; a missing final `0` keeps
+   `valueOneMayRemain` and the route's quarantine.
+
 Storage is fixed and caller-owned. On the pinned Xtensa compiler the action
-context occupies 4,880 bytes, including one current read and three download
-terminals, so keep it in static or owner storage, not a task local. Calls validate
-and then write that storage in place, with no context copy on the stack;
-`scripts/check_stack.py` holds their frames and known call chains to the project
-limits. Those are compiler measurements with visible unknown edges, not a measured
-task high-water mark. No heap or target stack sufficiency is implied by the native
-tests.
+context occupies 5,152 bytes, 32 of them the counter baseline added by packet 18,
+so keep it in static or owner storage, not a task local. Calls validate and then write that storage in place,
+with no context copy on the stack; `scripts/check_stack.py` holds their frames
+and known call chains to the project limits. Those are compiler measurements
+with visible unknown edges, not a measured task high-water mark. No heap or
+target stack sufficiency is implied by the native tests.

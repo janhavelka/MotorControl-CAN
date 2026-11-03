@@ -15,7 +15,17 @@ The helper supports unwrapped integer targets, including explicitly bounded
 approximate radians conversion. It checks the documented target/rpm/time ranges
 without clamping. Relative inputs additionally need the caller's matching host
 position witness; their arithmetic does not establish a Lichuan wire reference
-basis or target queue. Full finite motion remains pending in
+basis or target queue.
+
+It then calls `prepareMoveAbsolute` with default `MoveEvidence` and prints the
+`UNSUPPORTED` refusal: no specimen has qualified acceptance or completion. Last,
+it runs the whole call sequence against a host simulation, with an invented
+evidence record that the code labels SIMULATION ONLY: `nextMove`,
+`beginMoveObservation`, `noteMoveTransmission` and `advanceMove`, with each
+download printed. Its terminals are built by hand, as a sole owner would publish
+them. That run shows the calls, not a drive: an application supplies its own
+reviewed record, or the gate stays closed. See the
+[move guide](../../docs/position_parameters.md). Relative moves remain pending in
 [prompt 33](../../docs/prompts/33_position_moves.md).
 
 From the repository root, with the native tools described in
