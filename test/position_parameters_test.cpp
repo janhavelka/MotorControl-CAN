@@ -369,6 +369,51 @@ void ownedInputsAndAliasRejection() {
     before.unchanged(out);
 }
 
+// A soft-limit overrun recovers through the same endpoint checks; the profile still
+// bounds the encoded displacement and the rate basis leaves position untouched.
+void softLimitRecoveryAndRateBasis() {
+    M::AxisConfig c = axis();
+    c.nativeMinimum = -100;
+    c.nativeMaximum = 1100;
+    c.softLimitsKnown = true;
+    c.softMinimum = 0;
+    c.softMaximum = 1000;
+    M::AxisReference ref = reference(c, 1005);
+    M::PositionRequest r = request(c, -10);
+    r.relative = true;
+    L::PreparedPositionParameters out;
+    CHECK(prepare(out, r, c, &ref));
+    CHECK(out.targetNative == -10 && out.target.endpointNative == 995);
+    r.value = M::Rational(5);
+    rejectedUnchanged(out, r, c, &ref);
+    r.value = M::Rational(-4);
+    rejectedUnchanged(out, r, c, &ref);
+    M::AxisReference unknown = ref;
+    unknown.nativeKnown = false;
+    r.value = M::Rational(-10);
+    rejectedUnchanged(out, r, c, &unknown);
+    ref.nativePosition = 1101;
+    rejectedUnchanged(out, r, c, &ref);
+    ref = reference(c, 1005);
+    r = request(c, 995);
+    CHECK(prepare(out, r, c, &ref));
+    CHECK(out.targetNative == 995 && out.target.referenceUsed);
+
+    c = axis();
+    c.units.commandStepsPerMotorTurn = M::UnitScale(3200, 1, M::ScaleSource::DOCUMENTED);
+    c.originKnown = true;
+    c.originSource = M::ScaleSource::QUALIFIED;
+    r = request(c, 1);
+    r.unit = M::PositionUnit::TURNS;
+    r.frame = M::CoordinateFrame::MOTOR;
+    CHECK(prepare(out, r, c));
+    CHECK(out.targetNative == 3200);
+    c.nativeRateBasis = M::NativeRateBasis::MOTOR_TURNS;
+    c.nativeVelocityTime = M::TimeUnit::MINUTE;
+    CHECK(prepare(out, r, c));
+    CHECK(out.targetNative == 3200 && out.axis.nativeRateBasis == M::NativeRateBasis::MOTOR_TURNS);
+}
+
 void retainedTargetsFollowAxisInvalidation() {
     M::AxisConfig c = axis();
     M::AxisReference ref = reference(c, 10);
@@ -396,6 +441,7 @@ int main() {
     witnessTimeAndEpochs();
     representationAndApproximation();
     ownedInputsAndAliasRejection();
+    softLimitRecoveryAndRateBasis();
     retainedTargetsFollowAxisInvalidation();
     std::printf("position parameter checks passed: %u\n", checks);
     return 0;
