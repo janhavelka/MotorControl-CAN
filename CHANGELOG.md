@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Soak console loss diagnostics
+
+- `scripts/s2_soak.py --keepalive-s N`, HIL-only and off by default: one bare newline every N seconds while capturing, counted as `host_keepalives`. It tests whether console loss after a long quiet spell follows the idle link.
+
 ### Bench route review fixes (closing audit)
 
 An independent review of the bench routes found no unrequested motion or controlword write, and these defects, each fixed with a test that fails without it:

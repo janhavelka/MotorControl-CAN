@@ -306,6 +306,12 @@ Run the short one first. `2102` has no retained read on these specimens, and a r
 unexpected width ends with a local client abort, which leaves that route unresolved until an
 MCU restart. If it fails, use `--reads identity` for the long run and record the result.
 
+`--keepalive-s N` is a HIL-only diagnostic: the runner writes one bare newline every N seconds
+while it captures, which the firmware ignores outside a command line, and counts them in the
+trial's `host_keepalives`. It exists to test whether console loss after a long quiet spell follows
+the idle link (see the [soak report](reports/2026-11-03_overnight_soak.md)). It is off by default
+and sends nothing else.
+
 **Read set.** Each object has `read_disposition: accepted_not_qualified` in
 [the ledger](reference/lichuan_objects.json). DEC-1 in the
 [active audit](prompts/PROMPTSET_AUDIT_34_50_2026-11-02.md) lists them as accepted with polling
@@ -382,8 +388,8 @@ the soak takes it, so each single-frame request by an earlier command on the sam
 an untaken one. A constant value through a soak is that history, not loss during it.
 
 The host checks every line's `n`. A gap or a malformed line in the digest, while the firmware's
-`lines` stays contiguous, is loss between the S2's UART and pyserial. One such loss, exactly one
-64-byte USB packet, is analysed in the [soak report](reports/2026-11-03_overnight_soak.md).
+`lines` stays contiguous, is loss between the S2's UART and pyserial. Three such losses, each a
+whole transfer of up to 64 bytes, are analysed in the [soak report](reports/2026-11-03_overnight_soak.md).
 
 Timing effects, all in the summary so they can be accounted for: formatting costs a share of a
 1 ms turn, measured by `gapMax`; a dump holds the next scheduled read until it has printed,

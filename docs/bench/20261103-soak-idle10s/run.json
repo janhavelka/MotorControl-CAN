@@ -1,0 +1,40 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-03T07:22:55.269631+00:00",
+  "trials": [
+    {
+      "trial": 1793688775,
+      "directory": "trial-01",
+      "verdict": "complete",
+      "errors": [],
+      "error_count": 0,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793688775,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 71,
+          "SOAK_SUM": 180,
+          "SOAK_GAP": 180,
+          "SOAK_CON": 180,
+          "SOAK_NODE": 360,
+          "SOAK_HIST": 360,
+          "SOAK_OUT": 360,
+          "SOAK_ABORT": 360,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 0,
+        "signals": 71,
+        "note_counts": {}
+      },
+      "unknown": 0,
+      "malformed": 0,
+      "bytes": 276789,
+      "sha256": "8a879f92d80632c73846a4132b77f4338967f71966037c91aeb2bae5d1125550"
+    }
+  ]
+}
