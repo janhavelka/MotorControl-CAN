@@ -2,6 +2,7 @@
 #include "BenchRoute.h"
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <cstdarg>
+#include <cstddef>
 #include <cstdio>
 #include <cstring>
 
@@ -80,14 +81,153 @@ bool put(char* output, size_t size, const char* pattern, ...) {
     }
     return true;
 }
-struct Spec {
+// One request field: where it lives in RoutePlan, its width and its accepted range. A negative
+// lower bound is the only thing that admits a leading minus, and it makes a four-byte field signed.
+struct Field {
+    uint16_t offset;
+    uint8_t width;
     int64_t low, high;
-    bool sign;
 };
+struct Range {
+    int64_t low, high;
+};
+#define ROUTE_FIELD(member, range)                                                                  \
+    {                                                                                               \
+        uint16_t(offsetof(RoutePlan, member)),                                                      \
+            uint8_t(sizeof(static_cast<RoutePlan*>(nullptr)->member)), range.low, range.high        \
+    }
+constexpr Range NODE = {1, 2}, TRIAL = {1, UINT32_MAX}, FLAG = {0, 1}, SIGNED32 = {INT32_MIN, INT32_MAX};
+constexpr Range ACTION_MS = {1, 55000}, OPTIONAL_MS = {0, 55000}, ACTION_INTERVAL = {10, 10000};
+constexpr Range U16 = {0, UINT16_MAX}, MASK = {1, UINT16_MAX}, U32 = {0, UINT32_MAX}, SOURCE = {1, 2};
+constexpr Range TARGET = {-1000000, 1000000}, CYCLE_MS = {20, 5000}, STOP_KIND = {0, 2};
+constexpr Range STOP_AFTER = {0, 16}, STOP_INTERVAL = {0, 10000}, MODE_CYCLES = {1, 10};
+constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 1}, SHAFT = {1, 2}, KIND = {1, 2};
+// Documentary native ranges (EN86/ZH86 p11). A move admits what prepareMoveAbsolute does (Q11).
+constexpr Range RPM = {0, 3000}, RAMP_MS = {0, 2000}, MOVE_RPM = {1, 3000}, MOVE_RAMP_MS = {1, 2000};
+// One fixed field list per route letter, in flash and in line order. The parser stores each field
+// through it and routePlanValid reads the same fields back, so both judge the same ranges.
+constexpr Field READ_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL)};
+constexpr Field MODE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+                                 ROUTE_FIELD(cycles, MODE_CYCLES), ROUTE_FIELD(intervalMs, MODE_INTERVAL)};
+constexpr Field ENABLE_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                   ROUTE_FIELD(trial, TRIAL),
+                                   ROUTE_FIELD(attended, FLAG),
+                                   ROUTE_FIELD(start, START),
+                                   ROUTE_FIELD(shaft, SHAFT),
+                                   ROUTE_FIELD(reviewedStatus, U16),
+                                   ROUTE_FIELD(reviewedPositionTarget, SIGNED32),
+                                   ROUTE_FIELD(reviewedVelocityTarget, SIGNED32),
+                                   ROUTE_FIELD(deadlineMs, ACTION_MS),
+                                   ROUTE_FIELD(intervalMs, ACTION_INTERVAL)};
+constexpr Field STOP_FIELDS[] = {ROUTE_FIELD(node, NODE),           ROUTE_FIELD(trial, TRIAL),
+                                 ROUTE_FIELD(attended, FLAG),       ROUTE_FIELD(stopKind, KIND),
+                                 ROUTE_FIELD(deadlineMs, ACTION_MS), ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+                                 ROUTE_FIELD(intervalMs, ACTION_INTERVAL)};
+constexpr Field POSITION_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                     ROUTE_FIELD(trial, TRIAL),
+                                     ROUTE_FIELD(attended, FLAG),
+                                     ROUTE_FIELD(startPosition, SIGNED32),
+                                     ROUTE_FIELD(target, TARGET),
+                                     ROUTE_FIELD(rpm, RPM),
+                                     ROUTE_FIELD(rampUpMs, RAMP_MS),
+                                     ROUTE_FIELD(rampDownMs, RAMP_MS),
+                                     ROUTE_FIELD(cycles, CYCLES),
+                                     ROUTE_FIELD(intervalMs, CYCLE_MS),
+                                     ROUTE_FIELD(stopKind, STOP_KIND),
+                                     ROUTE_FIELD(stopAfter, STOP_AFTER),
+                                     ROUTE_FIELD(stopDeadlineMs, OPTIONAL_MS),
+                                     ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+                                     ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
+constexpr Field REARM_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+                                  ROUTE_FIELD(cycles, CYCLES), ROUTE_FIELD(intervalMs, CYCLE_MS)};
+constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                 ROUTE_FIELD(trial, TRIAL),
+                                 ROUTE_FIELD(attended, FLAG),
+                                 ROUTE_FIELD(startPosition, SIGNED32),
+                                 ROUTE_FIELD(target, TARGET),
+                                 ROUTE_FIELD(rpm, MOVE_RPM),
+                                 ROUTE_FIELD(rampUpMs, MOVE_RAMP_MS),
+                                 ROUTE_FIELD(rampDownMs, MOVE_RAMP_MS),
+                                 ROUTE_FIELD(deadlineMs, ACTION_MS),
+                                 ROUTE_FIELD(intervalMs, CYCLE_MS),
+                                 ROUTE_FIELD(record, TRIAL),
+                                 ROUTE_FIELD(acceptSource, SOURCE),
+                                 ROUTE_FIELD(acceptMask, MASK),
+                                 ROUTE_FIELD(acceptValue, U16),
+                                 ROUTE_FIELD(completeSource, SOURCE),
+                                 ROUTE_FIELD(completeMask, MASK),
+                                 ROUTE_FIELD(completeValue, U16),
+                                 ROUTE_FIELD(rule, SOURCE),
+                                 ROUTE_FIELD(firmware.deviceType, U32),
+                                 ROUTE_FIELD(firmware.hardwareVersion, U16),
+                                 ROUTE_FIELD(firmware.softwareVersion, U16),
+                                 ROUTE_FIELD(firmware.vendorId, U32),
+                                 ROUTE_FIELD(firmware.productCode, U32),
+                                 ROUTE_FIELD(firmware.revision, U32),
+                                 ROUTE_FIELD(firmware.modelCode, U16),
+                                 ROUTE_FIELD(firmware.firmwareCode, U16),
+                                 ROUTE_FIELD(stopKind, STOP_KIND),
+                                 ROUTE_FIELD(stopAfter, STOP_AFTER),
+                                 ROUTE_FIELD(stopDeadlineMs, OPTIONAL_MS),
+                                 ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+                                 ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
+#undef ROUTE_FIELD
+struct Grammar {
+    char letter;
+    RouteKind kind;
+    const Field* fields;
+    uint8_t count;
+};
+template <size_t N> constexpr uint8_t countOf(const Field (&)[N]) { return uint8_t(N); }
+constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, countOf(READ_FIELDS)},
+                                {'I', RouteKind::READ_IO, READ_FIELDS, countOf(READ_FIELDS)},
+                                {'U', RouteKind::READ_TUNING, READ_FIELDS, countOf(READ_FIELDS)},
+                                {'M', RouteKind::MODE_ONE, MODE_FIELDS, countOf(MODE_FIELDS)},
+                                {'E', RouteKind::ENABLE, ENABLE_FIELDS, countOf(ENABLE_FIELDS)},
+                                {'S', RouteKind::STOP, STOP_FIELDS, countOf(STOP_FIELDS)},
+                                {'P', RouteKind::POSITION, POSITION_FIELDS, countOf(POSITION_FIELDS)},
+                                {'R', RouteKind::REARM, REARM_FIELDS, countOf(REARM_FIELDS)},
+                                {'G', RouteKind::MOVE, MOVE_FIELDS, countOf(MOVE_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::MOVE), "one grammar per route");
+// One field's value, read from or written to the plan through its declared width.
+int64_t load(const RoutePlan& p, const Field& f) {
+    const unsigned char* at = reinterpret_cast<const unsigned char*>(&p) + f.offset;
+    if (f.width == 1) {
+        uint8_t v;
+        std::memcpy(&v, at, 1); // Also the bool attended, which holds 0 or 1.
+        return v;
+    }
+    if (f.width == 2) {
+        uint16_t v;
+        std::memcpy(&v, at, 2);
+        return v;
+    }
+    if (f.low < 0) {
+        int32_t v;
+        std::memcpy(&v, at, 4);
+        return v;
+    }
+    uint32_t v;
+    std::memcpy(&v, at, 4);
+    return v;
+}
+void store(RoutePlan& p, const Field& f, int64_t value) {
+    unsigned char* at = reinterpret_cast<unsigned char*>(&p) + f.offset;
+    if (f.width == 1) {
+        const uint8_t v = uint8_t(value);
+        std::memcpy(at, &v, 1);
+    } else if (f.width == 2) {
+        const uint16_t v = uint16_t(value);
+        std::memcpy(at, &v, 2);
+    } else {
+        const uint32_t v = uint32_t(value); // A signed field's two's complement, as int32_t holds it.
+        std::memcpy(at, &v, 4);
+    }
+}
 // One decimal field and its separator. Digits only, a minus only where signed, ten digits at most.
-bool field(const char*& p, const char* end, const Spec& spec, bool last, int64_t& output) {
+bool field(const char*& p, const char* end, const Field& spec, bool last, int64_t& output) {
     bool negative = false;
-    if (spec.sign && p < end && *p == '-') {
+    if (spec.low < 0 && p < end && *p == '-') {
         negative = true;
         ++p;
     }
@@ -115,32 +255,6 @@ bool field(const char*& p, const char* end, const Spec& spec, bool last, int64_t
     output = value;
     return true;
 }
-constexpr Spec NODE = {1, 2, false}, TRIAL = {1, UINT32_MAX, false}, FLAG = {0, 1, false};
-constexpr Spec SIGNED32 = {INT32_MIN, INT32_MAX, true}, ACTION_MS = {1, 55000, false};
-constexpr Spec OPTIONAL_MS = {0, 55000, false}, ACTION_INTERVAL = {10, 10000, false};
-constexpr Spec U16 = {0, UINT16_MAX, false}, MASK = {1, UINT16_MAX, false}, U32 = {0, UINT32_MAX, false};
-constexpr Spec SOURCE = {1, 2, false}, TARGET = {-1000000, 1000000, true}, CYCLE_MS = {20, 5000, false};
-constexpr Spec STOP_KIND = {0, 2, false}, STOP_AFTER = {0, 16, false}, STOP_INTERVAL = {0, 10000, false};
-// One fixed field list per route letter, in flash; the parser keeps only the values on its stack.
-constexpr Spec READS[] = {NODE, TRIAL};
-constexpr Spec MODE[] = {NODE, TRIAL, FLAG, {1, 10, false}, {100, 5000, false}};
-constexpr Spec ENABLE[] = {NODE,     TRIAL,    FLAG,      {1, 1, false},  {1, 2, false}, {0, 65535, false},
-                           SIGNED32, SIGNED32, ACTION_MS, ACTION_INTERVAL};
-constexpr Spec STOP[] = {NODE, TRIAL, FLAG, {1, 2, false}, ACTION_MS, OPTIONAL_MS, ACTION_INTERVAL};
-constexpr Spec POSITION[] = {NODE,        TRIAL,         FLAG,          SIGNED32,          TARGET,
-                             {0, 3000, false}, {0, 2000, false}, {0, 2000, false}, {1, 16, false}, CYCLE_MS,
-                             STOP_KIND,   STOP_AFTER,    OPTIONAL_MS,   OPTIONAL_MS,       STOP_INTERVAL};
-constexpr Spec REARM[] = {NODE, TRIAL, FLAG, {1, 16, false}, CYCLE_MS};
-// Native ranges as prepareMoveAbsolute admits them: rpm 1..3000 and ramps 1..2000 ms (Q11).
-constexpr Spec MOVE[] = {NODE,        TRIAL,         FLAG,          SIGNED32,       TARGET,
-                         {1, 3000, false}, {1, 2000, false}, {1, 2000, false}, ACTION_MS, CYCLE_MS,
-                         TRIAL,       SOURCE,        MASK,          U16,            SOURCE,
-                         MASK,        U16,           SOURCE,        U32,            U16,
-                         U16,         U32,           U32,           U32,            U16,
-                         U16,         STOP_KIND,     STOP_AFTER,    OPTIONAL_MS,    OPTIONAL_MS,
-                         STOP_INTERVAL};
-constexpr unsigned FIELDS = sizeof MOVE / sizeof MOVE[0];
-static_assert(FIELDS >= sizeof POSITION / sizeof POSITION[0], "MOVE has the longest field list");
 // A planned stop names all of its policy; no stop names none of it. `cycles` bounds stopAfter.
 bool stopPolicyValid(const RoutePlan& p, unsigned cycles) {
     return p.stopKind ? p.stopAfter && p.stopAfter <= cycles && p.stopDeadlineMs && p.stopIntervalMs >= 10 &&
@@ -180,16 +294,32 @@ unsigned terminalBound(const RoutePlan& p) {
         return ROUTE_TERMINALS + 1;
     }
 }
+// A planned stop's whole span after its request: the sequenced deadline or the later best effort.
+uint64_t stopSpanUs(const RoutePlan& p) {
+    return p.stopKind ? uint64_t(p.bestEffortMs > p.stopDeadlineMs ? p.bestEffortMs : p.stopDeadlineMs) * 1000 : 0;
+}
+// POSITION with a planned stop: the latest that stop can end, after the first write. The writes share
+// one operation deadline. Each route cycle before the stop begins at most an interval, or one read's
+// operation deadline, after the previous one; a read that misses its deadline ends the route with no
+// stop. The stop is asked for when cycle stopAfter has been read.
+uint64_t positionStopUs(const RoutePlan& p) {
+    const uint64_t interval = uint64_t(p.intervalMs) * 1000;
+    const uint64_t cycle = interval > ROUTE_OPERATION_US ? interval : uint64_t(ROUTE_OPERATION_US);
+    return ROUTE_OPERATION_US + p.stopAfter * cycle + stopSpanUs(p);
+}
 // Longest time a plan's own steps or session action can need after admission, in milliseconds.
 uint32_t durationBound(const RoutePlan& p) {
-    const uint32_t stop = p.stopKind ? (p.bestEffortMs > p.stopDeadlineMs ? p.bestEffortMs : p.stopDeadlineMs) : 0;
+    const uint32_t stop = uint32_t(stopSpanUs(p) / 1000);
     switch (p.kind) {
     case RouteKind::ENABLE:
         return p.deadlineMs;
     case RouteKind::STOP:
         return p.bestEffortMs > p.deadlineMs ? p.bestEffortMs : p.deadlineMs;
-    case RouteKind::POSITION:
-        return p.cycles * p.intervalMs + stop;
+    case RouteKind::POSITION: {
+        const uint32_t cycles = p.cycles * p.intervalMs + stop;
+        const uint32_t planned = p.stopKind ? uint32_t(positionStopUs(p) / 1000) : 0;
+        return cycles > planned ? cycles : planned;
+    }
     case RouteKind::MOVE:
         return p.deadlineMs + stop;
     case RouteKind::MODE_ONE:
@@ -207,139 +337,79 @@ const char* routeName(RouteKind kind) noexcept {
 bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcept {
     if (!text || size < 2 || size > ROUTE_LINE)
         return false;
-    RoutePlan plan;
-    const Spec* specs = nullptr;
-    unsigned count = 0;
-    switch (text[0]) {
-    case 'A':
-    case 'I':
-    case 'U':
-        plan.kind = text[0] == 'A' ? RouteKind::READ_ACTIONS : text[0] == 'I' ? RouteKind::READ_IO
-                                                                              : RouteKind::READ_TUNING;
-        specs = READS;
-        count = sizeof READS / sizeof READS[0];
-        break;
-    case 'M':
-        plan.kind = RouteKind::MODE_ONE;
-        specs = MODE;
-        count = sizeof MODE / sizeof MODE[0];
-        break;
-    case 'E':
-        plan.kind = RouteKind::ENABLE;
-        specs = ENABLE;
-        count = sizeof ENABLE / sizeof ENABLE[0];
-        break;
-    case 'S':
-        plan.kind = RouteKind::STOP;
-        specs = STOP;
-        count = sizeof STOP / sizeof STOP[0];
-        break;
-    case 'P':
-        plan.kind = RouteKind::POSITION;
-        specs = POSITION;
-        count = sizeof POSITION / sizeof POSITION[0];
-        break;
-    case 'R':
-        plan.kind = RouteKind::REARM;
-        specs = REARM;
-        count = sizeof REARM / sizeof REARM[0];
-        break;
-    case 'G':
-        plan.kind = RouteKind::MOVE;
-        specs = MOVE;
-        count = FIELDS;
-        break;
-    default:
+    const Grammar* grammar = nullptr;
+    for (const Grammar& g : GRAMMARS)
+        if (g.letter == text[0])
+            grammar = &g;
+    if (!grammar)
         return false;
-    }
-    int64_t v[FIELDS] = {};
+    RoutePlan plan;
+    plan.kind = grammar->kind;
     const char* p = text + 1;
     const char* end = text + size;
-    for (unsigned i = 0; i < count; ++i)
-        if (!field(p, end, specs[i], i + 1 == count, v[i]))
+    for (unsigned i = 0; i < grammar->count; ++i) {
+        int64_t value = 0;
+        if (!field(p, end, grammar->fields[i], i + 1 == grammar->count, value))
             return false;
-    plan.node = uint8_t(v[0]);
-    plan.trial = uint32_t(v[1]);
-    plan.attended = count > 2 && v[2] != 0;
-    switch (plan.kind) {
-    case RouteKind::MODE_ONE:
-    case RouteKind::REARM:
-        plan.cycles = uint16_t(v[3]);
-        plan.intervalMs = uint32_t(v[4]);
-        break;
-    case RouteKind::ENABLE:
-        plan.start = uint8_t(v[3]);
-        plan.shaft = uint8_t(v[4]);
-        plan.reviewedStatus = uint16_t(v[5]);
-        plan.reviewedPositionTarget = int32_t(v[6]);
-        plan.reviewedVelocityTarget = int32_t(v[7]);
-        plan.deadlineMs = uint32_t(v[8]);
-        plan.intervalMs = uint32_t(v[9]);
-        break;
-    case RouteKind::STOP:
-        plan.stopKind = uint8_t(v[3]);
-        plan.deadlineMs = uint32_t(v[4]);
-        plan.bestEffortMs = uint32_t(v[5]);
-        plan.intervalMs = uint32_t(v[6]);
-        if (plan.bestEffortMs && plan.bestEffortMs < plan.deadlineMs)
-            return false;
-        break;
-    case RouteKind::POSITION:
-        plan.startPosition = int32_t(v[3]);
-        plan.target = int32_t(v[4]);
-        plan.rpm = uint32_t(v[5]);
-        plan.rampUpMs = uint32_t(v[6]);
-        plan.rampDownMs = uint32_t(v[7]);
-        plan.cycles = uint16_t(v[8]);
-        plan.intervalMs = uint32_t(v[9]);
-        plan.stopKind = uint8_t(v[10]);
-        plan.stopAfter = uint16_t(v[11]);
-        plan.stopDeadlineMs = uint32_t(v[12]);
-        plan.bestEffortMs = uint32_t(v[13]);
-        plan.stopIntervalMs = uint32_t(v[14]);
-        if (!stopPolicyValid(plan, plan.cycles))
-            return false;
-        break;
-    case RouteKind::MOVE: {
-        plan.startPosition = int32_t(v[3]);
-        plan.target = int32_t(v[4]);
-        plan.rpm = uint32_t(v[5]);
-        plan.rampUpMs = uint32_t(v[6]);
-        plan.rampDownMs = uint32_t(v[7]);
-        plan.deadlineMs = uint32_t(v[8]);
-        plan.intervalMs = uint32_t(v[9]);
-        plan.record = uint32_t(v[10]);
-        plan.acceptSource = uint8_t(v[11]);
-        plan.acceptMask = uint16_t(v[12]);
-        plan.acceptValue = uint16_t(v[13]);
-        plan.completeSource = uint8_t(v[14]);
-        plan.completeMask = uint16_t(v[15]);
-        plan.completeValue = uint16_t(v[16]);
-        plan.rule = uint8_t(v[17]);
-        L::MoveFirmware& f = plan.firmware;
-        f.deviceType = uint32_t(v[18]);
-        f.hardwareVersion = uint16_t(v[19]);
-        f.softwareVersion = uint16_t(v[20]);
-        f.vendorId = uint32_t(v[21]);
-        f.productCode = uint32_t(v[22]);
-        f.revision = uint32_t(v[23]);
-        f.modelCode = uint16_t(v[24]);
-        f.firmwareCode = uint16_t(v[25]);
-        plan.stopKind = uint8_t(v[26]);
-        plan.stopAfter = uint16_t(v[27]);
-        plan.stopDeadlineMs = uint32_t(v[28]);
-        plan.bestEffortMs = uint32_t(v[29]);
-        plan.stopIntervalMs = uint32_t(v[30]);
-        // A signal value outside its own mask can never be reported; the library refuses it too.
-        if ((plan.acceptValue & ~plan.acceptMask) || (plan.completeValue & ~plan.completeMask) ||
-            !stopPolicyValid(plan, 16))
-            return false;
-        break;
+        store(plan, grammar->fields[i], value);
     }
-    default:
-        break;
-    }
+    if (!routePlanValid(plan))
+        return false;
     output = plan;
+    return true;
+}
+bool routePlanValid(const RoutePlan& p) noexcept {
+    const Grammar* grammar = nullptr;
+    for (const Grammar& g : GRAMMARS)
+        if (g.kind == p.kind)
+            grammar = &g;
+    if (!grammar)
+        return false;
+    for (unsigned i = 0; i < grammar->count; ++i) {
+        const Field& f = grammar->fields[i];
+        const int64_t value = load(p, f);
+        if (value < f.low || value > f.high)
+            return false;
+    }
+    switch (p.kind) {
+    case RouteKind::STOP:
+        return !p.bestEffortMs || p.bestEffortMs >= p.deadlineMs;
+    case RouteKind::POSITION:
+        return stopPolicyValid(p, p.cycles);
+    case RouteKind::MOVE:
+        // A signal value outside its own mask can never be reported; the library refuses it too.
+        return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && stopPolicyValid(p, 16);
+    default:
+        return true;
+    }
+}
+uint32_t routeLineCrc(const char* text, size_t size) noexcept {
+    uint32_t crc = 0xffffffffu;
+    for (size_t i = 0; i <= size; ++i) {
+        crc ^= i ? uint8_t(text[i - 1]) : uint8_t('T'); // The command byte first, as the host sent it.
+        for (unsigned bit = 0; bit < 8; ++bit)
+            crc = (crc >> 1) ^ (0xedb88320u & (0u - (crc & 1u)));
+    }
+    return ~crc;
+}
+bool checkRouteIntegrity(const char* text, size_t size, size_t& body) noexcept {
+    // `,K` and eight lowercase hexadecimal digits close the line; nothing may follow them.
+    if (!text || size < 11 || size > ROUTE_LINE)
+        return false;
+    const char* field = text + size - 10;
+    if (field[0] != ',' || field[1] != 'K')
+        return false;
+    uint32_t stated = 0;
+    for (unsigned i = 2; i < 10; ++i) {
+        const char c = field[i];
+        const unsigned digit = c >= '0' && c <= '9' ? unsigned(c - '0') : c >= 'a' && c <= 'f' ? unsigned(c - 'a' + 10) : 16u;
+        if (digit > 15)
+            return false;
+        stated = stated << 4 | digit;
+    }
+    if (routeLineCrc(text, size - 10) != stated)
+        return false;
+    body = size - 10;
     return true;
 }
 
@@ -377,8 +447,9 @@ bool BenchRoute::currentTarget(L::ReadTarget& output) const noexcept {
 const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     if (occupied_)
         return "busy";
-    if (plan.kind == RouteKind::NONE || plan.kind > RouteKind::MOVE || plan.node < 1 || plan.node > 2)
-        return "invalid";
+    // A plan built in code is judged as the parser judges a line, before any bound divides by it.
+    if (!routePlanValid(plan))
+        return "plan";
     const uint8_t index = uint8_t(plan.node - 1);
     AxisSession* session = sessions_[index];
     if (!session)
@@ -448,7 +519,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.plan = plan;
     r.failure = RouteFailure::NONE;
     r.why = "none";
-    r.terminal = r.evidenceLost = r.tailOverflow = r.unsettled = false;
+    r.terminal = r.evidenceLost = r.lossCancel = r.tailOverflow = r.unsettled = false;
     r.step = 0;
     r.motionTotal = motionTotal_;
     r.caseCount = motionCases_[unsigned(plan.kind)][index];
@@ -530,7 +601,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     steps_ = tables[unsigned(plan.kind)];
     stepIndex_ = subStep_ = 0;
     pending_ = stepActive_ = readActive_ = actionStarted_ = abortRequested_ = emcyHandled_ = false;
-    stopAttempted_ = false;
+    lossHandled_ = stopAttempted_ = false;
     endFailure_ = RouteFailure::NONE;
     endWhy_ = "none";
     nextCycleUs_ = cycleStartUs_ = now;
@@ -636,6 +707,14 @@ void BenchRoute::capture(bool tail) noexcept {
 void BenchRoute::finish(RouteFailure failure, const char* why, uint64_t now) noexcept {
     if (record_.terminal)
         return;
+    // Success is never recorded over a decided failure or lost evidence, whichever step got here.
+    if (failure == RouteFailure::NONE && endFailure_ != RouteFailure::NONE) {
+        failure = endFailure_;
+        why = endWhy_;
+    } else if (failure == RouteFailure::NONE && record_.evidenceLost) {
+        failure = RouteFailure::EVIDENCE_LOSS;
+        why = "lost";
+    }
     record_.failure = failure;
     record_.why = why;
     record_.terminal = true;
@@ -651,6 +730,13 @@ void BenchRoute::endAfterSettling(RouteFailure failure, const char* why) noexcep
         endFailure_ = failure;
         endWhy_ = why;
     }
+}
+// The session refuses a time behind its owner's, so withdraw at the latest time either has seen.
+uint64_t BenchRoute::withdrawalTime(uint64_t now) const noexcept {
+    uint64_t at = now < lastUs_ ? lastUs_ : now;
+    if (at < firmware_.owner().lastTimeUs())
+        at = firmware_.owner().lastTimeUs();
+    return at;
 }
 void BenchRoute::service(uint64_t now) noexcept {
     if (!occupied_ || now < lastUs_)
@@ -674,11 +760,27 @@ void BenchRoute::service(uint64_t now) noexcept {
     }
     if (record_.emcy && !emcyHandled_) {
         emcyHandled_ = true;
+        // At the latest time either clock has seen: the session refuses an earlier one, and the
+        // withdrawal must not be lost to that.
+        const uint64_t at = withdrawalTime(now);
         if (axis().enableActive())
-            axis().cancelEnable(now, M::ActionOutcome::DRIVE_FAULT);
+            axis().cancelEnable(at, M::ActionOutcome::DRIVE_FAULT);
         if (axis().moveActive())
-            axis().cancelMove(now, M::MoveInterruption::DRIVE_FAULT);
+            axis().cancelMove(at, M::MoveInterruption::DRIVE_FAULT);
         endAfterSettling(RouteFailure::OBSERVATION, "emcy");
+    }
+    if (record_.evidenceLost && !lossHandled_) {
+        lossHandled_ = true;
+        // The lost span may have held an EMCY or a status report that would have ended this work, so
+        // withdraw an active enable or move locally, as an abort does: their unsent words and reads
+        // are not admitted, and a request in flight settles first. Nothing is sent because of the
+        // loss, and no stop.
+        const uint64_t at = withdrawalTime(now);
+        if (axis().enableActive() && axis().cancelEnable(at, M::ActionOutcome::CANCELLED))
+            record_.lossCancel = true;
+        if (axis().moveActive() && axis().cancelMove(at, M::MoveInterruption::CANCELLED))
+            record_.lossCancel = true;
+        endAfterSettling(RouteFailure::EVIDENCE_LOSS, "lost");
     }
     if (pending_ && !settle(now))
         return;
@@ -690,10 +792,6 @@ void BenchRoute::service(uint64_t now) noexcept {
     }
     if (endFailure_ != RouteFailure::NONE) {
         finish(endFailure_, endWhy_, now);
-        return;
-    }
-    if (record_.evidenceLost) {
-        finish(RouteFailure::EVIDENCE_LOSS, "lost", now);
         return;
     }
     if (now >= cutoffUs_) {
@@ -711,10 +809,7 @@ const char* BenchRoute::abort(uint64_t now) noexcept {
         return "already";
     abortRequested_ = true;
     endAfterSettling(RouteFailure::ABORTED, "abort");
-    // The session refuses a time behind its owner's, so cancel at the latest time either has seen.
-    uint64_t at = now < lastUs_ ? lastUs_ : now;
-    if (at < firmware_.owner().lastTimeUs())
-        at = firmware_.owner().lastTimeUs();
+    const uint64_t at = withdrawalTime(now);
     if (axis().enableActive())
         axis().cancelEnable(at, M::ActionOutcome::CANCELLED);
     if (axis().moveActive())
@@ -1019,6 +1114,13 @@ void BenchRoute::admit(const C::SdoTransfer& transfer, uint64_t now) noexcept {
         modeAdmitted_[slot()] = true; // From here the mode may change, acknowledged or not.
 }
 bool BenchRoute::startWrite(uint64_t now) noexcept {
+    // A planned stop refused for the cutoff would leave the trigger's motion running: refuse before
+    // the first write unless the stop still fits when it is asked for at its latest.
+    if (steps_[stepIndex_].kind == STEP_POSITION_WRITES && record_.plan.stopKind &&
+        now + positionStopUs(record_.plan) > cutoffUs_) {
+        finish(RouteFailure::REFUSED, "deadline", now);
+        return false;
+    }
     const uint64_t deadline = now + ROUTE_OPERATION_US < cutoffUs_ ? now + ROUTE_OPERATION_US : cutoffUs_;
     const uint32_t operation = deadline > now ? axis().beginOperation(deadline, now) : 0;
     if (!operation) {
@@ -1027,8 +1129,6 @@ bool BenchRoute::startWrite(uint64_t now) noexcept {
     }
     writeOperation_ = operation;
     writeDeadlineUs_ = deadline;
-    if (steps_[stepIndex_].kind == STEP_POSITION_WRITES || steps_[stepIndex_].kind == STEP_REARM_WRITE)
-        triggerOperation_[slot()] = 0; // From here no earlier trigger can be the latest word.
     subStep_ = 0;
     readMode_ = READ_STATE; // Not a read; settle uses the transfer direction.
     return true;
@@ -1093,19 +1193,42 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
 void BenchRoute::serviceWrite(uint64_t now) noexcept {
     if (pending_ || record_.terminal)
         return;
+    const uint8_t kind = steps_[stepIndex_].kind;
+    // The check step judged the predecessor on an earlier turn. It must still hold now, at each
+    // offer of the first write, or nothing is written.
+    if (subStep_ == 0) {
+        if (const char* why = predecessor(kind)) {
+            finish(RouteFailure::PREREQUISITE, why, now);
+            return;
+        }
+    }
     C::SdoTransfer t;
     if (!writeTransfer(t)) {
         finish(RouteFailure::ADMISSION, "codec", now);
         return;
     }
     admit(t, now);
+    if (pending_ && subStep_ == 0 && kind != STEP_MODE_WRITE)
+        triggerOperation_[slot()] = 0; // From here no earlier trigger can be the latest word.
+}
+// The session history each first write needs, judged at its check step and again when the write is
+// offered. MODE_ONE: no write or controlword of this session yet. REARM: the acknowledged trigger of a
+// finished POSITION. POSITION: the session's acknowledged 000F.
+const char* BenchRoute::predecessor(uint8_t write) const noexcept {
+    if (write == STEP_MODE_WRITE) {
+        if (axis().motionHistoryWritten() || modeAdmitted_[slot()])
+            return "history";
+        return axis().latestControl() ? "control" : nullptr;
+    }
+    if (write == STEP_REARM_WRITE)
+        return rearmable(slot(), axis()) ? nullptr : "control";
+    const C::SdoCompletion* control = axis().latestControl();
+    return control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0 ? nullptr : "control";
 }
 const char* BenchRoute::checkMode() const noexcept {
     const RouteSnapshot& s = record_.last;
-    if (axis().motionHistoryWritten() || modeAdmitted_[slot()])
-        return "history";
-    if (axis().latestControl())
-        return "control";
+    if (const char* why = predecessor(STEP_MODE_WRITE))
+        return why;
     if ((s.blocks & FULL) != FULL)
         return "snapshot";
     if (s.errorRegister)
@@ -1147,9 +1270,8 @@ const char* BenchRoute::checkIdle() const noexcept {
     return nullptr;
 }
 const char* BenchRoute::checkPosition() const noexcept {
-    const C::SdoCompletion* control = axis().latestControl();
-    if (!control || control->transfer.data[0] != 0x0f || control->transfer.data[1] != 0)
-        return "control";
+    if (const char* why = predecessor(STEP_POSITION_WRITES))
+        return why;
     if (const char* why = checkIdle())
         return why;
     if (record_.last.position != record_.plan.startPosition)
@@ -1159,8 +1281,8 @@ const char* BenchRoute::checkPosition() const noexcept {
 // Nothing about the position is asked: the 000F follows a finished experiment whose travel is the
 // unknown. Every value read is kept in TRIAL_CHECK.
 const char* BenchRoute::checkRearm() const noexcept {
-    if (!rearmable(slot(), axis()))
-        return "control";
+    if (const char* why = predecessor(STEP_REARM_WRITE))
+        return why;
     return checkIdle();
 }
 // The route's own fail-closed check before the library's: the library judges the same 000F, mode,
@@ -1309,8 +1431,10 @@ void BenchRoute::startMove(uint64_t now) noexcept {
     options.service.responseTimeoutUs = ROUTE_RESPONSE_US;
     options.observationIntervalUs = uint64_t(p.intervalMs) * 1000;
     options.maximumAgeUs = 9 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
+    // The planned stop is asked for before the move's deadline. Refused for the cutoff it would leave the
+    // move running on, so refuse here, before any move write, unless its whole span fits behind that.
     const uint64_t deadline = now + uint64_t(p.deadlineMs) * 1000;
-    if (deadline > cutoffUs_) {
+    if (deadline + stopSpanUs(p) > cutoffUs_) {
         finish(RouteFailure::REFUSED, "deadline", now);
         return;
     }
@@ -1416,6 +1540,10 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
         finish(RouteFailure::OBSERVATION, why, now);
         return;
     }
+    // An abort, EMCY or lost evidence already ends the route: service() finishes it after this read,
+    // and no planned stop or further cycle is asked for here.
+    if (endFailure_ != RouteFailure::NONE)
+        return;
     if (p.kind == RouteKind::POSITION && p.stopKind && record_.cycles == p.stopAfter) {
         startStop(p.stopKind, p.stopDeadlineMs, p.bestEffortMs, p.stopIntervalMs, context_.read, now);
         return;
@@ -1645,12 +1773,14 @@ bool BenchRoute::formatLine(unsigned cursor, char* out, size_t size) const noexc
     if (cursor == 0)
         return put(out, size,
                    "TRIAL id=%lu node=%u route=%s failure=%u why=%s lost=%u terminals=%u traffic=%u tail=%u "
-                   "tailLost=%u summaries=%u step=%u cycles=%u motion=%u case=%u unsettled=%u gap=%llu\n",
+                   "tailLost=%u summaries=%u step=%u cycles=%u motion=%u case=%u unsettled=%u gap=%llu "
+                   "lossCancel=%u\n",
                    static_cast<unsigned long>(r.plan.trial), unsigned(r.plan.node), routeName(r.plan.kind),
                    unsigned(r.failure), r.why, unsigned(r.evidenceLost), unsigned(r.terminalCount),
                    unsigned(r.trafficCount), unsigned(r.tailCount), unsigned(r.tailOverflow), summaries,
                    unsigned(r.step), unsigned(r.cycles), unsigned(r.motionTotal), unsigned(r.caseCount),
-                   unsigned(r.unsettled), static_cast<unsigned long long>(r.maxServiceGapUs));
+                   unsigned(r.unsettled), static_cast<unsigned long long>(r.maxServiceGapUs),
+                   unsigned(r.lossCancel));
     unsigned index = cursor - 1;
     if (index < summaries)
         return formatSummary(index, out, size);

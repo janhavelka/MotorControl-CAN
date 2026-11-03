@@ -503,8 +503,12 @@ bool sessionStorage(E::FirmwareProbe& firmware, E::BenchRoute& route, unsigned n
 }
 const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::BenchRoute*& route,
                        bool configured[2], const char* text, size_t size, uint64_t now) {
+    // The host's CRC-32 of the whole line first: a corrupted digit can still parse as another plan.
+    size_t body = 0;
+    if (!E::checkRouteIntegrity(text, size, body))
+        return "crc";
     E::RoutePlan plan;
-    if (!E::parseRouteCommand(text, size, plan))
+    if (!E::parseRouteCommand(text, body, plan))
         return "parse";
     if (!ensureRoute(services, plan.node, configured[plan.node - 1], now))
         return "route";
@@ -556,7 +560,8 @@ void ownerTask(void*) {
     uint64_t soakCollectUs = 0;
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
-    // move line is the longest, within E::ROUTE_LINE. A longer one is refused whole, never cut.
+    // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
+    // refused whole, never cut. `routes=3` in PONG names this line protocol with its CRC-32 field.
     E::BenchRoute* route = nullptr;
     char trialText[E::ROUTE_LINE] = {};
     size_t trialLength = 0;
@@ -892,7 +897,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=2 trial=%u motion=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=3 trial=%u motion=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
                            unsigned(silent), unsigned(silentReady), unsigned(soakActive),

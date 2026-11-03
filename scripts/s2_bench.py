@@ -4,25 +4,32 @@
 Single-byte commands send their byte once and capture for --seconds. Trial commands run one named
 firmware route (examples/s2_bench/BenchRoute.h): they check the recorded USB identity, require every
 route parameter explicitly, require the operator to type the attended confirmation and, for an
-enable, the attendant's own shaft observation, then ping, refuse unless the image has the routes and
-nothing else is running, send one T line and capture until the record's END. Ctrl-C sends one local
-abort ('A'), which sends no stop. Nothing is retried, and --dry-run prints the plan without
-enumerating, prompting, opening or creating anything.
+enable, the attendant's own shaft observation, then ping, refuse unless the image speaks this
+runner's route protocol and nothing else is running, send one T line and capture until the record's
+END. Each T line ends in ",K" and the CRC-32 (zlib.crc32) of every byte before it, which the firmware
+checks before parsing. Ctrl-C sends one local abort ('A'), which sends no stop. Nothing is retried,
+and --dry-run prints the plan without enumerating, prompting, opening or creating anything.
 
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
-Before a motion line is sent its entry is appended and flushed; the tool refuses once the campaign
-holds CAMPAIGN_MOTION_TOTAL motion admissions, CAMPAIGN_PER_CASE for one route and node, or a trial
+One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
+is read until its result entry is written. Each entry carries its sequence number and the SHA-256 of
+the line before it. Before a motion line is sent the ledger is read and checked again under the lock
+and the line's entry is appended and synced; the tool refuses once the campaign holds
+CAMPAIGN_MOTION_TOTAL motion admissions, CAMPAIGN_PER_CASE for one route and node, or a trial
 identity at or above this one. A missing ledger is refused unless --new-campaign starts it, so a
-mistyped path cannot reset the counts.
+mistyped path cannot reset the counts. The chain cannot show a cut tail or a restored older copy:
+commit the ledger with each session's evidence.
 """
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path
 import signal
 import sys
+import zlib
 
 COMMANDS = {"ping": b"p", "start": b"c", "stats": b"s",
             "identity1": b"1", "identity2": b"2", "raw1": b"3", "raw2": b"4",
@@ -45,8 +52,12 @@ TRIALS = {
     "rearm": ("R", True, "packet 19 rearm"),
     "move": ("G", True, "packet 20"),
 }
-# PONG routes= version an image needs for a route; older images refuse the line as unparsed anyway.
-ROUTE_VERSION = {"rearm": 2, "move": 2}
+# PONG routes= of the line protocol this runner speaks: 3 adds the CRC-32 field. Any other image
+# would misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 3
+MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
+# The first entry's predecessor digest.
+LEDGER_GENESIS = "0" * 64
 STOP_KINDS = {"halt": 1, "quick": 2}
 SIGNAL_SOURCES = {"statusword": 1, "monitor": 2}
 COMPLETION_RULES = {"after-absence": 1, "after-acceptance": 2}
@@ -202,8 +213,13 @@ def trial_line(args, parser):
     return fields
 
 
+def sign_line(body):
+    """The T line with its integrity field: CRC-32 (zlib, IEEE) of every byte before ",K"."""
+    return "%s,K%08x" % (body, zlib.crc32(body.encode("ascii")))
+
+
 def encode(command, fields):
-    return ("T%s%s\n" % (TRIALS[command][0], ",".join(str(v) for v in fields))).encode("ascii")
+    return (sign_line("T%s%s" % (TRIALS[command][0], ",".join(str(v) for v in fields))) + "\n").encode("ascii")
 
 
 def motion_weight(command, fields):
@@ -214,17 +230,81 @@ def motion_weight(command, fields):
     return 1 + stop, stop
 
 
+def _integer(value, low, high):
+    """A JSON integer in range; a bool or a float is not one."""
+    return type(value) is int and low <= value <= high
+
+
+def _send_problem(entry):
+    """What makes a send entry inconsistent with itself, or None."""
+    route, node, trial, motion, stop = (entry.get(k) for k in ("route", "node", "trial", "motion", "stop"))
+    if route not in {letter for letter, _, _ in TRIALS.values()} or not _integer(node, 1, 2):
+        return "route or node"
+    if not _integer(trial, 1, 0xFFFFFFFF):
+        return "trial is not an integer 1..4294967295"
+    if not _integer(stop, 0, 1) or (stop and route not in ("P", "G")) or not _integer(motion, 0, 2):
+        return "stop or motion"
+    if motion != ((1 + stop) if route in MOTION_ROUTES else 0):
+        return "motion %d does not match route %s with stop %d" % (motion, route, stop)
+    line = entry.get("line")
+    body, separator, _ = line.rpartition(",K") if isinstance(line, str) else ("", "", "")
+    if not separator or sign_line(body) != line:
+        return "line has no matching integrity field"
+    fields = body[2:].split(",")
+    if body[:2] != "T" + route or fields[:2] != [str(node), str(trial)]:
+        return "line names another route, node or trial"
+    if route in ("P", "G") and (fields[-5] != "0") != bool(stop):
+        return "line's stop kind does not match stop %d" % stop
+    return None
+
+
+class CampaignLock:
+    """An exclusive lock file next to the ledger for one whole invocation. Only its holder removes it;
+    one left by a crash is refused until the operator checks the ledger and removes it."""
+
+    def __init__(self, ledger):
+        self.path = Path(str(ledger) + ".lock")
+        self.held = False
+
+    def acquire(self, clock):
+        try:
+            descriptor = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            raise Refused("campaign busy: %s exists. Another invocation holds this ledger, or one ended "
+                          "without releasing it; when no runner is active, check the ledger and remove %s "
+                          "yourself" % (self.path, self.path))
+        except OSError as error:
+            raise Refused("campaign lock %s cannot be created: %s" % (self.path, error))
+        self.held = True
+        try:
+            os.write(descriptor, (json.dumps({"pid": os.getpid(), "utc": clock.utc()}) + "\n").encode("utf-8"))
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        return self
+
+    def release(self):
+        if self.held:
+            self.held = False
+            os.remove(self.path)
+
+
 class Campaign:
-    """The host's campaign ledger: JSON lines, appended and flushed, never rewritten or reset here.
+    """The host's campaign ledger: JSON lines, appended and synced, never rewritten or reset here.
 
     A "send" entry is written before its line is sent, so a crash after sending still counts it; a
     "result" entry follows the capture. Every send counts, admitted or refused by the firmware: each is
-    a deliberate trial. Counts never reset with an MCU boot, a new image or a released record.
+    a deliberate trial. Counts never reset with an MCU boot, a new image or a released record. Each
+    entry holds "seq", its line number from 1, and "prev", the SHA-256 of the previous line's bytes
+    without its LF (LEDGER_GENESIS for the first), so a changed, removed or inserted line is refused.
+    A cut tail or a restored older copy is still a valid chain: git history of the committed ledger is
+    the anchor for those.
     """
 
     def __init__(self, path, new):
         self.path, self.new = Path(path), new
         self.entries = []
+        self.last_digest = LEDGER_GENESIS
 
     def load(self):
         exists = self.path.exists()
@@ -234,24 +314,39 @@ class Campaign:
             raise Refused("campaign ledger %s does not exist; name the campaign's ledger, or start one with "
                           "--new-campaign" % self.path)
         self.entries = []
+        self.last_digest = LEDGER_GENESIS
         if not exists:
             return self
         raw = self.path.read_bytes()
         if raw and not raw.endswith(b"\n"):
             raise Refused("campaign ledger %s ends in a partial line; it cannot be counted" % self.path)
-        for number, line in enumerate(raw.decode("utf-8", errors="replace").split("\n")[:-1], 1):
+        previous, last_send = LEDGER_GENESIS, None
+        for number, line in enumerate(raw.split(b"\n")[:-1], 1):
             try:
-                entry = json.loads(line)
+                entry = json.loads(line.decode("utf-8"))
             except ValueError:
                 raise Refused("campaign ledger line %d is not JSON; it cannot be counted" % number)
             if not isinstance(entry, dict) or entry.get("event") not in ("send", "result"):
                 raise Refused("campaign ledger line %d is not a send or result entry" % number)
-            if entry["event"] == "send" and not (
-                    entry.get("route") in {letter for letter, _, _ in TRIALS.values()} and
-                    entry.get("node") in (1, 2) and isinstance(entry.get("trial"), int) and
-                    entry.get("motion") in (0, 1, 2) and entry.get("stop") in (0, 1)):
-                raise Refused("campaign ledger line %d is a malformed send entry" % number)
+            if not _integer(entry.get("seq"), number, number):
+                raise Refused("campaign ledger line %d has seq %r: a line is missing, added or reordered" %
+                              (number, entry.get("seq")))
+            if entry.get("prev") != previous:
+                raise Refused("campaign ledger line %d does not chain to line %d: an earlier line changed" %
+                              (number, number - 1))
+            if entry["event"] == "send":
+                problem = _send_problem(entry)
+                if problem:
+                    raise Refused("campaign ledger line %d is an inconsistent send entry: %s" % (number, problem))
+                last_send = entry
+            elif last_send is None or entry.get("trial") != last_send["trial"] or \
+                    entry.get("node") != last_send["node"]:
+                raise Refused("campaign ledger line %d is a result entry without its send entry" % number)
+            else:
+                last_send = None
+            previous = hashlib.sha256(line).hexdigest()
             self.entries.append(entry)
+        self.last_digest = previous
         return self
 
     def counts(self):
@@ -291,14 +386,16 @@ class Campaign:
                 "cases": {"%s%d" % key: count for key, count in sorted(cases.items()) if count}}
 
     def append(self, entry):
-        """One flushed line; an error propagates, and then nothing is sent."""
-        data = (json.dumps(entry, sort_keys=True) + "\n").encode("utf-8")
+        """One synced line chained to the last; an error propagates, and then nothing is sent."""
+        entry = dict(entry, seq=len(self.entries) + 1, prev=self.last_digest)
+        line = json.dumps(entry, sort_keys=True).encode("utf-8")
         with open(self.path, "ab") as ledger:
-            if ledger.write(data) != len(data):
+            if ledger.write(line + b"\n") != len(line) + 1:
                 raise OSError("short campaign ledger write")
             ledger.flush()
             os.fsync(ledger.fileno())
         self.entries.append(entry)
+        self.last_digest = hashlib.sha256(line).hexdigest()
 
 
 def ask_operator(ask, record, key, question, accept):
@@ -429,8 +526,8 @@ def run_trial(args, fields, port, clock, meta, record=None):
         routes = values.get("routes", "0")
         if routes == "0":
             reason = "image_without_routes"  # An older image would read the line as single-byte commands.
-        elif (int(routes) if routes.isdigit() else 0) < ROUTE_VERSION.get(args.command, 1):
-            reason = "image_route_version"  # It would refuse the line as unparsed; nothing is sent.
+        elif routes != str(ROUTE_PROTOCOL):
+            reason = "image_route_version"  # Another line protocol, older or newer; nothing is sent.
         elif values.get("soak") != "0":
             reason = "soak_running"
         elif values.get("trial") != "0":
@@ -446,6 +543,9 @@ def run_trial(args, fields, port, clock, meta, record=None):
             except OSError as error:
                 meta["campaign_error"] = str(error)
                 return capture, "campaign_unwritten"
+            except Refused as error:  # The ledger read again under the lock refused this line.
+                meta["campaign_error"] = str(error)
+                return capture, "campaign_refused"
         capture.send(line)
         meta["sent"].append(line.hex())
         aborted = []
@@ -479,6 +579,9 @@ def dry_run(args, fields):
         if motion:
             print("  require the operator to type: ATTENDED %d" % fields[1])
         if args.campaign is not None:
+            lock = CampaignLock(args.campaign).path
+            print("  hold %s for the whole run%s" % (lock, "; would refuse now: campaign busy" if lock.exists()
+                                                       else ""))
             try:
                 campaign = Campaign(args.campaign, args.new_campaign).load()
                 campaign.check(args.command, fields)
@@ -488,8 +591,7 @@ def dry_run(args, fields):
                 print("  campaign %s would refuse: %s" % (args.campaign, error))
         if args.command == "enable":
             print("  require the attendant to type FREE or HOLDING; it replaces the 0 in field 5 below")
-        print("  send p; refuse unless PONG has routes>=%d soak=0 trial=0 active=1 running=1" %
-              ROUTE_VERSION.get(args.command, 1))
+        print("  send p; refuse unless PONG has routes=%d soak=0 trial=0 active=1 running=1" % ROUTE_PROTOCOL)
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
     else:
@@ -558,20 +660,39 @@ def main(argv=None, backend=None, clock=None, ask=input):
     clock = clock or RealClock()
     is_trial = args.command in TRIALS
     operator = {}
-    campaign = None
+    campaign = lock = None
     try:
         usb = check_identity(args.port, args.serial, backend.comports(), is_trial)
         if is_trial and args.campaign is not None:
+            # Held from before the ledger is read until its result entry is written.
+            lock = CampaignLock(args.campaign).acquire(clock)
             campaign = Campaign(args.campaign, args.new_campaign).load()
             campaign.check(args.command, fields)
         if is_trial:
             before_send(args, fields, ask, operator)
     except Refused as error:
+        if lock is not None:
+            lock.release()
         print("REFUSED: %s; nothing sent or created" % error, file=sys.stderr)
         return 2
+    meta = {}
+    try:
+        return capture_request(args, argv, fields, backend, clock, ask, usb, operator, campaign, meta)
+    finally:
+        if lock is not None and "campaign_error" in meta:
+            # A ledger that could not be written, or changed under the lock, needs the operator first.
+            print("campaign lock %s kept: %s; check the ledger before removing the lock" %
+                  (lock.path, meta["campaign_error"]), file=sys.stderr)
+        elif lock is not None:
+            lock.release()
+
+
+def capture_request(args, argv, fields, backend, clock, ask, usb, operator, campaign, meta):
+    """Everything after the refusals: the evidence directory, the one request, the ledger entries."""
+    is_trial = args.command in TRIALS
     args.output.mkdir(parents=True, exist_ok=False)
-    meta = {"started_utc": clock.utc(), "port": args.port, "serial": args.serial, "usb": usb, "baud": BAUD,
-            "command": args.command, "seconds": args.seconds, "reset": False, "retry": False}
+    meta.update({"started_utc": clock.utc(), "port": args.port, "serial": args.serial, "usb": usb, "baud": BAUD,
+                 "command": args.command, "seconds": args.seconds, "reset": False, "retry": False})
     if is_trial:
         meta.update(node=fields[0], trial=fields[1], plan=TRIALS[args.command][2], fields=list(fields),
                     operator=operator, argv=list(argv) if argv is not None else sys.argv[1:])
@@ -583,7 +704,10 @@ def main(argv=None, backend=None, clock=None, ask=input):
     motion, stop = motion_weight(args.command, fields) if is_trial else (0, 0)
 
     def record(line):
-        """The send entry, flushed before the line goes out: it counts even if the host then fails."""
+        """The ledger read and checked again under the lock, then the send entry, synced before the line
+        goes out: it counts even if the host then fails."""
+        campaign.load()
+        campaign.check(args.command, fields)
         campaign.append({"event": "send", "utc": clock.utc(), "command": args.command,
                          "route": TRIALS[args.command][0], "node": fields[0], "trial": fields[1],
                          "motion": motion, "stop": stop, "line": line, "output": str(args.output),
@@ -616,7 +740,8 @@ def main(argv=None, backend=None, clock=None, ask=input):
         raise
     finally:
         meta["ended_utc"] = clock.utc()
-        if campaign is not None and "line" in meta and meta.get("reason") != "campaign_unwritten":
+        if campaign is not None and "line" in meta and \
+                meta.get("reason") not in ("campaign_unwritten", "campaign_refused"):
             try:  # The send entry already counts it; this records how it ended.
                 campaign.append({"event": "result", "utc": meta["ended_utc"], "trial": fields[1],
                                  "node": fields[0], "reason": meta.get("reason"), "status": meta.get("status"),

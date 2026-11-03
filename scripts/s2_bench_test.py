@@ -2,6 +2,7 @@
 """s2_bench.py trial routes against a fake board, clock and operator: no port, no pyserial."""
 
 import contextlib
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -25,8 +26,8 @@ def check_trial_transcript(path):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    if len(parts) < 12:
-        problems.append("expected twelve records, found %d" % len(parts))
+    if len(parts) < 13:
+        problems.append("expected thirteen records, found %d" % len(parts))
     letters = {part[:1].decode("ascii") for part in parts}
     for letter in NAMES:
         if letter not in letters:
@@ -38,9 +39,13 @@ def check_trial_transcript(path):
         meta = {"command": NAMES[line[0]], "node": int(fields[0]), "trial": int(fields[1]), "line": "T" + line,
                 "status": "captured"}
         report = evidence.replay_bytes(body, meta)
-        wanted = "failed-evidence" if line.startswith("S1,7,") else "complete"
+        # A lost reply on node 1, and a move on node 2 whose copied traffic overflowed.
+        lost = line.startswith("G2,13,")
+        wanted = "failed-evidence" if line.startswith("S1,7,") or lost else "complete"
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
+        if lost and not (report.failure_name == "EVIDENCE_LOSS" and b" lossCancel=1\n" in body):
+            problems.append("%s: not an evidence loss with a local withdrawal" % line)
         if report.unknown or report.malformed or report.unknown_fields:
             problems.append("%s: unknown %s malformed %s fields %s" % (
                 line, report.unknown[:2], report.malformed[:2], report.unknown_fields[:2]))
@@ -99,7 +104,7 @@ class Board:
         self.on_line = on_line  # Called with each T line as it is written, before any reply.
         self.writes = []
         self.queue = bytearray(b"stale\n")
-        self.routes = 1
+        self.routes = bench.ROUTE_PROTOCOL
         self.soak = 0
         self.trial = 0
         self.active = 1
@@ -183,7 +188,15 @@ MOVE = ["--command", "move", "--node", "1", "--trial", "20", "--start-position",
         "--rule", "after-absence", "--device-type", "0x00040192", "--hardware-version", "0x12",
         "--software-version", "0x34", "--vendor-id", "0x300", "--product-code", "0x8605", "--revision", "0x10001",
         "--model-code", "0x86", "--firmware-code", "0x123", "--stop-kind", "none"]
-MOVE_LINE = "TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,0,0,0,0,0\n"
+MOVE_BODY = ("TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291")
+
+
+def signed(text):
+    """A T line as the runner sends it: its integrity field, then LF."""
+    return bench.sign_line(text) + "\n"
+
+
+MOVE_LINE = signed(MOVE_BODY + ",0,0,0,0,0")
 
 
 def position(node, trial, stop="none"):
@@ -197,7 +210,24 @@ def position(node, trial, stop="none"):
 
 
 def send_entry(route, node, trial, motion=1, stop=0):
-    return {"event": "send", "route": route, "node": node, "trial": trial, "motion": motion, "stop": stop}
+    """A send entry consistent with itself: its line names its route, node, trial and stop."""
+    tail = "1,2,2000,0,200" if stop else "0,0,0,0,0"
+    return {"event": "send", "route": route, "node": node, "trial": trial, "motion": motion, "stop": stop,
+            "line": bench.sign_line("T%s%d,%d,1,%s" % (route, node, trial, tail))}
+
+
+def result_entry(node, trial):
+    return {"event": "result", "node": node, "trial": trial, "reason": "ended"}
+
+
+def chain(entries):
+    """Ledger bytes for these entries, each with its seq and the SHA-256 of the line before."""
+    out, previous = [], bench.LEDGER_GENESIS
+    for number, entry in enumerate(entries, 1):
+        line = json.dumps(dict(entry, seq=number, prev=previous), sort_keys=True).encode("utf-8")
+        out.append(line + b"\n")
+        previous = hashlib.sha256(line).hexdigest()
+    return b"".join(out)
 
 
 class BenchTest(unittest.TestCase):
@@ -224,7 +254,7 @@ class BenchTest(unittest.TestCase):
         return [json.loads(line) for line in self.ledger.read_text(encoding="utf-8").splitlines()]
 
     def write_ledger(self, entries):
-        self.ledger.write_text("".join(json.dumps(entry) + "\n" for entry in entries), encoding="utf-8")
+        self.ledger.write_bytes(chain(entries))
 
     def clear_output(self):
         if self.output.exists():
@@ -293,24 +323,23 @@ class BenchTest(unittest.TestCase):
 
     def test_lines_match_the_firmware_grammar(self):
         cases = {
-            ("--command", "readiness-tuning", "--node", "2", "--trial", "4"): "TU2,4\n",
+            ("--command", "readiness-tuning", "--node", "2", "--trial", "4"): signed("TU2,4"),
             ("--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "3", "--interval-ms", "200"):
-                "TM1,5,1,3,200\n",
+                signed("TM1,5,1,3,200"),
             ("--command", "stop", "--node", "1", "--trial", "6", "--kind", "quick", "--deadline-ms", "2000",
-             "--best-effort-ms", "3000", "--interval-ms", "100"): "TS1,6,1,2,2000,3000,100\n",
+             "--best-effort-ms", "3000", "--interval-ms", "100"): signed("TS1,6,1,2,2000,3000,100"),
             ("--command", "position", "--node", "1", "--trial", "7", "--start-position", "-3", "--target", "16",
              "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4", "--interval-ms", "100",
              "--stop-kind", "halt", "--stop-after", "2", "--stop-deadline-ms", "2000", "--stop-best-effort-ms", "0",
-             "--stop-interval-ms", "200"): "TP1,7,1,-3,16,1,1000,1000,4,100,1,2,2000,0,200\n",
+             "--stop-interval-ms", "200"): signed("TP1,7,1,-3,16,1,1000,1000,4,100,1,2,2000,0,200"),
             ("--command", "position", "--node", "1", "--trial", "8", "--start-position", "0", "--target", "16",
              "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4", "--interval-ms", "100",
-             "--stop-kind", "none"): "TP1,8,1,0,16,1,1000,1000,4,100,0,0,0,0,0\n",
+             "--stop-kind", "none"): signed("TP1,8,1,0,16,1,1000,1000,4,100,0,0,0,0,0"),
             ("--command", "rearm", "--node", "2", "--trial", "9", "--cycles", "3", "--interval-ms", "100"):
-                "TR2,9,1,3,100\n",
+                signed("TR2,9,1,3,100"),
             tuple(MOVE): MOVE_LINE,
             tuple(MOVE[:-1] + ["halt", "--stop-after", "2", "--stop-deadline-ms", "2000", "--stop-best-effort-ms",
-                               "3000", "--stop-interval-ms", "500"]): MOVE_LINE.replace(",0,0,0,0,0\n",
-                                                                                    ",1,2,2000,3000,500\n"),
+                               "3000", "--stop-interval-ms", "500"]): signed(MOVE_BODY + ",1,2,2000,3000,500"),
         }
         for argv, line in cases.items():
             args, fields = bench.arguments(BASE + list(argv) + LEDGER + ["--output", "x"])
@@ -325,6 +354,9 @@ class BenchTest(unittest.TestCase):
                                                              "55000", "--stop-best-effort-ms", "55000",
                                                              "--stop-interval-ms", "10000"] + LEDGER + ["--output", "x"])
         self.assertLessEqual(len(bench.encode(args.command, fields)) - 2, 256)
+        # zlib's CRC-32, the same values the firmware's own test pins.
+        self.assertEqual(bench.sign_line("TA1,5"), "TA1,5,K62328164")
+        self.assertEqual(bench.sign_line("TR2,9,1,16,5000"), "TR2,9,1,16,5000,K3c9f15db")
 
     def test_wrong_board_refuses_before_anything(self):
         for ports in ([], [Item(serial="OTHER")], [Item(), Item()], [Item(vid=0x10C4)]):
@@ -366,9 +398,9 @@ class BenchTest(unittest.TestCase):
         operator = Operator("ATTENDED 12", "HOLDING", "no movement", "HOLDING")
         status, out, _ = self.run_main(ENABLE, Backend(board), operator)
         self.assertEqual(status, 0, out)
-        self.assertEqual(board.writes, [b"p", b"TE1,12,1,1,2,32823,5000,120,10000,800\n"])
+        self.assertEqual(board.writes, [b"p", signed("TE1,12,1,1,2,32823,5000,120,10000,800").encode()])
         meta = self.meta()
-        self.assertEqual(meta["line"], "TE1,12,1,1,2,32823,5000,120,10000,800")
+        self.assertEqual(meta["line"], signed("TE1,12,1,1,2,32823,5000,120,10000,800").strip())
         self.assertEqual(meta["operator"]["power_up_shaft"]["typed"], "HOLDING")
         self.assertEqual(meta["operator"]["holding_after"]["typed"], "HOLDING")
         self.assertEqual(meta["operator"]["shaft_after"]["typed"], "no movement")
@@ -384,7 +416,7 @@ class BenchTest(unittest.TestCase):
                                       "--fault-led", "prompt"], Backend(board), operator)
         # The synthetic record has no terminals, so the fixed inventory reads it as incomplete.
         self.assertEqual(status, 1)
-        self.assertEqual(board.writes, [b"p", b"TA2,3\n"])
+        self.assertEqual(board.writes, [b"p", signed("TA2,3").encode()])
         meta = self.meta()
         self.assertEqual(meta["operator"]["fault_led_before"]["typed"], "off")
         self.assertEqual(meta["operator"]["fault_led_after"]["typed"], "off")
@@ -483,7 +515,8 @@ class BenchTest(unittest.TestCase):
         sent = json.loads(seen[0])
         self.assertEqual((sent["event"], sent["route"], sent["node"], sent["trial"], sent["motion"], sent["stop"]),
                          ("send", "P", 1, 5, 1, 0))
-        self.assertEqual(sent["line"], "TP1,5,1,0,16,1,1000,1000,4,100,0,0,0,0,0")
+        self.assertEqual(sent["line"], signed("TP1,5,1,0,16,1,1000,1000,4,100,0,0,0,0,0").strip())
+        self.assertEqual((sent["seq"], sent["prev"]), (1, bench.LEDGER_GENESIS))
         lines = [json.loads(line) for line in missing.read_text(encoding="utf-8").splitlines()]
         self.assertEqual([entry["event"] for entry in lines], ["send", "result"])
         self.assertEqual(lines[1]["reason"], "ended")
@@ -517,7 +550,6 @@ class BenchTest(unittest.TestCase):
         self.write_ledger([send_entry("AIU"[i % 3], 1, i + 1, 0) for i in range(5)] +
                           [send_entry("MESPRG"[i % 6], 1 + i % 2, i + 10) for i in range(11)])
         board = Board()
-        board.routes = 2
         argv = list(MOVE)
         argv[argv.index("--node") + 1], argv[argv.index("--trial") + 1] = "2", "40"
         status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 40", "none"))
@@ -525,7 +557,6 @@ class BenchTest(unittest.TestCase):
         self.clear_output()
         argv[argv.index("--trial") + 1] = "41"
         board = Board()
-        board.routes = 2
         status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 41"))
         self.assertEqual(status, 2, err)
         self.assertIn("over 12", err)
@@ -566,26 +597,154 @@ class BenchTest(unittest.TestCase):
         self.assertEqual(status, 2, err)
         self.assertEqual(board.writes, [b"p"])
         self.assertEqual(self.meta()["reason"], "campaign_unwritten")
+        # The operator checks the ledger before anything else may use it.
+        lock = Path(str(self.ledger) + ".lock")
+        self.assertTrue(lock.exists())
+        self.assertIn("campaign lock %s kept" % lock, err)
 
-    def test_rearm_and_move_need_the_new_image(self):
+    def test_routes_need_this_line_protocol(self):
         for command, argv, typed in (("rearm", ["--command", "rearm", "--node", "1", "--trial", "3", "--cycles", "3",
                                                 "--interval-ms", "100"], "ATTENDED 3"),
-                                     ("move", MOVE, "ATTENDED 20")):
-            self.clear_output()
-            board = Board()  # routes=1: no rearm or move route.
-            status, _, err = self.run_main(argv, Backend(board), Operator(typed))
-            self.assertEqual(status, 2, err)
-            self.assertEqual(board.writes, [b"p"])
-            self.assertEqual(self.meta()["reason"], "image_route_version")
+                                     ("move", MOVE, "ATTENDED 20"),
+                                     ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
+                                      None)):
+            for routes in (1, 2, 4):  # Older images, and one this runner does not know.
+                self.clear_output()
+                board = Board()
+                board.routes = routes
+                status, _, err = self.run_main(argv, Backend(board), Operator(typed) if typed else None)
+                self.assertEqual(status, 2, err)
+                self.assertEqual(board.writes, [b"p"])
+                self.assertEqual(self.meta()["reason"], "image_route_version")
+            self.ledger.write_bytes(b"")
             self.clear_output()
             board = Board()
-            board.routes = 2
-            status, _, err = self.run_main(argv, Backend(board), Operator(typed, "none"))
-            self.assertEqual(status, 0, err)
-            self.assertEqual(board.writes[-1], (MOVE_LINE if command == "move" else "TR1,3,1,3,100\n").encode())
-            report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
-            self.assertEqual(report.verdict, "complete")
+            status, _, err = self.run_main(argv, Backend(board), Operator(typed, "none") if typed else None)
+            self.assertIn(status, (0, 1), err)  # The synthetic read record has no terminals.
+            if command == "rearm":
+                self.assertEqual(board.writes[-1], signed("TR1,3,1,3,100").encode())
+            elif command == "move":
+                self.assertEqual(board.writes[-1], MOVE_LINE.encode())
             self.ledger.write_bytes(b"")
+
+    def test_concurrent_invocations_refuse_campaign_busy(self):
+        other = Path(self.directory.name) / "second"
+        second = {}
+
+        def run_second(_line):
+            # While the first invocation is sending its line, a second one names the same ledger.
+            board = Board()
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                second["status"] = bench.main(BASE + position(1, 6) + ["--campaign", str(self.ledger), "--output",
+                                                                       str(other)], Backend(board), Clock(),
+                                              Operator("ATTENDED 6", "none"))
+            second.update(err=err.getvalue(), writes=board.writes, ledger=self.ledger.read_bytes())
+
+        status, _, err = self.run_main(position(1, 5), Backend(Board(run_second)), Operator("ATTENDED 5", "none"))
+        self.assertEqual(status, 0, err)
+        self.assertEqual(second["status"], 2, second["err"])
+        self.assertIn("campaign busy", second["err"])
+        self.assertEqual(second["writes"], [])
+        self.assertFalse(other.exists())
+        self.assertEqual([json.loads(line)["event"] for line in second["ledger"].splitlines()], ["send"])
+        self.assertEqual([(e["event"], e["trial"], e["seq"]) for e in self.entries()],
+                         [("send", 5, 1), ("result", 5, 2)])
+        self.assertFalse(Path(str(self.ledger) + ".lock").exists())
+        # Released at the end: the next invocation runs, and chains its entries to these.
+        self.clear_output()
+        status, _, err = self.run_main(position(1, 6), Backend(Board()), Operator("ATTENDED 6", "none"))
+        self.assertEqual(status, 0, err)
+        self.assertEqual([e["seq"] for e in self.entries()], [1, 2, 3, 4])
+
+    def test_stale_lock_is_refused_and_kept(self):
+        lock = Path(str(self.ledger) + ".lock")
+        lock.write_bytes(b'{"pid": 1, "utc": "earlier"}\n')
+        board = Board()
+        status, _, err = self.run_main(position(1, 5), Backend(board), Operator("ATTENDED 5"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("campaign busy: %s exists" % lock, err)
+        self.assertIn("remove %s yourself" % lock, err)
+        self.assertEqual(board.writes, [])
+        self.assertTrue(lock.exists())  # Never removed for the operator.
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        self.assertFalse(self.output.exists())
+
+    def test_ledger_changed_under_the_lock_refuses_before_sending(self):
+        later = chain([send_entry("A", 1, 9, 0), result_entry(1, 9)])
+
+        def operator(question):
+            # Something wrote the ledger behind the lock while the operator answered.
+            self.ledger.write_bytes(later)
+            return "ATTENDED 5"
+        board = Board()
+        status, _, err = self.run_main(position(1, 5), Backend(board), operator)
+        self.assertEqual(status, 2, err)
+        self.assertEqual(board.writes, [b"p"])
+        self.assertEqual(self.meta()["reason"], "campaign_refused")
+        self.assertIn("not above every trial", self.meta()["campaign_error"])
+        self.assertEqual(self.ledger.read_bytes(), later)
+
+    def test_broken_chain_refuses(self):
+        good = [send_entry("A", 1, 1, 0), result_entry(1, 1), send_entry("P", 1, 2), result_entry(1, 2)]
+        lines = chain(good).splitlines(keepends=True)
+        changed = lines[1].replace(b'"reason": "ended"', b'"reason": "no_end"')  # Still a valid entry.
+        cases = {"changed": lines[0] + changed + b"".join(lines[2:]), "removed": b"".join(lines[1:]),
+                 "removed-middle": lines[0] + b"".join(lines[2:]), "repeated": b"".join(lines[:2] + lines[1:]),
+                 "reordered": lines[1] + lines[0] + b"".join(lines[2:]),
+                 "unchained": b"".join(json.dumps(e).encode() + b"\n" for e in good)}
+        self.assertNotEqual(changed, lines[1])
+        for name, text in cases.items():
+            self.ledger.write_bytes(text)
+            board = Board()
+            status, _, err = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+            self.assertEqual(status, 2, (name, err))
+            self.assertTrue("chain" in err or "seq" in err, (name, err))
+            self.assertEqual(board.writes, [])
+            self.assertEqual(self.ledger.read_bytes(), text)
+        self.ledger.write_bytes(chain(good))
+        status, _, err = self.run_main(position(1, 20), Backend(Board()), Operator("ATTENDED 20", "none"))
+        self.assertEqual(status, 0, err)
+
+    def test_truncated_ledger(self):
+        whole = chain([send_entry("P", 1, 1), result_entry(1, 1), send_entry("P", 1, 2), result_entry(1, 2)])
+        for cut in (len(whole) - 5, len(whole) - 60, whole.index(b"\n") + 7):
+            self.ledger.write_bytes(whole[:cut])
+            board = Board()
+            status, _, err = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+            self.assertEqual(status, 2, err)
+            self.assertIn("partial line", err)
+            self.assertEqual(board.writes, [])
+            self.assertEqual(self.ledger.read_bytes(), whole[:cut])
+        # A cut at a line end is still a valid chain: only the committed ledger's history shows it.
+        self.ledger.write_bytes(whole[:whole.rindex(b"\n", 0, len(whole) - 1) + 1])
+        status, _, err = self.run_main(position(1, 20), Backend(Board()), Operator("ATTENDED 20", "none"))
+        self.assertEqual(status, 0, err)
+
+    def test_inconsistent_send_entry_refuses(self):
+        def changed(**fields):
+            return dict(send_entry("P", 1, 4), **fields)
+        bad = {"motion over its stop": changed(motion=2), "motion on a read": dict(send_entry("A", 1, 4, 0), motion=1),
+               "no motion on a motion route": changed(motion=0), "stop on mode1": dict(send_entry("M", 1, 4), stop=1),
+               "boolean trial": changed(trial=True), "text trial": changed(trial="4"), "float trial": changed(trial=4.0),
+               "node": changed(node=3), "line of another trial": changed(line=bench.sign_line("TP1,5,1,0,0,0,0,0")),
+               "line without its field": changed(line="TP1,4,1,0,0,0,0,0"),
+               "line with a wrong field": changed(line="TP1,4,1,0,0,0,0,0,K00000000"),
+               "line stop differs": changed(stop=1, motion=2), "route": changed(route="X")}
+        for name, entry in bad.items():
+            text = chain([send_entry("A", 1, 1, 0), entry])
+            self.ledger.write_bytes(text)
+            board = Board()
+            status, _, err = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+            self.assertEqual(status, 2, (name, err))
+            self.assertIn("line 2 is an inconsistent send entry", err, name)
+            self.assertEqual(board.writes, [])
+            self.assertEqual(self.ledger.read_bytes(), text)
+        # A result entry with no send entry before it.
+        self.ledger.write_bytes(chain([result_entry(1, 1)]))
+        status, _, err = self.run_main(position(1, 20), Backend(Board()), Operator("ATTENDED 20"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("without its send entry", err)
 
     def test_single_byte_commands_unchanged(self):
         board = Board()

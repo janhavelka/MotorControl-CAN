@@ -47,6 +47,23 @@ Packet 22 asks for this record before any motion is transmitted. Every field bel
 | Node 2, then two-node work with an urgent stop on the other node | Not possible as routes stand: one route runs at a time | A two-node plan with its own bounds; keep the second axis stationary meanwhile |
 | Task stack during actions | Every route records it | No action ran |
 
+## Review of the campaign tools
+
+An independent reviewer read the `rearm` and `move` routes, the `position` changes, the host ledger and the parser, and ran a probe against the real fake owner. **It found no path that sends a motion or controlword write the operator did not ask for.** Fixed, each with a test that fails without its fix:
+
+| Finding | Fix |
+| --- | --- |
+| Lost evidence never changed an action route's outcome: a move with a flooded trace finished `NONE` | Loss ends the route `EVIDENCE_LOSS` and withdraws an active enable or move locally (`lossCancel=1`); nothing is sent because of it |
+| Two invocations sharing a ledger could both pass the caps | An exclusive lock per invocation, and a reload and recheck before the send entry |
+| A damaged or edited ledger was accepted | A `seq` and SHA-256 chain, and consistency checks on each send entry. The tail and a restored copy still need the ledger committed with each session |
+| The parser logged move and stop outcomes as one signal | Separate names for enable, stop and move results |
+| A planned stop refused at the cutoff let the move run on | The move or position write is refused unless the stop's span fits the cutoff |
+| The predecessor was checked one turn before the first write | Checked again when the write is offered |
+| A corrupted command line could parse as another valid plan | Line protocol 3: a CRC-32 on every route line, refused `crc` otherwise |
+| `begin()` trusted the parser's ranges | `begin()` validates the plan itself |
+
+The lead added one more: an EMCY withdrawal used the route's own time, which the session refuses if the owner's clock is ahead. It now uses the later of the two, as the loss and abort paths do. **The board still runs `261a25b`, protocol 2: reflash before any route.**
+
 ## Sibling refresh
 
 | Sibling | Revision | Dirty | Disposition |
@@ -58,7 +75,7 @@ Packet 22 asks for this record before any motion is transmitted. Every field bel
 
 ## Next smallest measurement
 
-1. Flash the image built from the current commit and confirm it with `ping`. The board ran `fcea8b4` overnight, which lacks the bounds fix and the newer routes.
+1. Flash the image built from the current commit and confirm `ping` reports `routes=3`. The board now runs `261a25b`, which has the bounds fix but line protocol 2, so the current host tool refuses its routes.
 2. Packet 15 P2 on node 1 with an attendant: `6060=1` and fresh reads, with no enable. Everything physical depends on it.
 
 ## Checks
