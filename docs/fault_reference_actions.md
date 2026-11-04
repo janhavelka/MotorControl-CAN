@@ -148,7 +148,8 @@ admitting fresh readback. The action's frozen reservation remains the original
 exclusion token; observation work uses the new configuration. The owner's
 configuration callback revokes PDO/cache provenance but must recognize this as
 synchronization of an already withdrawn axis, **not** increment the axis a
-second time. See [owner guidance](can_owner.md).
+second time. See [owner guidance](can_owner.md). `AxisSession` makes this call
+itself, as its section below describes.
 
 A failed final-zero write with definite retirement still permits explicit
 synchronization after its retained old-epoch result is released, provided the
@@ -165,6 +166,53 @@ admitted acquisition; they cannot rewrite the failed action's terminal. An MCU
 restart loses the context, the axis epochs and the quarantine together: the new
 `SdoClient` may claim `freshSessionQualified` only on its own external evidence,
 and the restarted application has no coordinate confidence to restore.
+
+## Application caller: `AxisSession`
+
+[`AxisSession`](../examples/common/AxisSession.h) is the example application's
+caller of both actions (backlog S12). It is **host** evidence only, through the
+real owner in `axis_session_test`. No specimen has run it, and no bench route
+calls it yet.
+
+- **Request.** `requestClearAlarm(state, options, deadlineUs, nowUs)` and
+  `requestCounterZero(state, nativePosition, axis, reference, options,
+  deadlineUs, nowUs)` prepare `clearAction()` on the session's reservation. The
+  two share that one slot, and `actionKind` says which ran. Either is refused,
+  with nothing changed, while a stop, enable, move, clear or command is live, or
+  while `clearBlocked()`. A nonzero `nativePosition` returns `UNSUPPORTED` before
+  any state, axis or budget check. `service()` then admits every write and read
+  through the ordinary owner path, never a write twice.
+- **Notices.** Each write's possible-TX notice is made when the session admits
+  it, before any owner turn can carry it. For the counter clear's `1` that
+  notice is the coordinate withdrawal, so `axis` and `reference` stay borrowed
+  until the clear ends. If the application changed them in between, the notice
+  refuses and the `1` is cancelled unsent, with nothing withdrawn.
+- **Synchronization.** After the last `0` is acknowledged and released, the
+  session calls `CanBusOwner::advanceConfiguration` itself, before the first
+  read on the new epoch. After any other end once the `1` was admitted, even a
+  `1` cancelled unsent, it makes the same call once nothing of it is
+  outstanding. Neither withdraws coordinates: the application's configuration
+  observer finds the axis already advanced and must not advance it again. An
+  unresolved route never moves. A latest controlword from the old epoch is
+  withdrawn. A session closed first drops the pending call, which the
+  application then makes.
+- **Stop.** `requestStop` ends an active clear first, even when the stop itself
+  is refused. A write the owner has not handed over is cancelled, a request in
+  flight settles into the context as evidence, and `preflight()` refuses a
+  withdrawn clear's write at handover. The clear's writes withdrew the latest
+  controlword, so the stop usually takes the `000B` branch. A first write
+  cancelled unsent restores that word.
+- **Block.** A clear that ends with `valueOneMayRemain` sets `clearBlocked()`.
+  Every later request except a stop is then refused for the session object's
+  life, across result release, close and open, as MotorControl-RS
+  `actionConflicts` does. Nothing clears it or resends a value. After an MCU
+  restart only the application's own record can carry it.
+- **EMCY.** The session has no EMCY view. The application copies the incident's
+  EMCY before the request, since the owner keeps only the latest. It routes a
+  later one with `cancelClear(nowUs, DRIVE_FAULT)`: the request in flight settles
+  as evidence, and the clear ends with that reason.
+- **Afterwards.** `requestEnable` stays refused because the session has written.
+  No save, resume, home or host origin follows either clear.
 
 ## Time, support and remaining qualification
 

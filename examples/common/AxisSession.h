@@ -1,5 +1,5 @@
 /** @file AxisSession.h
- * @brief One axis's application state: reservation, latest controlword, stop, enable and move work.
+ * @brief One axis's application state: reservation, latest controlword, stop, enable, move and clear work.
  * SPDX-License-Identifier: MIT
  */
 #pragma once
@@ -70,6 +70,15 @@ struct StopPolicy {
  * must call preflight() of the session that holds the sequence. Without it the recheck holds only at
  * admission: an invalidateAxisReference, configureAxis or witness expiry in between does not stop that
  * frame, though it still refuses the next one.
+ *
+ * The alarm clear (2301) and the zero-only counter clear (2302) share one slot, one service branch and
+ * one withdrawal; no specimen has run either. Each is one explicit request, and no write of it is ever
+ * sent twice. A stop request ends an active clear first, even if the stop itself is refused, and cancels
+ * a write the owner has not yet handed to the controller, as for a move. A clear whose value 1 may still
+ * be held by the drive (the context's valueOneMayRemain) blocks every later request but a stop for this
+ * object's life, across result release, close and open, as MotorControl-RS's actionConflicts does. A
+ * counter clear withdraws the borrowed axis's coordinates when its 1 is admitted, once, and then moves the
+ * owner's reservation to that new configuration epoch itself, withdrawing nothing a second time.
  */
 class AxisSession {
   public:
@@ -91,7 +100,9 @@ class AxisSession {
               MotorControlCAN::LICHUAN_C::SettingsModel model, uint8_t producer,
               uint64_t nowUs) noexcept;
     /** Close after every result is consumed, keeping no history. Releases only a
-     * reservation this session took.
+     * reservation this session took. A counter clear's owner synchronization that service() could not
+     * yet make is dropped with that history: the application then calls
+     * CanBusOwner::advanceConfiguration itself before it opens on the axis's new binding.
      * @return False unchanged while a command or stop is live or its result is unread.
      */
     bool close() noexcept;
@@ -113,11 +124,13 @@ class AxisSession {
     }
     /** @return True while a move is neither finished nor failed. */
     bool moveActive() const noexcept { return move_.state == MotorControlCAN::ActionState::ACTIVE; }
-    /** @return True with a stop, enable or move in progress or a request unsettled, which excludes new
-     * operations and reads: starting one would orphan that terminal's history. */
+    /** @return True while an alarm clear or counter clear is neither finished nor failed. */
+    bool clearActive() const noexcept { return clear_.state == MotorControlCAN::ActionState::ACTIVE; }
+    /** @return True with a stop, enable, move or clear in progress or a request unsettled, which excludes
+     * new operations and reads: starting one would orphan that terminal's history. */
     bool busy() const noexcept {
-        return stopActive() || enableActive() || moveActive() || pending_.owner || urgent_.owner ||
-               superseded_.owner;
+        return stopActive() || enableActive() || moveActive() || clearActive() || pending_.owner ||
+               urgent_.owner || superseded_.owner;
     }
     /** Start a new operation for the next commands on this reservation.
      * @param[in] deadlineUs Immutable exclusive future cutoff.
@@ -158,11 +171,14 @@ class AxisSession {
      * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity
      * width setting is ignored, so options shared with identity reads cannot refuse a stop.
      * @param[in] nowUs Nondecreasing supplied microseconds. A time before this session's or the
-     * owner's last time refuses the stop but still ends an active enable or move, at the later of
-     * those two times, where the owner can still cancel the move's unsent download.
+     * owner's last time refuses the stop but still ends an active enable, move or clear, at the later
+     * of those two times, where the owner can still cancel the move's or clear's unsent download.
      * @return The path taken; NONE when refused, with only a stale controlword withdrawn and an
-     * active enable or move ended, because asking for a stop means no further enable or move word. A
-     * read held in enableAction() is judged after that enable has ended.
+     * active enable, move or clear ended, because asking for a stop means no further word of theirs. A
+     * read held in enableAction() or clearAction() is judged after that action has ended. A stop
+     * requested during a clear usually finds no latest controlword, since the clear's writes withdrew
+     * it, and so takes the 000B branch when the policy allows; fresh state reporting an idle alarmed
+     * drive refuses it.
      */
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -178,8 +194,9 @@ class AxisSession {
      * @param[in] options Copied budgets, as prepareEnable requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareEnable's status, or a local refusal with ActionError::STATE, TARGET or TIME. On any
-     * refusal nothing changes, and on success no word has yet been admitted.
+     * @return prepareEnable's status, or a local refusal with ActionError::STATE, TARGET or TIME, which
+     * includes clearBlocked(). On any refusal nothing changes, and on success no word has yet been
+     * admitted.
      */
     MotorControlCAN::Status requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                           const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
@@ -215,8 +232,9 @@ class AxisSession {
      * @param[in] options Copied budgets.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole move.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE, TARGET or TIME. On
-     * any refusal nothing changes, and on success nothing has been admitted.
+     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE, TARGET or TIME,
+     * which includes moveFenced() and clearBlocked(). On any refusal nothing changes, and on success
+     * nothing has been admitted.
      */
     MotorControlCAN::Status requestMove(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                         const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
@@ -269,6 +287,82 @@ class AxisSession {
      */
     bool cancelMove(uint64_t nowUs, MotorControlCAN::MoveInterruption reason =
                                         MotorControlCAN::MoveInterruption::CANCELLED) noexcept;
+    /** Request one explicit alarm clear on this axis through prepareClearAlarm: 2301 U16 1, then 0
+     * after the 1's acknowledgement. No specimen has run it. Starts a new owner operation, then prepares
+     * clearAction() in place. Yields no traffic here: service() admits each write and read on this
+     * reservation, as for an enable. After the 0's acknowledgement it reads MONITORS and STATUS until 2100
+     * reports the alarm clear, then ERRORS once. An alarm that persists after both acknowledgements is
+     * that result: it is repolled until the deadline and never written again. Nothing follows the clear:
+     * no enable, controlword, mode, target, save or resume, and requestEnable stays refused because this
+     * session has written. An observed clear is a drive report, not proof that the cause is gone.
+     * @param[in] state Complete fresh SDO read of ERRORS, ERROR_HISTORY, MONITORS and STATUS under this
+     * reservation, as prepareClearAlarm requires: 2100 alarm set and running clear, mode 1, raw 603F
+     * FF05. Not held inside clearAction(). Its raw values stay in clearAction().incident, whose codeLink
+     * is UNRESOLVED: the code does not identify the alarm.
+     * @param[in] options Copied budgets, as prepareClearAlarm requires.
+     * @param[in] deadlineUs Immutable exclusive cutoff of both writes and every observation.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return prepareClearAlarm's status, or a local refusal with ActionError::STATE (busy, clearBlocked()
+     * or identities exhausted), TARGET (no usable reservation) or TIME. On such a refusal nothing
+     * changes, and on success nothing has been admitted. If the owner then refuses the operation, which
+     * only work admitted around this session can cause, the prepared context ends INVALIDATED with
+     * nothing sent and STATE is returned. The owner keeps only the latest EMCY: an application that
+     * needs the incident's EMCY copies it before this call, and routes a later one to cancelClear.
+     */
+    MotorControlCAN::Status requestClearAlarm(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                                              const MotorControlCAN::LICHUAN_C::ActionOptions& options,
+                                              uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Request one explicit zero-only device counter clear on this axis through
+     * prepareSetDevicePosition: 2302 U16 0, 1, 0, each after the previous acknowledgement, all on the
+     * original binding. No specimen has run it. Starts a new owner operation, then prepares
+     * clearAction() in place. Yields no traffic here: service() admits each write. When the 1 is
+     * admitted, before any owner turn could carry it, the axis-aware notice withdraws axis's origins and
+     * soft-limit qualification and reference's witness and advances both axis epochs, exactly once;
+     * configured limit values and units stay. That withdrawal stays whatever follows, even when the 1
+     * is then cancelled unsent. Once the last write is acknowledged and released, service() moves the
+     * owner's reservation to the new configuration epoch with CanBusOwner::advanceConfiguration, then
+     * reads MONITORS, STATUS and FEEDBACK on it until raw 6064 reads 0. After any other end once the 1
+     * was admitted, it makes the same move once nothing of this session is outstanding; an unresolved
+     * route never moves. That synchronization withdraws no coordinates: an application observer
+     * receiving its CONFIGURATION notice finds the axis already advanced and must not advance it again.
+     * A raw zero is no home, host origin or counter mapping, and no save, enable or resumed target
+     * follows.
+     * @param[in] state Complete fresh SDO read of MONITORS, STATUS and FEEDBACK under this reservation,
+     * as prepareSetDevicePosition requires: mode 1, 2100 running and alarm clear, 606C raw 0. Not held
+     * inside clearAction(). This is the library's stationarity evidence, not an observed shaft.
+     * @param[in] nativePosition Requested native device position. Only exactly 0 is supported; any
+     * other value refuses with UNSUPPORTED, unchanged, before any state, axis or budget check.
+     * @param[in,out] axis The application's coordinate configuration of this axis, matching this
+     * reservation's binding with room in both epochs. Borrowed until the clear is terminal: every write's
+     * notice checks it, and the 1's notice withdraws it. Change nothing in it meanwhile, or the next
+     * write's notice refuses, that write is cancelled and the clear ends INVALIDATED.
+     * @param[in,out] reference The application's position witness of this axis, withdrawn with the axis;
+     * one with nativeKnown false when it keeps none. Borrowed like axis.
+     * @param[in] options Copied budgets; maximumAgeUs must cover seven fields.
+     * @param[in] deadlineUs Immutable exclusive cutoff of the writes, the synchronization and every
+     * observation.
+     * @param[in] nowUs Nondecreasing supplied microseconds.
+     * @return prepareSetDevicePosition's status, or a local refusal as requestClearAlarm's.
+     */
+    MotorControlCAN::Status requestCounterZero(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                                               int64_t nativePosition, MotorControlCAN::AxisConfig& axis,
+                                               MotorControlCAN::AxisReference& reference,
+                                               const MotorControlCAN::LICHUAN_C::ActionOptions& options,
+                                               uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Withdraw an active alarm clear or counter clear locally: no further write or read is admitted, and
+     * a write the owner has not yet handed to the controller is cancelled. It sends no stop and undoes
+     * nothing: a coordinate withdrawal stays, and a 1 that may have landed without an acknowledged 0
+     * leaves valueOneMayRemain and clearBlocked(). A request in flight, or one whose cancel the owner did
+     * not report as won, settles into the context later as evidence only. The owner gives this session no
+     * EMCY view, so an application that routes a drive fault, such as an EMCY during the clear, reports it
+     * here; whether that EMCY is a new fault is its policy, and its copy stays with it.
+     * @param[in] nowUs Nondecreasing supplied microseconds, at or after owner.lastTimeUs().
+     * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault.
+     * @return False, with nothing changed, when no clear is active, the reason is another value or the
+     * time is behind this session's or the owner's last time.
+     */
+    bool cancelClear(uint64_t nowUs,
+                     MotorControlCAN::ActionOutcome reason = MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
     /** The pre-transmit recheck of this session's move downloads. Call it from the application's
      * Transport::beforeTransmit, for the session that holds the sequence, and return its result. It
      * runs inside the owner's service turn, performs no owner call and keeps only a refusal reason.
@@ -277,12 +371,13 @@ class AxisSession {
      * and the admission read's age. A download of a withdrawn move is refused too, so it never leaves
      * after the withdrawal even if its cancel did not win. The owner then closes the download with
      * CompletionReason::PREFLIGHT_REJECTED, provably unsent, and the move ends INVALIDATED, or with its
-     * withdrawal's reason, and moveRefusal() keeps why.
+     * withdrawal's reason, and moveRefusal() keeps why. A write of a withdrawn clear is refused the same
+     * way, and its clear ends with its withdrawal's reason.
      * @param[in] sequence Reservation of the work about to be handed over.
      * @param[in] transfer Its download, borrowed for this call.
      * @param[in] nowUs The owner turn's processing time.
-     * @return False to withdraw the download; true for every other sequence, operation, the rearm and
-     * uploads.
+     * @return False to withdraw the download; true for every other sequence, operation, the rearm,
+     * a live clear's writes and uploads.
      */
     bool preflight(MotorControlCANOwner::SequenceId sequence,
                    const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t nowUs) noexcept;
@@ -312,11 +407,24 @@ class AxisSession {
     /** @return True once a move's trigger may have reached the drive without an observed completion;
      * new moves are refused for this object's life. */
     bool moveFenced() const noexcept { return moveFenced_; }
+    /** @return Retained context of the latest requestClearAlarm or requestCounterZero; EMPTY if neither
+     * was prepared since open. The two share this one slot, so a new request of either kind replaces it:
+     * actionKind is CLEAR_ALARM or SET_DEVICE_POSITION. commandHistory keeps every write's terminal,
+     * failure included; execution describes the 1; valueOneMayRemain and uncertain record what may have
+     * landed. A read held in it and passed to requestStop is judged after that clear has ended. */
+    const MotorControlCAN::LICHUAN_C::ActionContext& clearAction() const noexcept { return clear_; }
+    /** @return True once a clear ended with valueOneMayRemain: its 1 may have reached the drive and its 0
+     * has no positive acknowledgement, so 2301 or 2302 may still hold 1, with undocumented effect.
+     * Every later request but a stop is then refused for this object's life, across result release,
+     * close and open; nothing here resends either value or can show that the object returned to 0. A new
+     * object, as after an MCU restart, knows nothing, so the application's own record must carry it. */
+    bool clearBlocked() const noexcept { return clearBlocked_; }
     /** @return The operation identity requestEnable would run under now, for EnableEvidence::operation;
      * zero without a usable reservation or with identities exhausted. */
     uint32_t nextOperation() const noexcept;
     /** Advance session work after an owner service turn; performs no owner service.
-     * Also withdraws the latest controlword when its route, reservation or epochs change.
+     * Also withdraws the latest controlword when its route, reservation or epochs change, and moves
+     * the reservation to a counter clear's new configuration epoch once nothing of it is outstanding.
      * @param[in] nowUs Nondecreasing supplied microseconds.
      */
     void service(uint64_t nowUs) noexcept;
@@ -380,6 +488,17 @@ class AxisSession {
     const MotorControlCAN::AxisReference* moveReference_ = nullptr;
     MotorControlCAN::LICHUAN_C::DriverContext* retained_[4] = {};
     uint8_t retainedCount_ = 0;
+    // The latest alarm clear or counter clear. One slot for both: they exclude each other, and a
+    // second ActionContext would cost its whole size again in every session.
+    MotorControlCAN::LICHUAN_C::ActionContext clear_;
+    // The clear's current target: its frozen reservation's, until a counter clear's 1 notice advances the
+    // configuration epoch. It cannot be reservation_.target, which that notice must not overlap.
+    MotorControlCAN::LICHUAN_C::ReadTarget clearTarget_;
+    // The application's axis and witness, borrowed for a counter clear's notices only.
+    MotorControlCAN::AxisConfig* clearAxis_ = nullptr;
+    MotorControlCAN::AxisReference* clearReference_ = nullptr;
+    MotorControlCAN::ActionOutcome clearWithdrawn_ = MotorControlCAN::ActionOutcome::NONE;
+    bool clearBlocked_ = false;
 
     bool usable() const noexcept;
     uint64_t latestUs() const noexcept;
@@ -405,6 +524,16 @@ class AxisSession {
     void endMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
     void afterMove() noexcept;
     void serviceMove(uint64_t nowUs) noexcept;
+    MotorControlCAN::Status startClear(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                                       int64_t nativePosition, MotorControlCAN::AxisConfig* axis,
+                                       MotorControlCAN::AxisReference* reference,
+                                       const MotorControlCAN::LICHUAN_C::ActionOptions& options,
+                                       uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    void withdrawClear(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
+    void endClear(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
+    void afterClear() noexcept;
+    bool syncCounter(uint64_t nowUs) noexcept;
+    void serviceClear(uint64_t nowUs) noexcept;
     bool stateRefuses(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,
                       uint64_t nowUs) const noexcept;
     bool freshlyIdle(const MotorControlCAN::LICHUAN_C::ReadContext& state, const StopPolicy& policy,

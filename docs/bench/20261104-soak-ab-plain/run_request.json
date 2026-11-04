@@ -1,0 +1,71 @@
+{
+  "command": "soak-run",
+  "started_utc": "2026-11-04T12:10:37.740571+00:00",
+  "fixture": {
+    "port": "COM15",
+    "usb_serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "until": null,
+  "duration_s": 10800,
+  "end_local": "2026-11-04T16:10:37.724387+01:00",
+  "interval_ms": 20,
+  "summary_s": 60,
+  "reads": "full",
+  "max_trials": 3,
+  "objects": {
+    "state": [
+      "6041:00",
+      "6061:00",
+      "6064:00",
+      "606C:00"
+    ],
+    "monitors": [
+      "2100:00",
+      "2101:00",
+      "2102:00"
+    ],
+    "identity_once_per_node": [
+      "1000:00",
+      "1009:00",
+      "100A:00",
+      "1018:00",
+      "1018:01",
+      "1018:02",
+      "1018:03",
+      "2000:00",
+      "2001:00"
+    ],
+    "read_disposition": "accepted_not_qualified",
+    "never_read": [
+      "603F:00",
+      "1001:00",
+      "1003"
+    ]
+  },
+  "reset": false,
+  "retry": false,
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--duration-s",
+    "10800",
+    "--interval-ms",
+    "20",
+    "--summary-s",
+    "60",
+    "--reads",
+    "full",
+    "--output",
+    "docs/bench/20261104-soak-ab-plain"
+  ],
+  "time_basis": "firmware processing microseconds; receive bounds are separate, no wall clock",
+  "host_revision": "e356baf19a3d47a7035c48bb8d9f52708c6455c6",
+  "host_dirty": true
+}

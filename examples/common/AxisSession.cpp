@@ -31,6 +31,7 @@ bool sameRequest(RequestId a, RequestId b) {
 bool sameSequence(SequenceId a, SequenceId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
 }
+const char* const CLEAR_BLOCKED = "an earlier clear's value 1 may still be held; only a stop is admitted";
 } // namespace
 
 // The owner refuses a time before its own last one, so a session call at such a time would fail part
@@ -104,6 +105,12 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     moveRefusal_ = M::Status();
     moveAxis_ = nullptr;
     moveReference_ = nullptr;
+    // clearBlocked_ stays: reopening cannot show that the drive's 2301 or 2302 returned to 0.
+    L::resetAction(clear_);
+    clearTarget_ = target;
+    clearAxis_ = nullptr;
+    clearReference_ = nullptr;
+    clearWithdrawn_ = M::ActionOutcome::NONE;
     bestEffort_ = firstBestEffort_ = L::BestEffortStop();
     path_ = StopPath::NONE;
     ownsReservation_ = taken;
@@ -165,7 +172,7 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
     return admission;
 }
 bool AxisSession::settle(C::SdoCompletion& output) noexcept {
-    return !enableActive() && !moveActive() && takeTerminal(output);
+    return !enableActive() && !moveActive() && !clearActive() && takeTerminal(output);
 }
 bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     const Completion* terminal = owner_.result(pending_);
@@ -203,6 +210,8 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
                          "no usable reservation for an enable");
     if (busy())
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
+    if (clearBlocked_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
     if (motionWritten_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "this session wrote to the drive; no fresh enable history remains");
@@ -344,6 +353,8 @@ M::Status AxisSession::startMove(bool relative, const L::ReadContext& state,
     if (moveFenced_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "an earlier trigger may still be moving the drive: new moves stay fenced");
+    if (clearBlocked_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
     withdrawIfStale();
     if (!controlPresent_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "no latest acknowledged controlword");
@@ -538,6 +549,180 @@ void AxisSession::serviceMove(uint64_t now) noexcept {
         withdrawMove(M::MoveInterruption::INVALIDATED, now);
     }
 }
+M::Status AxisSession::requestClearAlarm(const L::ReadContext& state, const L::ActionOptions& options,
+                                         uint64_t deadline, uint64_t now) noexcept {
+    return startClear(state, 0, nullptr, nullptr, options, deadline, now);
+}
+M::Status AxisSession::requestCounterZero(const L::ReadContext& state, int64_t nativePosition,
+                                          M::AxisConfig& axis, M::AxisReference& reference,
+                                          const L::ActionOptions& options, uint64_t deadline,
+                                          uint64_t now) noexcept {
+    return startClear(state, nativePosition, &axis, &reference, options, deadline, now);
+}
+// One request path for both clears; a null axis is the alarm clear.
+M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePosition, M::AxisConfig* axis,
+                                  M::AxisReference* reference, const L::ActionOptions& options,
+                                  uint64_t deadline, uint64_t now) noexcept {
+    const int32_t stateError = static_cast<int32_t>(M::ActionError::STATE);
+    if (now < latestUs())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TIME),
+                         "time is behind this session's or the owner's last time");
+    if (!open_ || !usable())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::ActionError::TARGET),
+                         "no usable reservation for a clear");
+    if (busy())
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
+    if (clearBlocked_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
+    const uint32_t next = nextOperation();
+    if (!next)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
+    // The library has no separate check for these two, but it validates everything before it writes
+    // the context, so a refusal here changes nothing. The owner moves only after that.
+    const M::Status prepared =
+        axis ? L::prepareSetDevicePosition(clear_, reservation_, state, nativePosition, *axis, next, now,
+                                           deadline, options)
+             : L::prepareClearAlarm(clear_, reservation_, state, next, now, deadline, options);
+    if (!prepared)
+        return prepared;
+    clearTarget_ = reservation_.target;
+    clearWithdrawn_ = M::ActionOutcome::NONE;
+    // Checked above but for work admitted around this session, which the class contract excludes.
+    if (!owner_.beginOperation(sequence_, next, deadline, now)) {
+        L::advanceAction(clear_, reservation_, clearTarget_, M::ActionOutcome::INVALIDATED, now);
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
+    }
+    clearAxis_ = axis;
+    clearReference_ = reference;
+    operation_ = next;
+    lastUs_ = now;
+    return M::Ok();
+}
+bool AxisSession::cancelClear(uint64_t now, M::ActionOutcome reason) noexcept {
+    if (now < latestUs() || !clearActive() ||
+        (reason != M::ActionOutcome::CANCELLED && reason != M::ActionOutcome::DRIVE_FAULT))
+        return false;
+    lastUs_ = now;
+    withdrawClear(reason, now);
+    return true;
+}
+// As for a move: the first reason wins, a write the owner has not yet handed to the controller is
+// cancelled so that it cannot leave after the withdrawal, and a request in flight keeps the slot and
+// settles into the context as evidence. Work that may have left is never cancelled, because that could
+// quarantine the route. A 1 already sent is never followed by its 0 here: that would be a new write after
+// the withdrawal, and valueOneMayRemain then records what may be held.
+void AxisSession::withdrawClear(M::ActionOutcome reason, uint64_t now) noexcept {
+    if (!clearActive() || clearWithdrawn_ != M::ActionOutcome::NONE)
+        return;
+    clearWithdrawn_ = reason;
+    if (pending_.owner && !owner_.result(pending_) && !owner_.mayHaveTransmitted(pending_))
+        owner_.cancel(pending_, now);
+    if (const Completion* closed = pending_.owner ? owner_.result(pending_) : nullptr)
+        keepUnsentControl(closed->service);
+    if (!pending_.owner)
+        endClear(reason, now);
+    else if (!L::noteActionWithdrawal(clear_, reservation_, clearTarget_, reason, now).isOk())
+        L::noteActionWithdrawal(clear_, reservation_, clearTarget_, M::ActionOutcome::INVALIDATED, now);
+}
+// Nothing in flight: end it now, keeping every earlier terminal.
+void AxisSession::endClear(M::ActionOutcome reason, uint64_t now) noexcept {
+    if (!L::advanceAction(clear_, reservation_, clearTarget_, reason, now).isOk())
+        L::advanceAction(clear_, reservation_, clearTarget_, M::ActionOutcome::INVALIDATED, now);
+    afterClear();
+}
+// The block outlives this context and every release: only a stop is admitted after a possibly held 1.
+// The reservation follows the epoch a synchronization reached, now that no clear needs the old one. A
+// synchronization still owed waits for service(), never inside a stop request.
+void AxisSession::afterClear() noexcept {
+    clearBlocked_ |= clear_.valueOneMayRemain;
+    clearAxis_ = nullptr; // The borrow ends with the clear.
+    clearReference_ = nullptr;
+    reservation_.target.channel.binding = target_.channel.binding;
+}
+// A counter clear's 1 notice advanced the axis and clearTarget_ at once. The owner's reservation follows
+// once nothing of this session is outstanding: its configuration callback then sees an axis already
+// withdrawn, and this withdraws no coordinates. An unresolved route has no usable reservation, so it
+// never moves. A latest controlword from the old epoch is withdrawn, as for any epoch change.
+bool AxisSession::syncCounter(uint64_t now) noexcept {
+    if (!clear_.coordinatesInvalidated ||
+        M::sameBinding(target_.channel.binding, clearTarget_.channel.binding))
+        return true;
+    if (pending_.owner || urgent_.owner || superseded_.owner || stopActive() || !usable() ||
+        !owner_.advanceConfiguration(sequence_, clearTarget_.channel.binding, now))
+        return false;
+    dropControl();
+    target_.channel.binding = clearTarget_.channel.binding;
+    if (!clearActive())
+        reservation_.target.channel.binding = target_.channel.binding;
+    lastUs_ = now;
+    return true;
+}
+void AxisSession::serviceClear(uint64_t now) noexcept {
+    if (!clearActive())
+        return;
+    // As for an enable: the frozen reservation identifies this clear, with clearTarget_ its current
+    // target, and real currentness is checked below, so that a terminal is consumed with its evidence
+    // even after its route has gone.
+    if (pending_.owner) {
+        C::SdoCompletion evidence;
+        if (!takeTerminal(evidence))
+            return;
+        // As for a move: a cancel this session did not make, such as another producer's urgent operation
+        // on this reservation, is recorded as INVALIDATED, so that the clear reports no cancel of its own.
+        // A revoked reservation or a transmit guard's refusal already reads as an invalidation.
+        if (evidence.outcome == C::SdoOutcome::CANCELLED && clearWithdrawn_ == M::ActionOutcome::NONE) {
+            clearWithdrawn_ = M::ActionOutcome::INVALIDATED;
+            L::noteActionWithdrawal(clear_, reservation_, clearTarget_, M::ActionOutcome::INVALIDATED, now);
+        }
+        if (!L::advanceAction(clear_, reservation_, clearTarget_, evidence, now).isOk()) {
+            endClear(clearWithdrawn_ != M::ActionOutcome::NONE ? clearWithdrawn_
+                                                               : M::ActionOutcome::INVALIDATED,
+                     now);
+            return;
+        }
+        if (!clearActive()) {
+            afterClear();
+            return;
+        }
+    }
+    if (clearWithdrawn_ != M::ActionOutcome::NONE || now >= clear_.deadlineUs || !usable()) {
+        endClear(now >= clear_.deadlineUs                       ? M::ActionOutcome::DEADLINE
+                 : clearWithdrawn_ != M::ActionOutcome::NONE ? clearWithdrawn_
+                                                             : M::ActionOutcome::INVALIDATED,
+                 now);
+        return;
+    }
+    // A counter clear reads on the epoch its 1 advanced, so the owner moves there before the first read.
+    // A refusal is offered again on a later turn, until the deadline: it sends nothing.
+    if (clear_.phase != L::ActionPhase::COMMAND && !syncCounter(now))
+        return;
+    L::PreparedAction work;
+    if (!L::nextAction(clear_, reservation_, clearTarget_, now, work).isOk()) {
+        endClear(M::ActionOutcome::INVALIDATED, now);
+        return;
+    }
+    if (!work.ready)
+        return;
+    const BusAdmission admission = admitWork(work.transfer, now);
+    if (admission == BusAdmission::RESULTS_FULL)
+        return; // Unsent, so the same work is simply offered again.
+    if (admission != BusAdmission::ACCEPTED) {
+        endClear(M::ActionOutcome::INVALIDATED, now);
+        return;
+    }
+    if (work.transfer.direction != C::SdoDirection::DOWNLOAD)
+        return;
+    // Nothing leaves before the next owner turn, so the notice is made here and the terminal refines it.
+    // For a counter clear's 1 it is also the coordinate withdrawal, before the frame could leave. If it
+    // refuses, withdrawing cancels the write before any turn could carry it.
+    const M::Status noted =
+        clear_.actionKind == M::ActionKind::SET_DEVICE_POSITION
+            ? L::noteActionTransmission(clear_, reservation_, clearTarget_, *clearAxis_,
+                                        *clearReference_, now)
+            : L::noteActionTransmission(clear_, reservation_, clearTarget_, now);
+    if (!noted.isOk())
+        withdrawClear(M::ActionOutcome::INVALIDATED, now);
+}
 // noteMoveTransmission's recheck of a parameter or trigger download, without its notice or
 // retirements, so that it can run again at the handover. Keep the two in step.
 M::Status AxisSession::recheckMove(uint64_t now) const noexcept {
@@ -559,8 +744,11 @@ M::Status AxisSession::recheckMove(uint64_t now) const noexcept {
 }
 // Inside the owner's turn: reads this session and its borrowed inputs, and makes no owner call.
 bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now) noexcept {
-    if (!moveActive() || !sameSequence(sequence, sequence_) ||
-        transfer.direction != C::SdoDirection::DOWNLOAD || transfer.operation != move_.operation)
+    if (!sameSequence(sequence, sequence_) || transfer.direction != C::SdoDirection::DOWNLOAD)
+        return true;
+    if (clearActive() && transfer.operation == clear_.operation)
+        return clearWithdrawn_ == M::ActionOutcome::NONE; // Withdrawn while it waited; its cancel lost.
+    if (!moveActive() || transfer.operation != move_.operation)
         return true;
     if (moveWithdrawn_ != M::MoveInterruption::NONE)
         return false; // Withdrawn while it waited, and its cancel did not win.
@@ -596,15 +784,17 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
 }
 StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                   const StopPolicy& requested, uint64_t now) noexcept {
-    // Even a stop refused below ends the enable and the move. Asking for a stop means no further word,
-    // so a time that moved backward still ends them, at the last valid time: the later of this
-    // session's and the owner's, at which the owner can still cancel a queued download.
+    // Even a stop refused below ends the enable, the move and the clear. Asking for a stop means no
+    // further word, so a time that moved backward still ends them, at the last valid time: the later of
+    // this session's and the owner's, at which the owner can still cancel a queued download.
     const uint64_t latest = latestUs();
     const uint64_t at = now < latest ? latest : now;
     if (open_ && ((enableActive() && enableWithdrawn_ == M::ActionOutcome::NONE) ||
-                  (moveActive() && moveWithdrawn_ == M::MoveInterruption::NONE))) {
+                  (moveActive() && moveWithdrawn_ == M::MoveInterruption::NONE) ||
+                  (clearActive() && clearWithdrawn_ == M::ActionOutcome::NONE))) {
         withdrawEnable(M::ActionOutcome::CANCELLED, at);
         withdrawMove(M::MoveInterruption::STOP, at);
+        withdrawClear(M::ActionOutcome::CANCELLED, at);
         lastUs_ = at;
     }
     // This width concerns identity reads. A stop reads none, so it cannot refuse a stop.
@@ -701,6 +891,7 @@ void AxisSession::service(uint64_t now) noexcept {
     settleSuperseded(now);
     serviceEnable(now);
     serviceMove(now);
+    serviceClear(now);
     switch (path_) {
     case StopPath::CONFIRMED:
         serviceConfirmed(now);
@@ -714,6 +905,9 @@ void AxisSession::service(uint64_t now) noexcept {
     default:
         break;
     }
+    // A counter clear that ended before the owner could follow it, as behind a stop.
+    if (!clearActive())
+        syncCounter(now);
 }
 // An escalated HALT's terminal belongs to its own context. It is older intent, so even a
 // success does not become the latest controlword, and its withdrawal was noted at escalation.

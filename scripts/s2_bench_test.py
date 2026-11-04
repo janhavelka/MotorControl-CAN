@@ -17,9 +17,11 @@ import s2_evidence as evidence  # noqa: E402
 PONG = "PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent=0 pinsReady=1 soak=%d t=5%s\n"
 NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning", "M": "mode1", "E": "enable",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
-         "Q": "released-quick", "W": "word67", "L": "relative"}
+         "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
+         "Z": "counter-zero", "C": "clear-alarm"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
-          "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative"}
+          "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
+          "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm"}
 
 
 def check_trial_transcript(path):
@@ -27,8 +29,8 @@ def check_trial_transcript(path):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    if len(parts) < 21:
-        problems.append("expected twenty-one records, found %d" % len(parts))
+    if len(parts) < 26:
+        problems.append("expected twenty-six records, found %d" % len(parts))
     letters = {part[:1].decode("ascii") for part in parts}
     for letter in NAMES:
         if letter not in letters:
@@ -67,6 +69,18 @@ def check_trial_transcript(path):
         # A move naming a relative base (its twenty-seventh field) reads twice and shows its witness.
         if line.startswith("G") and fields[26] != "0" and not {"TRIAL_FIRST", "TRIAL_BASE"} <= kinds:
             problems.append("%s: no first read or base summary" % line)
+        # A move naming an observer node (its twenty-ninth field) holds both nodes' terminals.
+        if line.startswith("G") and fields[28] != "0":
+            if not {"TRIAL_OBSERVER", "TRIAL_OBSERVER_CHECK", "TRIAL_OBSERVER_LAST", "TRIAL_NODES"} <= kinds:
+                problems.append("%s: no observer summary" % line)
+            if b" node=1\n" not in body or b" node=2\n" not in body:
+                problems.append("%s: not both nodes' terminals" % line)
+        if line[0] in "DJ" and not {"TRIAL_SETTINGS"} | ({"TRIAL_LIMITS"} if line[0] == "D" else
+                                                         {"TRIAL_IO", "TRIAL_INPUTS"}) <= kinds:
+            problems.append("%s: no settings summary" % line)
+        if line[0] in "ZC" and not {"TRIAL_CLEAR", "TRIAL_CLEAR_STEP", "TRIAL_INCIDENT", "TRIAL_BASELINE",
+                                    "TRIAL_EXTRA"} <= kinds:
+            problems.append("%s: no clear summary" % line)
         if line.startswith("R") and not {"TRIAL_CHECK", "TRIAL_REARM"} <= kinds:
             problems.append("%s: no check or rearm summary" % line)
         if line.startswith("G") and not {"TRIAL_CHECK", "TRIAL_EVIDENCE", "TRIAL_MOVE", "TRIAL_MOVE_SAMPLE"} <= kinds:
@@ -198,8 +212,8 @@ MOVE = ["--command", "move", "--node", "1", "--trial", "20", "--start-position",
         "--rule", "after-absence", "--device-type", "0x00040192", "--hardware-version", "0x12",
         "--software-version", "0x34", "--vendor-id", "0x300", "--product-code", "0x8605", "--revision", "0x10001",
         "--model-code", "0x86", "--firmware-code", "0x123", "--stop-kind", "none"]
-MOVE_BODY = ("TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,"
-             "0,0")  # Absolute: no relative base and no witness.
+MOVE_HEAD = "TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291"
+MOVE_BODY = MOVE_HEAD + ",0,0,0"  # Absolute: no relative base, no witness and no observer.
 
 
 def signed(text):
@@ -254,7 +268,8 @@ class BenchTest(unittest.TestCase):
     def run_main(self, argv, backend, operator=None):
         out, err = io.StringIO(), io.StringIO()
         command = argv[argv.index("--command") + 1]
-        if command in bench.TRIALS and bench.TRIALS[command][1] and "--campaign" not in argv:
+        counted = command in bench.TRIALS and (bench.TRIALS[command][1] or command in bench.SETTINGS_ROUTES)
+        if counted and "--campaign" not in argv:
             argv = argv + ["--campaign", str(self.ledger)]
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             status = bench.main(BASE + argv + ["--output", str(self.output)], backend, Clock(),
@@ -714,7 +729,7 @@ class BenchTest(unittest.TestCase):
                                      ("move", MOVE, "ATTENDED 20"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            for routes in (1, 2, 3, 5):  # Older images, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 6):  # Older images, and one this runner does not know.
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -868,8 +883,9 @@ class BenchTest(unittest.TestCase):
              "--interval-ms", "250"): signed("TW2,6,1,2,5,250"),
             tuple(relative): signed("TL2,7,1,1187,-16,1,1000,1000,4,100,1,2,2000,0,200"),
             tuple(MOVE + ["--move-base", "absolute"]): MOVE_LINE,
-            tuple(actual): signed(MOVE_BODY.replace("TG1,20,1,0,", "TG1,20,1,-7,")[:-3] + "1,-7,0,0,0,0,0"),
-            tuple(commanded): signed(MOVE_BODY.replace(",16,1,1000,", ",-16,1,1000,")[:-3] + "2,1187,0,0,0,0,0"),
+            tuple(actual): signed(MOVE_HEAD.replace("TG1,20,1,0,", "TG1,20,1,-7,") + ",1,-7,0,0,0,0,0,0"),
+            tuple(commanded): signed(MOVE_HEAD.replace(",16,1,1000,", ",-16,1,1000,") + ",2,1187,0,0,0,0,0,0"),
+            tuple(MOVE + ["--observer", "2"]): signed(MOVE_HEAD + ",0,0,2,0,0,0,0,0"),
         }
         for argv, line in cases.items():
             args, fields = bench.arguments(BASE + list(argv) + LEDGER + ["--output", "x"])
@@ -1006,6 +1022,77 @@ class BenchTest(unittest.TestCase):
         self.assertIn(status, (0, 1), err)
         self.assertEqual((operator.questions, board.writes[-1]), ([], signed("TW1,8,1,2,3,100").encode()))
         self.assertEqual(self.meta()["operator"]["shaft_after"]["typed"], bench.UNOBSERVED)
+
+    def test_batch_two_lines_and_bounds(self):
+        limits = ["--command", "settings-2202", "--node", "1", "--trial", "5", "--soft-limit-code", "after-homing",
+                  "--fault-led", "unobserved"]
+        di3 = ["--command", "io-di3", "--node", "2", "--trial", "6", "--di3-change", "polarity-set",
+               "--fault-led", "unobserved"]
+        counter = ["--command", "counter-zero", "--node", "1", "--trial", "7", "--deadline-ms", "3000",
+                   "--interval-ms", "500"]
+        alarm = ["--command", "clear-alarm", "--node", "2", "--trial", "8", "--deadline-ms", "3000",
+                 "--interval-ms", "500"]
+        watched = list(MOVE) + ["--observer", "2"]
+        watched[watched.index("--deadline-ms") + 1] = "6000"
+        watched[watched.index("--interval-ms") + 1] = "2000"
+        for argv, line, bounds in ((limits, "TD1,5,1,1", (14, 0)), (di3, "TJ2,6,1,3", (28, 0)),
+                                   (counter, "TZ1,7,1,3000,500", (66, 3000)), (alarm, "TC2,8,1,3000,500", (56, 3000))):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
+            self.assertEqual(bench.plan_bounds(args.command, fields), bounds, argv[1])
+        # The observed move, as test/bench_route_test.cpp runs it: 59 terminals of its own, 44 of node 2.
+        args, fields = bench.arguments(BASE + watched + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.plan_bounds("move", fields), (103, 6000))
+        args, fields = bench.arguments(BASE + MOVE + ["--observer", "2"] + LEDGER + ["--output", "x"])
+        self.assertGreater(bench.plan_bounds("move", fields)[0], 128)  # Its default deadline no longer fits.
+        self.assertEqual({"Z", "C"} & bench.MOTION_ROUTES, {"Z", "C"})
+        self.assertFalse({"D", "J"} & bench.MOTION_ROUTES)
+        bad = [limits[:6] + limits[8:], di3[:6] + di3[8:],  # No code, no change.
+               ["--command", "settings-2202", "--node", "1", "--trial", "5", "--soft-limit-code", "after-homing"],
+               limits + ["--di3-change", "polarity-set"], di3 + ["--soft-limit-code", "limits-off"],
+               counter[:-2], alarm[:6] + ["--deadline-ms", "55001", "--interval-ms", "500"],
+               MOVE + ["--observer", "1"], MOVE + ["--observer", "3"],
+               ["--command", "stop", "--node", "1", "--trial", "1", "--kind", "halt", "--deadline-ms", "2000",
+                "--best-effort-ms", "0", "--interval-ms", "200", "--observer", "2"]]
+        for argv in bad:
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+
+    def test_settings_routes_are_attended_counted_and_not_motion(self):
+        limits = ["--command", "settings-2202", "--node", "1", "--trial", "5", "--soft-limit-code", "limits-off",
+                  "--fault-led", "prompt"]
+        # The campaign is required, as for motion: each send counts.
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            bench.arguments(BASE + limits + ["--output", "x"])
+        board = Board()
+        operator = Operator("ATTENDED 5", "off", "off")
+        status, _, err = self.run_main(limits, Backend(board), operator)
+        self.assertIn(status, (0, 1), err)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("TD1,5,1,0").encode()])
+        self.assertEqual(len(operator.questions), 3)  # Attended, fault LED before and after; no shaft question.
+        self.assertIn("ATTENDED 5", operator.questions[0])
+        self.assertFalse(any("describe the node" in question for question in operator.questions))
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("D", 0, 0, 1)])
+        # Three per route and node across boots; never part of the twelve motion admissions.
+        self.write_ledger([dict(send_entry("D", 1, n, 0), settings=1) for n in (1, 2, 3)])
+        self.clear_output()
+        board = Board()
+        status, _, err = self.run_main(limits[:5] + ["9"] + limits[6:], Backend(board), Operator("ATTENDED 9", "off"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("settings-2202 admissions on node 1", err)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        status, _, err = self.run_main(position(1, 10), Backend(Board()), Operator("ATTENDED 10", "none"))
+        self.assertEqual(status, 0, err)
+        # A settings send without its mark, or a mark on another route, is an inconsistent entry.
+        for entry in (send_entry("D", 1, 4, 0), dict(send_entry("P", 1, 4), settings=1)):
+            self.ledger.write_bytes(chain([entry]))
+            board = Board()
+            status, _, err = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+            self.assertEqual(status, 2, err)
+            self.assertIn("inconsistent send entry", err)
+            self.assertEqual(board.writes, [])
 
     def test_single_byte_commands_unchanged(self):
         board = Board()

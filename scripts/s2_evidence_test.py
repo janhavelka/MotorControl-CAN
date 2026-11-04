@@ -118,9 +118,13 @@ class RetainedCaptures(unittest.TestCase):
     def test_every_retained_capture_fits_the_grammar(self):
         directories = [p.parent for p in BENCH.glob("*/request.json")]
         self.assertGreater(len(directories), 60)
+        # 20261104T1311Z-s2-ping-b: a ping sent while the S2 booted after a reflash. Its capture begins with
+        # one "p" (0x70, the byte the host sent) before the boot banner, cause not established, so that line
+        # stays unknown, and no PONG followed. The next ping (1311Z-s2-ping-c) was answered.
+        unexplained = {"20261104T1311Z-s2-ping-b": 1}
         for directory in directories:
             report = evidence.replay_capture(directory)
-            self.assertEqual(report.unknown, [], directory.name)
+            self.assertEqual(len(report.unknown), unexplained.get(directory.name, 0), directory.name)
             self.assertEqual(report.malformed, [], directory.name)
             self.assertEqual(report.typed_successes if report.family != "EVIDENCE" else 0, 0)
             request = json.loads((directory / "request.json").read_text(encoding="utf-8"))
@@ -130,10 +134,37 @@ class RetainedCaptures(unittest.TestCase):
             # 20261102-s2-identity1: the retained reset investigation. 20261103T1010Z-s2-ping and
             # 20261103T1642Z-s2-ping-b: pings sent while the S2 was still booting after a reflash, with
             # no PONG; the next ping (1012Z, 1643Z-s2-ping-c) was answered.
-            retained_incomplete = ("20261102-s2-identity1", "20261103T1010Z-s2-ping", "20261103T1642Z-s2-ping-b")
+            retained_incomplete = ("20261102-s2-identity1", "20261103T1010Z-s2-ping", "20261103T1642Z-s2-ping-b",
+                                   "20261104T1311Z-s2-ping-b")
             if directory.name not in retained_incomplete and not refused_before_send:
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
                                  (directory.name, report.errors))
+
+    def test_client_abort_cleanup_is_its_request_s_own_second_tx(self):
+        """2026-11-04 io reads: 60FE:00 answered in two bytes against its U8, so the client aborted with
+        80 FE 60 00 10 00 07 06. That cleanup frame (txr=50 txf=2) and its own TX report follow the
+        request's (txr=50 txf=1): a consistent record of a failure, not a duplicate report."""
+        for name in ("20261104T1309Z-io-node1-303", "20261104T1309Z-io-node2-304"):
+            directory = BENCH / name
+            report = evidence.replay_capture(directory, manifest=directory / "absent.json")
+            self.assertEqual((report.verdict, report.failure_name), ("failed-evidence", "SERVICE"), report.errors)
+            self.assertEqual(report.errors, [], name)
+            self.assertEqual([(f["object"], f["outcome_name"], f["abort"], f["cleanup"]) for f in report.failed],
+                             [("60fe:00", "CLIENT_ABORT", "06070010", 1)])
+            data = (directory / "rx.bin").read_bytes()
+            meta = json.loads((directory / "request.json").read_text(encoding="utf-8"))
+            cleanup = b"data=80fe600010000706"
+            self.assertEqual(data.count(cleanup), 1)
+            # The cleanup naming another abort code than the terminal's is a contradiction.
+            changed = evidence.replay_bytes(data.replace(cleanup, b"data=80fe600011000706"), meta)
+            self.assertEqual(changed.verdict, "inconsistent")
+            self.assertIn("cleanup_differs_from_terminal", codes(changed))
+            # A third TX report in that window is still a duplicate.
+            last = data.index(b"TAIL k=2 ")
+            line = data[last:data.index(b"\n", last) + 1]
+            later = re.sub(rb"p=(\d+)", lambda m: b"p=%d" % (int(m.group(1)) + 1), line, count=1)
+            doubled = evidence.replay_bytes(data.replace(line, line + later), meta)
+            self.assertIn("duplicate_tx_report", codes(doubled))
 
     def test_reset_noise_before_the_boot_banner_is_kept_and_accepted(self):
         # The 2026-11-03 10:10Z capture began with one 0xB8 from the S2's UART at reset.
@@ -801,6 +832,67 @@ class TransitionLog(unittest.TestCase):
                          ("moveCompletion", 1, None, 0), ("stopOutcome", 1, None, 1),
                          ("stopPath", 1, None, 1)} <= found, found)
         self.assertFalse([e for e in log.entries if e["signal"] in ("outcome", "uncertain", "path", "fenced")])
+
+    def two_node_move(self, gap=False):
+        """A move record of node 1 that node 2 observed: each node's terminal, frames and TX report, the
+        reports attributed by their TX channel. Interleaved in time, as the two channels run."""
+        def terminal(node, step, admitted, completed):
+            return result(step, "6041:00", admitted=admitted, completed=completed) + " op=7 ne=1 node=%d" % node
+
+        def tx(node, time, txr):
+            return frame(evidence.TX, time, 0x600 + node, "4041600000000000",
+                         extra=" txk=0 txr=%d txf=1 txc=%d" % (txr, node - 1))
+
+        def done(node, time, txr):
+            return frame(evidence.TX_REPORT, time, 0, "0" * 16, extra=" txk=0 txr=%d txf=1 txc=%d" % (txr, node - 1))
+
+        def answer(node, time, sent):
+            return frame(evidence.RX, time, 0x580 + node, "4b41600037800000", bounds=(sent + 10, sent + 20))
+        terminals = [terminal(1, 1, 1000, 1500), terminal(2, 3 if gap else 1, 1100, 1600)]
+        traffic = [tx(1, 1000, 5), tx(2, 1100, 9), done(1, 1400, 5), done(2, 1450, 9), answer(1, 1500, 1000),
+                   answer(2, 1600, 1100)]
+        rows = ["TRIAL admitted route=move node=1 trial=7 motion=1 case=1; finite typed route, no retry",
+                "TRIAL id=7 node=1 route=move failure=0 why=none lost=0 terminals=2 traffic=6 tail=0 tailLost=0 "
+                "summaries=2 step=4 cycles=1 motion=1 case=1 unsettled=0 gap=1000 lossCancel=0",
+                "TRIAL_PLAN route=move node=1 trial=7 attended=1 obs=2",
+                "TRIAL_RES stack0=9300 stack1=9100 heap0=60000 heap1=59000 heapMin=58000 largest=40000 gap=1000 "
+                "dropped=0 admission=0 started=10 completed=20"] + terminals + traffic
+        rows.append("END trial terminals=2 traffic=6 tail=0 tailLost=0 lost=0; r=release")
+        return join(rows), {"command": "move", "node": 1, "trial": 7, "line": "TG1,7", "status": "captured"}
+
+    def test_two_node_record_matches_each_node_to_its_own_frames(self):
+        data, meta = self.two_node_move()
+        report = evidence.replay_bytes(data, meta)
+        self.assertEqual(report.verdict, "complete", report.errors)
+        # Without the node fields a node 2 request would accuse the node 1 record.
+        flat = data.replace(b" node=2", b" node=1")
+        self.assertEqual(evidence.replay_bytes(flat, meta).verdict, "inconsistent")
+        # A report naming the other channel leaves node 2's request without one.
+        swapped = data.replace(b"txr=9 txf=1 txc=1", b"txr=9 txf=1 txc=0")
+        self.assertIn("duplicate_tx_report", codes(evidence.replay_bytes(swapped, meta)))
+        # Steps still run 1..N per operation and node on a move: a gap is a missing line there.
+        data, meta = self.two_node_move(gap=True)
+        self.assertIn("step_sequence", codes(evidence.replay_bytes(data, meta)))
+
+    def test_slot_numbered_steps_only_for_the_routes_that_use_them(self):
+        def rows(route, steps):
+            terminals = [result(step, "2202:00", admitted=1000 * n, completed=1000 * n + 500, possible=0) + " op=3"
+                         for n, step in enumerate(steps, 1)]
+            return join(["TRIAL admitted route=%s node=1 trial=4 motion=0 case=1; finite typed route, no retry" % route,
+                         "TRIAL id=4 node=1 route=%s failure=0 why=none lost=0 terminals=%d traffic=0 tail=0 "
+                         "tailLost=0 summaries=2 step=3 cycles=0 motion=0 case=1 unsettled=0 gap=1000" % (route, len(steps)),
+                         "TRIAL_PLAN route=%s node=1 trial=4 attended=1 code=1" % route,
+                         "TRIAL_RES stack0=9300 stack1=9100 heap0=60000 heap1=59000 heapMin=58000 largest=40000 "
+                         "gap=1000 dropped=0 admission=0 started=10 completed=20"] + terminals +
+                        ["END trial terminals=%d traffic=0 tail=0 tailLost=0 lost=0; r=release" % len(steps)])
+        meta = {"command": "settings-2202", "node": 1, "trial": 4, "line": "TD1,4", "status": "captured"}
+        # The write at its field's slot and the readback from slot 10, as the library numbers them.
+        self.assertNotIn("step_sequence", codes(evidence.replay_bytes(rows("settings-2202", [1, 10, 11]), meta)))
+        # Gaps only: a repeated or falling step is still damaged output.
+        self.assertIn("duplicate_result", codes(evidence.replay_bytes(rows("settings-2202", [1, 10, 10]), meta)))
+        self.assertIn("step_sequence", codes(evidence.replay_bytes(rows("settings-2202", [10, 1]), meta)))
+        mover = dict(meta, command="released-quick", line="TQ1,4")
+        self.assertIn("step_sequence", codes(evidence.replay_bytes(rows("released-quick", [1, 10, 11]), mover)))
 
     def test_routes_of_2026_11_04_parse_whole_and_older_records_still_fit(self):
         """released-quick, word67, relative, the rearm's predecessor and a relative move's base and witness."""

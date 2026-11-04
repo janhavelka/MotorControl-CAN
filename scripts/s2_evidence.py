@@ -147,13 +147,13 @@ class Row(NamedTuple):
 
 # epoch is the controller epoch of that frame. txk/txr/txf are its local TX identity.
 _FRAME = ("k:u p:u id:x ext:b rtr:b dlc:u data:h ok:b exact:b t:u bounds:b lo:u hi:u "
-          "epoch:u? step:u? op:u? ctrl:s? rec:s? txk:u? txr:u? txf:u?")
+          "epoch:u? step:u? op:u? ctrl:s? rec:s? txk:u? txr:u? txf:u? txc:u?")
 _FRAME_OLD = "kind:u>k time:u>p id:x ext:b rtr:b dlc:u data:h accepted:b>ok captureKnown:b>exact"
 # req is the transfer's request, oreq the owner's result handle, ne the node epoch at admission,
 # reason the owner's closure and st its stages: bit0 adapter admitted, bit1 controller accepted,
 # bit2 queued, bit3 possible TX, bit4 confirmed TX, bit5 acknowledged, bit6 uncertain, bit7 cleanup.
 _RESULT = ("op:u? req:u? oreq:u? step:u object:o dir:u? outcome:u ack:b possible:b uncertain:b abort:x "
-           "cleanup:b? size:u data:h admitted:u completed:u epoch:u? ne:u? reason:u? st:x?")
+           "cleanup:b? size:u data:h admitted:u completed:u epoch:u? ne:u? reason:u? st:x? node:u?")
 _STATS = (("controller", "running"), ("controller", "inhibited"), ("controller", "flags"),
           ("health", "dropped"), ("health", "errors"), ("health", "stackFree"))
 _PONG = (("health", "base"), ("health", "elf"), ("health", "sdk"), ("controller", "running"),
@@ -183,7 +183,7 @@ GRAMMAR = (
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
-        "rel:u? base:i?"),
+        "rel:u? base:i? code:u? case:u? obs:u?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -224,6 +224,41 @@ GRAMMAR = (
         "read:b target:i known:b prev:i prevTrial:u prevRelative:b basis:u witness:i"),
     # The host's move evidence as the firmware received it, then the session's MoveContext and its
     # five kept samples (admission, latest, acceptance, absence, completed), raw.
+    # settings-2202 and io-di3: the transaction's result, its configuration epochs and whether the owner and
+    # the session followed; then the group raw, which=0 the prior read and which=1 the matched readback.
+    Row("TRIAL_SETTINGS", "TRIAL_SETTINGS ", "summary",
+        "prepared:b noop:b state:u outcome:u>settingsOutcome changed:x confirmed:x effects:b "
+        "uncertain:b>settingsUncertain cfg0:u cfg1:u>configuration followed:b",
+        signals=(("health", "settingsOutcome"), ("health", "settingsUncertain"), ("status", "configuration")),
+        per_node=True),
+    Row("TRIAL_LIMITS", "TRIAL_LIMITS ", "summary", "which:u present:b 2202:x entries:u min:i max:i"),
+    Row("TRIAL_IO", "TRIAL_IO ", "summary",
+        "which:u present:b entries:u polarity:x di0:x di1:x di2:x di3:x di4:x di5:x di6:x"),
+    Row("TRIAL_INPUTS", "TRIAL_INPUTS ", "summary", "present:b 2101:x 60fd:x",
+        signals=(("status", "2101"), ("status", "60fd")), per_node=True),
+    # A move's observer node: its check, its cycles summarized (recorded, never judged), its check and
+    # last reads, then both nodes' copied RX and unaccepted counts and the interface's own counters.
+    Row("TRIAL_OBSERVER", "TRIAL_OBSERVER ", "summary",
+        "node:u checked:b passed:b why:s cycles:u stopped:b moved:b>observerMoved pmin:i pmax:i vmax:i or2100:x "
+        "emcy:b edata:h", signals=(("status", "observerMoved"),), per_node=True),
+    Row("TRIAL_OBSERVER_CHECK", "TRIAL_OBSERVER_CHECK ", "summary", _TRIAL_SNAPSHOT),
+    Row("TRIAL_OBSERVER_LAST", "TRIAL_OBSERVER_LAST ", "summary", _TRIAL_SNAPSHOT),
+    Row("TRIAL_NODES", "TRIAL_NODES ", "summary",
+        "gap:u n1rx:u n1unmatched:u n2rx:u n2unmatched:u dropped0:u dropped1:u unmatched0:u unmatched1:u "
+        "lost0:u lost1:u"),
+    # counter-zero and clear-alarm: the session's clear context, each write by slot, the alarm incident
+    # or the counter baseline, and the extra observation, all raw.
+    Row("TRIAL_CLEAR", "TRIAL_CLEAR ", "summary",
+        "own:b kind:u state:u outcome:u>clearOutcome exec:u completion:u uncertain:b>clearUncertain effects:b "
+        "one:b>valueOneMayRemain coords:b final:b observations:u op:u blocked:b>clearBlocked",
+        signals=(("health", "clearOutcome"), ("health", "clearUncertain"), ("health", "valueOneMayRemain"),
+                 ("health", "clearBlocked")), per_node=True),
+    Row("TRIAL_CLEAR_STEP", "TRIAL_CLEAR_STEP ", "summary",
+        "slot:u present:b object:o value:x outcome:u ack:b possible:b uncertain:b"),
+    Row("TRIAL_INCIDENT", "TRIAL_INCIDENT ", "summary",
+        "present:b 1001:x 603f:x count:u 2100:x 2101:x 2102:x 6041:x 6061:x"),
+    Row("TRIAL_BASELINE", "TRIAL_BASELINE ", "summary", "present:b 6064:i 606c:i"),
+    Row("TRIAL_EXTRA", "TRIAL_EXTRA ", "summary", "block:u fields:u 1001:x 603f:x 6064:i 606c:i"),
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
         "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x rb:u?"),
     Row("TRIAL_MOVE", "TRIAL_MOVE ", "summary",
@@ -379,7 +414,9 @@ _TRIAL_RESPONSES = ("PONG", "TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")
 TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness-tuning": "tuning",
                 "mode1": "mode1", "enable": "enable", "stop": "stop", "position": "position",
                 "rearm": "rearm", "move": "move", "readiness-history": "history",
-                "released-quick": "released-quick", "word67": "word67", "relative": "relative"}
+                "released-quick": "released-quick", "word67": "word67", "relative": "relative",
+                "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
+                "clear-alarm": "clear-alarm"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -638,13 +675,14 @@ POSITIONAL = {"step_sequence", "wrong_object_for_step", "wrong_request_object", 
               "terminal_width_differs_from_wire", "terminal_bytes_differ_from_wire",
               "abort_differs_from_wire", "traffic_time_reversed", "record_order", "terminal_overlap",
               "end_differs_from_header", "failure_differs_from_terminal", "plan_size_not_in_inventory",
-              "tx_before_admission", "reply_after_terminal", "wrong_direction", "history_differs_from_terminals"}
+              "tx_before_admission", "reply_after_terminal", "wrong_direction", "history_differs_from_terminals",
+              "cleanup_differs_from_terminal"}
 # Matching terminals to copied traffic. A record that itself reports lost=1 has an incomplete trace,
 # so these findings cannot accuse it: they stay listed as warnings. Its failure stays its own.
 TRACE_MATCHING = {"wrong_request_object", "stale_reply", "success_without_request", "success_without_reply",
                   "unmatched_request", "unmatched_tx_report", "tx_report_not_copied", "reply_form_mismatch",
                   "terminal_width_differs_from_wire", "terminal_bytes_differ_from_wire", "abort_differs_from_wire",
-                  "tx_before_admission", "reply_after_terminal", "wrong_direction"}
+                  "tx_before_admission", "reply_after_terminal", "wrong_direction", "cleanup_differs_from_terminal"}
 assert TRACE_MATCHING <= POSITIONAL
 
 
@@ -704,8 +742,17 @@ class Report:
         return out
 
 
+def _tx_identity(record):
+    """The local TX identity a frame or report prints (from the soak image on), or None."""
+    values = record.values
+    return (values["txr"], values["txf"]) if "txr" in values and "txf" in values else None
+
+
 def _windows(report, frames, node):
-    """Split copied frames at each client request. Leading SDO replies have no request."""
+    """Split copied frames at each client request. Leading SDO replies have no request. A client
+    abort after a request is that request's cleanup frame, its own second TX: its final report is the
+    cleanup's, matched by local TX identity where the record prints one, else taken as the report that
+    follows the request's own."""
     windows, current = [], None
     server, client = 0x580 + node, 0x600 + node
     for record in frames:
@@ -717,11 +764,16 @@ def _windows(report, frames, node):
             if bytes.fromhex(values["data"])[0] == 0x80 and current is not None:
                 current["cleanup"].append(record)  # Client abort belongs to the failed step.
                 continue
-            current = {"tx": record, "reply": [], "report": [], "cleanup": []}
+            current = {"tx": record, "reply": [], "report": [], "cleanup": [], "cleanup_report": []}
             windows.append(current)
         elif kind == TX_REPORT:
             if current is None:
                 report.error("unmatched_tx_report", record.number)
+                continue
+            identity = _tx_identity(record)
+            cleanups = {_tx_identity(frame) for frame in current["cleanup"]}
+            if current["cleanup"] and (identity in cleanups if identity is not None else bool(current["report"])):
+                current["cleanup_report"].append(record)
             else:
                 current["report"].append(record)
         elif kind == RX and 0x580 < identifier <= 0x5FF:
@@ -772,6 +824,15 @@ def _check_window(report, result, window, documented):
         form, width = sdo_reply(bytes.fromhex(data["data"]))
     if len(window["report"]) > 1:
         report.error("duplicate_tx_report", window["report"][1].number)
+    if len(window["cleanup_report"]) > len(window["cleanup"]):
+        report.error("duplicate_tx_report", window["cleanup_report"][len(window["cleanup"])].number)
+    for frame in window["cleanup"]:
+        # The cleanup abort names the step's own object and, for a client abort, the terminal's code.
+        data = bytes.fromhex(frame.values["data"])
+        if sdo_mux(data) != index or (values["outcome"] == 2 and
+                                      int.from_bytes(data[4:8], "little") != values["abort"]):
+            report.error("cleanup_differs_from_terminal", frame.number,
+                         "terminal %04x:%02x abort %08x" % (index[0], index[1], values["abort"]))
     outcome = values["outcome"]
     if outcome == 0:
         _check_success(report, result, tx, reply, window, width, documented)
@@ -866,8 +927,16 @@ def _check_terminal(report, result, position, rows, previous):
     return None
 
 
-def _check_steps(report, results):
-    """Identities step 1..N, restarting per operation in a multi-operation record."""
+# Routes whose terminals carry the library's slot identities: a settings transaction writes its changed
+# field at that field's slot and reads back from slot 10, and a state read that includes 1003 skips the
+# entry slots its count leaves unread. Their steps rise with gaps; the header's terminal count still
+# shows a missing RESULT line.
+SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm"))
+
+
+def _check_steps(report, results, gaps=False):
+    """Identities step 1..N, restarting per operation in a multi-operation record; with gaps, rising
+    from at least 1 instead."""
     seen = set()
     last_operation, expected = None, 1
     for result in results:
@@ -880,7 +949,7 @@ def _check_steps(report, results):
         seen.add(identity)
         if operation != last_operation:
             last_operation, expected = operation, 1
-        if values["step"] != expected:
+        if values["step"] < expected if gaps else values["step"] != expected:
             report.error("step_sequence", result.number,
                          "expected %d found %d" % (expected, values["step"]))
         expected = values["step"] + 1
@@ -993,9 +1062,7 @@ def _check_record(report, records, expect):
             if end[name] != values.get(name, 0):
                 report.error("end_differs_from_header", ends[0].number, name)
         report.tail_lost = report.tail_lost or bool(end["tailLost"])
-    _check_steps(report, results)
     _check_duplicates(report, records)
-    _check_epochs(report, records)
     _check_frames_order(report, traffic)
     _check_frames_order(report, tail)
 
@@ -1004,7 +1071,44 @@ def _check_record(report, records, expect):
         inventory = inventory(results)
     rows = inventory[0] if inventory else None
     report.inventory_checked = rows is not None
-    windows = _windows(report, traffic + tail, node)
+    # A move with an observer node holds both nodes' terminals, each RESULT naming its node: each node's
+    # terminals are matched to that node's own frames, steps and epochs. The record's outcome follows
+    # its own node; the observer's failures stay listed.
+    nodes = sorted({result.values.get("node", node) for result in results} | {node})
+    terminal_failure = None
+    for each in nodes:
+        own = [result for result in results if result.values.get("node", node) == each]
+        frames = traffic + tail if len(nodes) == 1 else [f for f in traffic + tail if _frame_node(f) == each]
+        _check_steps(report, own, header.kind == "TRIAL" and values.get("route") in SLOT_STEP_ROUTES)
+        _check_epochs(report, records if len(nodes) == 1 else
+                      [r for r in records if r.role != "terminal" or r.values.get("node", node) == each])
+        failure = _check_node_terminals(report, own, frames, each, rows if len(nodes) == 1 else None)
+        if each == node:
+            terminal_failure = failure
+    if report.trace_lost:
+        report.warn("trace_saturated", header.number, "lost=1: copied traffic is not complete")
+    if report.tail_lost:
+        report.warn("tail_saturated", header.number, "tailLost=1: post-terminal traffic is not complete")
+    _check_record_outcome(report, header, results, terminal_failure, inventory)
+
+
+def _frame_node(record):
+    """The node an SDO frame or TX report belongs to: its identifier, or a report's TX channel (`txc`,
+    the firmware's slot node - 1). None for other frames and for a report that names no channel."""
+    values = record.values
+    identifier, kind = values["id"], values["k"]
+    if kind == TX and 0x600 < identifier <= 0x67F:
+        return identifier - 0x600
+    if kind == RX and 0x580 < identifier <= 0x5FF:
+        return identifier - 0x580
+    if kind == TX_REPORT and "txc" in values:
+        return values["txc"] + 1
+    return None
+
+
+def _check_node_terminals(report, results, frames, node, rows):
+    """One node's terminals against that node's own copied frames; returns its first failed terminal."""
+    windows = _windows(report, frames, node)
     cursor = 0
     previous = None
     terminal_failure = None
@@ -1043,11 +1147,7 @@ def _check_record(report, records, expect):
         if not window["report"]:
             (report.warn if position == cursor - 1 else report.error)(
                 "tx_report_not_copied", window["tx"].number)
-    if report.trace_lost:
-        report.warn("trace_saturated", header.number, "lost=1: copied traffic is not complete")
-    if report.tail_lost:
-        report.warn("tail_saturated", header.number, "tailLost=1: post-terminal traffic is not complete")
-    _check_record_outcome(report, header, results, terminal_failure, inventory)
+    return terminal_failure
 
 
 def _check_record_outcome(report, header, results, terminal_failure, inventory):

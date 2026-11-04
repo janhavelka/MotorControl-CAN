@@ -1,0 +1,70 @@
+{
+  "started_utc": "2026-11-04T13:13:09.544620+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-tuning",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 310,
+  "plan": "packet 14 T0",
+  "fields": [
+    2,
+    310
+  ],
+  "operator": {},
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-tuning",
+    "--node",
+    "2",
+    "--trial",
+    "310",
+    "--campaign",
+    "docs\\bench\\20261104b-campaign.jsonl",
+    "--seconds",
+    "30",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1313Z-tuning-node2-310"
+  ],
+  "host_revision": "70eeddd72e9830e5f83f633ad35dffb924bc3ff0",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104b-campaign.jsonl",
+    "motion_total": 2,
+    "cases": {
+      "Q1": 1,
+      "W2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5455322c3331302c4b65313139316332390a"
+  ],
+  "image": {
+    "base": "70eeddd72e9830e5f83f633ad35dffb924bc3ff0",
+    "elf": "446b93fe730dacb0900c26ca83c66ff09a95a0673e8f1ee064f1ec42c8769c98",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TU2,310,Ke1191c29",
+  "tx_hex": "5455322c3331302c4b65313139316332390a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T13:13:13.620341+00:00"
+}
