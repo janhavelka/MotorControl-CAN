@@ -62,12 +62,32 @@
  * - RELATIVE, packet 21. POSITION with the signed nonzero displacement in 607A and the 005F trigger,
  *   measuring what the drive adds the displacement to. TRIAL_BASE shows the 607A read before the
  *   writes and this object's own record of the last acknowledged 607A on that node.
+ * - MOVE with an observer node, packet 22 step 6. The other node must first read stationary (running
+ *   and alarm clear, 606C 0, released or not as found); while the move or its planned stop runs, its
+ *   image is read at the move's interval through its own route, session and read context, never node
+ *   A's, and it gets no write. Its cycles are recorded, never judged; an EMCY from it ends only the
+ *   observing. Terminals carry their node, and TX traffic its channel.
+ * - SETTINGS_2202 and IO_DI3, packets 12 T1/T2 and 13 P2/P3. The prior group read, a clean STATUS and
+ *   MONITORS read, then one candidate through prepareSoftLimitSettings or prepareIoSettings on the
+ *   session's reservation, its write through admitPrepared and the library's readback. IO_DI3 changes
+ *   exactly one thing, DI3's function between 0 and 7 or its polarity bit, from the prior state its case
+ *   names, and then reads 2101 and 60FD once. The write's pre-transmit notice advances the configuration
+ *   epoch; the owner's reservation follows before the readback, and the session, which has no epoch
+ *   change of its own for this, is closed and opened again on the new binding. Settings routes are not
+ *   motion: they are attended and have their own cap, ROUTE_SETTINGS_PER_CASE per route and node.
+ * - COUNTER_ZERO and CLEAR_ALARM. A fresh read of what AxisSession::requestCounterZero or
+ *   requestClearAlarm judges, CLEAR_ALARM refused unless it reports the alarm, then the session's
+ *   request; the session admits every write and read itself. Motion class.
  *
- * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE, RELEASED_QUICK, WORD67, RELATIVE)
- * needs an attended flag that the host sets only after the operator typed a confirmation. At most
- * ROUTE_MOTION_TOTAL motion routes and ROUTE_MOTION_PER_CASE per route and node are admitted per boot;
- * a planned stop inside POSITION, RELATIVE or MOVE counts as one more. These caps restart with the
- * MCU: scripts/s2_bench.py keeps the
+ * No route exchange starts once less than its queue and response budget remains before its operation
+ * deadline or the route cutoff: the route then ends there with failure DEADLINE and nothing in flight.
+ * A 000B is exempt, as a stop word.
+ *
+ * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE, RELEASED_QUICK, WORD67, RELATIVE,
+ * COUNTER_ZERO, CLEAR_ALARM) and every settings route needs an attended flag that the host sets only
+ * after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion routes and
+ * ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside POSITION,
+ * RELATIVE or MOVE counts as one more. These caps restart with the MCU: scripts/s2_bench.py keeps the
  * campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
  * changed epoch, nonzero EMCY from the node, lost evidence or local abort ends the route and keeps
  * its evidence; nothing is retried, enabled, cleared, zeroed, restored or switched to another mode,
@@ -106,7 +126,11 @@ enum class RouteKind : uint8_t {
     // Appended, so that every earlier route keeps the number its records were printed with.
     RELEASED_QUICK, ///< Packet 16 step 3, one 000B on an evidenced released drive; `TQ`.
     WORD67,         ///< Packet 15, words 0006 then 0007 on an evidenced released drive; `TW`.
-    RELATIVE        ///< Packet 21 isolated relative experiment, 005F trigger; `TL`.
+    RELATIVE,       ///< Packet 21 isolated relative experiment, 005F trigger; `TL`.
+    SETTINGS_2202,  ///< Packet 12 T1/T2, one 2202 code and its readback; `TD`. Settings, not motion.
+    IO_DI3,         ///< Packet 13 P2/P3, one DI3 change in 2400 and its readback; `TJ`. Settings.
+    COUNTER_ZERO,   ///< AxisSession::requestCounterZero, 2302 0, 1, 0; `TZ`. Motion class: it moves the origin.
+    CLEAR_ALARM     ///< AxisSession::requestClearAlarm, 2301 1, 0; `TC`. Motion class.
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -120,12 +144,12 @@ struct RoutePlan {
     uint16_t reviewedStatus = 0;        ///< ENABLE: exact reviewed 6041.
     int32_t reviewedPositionTarget = 0; ///< ENABLE: exact reviewed 607A, history and not intent.
     int32_t reviewedVelocityTarget = 0; ///< ENABLE: exact reviewed 60FF, history and not intent.
-    /** ENABLE and STOP: action deadline after the request. MOVE: the move's immutable deadline after
-     * its request, which the library also bounds below. 1..55000. */
+    /** ENABLE, STOP, COUNTER_ZERO and CLEAR_ALARM: action deadline after the request. MOVE: the move's
+     * immutable deadline after its request, which the library also bounds below. 1..55000. */
     uint32_t deadlineMs = 0;
-    /** MODE_ONE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing. ENABLE and STOP:
-     * the action's observation interval. MOVE: the move's MoveOptions::observationIntervalUs, in
-     * milliseconds. */
+    /** MODE_ONE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing. ENABLE, STOP,
+     * COUNTER_ZERO and CLEAR_ALARM: the action's observation interval. MOVE: the move's
+     * MoveOptions::observationIntervalUs, in milliseconds, and the observer's cycle spacing. */
     uint32_t intervalMs = 0;
     /** Fresh observation cycles: MODE_ONE 1..10; POSITION, RELATIVE, REARM and RELEASED_QUICK 1..16;
      * WORD67 1..16 after its 0007. */
@@ -134,6 +158,9 @@ struct RoutePlan {
     /** REARM: the acknowledged latest word the host expects it to follow on that node: 1 the 001F of a
      * finished POSITION, 2 the 010F of that record's planned HALT, 3 the 005F of a finished RELATIVE. */
     uint8_t predecessor = 0;
+    /** SETTINGS_2202: the 2202 code to write, 0 off or 1 after homing (EN86/ZH86 p18). IO_DI3: the case,
+     * 1 DI3 function 0 to 7 (USER0), 2 7 to 0, 3 DI3 polarity bit clear to set, 4 set to clear. */
+    uint8_t code = 0;
     /** STOP: 1 HALT or 2 QUICK_STOP. POSITION, RELATIVE and MOVE: 0 none, 1 HALT, 2 QUICK_STOP. */
     uint8_t stopKind = 0;
     /** STOP, and the planned stop of POSITION, RELATIVE and MOVE: best-effort cutoff, 0 refuses that
@@ -158,6 +185,9 @@ struct RoutePlan {
      * which both fresh reads show; for COMMANDED the host's reviewed commanded position, which nothing
      * here can read back. */
     int32_t base = 0;
+    /** MOVE: 0, or the other node, read through its own route and session while the move runs, at the
+     * move's interval, and never written. It must first read stationary: running and alarm clear, 606C 0. */
+    uint8_t observer = 0;
     uint32_t rpm = 0;        ///< POSITION, RELATIVE: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000.
     uint32_t rampUpMs = 0;   ///< POSITION, RELATIVE: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
     uint32_t rampDownMs = 0; ///< POSITION, RELATIVE: 6084, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
@@ -185,10 +215,12 @@ struct RoutePlan {
  * `R<node>,<trial>,<attended>,<predecessor>,<cycles>,<intervalMs>`;
  * `Q<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `W<node>,<trial>,<attended>,<wordCycles>,<cycles>,<intervalMs>`;
+ * `D|J<node>,<trial>,<attended>,<code>`;
+ * `Z|C<node>,<trial>,<attended>,<deadlineMs>,<intervalMs>`;
  * `G<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<deadlineMs>,<intervalMs>,
  * <record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,
  * <rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,
- * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each, at most
+ * <observer>,<stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each, at most
  * ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
  * @param text Borrowed characters; no terminator required.
@@ -264,16 +296,37 @@ enum {
     ROUTE_TAIL = 16,            ///< Records copied after the terminal, until release.
     ROUTE_MOTION_TOTAL = 12,    ///< Motion admissions per boot (packet 22).
     ROUTE_MOTION_PER_CASE = 3,  ///< Motion admissions per route and node per boot (packet 22).
+    ROUTE_SETTINGS_PER_CASE = 3, ///< Settings admissions per route and node per boot; not motion.
     ROUTE_CUTOFF_MS = 60000,    ///< Route cutoff after admission (packet 22: sixty seconds a case).
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
     ROUTE_OPERATION_US = 5000000, ///< Deadline of one read or write operation, clamped to the cutoff.
     /** Longest request text after `T` the firmware collects, integrity field included; a longer one
-     * is refused. The longest move line with its field is 218 bytes. */
+     * is refused. The longest move line with its field is 220 bytes. */
     ROUTE_LINE = 256
 };
 /** First grant identity; RawEvidence uses 1000..4029 and ProbeApp reads count from 1. */
 constexpr uint32_t ROUTE_GRANT_BASE = 100000;
+/** Work of SETTINGS_2202, IO_DI3 and a MOVE with an observer node, which the caller places once,
+ * beside BenchRoute's own block, as it places a session: these contexts are too large to add to that
+ * block. Written only while such a route runs; its contents are history afterwards.
+ */
+struct RouteWork {
+    /** The fresh group read the candidate is built and checked against: SOFT_LIMITS or
+     * IO_INPUT_CONFIGURATION. */
+    MotorControlCAN::LICHUAN_C::DriverContext prior;
+    MotorControlCAN::LICHUAN_C::DriverSettingsContext transaction; ///< The one write and its readback.
+    /** The session's reservation as the transaction holds it: the owner's sequence, acquired before
+     * the prerequisite reads. Unchanged for the whole transaction. */
+    MotorControlCAN::LICHUAN_C::AxisReservation live;
+    /** The axis binding, which the write's one pre-transmit notice advances to the next configuration
+     * epoch; the owner's sequence and the session then follow it. */
+    MotorControlCAN::Binding binding;
+    MotorControlCAN::LICHUAN_C::DriverObservation limits; ///< Scratch for getDriver.
+    MotorControlCAN::LICHUAN_C::IoObservation io;         ///< Scratch for getIo.
+    /** MOVE with an observer: the other node's state reads, on that node's own route and session. */
+    MotorControlCAN::LICHUAN_C::ReadContext observer;
+};
 /** One owner terminal, compacted from Completion for the RESULT line. */
 struct RouteTerminal {
     uint64_t admittedUs = 0;    ///< Native admission time.
@@ -292,6 +345,7 @@ struct RouteTerminal {
     uint8_t size = 0;           ///< Uploaded bytes.
     uint8_t reason = 0;         ///< Owner CompletionReason.
     uint8_t stages = 0;         ///< Stage bits as the RESULT line's st field.
+    uint8_t node = 0;           ///< Node of the transfer's channel: a record may hold two.
     uint8_t data[4] = {};       ///< First four uploaded bytes.
 };
 /** One owner diagnostic other than a terminal, compacted from Diagnostic for the TRAFFIC line. */
@@ -310,6 +364,7 @@ struct RouteTraffic {
     uint8_t flags = 0;        ///< Bit0 ext, bit1 rtr, bit2 accepted, bit3 exact time, bit4 bounds.
     uint8_t state = 0;        ///< ControllerState or RecoveryOutcome, by kind.
     uint8_t txKind = 0;       ///< TransportTxId kind.
+    uint8_t txChannel = 0;    ///< SDO channel of the local TX identity, which names its node.
 };
 /** Raw values of one fresh state read, kept for the prerequisite check and its summary line. */
 struct RouteSnapshot {
@@ -401,6 +456,59 @@ struct RouteRecord {
     bool commandedRelative = false; ///< It was a displacement, with a 005F trigger.
     uint8_t witnessBasis = 0;       ///< Relative MOVE: the witness's basis, 1 ACTUAL or 2 COMMANDED.
     int32_t witnessPosition = 0;    ///< Relative MOVE: the witness's native position.
+    /** SETTINGS_2202 and IO_DI3: the library prepared the candidate; the fields below hold its result. */
+    bool settingsPrepared = false;
+    /** The candidate equalled the prior readback: the library succeeded with nothing to write, and
+     * nothing was sent. */
+    bool settingsNoop = false;
+    uint8_t settingsState = 0;      ///< SettingsState at the record's end.
+    uint8_t settingsOutcome = 0;    ///< ReadOutcome at the record's end.
+    uint16_t settingsChanged = 0;   ///< Fields the candidate changed, by group position.
+    uint16_t settingsConfirmed = 0; ///< Of those, the writes acknowledged.
+    bool settingsEffects = false;   ///< A write may have reached the drive.
+    bool settingsUncertain = false; ///< An effect is unconfirmed.
+    uint32_t configurationBefore = 0; ///< The binding's configuration epoch before the transaction.
+    uint32_t configurationAfter = 0;  ///< After it: one more once a write may have left.
+    /** The owner's reservation and the session follow configurationAfter: later routes on this node
+     * read at the new epoch. */
+    bool configurationFollowed = false;
+    /** Raw group values, 0 the prior read and 1 the matched readback; present only when published. */
+    bool groupPresent[2] = {false, false};
+    uint16_t limitSelector[2] = {0, 0}; ///< SETTINGS_2202: 2202.
+    uint8_t limitEntries[2] = {0, 0};   ///< SETTINGS_2202: 607D:00.
+    int32_t limitMinimum[2] = {0, 0};   ///< SETTINGS_2202: 607D:01.
+    int32_t limitMaximum[2] = {0, 0};   ///< SETTINGS_2202: 607D:02.
+    uint16_t ioEntries[2] = {0, 0};     ///< IO_DI3: 2400:00.
+    uint16_t ioPolarity[2] = {0, 0};    ///< IO_DI3: 2400:01, every bit.
+    uint16_t ioFunctions[2][7] = {};    ///< IO_DI3: 2400:02..08, DI0..6 raw.
+    /** IO_DI3: one fresh MONITORS and INPUTS read after the readback; the next two fields hold it. */
+    bool inputsPresent = false;
+    uint16_t logicalInputs = 0; ///< 2101 raw.
+    uint32_t digitalInputs = 0; ///< 60FD raw.
+    /** MOVE with an observer: its check read was judged (observerPassed), and why it failed. */
+    bool observerChecked = false;
+    bool observerPassed = false;       ///< The observer read stationary before the move.
+    const char* observerWhy = "none";  ///< Static token of the observer check, or why observing stopped.
+    uint16_t observerCycles = 0;       ///< Complete observer cycles while the move or its stop ran.
+    bool observerStopped = false;      ///< Observing ended early: a failed read, an EMCY or the cutoff.
+    /** A cycle read 606C nonzero, 2100 running, or a 6064 other than the check's: a report, not a judgment. */
+    bool observerMoved = false;
+    int32_t observerMinimum = 0, observerMaximum = 0; ///< Least and greatest 6064 of the cycles.
+    int32_t observerVelocity = 0;      ///< Largest magnitude of 606C in the cycles.
+    uint16_t observerMonitors = 0;     ///< 2100 of every cycle, combined with OR.
+    bool observerEmcy = false;         ///< A nonzero EMCY of the observer node was copied.
+    uint8_t observerEmcyData[8] = {};  ///< Its bytes.
+    RouteSnapshot observerCheck;       ///< The observer's check read.
+    RouteSnapshot observerLast;        ///< Its latest complete cycle.
+    /** Copied RX frames per node, 1 and 2, and those the owner's dispatch did not accept. */
+    uint16_t nodeRx[2] = {0, 0}, nodeUnmatched[2] = {0, 0};
+    /** The owner's whole-interface counters at admission and at the terminal: rxDropped,
+     * unmatchedFrames and rxLost. A dropped frame has no node. */
+    uint32_t droppedBefore = 0, droppedAfter = 0, unmatchedBefore = 0, unmatchedAfter = 0;
+    uint32_t lostBefore = 0, lostAfter = 0;
+    /** COUNTER_ZERO and CLEAR_ALARM: requestCounterZero or requestClearAlarm accepted;
+     * AxisSession::clearAction holds it. */
+    bool clearRequested = false;
 };
 /** One attended route at a time over borrowed sessions. Large and stationary; allocates nothing.
  * The caller places it, attaches one session per node before that node's first route, services the
@@ -423,6 +531,13 @@ class BenchRoute {
      * @return False when the node is invalid or already has one.
      */
     bool attach(unsigned node, AxisSession& session) noexcept;
+    /** Attach the stationary settings storage, before the first settings route.
+     * @param work Outliving this object; written only while a settings route runs.
+     * @return False when one is already attached.
+     */
+    bool attachWork(RouteWork& work) noexcept;
+    /** @return Whether settings storage is attached. */
+    bool workAttached() const noexcept { return work_ != nullptr; }
     /** @param node Node 1 or 2. @return Whether that node has a session attached. */
     bool attached(unsigned node) const noexcept {
         return node >= 1 && node <= 2 && sessions_[node - 1] != nullptr;
@@ -472,8 +587,13 @@ class BenchRoute {
         STEP_STATE, STEP_GROUP, STEP_TUNING, STEP_SINGLE, STEP_CHECK_MODE, STEP_CHECK_POSITION,
         STEP_MODE_WRITE, STEP_ENABLE, STEP_STOP, STEP_POSITION_WRITES, STEP_OBSERVE, STEP_END,
         STEP_IDENTITY, STEP_CHECK_REARM, STEP_WORD_WRITE, STEP_CHECK_MOVE, STEP_MOVE,
-        STEP_SECOND,        ///< A second fresh state read; the first is kept in RouteRecord::first.
-        STEP_CHECK_RELEASED ///< RELEASED_QUICK's and WORD67's check of both reads.
+        STEP_SECOND,         ///< A second fresh state read; the first is kept in RouteRecord::first.
+        STEP_CHECK_RELEASED, ///< RELEASED_QUICK's and WORD67's check of both reads.
+        STEP_PRIOR,          ///< A group read kept in RouteWork::prior.
+        STEP_SETTINGS,       ///< The settings candidate, its write and readback.
+        STEP_OBSERVER_CHECK, ///< MOVE: the observer node's fresh read and stationary check.
+        STEP_CHECK_ALARM,    ///< CLEAR_ALARM: the fresh read must report the alarm.
+        STEP_CLEAR           ///< COUNTER_ZERO and CLEAR_ALARM: the session's clear request.
     };
     struct Step {
         uint8_t kind;
@@ -522,7 +642,17 @@ class BenchRoute {
     uint32_t commandedTrial_[2] = {0, 0}, commandedEpoch_[2] = {0, 0};
     bool commandedKnown_[2] = {false, false}, commandedRelative_[2] = {false, false};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::RELATIVE) + 1][2] = {};
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::CLEAR_ALARM) + 1][2] = {};
+    // Settings admissions per settings route (SETTINGS_2202, IO_DI3) and node; not motion.
+    uint8_t settingsCases_[2][2] = {};
+    // MOVE with an observer: node B's reads, apart from the route's own on node A.
+    bool observerPending_ = false, observerActive_ = false;
+    MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;
+    uint64_t observerNextUs_ = 0, observerCycleUs_ = 0;
+    uint32_t observerGrantOperation_ = 0, observerGrantStep_ = 0;
+    RouteWork* work_ = nullptr;
+    bool settingsSettled_ = false; ///< The transaction's result is recorded and the session followed.
+    bool ownerFollowed_ = false;   ///< The owner's reservation already moved to the new epoch.
     uint8_t stepIndex_ = 0, subStep_ = 0, readMode_ = 0, readArg_ = 0;
     bool occupied_ = false, pending_ = false, stepActive_ = false, readActive_ = false;
     bool singleAdmitted_ = false, actionStarted_ = false, abortRequested_ = false, emcyHandled_ = false;
@@ -562,7 +692,20 @@ class BenchRoute {
     const char* checkMove() const noexcept;
     const char* checkReleased() const noexcept;
     bool rearmable(uint8_t slot, const AxisSession& session, uint8_t predecessor) const noexcept;
-    void noteEnd() noexcept;
+    void noteEnd(uint64_t nowUs) noexcept;
+    bool noteSettings(MotorControlCANOwner::SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                      uint64_t nowUs) noexcept;
+    void startSettings(uint64_t nowUs) noexcept;
+    void serviceSettings(uint64_t nowUs) noexcept;
+    bool settleSettings(uint64_t nowUs) noexcept;
+    bool followConfiguration(uint64_t nowUs) noexcept;
+    void publishGroup(unsigned which, const MotorControlCAN::LICHUAN_C::DriverContext* read, uint64_t nowUs) noexcept;
+    AxisSession& observerAxis() noexcept { return *sessions_[record_.plan.observer - 1]; }
+    bool startObserverRead(uint8_t mask, uint64_t nowUs) noexcept;
+    void serviceObserverRead(uint64_t nowUs) noexcept;
+    void observerReadDone(uint64_t nowUs) noexcept;
+    void serviceObserver(uint64_t nowUs) noexcept;
+    void startClear(uint64_t nowUs) noexcept;
     void startEnable(uint64_t nowUs) noexcept;
     void startMove(uint64_t nowUs) noexcept;
     void startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffortMs, uint32_t intervalMs,

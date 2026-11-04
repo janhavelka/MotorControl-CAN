@@ -1,0 +1,2 @@
+PONG target=esp32s2 base=70eeddd72e9830e5f83f633ad35dffb924bc3ff0 elf=446b93fe730dacb0900c26ca83c66ff09a95a0673e8f1ee064f1ec42c8769c98 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=60284965 routes=4 trial=0 motion=0
+TRIAL_REFUSED reason=session; no work

@@ -290,10 +290,9 @@ void write(Rig& r, E::AxisSession& s, uint16_t index, uint16_t value, unsigned n
     r.steps(2);
     CHECK(settled(s).outcome == C::SdoOutcome::SUCCESS);
 }
-void readState(Rig& r, E::AxisSession& s, L::ReadContext& state, unsigned node = 1,
-               uint8_t mask = STATE_MASK) {
+void readOn(Rig& r, E::AxisSession& s, L::ReadContext& state, const L::ReadTarget& on, uint8_t mask) {
     const uint32_t operation = begin(r, s);
-    CHECK(L::prepareState(state, r.current(node), operation, r.now, r.opDeadline, reads(), mask));
+    CHECK(L::prepareState(state, on, operation, r.now, r.opDeadline, reads(), mask));
     while (state.state == M::ReadState::ACTIVE) {
         L::PreparedRead work;
         CHECK(L::nextRead(state, r.now, work) && work.ready);
@@ -303,6 +302,10 @@ void readState(Rig& r, E::AxisSession& s, L::ReadContext& state, unsigned node =
         CHECK(L::advanceRead(state, terminal, r.now));
     }
     CHECK(state.state == M::ReadState::SUCCEEDED);
+}
+void readState(Rig& r, E::AxisSession& s, L::ReadContext& state, unsigned node = 1,
+               uint8_t mask = STATE_MASK) {
+    readOn(r, s, state, r.current(node), mask);
 }
 // The latest word is this fixture's manufactured predecessor, followed by a fresh state read.
 void history(Rig& r, E::AxisSession& s, L::ReadContext& state, uint16_t word = WORD_ENABLE,
@@ -3411,6 +3414,669 @@ void ownerRefusalKeepsRetainedStop() {
     session.unchanged(r.a);
     CHECK(r.wire.sentCount == sent);
 }
+
+// 14. Alarm clear and counter clear through the session (backlog S12). The alarm, code, monitor and
+// position values are this fake's, and every 2301 and 2302 reply is an acknowledgement it makes up:
+// nothing here shows what either object does to a drive.
+const uint8_t ALARM_STATE = uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::ERROR_HISTORY) | STATE_MASK);
+const uint8_t COUNTER_STATE = uint8_t(bit(L::StateBlock::FEEDBACK) | STATE_MASK);
+const uint16_t ALARM_WRITES[] = {1, 0}, COUNTER_WRITES[] = {0, 1, 0};
+L::ActionOptions clearOptions(uint64_t interval = 10) {
+    L::ActionOptions value;
+    value.service = reads();
+    value.observationIntervalUs = interval;
+    value.maximumAgeUs = 7 * 200; // Seven fields at the queue plus response budgets.
+    return value;
+}
+bool isClearWrite(const Rig& r, unsigned i, uint16_t index, uint16_t value, unsigned node = 1) {
+    const uint8_t expected[] = {0x2b, uint8_t(index), uint8_t(index >> 8), 0, uint8_t(value), uint8_t(value >> 8),
+                                0, 0};
+    const M::Frame& f = r.wire.sent[i];
+    return i < r.wire.sentCount && f.id == 0x600 + node && f.dlc == 8 && f.payloadLength == 8 &&
+           !f.extended && !f.rtr && !std::memcmp(f.data, expected, sizeof expected);
+}
+// From `from` on, every frame is to `node` and is either the next of `count` writes of `index`, in order
+// and each once, an upload a clear or its read may send, or one of `stops` 000B frames. Anything else
+// would be an enable, controlword, mode, target, save, restore, NMT command or a resent write.
+void onlyClearTraffic(const Rig& r, unsigned from, uint16_t index, const uint16_t* writes, unsigned count,
+                      unsigned stops = 0, unsigned node = 1) {
+    const uint16_t permitted[] = {0x1001, 0x1003, 0x2100, 0x2101, 0x2102, 0x603f, 0x6041, 0x6061, 0x6064, 0x606c};
+    unsigned written = 0, stopped = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i) {
+        const M::Frame& f = r.wire.sent[i];
+        CHECK(f.id == 0x600 + node && f.payloadLength == 8);
+        if (f.data[0] == 0x40) {
+            bool known = false;
+            for (uint16_t object : permitted)
+                known |= frameIndex(f) == object;
+            CHECK(known);
+        } else if (isWord(r, i, WORD_QUICK, node)) {
+            ++stopped;
+        } else {
+            CHECK(written < count && isClearWrite(r, i, index, writes[written], node));
+            ++written;
+        }
+    }
+    CHECK(written == count && stopped == stops);
+}
+// The target of the session's current binding, which a counter clear's synchronization advances.
+L::ReadTarget sessionTarget(const Rig& r, const E::AxisSession& s, unsigned node = 1) {
+    L::ReadTarget value = r.current(node);
+    value.channel.binding = s.binding();
+    return value;
+}
+void finishClear(Rig& r, const E::AxisSession& s) {
+    for (unsigned i = 0; i < 3000 && (s.clearActive() || s.stopActive()); ++i)
+        r.step();
+    CHECK(!s.clearActive() && !s.stopActive());
+}
+// The owner's configuration notice to the application. It must find the axis already withdrawn at the
+// trigger: a second withdrawal here would advance the axis past the owner's epoch.
+struct ConfigurationWatch {
+    const M::AxisConfig* axis = nullptr;
+    unsigned configurations = 0;
+    M::Generation referenceAtSync = 0; ///< The axis's reference epoch at the latest notice.
+    static void invalidate(void* context, const C::NetworkInvalidationEvent& event) {
+        ConfigurationWatch& w = *static_cast<ConfigurationWatch*>(context);
+        if (event.cause != C::NetworkInvalidation::CONFIGURATION)
+            return;
+        ++w.configurations;
+        CHECK(w.axis->binding.configurationGeneration == event.previous.binding.configurationGeneration + 1);
+        CHECK(!w.axis->originKnown && !w.axis->softLimitsKnown);
+        w.referenceAtSync = w.axis->referenceGeneration;
+    }
+};
+// One clear requested on node 1 from a fresh prerequisite read, with an axis whose coordinates are known.
+struct ClearRun {
+    Rig r;
+    bool counter;
+    L::ReadContext state;
+    M::AxisConfig axis;
+    M::AxisReference reference;
+    ConfigurationWatch watch;
+    unsigned from = 0;
+    uint64_t deadline = 0;
+    explicit ClearRun(bool counterClear, uint64_t window = 4000, uint64_t interval = 10) : counter(counterClear) {
+        openAxis(r, r.a);
+        r.drive[0].monitor = counter ? 0 : 8; // Idle; the alarm clear needs the alarm bit.
+        readState(r, r.a, state, 1, counter ? COUNTER_STATE : ALARM_STATE);
+        axis = axisFor(r.current());
+        axis.originKnown = axis.encoderOriginKnown = axis.softLimitsKnown = true;
+        axis.originNative = 10;
+        axis.encoderOriginNative = 20;
+        axis.originSource = axis.encoderOriginSource = M::ScaleSource::READBACK;
+        axis.softMinimum = -10000;
+        axis.softMaximum = 10000;
+        reference.binding = axis.binding;
+        reference.referenceGeneration = axis.referenceGeneration;
+        reference.nativeKnown = reference.idle = reference.stationary = true;
+        reference.source = M::ScaleSource::QUALIFIED;
+        reference.maximumAgeUs = 1000;
+        watch.axis = &axis;
+        C::NetworkObserver observer;
+        observer.context = &watch;
+        observer.invalidate = ConfigurationWatch::invalidate;
+        CHECK(r.services.setNetworkObserver(0, observer));
+        from = r.wire.sentCount;
+        deadline = r.now + window;
+        const M::Status requested =
+            counter ? r.a.requestCounterZero(state, 0, axis, reference, clearOptions(interval), deadline, r.now)
+                    : r.a.requestClearAlarm(state, clearOptions(interval), deadline, r.now);
+        CHECK(requested.isOk() && r.a.clearActive() && r.a.busy());
+        CHECK(r.wire.sentCount == from); // A request yields no traffic.
+    }
+    const L::ActionContext& action() const { return r.a.clearAction(); }
+    uint16_t index() const { return counter ? 0x2302 : 0x2301; }
+    unsigned writes() const { return counter ? 3 : 2; }
+    unsigned one() const { return counter ? 1 : 0; }
+    const uint16_t* values() const { return counter ? COUNTER_WRITES : ALARM_WRITES; }
+    // Write k admitted and noted by the session, and not yet carried by any owner turn.
+    bool queued(unsigned k) const {
+        const L::ActionContext& a = action();
+        return a.state == M::ActionState::ACTIVE && a.phase == L::ActionPhase::COMMAND && a.commandCursor == k &&
+               a.transmissionNoted && r.wire.sentCount == from + k;
+    }
+    void untilQueued(unsigned k) {
+        for (unsigned i = 0; i < 40 && !queued(k); ++i)
+            r.step();
+        CHECK(queued(k));
+    }
+    // Every write acknowledged; the first read was admitted in the same service.
+    void untilReading() {
+        for (unsigned i = 0; i < 40 && action().commandEvidenceMask != (1u << writes()) - 1; ++i)
+            r.step();
+        CHECK(action().state == M::ActionState::ACTIVE && action().phase != L::ActionPhase::COMMAND &&
+              r.wire.sentCount == from + writes());
+    }
+    // Hold the next frame unanswered: the owner hands it over, and no reply comes.
+    unsigned holdNext() {
+        r.drive[0].answer = false;
+        r.step();
+        CHECK(r.wire.sentCount > from);
+        return r.wire.sentCount - 1;
+    }
+    void release(unsigned held) {
+        r.drive[0].answer = true;
+        r.answer(held);
+    }
+};
+void checkBlocked(const E::AxisSession& s, const M::Status& status, int32_t detail) {
+    CHECK(!status && status.detail == detail && std::strstr(status.msg, "value 1 may still be held"));
+    CHECK(s.clearBlocked());
+}
+void clearAlarmThroughSession() {
+    for (unsigned persist = 0; persist < 2; ++persist) {
+        ClearRun run(false, persist ? 1000 : 4000, persist ? 100 : 10);
+        Rig& r = run.r;
+        const L::ActionContext& clear = run.action();
+        CHECK(clear.actionKind == M::ActionKind::CLEAR_ALARM && clear.incident.present &&
+              clear.incident.codeLink == L::AlarmCodeLink::UNRESOLVED && clear.incident.errorCode == 0xff05 &&
+              clear.incident.monitor == 8 && clear.incident.errorCount == 2);
+        {
+            // Busy: every other request and read refuses, with nothing changed.
+            const Saved<E::AxisSession> session(r.a);
+            CHECK(r.a.requestClearAlarm(run.state, clearOptions(), r.now + 100, r.now).detail ==
+                  int32_t(M::ActionError::STATE));
+            M::AxisConfig axis = run.axis;
+            M::AxisReference reference = run.reference;
+            CHECK(r.a.requestCounterZero(run.state, 0, axis, reference, clearOptions(), r.now + 100, r.now).detail ==
+                  int32_t(M::ActionError::STATE));
+            CHECK(!r.a.beginOperation(r.now + 100, r.now));
+            CHECK(r.a.admitPrepared(service(r, 1, 1, 1, 0x2100), r.now) == O::BusAdmission::INVALID);
+            C::SdoCompletion output;
+            CHECK(!r.a.settle(output) && !r.a.close());
+            CHECK(!r.a.cancelClear(r.now, M::ActionOutcome::DEADLINE) &&
+                  !r.a.cancelClear(r.now, M::ActionOutcome::OBSERVED) && !r.a.cancelClear(r.now - 1));
+            session.unchanged(r.a);
+        }
+        // A terminal of the clear's own is never handed to settle(), even while the session has not
+        // yet serviced it.
+        r.step();
+        r.serviceA = false;
+        r.steps(2);
+        C::SdoCompletion stolen;
+        CHECK(!r.a.settle(stolen) && clear.commandEvidenceMask == 0);
+        r.serviceA = true;
+        for (unsigned i = 0; i < 40 && clear.commandEvidenceMask != 3; ++i)
+            r.step();
+        CHECK(isClearWrite(r, run.from, 0x2301, 1) && isClearWrite(r, run.from + 1, 0x2301, 0));
+        CHECK(clear.commandHistory[0].outcome == C::SdoOutcome::SUCCESS &&
+              clear.commandHistory[1].outcome == C::SdoOutcome::SUCCESS);
+        if (!persist)
+            r.drive[0].monitor = 0;
+        finishClear(r, r.a);
+        CHECK(clear.execution == M::ActionExecution::ACKNOWLEDGED && !clear.valueOneMayRemain && !r.a.clearBlocked());
+        if (!persist) {
+            CHECK(clear.state == M::ActionState::SUCCEEDED && clear.outcome == M::ActionOutcome::OBSERVED &&
+                  clear.completion == M::ActionCompletion::OBSERVED);
+            // ERRORS once, after the alarm cleared, kept raw: 603F still reads FF05 here.
+            CHECK(uploads(r, run.from, 0x1001) == 1 && uploads(r, run.from, 0x603f) == 1);
+            CHECK(clear.extraObservation.errorCode == 0xff05 && clear.monitorObservation.monitor == 0);
+        } else {
+            // A persisting alarm is the result: repolled to the deadline, never written again.
+            CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::DEADLINE &&
+                  clear.completion == M::ActionCompletion::NOT_OBSERVED && clear.uncertain);
+            CHECK(clear.observations >= 2 && uploads(r, run.from, 0x1001) == 0 && uploads(r, run.from, 0x603f) == 0);
+        }
+        CHECK(uploads(r, run.from, 0x1003) == 0); // The history is never read again.
+        onlyClearTraffic(r, run.from, 0x2301, ALARM_WRITES, 2);
+        // Nothing follows a clear: this session wrote, so an enable is refused.
+        const Saved<E::AxisSession> session(r.a);
+        const M::Status enable =
+            r.a.requestEnable(run.state, L::EnableEvidence(), clearOptions(), r.now + 1000, r.now);
+        CHECK(!enable && enable.detail == int32_t(M::ActionError::STATE) && r.a.motionHistoryWritten());
+        session.unchanged(r.a);
+        quiet(r);
+    }
+}
+void counterZeroThroughSession() {
+    ClearRun run(true);
+    Rig& r = run.r;
+    const L::ActionContext& clear = run.action();
+    CHECK(clear.actionKind == M::ActionKind::SET_DEVICE_POSITION && clear.baseline.present &&
+          clear.baseline.startPosition == 0 && clear.baseline.startVelocity == 0);
+    const Saved<M::AxisConfig> axis(run.axis);
+    const Saved<M::AxisReference> reference(run.reference);
+    // The arming 0 is noted and withdraws nothing.
+    run.untilQueued(0);
+    axis.unchanged(run.axis);
+    reference.unchanged(run.reference);
+    // The 1 withdraws when it is admitted, before any owner turn could carry it.
+    run.untilQueued(1);
+    CHECK(r.wire.sentCount == run.from + 1 && clear.coordinatesInvalidated);
+    CHECK(run.axis.referenceGeneration == 2 && run.axis.binding.configurationGeneration == 8 &&
+          !run.axis.originKnown && !run.axis.encoderOriginKnown && !run.axis.softLimitsKnown &&
+          !run.reference.nativeKnown);
+    CHECK(run.axis.softMinimum == -10000 && run.axis.softMaximum == 10000); // Values stay.
+    CHECK(r.a.binding().configurationGeneration == 7 && run.watch.configurations == 0);
+    // The final 0 withdraws nothing again, and the owner follows only after it.
+    run.untilQueued(2);
+    CHECK(run.axis.referenceGeneration == 2 && run.axis.binding.configurationGeneration == 8);
+    CHECK(r.a.binding().configurationGeneration == 7 && run.watch.configurations == 0);
+    finishClear(r, r.a);
+    CHECK(clear.state == M::ActionState::SUCCEEDED && clear.outcome == M::ActionOutcome::OBSERVED &&
+          clear.execution == M::ActionExecution::ACKNOWLEDGED && clear.extraObservation.actualPosition == 0);
+    CHECK(clear.read.target.channel.binding.configurationGeneration == 8);
+    // One synchronization, which found the axis withdrawn and advanced nothing.
+    CHECK(run.watch.configurations == 1 && run.watch.referenceAtSync == 2 && run.axis.referenceGeneration == 2 &&
+          run.axis.binding.configurationGeneration == 8);
+    const O::Sequence* live = r.owner.sequence(r.a.sequence());
+    CHECK(live && live->binding.configurationGeneration == 8 && r.a.binding().configurationGeneration == 8);
+    CHECK(!clear.valueOneMayRemain && !r.a.clearBlocked());
+    onlyClearTraffic(r, run.from, 0x2302, COUNTER_WRITES, 3);
+    // A raw zero publishes no origin or witness.
+    CHECK(!run.axis.originKnown && !run.reference.nativeKnown);
+    // The whole session follows the new epoch: a second zero is new explicit intent and is admitted
+    // there, and withdraws and synchronizes once more.
+    L::ReadContext fresh;
+    readOn(r, r.a, fresh, sessionTarget(r, r.a), COUNTER_STATE);
+    const unsigned second = r.wire.sentCount;
+    CHECK(r.a.requestCounterZero(fresh, 0, run.axis, run.reference, clearOptions(), r.now + 4000, r.now));
+    finishClear(r, r.a);
+    CHECK(clear.state == M::ActionState::SUCCEEDED &&
+          clear.reservation.target.channel.binding.configurationGeneration == 8);
+    CHECK(run.watch.configurations == 2 && run.watch.referenceAtSync == 3 && run.axis.referenceGeneration == 3 &&
+          r.a.binding().configurationGeneration == 9);
+    onlyClearTraffic(r, second, 0x2302, COUNTER_WRITES, 3);
+    // So does a sequenced stop, whose fresh state and acknowledged word are on the new epoch.
+    const uint32_t operation = begin(r, r.a);
+    C::SdoTransfer enabled = service(r, 1, operation, 1, 0x6040, true, WORD_ENABLE);
+    enabled.channel.binding = r.a.binding();
+    CHECK(r.a.admitPrepared(enabled, r.now) == O::BusAdmission::ACCEPTED);
+    r.steps(2);
+    CHECK(settled(r.a).outcome == C::SdoOutcome::SUCCESS && r.a.latestControl());
+    readOn(r, r.a, fresh, sessionTarget(r, r.a), STATE_MASK);
+    const unsigned before = r.wire.sentCount;
+    CHECK(r.a.requestStop(L::StopKind::HALT, fresh, stopPolicy(r.now), r.now) == E::StopPath::CONFIRMED);
+    finish(r, r.a);
+    CHECK(isWord(r, before, WORD_HALT) && writes6040(r, before) == 1);
+    CHECK(r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED);
+    CHECK(run.watch.configurations == 2);
+}
+// An unsent first write, cancelled by the stop request, leaves the controlword before it as the latest,
+// so the stop keeps its sequenced path. A clear write that may have left would have withdrawn it.
+void stopAfterUnsentClearKeepsHistory() {
+    for (unsigned sent = 0; sent < 2; ++sent) {
+        Rig r;
+        openAxis(r, r.a);
+        r.drive[0].monitor = 0;
+        write(r, r.a, 0x6040, WORD_ENABLE);
+        L::ReadContext state;
+        readState(r, r.a, state, 1, COUNTER_STATE);
+        M::AxisConfig axis = axisFor(r.current());
+        M::AxisReference reference;
+        const unsigned from = r.wire.sentCount;
+        CHECK(r.a.requestCounterZero(state, 0, axis, reference, clearOptions(), r.now + 4000, r.now));
+        CHECK(r.a.latestControl()); // A request alone withdraws nothing.
+        r.step();
+        CHECK(!r.a.latestControl()); // The admitted arming 0 withdrew it.
+        unsigned held = 0;
+        if (sent) {
+            r.drive[0].answer = false;
+            r.step();
+            held = r.wire.sentCount - 1;
+            CHECK(isClearWrite(r, held, 0x2302, 0));
+        }
+        const E::StopPath path = r.a.requestStop(L::StopKind::HALT, state, stopPolicy(r.now), r.now);
+        CHECK(path == (sent ? E::StopPath::BEST_EFFORT : E::StopPath::CONFIRMED) ||
+              (sent && path == E::StopPath::HELD));
+        if (sent) {
+            r.drive[0].answer = true;
+            r.answer(held);
+        }
+        finishClear(r, r.a);
+        const L::ActionContext& clear = r.a.clearAction();
+        CHECK(clear.outcome == M::ActionOutcome::CANCELLED && !clear.coordinatesInvalidated &&
+              axis.referenceGeneration == 1);
+        if (sent) {
+            CHECK(r.wire.sentCount == from + 2 && isWord(r, from + 1, WORD_QUICK));
+        } else {
+            CHECK(r.wire.sentCount > from && isWord(r, from, WORD_HALT) && writes6040(r, from) == 1);
+            CHECK(r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED);
+        }
+        quiet(r);
+    }
+}
+// The 1's notice rechecks the borrowed axis. One the application changed since the request, here
+// re-originated, refuses it: the 1 is cancelled before any turn could carry it, nothing is withdrawn
+// and the owner stays on its epoch. A rejection before possible effect stays distinguishable.
+void counterNoticeRefusalCancelsTrigger() {
+    ClearRun run(true);
+    Rig& r = run.r;
+    run.untilQueued(0);
+    run.axis.referenceGeneration = 5; // As after a new origin of the application's own.
+    run.reference.referenceGeneration = 5;
+    const Saved<M::AxisConfig> axis(run.axis);
+    finishClear(r, r.a);
+    const L::ActionContext& clear = run.action();
+    CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::INVALIDATED);
+    CHECK(!clear.coordinatesInvalidated && clear.execution == M::ActionExecution::NOT_TRANSMITTED &&
+          !clear.valueOneMayRemain && !r.a.clearBlocked());
+    CHECK(clear.commandEvidenceMask == 3 && !clear.commandHistory[1].transmissionPossible);
+    axis.unchanged(run.axis);
+    CHECK(run.axis.originKnown && run.reference.nativeKnown && run.watch.configurations == 0 &&
+          r.a.binding().configurationGeneration == 7);
+    onlyClearTraffic(r, run.from, 0x2302, COUNTER_WRITES, 1); // The arming 0 alone left.
+    quiet(r);
+}
+// The owner closing a clear's queued write is not a cancel this session made: the clear ends
+// INVALIDATED, with that unsent terminal kept. Revoking the reservation reads as an invalidation from
+// the owner already; another producer's urgent operation closes it as a plain cancel.
+void ownerClosureIsNotACancel() {
+    for (unsigned revoke = 0; revoke < 2; ++revoke) {
+        ClearRun run(false);
+        Rig& r = run.r;
+        run.untilQueued(0);
+        if (revoke)
+            CHECK(r.owner.invalidate(r.a.sequence(), r.now));
+        else
+            CHECK(r.owner.beginUrgentOperation(r.a.sequence(), r.owner.sequence(r.a.sequence())->operation + 1,
+                                               r.now + 1000, r.now));
+        finishClear(r, r.a);
+        const L::ActionContext& clear = run.action();
+        CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::INVALIDATED);
+        CHECK(clear.commandHistory[0].outcome ==
+              (revoke ? C::SdoOutcome::BINDING_INVALIDATED : C::SdoOutcome::CANCELLED));
+        CHECK(clear.commandEvidenceMask == 1 && !clear.commandHistory[0].transmissionPossible &&
+              clear.execution == M::ActionExecution::NOT_TRANSMITTED && !clear.valueOneMayRemain &&
+              !r.a.clearBlocked());
+        CHECK(r.wire.sentCount == run.from);
+        // A revoked reservation leaves none usable, which a request reports before anything else.
+        if (revoke)
+            CHECK(r.a.requestClearAlarm(run.state, clearOptions(), r.now + 1000, r.now).detail ==
+                  int32_t(M::ActionError::TARGET));
+        quiet(r);
+    }
+}
+void counterZeroRefusesNonzero() {
+    Rig r;
+    openAxis(r, r.a);
+    r.drive[0].monitor = 0;
+    L::ReadContext state;
+    readState(r, r.a, state, 1, COUNTER_STATE);
+    M::AxisConfig axis = axisFor(r.current());
+    M::AxisReference reference;
+    const unsigned from = r.wire.sentCount;
+    const Saved<E::AxisSession> session(r.a);
+    const Saved<M::AxisConfig> axisBefore(axis);
+    const Saved<O::OwnerResources> resources(r.owner.resources());
+    const int64_t values[] = {1, -1, 5000, INT64_MAX, INT64_MIN};
+    for (int64_t value : values) {
+        const M::Status status =
+            r.a.requestCounterZero(state, value, axis, reference, clearOptions(), r.now + 1000, r.now);
+        CHECK(status.code == M::Err::UNSUPPORTED && status.detail == int32_t(M::ActionError::ARGUMENT));
+        session.unchanged(r.a);
+        axisBefore.unchanged(axis);
+        resources.unchanged(r.owner.resources());
+    }
+    // The value is refused before any state or axis check.
+    L::ReadContext none;
+    M::AxisConfig foreign;
+    CHECK(r.a.requestCounterZero(none, 1, foreign, reference, clearOptions(), r.now + 1000, r.now).code ==
+          M::Err::UNSUPPORTED);
+    session.unchanged(r.a);
+    r.steps(2);
+    CHECK(r.wire.sentCount == from);
+}
+void clearRefusalsChangeNothing() {
+    Rig r;
+    L::ReadContext state;
+    M::AxisConfig axis = axisFor(r.current());
+    M::AxisReference reference;
+    const int32_t target = int32_t(M::ActionError::TARGET), stateError = int32_t(M::ActionError::STATE);
+    CHECK(r.a.requestClearAlarm(state, clearOptions(), r.now + 1000, r.now).detail == target); // Not open.
+    CHECK(r.a.requestCounterZero(state, 0, axis, reference, clearOptions(), r.now + 1000, r.now).detail == target);
+    openAxis(r, r.a);
+    r.drive[0].monitor = 0;
+    readState(r, r.a, state, 1, uint8_t(ALARM_STATE | COUNTER_STATE));
+    const unsigned from = r.wire.sentCount;
+    const Saved<M::AxisConfig> axisBefore(axis);
+    {
+        const Saved<E::AxisSession> session(r.a);
+        // The owner has seen a later time than this request.
+        CHECK(r.owner.service(r.now + 5, budget()));
+        CHECK(r.a.requestClearAlarm(state, clearOptions(), r.now + 1000, r.now).detail ==
+              int32_t(M::ActionError::TIME));
+        CHECK(r.a.requestCounterZero(state, 0, axis, reference, clearOptions(), r.now + 1000, r.now).detail ==
+              int32_t(M::ActionError::TIME));
+        r.now += 5;
+        // No alarm reported: the library refuses the alarm clear.
+        const M::Status noAlarm = r.a.requestClearAlarm(state, clearOptions(), r.now + 1000, r.now);
+        CHECK(!noAlarm && noAlarm.detail == stateError);
+        // A state read held inside the slot overlaps the context it would write.
+        CHECK(r.a.requestCounterZero(r.a.clearAction().read, 0, axis, reference, clearOptions(), r.now + 1000,
+                                     r.now).detail == int32_t(M::ActionError::OVERLAP));
+        session.unchanged(r.a);
+    }
+    // A raw command in flight: busy.
+    const uint32_t operation = begin(r, r.a);
+    CHECK(r.a.admitPrepared(service(r, 1, operation, 1, 0x2100), r.now) == O::BusAdmission::ACCEPTED);
+    {
+        const Saved<E::AxisSession> session(r.a);
+        CHECK(r.a.requestCounterZero(state, 0, axis, reference, clearOptions(), r.now + 1000, r.now).detail ==
+              stateError);
+        session.unchanged(r.a);
+    }
+    r.steps(2);
+    CHECK(settled(r.a).outcome == C::SdoOutcome::SUCCESS);
+    axisBefore.unchanged(axis);
+    // With those causes gone the same state admits the counter clear.
+    CHECK(r.a.requestCounterZero(state, 0, axis, reference, clearOptions(), r.now + 4000, r.now));
+    CHECK(r.wire.sentCount == from + 1);
+}
+// A stop request ends the clear in every phase and nothing of the clear follows it. A write the owner
+// has not handed over is cancelled; one in flight settles into the context as evidence. The 000B branch
+// runs when the policy allows it; otherwise the stop is refused and the clear still ends.
+void stopSupersedesClear() {
+    for (unsigned counter = 0; counter < 2; ++counter) {
+        const unsigned n = counter ? 3 : 2, one = counter ? 1 : 0;
+        // Phase 0: before any service. 2k+1: write k queued. 2k+2: write k in flight. 2n+1: a read in flight.
+        for (unsigned phase = 0; phase <= 2 * n + 1; ++phase)
+            for (unsigned allowed = 0; allowed < 2; ++allowed) {
+                ClearRun run(counter != 0);
+                Rig& r = run.r;
+                const L::ActionContext& clear = run.action();
+                const bool reading = phase == 2 * n + 1;
+                const unsigned k = phase && !reading ? (phase - 1) / 2 : 0;
+                const bool inFlight = reading || (phase && (phase - 1) % 2 == 1);
+                if (reading)
+                    run.untilReading();
+                else if (phase)
+                    run.untilQueued(k);
+                const unsigned held = inFlight ? run.holdNext() : 0;
+                CHECK(!inFlight || (reading ? r.wire.sent[held].data[0] == 0x40
+                                            : isClearWrite(r, held, run.index(), run.values()[k])));
+                const unsigned before = r.wire.sentCount;
+                L::ReadContext none;
+                const E::StopPath path =
+                    r.a.requestStop(L::StopKind::QUICK_STOP, none, stopPolicy(r.now, 5000, allowed ? 6000 : 0), r.now);
+                CHECK(allowed ? path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD
+                              : path == E::StopPath::NONE);
+                // With nothing admitted the clear ends at once; otherwise its terminal settles first.
+                CHECK(clear.state == (phase ? M::ActionState::ACTIVE : M::ActionState::FAILED));
+                if (inFlight)
+                    run.release(held);
+                finishClear(r, r.a);
+                const unsigned sent = reading ? n : phase ? k + inFlight : 0;
+                CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::CANCELLED);
+                CHECK(clear.completion == M::ActionCompletion::NOT_OBSERVED);
+                // The queued write is kept as its own unsent terminal.
+                const unsigned settledWrites = reading ? n : phase ? k + 1 : 0;
+                CHECK(clear.commandEvidenceMask == (1u << settledWrites) - 1);
+                if (phase && !inFlight)
+                    CHECK(clear.commandHistory[k].outcome == C::SdoOutcome::CANCELLED &&
+                          !clear.commandHistory[k].transmissionPossible);
+                CHECK(clear.execution == (sent > one ? M::ActionExecution::ACKNOWLEDGED
+                                                     : M::ActionExecution::NOT_TRANSMITTED));
+                const bool remains = sent > one && sent < n;
+                CHECK(clear.valueOneMayRemain == remains && r.a.clearBlocked() == remains);
+                // A counter clear withdrew once its 1 was admitted, even if that 1 never left.
+                const bool withdrawn = counter && (reading || (phase && k >= 1));
+                CHECK(clear.coordinatesInvalidated == withdrawn);
+                CHECK(run.axis.referenceGeneration == (withdrawn ? 2u : 1u) && run.axis.originKnown == !withdrawn);
+                // The owner follows unless the 000B left the route unresolved first.
+                const bool synced = withdrawn && (reading || !allowed);
+                CHECK(run.watch.configurations == (synced ? 1u : 0u));
+                CHECK(r.a.binding().configurationGeneration == (synced ? 8u : 7u));
+                onlyClearTraffic(r, run.from, run.index(), run.values(), sent, allowed ? 1 : 0);
+                for (unsigned i = before; i < r.wire.sentCount; ++i)
+                    CHECK(frameIndex(r.wire.sent[i]) != run.index()); // Nothing of it after the request.
+                quiet(r);
+            }
+    }
+}
+// A lost 1 or a lost final 0: the frame left and no reply came. The route stays unresolved, the
+// possible 1 stays recorded with its block, and a late reply changes nothing and nothing is resent.
+void lostClearWriteStaysUncertain() {
+    for (unsigned counter = 0; counter < 2; ++counter)
+        for (unsigned last = 0; last < 2; ++last) {
+            ClearRun run(counter != 0);
+            Rig& r = run.r;
+            const L::ActionContext& clear = run.action();
+            const unsigned k = last ? run.writes() - 1 : run.one();
+            run.untilQueued(k);
+            const unsigned lost = run.holdNext();
+            CHECK(isClearWrite(r, lost, run.index(), run.values()[k]));
+            r.turn(r.now + 100); // The response budget is spent.
+            finishClear(r, r.a);
+            CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
+            CHECK(clear.valueOneMayRemain && r.a.clearBlocked() && clear.uncertain && clear.effectsPossible);
+            CHECK(clear.execution == (last ? M::ActionExecution::ACKNOWLEDGED : M::ActionExecution::UNKNOWN));
+            CHECK(clear.commandHistory[k].outcome == C::SdoOutcome::TIMEOUT &&
+                  clear.commandHistory[k].transmissionPossible && clear.commandHistory[k].effectUncertain &&
+                  !clear.commandHistory[k].protocolAcknowledged);
+            if (last) // The 1's acknowledgement survives the later failure.
+                CHECK(clear.commandHistory[run.one()].outcome == C::SdoOutcome::SUCCESS);
+            CHECK(r.services.unresolved(0) && !r.owner.sequence(r.a.sequence()));
+            // An unresolved route has no usable reservation, which a request reports before the block.
+            CHECK(r.a.requestClearAlarm(run.state, clearOptions(), r.now + 1000, r.now).detail ==
+                  int32_t(M::ActionError::TARGET));
+            CHECK(clear.coordinatesInvalidated == run.counter);
+            CHECK(run.axis.referenceGeneration == (run.counter ? 2u : 1u));
+            // An unresolved route never moves to the new epoch.
+            CHECK(run.watch.configurations == 0 && r.a.binding().configurationGeneration == 7);
+            const Saved<L::ActionContext> failed(clear);
+            run.release(lost);
+            r.steps(4);
+            failed.unchanged(clear);
+            CHECK(r.a.clearBlocked() && run.watch.configurations == 0);
+            onlyClearTraffic(r, run.from, run.index(), run.values(), k + 1);
+            quiet(r);
+        }
+}
+// A rejected final 0 leaves its route resolved. The block then outlives result release, close and
+// open, refuses every request but a stop, and leaves the other node alone. A counter clear's owner
+// still follows the axis once, withdrawing nothing.
+void rejectedFinalZeroBlocks() {
+    for (unsigned counter = 0; counter < 2; ++counter) {
+        ClearRun run(counter != 0);
+        Rig& r = run.r;
+        const L::ActionContext& clear = run.action();
+        const unsigned n = run.writes();
+        run.untilQueued(n - 1);
+        r.drive[0].abortIndex = run.index();
+        finishClear(r, r.a);
+        r.drive[0].abortIndex = 0;
+        CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::PROTOCOL_REJECTED);
+        CHECK(clear.execution == M::ActionExecution::ACKNOWLEDGED && clear.valueOneMayRemain && r.a.clearBlocked());
+        CHECK(clear.commandHistory[n - 1].outcome == C::SdoOutcome::SERVER_ABORT &&
+              clear.commandHistory[n - 1].abortValid && clear.commandHistory[n - 1].abortCode == 0x08000023);
+        CHECK(clear.commandHistory[run.one()].outcome == C::SdoOutcome::SUCCESS);
+        CHECK(!r.services.unresolved(0));
+        CHECK(run.watch.configurations == (run.counter ? 1u : 0u) &&
+              r.a.binding().configurationGeneration == (run.counter ? 8u : 7u));
+        CHECK(run.axis.referenceGeneration == (run.counter ? 2u : 1u));
+        onlyClearTraffic(r, run.from, run.index(), run.values(), n);
+        const unsigned from = r.wire.sentCount;
+        L::ReadContext fresh;
+        readOn(r, r.a, fresh, sessionTarget(r, r.a), uint8_t(ALARM_STATE | COUNTER_STATE));
+        const uint64_t deadline = r.now + 1000;
+        {
+            const Saved<E::AxisSession> session(r.a);
+            checkBlocked(r.a, r.a.requestClearAlarm(fresh, clearOptions(), deadline, r.now),
+                         int32_t(M::ActionError::STATE));
+            checkBlocked(r.a,
+                         r.a.requestCounterZero(fresh, 0, run.axis, run.reference, clearOptions(), deadline,
+                                                r.now),
+                         int32_t(M::ActionError::STATE));
+            checkBlocked(r.a, r.a.requestEnable(fresh, L::EnableEvidence(), clearOptions(), deadline, r.now),
+                         int32_t(M::ActionError::STATE));
+            L::IdentityObservation identity;
+            L::MoveEvidence evidence;
+            M::MoveRequest request;
+            L::MoveProfile profile;
+            L::MoveOptions options;
+            checkBlocked(r.a,
+                         r.a.requestMove(fresh, identity, evidence, request, profile, nullptr, run.axis, nullptr,
+                                         options, deadline, r.now),
+                         int32_t(M::MoveError::STATE));
+            session.unchanged(r.a);
+        }
+        // Close releases the reservation; reopening takes a new one, and the block stays.
+        CHECK(r.a.close());
+        CHECK(r.a.open(sessionTarget(r, r.a), L::SettingsModel::CL86_C, 1, r.now) && r.a.clearBlocked());
+        CHECK(r.a.clearAction().state == M::ActionState::EMPTY);
+        r.drive[0].monitor = 0; // Idle with no alarm, which a stop's state does not refuse.
+        readOn(r, r.a, fresh, sessionTarget(r, r.a), uint8_t(ALARM_STATE | COUNTER_STATE));
+        checkBlocked(r.a, r.a.requestClearAlarm(fresh, clearOptions(), r.now + 1000, r.now),
+                     int32_t(M::ActionError::STATE));
+        // A stop is still admitted.
+        const unsigned stop = r.wire.sentCount;
+        CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, fresh, stopPolicy(r.now), r.now) == E::StopPath::BEST_EFFORT);
+        finish(r, r.a);
+        CHECK(r.wire.sentCount == stop + 1 && isWord(r, stop, WORD_QUICK));
+        onlyClearTraffic(r, from, run.index(), run.values(), 0, 1);
+        // Node 2 has its own session, which no block of node 1 reaches.
+        openAxis(r, r.b, 2);
+        r.drive[1].monitor = 8;
+        L::ReadContext other;
+        readState(r, r.b, other, 2, ALARM_STATE);
+        const unsigned second = r.wire.sentCount;
+        CHECK(!r.b.clearBlocked() && r.b.requestClearAlarm(other, clearOptions(), r.now + 4000, r.now));
+        for (unsigned i = 0; i < 40 && r.b.clearAction().commandEvidenceMask != 3; ++i)
+            r.step();
+        r.drive[1].monitor = 0;
+        finishClear(r, r.b);
+        CHECK(r.b.clearAction().state == M::ActionState::SUCCEEDED && !r.b.clearBlocked() && r.a.clearBlocked());
+        onlyClearTraffic(r, second, 0x2301, ALARM_WRITES, 2, 0, 2);
+    }
+}
+// A fault the application routes, such as an EMCY it copied, ends the clear with that reason. The
+// write in flight settles as evidence, a later reason does not replace the first, and preflight
+// refuses any write of the withdrawn clear at handover.
+void routedFaultEndsClear() {
+    for (unsigned counter = 0; counter < 2; ++counter) {
+        ClearRun run(counter != 0);
+        Rig& r = run.r;
+        const L::ActionContext& clear = run.action();
+        run.untilQueued(run.one());
+        const unsigned held = run.holdNext();
+        CHECK(isClearWrite(r, held, run.index(), 1));
+        // The application routes the fault; the session keeps no EMCY. The async run delivers one on
+        // the ordinary path every turn, and it changes nothing here by itself.
+        C::SdoTransfer write;
+        write.direction = C::SdoDirection::DOWNLOAD;
+        write.operation = clear.operation;
+        CHECK(r.a.preflight(r.a.sequence(), write, r.now)); // A live clear's write passes.
+        CHECK(r.a.cancelClear(r.now, M::ActionOutcome::DRIVE_FAULT));
+        CHECK(r.a.cancelClear(r.now, M::ActionOutcome::CANCELLED)); // The first reason wins.
+        CHECK(!r.a.preflight(r.a.sequence(), write, r.now));
+        C::SdoTransfer read = write;
+        read.direction = C::SdoDirection::UPLOAD;
+        CHECK(r.a.preflight(r.a.sequence(), read, r.now) && r.a.preflight(O::SequenceId(), write, r.now));
+        CHECK(clear.state == M::ActionState::ACTIVE); // Its write in flight settles first.
+        run.release(held);
+        finishClear(r, r.a);
+        CHECK(clear.state == M::ActionState::FAILED && clear.outcome == M::ActionOutcome::DRIVE_FAULT);
+        CHECK(clear.execution == M::ActionExecution::ACKNOWLEDGED &&
+              clear.commandHistory[run.one()].outcome == C::SdoOutcome::SUCCESS);
+        CHECK(clear.valueOneMayRemain && r.a.clearBlocked());
+        CHECK(!r.a.cancelClear(r.now));
+        CHECK(run.watch.configurations == (run.counter ? 1u : 0u));
+        onlyClearTraffic(r, run.from, run.index(), run.values(), run.one() + 1);
+        quiet(r);
+    }
+}
 void allScenarios() {
     RUN(triggerPollThenStop);
     RUN(lostTriggerThenBestEffort);
@@ -3462,6 +4128,17 @@ void allScenarios() {
     RUN(stateHeldInTheSlotCountsAsMissing);
     RUN(ownerRefusalKeepsRetainedStop);
     RUN(waitingStopEnds);
+    RUN(clearAlarmThroughSession);
+    RUN(counterZeroThroughSession);
+    RUN(counterZeroRefusesNonzero);
+    RUN(clearRefusalsChangeNothing);
+    RUN(stopSupersedesClear);
+    RUN(lostClearWriteStaysUncertain);
+    RUN(rejectedFinalZeroBlocks);
+    RUN(routedFaultEndsClear);
+    RUN(stopAfterUnsentClearKeepsHistory);
+    RUN(counterNoticeRefusalCancelsTrigger);
+    RUN(ownerClosureIsNotACancel);
 }
 } // namespace
 

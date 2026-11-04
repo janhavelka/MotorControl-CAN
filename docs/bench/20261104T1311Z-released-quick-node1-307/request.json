@@ -1,0 +1,84 @@
+{
+  "started_utc": "2026-11-04T13:11:47.994850+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "released-quick",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 307,
+  "plan": "packet 16 step 3",
+  "fields": [
+    1,
+    307,
+    1,
+    4,
+    250
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 307 to confirm: ",
+      "typed": "ATTENDED 307",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not observed: the user asked that motion be confirmed from the drive's position reports, not by eye"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "released-quick",
+    "--node",
+    "1",
+    "--trial",
+    "307",
+    "--cycles",
+    "4",
+    "--interval-ms",
+    "250",
+    "--campaign",
+    "docs\\bench\\20261104b-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1311Z-released-quick-node1-307"
+  ],
+  "host_revision": "70eeddd72e9830e5f83f633ad35dffb924bc3ff0",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104b-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5451312c3330372c312c342c3235302c4b66303263643932360a"
+  ],
+  "image": {
+    "base": "70eeddd72e9830e5f83f633ad35dffb924bc3ff0",
+    "elf": "446b93fe730dacb0900c26ca83c66ff09a95a0673e8f1ee064f1ec42c8769c98",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TQ1,307,1,4,250,Kf02cd926",
+  "tx_hex": "5451312c3330372c312c342c3235302c4b66303263643932360a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T13:11:52.883089+00:00"
+}

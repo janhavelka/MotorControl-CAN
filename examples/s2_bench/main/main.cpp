@@ -503,6 +503,17 @@ bool sessionStorage(E::FirmwareProbe& firmware, E::BenchRoute& route, unsigned n
                                            MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     return memory && route.attach(node, *new (memory) E::AxisSession(firmware.owner()));
 }
+// The settings routes' and an observed move's contexts, once, on the first such route: a block of
+// their own beside the route's, which is already the largest block the heap gives.
+bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
+    const bool needed = plan.kind == E::RouteKind::SETTINGS_2202 || plan.kind == E::RouteKind::IO_DI3 ||
+                        (plan.kind == E::RouteKind::MOVE && plan.observer);
+    if (!needed || route.workAttached())
+        return true;
+    void* memory = heap_caps_aligned_alloc(alignof(E::RouteWork), sizeof(E::RouteWork),
+                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    return memory && route.attachWork(*new (memory) E::RouteWork());
+}
 const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver,
                        E::BenchRoute*& route, bool configured[2], const char* text, size_t size, uint64_t now) {
     // The host's CRC-32 of the whole line first: a corrupted digit can still parse as another plan.
@@ -514,8 +525,13 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
         return "parse";
     if (!ensureRoute(services, plan.node, configured[plan.node - 1], now))
         return "route";
+    // An observed move reads the other node on its own route and session too.
+    const unsigned observer = plan.kind == E::RouteKind::MOVE ? plan.observer : 0;
+    if (observer && !ensureRoute(services, observer, configured[observer - 1], now))
+        return "route";
     route = routeStorage(firmware, services, driver);
-    if (!route || !sessionStorage(firmware, *route, plan.node))
+    if (!route || !sessionStorage(firmware, *route, plan.node) ||
+        (observer && !sessionStorage(firmware, *route, observer)) || !workStorage(*route, plan))
         return "memory";
     return route->begin(plan, now);
 }
@@ -563,8 +579,9 @@ void ownerTask(void*) {
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
     // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
-    // refused whole, never cut. `routes=4` in PONG names this line protocol: the CRC-32 field (3), then
-    // the rearm's predecessor, the move's relative base and the Q, W and L routes (4).
+    // refused whole, never cut. `routes=5` in PONG names this line protocol: the CRC-32 field (3), the
+    // rearm's predecessor, the move's relative base and the Q, W and L routes (4), then the D and J
+    // settings routes and the move's observer node (5).
     E::BenchRoute* route = nullptr;
     char trialText[E::ROUTE_LINE] = {};
     size_t trialLength = 0;
@@ -900,7 +917,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=4 trial=%u motion=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
                            unsigned(silent), unsigned(silentReady), unsigned(soakActive),

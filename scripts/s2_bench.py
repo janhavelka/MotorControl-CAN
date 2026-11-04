@@ -64,14 +64,24 @@ TRIALS = {
     "released-quick": ("Q", True, "packet 16 step 3"),
     "word67": ("W", True, "packet 15 words 6 and 7"),
     "relative": ("L", True, "packet 21 relative base"),
+    # Settings routes change drive state without motion: attended and counted, with caps of their own.
+    "settings-2202": ("D", False, "packet 12 T1/T2"),
+    "io-di3": ("J", False, "packet 13 P2/P3"),
+    # The session's two clears: counter zero moves the position reference, so both are motion class.
+    "counter-zero": ("Z", True, "counter zero, 2302 0 1 0"),
+    "clear-alarm": ("C", True, "alarm clear, 2301 1 0"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
-FAULT_LED_ROUTES = ("readiness-actions", "readiness-history")
+FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "io-di3")
+# Attended state-changing routes that are not motion: one send counts one case, never motion weight.
+SETTINGS_ROUTES = ("settings-2202", "io-di3")
+SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
-# predecessor, the move's relative base and the Q, W and L routes. Any other image would misread the
-# line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 4
+# predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
+# Z and C clears and the move's observer node. Any other image would misread the line, so it is
+# refused before anything is sent.
+ROUTE_PROTOCOL = 5
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -85,6 +95,10 @@ COMPLETION_RULES = {"after-absence": 1, "after-acceptance": 2}
 PREDECESSORS = {"position-trigger": 1, "position-halt": 2, "relative-trigger": 3}
 # A move's target: absolute, or a displacement with MoveEvidence::relativeBase ACTUAL or COMMANDED.
 MOVE_BASES = {"absolute": 0, "actual": 1, "commanded": 2}
+# 2202 codes as EN86/ZH86 p18 labels them; the EDS default 10 is not one.
+SOFT_LIMIT_CODES = {"limits-off": 0, "after-homing": 1}
+# The one DI3 change of io-di3: its function 0 (UNDEFINED) to 7 (USER0) and back, or its polarity bit.
+DI3_CHANGES = {"function-user0": 1, "function-undefined": 2, "polarity-set": 3, "polarity-clear": 4}
 # The firmware's record capacity, route cutoff margin and per-read budgets (BenchRoute.h).
 ROUTE_TERMINALS = 128
 ROUTE_DURATION_MS = 55000
@@ -219,6 +233,17 @@ def trial_line(args, parser):
             parser.error("--predecessor is required for this route (%s)" % ", ".join(PREDECESSORS))
         fields += [1, PREDECESSORS[args.predecessor], _within(parser, "cycles", args.cycles, 1, 16),
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
+    elif args.command == "settings-2202":
+        if args.soft_limit_code is None:
+            parser.error("--soft-limit-code is required for this route (%s)" % ", ".join(SOFT_LIMIT_CODES))
+        fields += [1, SOFT_LIMIT_CODES[args.soft_limit_code]]
+    elif args.command == "io-di3":
+        if args.di3_change is None:
+            parser.error("--di3-change is required for this route (%s)" % ", ".join(DI3_CHANGES))
+        fields += [1, DI3_CHANGES[args.di3_change]]
+    elif args.command in ("counter-zero", "clear-alarm"):
+        fields += [1, _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
+                   _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
     elif args.command == "released-quick":
         fields += [1, _within(parser, "cycles", args.cycles, 1, 16),
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
@@ -257,12 +282,20 @@ def trial_line(args, parser):
                            ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
                            ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
-        fields += [base, witness]
+        observer = 0 if args.observer is None else _within(parser, "observer", args.observer, 1, 2)
+        if observer == node:
+            parser.error("--observer is the other node, never the moving one")
+        fields += [base, witness, observer]
         fields += _stop_fields(args, parser, 16)
-    if args.command != "move" and (args.move_base is not None or args.base_position is not None):
-        parser.error("--move-base and --base-position belong to move")
+    if args.command != "move" and (args.move_base is not None or args.base_position is not None or
+                                   args.observer is not None):
+        parser.error("--move-base, --base-position and --observer belong to move")
     if args.command != "rearm" and args.predecessor is not None:
         parser.error("--predecessor belongs to rearm")
+    if args.command != "settings-2202" and args.soft_limit_code is not None:
+        parser.error("--soft-limit-code belongs to settings-2202")
+    if args.command != "io-di3" and args.di3_change is not None:
+        parser.error("--di3-change belongs to io-di3")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
         parser.error("--fault-led belongs to %s" % " and ".join(FAULT_LED_ROUTES))
     if args.command in FAULT_LED_ROUTES and args.fault_led is None:
@@ -299,6 +332,10 @@ def plan_bounds(command, fields):
     counted. fields is the line after T and its letter, without the integrity field."""
     if command in ("readiness-actions", "readiness-io", "readiness-tuning", "readiness-history"):
         return {"readiness-actions": 22, "readiness-io": 37, "readiness-tuning": 45, "readiness-history": 16}[command], 0
+    if command == "settings-2202":
+        return 4 + 5 + 1 + 4, 0  # SOFT_LIMITS, STATUS and MONITORS, the write, the readback.
+    if command == "io-di3":
+        return 9 + 5 + 1 + 9 + 4, 0  # The input group, the state, the write, the readback, 2101 and 60FD.
     if command == "mode1":
         cycles, interval = fields[3:5]
         return 15 + 1 + 9 + 7 * (cycles - 1), cycles * interval
@@ -327,9 +364,18 @@ def plan_bounds(command, fields):
         six, seven, interval = fields[3:6]
         return 9 + 9 + 1 + 7 * six + 1 + 7 * seven, (six + seven) * interval
     if command == "move":
-        deadline, interval, relative = fields[8], fields[9], fields[26]
-        return (9 + 9 + (9 if relative else 0) + 4 + 1 + 7 * (2 + deadline // interval) + 1 + stop_terminals,
-                deadline + stop_span)
+        deadline, interval, relative, observer = fields[8], fields[9], fields[26], fields[28]
+        # An observer adds its check read and an image cycle per interval while the move or its stop runs.
+        watched = 9 + 7 * (2 + (deadline + stop_span) // interval) if observer else 0
+        return (9 + 9 + (9 if relative else 0) + 4 + 1 + 7 * (2 + deadline // interval) + 1 + stop_terminals +
+                watched, deadline + stop_span)
+    if command == "counter-zero":
+        deadline, interval = fields[3:5]
+        return 7 + 3 + 7 * (2 + deadline // interval), deadline  # The state, 0 1 0, seven-field cycles.
+    if command == "clear-alarm":
+        deadline, interval = fields[3:5]
+        # ERRORS, 1003 with at most four entries, MONITORS and STATUS; 1 0; five-field cycles; ERRORS once.
+        return 2 + 5 + 5 + 2 + 5 * (2 + deadline // interval) + 2, deadline
     raise ValueError("no bound for %s" % command)
 
 
@@ -352,6 +398,9 @@ def _integer(value, low, high):
 def _send_problem(entry):
     """What makes a send entry inconsistent with itself, or None."""
     route, node, trial, motion, stop = (entry.get(k) for k in ("route", "node", "trial", "motion", "stop"))
+    settings = entry.get("settings", 0)  # Entries before the settings routes have none.
+    if not _integer(settings, 0, 1) or bool(settings) != (route in SETTINGS_LETTERS):
+        return "settings %r does not match route %s" % (settings, route)
     if route not in {letter for letter, _, _ in TRIALS.values()} or not _integer(node, 1, 2):
         return "route or node"
     if not _integer(trial, 1, 0xFFFFFFFF):
@@ -466,7 +515,11 @@ class Campaign:
     def counts(self):
         total, cases = 0, Counter()
         for entry in self.entries:
-            if entry["event"] != "send" or not entry["motion"]:
+            if entry["event"] != "send":
+                continue
+            if entry.get("settings"):
+                cases[(entry["route"], entry["node"])] += 1  # Counted, with no motion weight.
+            if not entry["motion"]:
                 continue
             total += entry["motion"]
             cases[(entry["route"], entry["node"])] += 1
@@ -481,9 +534,12 @@ class Campaign:
         if trial <= highest:
             raise Refused("trial %d is not above every trial of this campaign (highest %d)" % (trial, highest))
         motion, stop = motion_weight(command, fields)
+        total, cases = self.counts()
+        if command in SETTINGS_ROUTES and cases[(letter, node)] + 1 > CAMPAIGN_PER_CASE:
+            raise Refused("the campaign holds %d %s admissions on node %d, the cap is %d" %
+                          (cases[(letter, node)], command, node, CAMPAIGN_PER_CASE))
         if not motion:
             return
-        total, cases = self.counts()
         if total + motion > CAMPAIGN_MOTION_TOTAL:
             raise Refused("the campaign holds %d motion admissions; this line would make %d, over %d" %
                           (total, total + motion, CAMPAIGN_MOTION_TOTAL))
@@ -529,9 +585,10 @@ def before_send(args, fields, ask, operator):
     """Typed confirmations before anything is sent. The firmware takes these as given."""
     node, trial = fields[0], fields[1]
     _, motion, _ = TRIALS[args.command]
-    if motion and args.unattended_waiver:
+    attended = motion or args.command in SETTINGS_ROUTES
+    if attended and args.unattended_waiver:
         operator["attended"] = {"unattended": True, "waiver": args.unattended_waiver, "accepted": True}
-    elif motion:
+    elif attended:
         wanted = "ATTENDED %d" % trial
         ask_operator(ask, operator, "attended",
                      "Attendant at node %d with the independent drive-power cutoff in hand and a shaft mark "
@@ -695,10 +752,11 @@ def dry_run(args, fields):
     print("  require USB %s %04X:%04X uniquely on %s" % (args.serial, FIXTURE["vid"], FIXTURE["pid"], args.port))
     if args.command in TRIALS:
         _, motion, plan = TRIALS[args.command]
-        if motion and args.unattended_waiver:
+        attended = motion or args.command in SETTINGS_ROUTES
+        if attended and args.unattended_waiver:
             print("  unattended under the user's waiver %r: no attendant question; observations stored as %r" %
                   (args.unattended_waiver, UNOBSERVED))
-        elif motion:
+        elif attended:
             print("  require the operator to type: ATTENDED %d" % fields[1])
         terminals, duration = plan_bounds(args.command, fields)
         try:
@@ -747,6 +805,8 @@ def arguments(argv):
     trial.add_argument("--stop-kind", choices=("none", "halt", "quick"))
     trial.add_argument("--predecessor", choices=sorted(PREDECESSORS),
                        help="rearm: the acknowledged latest word it follows, of a finished record on that node")
+    trial.add_argument("--soft-limit-code", choices=sorted(SOFT_LIMIT_CODES), help="settings-2202: the 2202 code")
+    trial.add_argument("--di3-change", choices=sorted(DI3_CHANGES), help="io-di3: the one DI3 change")
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
@@ -757,6 +817,8 @@ def arguments(argv):
                       help="absolute (default), or a relative --target with the drive's measured base")
     move.add_argument("--base-position", type=int,
                       help="commanded only: the reviewed commanded position the displacement is added to")
+    move.add_argument("--observer", type=int,
+                      help="the other node, read at the move's interval while it runs and never written")
     for name in ("device-type", "hardware-version", "software-version", "vendor-id", "product-code", "revision",
                  "model-code", "firmware-code"):
         move.add_argument("--" + name, type=lambda text: int(text, 0), help="Raw identity value of the record")
@@ -791,9 +853,9 @@ def arguments(argv):
         parser.error("--node and --trial belong to trial commands")
     if not is_trial and (args.campaign is not None or args.new_campaign):
         parser.error("--campaign belongs to trial commands")
-    if is_trial and TRIALS[args.command][1] and args.campaign is None:
-        parser.error("--campaign is required for a motion route: name the campaign's ledger; counts are kept "
-                     "across boots")
+    if is_trial and (TRIALS[args.command][1] or args.command in SETTINGS_ROUTES) and args.campaign is None:
+        parser.error("--campaign is required for a motion or settings route: name the campaign's ledger; counts "
+                     "are kept across boots")
     if args.new_campaign and args.campaign is None:
         parser.error("--new-campaign needs --campaign")
     return args, fields
@@ -862,6 +924,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                  "route": TRIALS[args.command][0], "node": fields[0], "trial": fields[1],
                  "motion": motion, "stop": stop, "line": line, "output": str(args.output),
                  "image": meta.get("image")}
+        if args.command in SETTINGS_ROUTES:
+            entry["settings"] = 1
         if args.unattended_waiver:
             entry["unattended_waiver"] = args.unattended_waiver
         campaign.append(entry)

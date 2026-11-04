@@ -1,0 +1,89 @@
+{
+  "started_utc": "2026-11-04T13:12:11.831097+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "word67",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 308,
+  "plan": "packet 15 words 6 and 7",
+  "fields": [
+    2,
+    308,
+    1,
+    2,
+    8,
+    250
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 2 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 308 to confirm: ",
+      "typed": "ATTENDED 308",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not observed: the user asked that motion be confirmed from the drive's position reports, not by eye"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "word67",
+    "--node",
+    "2",
+    "--trial",
+    "308",
+    "--word6-cycles",
+    "2",
+    "--word7-cycles",
+    "8",
+    "--interval-ms",
+    "250",
+    "--campaign",
+    "docs\\bench\\20261104b-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1312Z-word67-node2-308"
+  ],
+  "host_revision": "70eeddd72e9830e5f83f633ad35dffb924bc3ff0",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104b-campaign.jsonl",
+    "motion_total": 1,
+    "cases": {
+      "Q1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5457322c3330382c312c322c382c3235302c4b32663031656632360a"
+  ],
+  "image": {
+    "base": "70eeddd72e9830e5f83f633ad35dffb924bc3ff0",
+    "elf": "446b93fe730dacb0900c26ca83c66ff09a95a0673e8f1ee064f1ec42c8769c98",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TW2,308,1,2,8,250,K2f01ef26",
+  "tx_hex": "5457322c3330382c312c322c382c3235302c4b32663031656632360a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T13:12:21.093317+00:00"
+}
