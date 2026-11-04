@@ -782,7 +782,13 @@ static Status yieldMove(const MoveContext& c, const ReadContext& observation,
         return moveError(MoveError::TIME, "move overall deadline");
     PreparedMove next;
     next.eligibleUs = c.eligibleUs;
-    if (c.state != ActionState::ACTIVE || now < c.eligibleUs ||
+    // No new observation cycle or read once its budget no longer fits: the move then ends at its
+    // deadline with nothing in flight. Downloads keep their own cutoff, and correlation rebuilds work
+    // already handed out, so neither is affected.
+    const bool late = !correlating && !downloading(c) &&
+                      !exchangeFits(c.deadlineUs, now, c.options.service.queueTimeoutUs,
+                                    c.options.service.responseTimeoutUs);
+    if (c.state != ActionState::ACTIVE || now < c.eligibleUs || late ||
         (!correlating && (c.withdrawal != MoveInterruption::NONE ||
                           (downloading(c) && c.transmissionNoted)))) {
         output = next;

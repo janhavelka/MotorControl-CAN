@@ -51,7 +51,7 @@ uint8_t observationMask(const ActionContext& c) {
         return uint8_t(1u << static_cast<unsigned>(StateBlock::ERRORS));
     uint8_t mask = uint8_t((1u << static_cast<unsigned>(StateBlock::MONITORS)) |
                            (1u << static_cast<unsigned>(StateBlock::STATUS)));
-    if (c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c))
+    if (c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) || c.standstillObserving)
         mask |= uint8_t(1u << static_cast<unsigned>(StateBlock::FEEDBACK));
     return mask;
 }
@@ -82,6 +82,8 @@ Status shape(const ActionContext& c, uint64_t now) {
           (c.commandCursor == 2 && !c.coordinatesInvalidated))) ||
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
+        (c.standstillObserving &&
+         (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP)) ||
         c.valueOneMayRemain != (c.state == ActionState::FAILED && oneMayRemain(c)))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND && c.phase != ActionPhase::TARGETS &&
@@ -91,7 +93,8 @@ Status shape(const ActionContext& c, uint64_t now) {
          !sameTarget(c.read.target, expectedTarget(c)) || c.read.operation != c.operation ||
          c.read.kind != ReadKind::STATE || c.read.source != ReadSource::SDO ||
          c.read.count != (c.finalErrorRead ? 2
-                          : c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c)
+                          : c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) ||
+                                  c.standstillObserving
                               ? 7
                               : 5) ||
          c.read.blockMask != observationMask(c) || c.read.deadlineUs != c.deadlineUs ||
@@ -312,7 +315,10 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         c.status = Ok();
         return;
     }
-    const bool feedback = c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c);
+    const bool feedback = (c.read.blockMask & (1u << static_cast<unsigned>(StateBlock::FEEDBACK))) != 0;
+    // A quick stop's standstill compares this cycle's FEEDBACK with the one before it.
+    const bool previousFeedback = c.standstillObserving && c.extraObservation.fieldCount != 0;
+    const int32_t previousPosition = c.extraObservation.actualPosition;
     if (!cycleBlock(c, StateBlock::STATUS, target, now, lastCommandUs) ||
         !cycleBlock(c, StateBlock::MONITORS, target, now, lastCommandUs) ||
         (feedback && !cycleBlock(c, StateBlock::FEEDBACK, target, now, lastCommandUs))) {
@@ -331,16 +337,23 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const bool alarm = (monitor & MONITOR_ALARM) != 0;
     bool outsideScope = c.statusObservation.modeRaw != 1;
     bool done = false;
+    bool wantStandstill = false;
     switch (c.actionKind) {
-    case ActionKind::STOP:
+    case ActionKind::STOP: {
         // The one measured release: on both specimens, 000B from 000F and from 010F left 2100
         // released with 6041 low bits 000 (2026-11-03). A HALT holds torque, so a release stays
         // outside its scope. The release itself stays in monitorObservation for the caller.
-        outsideScope |= alarm || ((monitor & MONITOR_RELEASED) != 0 &&
-                                  (c.kind != StopKind::QUICK_STOP ||
-                                   (c.statusObservation.statusword & STATUS_LOW_BITS) != 0));
-        done = !running;
+        const bool released = (monitor & MONITOR_RELEASED) != 0;
+        const bool lowZero = (c.statusObservation.statusword & STATUS_LOW_BITS) == 0;
+        outsideScope |= alarm || (released && (c.kind != StopKind::QUICK_STOP || !lowZero));
+        // After 000B during a move the same release kept running set (standstillObserving).
+        const bool latched = c.kind == StopKind::QUICK_STOP && running && released && lowZero;
+        done = !running || (latched && feedback && previousFeedback &&
+                            c.extraObservation.actualVelocity == 0 &&
+                            c.extraObservation.actualPosition == previousPosition);
+        wantStandstill = latched && !c.standstillObserving && ageCoversCycle(c.options, 7);
         break;
+    }
     case ActionKind::CLEAR_ALARM:
         outsideScope |= running;
         done = !alarm;
@@ -385,8 +398,16 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
                            : now + c.options.observationIntervalUs;
         c.phase = ActionPhase::WAITING;
         c.stepStartedUs = c.eligibleUs;
-        if (c.eligibleUs < c.deadlineUs)
-            nextCycle(c, c.eligibleUs, now);
+        // The wider plan starts only with a cycle actually prepared for it, so a retained read
+        // always matches observationMask().
+        if (c.eligibleUs < c.deadlineUs) {
+            c.standstillObserving |= wantStandstill;
+            if (!prepareCycle(c, c.eligibleUs)) {
+                if (wantStandstill)
+                    c.standstillObserving = false; // prepareState left the old read in place.
+                fail(c, ActionOutcome::OBSERVATION_SCOPE, now, "action observation could not be prepared");
+            }
+        }
     }
 }
 // Every caller has validated; output is disjoint from inputs, and nothing here can fail.
@@ -761,7 +782,14 @@ static Status yieldAction(const ActionContext& c, const AxisReservation& live,
         return error(ActionError::TIME, "action overall deadline");
     PreparedAction next;
     next.eligibleUs = c.eligibleUs;
-    if (c.state != ActionState::ACTIVE || now < c.eligibleUs ||
+    // A new observation read is held back once its budget no longer fits, and the action ends at its
+    // deadline with nothing in flight. Commands keep their own cutoff, and correlation rebuilds work
+    // already handed out, so neither is affected.
+    const bool late = !includeWithdrawn && c.phase != ActionPhase::COMMAND &&
+                      c.phase != ActionPhase::TARGETS &&
+                      !exchangeFits(c.deadlineUs, now, c.options.service.queueTimeoutUs,
+                                    c.options.service.responseTimeoutUs);
+    if (c.state != ActionState::ACTIVE || now < c.eligibleUs || late ||
         (c.withdrawal != ActionOutcome::NONE && !includeWithdrawn)) {
         output = next;
         return Ok();

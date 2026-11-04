@@ -642,6 +642,25 @@ void bestEffortBudgetTimeline() {
                 CHECK(closed.same(c));
             }
 }
+// An action observation still open at the cutoff could leave its channel unresolved (trial 213),
+// so none is handed out once one exchange's budgets no longer fit, and no budget can end against
+// the cutoff for one. The rigs above keep that timeline for every other kind of work.
+void actionObservationHeldBack() {
+    for (unsigned variant : {0u, 1u, 2u}) {
+        ActionObserveRig rig(variant, options()); // 100 + 100 us.
+        L::PreparedAction p;
+        CHECK(L::nextAction(rig.c, rig.live, rig.current, CUTOFF - 200, p) && p.ready &&
+              C::sameSdoWork(p.transfer, rig.work));
+        const Saved<L::ActionContext> before(rig.c);
+        for (uint64_t at : {CUTOFF - 199, CUTOFF - 1}) {
+            L::PreparedAction late;
+            CHECK(L::nextAction(rig.c, rig.live, rig.current, at, late) && !late.ready);
+        }
+        CHECK(before.same(rig.c));
+        // A terminal for the work handed out before the span still settles as before.
+        CHECK(rig.consume(acknowledged(rig.work, CUTOFF - 200, CUTOFF - 1), CUTOFF - 1));
+    }
+}
 void budgetTimelines() {
     budgetTimeline<ReadRig>({0}, M::ReadOutcome::SERVICE_TIMEOUT, M::ReadOutcome::DEADLINE);
     budgetTimeline<TuningRig>({0}, M::ReadOutcome::SERVICE_TIMEOUT, M::ReadOutcome::DEADLINE);
@@ -649,7 +668,7 @@ void budgetTimelines() {
     budgetTimeline<SettingsReadbackRig>({0, 1}, M::ReadOutcome::SERVICE_TIMEOUT, M::ReadOutcome::DEADLINE);
     budgetTimeline<ActionCommandRig>({0, 1, 2, 3, 4, 5, 6}, M::ActionOutcome::SERVICE_TIMEOUT,
                                      M::ActionOutcome::DEADLINE);
-    budgetTimeline<ActionObserveRig>({0, 1, 2}, M::ActionOutcome::SERVICE_TIMEOUT, M::ActionOutcome::DEADLINE);
+    actionObservationHeldBack();
     bestEffortBudgetTimeline();
 }
 

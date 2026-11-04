@@ -461,7 +461,9 @@ void resetMove(MoveContext& context) noexcept;
  * @param[in] nowUs Nondecreasing caller time.
  * @param[out] output Unchanged on refusal; no overlap with inputs. Neither flag is set while waiting,
  * withdrawn or terminal, or once the current download has had its noteMoveTransmission: it is in
- * flight and is never offered again.
+ * flight and is never offered again. Nor is either set for an observation once one exchange's
+ * queue and response budgets no longer fit before the deadline, so no read can be cut there; the
+ * move then ends at its deadline. Downloads are not held back.
  * @return Local status. An active move at or after its cutoff refuses with TIME until it is ended.
  */
 Status nextMove(const MoveContext& context, const ReadContext& observation,

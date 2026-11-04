@@ -302,7 +302,8 @@ void exactCommandsAndObservedReport() {
 void runningPollingAndDeadline() {
     Rig r;
     r.prerequisites();
-    r.deadline = 60;
+    // Two cycles, each field with its 200 us exchange budget before the deadline.
+    r.deadline = r.now + 230;
     L::ActionContext action;
     r.prepare(action);
     r.field(action, 0x6040);
@@ -324,6 +325,95 @@ void runningPollingAndDeadline() {
           action.execution == M::ActionExecution::ACKNOWLEDGED &&
           action.completion == M::ActionCompletion::NOT_OBSERVED);
     CHECK(r.wire.sentCount == before + 5); // No repeated command, including on deadline.
+}
+// Trial 213, 2026-11-04: a quick stop's last observation read began 6 ms before the stop's
+// deadline, was cut there with its request possibly sent, and left the route unresolved until an
+// MCU restart. A cycle due once its exchange budget no longer fits is not started: the stop ends at
+// its deadline with nothing in flight, and the route takes new work.
+void lateObservationIsHeldBack() {
+    for (unsigned kind = 0; kind < 2; ++kind) {
+        Rig r;
+        r.prerequisites();
+        r.deadline = r.now + 215;
+        L::ActionContext action;
+        r.prepare(action, kind ? L::StopKind::QUICK_STOP : L::StopKind::HALT);
+        r.field(action, 0x6040);
+        r.cycle(action, 4, 0x8007); // Still running: the stop waits for its next cycle.
+        const uint64_t eligible = action.eligibleUs;
+        const unsigned sent = r.wire.sentCount;
+        CHECK(eligible + 200 > r.deadline && eligible < r.deadline);
+        r.turn(eligible, O::ServiceBudget());
+        const L::PreparedAction held = r.next(action);
+        CHECK(!held.ready && action.phase == L::ActionPhase::WAITING);
+        r.turn(r.deadline - 1, O::ServiceBudget());
+        CHECK(!r.next(action).ready && r.wire.sentCount == sent);
+        r.turn(r.deadline, O::ServiceBudget());
+        CHECK(L::advanceAction(action, r.reservation, target(), M::ActionOutcome::DEADLINE, r.now));
+        CHECK(action.state == M::ActionState::FAILED && action.outcome == M::ActionOutcome::DEADLINE &&
+              action.execution == M::ActionExecution::ACKNOWLEDGED &&
+              action.completion == M::ActionCompletion::NOT_OBSERVED && action.observations == 1);
+        CHECK(r.wire.sentCount == sent);
+        // Nothing was left open, so an ordinary read on the same route is served at once.
+        r.deadline = r.now + 10000;
+        r.acquire();
+        CHECK(r.wire.sentCount == sent + 5);
+    }
+}
+// Trial 213, 2026-11-04: after 000B during a 30 rpm move the drive released the motor at once, and
+// 6064 then held still, but 2100 kept running set (0x14) and 6041 read 4050 for as long as anyone
+// looked. A quick stop then also reads FEEDBACK and completes on two cycles in a row with 606C zero
+// and 6064 unchanged. A HALT, a still-moving position or a budget too short for the wider cycle
+// keeps the old rule.
+void latchedRunningQuickStopCompletesOnStandstill() {
+    const uint16_t latched = 0x0014; // 2100 running (bit 2) and released (bit 4), as trial 213 read.
+    for (unsigned scenario = 0; scenario < 4; ++scenario) {
+        Rig r;
+        r.prerequisites();
+        L::ActionContext action;
+        r.begin();
+        L::ActionOptions policy = r.actionOptions();
+        // Seven fields at 100 + 100 us; scenario 3 keeps the five-field age.
+        policy.maximumAgeUs = scenario == 3 ? 1000 : 1400;
+        CHECK(L::prepareStop(action, r.reservation, r.state, r.control, L::StopKind::QUICK_STOP,
+                             r.operation, r.now, r.deadline, policy));
+        r.wire.action = &action;
+        r.wire.reservation = &r.reservation;
+        r.wire.latestControl = &r.control;
+        r.field(action, 0x6040);
+        r.cycle(action, latched, 0x4050);
+        CHECK(action.state == M::ActionState::ACTIVE && action.observations == 1);
+        CHECK(action.standstillObserving == (scenario != 3));
+        if (scenario == 3) {
+            // No wider cycle: the latched bit keeps the stop open until its deadline.
+            r.turn(action.eligibleUs, O::ServiceBudget());
+            r.cycle(action, latched, 0x4050);
+            CHECK(action.state == M::ActionState::ACTIVE && !action.extraObservation.fieldCount);
+            continue;
+        }
+        const int32_t positions[][2] = {{1187, 1187}, {1180, 1187}, {1187, 1187}};
+        const int32_t velocity = scenario == 2 ? 1 : 0;
+        for (unsigned k = 0; k < 2; ++k) {
+            r.turn(action.eligibleUs, O::ServiceBudget());
+            r.cycle(action, latched, 0x4050);
+            r.field(action, 0x6064, uint32_t(positions[scenario][k]));
+            r.field(action, 0x606c, uint32_t(velocity));
+        }
+        const bool still = scenario == 0;
+        CHECK(action.state == (still ? M::ActionState::SUCCEEDED : M::ActionState::ACTIVE));
+        CHECK(action.completion ==
+              (still ? M::ActionCompletion::OBSERVED : M::ActionCompletion::NOT_OBSERVED));
+        CHECK(action.observations == 3 && action.extraObservation.actualPosition == 1187);
+        CHECK(action.monitorObservation.monitor == latched); // The release stays visible.
+    }
+    // A HALT reporting the same release is outside its scope at the first cycle, as before.
+    Rig r;
+    r.prerequisites();
+    L::ActionContext halt;
+    r.prepare(halt, L::StopKind::HALT);
+    r.field(halt, 0x6040);
+    r.cycle(halt, latched, 0x4050);
+    CHECK(halt.state == M::ActionState::FAILED &&
+          halt.outcome == M::ActionOutcome::OBSERVATION_SCOPE && !halt.standstillObserving);
 }
 void unsupportedPrerequisitesAreAtomic() {
     for (unsigned scenario = 0; scenario < 12; ++scenario) {
@@ -1045,7 +1135,8 @@ void overlappingInputsAndInvalidPoliciesAreAtomic() {
 
 void nearMaximumTimeAndBackwardCalls() {
     Rig r;
-    r.now = UINT64_MAX - 30;
+    // Room for one cycle whose fields each keep their 200 us exchange budget.
+    r.now = UINT64_MAX - 300;
     r.deadline = UINT64_MAX;
     r.prerequisites();
     L::ActionContext action;
@@ -1272,6 +1363,8 @@ int main() {
     commandServiceTimeoutIsNotTheDeadline();
     exactCommandsAndObservedReport();
     runningPollingAndDeadline();
+    lateObservationIsHeldBack();
+    latchedRunningQuickStopCompletesOnStandstill();
     unsupportedPrerequisitesAreAtomic();
     contradictoryObservationsAndAbort();
     quickStopReleaseIsTheMeasuredTerminal();
