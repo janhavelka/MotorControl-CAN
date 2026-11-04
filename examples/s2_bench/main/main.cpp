@@ -563,7 +563,8 @@ void ownerTask(void*) {
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
     // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
-    // refused whole, never cut. `routes=3` in PONG names this line protocol with its CRC-32 field.
+    // refused whole, never cut. `routes=4` in PONG names this line protocol: the CRC-32 field (3), then
+    // the rearm's predecessor, the move's relative base and the Q, W and L routes (4).
     E::BenchRoute* route = nullptr;
     char trialText[E::ROUTE_LINE] = {};
     size_t trialLength = 0;
@@ -899,7 +900,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=3 trial=%u motion=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=4 trial=%u motion=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
                            unsigned(silent), unsigned(silentReady), unsigned(soakActive),

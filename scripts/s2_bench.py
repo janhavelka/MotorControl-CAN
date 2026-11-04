@@ -7,8 +7,10 @@ route parameter explicitly, require the operator to type the attended confirmati
 enable, the attendant's own shaft observation, then ping, refuse unless the image speaks this
 runner's route protocol and nothing else is running, send one T line and capture until the record's
 END. Each T line ends in ",K" and the CRC-32 (zlib.crc32) of every byte before it, which the firmware
-checks before parsing. Ctrl-C sends one local abort ('A'), which sends no stop. Nothing is retried,
-and --dry-run prints the plan without enumerating, prompting, opening or creating anything.
+checks before parsing. A plan that could exceed the firmware's record capacity or route cutoff is
+refused here, before anything is sent, because the firmware would refuse it only after the campaign
+counted it. Ctrl-C sends one local abort ('A'), which sends no stop. Nothing is retried, and
+--dry-run prints the plan without enumerating, prompting, opening or creating anything.
 
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
 One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
@@ -57,21 +59,36 @@ TRIALS = {
     "stop": ("S", True, "packet 15 P4 / packet 16"),
     "position": ("P", True, "packet 19"),
     "rearm": ("R", True, "packet 19 rearm"),
-    "move": ("G", True, "packet 20"),
+    "move": ("G", True, "packet 20 / packet 22 step 4"),
     "readiness-history": ("H", False, "packet 4 / packet 22 step 2"),
+    "released-quick": ("Q", True, "packet 16 step 3"),
+    "word67": ("W", True, "packet 15 words 6 and 7"),
+    "relative": ("L", True, "packet 21 relative base"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
 FAULT_LED_ROUTES = ("readiness-actions", "readiness-history")
-# PONG routes= of the line protocol this runner speaks: 3 adds the CRC-32 field. Any other image
-# would misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 3
+# PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
+# predecessor, the move's relative base and the Q, W and L routes. Any other image would misread the
+# line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 4
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
+# Routes whose line ends in a planned-stop tail of five fields, the first its kind.
+STOP_ROUTES = ("position", "relative", "move")
+STOP_LETTERS = frozenset(TRIALS[command][0] for command in STOP_ROUTES)
 # The first entry's predecessor digest.
 LEDGER_GENESIS = "0" * 64
 STOP_KINDS = {"halt": 1, "quick": 2}
 SIGNAL_SOURCES = {"statusword": 1, "monitor": 2}
 COMPLETION_RULES = {"after-absence": 1, "after-acceptance": 2}
+# The acknowledged latest word a rearm follows, of a finished record on that node.
+PREDECESSORS = {"position-trigger": 1, "position-halt": 2, "relative-trigger": 3}
+# A move's target: absolute, or a displacement with MoveEvidence::relativeBase ACTUAL or COMMANDED.
+MOVE_BASES = {"absolute": 0, "actual": 1, "commanded": 2}
+# The firmware's record capacity, route cutoff margin and per-read budgets (BenchRoute.h).
+ROUTE_TERMINALS = 128
+ROUTE_DURATION_MS = 55000
+ROUTE_OPERATION_MS = 5000
 # Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
@@ -184,27 +201,50 @@ def trial_line(args, parser):
         if best and best < deadline:
             parser.error("--best-effort-ms must be 0 or at least --deadline-ms")
         fields += [1, STOP_KINDS[args.kind], deadline, best, _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
-    elif args.command == "position":
+    elif args.command in ("position", "relative"):
         if args.stop_kind is None:
             parser.error("--stop-kind is required for this route (none, halt or quick)")
         cycles = _within(parser, "cycles", args.cycles, 1, 16)
-        fields += [1, _within(parser, "start-position", args.start_position, -2**31, 2**31 - 1),
-                   _within(parser, "target", args.target, -1000000, 1000000),
+        target = _within(parser, "target", args.target, -1000000, 1000000)
+        if args.command == "relative" and not target:
+            parser.error("--target is the relative displacement: nonzero")
+        fields += [1, _within(parser, "start-position", args.start_position, -2**31, 2**31 - 1), target,
                    _within(parser, "rpm", args.rpm, 0, 3000),
                    _within(parser, "ramp-up-ms", args.ramp_up_ms, 0, 2000),
                    _within(parser, "ramp-down-ms", args.ramp_down_ms, 0, 2000), cycles,
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
         fields += _stop_fields(args, parser, cycles)
     elif args.command == "rearm":
+        if args.predecessor is None:
+            parser.error("--predecessor is required for this route (%s)" % ", ".join(PREDECESSORS))
+        fields += [1, PREDECESSORS[args.predecessor], _within(parser, "cycles", args.cycles, 1, 16),
+                   _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
+    elif args.command == "released-quick":
         fields += [1, _within(parser, "cycles", args.cycles, 1, 16),
+                   _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
+    elif args.command == "word67":
+        fields += [1, _within(parser, "word6-cycles", args.word6_cycles, 1, 4),
+                   _within(parser, "word7-cycles", args.word7_cycles, 1, 16),
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000)]
     elif args.command == "move":
         if args.stop_kind is None:
             parser.error("--stop-kind is required for this route (none, halt or quick)")
         if args.rule is None:
             parser.error("--rule is required for this route (after-absence or after-acceptance)")
-        fields += [1, _within(parser, "start-position", args.start_position, -2**31, 2**31 - 1),
-                   _within(parser, "target", args.target, -1000000, 1000000),
+        start = _within(parser, "start-position", args.start_position, -2**31, 2**31 - 1)
+        target = _within(parser, "target", args.target, -1000000, 1000000)
+        base = MOVE_BASES[args.move_base or "absolute"]
+        if base == 0 and args.base_position is not None:
+            parser.error("--base-position belongs to --move-base commanded")
+        if base == 1 and args.base_position not in (None, start):
+            parser.error("--move-base actual takes its base from --start-position, the 6064 both reads show")
+        if base == 2 and args.base_position is None:
+            parser.error("--move-base commanded needs --base-position, the reviewed commanded position")
+        if base and not target:
+            parser.error("--target is the relative displacement: nonzero")
+        witness = 0 if base == 0 else start if base == 1 else _within(
+            parser, "base-position", args.base_position, -2**31, 2**31 - 1)
+        fields += [1, start, target,
                    _within(parser, "rpm", args.rpm, 1, 3000),
                    _within(parser, "ramp-up-ms", args.ramp_up_ms, 1, 2000),
                    _within(parser, "ramp-down-ms", args.ramp_down_ms, 1, 2000),
@@ -217,7 +257,12 @@ def trial_line(args, parser):
                            ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
                            ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
             fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
+        fields += [base, witness]
         fields += _stop_fields(args, parser, 16)
+    if args.command != "move" and (args.move_base is not None or args.base_position is not None):
+        parser.error("--move-base and --base-position belong to move")
+    if args.command != "rearm" and args.predecessor is not None:
+        parser.error("--predecessor belongs to rearm")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
         parser.error("--fault-led belongs to %s" % " and ".join(FAULT_LED_ROUTES))
     if args.command in FAULT_LED_ROUTES and args.fault_led is None:
@@ -238,8 +283,65 @@ def motion_weight(command, fields):
     """Motion admissions this line counts, as the firmware counts them: one, plus a planned stop."""
     if not TRIALS[command][1]:
         return 0, 0
-    stop = 1 if command in ("position", "move") and fields[-5] else 0
+    stop = 1 if command in STOP_ROUTES and fields[-5] else 0
     return 1 + stop, stop
+
+
+def _stop_terminals(deadline, interval):
+    """A session stop: its word, a seven-field cycle at once and one per interval to its deadline (a
+    QUICK_STOP observing standstill reads 6064 and 606C too), and a held best-effort pair."""
+    return 1 + 7 * (1 + deadline // interval) + 2
+
+
+def plan_bounds(command, fields):
+    """(terminals, milliseconds) at most, as BenchRoute's terminalBound and durationBound count them, so
+    that a plan the firmware would refuse as capacity or duration is refused here before it is sent and
+    counted. fields is the line after T and its letter, without the integrity field."""
+    if command in ("readiness-actions", "readiness-io", "readiness-tuning", "readiness-history"):
+        return {"readiness-actions": 22, "readiness-io": 37, "readiness-tuning": 45, "readiness-history": 16}[command], 0
+    if command == "mode1":
+        cycles, interval = fields[3:5]
+        return 15 + 1 + 9 + 7 * (cycles - 1), cycles * interval
+    if command == "enable":
+        deadline, interval = fields[8:10]
+        return 9 + 2 + 3 + 7 * (3 + deadline // interval), deadline
+    if command == "stop":
+        deadline, best, interval = fields[4:7]
+        return 5 + _stop_terminals(deadline, interval), max(deadline, best)
+    stop_kind, after, stop_deadline, stop_best, stop_interval = fields[-5:] if command in STOP_ROUTES else (0,) * 5
+    stop_terminals = _stop_terminals(stop_deadline, stop_interval) if stop_kind else 0
+    stop_span = max(stop_deadline, stop_best) if stop_kind else 0
+    if command in ("position", "relative"):
+        cycles, interval = fields[8:10]
+        # The writes' one operation deadline, then each cycle before the stop at most an interval or one
+        # read's operation deadline, then the stop's whole span.
+        planned = ROUTE_OPERATION_MS + after * max(interval, ROUTE_OPERATION_MS) + stop_span if stop_kind else 0
+        return 18 + 7 * cycles + stop_terminals, max(cycles * interval + stop_span, planned)
+    if command == "rearm":
+        cycles, interval = fields[4:6]
+        return 9 + 1 + 7 * cycles, cycles * interval
+    if command == "released-quick":
+        cycles, interval = fields[3:5]
+        return 9 + 9 + 1 + 7 * cycles, cycles * interval
+    if command == "word67":
+        six, seven, interval = fields[3:6]
+        return 9 + 9 + 1 + 7 * six + 1 + 7 * seven, (six + seven) * interval
+    if command == "move":
+        deadline, interval, relative = fields[8], fields[9], fields[26]
+        return (9 + 9 + (9 if relative else 0) + 4 + 1 + 7 * (2 + deadline // interval) + 1 + stop_terminals,
+                deadline + stop_span)
+    raise ValueError("no bound for %s" % command)
+
+
+def check_bounds(command, fields):
+    """Refuse a plan the firmware would refuse as capacity or duration; it would still count it."""
+    terminals, duration = plan_bounds(command, fields)
+    if terminals > ROUTE_TERMINALS:
+        raise Refused("capacity: this plan can produce %d terminals, over the record's %d" %
+                      (terminals, ROUTE_TERMINALS))
+    if duration > ROUTE_DURATION_MS:
+        raise Refused("duration: this plan can need %d ms, over %d inside the route cutoff" %
+                      (duration, ROUTE_DURATION_MS))
 
 
 def _integer(value, low, high):
@@ -254,7 +356,7 @@ def _send_problem(entry):
         return "route or node"
     if not _integer(trial, 1, 0xFFFFFFFF):
         return "trial is not an integer 1..4294967295"
-    if not _integer(stop, 0, 1) or (stop and route not in ("P", "G")) or not _integer(motion, 0, 2):
+    if not _integer(stop, 0, 1) or (stop and route not in STOP_LETTERS) or not _integer(motion, 0, 2):
         return "stop or motion"
     if motion != ((1 + stop) if route in MOTION_ROUTES else 0):
         return "motion %d does not match route %s with stop %d" % (motion, route, stop)
@@ -265,7 +367,7 @@ def _send_problem(entry):
     fields = body[2:].split(",")
     if body[:2] != "T" + route or fields[:2] != [str(node), str(trial)]:
         return "line names another route, node or trial"
-    if route in ("P", "G") and (fields[-5] != "0") != bool(stop):
+    if route in STOP_LETTERS and (fields[-5] != "0") != bool(stop):
         return "line's stop kind does not match stop %d" % stop
     return None
 
@@ -598,6 +700,13 @@ def dry_run(args, fields):
                   (args.unattended_waiver, UNOBSERVED))
         elif motion:
             print("  require the operator to type: ATTENDED %d" % fields[1])
+        terminals, duration = plan_bounds(args.command, fields)
+        try:
+            check_bounds(args.command, fields)
+            print("  at most %d terminals of %d and %d ms of %d" % (terminals, ROUTE_TERMINALS, duration,
+                                                                 ROUTE_DURATION_MS))
+        except Refused as error:
+            print("  would refuse before sending: %s" % error)
         if args.campaign is not None:
             lock = CampaignLock(args.campaign).path
             print("  hold %s for the whole run%s" % (lock, "; would refuse now: campaign busy" if lock.exists()
@@ -630,17 +739,24 @@ def arguments(argv):
     trial = parser.add_argument_group("trial routes; every value is required explicitly")
     for name in ("node", "trial", "cycles", "interval-ms", "position-target", "velocity-target", "deadline-ms",
                  "best-effort-ms", "start-position", "target", "rpm", "ramp-up-ms", "ramp-down-ms", "stop-after",
-                 "stop-deadline-ms", "stop-best-effort-ms", "stop-interval-ms", "record"):
+                 "stop-deadline-ms", "stop-best-effort-ms", "stop-interval-ms", "record", "word6-cycles",
+                 "word7-cycles"):
         trial.add_argument("--" + name, type=int)
     trial.add_argument("--status", type=lambda text: int(text, 0), help="Reviewed 6041, for example 0x8037")
     trial.add_argument("--kind", choices=("halt", "quick"))
     trial.add_argument("--stop-kind", choices=("none", "halt", "quick"))
+    trial.add_argument("--predecessor", choices=sorted(PREDECESSORS),
+                       help="rearm: the acknowledged latest word it follows, of a finished record on that node")
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
         move.add_argument("--%s-mask" % name, type=lambda text: int(text, 0))
         move.add_argument("--%s-value" % name, type=lambda text: int(text, 0))
     move.add_argument("--rule", choices=sorted(COMPLETION_RULES))
+    move.add_argument("--move-base", choices=sorted(MOVE_BASES),
+                      help="absolute (default), or a relative --target with the drive's measured base")
+    move.add_argument("--base-position", type=int,
+                      help="commanded only: the reviewed commanded position the displacement is added to")
     for name in ("device-type", "hardware-version", "software-version", "vendor-id", "product-code", "revision",
                  "model-code", "firmware-code"):
         move.add_argument("--" + name, type=lambda text: int(text, 0), help="Raw identity value of the record")
@@ -694,6 +810,8 @@ def main(argv=None, backend=None, clock=None, ask=input):
     operator = {}
     campaign = lock = None
     try:
+        if is_trial:
+            check_bounds(args.command, fields)
         usb = check_identity(args.port, args.serial, backend.comports(), is_trial)
         if is_trial and args.campaign is not None:
             # Held from before the ledger is read until its result entry is written.

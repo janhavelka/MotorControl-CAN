@@ -86,9 +86,18 @@ struct Drive {
     bool followWords = true;
     bool writesOnly = false;    // silentIndex, abortIndex, lateIndex and mismatchIndex spare uploads.
     bool ignoreTrigger = false; // A 001F changes nothing the fake reports: no acceptance, no travel.
-    // A 001F after 000F sets ACCEPT_BIT and clears COMPLETE_BIT; arrival sets COMPLETE_BIT; a 000F after
-    // 001F clears ACCEPT_BIT. keepComplete leaves an old COMPLETE_BIT set through the trigger.
+    // A 001F or 005F after 000F sets ACCEPT_BIT and clears COMPLETE_BIT; arrival sets COMPLETE_BIT; a
+    // 000F after a trigger or 010F clears ACCEPT_BIT. keepComplete leaves an old COMPLETE_BIT set through
+    // the trigger.
     bool statusBits = false, keepComplete = false;
+    // 2100 bit 4 follows the words as this fake chooses: set by 0006 and 000B, cleared by 0007 and 000F;
+    // a 000B also clears the low bits. Off by default, so every earlier suite keeps its fake.
+    bool releaseWords = false;
+    // A 005F moves by 607A from the actual position, or from the last commanded endpoint.
+    bool relativeCommanded = false;
+    int32_t endpoint = 0, commanded = 0;
+    int32_t drift = 0; // Added to 6064 after each 6064 read: a shaft that turns between reads.
+    uint16_t trapWord = 0, trapMonitor = 0; // 2100 bits set by this 6040 word.
     bool lateHeld = false;
     M::Frame late;
     unsigned downloads = 0;
@@ -125,7 +134,7 @@ struct Drive {
         case 0x2100:
             if (moveReads) {
                 if (!--moveReads) {
-                    position = positionTarget;
+                    position = endpoint;
                     if (statusBits)
                         status = uint16_t(status | COMPLETE_BIT);
                 }
@@ -136,7 +145,11 @@ struct Drive {
         case 0x2102: return 0xf008;
         case 0x6041: return status;
         case 0x6061: return mode;
-        case 0x6064: return uint32_t(position);
+        case 0x6064: {
+            const int32_t read = position;
+            position += drift;
+            return uint32_t(read);
+        }
         case 0x606c: return uint32_t(velocity);
         case 0x607a: return uint32_t(positionTarget);
         case 0x60ff: return uint32_t(velocityTarget);
@@ -194,17 +207,31 @@ struct Drive {
             } else if (index == 0x6040) {
                 const uint16_t previous = lastWord;
                 lastWord = word;
-                const uint16_t low = word == 6 ? 1 : word == 7 ? 3 : word == 15 ? 7 : uint16_t(status & 7u);
+                const uint16_t low = word == 6    ? 1
+                                     : word == 7  ? 3
+                                     : word == 15 ? 7
+                                     : word == 0x000b && releaseWords ? 0
+                                                                      : uint16_t(status & 7u);
                 if (followWords)
                     status = uint16_t((status & ~L::STATUS_LOW_BITS) | low);
-                if (word == 0x001f)
+                if (releaseWords && (word == 6 || word == 0x000b))
+                    monitor = uint16_t(monitor | L::MONITOR_RELEASED);
+                if (releaseWords && (word == 7 || word == 15))
+                    monitor = uint16_t(monitor & ~L::MONITOR_RELEASED);
+                if (trapWord && word == trapWord)
+                    monitor = uint16_t(monitor | trapMonitor);
+                const bool trigger = word == 0x001f || word == 0x005f;
+                if (trigger)
                     monitor = uint16_t(monitor | monitorAfterTrigger);
-                if (word == 0x001f && !ignoreTrigger) {
+                if (trigger && !ignoreTrigger) {
                     moveReads = travelReads;
+                    endpoint = word == 0x001f ? positionTarget
+                                              : (relativeCommanded ? commanded : position) + positionTarget;
+                    commanded = endpoint;
                     if (statusBits && previous == 0x000f)
                         status = uint16_t((status | ACCEPT_BIT) & (keepComplete ? 0xffffu : ~COMPLETE_BIT));
                 }
-                if (word == 0x000f && previous == 0x001f && statusBits)
+                if (word == 0x000f && statusBits && (previous == 0x001f || previous == 0x005f || previous == 0x010f))
                     status = uint16_t(status & ~ACCEPT_BIT);
                 if (word == 0x010f || word == 0x000b)
                     moveReads = 0;
@@ -737,7 +764,7 @@ void testModeEnableStop() {
 
     scenario = "stop";
     const size_t stopStart = r->driver.requests.size();
-    const E::RouteRecord& stop = r->run("S1,13,1,1,2000,0,100");
+    const E::RouteRecord& stop = r->run("S1,13,1,1,2000,0,200");
     CHECK(stop.failure == E::RouteFailure::NONE && stop.stopRequested &&
           stop.stopPathRequested == uint8_t(E::StopPath::CONFIRMED));
     at = stopStart;
@@ -763,7 +790,7 @@ void testPosition() {
     r->run("E1,2,1,1,1,32823,5000,120,10000,800");
     r->release();
     const size_t first = r->driver.requests.size();
-    const E::RouteRecord& p = r->run("P1,3,1,0,16,1,1000,1000,6,100,1,2,2000,0,200");
+    const E::RouteRecord& p = r->run("P1,3,1,0,16,1,1000,1000,6,100,1,2,2000,0,250");
     CHECK(p.failure == E::RouteFailure::NONE && p.checkPassed && p.cycles == 2 && p.stopRequested);
     CHECK(p.motionTotal == 4 && p.caseCount == 1);
     size_t at = first;
@@ -920,17 +947,17 @@ void testEnableWithdrawals() {
 void testStopPolicy() {
     scenario = "stop-refused";
     std::unique_ptr<Rig> r(new Rig);
-    const E::RouteRecord& refused = r->run("S1,1,1,2,2000,0,100");
+    const E::RouteRecord& refused = r->run("S1,1,1,2,2000,0,200");
     CHECK(refused.failure == E::RouteFailure::REFUSED && std::strcmp(refused.why, "stop") == 0);
     CHECK(r->downloadsFrom(0) == 0 && refused.stopPathRequested == uint8_t(E::StopPath::NONE));
     r->release();
     scenario = "stop-best-effort";
     // A fresh idle report in mode 0 refuses even the fallback; nothing says what 000B does there.
-    CHECK(r->run("S1,2,1,1,2000,3000,100").failure == E::RouteFailure::REFUSED && r->downloadsFrom(0) == 0);
+    CHECK(r->run("S1,2,1,1,2000,3000,200").failure == E::RouteFailure::REFUSED && r->downloadsFrom(0) == 0);
     r->release();
     // In mode 1 with no latest controlword, only the policy's best-effort branch remains.
     r->driver.drives[0].mode = 1;
-    const E::RouteRecord& fallback = r->run("S1,3,1,1,2000,3000,100");
+    const E::RouteRecord& fallback = r->run("S1,3,1,1,2000,3000,200");
     CHECK(fallback.failure == E::RouteFailure::ACTION && std::strcmp(fallback.why, "best-effort") == 0);
     const uint8_t quick[8] = {0x2b, 0x40, 0x60, 0, 0x0b, 0, 0, 0};
     CHECK(download(r->driver.requests.back(), 1, quick) && r->downloadsFrom(0) == 1);
@@ -1026,9 +1053,11 @@ std::string position(unsigned node, uint32_t& trial, int sp, int target, unsigne
     return "P" + std::to_string(node) + "," + id(trial) + ",1," + std::to_string(sp) + "," + std::to_string(target) +
            ",1,1000,1000," + std::to_string(cycles) + "," + std::to_string(interval) + "," + stop;
 }
-std::string rearm(unsigned node, uint32_t& trial, unsigned cycles = 3, unsigned interval = 100, unsigned attended = 1) {
+// The predecessor a REARM names: 1 POSITION's 001F, 2 its planned HALT's 010F, 3 RELATIVE's 005F.
+std::string rearm(unsigned node, uint32_t& trial, unsigned cycles = 3, unsigned interval = 100, unsigned attended = 1,
+                  unsigned predecessor = 1) {
     return "R" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," +
-           std::to_string(cycles) + "," + std::to_string(interval);
+           std::to_string(predecessor) + "," + std::to_string(cycles) + "," + std::to_string(interval);
 }
 // The host's line for MOVE. Every evidence value here is this fake's, never a measurement.
 struct MoveSpec {
@@ -1039,14 +1068,17 @@ struct MoveSpec {
     unsigned as = 1, am = ACCEPT_BIT, av = ACCEPT_BIT, cs = 1, cm = COMPLETE_BIT, cv = COMPLETE_BIT, rule = 1;
     unsigned long dt = DEVICE_TYPE, hw = HARDWARE, sw = SOFTWARE, vid = VENDOR, pc = PRODUCT, rev = REVISION;
     unsigned long mc = MODEL, fc = FIRMWARE;
+    unsigned rel = 0; // 0 absolute, 1 relative ACTUAL, 2 relative COMMANDED.
+    long base = 0;    // The relative witness position.
     const char* stop = "0,0,0,0,0";
 };
 std::string move(unsigned node, uint32_t& trial, const MoveSpec& m = MoveSpec()) {
     char text[300];
     std::snprintf(text, sizeof text,
-                  "G%u,%s,%u,%ld,%ld,%u,%u,%u,%u,%u,%lu,%u,%u,%u,%u,%u,%u,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%s", node,
-                  id(trial).c_str(), m.attended, m.sp, m.target, m.rpm, m.up, m.down, m.deadline, m.interval, m.record,
-                  m.as, m.am, m.av, m.cs, m.cm, m.cv, m.rule, m.dt, m.hw, m.sw, m.vid, m.pc, m.rev, m.mc, m.fc, m.stop);
+                  "G%u,%s,%u,%ld,%ld,%u,%u,%u,%u,%u,%lu,%u,%u,%u,%u,%u,%u,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%u,%ld,%s",
+                  node, id(trial).c_str(), m.attended, m.sp, m.target, m.rpm, m.up, m.down, m.deadline, m.interval,
+                  m.record, m.as, m.am, m.av, m.cs, m.cm, m.cv, m.rule, m.dt, m.hw, m.sw, m.vid, m.pc, m.rev, m.mc, m.fc,
+                  m.rel, m.base, m.stop);
     return text;
 }
 const Address IDENTITY[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, {0x1018, 1},
@@ -1055,9 +1087,9 @@ const Address IDENTITY[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, 
 void testParseRearmMove() {
     scenario = "parse-rearm-move";
     E::RoutePlan p;
-    const std::string r = "R2,9,1,16,5000";
+    const std::string r = "R2,9,1,2,16,5000";
     CHECK(E::parseRouteCommand(r.data(), r.size(), p) && p.kind == E::RouteKind::REARM && p.node == 2 && p.attended &&
-          p.cycles == 16 && p.intervalMs == 5000);
+          p.predecessor == 2 && p.cycles == 16 && p.intervalMs == 5000);
     uint32_t trial = 40;
     MoveSpec spec;
     spec.sp = -3;
@@ -1080,17 +1112,20 @@ void testParseRearmMove() {
     widest.record = widest.dt = widest.vid = widest.pc = widest.rev = UINT32_MAX;
     widest.am = widest.av = widest.cm = widest.cv = 65535;
     widest.hw = widest.sw = widest.mc = widest.fc = 65535;
+    widest.rel = 2;
+    widest.base = INT32_MIN;
     widest.stop = "2,16,55000,55000,10000";
     uint32_t big = UINT32_MAX - 1;
     const std::string longest = move(1, big, widest);
     CHECK(longest.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(longest.data(), longest.size(), p));
-    std::string padded = "R1,1,1,1,100";
+    CHECK(p.relativeBase == 2 && p.base == INT32_MIN);
+    std::string padded = "R1,1,1,1,1,100";
     padded.insert(1, std::string(E::ROUTE_LINE, '0'));
     CHECK(!E::parseRouteCommand(padded.data(), padded.size(), p));
     struct Bad {
         const char* why;
         MoveSpec spec;
-    } bad[12];
+    } bad[18];
     bad[0].spec.rpm = 0;          // Zero speed is refused before any library call.
     bad[1].spec.up = 0;           // Zero ramps are unqualified (Q11).
     bad[2].spec.target = 1000001; // Outside the documentary 607A range.
@@ -1103,14 +1138,39 @@ void testParseRearmMove() {
     bad[9].spec.stop = "0,2,0,0,0";        // No stop naming a cycle.
     bad[10].spec.stop = "1,2,2000,1000,200"; // Best effort before the stop deadline.
     bad[11].spec.interval = 19;   // Under the cycle spacing.
+    bad[12].spec.rel = 3;         // No such relative base.
+    bad[13].spec.base = 5;        // An absolute move has no witness.
+    bad[14].spec.rel = 1;         // ACTUAL: the witness is the start position the reads show.
+    bad[14].spec.base = 5;
+    bad[15].spec.rel = 1;         // A zero relative displacement writes nothing (R-08).
+    bad[15].spec.target = 0;
+    bad[16].spec.rel = 2;
+    bad[16].spec.target = 0;
+    bad[17].spec.rel = 2;         // Outside the documentary 607A range as a displacement too.
+    bad[17].spec.target = -1000001;
     for (const Bad& b : bad) {
         const std::string text = move(1, trial, b.spec);
         E::RoutePlan untouched;
         CHECK(!E::parseRouteCommand(text.data(), text.size(), untouched) && untouched.kind == E::RouteKind::NONE);
     }
-    const char* const badRearm[] = {"R1,1,1,0,100", "R1,1,1,17,100", "R1,1,1,4,19", "R1,1,2,4,100", "R1,1,1,4"};
-    for (const char* text : badRearm)
-        CHECK(!E::parseRouteCommand(text, std::strlen(text), p));
+    // Both relative bases parse; COMMANDED takes any reviewed base, ACTUAL only the start position.
+    MoveSpec actual;
+    actual.rel = 1;
+    actual.sp = actual.base = -7;
+    std::string text = move(1, trial, actual);
+    CHECK(E::parseRouteCommand(text.data(), text.size(), p) && p.relativeBase == 1 && p.base == -7);
+    MoveSpec commanded;
+    commanded.rel = 2;
+    commanded.base = 1187;
+    commanded.target = -16;
+    text = move(1, trial, commanded);
+    CHECK(E::parseRouteCommand(text.data(), text.size(), p) && p.relativeBase == 2 && p.base == 1187 && p.target == -16);
+    // The rearm's predecessor is required and named; the earlier five-field form is refused whole.
+    const char* const badRearm[] = {"R1,1,1,1,0,100", "R1,1,1,1,17,100", "R1,1,1,1,4,19", "R1,1,2,1,4,100",
+                                    "R1,1,1,1,4",     "R1,1,1,0,4,100",  "R1,1,1,4,4,100", "R2,9,1,16,5000",
+                                    "R1,1,1,4,100"};
+    for (const char* bad : badRearm)
+        CHECK(!E::parseRouteCommand(bad, std::strlen(bad), p));
     CHECK(std::strcmp(E::routeName(E::RouteKind::REARM), "rearm") == 0 &&
           std::strcmp(E::routeName(E::RouteKind::MOVE), "move") == 0);
 }
@@ -1201,7 +1261,7 @@ void testPositionRebootCutoffEmcy() {
     uint32_t trial = 0;
     enabled(*r, trial);
     size_t first = r->driver.requests.size();
-    CHECK(!r->start(position(1, trial, 0, 16, 6, 300, "1,4,2000,0,200")));
+    CHECK(!r->start(position(1, trial, 0, 16, 6, 300, "1,4,2000,0,250")));
     untilCycles(*r, 1);
     M::Frame boot = frame(0x701, 1);
     boot.data[0] = 0;
@@ -1240,7 +1300,7 @@ void testPositionRebootCutoffEmcy() {
     trial = 0;
     enabled(*e, trial);
     first = e->driver.requests.size();
-    CHECK(!e->start(position(1, trial, 0, 16, 6, 300, "1,4,2000,0,200")));
+    CHECK(!e->start(position(1, trial, 0, 16, 6, 300, "1,4,2000,0,250")));
     untilCycles(*e, 1);
     M::Frame emcy = frame(0x81, 8);
     emcy.data[0] = 0x10;
@@ -1295,9 +1355,10 @@ void testRearm() {
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1);
     CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 0x0f);
     std::string text = r->dump();
-    CHECK(has(text, "TRIAL_PLAN route=rearm node=1 trial="));
+    CHECK(has(text, "TRIAL_PLAN route=rearm node=1 trial=") && has(text, " attended=1 pred=1 cycles=3 interval=100\n"));
     CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=01 6064=16 606c=0"));
-    CHECK(has(text, ("TRIAL_REARM predop=" + std::to_string(triggerOp)).c_str()) && has(text, " latest=1 word=000f latestop="));
+    CHECK(has(text, ("TRIAL_REARM pword=001f predop=" + std::to_string(triggerOp)).c_str()) &&
+          has(text, " latest=1 word=000f latestop="));
     r->release();
     // Once: its own 000F is now the latest word.
     CHECK(std::strcmp(r->start(rearm(1, trial)), "control") == 0);
@@ -1714,7 +1775,7 @@ void testPlannedStopFits() {
 
     scenario = "position-stop-fits";
     first = r->driver.requests.size();
-    CHECK(!r->start(position(1, trial, 0, 16, 6, 100, "1,4,2000,0,200")));
+    CHECK(!r->start(position(1, trial, 0, 16, 6, 100, "1,4,2000,0,250")));
     r->console.now += 35000000; // Thirty-five seconds before the first write.
     finishRoute(*r);
     const E::RouteRecord& p = *r->route.record();
@@ -1794,9 +1855,9 @@ void testPlanValidation() {
     scenario = "plan";
     std::unique_ptr<Rig> r(new Rig);
     E::RoutePlan enable, stop, move, mode;
-    const std::string e = "E1,1,1,1,1,32823,5000,120,10000,800", s = "S1,1,1,1,2000,0,100", g = "G1,1,1,0,16,1,1000,"
-                          "1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,1,2,2000,0,"
-                          "500";
+    const std::string e = "E1,1,1,1,1,32823,5000,120,10000,800", s = "S1,1,1,1,2000,0,200", g = "G1,1,1,0,16,1,1000,"
+                          "1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,0,0,1,2,"
+                          "2000,0,500";
     CHECK(E::parseRouteCommand(e.data(), e.size(), enable) && E::routePlanValid(enable));
     CHECK(E::parseRouteCommand(s.data(), s.size(), stop) && E::routePlanValid(stop));
     CHECK(E::parseRouteCommand(g.data(), g.size(), move) && E::routePlanValid(move));
@@ -1903,9 +1964,10 @@ void testMoveStopRefused() {
         r->firmware.service();
         const L::MoveContext& m = r->one.moveAction();
         if (!aged && m.observations >= 1 && m.phase == L::MovePhase::WAITING) {
-            // The last complete cycle ages past the stop's age cap before the route's turn asks for it.
+            // The last complete cycle ages past the stop's age cap (seven fields at the route budgets,
+            // 2.45 s) before the route's turn asks for it, and stays inside the move's own (3.15 s).
             aged = true;
-            r->console.now += 2000000;
+            r->console.now += 2800000;
             r->firmware.service();
         }
         r->route.service(r->firmware.owner().lastTimeUs());
@@ -2040,7 +2102,7 @@ void testRearmAfterRefusedStop() {
     Drive& d = r->driver.drives[0];
     d.monitorAfterTrigger = L::MONITOR_RELEASED;
     size_t first = r->driver.requests.size();
-    const E::RouteRecord& p = r->run(position(1, trial, 0, 16, 6, 100, "1,4,2000,0,200"));
+    const E::RouteRecord& p = r->run(position(1, trial, 0, 16, 6, 100, "1,4,2000,0,250"));
     CHECK(p.failure == E::RouteFailure::REFUSED && std::strcmp(p.why, "stop") == 0 && !p.stopRequested &&
           p.stopPathRequested == uint8_t(E::StopPath::NONE) && p.cycles == 4);
     CHECK(r->downloadsFrom(first) == 5 && wordsFrom(*r, first, 1, 0x010f) == 0 && wordsFrom(*r, first, 1, 0x000b) == 0);
@@ -2080,6 +2142,590 @@ void testMovePreflightAtHandover() {
           r->one.moveRefusal().detail == int32_t(M::MoveError::STATE));
     CHECK(r->route.record()->failure == E::RouteFailure::ACTION);
 }
+// ----------------------------------------------- packets 15, 16, 21 and 22: the routes of 2026-11-04
+// A released drive as this fake reports one: 2100 bit 4 set, 6041 low bits 000, mode 1. The words then
+// move bit 4 as releaseWords chooses. The values echo the bench's shape and are this test's own.
+void releasedDrive(Drive& d) {
+    d.monitor = 0x0011;
+    d.status = 0x8050;
+    d.mode = 1;
+    d.releaseWords = true;
+}
+std::string quick(unsigned node, uint32_t& trial, unsigned cycles = 3, unsigned interval = 100, unsigned attended = 1) {
+    return "Q" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," +
+           std::to_string(cycles) + "," + std::to_string(interval);
+}
+std::string words67(unsigned node, uint32_t& trial, unsigned six = 2, unsigned seven = 3, unsigned interval = 100,
+                    unsigned attended = 1) {
+    return "W" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," +
+           std::to_string(six) + "," + std::to_string(seven) + "," + std::to_string(interval);
+}
+std::string relative(unsigned node, uint32_t& trial, int sp, int displacement, unsigned cycles = 4,
+                     unsigned interval = 100, const char* stop = "0,0,0,0,0") {
+    std::string text = position(node, trial, sp, displacement, cycles, interval, stop);
+    text[0] = 'L';
+    return text;
+}
+// Turn until the route has finished `cycles` observation cycles and nothing of the session is in
+// flight, so that another writer can be admitted between two cycles.
+void untilIdleAfter(Rig& r, unsigned cycles) {
+    for (unsigned i = 0; i < 80000 && r.route.active() && (r.route.record()->cycles < cycles || r.one.busy()); ++i)
+        r.turn();
+    CHECK(r.route.active() && r.route.record()->cycles >= cycles && !r.one.busy());
+}
+void testParseNewRoutes() {
+    scenario = "parse-new-routes";
+    // Appended after READ_HISTORY: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::RELEASED_QUICK) == 11 && unsigned(E::RouteKind::WORD67) == 12 &&
+          unsigned(E::RouteKind::RELATIVE) == 13);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::RELEASED_QUICK), "released-quick") == 0 &&
+          std::strcmp(E::routeName(E::RouteKind::WORD67), "word67") == 0 &&
+          std::strcmp(E::routeName(E::RouteKind::RELATIVE), "relative") == 0);
+    E::RoutePlan p;
+    const std::string q = "Q2,5,1,16,250";
+    CHECK(E::parseRouteCommand(q.data(), q.size(), p) && p.kind == E::RouteKind::RELEASED_QUICK && p.node == 2 &&
+          p.trial == 5 && p.attended && p.cycles == 16 && p.intervalMs == 250);
+    const std::string w = "W1,6,1,4,16,20";
+    CHECK(E::parseRouteCommand(w.data(), w.size(), p) && p.kind == E::RouteKind::WORD67 && p.wordCycles == 4 &&
+          p.cycles == 16 && p.intervalMs == 20);
+    const std::string l = "L1,7,1,-3,-16,1,1000,1000,8,250,1,4,2000,0,100";
+    CHECK(E::parseRouteCommand(l.data(), l.size(), p) && p.kind == E::RouteKind::RELATIVE && p.startPosition == -3 &&
+          p.target == -16 && p.stopKind == 1 && p.stopAfter == 4);
+    const char* const bad[] = {"Q1,5,1,0,250",    "Q1,5,1,17,250",   "Q1,5,1,3,19",      "Q1,5,2,3,250",
+                               "Q1,5,1,3",        "Q1,5,1,3,250,1",  "Q1,5,1,3,5001",    "W1,6,1,0,3,100",
+                               "W1,6,1,5,3,100",  "W1,6,1,2,0,100",  "W1,6,1,2,17,100",  "W1,6,1,2,3,19",
+                               "W1,6,1,2,3",      "W1,6,2,2,3,100",  "q1,5,1,3,250",
+                               "L1,7,1,0,0,1,1000,1000,8,250,0,0,0,0,0",       // No displacement.
+                               "L1,7,1,0,1000001,1,1000,1000,8,250,0,0,0,0,0", // Outside 607A.
+                               "L1,7,1,0,16,3001,1000,1000,8,250,0,0,0,0,0",
+                               "L1,7,1,0,16,1,1000,1000,17,250,0,0,0,0,0",
+                               "L1,7,1,0,16,1,1000,1000,8,250,1,9,2000,0,100", // Stop after the last cycle.
+                               "L1,7,1,0,16,1,1000,1000,8,250,0,0,0,0,100"};
+    for (const char* text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text, std::strlen(text), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text);
+        CHECK(!E::parseRouteCommand(text, std::strlen(text), untouched) && untouched.kind == E::RouteKind::NONE);
+    }
+    // A plan built in code is judged the same way: no zero displacement, no witness on an absolute move.
+    std::unique_ptr<Rig> r(new Rig);
+    E::RoutePlan zero;
+    CHECK(E::parseRouteCommand(l.data(), l.size(), zero));
+    zero.target = 0;
+    E::RoutePlan word;
+    CHECK(E::parseRouteCommand(w.data(), w.size(), word));
+    word.wordCycles = 5;
+    uint32_t trial = 0;
+    E::RoutePlan based;
+    const std::string g = move(1, trial);
+    CHECK(E::parseRouteCommand(g.data(), g.size(), based) && !based.relativeBase && !based.base);
+    based.base = 3;
+    for (const E::RoutePlan* plan : {&zero, &word, &based}) {
+        CHECK(!E::routePlanValid(*plan));
+        const char* refusal = r->route.begin(*plan, r->console.now);
+        CHECK(refusal && std::strcmp(refusal, "plan") == 0);
+    }
+    CHECK(r->driver.requests.empty() && r->route.motionAdmissions() == 0);
+}
+// Packet 16 step 3: one 000B on a released drive whose release two fresh reads show, then cycles.
+void testReleasedQuick() {
+    scenario = "released-quick";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    releasedDrive(d);
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(quick(1, trial, 3, 100, 0)), "unattended") == 0);
+    // Two full reads, the word and seven per cycle: fifteen cycles fit 128 terminals, sixteen do not.
+    CHECK(std::strcmp(r->start(quick(1, trial, 16)), "capacity") == 0);
+    CHECK(std::strcmp(r->start(quick(1, trial, 12, 5000)), "duration") == 0);
+    CHECK(r->driver.requests.empty() && r->route.motionAdmissions() == 0);
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& q = r->run(quick(1, trial, 3));
+    CHECK(q.failure == E::RouteFailure::NONE && q.checkPassed && q.firstPresent && q.cycles == 3);
+    CHECK(q.motionTotal == 1 && q.caseCount == 1 && !q.priorPresent);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t word[8] = {0x2b, 0x40, 0x60, 0, 0x0b, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, word));
+    for (unsigned i = 0; i < 3; ++i)
+        expectUploads(*r, at, 1, IMAGE, 7);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1);
+    // Acknowledged through the session, so the 000B is its latest word; no stop action ran.
+    CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 0x0b && !r->one.stopActive() &&
+          r->one.stopPath() == E::StopPath::NONE);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL id=4 node=1 route=released-quick failure=0 why=none lost=0 terminals=40 "));
+    CHECK(has(text, "TRIAL_PLAN route=released-quick node=1 trial=4 attended=1 cycles=3 interval=100\n"));
+    CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0\n"));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=0 606c=0\n"));
+    CHECK(has(text, "TRIAL_CONTROL prior=0 pword=0000 pop=0 pus=0 latest=1 word=000b latestop="));
+    r->release();
+    // 2100 bit 2 latched with 6064 unchanged across both reads, as node 2 read after trial 213: admitted,
+    // and the record keeps the earlier 000B as what the session knew.
+    scenario = "released-quick-latched";
+    d.monitor = 0x0014;
+    d.position = 1187;
+    first = r->driver.requests.size();
+    const E::RouteRecord& latched = r->run(quick(1, trial, 1));
+    CHECK(latched.failure == E::RouteFailure::NONE && latched.checkPassed && r->downloadsFrom(first) == 1);
+    text = r->dump();
+    CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0014 6041=8050 6061=01 6064=1187 "));
+    CHECK(has(text, "TRIAL_CONTROL prior=1 pword=000b "));
+    r->release();
+    // The same latched bit with 6064 changing between the reads: refused before any write.
+    scenario = "released-quick-moving";
+    d.drift = 1;
+    first = r->driver.requests.size();
+    const E::RouteRecord& moving = r->run(quick(1, trial, 1));
+    CHECK(moving.failure == E::RouteFailure::PREREQUISITE && std::strcmp(moving.why, "running") == 0);
+    CHECK(moving.checkPresent && !moving.checkPassed && r->downloadsFrom(first) == 0);
+    CHECK(has(r->dump(), "TRIAL_FIRST passed=0 "));
+    r->release();
+    // Three per route and node, counted whatever the outcome.
+    CHECK(std::strcmp(r->start(quick(1, trial, 1)), "budget") == 0 && r->route.motionAdmissions() == 3);
+
+    // Each condition of the check, on a fake of its own, refuses before any write.
+    struct Case {
+        const char* why;
+        uint16_t monitor, status;
+        uint8_t mode, errorRegister;
+        uint16_t errorCode;
+        int32_t velocity;
+    };
+    const Case cases[] = {{"unreleased", 0x0001, 0x8050, 1, 0, 0, 0}, {"status", 0x0011, 0x8037, 1, 0, 0, 0},
+                          {"status", 0x0011, 0x8051, 1, 0, 0, 0},     {"mode", 0x0011, 0x8050, 0, 0, 0, 0},
+                          {"alarm", 0x0019, 0x8050, 1, 0, 0, 0},      {"velocity", 0x0011, 0x8050, 1, 0, 0, 2},
+                          {"error-register", 0x0011, 0x8050, 1, 1, 0, 0},
+                          {"fault-code", 0x0011, 0x8050, 1, 0, 0x7531, 0}};
+    for (const Case& c : cases) {
+        scenario = c.why;
+        std::unique_ptr<Rig> f(new Rig);
+        Drive& e = f->driver.drives[1];
+        releasedDrive(e);
+        e.monitor = c.monitor;
+        e.status = c.status;
+        e.mode = c.mode;
+        e.errorRegister = c.errorRegister;
+        e.errorCode = c.errorCode;
+        e.velocity = c.velocity;
+        uint32_t t = 0;
+        const E::RouteRecord& x = f->run(quick(2, t, 2));
+        CHECK(x.failure == E::RouteFailure::PREREQUISITE && std::strcmp(x.why, c.why) == 0);
+        CHECK(f->downloadsFrom(0) == 0 && f->driver.requests.size() == 18 && !f->two.latestControl());
+        f->dump();
+    }
+
+    // Another writer between the check and the write: the 000B is not offered.
+    scenario = "released-quick-predecessor";
+    std::unique_ptr<Rig> o(new Rig);
+    releasedDrive(o->driver.drives[0]);
+    trial = 0;
+    first = o->driver.requests.size();
+    CHECK(!o->start(quick(1, trial, 2)));
+    for (unsigned i = 0; i < 20000 && o->route.active() && o->route.record()->step < 3; ++i)
+        o->turn();
+    CHECK(o->route.active() && o->route.record()->checkPassed && o->downloadsFrom(first) == 0);
+    ownWord(*o, 0x000b);
+    finishRoute(*o);
+    CHECK(o->route.record()->failure == E::RouteFailure::PREREQUISITE &&
+          std::strcmp(o->route.record()->why, "control") == 0);
+    CHECK(o->downloadsFrom(first) == 1); // Only the other writer's.
+    o->dump();
+
+    // A lost reply leaves the word uncertain and no latest word, and is never replayed.
+    scenario = "released-quick-lost";
+    std::unique_ptr<Rig> l(new Rig);
+    releasedDrive(l->driver.drives[0]);
+    l->driver.drives[0].silentIndex = 0x6040;
+    l->driver.drives[0].silentWord = 0x000b;
+    trial = 0;
+    const E::RouteRecord& lost = l->run(quick(1, trial, 3));
+    CHECK(lost.failure == E::RouteFailure::SERVICE && std::strcmp(lost.why, "uncertain") == 0 && lost.cycles == 0);
+    CHECK(l->downloadsFrom(0) == 1 && !l->one.latestControl());
+    CHECK(has(l->dump(), "TRIAL_CONTROL prior=0 pword=0000 pop=0 pus=0 latest=0 word=0000 latestop=0\n"));
+    l->turns(500);
+    CHECK(l->downloadsFrom(0) == 1);
+
+    // An alarm in a cycle after the word, and an EMCY, each end the route with nothing more written.
+    scenario = "released-quick-alarm";
+    std::unique_ptr<Rig> a(new Rig);
+    releasedDrive(a->driver.drives[0]);
+    a->driver.drives[0].trapWord = 0x000b;
+    a->driver.drives[0].trapMonitor = L::MONITOR_ALARM;
+    trial = 0;
+    const E::RouteRecord& alarm = a->run(quick(1, trial, 4));
+    CHECK(alarm.failure == E::RouteFailure::OBSERVATION && std::strcmp(alarm.why, "alarm") == 0 && alarm.cycles == 1);
+    CHECK(a->downloadsFrom(0) == 1);
+    scenario = "released-quick-emcy";
+    std::unique_ptr<Rig> m(new Rig);
+    releasedDrive(m->driver.drives[0]);
+    trial = 0;
+    CHECK(!m->start(quick(1, trial, 6, 300)));
+    untilCycles(*m, 1);
+    M::Frame emcy = frame(0x81, 8);
+    emcy.data[0] = 0x10;
+    emcy.data[1] = 0xff;
+    m->driver.push(emcy);
+    finishRoute(*m);
+    CHECK(m->route.record()->failure == E::RouteFailure::OBSERVATION && std::strcmp(m->route.record()->why, "emcy") == 0);
+    CHECK(m->downloadsFrom(0) == 1 && has(m->dump(), "TRIAL_EMCY data=10ff"));
+}
+// Packet 15: 0006, its cycles, then 0007 only after a last cycle in mode 1 with low bits 001.
+void testWord67() {
+    scenario = "word67";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    releasedDrive(d);
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(words67(1, trial, 2, 3, 100, 0)), "unattended") == 0);
+    // 20 plus seven per cycle of either word: fifteen in all fit, sixteen do not.
+    CHECK(std::strcmp(r->start(words67(1, trial, 4, 12)), "capacity") == 0);
+    CHECK(std::strcmp(r->start(words67(1, trial, 1, 15)), "capacity") == 0);
+    CHECK(std::strcmp(r->start(words67(1, trial, 4, 8, 5000)), "duration") == 0);
+    CHECK(r->driver.requests.empty() && r->route.motionAdmissions() == 0);
+    const E::RouteRecord& w = r->run(words67(1, trial, 2, 3));
+    CHECK(w.failure == E::RouteFailure::NONE && w.checkPassed && w.firstPresent && w.cycles == 5);
+    size_t at = 0;
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t six[8] = {0x2b, 0x40, 0x60, 0, 0x06, 0, 0, 0}, seven[8] = {0x2b, 0x40, 0x60, 0, 0x07, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, six));
+    expectUploads(*r, at, 1, IMAGE, 7);
+    expectUploads(*r, at, 1, IMAGE, 7);
+    CHECK(download(r->driver.requests[at++], 1, seven));
+    for (unsigned i = 0; i < 3; ++i)
+        expectUploads(*r, at, 1, IMAGE, 7);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 2);
+    // No other word: never 000F or 001F, and the drive is left with 0007 as the latest word.
+    CHECK(wordsFrom(*r, 0, 1, 0x000f) == 0 && wordsFrom(*r, 0, 1, 0x001f) == 0);
+    CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 0x07);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL id=5 node=1 route=word67 failure=0 why=none lost=0 terminals=55 "));
+    CHECK(has(text, "TRIAL_PLAN route=word67 node=1 trial=5 attended=1 c6=2 cycles=3 interval=100\n"));
+    CHECK(has(text, "TRIAL_CONTROL prior=0 pword=0000 pop=0 pus=0 latest=1 word=0007 latestop="));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8053 6061=01 "));
+    r->release();
+    // The drive this fake now reports is not released: the same route refuses before any write.
+    const E::RouteRecord& again = r->run(words67(1, trial, 1, 1));
+    CHECK(again.failure == E::RouteFailure::PREREQUISITE && std::strcmp(again.why, "unreleased") == 0);
+    CHECK(r->downloadsFrom(0) == 2);
+    r->release();
+    // Fifteen cycles in all is the capacity bound, and it runs.
+    scenario = "word67-capacity";
+    std::unique_ptr<Rig> c(new Rig);
+    releasedDrive(c->driver.drives[0]);
+    trial = 0;
+    const E::RouteRecord& full = c->run(words67(1, trial, 3, 12, 20));
+    CHECK(full.failure == E::RouteFailure::NONE && full.cycles == 15 && full.terminalCount == 125);
+
+    // Word 6 not reaching low bits 001: the observation ends it, and 0007 is never written.
+    scenario = "word67-status";
+    std::unique_ptr<Rig> s(new Rig);
+    releasedDrive(s->driver.drives[0]);
+    s->driver.drives[0].followWords = false;
+    trial = 0;
+    const E::RouteRecord& status = s->run(words67(1, trial, 3, 4));
+    CHECK(status.failure == E::RouteFailure::OBSERVATION && std::strcmp(status.why, "status") == 0 &&
+          status.cycles == 3);
+    CHECK(s->downloadsFrom(0) == 1 && wordsFrom(*s, 0, 1, 0x0007) == 0 && wordsFrom(*s, 0, 1, 0x0006) == 1);
+    CHECK(s->one.latestControl() && s->one.latestControl()->transfer.data[0] == 0x06);
+    s->dump();
+    // An alarm after 0006 ends it at that cycle.
+    scenario = "word67-alarm";
+    std::unique_ptr<Rig> a(new Rig);
+    releasedDrive(a->driver.drives[0]);
+    a->driver.drives[0].trapWord = 0x0006;
+    a->driver.drives[0].trapMonitor = L::MONITOR_ALARM;
+    trial = 0;
+    const E::RouteRecord& alarm = a->run(words67(1, trial, 3, 4));
+    CHECK(alarm.failure == E::RouteFailure::OBSERVATION && std::strcmp(alarm.why, "alarm") == 0 && alarm.cycles == 1);
+    CHECK(a->downloadsFrom(0) == 1 && wordsFrom(*a, 0, 1, 0x0007) == 0);
+    // 0007 follows only this route's own acknowledged 0006: another writer's 0006 in between refuses it.
+    scenario = "word67-predecessor";
+    std::unique_ptr<Rig> o(new Rig);
+    releasedDrive(o->driver.drives[0]);
+    trial = 0;
+    CHECK(!o->start(words67(1, trial, 3, 2, 500)));
+    untilIdleAfter(*o, 1);
+    ownWord(*o, 0x0006);
+    finishRoute(*o);
+    CHECK(o->route.record()->failure == E::RouteFailure::PREREQUISITE &&
+          std::strcmp(o->route.record()->why, "control") == 0 && o->route.record()->cycles == 3);
+    CHECK(o->downloadsFrom(0) == 2 && wordsFrom(*o, 0, 1, 0x0006) == 2 && wordsFrom(*o, 0, 1, 0x0007) == 0);
+    o->dump();
+    // A lost 0006 is never followed by 0007.
+    scenario = "word67-lost";
+    std::unique_ptr<Rig> l(new Rig);
+    releasedDrive(l->driver.drives[0]);
+    l->driver.drives[0].silentIndex = 0x6040;
+    l->driver.drives[0].silentWord = 0x0006;
+    trial = 0;
+    const E::RouteRecord& lost = l->run(words67(1, trial));
+    CHECK(lost.failure == E::RouteFailure::SERVICE && std::strcmp(lost.why, "uncertain") == 0 && !l->one.latestControl());
+    l->turns(500);
+    CHECK(l->downloadsFrom(0) == 1 && wordsFrom(*l, 0, 1, 0x0007) == 0);
+}
+// Packet 19 and 21: a rearm follows exactly the predecessor the host names, of a finished record.
+void testRearmPredecessors() {
+    scenario = "rearm-predecessors";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    CHECK(r->run(position(1, trial, 0, 16)).failure == E::RouteFailure::NONE);
+    r->release();
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 2)), "control") == 0); // No halt was written.
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 3)), "control") == 0); // Not a relative trigger.
+    CHECK(r->run(rearm(1, trial, 3, 100, 1, 1)).failure == E::RouteFailure::NONE);
+    r->release();
+    // From a halt: the planned HALT's acknowledged 010F inside a finished POSITION record.
+    const E::RouteRecord& p = r->run(position(1, trial, 16, 32, 4, 100, "1,2,2000,0,200"));
+    CHECK(p.failure == E::RouteFailure::NONE && p.stopRequested);
+    const uint32_t haltOp = r->one.latestControl()->transfer.operation;
+    CHECK(r->one.latestControl()->transfer.data[0] == 0x0f && r->one.latestControl()->transfer.data[1] == 0x01);
+    r->release();
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 1)), "control") == 0);
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 3)), "control") == 0);
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& h = r->run(rearm(1, trial, 3, 100, 1, 2));
+    CHECK(h.failure == E::RouteFailure::NONE && h.checkPassed && h.rearmFollows == haltOp && h.rearmFollowsWord == 0x010f);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t word[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, word));
+    for (unsigned i = 0; i < 3; ++i)
+        expectUploads(*r, at, 1, IMAGE, 7);
+    CHECK(at == r->driver.requests.size());
+    std::string text = r->dump();
+    CHECK(has(text, " attended=1 pred=2 cycles=3 interval=100\n"));
+    CHECK(has(text, ("TRIAL_REARM pword=010f predop=" + std::to_string(haltOp)).c_str()) &&
+          has(text, " latest=1 word=000f "));
+    r->release();
+    // From a relative trigger: the 005F of a finished RELATIVE record.
+    CHECK(r->run(relative(1, trial, 16, 8)).failure == E::RouteFailure::NONE);
+    r->release();
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 1)), "control") == 0);
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 2)), "control") == 0);
+    const E::RouteRecord& t = r->run(rearm(1, trial, 3, 100, 1, 3));
+    CHECK(t.failure == E::RouteFailure::NONE && t.rearmFollowsWord == 0x005f);
+    CHECK(has(r->dump(), "TRIAL_REARM pword=005f "));
+    r->release();
+    CHECK(r->route.motionAdmissions() == 9);
+    // Three rearms on this node: a fourth is over the cap whatever it names.
+    CHECK(std::strcmp(r->start(rearm(1, trial, 3, 100, 1, 1)), "budget") == 0);
+
+    // A RELATIVE's planned HALT is not a predecessor any rearm names.
+    scenario = "rearm-relative-halt";
+    std::unique_ptr<Rig> v(new Rig);
+    trial = 0;
+    enabled(*v, trial);
+    CHECK(v->run(relative(1, trial, 0, 16, 4, 100, "1,2,2000,0,200")).failure == E::RouteFailure::NONE);
+    v->release();
+    CHECK(v->one.latestControl() && v->one.latestControl()->transfer.data[1] == 0x01);
+    for (unsigned k = 1; k <= 3; ++k)
+        CHECK(std::strcmp(v->start(rearm(1, trial, 3, 100, 1, k)), "control") == 0);
+
+    // A HALT whose 010F reply was lost leaves no latest word: nothing follows it.
+    scenario = "rearm-halt-lost";
+    std::unique_ptr<Rig> l(new Rig);
+    trial = 0;
+    enabled(*l, trial);
+    l->driver.drives[0].silentIndex = 0x6040;
+    l->driver.drives[0].silentWord = 0x010f;
+    l->run(position(1, trial, 0, 16, 4, 100, "1,2,2000,0,200"));
+    l->release();
+    CHECK(!l->one.latestControl());
+    first = l->driver.requests.size();
+    for (unsigned k = 1; k <= 3; ++k)
+        CHECK(l->start(rearm(1, trial, 3, 100, 1, k)) != nullptr);
+    l->turns(100);
+    CHECK(l->driver.requests.size() == first);
+}
+// Packet 21: POSITION's shape with a displacement and the 005F trigger; the base the record shows.
+void testRelative() {
+    scenario = "relative";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(relative(1, trial, 0, 16)), "control") == 0); // No 000F yet.
+    enabled(*r, trial);
+    CHECK(std::strcmp(r->start(relative(1, trial, 0, 16, 16)), "capacity") == 0);
+    CHECK(std::strcmp(r->start(relative(1, trial, 0, 16, 12, 5000)), "duration") == 0);
+    // An earlier absolute experiment, so the record can show the 607A this object last wrote.
+    const E::RouteRecord& p = r->run(position(1, trial, 0, 16));
+    CHECK(p.failure == E::RouteFailure::NONE);
+    const uint32_t positionTrial = p.plan.trial;
+    r->release();
+    CHECK(r->run(rearm(1, trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& v = r->run(relative(1, trial, 16, -6, 4, 100, "1,3,2000,0,200"));
+    CHECK(v.failure == E::RouteFailure::NONE && v.checkPassed && v.cycles == 3 && v.stopRequested);
+    CHECK(v.motionTotal == 6 && v.caseCount == 1); // M, E, P, R, and this one with its planned stop.
+    CHECK(v.targetReadPresent && v.targetRead == 16 && v.commandedKnown && v.commanded == 16 &&
+          v.commandedTrial == positionTrial && !v.commandedRelative);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    const Address before[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}, {0x607a, 0}};
+    expectUploads(*r, at, 1, before, 4);
+    const uint8_t writes[5][8] = {{0x23, 0x7a, 0x60, 0, 0xfa, 0xff, 0xff, 0xff},
+                                  {0x23, 0x81, 0x60, 0, 1, 0, 0, 0},
+                                  {0x23, 0x83, 0x60, 0, 0xe8, 3, 0, 0},
+                                  {0x23, 0x84, 0x60, 0, 0xe8, 3, 0, 0},
+                                  {0x2b, 0x40, 0x60, 0, 0x5f, 0, 0, 0}};
+    for (const auto& bytes : writes)
+        CHECK(download(r->driver.requests[at++], 1, bytes));
+    for (unsigned i = 0; i < 3; ++i)
+        expectUploads(*r, at, 1, IMAGE, 7);
+    const uint8_t halt[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0x01, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, halt));
+    CHECK(wordsFrom(*r, first, 1, 0x001f) == 0 && r->one.stopAction(L::StopKind::HALT).predecessorWord == 0x005f);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL_PLAN route=relative node=1 trial=") && has(text, " sp=16 target=-6 rpm=1 up=1000 "));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8037 6061=01 6064=16 606c=0\n"));
+    CHECK(has(text, ("TRIAL_BASE read=1 target=16 known=1 prev=16 prevTrial=" + std::to_string(positionTrial) +
+                     " prevRelative=0 basis=0 witness=0\n").c_str()));
+    r->release();
+    // The planned stop counted against stop too; its 010F is no rearm's predecessor, so a new relative
+    // experiment needs a new 000F that nothing here writes.
+    CHECK(std::strcmp(r->start(relative(1, trial, 16, 8)), "control") == 0);
+
+    // A second relative after one: the record shows that the last 607A was a displacement.
+    scenario = "relative-after-relative";
+    std::unique_ptr<Rig> s(new Rig);
+    trial = 0;
+    enabled(*s, trial);
+    const E::RouteRecord& one = s->run(relative(1, trial, 0, 16));
+    CHECK(one.failure == E::RouteFailure::NONE && !one.commandedKnown && one.targetRead == 5000);
+    CHECK(has(s->dump(), "TRIAL_BASE read=1 target=5000 known=0 prev=0 prevTrial=0 prevRelative=0 basis=0 witness=0\n"));
+    const uint32_t oneTrial = one.plan.trial;
+    s->release();
+    CHECK(s->run(rearm(1, trial, 3, 100, 1, 3)).failure == E::RouteFailure::NONE);
+    s->release();
+    // This fake added the displacement to the actual position, 0: it reports 16, as its own choice.
+    const E::RouteRecord& two = s->run(relative(1, trial, 16, 16));
+    CHECK(two.failure == E::RouteFailure::NONE && two.commandedKnown && two.commanded == 16 && two.commandedRelative);
+    CHECK(has(s->dump(), ("TRIAL_BASE read=1 target=16 known=1 prev=16 prevTrial=" + std::to_string(oneTrial) +
+                          " prevRelative=1 ").c_str()));
+    s->release();
+    // The wrong reviewed start position refuses before any write.
+    CHECK(s->run(rearm(1, trial, 3, 100, 1, 3)).failure == E::RouteFailure::NONE);
+    s->release();
+    first = s->driver.requests.size();
+    const E::RouteRecord& wrong = s->run(relative(1, trial, 0, 16));
+    CHECK(wrong.failure == E::RouteFailure::PREREQUISITE && std::strcmp(wrong.why, "position") == 0);
+    CHECK(s->downloadsFrom(first) == 0);
+
+    // A lost trigger: nothing after it, no rearm may follow, and no stop by itself.
+    scenario = "relative-trigger-lost";
+    std::unique_ptr<Rig> l(new Rig);
+    trial = 0;
+    enabled(*l, trial);
+    l->driver.drives[0].silentIndex = 0x6040;
+    l->driver.drives[0].silentWord = 0x005f;
+    first = l->driver.requests.size();
+    const E::RouteRecord& lost = l->run(relative(1, trial, 0, 16, 4, 100, "1,2,2000,0,200"));
+    CHECK(lost.failure == E::RouteFailure::SERVICE && std::strcmp(lost.why, "uncertain") == 0 && !lost.stopRequested);
+    CHECK(l->downloadsFrom(first) == 5 && !l->one.latestControl());
+    l->release();
+    CHECK(l->start(rearm(1, trial, 3, 100, 1, 3)) != nullptr && l->start(relative(1, trial, 0, 16)) != nullptr);
+    l->turns(200);
+    CHECK(l->downloadsFrom(first) == 5);
+}
+// Packet 22 step 4: requestMoveRelative with the host's measured base and a witness of two fresh reads.
+void testMoveRelative() {
+    scenario = "move-relative-actual";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    d.statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    MoveSpec actual;
+    actual.rel = 1;
+    // A second full read takes nine terminals more than the absolute move of the same deadline.
+    MoveSpec longer = actual;
+    longer.deadline = 12000;
+    CHECK(std::strcmp(r->start(move(1, trial, longer)), "capacity") == 0);
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& m = r->run(move(1, trial, actual));
+    CHECK(m.failure == E::RouteFailure::NONE && m.moveRequested && m.checkPassed && m.firstPresent);
+    CHECK(m.witnessBasis == 1 && m.witnessPosition == 0 && !m.commandedKnown);
+    const L::MoveContext& c = r->one.moveAction();
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.completion == M::ActionCompletion::OBSERVED &&
+          c.rearm == M::ActionExecution::ACKNOWLEDGED && c.parameters.target.requested.relative &&
+          c.parameters.target.requested.basis == M::RelativeBasis::ACTUAL &&
+          c.evidence.relativeBase == L::RelativeBase::ACTUAL && c.parameters.targetNative == 16 &&
+          c.parameters.target.endpointNative == 16 && c.parameters.target.referenceUsed &&
+          c.parameters.target.retainedReference.source == M::ScaleSource::READBACK);
+    size_t at = first;
+    expectUploads(*r, at, 1, IDENTITY, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t writes[5][8] = {{0x23, 0x7a, 0x60, 0, 16, 0, 0, 0},
+                                  {0x23, 0x81, 0x60, 0, 1, 0, 0, 0},
+                                  {0x23, 0x83, 0x60, 0, 0xe8, 3, 0, 0},
+                                  {0x23, 0x84, 0x60, 0, 0xe8, 3, 0, 0},
+                                  {0x2b, 0x40, 0x60, 0, 0x5f, 0, 0, 0}};
+    for (const auto& bytes : writes)
+        CHECK(download(r->driver.requests[at++], 1, bytes));
+    const uint8_t rearmWord[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0, 0, 0};
+    CHECK(download(r->driver.requests.back(), 1, rearmWord) && r->downloadsFrom(first) == 6);
+    CHECK(wordsFrom(*r, first, 1, 0x001f) == 0 && d.position == 16);
+    std::string text = r->dump();
+    CHECK(has(text, " si=0 rel=1 base=0\n") && has(text, " fc=0123 rb=1\n"));
+    CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d ") && has(text, "TRIAL_MOVE own=1 state=2 "));
+    CHECK(has(text, "TRIAL_BASE read=0 target=0 known=0 prev=0 prevTrial=0 prevRelative=0 basis=1 witness=0\n"));
+    const uint32_t firstMove = m.plan.trial;
+    r->release();
+
+    // COMMANDED: the host's reviewed commanded base, which no read shows, is the witness.
+    scenario = "move-relative-commanded";
+    d.relativeCommanded = true;
+    MoveSpec commanded;
+    commanded.rel = 2;
+    commanded.sp = 16;
+    commanded.base = 16;
+    commanded.target = 8;
+    const E::RouteRecord& n = r->run(move(1, trial, commanded));
+    CHECK(n.failure == E::RouteFailure::NONE && n.witnessBasis == 2 && n.witnessPosition == 16);
+    CHECK(n.commandedKnown && n.commanded == 16 && n.commandedTrial == firstMove && n.commandedRelative);
+    const L::MoveContext& k = r->one.moveAction();
+    CHECK(k.state == M::ActionState::SUCCEEDED && k.evidence.relativeBase == L::RelativeBase::COMMANDED &&
+          k.parameters.target.requested.basis == M::RelativeBasis::COMMANDED &&
+          k.parameters.target.endpointNative == 24 && k.parameters.targetNative == 8 &&
+          k.parameters.target.retainedReference.source == M::ScaleSource::ASSUMED && d.position == 24);
+    CHECK(has(r->dump(), ("TRIAL_BASE read=0 target=0 known=1 prev=16 prevTrial=" + std::to_string(firstMove) +
+                          " prevRelative=1 basis=2 witness=16\n").c_str()));
+    r->release();
+
+    // A 6064 that changes between the two reads is no stationary witness: refused before any write.
+    scenario = "move-relative-moving";
+    d.drift = 1;
+    MoveSpec moving;
+    moving.rel = 1;
+    moving.sp = moving.base = 24;
+    first = r->driver.requests.size();
+    const E::RouteRecord& x = r->run(move(1, trial, moving));
+    CHECK(x.failure == E::RouteFailure::PREREQUISITE && std::strcmp(x.why, "position") == 0 && !x.moveRequested);
+    CHECK(x.first.position == 24 && x.check.position == 25 && r->downloadsFrom(first) == 0);
+    CHECK(has(r->dump(), "TRIAL_FIRST passed=0 "));
+    r->release();
+    // Three moves on this node, absolute or relative: a fourth is over the cap.
+    CHECK(std::strcmp(r->start(move(1, trial)), "budget") == 0);
+
+    // A RELATIVE experiment after a relative move: the record shows the move's acknowledged 607A.
+    scenario = "relative-after-move";
+    std::unique_ptr<Rig> s(new Rig);
+    s->driver.drives[0].statusBits = true;
+    trial = 0;
+    enabled(*s, trial);
+    const E::RouteRecord& g = s->run(move(1, trial, actual));
+    CHECK(g.failure == E::RouteFailure::NONE);
+    const uint32_t moveTrial = g.plan.trial;
+    s->release();
+    const E::RouteRecord& v = s->run(relative(1, trial, 16, 4));
+    CHECK(v.failure == E::RouteFailure::NONE && v.commandedKnown && v.commanded == 16 && v.commandedRelative &&
+          v.commandedTrial == moveTrial && v.targetReadPresent && v.targetRead == 16);
+}
 // A full set of records for the parser's grammar check in s2_evidence_test.py: every route, the
 // rearm and the move on node 2 after the lost reply ended node 1's evidence, a second move on node
 // 2 whose copied traffic overflowed, and a history read with two entries on a fake of its own.
@@ -2100,9 +2746,9 @@ void writeTranscript(const char* path) {
         rig.route.release();
     };
     const std::string lines[] = {"A1,1", "I1,2", "U1,3", "M1,4,1,2,200", "E1,5,1,1,1,32823,5000,120,10000,800",
-                                 "P1,6,1,0,16,1,1000,1000,4,100,1,2,2000,0,200", "S1,7,1,1,2000,0,100",
+                                 "P1,6,1,0,16,1,1000,1000,4,100,1,2,2000,0,200", "S1,7,1,1,2000,0,200",
                                  "M2,8,1,1,200", "E2,9,1,1,1,32823,5000,120,10000,800",
-                                 "P2,10,1,0,16,1,1000,1000,4,100,0,0,0,0,0", "R2,11,1,3,100", ""};
+                                 "P2,10,1,0,16,1,1000,1000,4,100,0,0,0,0,0", "R2,11,1,1,3,100", ""};
     const unsigned count = sizeof lines / sizeof lines[0];
     for (unsigned i = 0; i < count; ++i) {
         MoveSpec spec;
@@ -2140,6 +2786,33 @@ void writeTranscript(const char* path) {
     h->driver.drives[0].history[1] = 0xff007531;
     CHECK(h->run("H1,1").failure == E::RouteFailure::NONE);
     append(*h, "H1,1");
+    // The 2026-11-04 routes: a released drive of its own for 000B and words 6 and 7, then on another
+    // fake a relative experiment, the rearms after a relative trigger and after a halt, and a relative
+    // move with an ACTUAL witness.
+    std::unique_ptr<Rig> q(new Rig);
+    releasedDrive(q->driver.drives[0]);
+    for (const char* text : {"Q1,1,1,3,100", "W1,2,1,2,3,100"}) {
+        CHECK(q->run(text).failure == E::RouteFailure::NONE);
+        append(*q, text);
+    }
+    std::unique_ptr<Rig> v(new Rig);
+    v->driver.drives[0].statusBits = true;
+    uint32_t trial = 0;
+    enabled(*v, trial);
+    MoveSpec relativeMove;
+    relativeMove.rel = 1;
+    relativeMove.sp = relativeMove.base = 16;
+    relativeMove.target = 8;
+    const std::string sequence[] = {"L1,3,1,0,16,1,1000,1000,4,100,0,0,0,0,0", "R1,4,1,3,3,100",
+                                    "P1,5,1,16,32,1,1000,1000,4,100,1,2,2000,0,200", "R1,6,1,2,3,100"};
+    for (const std::string& text : sequence) {
+        CHECK(v->run(text).failure == E::RouteFailure::NONE);
+        append(*v, text);
+        ++trial;
+    }
+    const std::string moved = move(1, trial, relativeMove);
+    CHECK(moved.compare(0, 4, "G1,7") == 0 && v->run(moved).failure == E::RouteFailure::NONE);
+    append(*v, moved);
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
     CHECK(std::fwrite(out.data(), 1, out.size(), file) == out.size());
@@ -2185,6 +2858,12 @@ int main(int argc, char** argv) {
     testFencedNodeIsolation();
     testRearmAfterRefusedStop();
     testMovePreflightAtHandover();
+    testParseNewRoutes();
+    testReleasedQuick();
+    testWord67();
+    testRearmPredecessors();
+    testRelative();
+    testMoveRelative();
     std::printf("bench_route: %u checks\n", checks);
     return 0;
 }

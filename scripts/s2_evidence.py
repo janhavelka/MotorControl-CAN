@@ -178,13 +178,18 @@ GRAMMAR = (
         "id:u node:u route:s failure:u why:s lost:b terminals:u traffic:u tail:u tailLost:b summaries:u "
         "step:u cycles:u motion:u case:u unsettled:b gap:u lossCancel:b?",
         signals=_RECORD_HEALTH + (("health", "why"), ("health", "lossCancel")), per_node=True),
+    # pred: a rearm's named predecessor; c6: word67's cycles after 0006; rel and base: a move's relative
+    # base (0 absolute) and witness position. Records before 2026-11-04 have none of them.
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
-        "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u?"),
+        "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
+        "rel:u? base:i?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
         "completed", (("health", "stack1"), ("health", "heapMin")), True),
+    # The first of two fresh check reads (released-quick, word67, a relative move); the check judged both.
+    Row("TRIAL_FIRST", "TRIAL_FIRST ", "summary", _TRIAL_SNAPSHOT),
     Row("TRIAL_CHECK", "TRIAL_CHECK ", "summary", _TRIAL_SNAPSHOT),
     Row("TRIAL_LAST", "TRIAL_LAST ", "summary", _TRIAL_SNAPSHOT, signals=_TRIAL_VALUES, per_node=True),
     # The history route's 1003, raw: the count, then only the entries it names. Never interpreted.
@@ -206,13 +211,21 @@ GRAMMAR = (
         signals=(("health", "stopPath"), ("health", "stopOutcome")), per_node=True),
     Row("TRIAL_BEST_EFFORT", "TRIAL_BEST_EFFORT ", "summary",
         "which:u own:b state:u outcome:u exec:u admitted:b effects:b op:u"),
-    # The 001F a rearm followed, and the session's latest word after it: none after a lost 000F.
-    Row("TRIAL_REARM", "TRIAL_REARM ", "summary", "predop:u predus:u latest:b word:x latestop:u",
+    # The predecessor a rearm followed (pword from 2026-11-04 on), and the session's latest word after
+    # it: none after a lost 000F.
+    Row("TRIAL_REARM", "TRIAL_REARM ", "summary", "pword:x? predop:u predus:u latest:b word:x latestop:u",
         signals=(("health", "latest"), ("status", "word")), per_node=True),
+    # released-quick and word67: the session's latest word at admission, which may be none, and after.
+    Row("TRIAL_CONTROL", "TRIAL_CONTROL ", "summary", "prior:b pword:x pop:u pus:u latest:b word:x latestop:u",
+        signals=(("health", "latest"), ("status", "word")), per_node=True),
+    # relative and a relative move: the 607A read before the writes, the firmware's own record of the
+    # last 607A it had acknowledged on that node, and a relative move's witness. Never a base measurement.
+    Row("TRIAL_BASE", "TRIAL_BASE ", "summary",
+        "read:b target:i known:b prev:i prevTrial:u prevRelative:b basis:u witness:i"),
     # The host's move evidence as the firmware received it, then the session's MoveContext and its
     # five kept samples (admission, latest, acceptance, absence, completed), raw.
     Row("TRIAL_EVIDENCE", "TRIAL_EVIDENCE ", "summary",
-        "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x"),
+        "record:u as:u am:x av:x cs:u cm:x cv:x rule:u dt:x hw:x sw:x vid:x pc:x rev:x mc:x fc:x rb:u?"),
     Row("TRIAL_MOVE", "TRIAL_MOVE ", "summary",
         "own:b state:u phase:u phases:x outcome:u>moveOutcome int:u setup:u exec:u completion:u>moveCompletion "
         "rearm:u uncertain:b>moveUncertain readUnc:b effects:b cycles:u op:u target:i mask:x ev:x trigger:b "
@@ -365,7 +378,8 @@ EXPECTED = {
 _TRIAL_RESPONSES = ("PONG", "TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")
 TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness-tuning": "tuning",
                 "mode1": "mode1", "enable": "enable", "stop": "stop", "position": "position",
-                "rearm": "rearm", "move": "move", "readiness-history": "history"}
+                "rearm": "rearm", "move": "move", "readiness-history": "history",
+                "released-quick": "released-quick", "word67": "word67", "relative": "relative"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 

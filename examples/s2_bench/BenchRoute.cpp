@@ -57,22 +57,33 @@ static_assert(L::OBJECT_607A_00.widthBytes == 4 && L::OBJECT_607A_00.signedValue
                   L::OBJECT_6081_00.widthBytes == 4 && L::OBJECT_6083_00.widthBytes == 4 &&
                   L::OBJECT_6084_00.widthBytes == 4 && L::OBJECT_6040_00.widthBytes == 2,
               "position write widths follow the generated declarations");
-// REARM writes 6040 like the POSITION trigger, with the word the move lifecycle uses as its rearm.
+// REARM, RELEASED_QUICK and WORD67 write 6040 like the POSITION trigger, one word per step: REARM the
+// word the move lifecycle uses as its rearm, RELEASED_QUICK the quick stop word, WORD67 the enable
+// sequence's first two words. Each is its own operation under its own grant.
 static_assert(L::OBJECT_6040_00.widthBytes == 2 && !L::OBJECT_6040_00.signedValue,
-              "rearm write width follows the generated declaration");
+              "word write width follows the generated declaration");
+enum Word : uint8_t { WORD_REARM, WORD_QUICK, WORD_SIX, WORD_SEVEN };
+constexpr uint16_t WORDS[] = {0x000f, 0x000b, 0x0006, 0x0007};
+// STEP_OBSERVE's argument: every planned cycle, or WORD67's cycles after its 0006 only.
+enum Observe : uint8_t { OBSERVE_ALL, OBSERVE_WORD_SIX };
 // MOVE takes these enumerations as numbers from the host line.
 static_assert(unsigned(L::MoveSignalSource::STATUSWORD) == 1 && unsigned(L::MoveSignalSource::MONITOR) == 2 &&
                   unsigned(L::CompletionRule::AFTER_ABSENCE) == 1 &&
                   unsigned(L::CompletionRule::AFTER_ACCEPTANCE) == 2,
               "the host line numbers MoveSignalSource and CompletionRule as declared");
 const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
-                             "enable", "stop",    "position", "rearm",  "move", "history"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::READ_HISTORY) + 1, "one name per route");
-// MODE_ONE..MOVE only: READ_HISTORY follows MOVE in RouteKind and is a read.
-bool isMotion(RouteKind kind) { return kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE; }
+                             "enable", "stop",    "position", "rearm",  "move", "history",
+                             "released-quick", "word67", "relative"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::RELATIVE) + 1, "one name per route");
+// MODE_ONE..MOVE and the routes appended after READ_HISTORY, which is a read.
+bool isMotion(RouteKind kind) {
+    return (kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE) || kind >= RouteKind::RELEASED_QUICK;
+}
+// The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
+bool writesPosition(RouteKind kind) { return kind == RouteKind::POSITION || kind == RouteKind::RELATIVE; }
 // Routes that may plan a stop of their own, counted against STOP as well.
 bool plansStop(const RoutePlan& p) {
-    return (p.kind == RouteKind::POSITION || p.kind == RouteKind::MOVE) && p.stopKind;
+    return (writesPosition(p.kind) || p.kind == RouteKind::MOVE) && p.stopKind;
 }
 // A truncated line is failed evidence, never a plausible shortened observation.
 bool put(char* output, size_t size, const char* pattern, ...) ROUTE_PRINTF;
@@ -111,6 +122,7 @@ constexpr Range U16 = {0, UINT16_MAX}, MASK = {1, UINT16_MAX}, U32 = {0, UINT32_
 constexpr Range TARGET = {-1000000, 1000000}, CYCLE_MS = {20, 5000}, STOP_KIND = {0, 2};
 constexpr Range STOP_AFTER = {0, 16}, STOP_INTERVAL = {0, 10000}, MODE_CYCLES = {1, 10};
 constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 1}, SHAFT = {1, 2}, KIND = {1, 2};
+constexpr Range WORD_CYCLES = {1, 4}, PREDECESSOR = {1, 3}, RELATIVE_BASE = {0, 2};
 // Documentary native ranges (EN86/ZH86 p11). A move admits what prepareMoveAbsolute does (Q11).
 constexpr Range RPM = {0, 3000}, RAMP_MS = {0, 2000}, MOVE_RPM = {1, 3000}, MOVE_RAMP_MS = {1, 2000};
 // One fixed field list per route letter, in flash and in line order. The parser stores each field
@@ -147,8 +159,14 @@ constexpr Field POSITION_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(stopDeadlineMs, OPTIONAL_MS),
                                      ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
                                      ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
-constexpr Field REARM_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+constexpr Field REARM_FIELDS[] = {ROUTE_FIELD(node, NODE),         ROUTE_FIELD(trial, TRIAL),
+                                  ROUTE_FIELD(attended, FLAG),     ROUTE_FIELD(predecessor, PREDECESSOR),
+                                  ROUTE_FIELD(cycles, CYCLES),     ROUTE_FIELD(intervalMs, CYCLE_MS)};
+constexpr Field QUICK_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                   ROUTE_FIELD(cycles, CYCLES), ROUTE_FIELD(intervalMs, CYCLE_MS)};
+constexpr Field WORD_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(trial, TRIAL),
+                                 ROUTE_FIELD(attended, FLAG),      ROUTE_FIELD(wordCycles, WORD_CYCLES),
+                                 ROUTE_FIELD(cycles, CYCLES),      ROUTE_FIELD(intervalMs, CYCLE_MS)};
 constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                  ROUTE_FIELD(trial, TRIAL),
                                  ROUTE_FIELD(attended, FLAG),
@@ -175,6 +193,8 @@ constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                  ROUTE_FIELD(firmware.revision, U32),
                                  ROUTE_FIELD(firmware.modelCode, U16),
                                  ROUTE_FIELD(firmware.firmwareCode, U16),
+                                 ROUTE_FIELD(relativeBase, RELATIVE_BASE),
+                                 ROUTE_FIELD(base, SIGNED32),
                                  ROUTE_FIELD(stopKind, STOP_KIND),
                                  ROUTE_FIELD(stopAfter, STOP_AFTER),
                                  ROUTE_FIELD(stopDeadlineMs, OPTIONAL_MS),
@@ -197,8 +217,11 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'P', RouteKind::POSITION, POSITION_FIELDS, countOf(POSITION_FIELDS)},
                                 {'R', RouteKind::REARM, REARM_FIELDS, countOf(REARM_FIELDS)},
                                 {'G', RouteKind::MOVE, MOVE_FIELDS, countOf(MOVE_FIELDS)},
-                                {'H', RouteKind::READ_HISTORY, READ_FIELDS, countOf(READ_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::READ_HISTORY), "one grammar per route");
+                                {'H', RouteKind::READ_HISTORY, READ_FIELDS, countOf(READ_FIELDS)},
+                                {'Q', RouteKind::RELEASED_QUICK, QUICK_FIELDS, countOf(QUICK_FIELDS)},
+                                {'W', RouteKind::WORD67, WORD_FIELDS, countOf(WORD_FIELDS)},
+                                {'L', RouteKind::RELATIVE, POSITION_FIELDS, countOf(POSITION_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::RELATIVE), "one grammar per route");
 // One field's value, read from or written to the plan through its declared width.
 int64_t load(const RoutePlan& p, const Field& f) {
     const unsigned char* at = reinterpret_cast<const unsigned char*>(&p) + f.offset;
@@ -272,9 +295,11 @@ bool stopPolicyValid(const RoutePlan& p, unsigned cycles) {
                       : !p.stopAfter && !p.stopDeadlineMs && !p.bestEffortMs && !p.stopIntervalMs;
 }
 // Terminals each plan can produce at most, against ROUTE_TERMINALS. A session action's observation
-// cycles are bounded by its deadline over its interval, plus the immediate first cycle(s).
+// cycles are bounded by its deadline over its interval, plus the immediate first cycle(s). A stop cycle
+// reads MONITORS and STATUS, five fields, and two FEEDBACK fields more once a QUICK_STOP observes
+// standstill by 6064 and 606C (released, low bits 000, running still set), so seven are bounded.
 unsigned stopTerminals(uint32_t deadlineMs, uint32_t intervalMs) {
-    return 1 + 5 * (1 + deadlineMs / intervalMs) + 2; // Word, cycles, a held best-effort pair.
+    return 1 + 7 * (1 + deadlineMs / intervalMs) + 2; // Word, cycles, a held best-effort pair.
 }
 unsigned terminalBound(const RoutePlan& p) {
     switch (p.kind) {
@@ -294,14 +319,21 @@ unsigned terminalBound(const RoutePlan& p) {
     case RouteKind::STOP:
         return 5 + stopTerminals(p.deadlineMs, p.intervalMs);
     case RouteKind::POSITION:
+    case RouteKind::RELATIVE:
         return 9 + 3 + 1 + 5 + 7u * p.cycles +
                (p.stopKind ? stopTerminals(p.stopDeadlineMs, p.stopIntervalMs) : 0);
     case RouteKind::REARM:
         return 9 + 1 + 7u * p.cycles;
+    case RouteKind::RELEASED_QUICK:
+        // Two full reads, the 000B and its cycles.
+        return 9 + 9 + 1 + 7u * p.cycles;
+    case RouteKind::WORD67:
+        // Two full reads, the 0006 and its cycles, the 0007 and its cycles.
+        return 9 + 9 + 1 + 7u * p.wordCycles + 1 + 7u * p.cycles;
     case RouteKind::MOVE:
-        // Identity, full read, four parameters, the trigger, the move's cycles (one begins at most
-        // every interval, plus one cut short at the deadline) and its rearm.
-        return 9 + 9 + 4 + 1 + 7 * (2 + p.deadlineMs / p.intervalMs) + 1 +
+        // Identity, full read (two for a relative move), four parameters, the trigger, the move's
+        // cycles (one begins at most every interval, plus one cut short at the deadline) and its rearm.
+        return 9 + 9 + (p.relativeBase ? 9 : 0) + 4 + 1 + 7 * (2 + p.deadlineMs / p.intervalMs) + 1 +
                (p.stopKind ? stopTerminals(p.stopDeadlineMs, p.stopIntervalMs) : 0);
     default:
         return ROUTE_TERMINALS + 1;
@@ -311,8 +343,8 @@ unsigned terminalBound(const RoutePlan& p) {
 uint64_t stopSpanUs(const RoutePlan& p) {
     return p.stopKind ? uint64_t(p.bestEffortMs > p.stopDeadlineMs ? p.bestEffortMs : p.stopDeadlineMs) * 1000 : 0;
 }
-// POSITION with a planned stop: the latest that stop can end, after the first write. The writes share
-// one operation deadline. Each route cycle before the stop begins at most an interval, or one read's
+// POSITION or RELATIVE with a planned stop: the latest that stop can end, after the first write. The
+// writes share one operation deadline. Each route cycle before the stop begins at most an interval, or one read's
 // operation deadline, after the previous one; a read that misses its deadline ends the route with no
 // stop. The stop is asked for when cycle stopAfter has been read.
 uint64_t positionStopUs(const RoutePlan& p) {
@@ -328,7 +360,8 @@ uint32_t durationBound(const RoutePlan& p) {
         return p.deadlineMs;
     case RouteKind::STOP:
         return p.bestEffortMs > p.deadlineMs ? p.bestEffortMs : p.deadlineMs;
-    case RouteKind::POSITION: {
+    case RouteKind::POSITION:
+    case RouteKind::RELATIVE: {
         const uint32_t cycles = p.cycles * p.intervalMs + stop;
         const uint32_t planned = p.stopKind ? uint32_t(positionStopUs(p) / 1000) : 0;
         return cycles > planned ? cycles : planned;
@@ -337,7 +370,10 @@ uint32_t durationBound(const RoutePlan& p) {
         return p.deadlineMs + stop;
     case RouteKind::MODE_ONE:
     case RouteKind::REARM:
+    case RouteKind::RELEASED_QUICK:
         return p.cycles * p.intervalMs;
+    case RouteKind::WORD67:
+        return (p.wordCycles + p.cycles) * p.intervalMs;
     default:
         return 0;
     }
@@ -389,9 +425,16 @@ bool routePlanValid(const RoutePlan& p) noexcept {
         return !p.bestEffortMs || p.bestEffortMs >= p.deadlineMs;
     case RouteKind::POSITION:
         return stopPolicyValid(p, p.cycles);
-    case RouteKind::MOVE:
-        // A signal value outside its own mask can never be reported; the library refuses it too.
-        return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && stopPolicyValid(p, 16);
+    case RouteKind::RELATIVE:
+        // A zero displacement writes nothing a base could be measured from (R-08).
+        return p.target && stopPolicyValid(p, p.cycles);
+    case RouteKind::MOVE: {
+        // A signal value outside its own mask can never be reported; the library refuses it too. An
+        // ACTUAL witness is the start position both fresh reads show, and an absolute move has none.
+        const bool base = p.relativeBase == 0 ? p.base == 0 : p.relativeBase == 1 ? p.base == p.startPosition : true;
+        return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && base &&
+               (!p.relativeBase || p.target) && stopPolicyValid(p, 16);
+    }
     default:
         return true;
     }
@@ -512,12 +555,12 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
         (!C::serviceEligibility(*node, now, eligibility) || !eligibility.ordinarySdo))
         return "eligibility";
     const C::SdoCompletion* control = session->latestControl();
-    if ((plan.kind == RouteKind::POSITION || plan.kind == RouteKind::MOVE) &&
+    if ((writesPosition(plan.kind) || plan.kind == RouteKind::MOVE) &&
         (!control || control->transfer.data[0] != 0x0f || control->transfer.data[1] != 0))
         return "control";
-    // Only the acknowledged trigger of a finished POSITION record: missing, uncertain or any other
-    // latest word refuses, so a lost 000F or 001F can never be followed by another 000F.
-    if (plan.kind == RouteKind::REARM && !rearmable(index, *session))
+    // Only the acknowledged predecessor the host named, of a finished record of this object: missing,
+    // uncertain or any other latest word refuses, so a lost word can never be followed by a 000F.
+    if (plan.kind == RouteKind::REARM && !rearmable(index, *session, plan.predecessor))
         return "control";
     // A trigger that may have moved the drive without an observed completion fences new moves.
     if (plan.kind == RouteKind::MOVE && session->moveFenced())
@@ -546,8 +589,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.admission = 0;
     r.terminalCount = r.tailCount = 0;
     r.trafficCount = 0;
-    r.checkPresent = r.checkPassed = false;
-    r.check = r.last = RouteSnapshot();
+    r.checkPresent = r.checkPassed = r.firstPresent = false;
+    r.first = r.check = r.last = RouteSnapshot();
     r.historyPresent = false;
     r.historyCount = 0;
     std::memset(r.history, 0, sizeof r.history);
@@ -565,6 +608,22 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.moveRequestedUs = 0;
     r.rearmFollows = plan.kind == RouteKind::REARM ? control->transfer.operation : 0;
     r.rearmFollowsUs = plan.kind == RouteKind::REARM ? control->completedUs : 0;
+    r.rearmFollowsWord = plan.kind == RouteKind::REARM ? uint16_t(control->transfer.data[0] |
+                                                                  unsigned(control->transfer.data[1]) << 8)
+                                                       : 0;
+    r.priorPresent = control != nullptr;
+    r.priorWord = control ? uint16_t(control->transfer.data[0] | unsigned(control->transfer.data[1]) << 8) : 0;
+    r.priorOperation = control ? control->transfer.operation : 0;
+    r.priorUs = control ? control->completedUs : 0;
+    r.targetReadPresent = false;
+    r.targetRead = 0;
+    // Only a value acknowledged on the node epoch now current: a boot-up resets what the drive holds.
+    r.commandedKnown = commandedKnown_[index] && commandedEpoch_[index] == uint32_t(target.nodeGeneration);
+    r.commanded = r.commandedKnown ? commanded_[index] : 0;
+    r.commandedTrial = r.commandedKnown ? commandedTrial_[index] : 0;
+    r.commandedRelative = r.commandedKnown && commandedRelative_[index];
+    r.witnessBasis = 0;
+    r.witnessPosition = 0;
     // Older copies belong to earlier work; this record starts with an empty owner trace.
     for (unsigned i = 0; i < MotorControlCANOwner::CanBusOwner::TRACE_CAPACITY && owner.takeDiagnostic(diagnostic_);
          ++i) {
@@ -610,18 +669,36 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                     {STEP_SINGLE, 1},
                                     {STEP_POSITION_WRITES, 0},
                                     {STEP_OBSERVE, 0}};
-    static const Step rearm[] = {{STEP_STATE, FULL}, {STEP_CHECK_REARM, 0}, {STEP_REARM_WRITE, 0}, {STEP_OBSERVE, 0}};
+    static const Step rearm[] = {
+        {STEP_STATE, FULL}, {STEP_CHECK_REARM, 0}, {STEP_WORD_WRITE, WORD_REARM}, {STEP_OBSERVE, OBSERVE_ALL}};
     static const Step move[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_MOVE, 0}};
+    // A relative witness says the drive is stationary: two fresh reads must show the same idle state.
+    static const Step moveRelative[] = {
+        {STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_MOVE, 0}};
     // 1001 and 603F before and after the first 1003 read; the history is read alone between them.
     static const Step history[] = {
         {STEP_STATE, FULL}, {STEP_STATE, HISTORY_STATE}, {STEP_STATE, ERROR_STATE}, {STEP_END, 0}};
-    const Step* const tables[] = {nullptr,   actions,   io,       tuning, mode, enable,
-                                  stopSteps, position,  rearm,    move,   history};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::READ_HISTORY) + 1, "one table per route");
-    steps_ = tables[unsigned(plan.kind)];
+    static const Step quick[] = {{STEP_STATE, FULL},
+                                 {STEP_SECOND, FULL},
+                                 {STEP_CHECK_RELEASED, 0},
+                                 {STEP_WORD_WRITE, WORD_QUICK},
+                                 {STEP_OBSERVE, OBSERVE_ALL}};
+    static const Step words[] = {{STEP_STATE, FULL},
+                                 {STEP_SECOND, FULL},
+                                 {STEP_CHECK_RELEASED, 0},
+                                 {STEP_WORD_WRITE, WORD_SIX},
+                                 {STEP_OBSERVE, OBSERVE_WORD_SIX},
+                                 {STEP_WORD_WRITE, WORD_SEVEN},
+                                 {STEP_OBSERVE, OBSERVE_ALL}};
+    const Step* const tables[] = {nullptr,   actions,  io,    tuning, mode,  enable,  stopSteps,
+                                  position,  rearm,    move,  history, quick, words,  position};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::RELATIVE) + 1, "one table per route");
+    steps_ = plan.kind == RouteKind::MOVE && plan.relativeBase ? moveRelative : tables[unsigned(plan.kind)];
     stepIndex_ = subStep_ = 0;
     pending_ = stepActive_ = readActive_ = actionStarted_ = abortRequested_ = emcyHandled_ = false;
     lossHandled_ = stopAttempted_ = false;
+    writtenOperation_ = 0;
+    writtenUs_ = feedbackUs_ = 0;
     endFailure_ = RouteFailure::NONE;
     endWhy_ = "none";
     nextCycleUs_ = cycleStartUs_ = now;
@@ -744,6 +821,37 @@ void BenchRoute::finish(RouteFailure failure, const char* why, uint64_t now) noe
     if (callbacks_.sample)
         callbacks_.sample(callbacks_.context, record_.after);
     services_.clearUploadExperiment(slot());
+    noteEnd();
+}
+// What later routes on this node may follow or report, taken from the session's settled history at
+// the terminal: the 010F of a POSITION's planned HALT, and the 607A a move wrote.
+void BenchRoute::noteEnd() noexcept {
+    const RoutePlan& p = record_.plan;
+    const AxisSession& s = axis();
+    if (p.kind == RouteKind::POSITION && record_.stopRequested && record_.stopRequestKind == 1 && !s.stopActive()) {
+        // The latest word must be this stop's own acknowledged 010F, the slot-0 command of its context.
+        const L::ActionContext& h = s.stopAction(L::StopKind::HALT);
+        const C::SdoCompletion* c = s.latestControl();
+        const C::SdoCompletion& word = h.commandHistory[0];
+        if (c && (h.commandEvidenceMask & 1u) && h.state != M::ActionState::EMPTY &&
+            h.startedUs >= record_.actionRequestedUs && c->transfer.operation == word.transfer.operation &&
+            c->completedUs == word.completedUs && c->transfer.data[0] == 0x0f && c->transfer.data[1] == 0x01) {
+            haltOperation_[slot()] = c->transfer.operation;
+            haltUs_[slot()] = c->completedUs;
+        }
+    }
+    if (record_.moveRequested && !s.moveActive()) {
+        const L::MoveContext& m = s.moveAction();
+        const C::SdoCompletion& h = m.setupHistory[0];
+        if (m.startedUs >= record_.moveRequestedUs && (m.setupEvidenceMask & 1u) &&
+            h.outcome == C::SdoOutcome::SUCCESS && h.protocolAcknowledged && !h.effectUncertain) {
+            commanded_[slot()] = m.parameters.targetNative;
+            commandedTrial_[slot()] = p.trial;
+            commandedEpoch_[slot()] = uint32_t(h.nodeGeneration);
+            commandedRelative_[slot()] = m.parameters.target.requested.relative;
+            commandedKnown_[slot()] = true;
+        }
+    }
 }
 void BenchRoute::endAfterSettling(RouteFailure failure, const char* why) noexcept {
     if (endFailure_ == RouteFailure::NONE) {
@@ -864,16 +972,33 @@ bool BenchRoute::settle(uint64_t now) noexcept {
     if (t.direction == C::SdoDirection::DOWNLOAD) {
         ++subStep_;
         const uint8_t kind = steps_[stepIndex_].kind;
+        if (kind == STEP_POSITION_WRITES && subStep_ == 1) {
+            // The acknowledged 607A, for a later TRIAL_BASE: the target this object last wrote.
+            commanded_[slot()] = record_.plan.target;
+            commandedTrial_[slot()] = record_.plan.trial;
+            commandedEpoch_[slot()] = uint32_t(done.nodeGeneration);
+            commandedRelative_[slot()] = record_.plan.kind == RouteKind::RELATIVE;
+            commandedKnown_[slot()] = true;
+        }
         if (kind == STEP_POSITION_WRITES && subStep_ == 5) {
             // The acknowledged trigger a later REARM may follow, while it stays the latest word.
             triggerOperation_[slot()] = t.operation;
             triggerUs_[slot()] = done.completedUs;
         }
-        if (kind == STEP_MODE_WRITE || kind == STEP_REARM_WRITE || subStep_ == 5)
+        if (kind == STEP_WORD_WRITE) {
+            writtenOperation_ = t.operation;
+            writtenUs_ = done.completedUs;
+        }
+        if (kind == STEP_MODE_WRITE || kind == STEP_WORD_WRITE || subStep_ == 5)
             nextStep(now);
         return true;
     }
     if (readMode_ == READ_SINGLE) {
+        if (t.index == L::OBJECT_607A_00.index && done.size == 4) {
+            record_.targetReadPresent = true;
+            record_.targetRead = int32_t(uint32_t(done.data[0]) | uint32_t(done.data[1]) << 8 |
+                                         uint32_t(done.data[2]) << 16 | uint32_t(done.data[3]) << 24);
+        }
         readDone(now);
         return true;
     }
@@ -900,15 +1025,21 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     const Step& step = steps_[stepIndex_];
     switch (step.kind) {
     case STEP_STATE:
+    case STEP_SECOND:
     case STEP_GROUP:
     case STEP_TUNING:
     case STEP_SINGLE:
     case STEP_IDENTITY: {
-        const uint8_t mode = step.kind == STEP_STATE     ? READ_STATE
-                             : step.kind == STEP_GROUP   ? READ_GROUP
-                             : step.kind == STEP_TUNING  ? READ_TUNING
-                             : step.kind == STEP_IDENTITY ? READ_IDENTITY
-                                                          : READ_SINGLE;
+        const uint8_t mode = step.kind == STEP_STATE || step.kind == STEP_SECOND ? READ_STATE
+                             : step.kind == STEP_GROUP                         ? READ_GROUP
+                             : step.kind == STEP_TUNING                        ? READ_TUNING
+                             : step.kind == STEP_IDENTITY                      ? READ_IDENTITY
+                                                                               : READ_SINGLE;
+        if (!readActive_ && step.kind == STEP_SECOND) {
+            // The read before this one is the first of the pair; the check judges both.
+            record_.first = record_.last;
+            record_.firstPresent = true;
+        }
         if (!readActive_ && !startRead(mode, step.arg, now))
             return;
         serviceRead(now);
@@ -917,13 +1048,15 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_CHECK_MODE:
     case STEP_CHECK_POSITION:
     case STEP_CHECK_REARM:
-    case STEP_CHECK_MOVE: {
+    case STEP_CHECK_MOVE:
+    case STEP_CHECK_RELEASED: {
         record_.checkPresent = true;
         record_.check = record_.last;
         const char* why = step.kind == STEP_CHECK_MODE       ? checkMode()
                           : step.kind == STEP_CHECK_POSITION ? checkPosition()
                           : step.kind == STEP_CHECK_REARM    ? checkRearm()
-                                                             : checkMove();
+                          : step.kind == STEP_CHECK_MOVE     ? checkMove()
+                                                             : checkReleased();
         record_.checkPassed = why == nullptr;
         if (why)
             finish(RouteFailure::PREREQUISITE, why, now);
@@ -933,7 +1066,7 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     }
     case STEP_MODE_WRITE:
     case STEP_POSITION_WRITES:
-    case STEP_REARM_WRITE:
+    case STEP_WORD_WRITE:
         if (!stepActive_ && !startWrite(now))
             return;
         stepActive_ = true;
@@ -1080,6 +1213,7 @@ bool BenchRoute::snapshot(uint8_t mask, uint64_t now) noexcept {
         return true;
     }
     RouteSnapshot s;
+    uint64_t feedback = feedbackUs_;
     const L::StateBlock blocks[] = {L::StateBlock::ERRORS, L::StateBlock::MONITORS, L::StateBlock::STATUS,
                                     L::StateBlock::FEEDBACK};
     for (L::StateBlock block : blocks) {
@@ -1104,10 +1238,13 @@ bool BenchRoute::snapshot(uint8_t mask, uint64_t now) noexcept {
         default:
             s.position = block_.actualPosition;
             s.velocity = block_.actualVelocity;
+            // The conservative earliest bound: a witness from it can only look older than it is.
+            feedback = block_.window.earliestUs;
             break;
         }
     }
     record_.last = s;
+    feedbackUs_ = feedback;
     return true;
 }
 void BenchRoute::admit(const C::SdoTransfer& transfer, uint64_t now) noexcept {
@@ -1181,12 +1318,13 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
         t.index = 0x6060; // P2: 2F 60 60 00 01 00 00 00. EDS U8 WO against the manuals' I8 RW.
         t.size = 1;
         value = 1;
-    } else if (steps_[stepIndex_].kind == STEP_REARM_WRITE) {
-        if (subStep_)
+    } else if (steps_[stepIndex_].kind == STEP_WORD_WRITE) {
+        const uint8_t word = steps_[stepIndex_].arg;
+        if (subStep_ || word >= sizeof WORDS / sizeof WORDS[0])
             return false; // One word, never a second.
-        t.index = L::OBJECT_6040_00.index; // 2B 40 60 00 0F 00 00 00.
+        t.index = L::OBJECT_6040_00.index; // 2B 40 60 00 0F 00 00 00, 0B, 06 or 07.
         t.size = L::OBJECT_6040_00.widthBytes;
-        value = 0x000f;
+        value = WORDS[word];
     } else {
         const L::ObjectDescriptor* const objects[] = {&L::OBJECT_607A_00, &L::OBJECT_6081_00,
                                                       &L::OBJECT_6083_00, &L::OBJECT_6084_00,
@@ -1195,7 +1333,9 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
             return false;
         t.index = objects[subStep_]->index;
         t.size = objects[subStep_]->widthBytes;
-        const uint32_t values[] = {uint32_t(p.target), p.rpm, p.rampUpMs, p.rampDownMs, 0x001f};
+        // 15 to 31 for an absolute target, 15 to 95 for a relative one (bit 6, EN86/ZH86 p12).
+        const uint32_t trigger = p.kind == RouteKind::RELATIVE ? 0x005f : 0x001f;
+        const uint32_t values[] = {uint32_t(p.target), p.rpm, p.rampUpMs, p.rampDownMs, trigger};
         value = values[subStep_];
     }
     for (unsigned i = 0; i < t.size; ++i)
@@ -1226,11 +1366,11 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
 void BenchRoute::serviceWrite(uint64_t now) noexcept {
     if (pending_ || record_.terminal)
         return;
-    const uint8_t kind = steps_[stepIndex_].kind;
+    const Step& step = steps_[stepIndex_];
     // The check step judged the predecessor on an earlier turn. It must still hold now, at each
-    // offer of the first write, or nothing is written.
+    // offer of the first write of each step, or nothing is written.
     if (subStep_ == 0) {
-        if (const char* why = predecessor(kind)) {
+        if (const char* why = predecessor(step.kind, step.arg)) {
             finish(RouteFailure::PREREQUISITE, why, now);
             return;
         }
@@ -1241,22 +1381,39 @@ void BenchRoute::serviceWrite(uint64_t now) noexcept {
         return;
     }
     admit(t, now);
-    if (pending_ && subStep_ == 0 && kind != STEP_MODE_WRITE)
-        triggerOperation_[slot()] = 0; // From here no earlier trigger can be the latest word.
+    if (pending_ && subStep_ == 0 && step.kind != STEP_MODE_WRITE) {
+        // From here no earlier trigger or halt can be the latest word.
+        triggerOperation_[slot()] = haltOperation_[slot()] = 0;
+    }
+    if (pending_ && subStep_ == 0 && step.kind == STEP_POSITION_WRITES)
+        commandedKnown_[slot()] = false; // This 607A may reach the drive unacknowledged.
 }
-// The session history each first write needs, judged at its check step and again when the write is
-// offered. MODE_ONE: no write or controlword of this session yet. REARM: the acknowledged trigger of a
-// finished POSITION. POSITION: the session's acknowledged 000F.
-const char* BenchRoute::predecessor(uint8_t write) const noexcept {
+// The session history each write needs, judged at its check step and again when the write is offered.
+// MODE_ONE: no write or controlword of this session yet. POSITION and RELATIVE: the session's
+// acknowledged 000F. REARM: the acknowledged predecessor it names, of a finished record. WORD67's
+// 0007: its own acknowledged 0006. RELEASED_QUICK's 000B and WORD67's 0006 follow any word, or none,
+// but only the one recorded at admission: another writer since would make the check's reads stale.
+const char* BenchRoute::predecessor(uint8_t write, uint8_t word) const noexcept {
+    const C::SdoCompletion* control = axis().latestControl();
     if (write == STEP_MODE_WRITE) {
         if (axis().motionHistoryWritten() || modeAdmitted_[slot()])
             return "history";
-        return axis().latestControl() ? "control" : nullptr;
+        return control ? "control" : nullptr;
     }
-    if (write == STEP_REARM_WRITE)
-        return rearmable(slot(), axis()) ? nullptr : "control";
-    const C::SdoCompletion* control = axis().latestControl();
-    return control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0 ? nullptr : "control";
+    if (write == STEP_POSITION_WRITES)
+        return control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0 ? nullptr : "control";
+    if (record_.plan.kind == RouteKind::REARM)
+        return rearmable(slot(), axis(), record_.plan.predecessor) ? nullptr : "control";
+    if (word == WORD_SEVEN)
+        return control && control->transfer.operation == writtenOperation_ && control->completedUs == writtenUs_ &&
+                       control->transfer.data[0] == 0x06 && control->transfer.data[1] == 0
+                   ? nullptr
+                   : "control";
+    const RouteRecord& r = record_;
+    const bool same = control ? r.priorPresent && control->transfer.operation == r.priorOperation &&
+                                    control->completedUs == r.priorUs
+                              : !r.priorPresent;
+    return same ? nullptr : "control";
 }
 const char* BenchRoute::checkMode() const noexcept {
     const RouteSnapshot& s = record_.last;
@@ -1278,10 +1435,9 @@ const char* BenchRoute::checkMode() const noexcept {
         return "mode"; // The packet 11 baseline read mode 0; anything else changed since.
     return nullptr;
 }
-// The fresh full read of an idle, enabled-looking drive in mode 1, from POSITION's prerequisite list.
+// A fresh full read of an idle, enabled-looking drive in mode 1, from POSITION's prerequisite list.
 // No mask beyond the documented 2100 bits and 6041 low bits is judged here.
-const char* BenchRoute::checkIdle() const noexcept {
-    const RouteSnapshot& s = record_.last;
+const char* BenchRoute::checkIdle(const RouteSnapshot& s) const noexcept {
     if ((s.blocks & FULL) != FULL)
         return "snapshot";
     if (s.errorRegister)
@@ -1305,7 +1461,7 @@ const char* BenchRoute::checkIdle() const noexcept {
 const char* BenchRoute::checkPosition() const noexcept {
     if (const char* why = predecessor(STEP_POSITION_WRITES))
         return why;
-    if (const char* why = checkIdle())
+    if (const char* why = checkIdle(record_.last))
         return why;
     if (record_.last.position != record_.plan.startPosition)
         return "position";
@@ -1314,23 +1470,74 @@ const char* BenchRoute::checkPosition() const noexcept {
 // Nothing about the position is asked: the 000F follows a finished experiment whose travel is the
 // unknown. Every value read is kept in TRIAL_CHECK.
 const char* BenchRoute::checkRearm() const noexcept {
-    if (const char* why = predecessor(STEP_REARM_WRITE))
+    if (const char* why = predecessor(STEP_WORD_WRITE, WORD_REARM))
         return why;
-    return checkIdle();
+    return checkIdle(record_.last);
 }
 // The route's own fail-closed check before the library's: the library judges the same 000F, mode,
-// low bits and 2100 again with its own age, and the acceptance report against the host's mask.
+// low bits and 2100 again with its own age, and the acceptance report against the host's mask. A
+// relative witness also claims standstill, so its first read must pass the same check: two fresh reads
+// with 606C 0 and the same reviewed 6064, running clear in both.
 const char* BenchRoute::checkMove() const noexcept {
     if (axis().moveFenced())
         return "fenced";
+    if (record_.plan.relativeBase) {
+        if (!record_.firstPresent)
+            return "snapshot";
+        if (const char* why = checkIdle(record_.first))
+            return why;
+        if (record_.first.position != record_.plan.startPosition)
+            return "position";
+    }
     return checkPosition();
 }
-bool BenchRoute::rearmable(uint8_t index, const AxisSession& session) const noexcept {
+// RELEASED_QUICK's and WORD67's prerequisite list, on both fresh reads. No predecessor: the drive's
+// own report is the evidence of the released state, whatever led to it.
+const char* BenchRoute::checkReleased() const noexcept {
+    if (!record_.firstPresent)
+        return "snapshot";
+    const RouteSnapshot* const reads[] = {&record_.first, &record_.check};
+    for (const RouteSnapshot* s : reads) {
+        if ((s->blocks & FULL) != FULL)
+            return "snapshot";
+        if (s->errorRegister)
+            return "error-register";
+        if (s->errorCode)
+            return "fault-code";
+        if (s->monitor & L::MONITOR_ALARM)
+            return "alarm";
+        if (!(s->monitor & L::MONITOR_RELEASED))
+            return "unreleased";
+        if (s->mode != 1)
+            return "mode";
+        if (s->statusword & L::STATUS_LOW_BITS)
+            return "status";
+        if (s->velocity)
+            return "velocity";
+    }
+    // 2100 bit 2 stayed set after a 000B stopped a 30 rpm move (trial 213), with the target not
+    // reached: there it reports no motion. So it is admitted only with 6064 unchanged across the reads.
+    if (((record_.first.monitor | record_.check.monitor) & L::MONITOR_RUNNING) &&
+        record_.first.position != record_.check.position)
+        return "running";
+    return nullptr;
+}
+// The acknowledged latest word of a finished record of this object on that node, as the host named
+// it: 1 POSITION's 001F, 2 that record's planned HALT 010F, 3 RELATIVE's 005F. Its operation and
+// completion time identify that terminal, so a later word of any writer is never mistaken for it.
+bool BenchRoute::rearmable(uint8_t index, const AxisSession& session, uint8_t predecessor) const noexcept {
+    const uint16_t words[] = {0x001f, 0x010f, 0x005f};
+    if (predecessor < 1 || predecessor > 3)
+        return false;
+    const bool halt = predecessor == 2;
+    const uint32_t operation = halt ? haltOperation_[index] : triggerOperation_[index];
+    const uint64_t at = halt ? haltUs_[index] : triggerUs_[index];
+    const uint16_t word = words[predecessor - 1];
     const C::SdoCompletion* c = session.latestControl();
-    return c && triggerOperation_[index] && c->outcome == C::SdoOutcome::SUCCESS && c->protocolAcknowledged &&
+    return c && operation && c->outcome == C::SdoOutcome::SUCCESS && c->protocolAcknowledged &&
            !c->effectUncertain && c->transfer.index == 0x6040 && !c->transfer.subindex && c->transfer.size == 2 &&
-           c->transfer.data[0] == 0x1f && c->transfer.data[1] == 0 &&
-           c->transfer.operation == triggerOperation_[index] && c->completedUs == triggerUs_[index];
+           c->transfer.data[0] == uint8_t(word) && c->transfer.data[1] == uint8_t(word >> 8) &&
+           c->transfer.operation == operation && c->completedUs == at;
 }
 void BenchRoute::startEnable(uint64_t now) noexcept {
     const RoutePlan& p = record_.plan;
@@ -1392,7 +1599,9 @@ void BenchRoute::startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffor
     policy.options.service.queueTimeoutUs = ROUTE_QUEUE_US;
     policy.options.service.responseTimeoutUs = ROUTE_RESPONSE_US;
     policy.options.observationIntervalUs = uint64_t(intervalMs) * 1000;
-    policy.options.maximumAgeUs = 5 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
+    // Seven fields at the queue and response budgets: the library offers a QUICK_STOP's standstill
+    // observation by 6064 and 606C only with an age cap that covers a seven-field cycle.
+    policy.options.maximumAgeUs = 7 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
     policy.deadlineUs = now + uint64_t(deadlineMs) * 1000;
     policy.bestEffortDeadlineUs = bestEffortMs ? now + uint64_t(bestEffortMs) * 1000 : 0;
     record_.stopRequestKind = kind;
@@ -1432,11 +1641,15 @@ void BenchRoute::startMove(uint64_t now) noexcept {
     // The session's own coordinates: exact STEPS in the native frame and rpm as motor turns per
     // minute need no scale, so none is claimed. Unchanged while this node's move borrows it. This is
     // the only writer of these members and it sets the same fields each time, so every other field
-    // keeps its default from construction; nothing is reset through a stack temporary.
+    // keeps its default from construction; nothing is reset through a stack temporary. A relative move
+    // admits only the basis the host's record measured; an absolute move admits none, as before.
+    const bool relative = p.relativeBase != 0;
+    const M::RelativeBasis basis = p.relativeBase == 2 ? M::RelativeBasis::COMMANDED : M::RelativeBasis::ACTUAL;
     M::AxisConfig& axisConfig = moveAxes_[slot()];
     axisConfig.binding = axis().binding();
     axisConfig.nativeRateBasis = M::NativeRateBasis::MOTOR_TURNS;
     axisConfig.nativeVelocityTime = M::TimeUnit::MINUTE;
+    axisConfig.supportedRelativeBases = relative ? uint8_t(1u << unsigned(basis)) : uint8_t(0);
     // Every evidence value is the host's, from its reviewed measurement record; none is made up here.
     L::MoveEvidence& evidence = moveEvidence_;
     evidence.gate = L::MoveGate::MEASURED;
@@ -1450,8 +1663,13 @@ void BenchRoute::startMove(uint64_t now) noexcept {
     evidence.completion.mask = p.completeMask;
     evidence.completion.value = p.completeValue;
     evidence.rule = static_cast<L::CompletionRule>(p.rule);
+    evidence.relativeBase = !relative            ? L::RelativeBase::UNMEASURED
+                            : p.relativeBase == 1 ? L::RelativeBase::ACTUAL
+                                                  : L::RelativeBase::COMMANDED;
     M::MoveRequest& request = moveRequest_;
     request.position.value = M::Rational(p.target);
+    request.position.relative = relative;
+    request.position.basis = basis;
     request.position.configurationGeneration = axisConfig.binding.configurationGeneration;
     request.speed.value = M::Rational(int64_t(p.rpm));
     request.speed.unit = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
@@ -1471,8 +1689,32 @@ void BenchRoute::startMove(uint64_t now) noexcept {
         finish(RouteFailure::REFUSED, "deadline", now);
         return;
     }
-    const M::Status status = axis().requestMove(context_.read, identity_, evidence, request, profile, nullptr,
-                                                axisConfig, nullptr, options, deadline, now);
+    M::Status status;
+    if (relative) {
+        // The witness of the request's basis. Idle and stationary rest on this route's check: two fresh
+        // full reads after the latest acknowledged 000F, each with running, alarm and released clear,
+        // mode 1, low bits 111, 606C 0 and the reviewed 6064. It is observed at the second read's
+        // earliest FEEDBACK bound and expires with the move's own age cap, so it can only look older
+        // than it is. ACTUAL is that 6064, read back; COMMANDED is the host's reviewed commanded
+        // position, which no read here can show, so it is the host's stated assumption.
+        M::AxisReference& witness = moveReferences_[slot()];
+        witness.binding = axisConfig.binding;
+        witness.referenceGeneration = axisConfig.referenceGeneration;
+        witness.idle = witness.stationary = witness.nativeKnown = true;
+        witness.nativePosition = p.relativeBase == 1 ? record_.check.position : p.base;
+        witness.basis = basis;
+        witness.source = p.relativeBase == 1 ? M::ScaleSource::READBACK : M::ScaleSource::ASSUMED;
+        witness.observedUs = feedbackUs_;
+        witness.nowUs = now;
+        witness.maximumAgeUs = options.maximumAgeUs;
+        record_.witnessBasis = p.relativeBase;
+        record_.witnessPosition = int32_t(witness.nativePosition);
+        status = axis().requestMoveRelative(context_.read, identity_, evidence, request, profile, nullptr, axisConfig,
+                                            witness, options, deadline, now);
+    } else {
+        status = axis().requestMove(context_.read, identity_, evidence, request, profile, nullptr, axisConfig,
+                                    nullptr, options, deadline, now);
+    }
     if (!status) {
         record_.statusPresent = true;
         record_.statusCode = uint8_t(status.code);
@@ -1481,6 +1723,7 @@ void BenchRoute::startMove(uint64_t now) noexcept {
         finish(RouteFailure::REFUSED, "move", now);
         return;
     }
+    commandedKnown_[slot()] = false; // The move's 607A may reach the drive unacknowledged.
     record_.moveRequested = true;
     record_.actionRequestedUs = record_.moveRequestedUs = now;
     actionStarted_ = true;
@@ -1577,11 +1820,25 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
     // and no planned stop or further cycle is asked for here.
     if (endFailure_ != RouteFailure::NONE)
         return;
-    if (p.kind == RouteKind::POSITION && p.stopKind && record_.cycles == p.stopAfter) {
+    if (writesPosition(p.kind) && p.stopKind && record_.cycles == p.stopAfter) {
         startStop(p.stopKind, p.stopDeadlineMs, p.bestEffortMs, p.stopIntervalMs, context_.read, now);
         return;
     }
-    if (record_.cycles >= p.cycles) {
+    // WORD67 counts its cycles across both words: those after 0006 first, then those after 0007.
+    const bool wordSix = steps_[stepIndex_].arg == OBSERVE_WORD_SIX;
+    const unsigned planned = wordSix ? p.wordCycles : p.kind == RouteKind::WORD67 ? p.wordCycles + p.cycles : p.cycles;
+    if (record_.cycles >= planned) {
+        if (wordSix) {
+            // 0007 follows only a last 0006 cycle in mode 1 with low bits 001; otherwise nothing more.
+            const char* stop = s.mode != 1                                   ? "mode"
+                               : (s.statusword & L::STATUS_LOW_BITS) != 0x0001 ? "status"
+                                                                              : nullptr;
+            if (stop)
+                finish(RouteFailure::OBSERVATION, stop, now);
+            else
+                nextStep(now);
+            return;
+        }
         finish(RouteFailure::NONE, "none", now);
         return;
     }
@@ -1594,8 +1851,12 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
 constexpr unsigned MOVE_SAMPLES = 5;
 unsigned BenchRoute::summaryCount() const noexcept {
     const RouteRecord& r = record_;
-    unsigned count = 2 + r.checkPresent + (r.last.blocks != 0) + r.historyPresent + r.emcy + r.statusPresent;
-    if (r.plan.kind == RouteKind::REARM)
+    unsigned count = 2 + r.firstPresent + r.checkPresent + (r.last.blocks != 0) + r.historyPresent + r.emcy +
+                     r.statusPresent;
+    // TRIAL_REARM, or TRIAL_CONTROL; then TRIAL_BASE.
+    if (r.plan.kind == RouteKind::REARM || r.plan.kind == RouteKind::RELEASED_QUICK || r.plan.kind == RouteKind::WORD67)
+        count += 1;
+    if (r.plan.kind == RouteKind::RELATIVE || (r.plan.kind == RouteKind::MOVE && r.plan.relativeBase))
         count += 1;
     if (r.plan.kind == RouteKind::MOVE)
         count += 1 + (r.moveRequested ? 1 + MOVE_SAMPLES : 0);
@@ -1611,10 +1872,22 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     if (index == 0) {
         switch (p.kind) {
         case RouteKind::MODE_ONE:
-        case RouteKind::REARM:
+        case RouteKind::RELEASED_QUICK:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u cycles=%u interval=%lu\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), unsigned(p.cycles), static_cast<unsigned long>(p.intervalMs));
+        case RouteKind::REARM:
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u pred=%u cycles=%u interval=%lu\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), unsigned(p.predecessor), unsigned(p.cycles),
+                       static_cast<unsigned long>(p.intervalMs));
+        case RouteKind::WORD67:
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u c6=%u cycles=%u interval=%lu\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), unsigned(p.wordCycles), unsigned(p.cycles),
+                       static_cast<unsigned long>(p.intervalMs));
         case RouteKind::ENABLE:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u start=%u shaft=%u status=%04x pt=%ld "
@@ -1631,6 +1904,7 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        unsigned(p.attended), unsigned(p.stopKind), static_cast<unsigned long>(p.deadlineMs),
                        static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.intervalMs));
         case RouteKind::POSITION:
+        case RouteKind::RELATIVE:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld target=%ld rpm=%lu up=%lu "
                        "down=%lu cycles=%u interval=%lu kind=%u after=%u sd=%lu be=%lu si=%lu\n",
@@ -1644,14 +1918,15 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         case RouteKind::MOVE:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld target=%ld rpm=%lu up=%lu "
-                       "down=%lu deadline=%lu interval=%lu kind=%u after=%u sd=%lu be=%lu si=%lu\n",
+                       "down=%lu deadline=%lu interval=%lu kind=%u after=%u sd=%lu be=%lu si=%lu rel=%u base=%ld\n",
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<long>(p.startPosition), static_cast<long>(p.target),
                        static_cast<unsigned long>(p.rpm), static_cast<unsigned long>(p.rampUpMs),
                        static_cast<unsigned long>(p.rampDownMs), static_cast<unsigned long>(p.deadlineMs),
                        static_cast<unsigned long>(p.intervalMs), unsigned(p.stopKind), unsigned(p.stopAfter),
                        static_cast<unsigned long>(p.stopDeadlineMs), static_cast<unsigned long>(p.bestEffortMs),
-                       static_cast<unsigned long>(p.stopIntervalMs));
+                       static_cast<unsigned long>(p.stopIntervalMs), unsigned(p.relativeBase),
+                       static_cast<long>(p.base));
         default:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended));
@@ -1670,9 +1945,12 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    static_cast<unsigned long>(r.before.txErrors), static_cast<unsigned long>(r.before.rxErrors),
                    static_cast<unsigned long>(r.after.txErrors), static_cast<unsigned long>(r.after.rxErrors));
     index -= 2;
-    const RouteSnapshot* shots[] = {r.checkPresent ? &r.check : nullptr, r.last.blocks ? &r.last : nullptr};
-    const char* labels[] = {"TRIAL_CHECK", "TRIAL_LAST"};
-    for (unsigned i = 0; i < 2; ++i) {
+    // The first of two check reads, the check's own read and the latest; passed is the check's verdict
+    // on the reads it judged, and always 1 for the latest.
+    const RouteSnapshot* shots[] = {r.firstPresent ? &r.first : nullptr, r.checkPresent ? &r.check : nullptr,
+                                    r.last.blocks ? &r.last : nullptr};
+    const char* labels[] = {"TRIAL_FIRST", "TRIAL_CHECK", "TRIAL_LAST"};
+    for (unsigned i = 0; i < 3; ++i) {
         if (!shots[i])
             continue;
         if (index--)
@@ -1681,7 +1959,7 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
         return put(out, size,
                    "%s passed=%u blocks=%02x 1001=%02x 603f=%04x 2100=%04x 6041=%04x 6061=%02x 6064=%ld "
                    "606c=%ld\n",
-                   labels[i], unsigned(i == 0 ? r.checkPassed : 1), unsigned(s.blocks), unsigned(s.errorRegister),
+                   labels[i], unsigned(i < 2 ? r.checkPassed : 1), unsigned(s.blocks), unsigned(s.errorRegister),
                    unsigned(s.errorCode), unsigned(s.monitor), unsigned(s.statusword), unsigned(s.mode),
                    static_cast<long>(s.position), static_cast<long>(s.velocity));
     }
@@ -1704,27 +1982,48 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     if (r.statusPresent && !index--)
         return put(out, size, "TRIAL_STATUS code=%u detail=%ld; %s\n", unsigned(r.statusCode),
                    static_cast<long>(r.statusDetail), r.statusMessage);
+    // The session's latest word now: a lost word write leaves none.
+    const C::SdoCompletion* latest = axis().latestControl();
+    const unsigned latestWord =
+        latest ? unsigned(latest->transfer.data[0] | unsigned(latest->transfer.data[1]) << 8) : 0u;
     if (p.kind == RouteKind::REARM && !index--) {
-        // The 001F this 000F followed, and the session's latest word now: a lost 000F leaves none.
-        const C::SdoCompletion* latest = axis().latestControl();
-        return put(out, size, "TRIAL_REARM predop=%lu predus=%llu latest=%u word=%04x latestop=%lu\n",
-                   static_cast<unsigned long>(r.rearmFollows), static_cast<unsigned long long>(r.rearmFollowsUs),
-                   unsigned(latest != nullptr),
-                   latest ? unsigned(latest->transfer.data[0] | unsigned(latest->transfer.data[1]) << 8) : 0u,
+        // The predecessor this 000F followed, and the latest word after it.
+        return put(out, size, "TRIAL_REARM pword=%04x predop=%lu predus=%llu latest=%u word=%04x latestop=%lu\n",
+                   unsigned(r.rearmFollowsWord), static_cast<unsigned long>(r.rearmFollows),
+                   static_cast<unsigned long long>(r.rearmFollowsUs), unsigned(latest != nullptr), latestWord,
                    static_cast<unsigned long>(latest ? latest->transfer.operation : 0));
+    }
+    if ((p.kind == RouteKind::RELEASED_QUICK || p.kind == RouteKind::WORD67) && !index--) {
+        // What the session knew at admission, which may be nothing, and the latest word after the route.
+        return put(out, size,
+                   "TRIAL_CONTROL prior=%u pword=%04x pop=%lu pus=%llu latest=%u word=%04x latestop=%lu\n",
+                   unsigned(r.priorPresent), unsigned(r.priorWord), static_cast<unsigned long>(r.priorOperation),
+                   static_cast<unsigned long long>(r.priorUs), unsigned(latest != nullptr), latestWord,
+                   static_cast<unsigned long>(latest ? latest->transfer.operation : 0));
+    }
+    if ((p.kind == RouteKind::RELATIVE || (p.kind == RouteKind::MOVE && p.relativeBase)) && !index--) {
+        // The base the displacement meets: the 607A uploaded before the writes, this object's record of
+        // the 607A it last had acknowledged on that node, and a relative move's witness. The start 6064
+        // is in TRIAL_CHECK. None of these is a measurement of what the drive adds the displacement to.
+        return put(out, size,
+                   "TRIAL_BASE read=%u target=%ld known=%u prev=%ld prevTrial=%lu prevRelative=%u basis=%u "
+                   "witness=%ld\n",
+                   unsigned(r.targetReadPresent), static_cast<long>(r.targetRead), unsigned(r.commandedKnown),
+                   static_cast<long>(r.commanded), static_cast<unsigned long>(r.commandedTrial),
+                   unsigned(r.commandedRelative), unsigned(r.witnessBasis), static_cast<long>(r.witnessPosition));
     }
     if (p.kind == RouteKind::MOVE && !index--) {
         // The host's measurement record as the firmware received it; never a firmware default.
         const L::MoveFirmware& f = p.firmware;
         return put(out, size,
                    "TRIAL_EVIDENCE record=%lu as=%u am=%04x av=%04x cs=%u cm=%04x cv=%04x rule=%u dt=%08lx hw=%04x "
-                   "sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x fc=%04x\n",
+                   "sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x fc=%04x rb=%u\n",
                    static_cast<unsigned long>(p.record), unsigned(p.acceptSource), unsigned(p.acceptMask),
                    unsigned(p.acceptValue), unsigned(p.completeSource), unsigned(p.completeMask),
                    unsigned(p.completeValue), unsigned(p.rule), static_cast<unsigned long>(f.deviceType),
                    unsigned(f.hardwareVersion), unsigned(f.softwareVersion), static_cast<unsigned long>(f.vendorId),
                    static_cast<unsigned long>(f.productCode), static_cast<unsigned long>(f.revision),
-                   unsigned(f.modelCode), unsigned(f.firmwareCode));
+                   unsigned(f.modelCode), unsigned(f.firmwareCode), unsigned(p.relativeBase));
     }
     if (p.kind == RouteKind::MOVE && r.moveRequested) {
         const L::MoveContext& m = axis().moveAction();
