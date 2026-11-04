@@ -1,0 +1,86 @@
+{
+  "started_utc": "2026-11-04T18:50:51.295363+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "settings-2202",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 606,
+  "plan": "packet 12 T1/T2",
+  "fields": [
+    2,
+    606,
+    1,
+    1
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 2 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 606 to confirm: ",
+      "typed": "ATTENDED 606",
+      "accepted": true
+    },
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "settings-2202",
+    "--node",
+    "2",
+    "--trial",
+    "606",
+    "--soft-limit-code",
+    "after-homing",
+    "--fault-led",
+    "unobserved",
+    "--campaign",
+    "docs\\bench\\20261104f-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1850Z-settings2202-node2-606"
+  ],
+  "host_revision": "2920479b73c7693c908953055cd9e25dcd944f47",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104f-campaign.jsonl",
+    "motion_total": 1,
+    "cases": {
+      "D1": 2,
+      "W1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5444322c3630362c312c312c4b64636135303938620a"
+  ],
+  "image": {
+    "base": "2920479b73c7693c908953055cd9e25dcd944f47",
+    "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TD2,606,1,1,Kdca5098b",
+  "tx_hex": "5444322c3630362c312c312c4b64636135303938620a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T18:50:52.876517+00:00"
+}

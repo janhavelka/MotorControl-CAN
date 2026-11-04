@@ -1,0 +1,87 @@
+{
+  "started_utc": "2026-11-04T18:50:22.052310+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "word67",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 603,
+  "plan": "packet 15 words 6 and 7",
+  "fields": [
+    1,
+    603,
+    1,
+    2,
+    6,
+    250
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 603 to confirm: ",
+      "typed": "ATTENDED 603",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not observed: the user asked that motion be confirmed from the drive's position reports, not by eye"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "word67",
+    "--node",
+    "1",
+    "--trial",
+    "603",
+    "--word6-cycles",
+    "2",
+    "--word7-cycles",
+    "6",
+    "--interval-ms",
+    "250",
+    "--campaign",
+    "docs\\bench\\20261104f-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1850Z-word67-node1-603"
+  ],
+  "host_revision": "2920479b73c7693c908953055cd9e25dcd944f47",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104f-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5457312c3630332c312c322c362c3235302c4b62663432306636390a"
+  ],
+  "image": {
+    "base": "2920479b73c7693c908953055cd9e25dcd944f47",
+    "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TW1,603,1,2,6,250,Kbf420f69",
+  "tx_hex": "5457312c3630332c312c322c362c3235302c4b62663432306636390a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T18:50:30.101882+00:00"
+}
