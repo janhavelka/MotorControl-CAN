@@ -1,12 +1,14 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 # Packet 4: usable typed reads with honest read effects
 
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
-Prerequisite: packet 3 (W3), as recorded in this handoff's index. This packet implements W4 and the remaining assigned software scope of [original prompt 19](../19_typed_reads.md). It does not implement discovery, communication writes or every readable catalogue entry.
+Prerequisite: packet 3 (W3), as recorded in this handoff's index. This packet implements W4 and the remaining assigned software scope of [original prompt 19](../../19_typed_reads.md). It does not implement discovery, communication writes or every readable catalogue entry.
 
 ## Read the actual contract
 
-Read DEC-1 and W4 in [the repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md), then `docs/reads.md`, `docs/reports/prompt_19_audit.md`, `docs/device_conflicts.md` and the current NMT/TPDO checkpoint. Inspect:
+Read DEC-1 and W4 in [the repair audit](../../PROMPTSET_AUDIT_34_50_2026-11-02.md), then `docs/reads.md`, `docs/reports/prompt_19_audit.md`, `docs/device_conflicts.md` and the current NMT/TPDO checkpoint. Inspect:
 
 - `include/MotorControlCAN/profiles/lichuan_c/Reads.h`, `ReadOperation.h`, `src/profiles/lichuan_c/Reads.cpp`: fixed plans, `prepareProbe`, `prepareIdentity`, `prepareState`, `prepareConfig`, `nextRead`, `advanceRead` and checked getters.
 - `adapters/canopennode/SdoClient.cpp`, `Nmt.cpp`, `examples/common/DeviceEvidence.cpp`, `examples/s2_bench/RawEvidence.cpp`: bootstrap permission, read effects and existing one-use experimental grants.

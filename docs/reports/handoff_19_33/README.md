@@ -1,6 +1,6 @@
 # Handoff 19-33 execution table
 
-Navigation for the [22 packets](../../prompts/handoff_19_33/README.md), not a transcript. Each packet updates its own row when it closes, and its report holds the detail. The baseline column facts were read at `16a706e` and are not claims about later commits.
+Navigation for the [22 packets](../../prompts/archive/handoff_19_33/README.md), not a transcript. Each packet updates its own row when it closes, and its report holds the detail. The baseline column facts were read at `16a706e` and are not claims about later commits.
 
 **Status terms.** *Host-complete*: declaration, real caller and observable host test exist. *Conditionally usable*: usable only inside a named gate. *Physically observed*: a retained device record exists for named specimens, with no qualification. *Unqualified*: no such record, or the record does not settle the behavior. *Not started*: the packet has not run, whatever the baseline already contains.
 

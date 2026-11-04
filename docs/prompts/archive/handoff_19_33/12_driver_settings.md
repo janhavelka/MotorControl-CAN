@@ -1,12 +1,14 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 # Packet 12: driver settings and scale-dependent gaps
 
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
-Prerequisites: packet 10 (shared API repairs) and packet 11 (HIL diagnostics), as recorded in this handoff's index. Resume [original prompt 20](../20_driver_settings.md). Finish supported native settings and their owner integration; retain precise gates where device semantics remain unknown. Motion execution belongs to later packets.
+Prerequisites: packet 10 (shared API repairs) and packet 11 (HIL diagnostics), as recorded in this handoff's index. Resume [original prompt 20](../../20_driver_settings.md). Finish supported native settings and their owner integration; retain precise gates where device semantics remain unknown. Motion execution belongs to later packets.
 
 ## Inspect before changing
 
-Read `docs/driver_settings.md`, `docs/reports/prompts_20_21_audit.md`, original prompt 20 and its historical report, W8/A-02 in [the repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md), and current bench/motion-readiness records. The historical claim that all writes are blocked is obsolete: native position-parameter writes already exist.
+Read `docs/driver_settings.md`, `docs/reports/prompts_20_21_audit.md`, original prompt 20 and its historical report, W8/A-02 in [the repair audit](../../PROMPTSET_AUDIT_34_50_2026-11-02.md), and current bench/motion-readiness records. The historical claim that all writes are blocked is obsolete: native position-parameter writes already exist.
 
 Inspect `DriverSettings.h`, `Settings.h`, `src/profiles/lichuan_c/Reads.cpp`, `Settings.cpp`, `test/driver_settings_test.cpp`, `settings_write_test.cpp` and actual `CanBusOwner` integration. Follow `prepareDriverRead`, `prepareDriverSettings`, both `nextDriver`/`advanceDriver` overloads, `noteDriverTransmission` and checked `getDriver`. Use the reservation name resulting from packet 10; do not reintroduce the old public type after its migration.
 
@@ -18,7 +20,7 @@ Render EN86/ZH86 p11–13 and p16–18 and inspect EDS `2200..2202`, `6060`, `60
 
 Open gates are `2200` CAN/physical direction meaning; `2201` default 0 versus detailed 400..51200 range and scale/activation; `2202` default 10 versus 0/1 and homing/enforcement; `607D` coordinate/range/enforcement; and `6060` transition/retained-target effects. Do not derive one object's limits or units from another. Current/holding `2502..2507` remain exclusively packet 14/original 22.
 
-Both recorded CL86-C specimens report `2201=1000`, `2202=0`, `607D` signed extremes, `607A=5000`, `60FF=120` and mode 0. These are observations, not known-safe prerequisites; the `607A` and `60FF` values equal the EDS defaults, which does not establish where they came from ([correction](../../device_conflicts.md#corrected-reading-of-the-november-2-inventory)). An actual-position zero does not establish a usable reference or small absolute travel. The accepted-read policy from packet 4 does not automatically cover configuration objects; use its explicit reviewed acquisition route where required.
+Both recorded CL86-C specimens report `2201=1000`, `2202=0`, `607D` signed extremes, `607A=5000`, `60FF=120` and mode 0. These are observations, not known-safe prerequisites; the `607A` and `60FF` values equal the EDS defaults, which does not establish where they came from ([correction](../../../device_conflicts.md#corrected-reading-of-the-november-2-inventory)). An actual-position zero does not establish a usable reference or small absolute travel. The accepted-read policy from packet 4 does not automatically cover configuration objects; use its explicit reviewed acquisition route where required.
 
 ## Implement and integrate
 

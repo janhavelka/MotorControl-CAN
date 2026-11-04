@@ -1,6 +1,6 @@
 # External coder handoff authoring, 2 November 2026
 
-Prepared [22 executable continuation packets](../prompts/handoff_19_33/README.md)
+Prepared [22 executable continuation packets](../prompts/archive/handoff_19_33/README.md)
 for original prompts 19–22 and 29–33. Entry revision4ae93e3 on the existing
 `promptset/motorcontrol-can` branch; fresh upstream inspection showed0/0 and
 three unrelated untracked `.vscode` files, preserved. This is documentation

@@ -1,16 +1,18 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
 # Packet 18: Finish device-zero behavior and reference invalidation
 
-Prerequisites: packet 17's action/history contract and packet 12's checked configuration/reference path; use packet 11's HIL diagnostics. Resume the device-reference portion of [prompt 32](../32_fault_reference_actions.md). This packet does not implement homing, arbitrary device-position assignment, host-origin manipulation or persistence.
+Prerequisites: packet 17's action/history contract and packet 12's checked configuration/reference path; use packet 11's HIL diagnostics. Resume the device-reference portion of [prompt 32](../../32_fault_reference_actions.md). This packet does not implement homing, arbitrary device-position assignment, host-origin manipulation or persistence.
 
 ## Inspect current code and evidence
 
-Read [Actions.h](../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../src/profiles/lichuan_c/Actions.cpp), [Axis.h](../../../include/MotorControlCAN/Axis.h), [Axis.cpp](../../../src/Axis.cpp), [Position.h](../../../include/MotorControlCAN/profiles/lichuan_c/Position.h), [reference action tests](../../../test/reference_action_test.cpp) and [fault/reference guidance](../../fault_reference_actions.md). Follow `prepareSetDevicePosition`, the axis-aware `noteActionTransmission`, coordinate invalidation, `advanceAction`, owner configuration migration and later prepared-target admission. Read the existing `uncertainCounterTriggerCannotReopenThroughEpochSync` regression before changing recovery.
+Read [Actions.h](../../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../../src/profiles/lichuan_c/Actions.cpp), [Axis.h](../../../../include/MotorControlCAN/Axis.h), [Axis.cpp](../../../../src/Axis.cpp), [Position.h](../../../../include/MotorControlCAN/profiles/lichuan_c/Position.h), [reference action tests](../../../../test/reference_action_test.cpp) and [fault/reference guidance](../../../fault_reference_actions.md). Follow `prepareSetDevicePosition`, the axis-aware `noteActionTransmission`, coordinate invalidation, `advanceAction`, owner configuration migration and later prepared-target admission. Read the existing `uncertainCounterTriggerCannotReopenThroughEpochSync` regression before changing recovery.
 
 Refresh RS device-position/reference actions and actual caller/tests, INA228 uncertain destructive-effect validity, PCA9555 explicit action evidence and FieldCore reference-generation consumers read-only. CAN's native counter mapping and reference consequences remain profile-owned; neither a local origin update nor ESS word order proves them.
 
-Render EN86/ZH86 PDF 15 and 18, inspect EDS `[2302]`, `[6064]`, `[607A]`, `[607C]`, and reopen Q14 in [the conflict table](../../device_conflicts.md). The documented counter-clear command is U16 `2302=0→1`, followed by manual return to0. This establishes a command edge, not which internal counters change, an arbitrary-position setter, a physical home or automatic host rebase. `607C` homing-offset interpretation belongs to its separate scope.
+Render EN86/ZH86 PDF 15 and 18, inspect EDS `[2302]`, `[6064]`, `[607A]`, `[607C]`, and reopen Q14 in [the conflict table](../../../device_conflicts.md). The documented counter-clear command is U16 `2302=0→1`, followed by manual return to0. This establishes a command edge, not which internal counters change, an arbitrary-position setter, a physical home or automatic host rebase. `607C` homing-offset interpretation belongs to its separate scope.
 
 ## Complete the supported zero-only contract
 

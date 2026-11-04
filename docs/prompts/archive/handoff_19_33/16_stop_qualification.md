@@ -1,12 +1,14 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
 # Packet 16: Qualify and finish the stop path on the actual fixture
 
-Prerequisites: packet 7's repaired stop/urgent mechanism, packet 11's HIL diagnostics and packet 15's usable enable/state evidence. This resumes [prompt 31](../31_stop_actions.md). A completed prompt-33 motion engine is not required: an isolated packet-29 experiment may supply one bounded trigger to investigate stopping.
+Prerequisites: packet 7's repaired stop/urgent mechanism, packet 11's HIL diagnostics and packet 15's usable enable/state evidence. This resumes [prompt 31](../../31_stop_actions.md). A completed prompt-33 motion engine is not required: an isolated packet-29 experiment may supply one bounded trigger to investigate stopping.
 
 ## Read and challenge the current implementation
 
-Read [Actions.h](../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../src/profiles/lichuan_c/Actions.cpp), [stop guidance](../../stop_actions.md), [the prompt report](../../reports/prompt_31.md), [stop tests](../../../test/stop_action_test.cpp) and the actual owner/adapter queue and retirement code after earlier packets. Read the active audit's DEC-2, DEC-8 and W6 dispositions in [the repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md). Verify that packet 7 implemented its contract rather than assuming a report proves it.
+Read [Actions.h](../../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../../src/profiles/lichuan_c/Actions.cpp), [stop guidance](../../../stop_actions.md), [the prompt report](../../../reports/prompt_31.md), [stop tests](../../../../test/stop_action_test.cpp) and the actual owner/adapter queue and retirement code after earlier packets. Read the active audit's DEC-2, DEC-8 and W6 dispositions in [the repair audit](../../PROMPTSET_AUDIT_34_50_2026-11-02.md). Verify that packet 7 implemented its contract rather than assuming a report proves it.
 
 Refresh RS action interruption, urgent admission and retained-result callers/tests, PCA9555 cancellation and INA228 validity; inspect FieldCore stop admission read-only. In CAN, local cancellation, release, NMT stop and a drive stop remain distinct.
 
