@@ -802,6 +802,47 @@ class TransitionLog(unittest.TestCase):
                          ("stopPath", 1, None, 1)} <= found, found)
         self.assertFalse([e for e in log.entries if e["signal"] in ("outcome", "uncertain", "path", "fenced")])
 
+    def test_routes_of_2026_11_04_parse_whole_and_older_records_still_fit(self):
+        """released-quick, word67, relative, the rearm's predecessor and a relative move's base and witness."""
+        res = ("TRIAL_RES stack0=9300 stack1=9100 heap0=60000 heap1=59000 heapMin=58000 largest=40000 gap=1000 "
+               "dropped=0 admission=0 started=10 completed=20")
+        snapshot = "passed=1 blocks=1d 1001=00 603f=0000 2100=0014 6041=8050 6061=01 6064=1187 606c=0"
+        rows = ["TRIAL admitted route=released-quick node=2 trial=9 motion=1 case=1; finite typed route, no retry",
+                "TRIAL id=9 node=2 route=released-quick failure=0 why=none lost=0 terminals=0 traffic=0 tail=0 "
+                "tailLost=0 summaries=6 step=4 cycles=1 motion=1 case=1 unsettled=0 gap=1000 lossCancel=0",
+                "TRIAL_PLAN route=released-quick node=2 trial=9 attended=1 cycles=1 interval=100", res,
+                "TRIAL_FIRST " + snapshot, "TRIAL_CHECK " + snapshot, "TRIAL_LAST " + snapshot,
+                "TRIAL_CONTROL prior=1 pword=000b pop=7 pus=1040000 latest=1 word=000b latestop=9",
+                "END trial terminals=0 traffic=0 tail=0 tailLost=0 lost=0; r=release"]
+        report = evidence.replay_bytes(join(rows), {"command": "released-quick", "node": 2, "trial": 9,
+                                                    "line": "TQ2,9,1,1,100", "status": "captured"})
+        self.assertEqual(report.verdict, "complete", report.errors)
+        self.assertEqual((report.unknown, report.unknown_fields), ([], []))
+        log = evidence.Transitions()
+        log.observe(report)
+        found = {(e["signal"], e["node"], e["to"]) for e in log.entries}
+        self.assertTrue({("latest", 2, 1), ("word", 2, 11), ("2100", 2, 0x14)} <= found, found)
+        for line in ("TRIAL_PLAN route=word67 node=1 trial=5 attended=1 c6=2 cycles=3 interval=100",
+                     "TRIAL_PLAN route=rearm node=1 trial=6 attended=1 pred=2 cycles=3 interval=100",
+                     "TRIAL_PLAN route=move node=1 trial=7 attended=1 sp=16 target=8 rpm=1 up=1000 down=1000 "
+                     "deadline=10000 interval=1000 kind=0 after=0 sd=0 be=0 si=0 rel=2 base=-1187",
+                     "TRIAL_REARM pword=010f predop=29 predus=1889000 latest=1 word=000f latestop=31",
+                     "TRIAL_BASE read=1 target=-16 known=1 prev=32 prevTrial=5 prevRelative=0 basis=2 witness=-1187",
+                     "TRIAL_EVIDENCE record=19 as=1 am=1000 av=1000 cs=1 cm=8000 cv=8000 rule=1 dt=00040192 hw=0012 "
+                     "sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123 rb=2",
+                     # The 2026-11-03 forms, without pword, pred, rel or rb.
+                     "TRIAL_REARM predop=13 predus=2162000 latest=1 word=000f latestop=19",
+                     "TRIAL_PLAN route=rearm node=2 trial=11 attended=1 cycles=3 interval=100",
+                     "TRIAL_EVIDENCE record=19 as=1 am=1000 av=1000 cs=1 cm=8000 cv=8000 rule=1 dt=00040192 "
+                     "hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123"):
+            record = evidence.parse_line(1, line)
+            self.assertEqual((record.status, record.extra), ("parsed", {}), line)
+        self.assertEqual(evidence.parse_line(1, "TRIAL_BASE read=1 target=-16 known=1 prev=32 prevTrial=5 "
+                                                "prevRelative=0 basis=2 witness=-1187").values["witness"], -1187)
+        self.assertEqual(evidence.parse_line(1, "TRIAL_BASE read=1 target=-16").status, "malformed")
+        self.assertEqual({evidence.TRIAL_ROUTES[c] for c in ("released-quick", "word67", "relative")},
+                         {"released-quick", "word67", "relative"})
+
     def test_route_controller_counters_are_parsed_and_older_records_still_fit(self):
         res = ("TRIAL_RES stack0=8700 stack1=8492 heap0=73640 heap1=73640 heapMin=73640 largest=49152 gap=5000 "
                "dropped=0 admission=0 started=10 completed=20")

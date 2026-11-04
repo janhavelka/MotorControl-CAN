@@ -34,30 +34,50 @@
  *   6040=001F trigger as host-reviewed native values, each after the previous acknowledgement, then
  *   fresh cycles and an optional named stop. MotionPreview stays an offline review artifact.
  * - REARM, packet 19. The post-terminal 000F as its own visible step, project policy until the mode 1
- *   falling-edge behavior is measured. Admitted only while the session's latest controlword is the
- *   acknowledged 001F of a finished POSITION record on that node. A fresh full read and a check,
- *   then exactly one 6040=000F through the session, each like POSITION's own writes, then the stated
- *   number of fresh cycles, recorded and never judged as the success of anything physical.
- * - MOVE, packet 20. A fresh identity read and full read, a check like POSITION's against the host's
- *   reviewed start position, then AxisSession::requestMove with MoveEvidence (record, acceptance and
- *   completion signals, rule and firmware identity) taken from the host's line, never defaulted here.
- *   The session runs the move to its own terminal, its rearm included; an optional named stop after a
- *   stated number of move cycles goes through STOP's path with the move's last complete cycle.
- *   Relative moves are not routed: their wire base is unevidenced.
+ *   falling-edge behavior is measured. The host names the predecessor it expects, and the route is
+ *   admitted only while the session's latest controlword is exactly that acknowledged word on that
+ *   node: 1 the 001F trigger of a finished POSITION record, 2 the 010F of that record's planned HALT
+ *   (does clearing a halt resume the halted target?), 3 the 005F trigger of a finished RELATIVE
+ *   record. A fresh full read and a check, then exactly one 6040=000F through the session, each like
+ *   POSITION's own writes, then the stated number of fresh cycles, recorded and never judged as the
+ *   success of anything physical.
+ * - MOVE, packet 20 and packet 22 step 4. A fresh identity read and full read, a check like
+ *   POSITION's against the host's reviewed start position, then AxisSession::requestMove with
+ *   MoveEvidence (record, acceptance and completion signals, rule and firmware identity) taken from
+ *   the host's line, never defaulted here. The session runs the move to its own terminal, its rearm
+ *   included; an optional named stop after a stated number of move cycles goes through STOP's path
+ *   with the move's last complete cycle. With a relative base on the line (1 ACTUAL, 2 COMMANDED,
+ *   the host's packet 21 measurement) the target is a displacement: a second fresh full read must
+ *   pass the same check, and AxisSession::requestMoveRelative gets that basis and an idle,
+ *   stationary witness from the second read (ACTUAL: its 6064; COMMANDED: the host's reviewed base).
+ * - RELEASED_QUICK, packet 16 step 3. Two fresh full reads that must both show 2100 bit 4 released,
+ *   alarm clear, 6041 low bits 000, mode 1, 606C 0, 1001 and 603F 0, and the same 6064 whenever either
+ *   shows 2100 bit 2, which can stay latched after a 000B in motion. Then one 6040=000B through
+ *   AxisSession::admitPrepared under its own grant, then the stated number of fresh cycles, recorded
+ *   and never judged. An application-local experiment, not a stop: requestStop refuses a released
+ *   drive by design. The session's latest controlword is recorded, not required.
+ * - WORD67, packet 15. RELEASED_QUICK's reads and check, then one 6040=0006 and 1..4 fresh cycles;
+ *   only when the last of them shows mode 1 and 6041 low bits 001 one 6040=0007, then 1..16 fresh
+ *   cycles. No other word: the drive is left switched on, with 0007 as the latest word.
+ * - RELATIVE, packet 21. POSITION with the signed nonzero displacement in 607A and the 005F trigger,
+ *   measuring what the drive adds the displacement to. TRIAL_BASE shows the 607A read before the
+ *   writes and this object's own record of the last acknowledged 607A on that node.
  *
- * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE) needs an attended flag that the
- * host sets only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion routes
- * and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside POSITION
- * or MOVE counts as one more. These caps restart with the MCU: scripts/s2_bench.py keeps the
+ * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE, RELEASED_QUICK, WORD67, RELATIVE)
+ * needs an attended flag that the host sets only after the operator typed a confirmation. At most
+ * ROUTE_MOTION_TOTAL motion routes and ROUTE_MOTION_PER_CASE per route and node are admitted per boot;
+ * a planned stop inside POSITION, RELATIVE or MOVE counts as one more. These caps restart with the
+ * MCU: scripts/s2_bench.py keeps the
  * campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
  * changed epoch, nonzero EMCY from the node, lost evidence or local abort ends the route and keeps
  * its evidence; nothing is retried, enabled, cleared, zeroed, restored or switched to another mode,
  * and an abort sends no stop. A request already on its way always settles first. Lost evidence also
  * withdraws an active enable or move locally, as an abort does, because the lost span may have held
  * an EMCY or a status report: nothing is sent because of the loss, and a route with lost evidence
- * never ends NONE. A POSITION or MOVE with a planned stop is refused before its first write unless
- * the stop's whole span still fits the route cutoff when it is asked for at its latest. The
- * predecessor a check judged is judged again just before the first write is admitted.
+ * never ends NONE. A POSITION, RELATIVE or MOVE with a planned stop is refused before its first write
+ * unless the stop's whole span still fits the route cutoff when it is asked for at its latest. The
+ * predecessor a check judged is judged again just before each word write is admitted; a route that
+ * requires none still requires the latest word it recorded at admission.
  *
  * Sessions stay open for the life of the firmware once a route has opened them: their history,
  * latest controlword and trial record must survive between routes. While one is open, routes that
@@ -80,9 +100,13 @@ enum class RouteKind : uint8_t {
     ENABLE,       ///< Packet 15 P3, AxisSession::requestEnable; `TE`.
     STOP,         ///< Packet 15 P4 and packet 16, AxisSession::requestStop; `TS`.
     POSITION,     ///< Packet 19 isolated absolute experiment; `TP`.
-    REARM,        ///< Packet 19 post-terminal 000F after POSITION; `TR`.
-    MOVE,         ///< Packet 20 gated absolute move, AxisSession::requestMove; `TG`.
-    READ_HISTORY  ///< Packet 4 and packet 22 step 2, 1003 error history reads; `TH`. Not motion.
+    REARM,        ///< Packet 19 post-terminal 000F after a named predecessor; `TR`.
+    MOVE,         ///< Packet 20 gated move, AxisSession::requestMove or requestMoveRelative; `TG`.
+    READ_HISTORY, ///< Packet 4 and packet 22 step 2, 1003 error history reads; `TH`. Not motion.
+    // Appended, so that every earlier route keeps the number its records were printed with.
+    RELEASED_QUICK, ///< Packet 16 step 3, one 000B on an evidenced released drive; `TQ`.
+    WORD67,         ///< Packet 15, words 0006 then 0007 on an evidenced released drive; `TW`.
+    RELATIVE        ///< Packet 21 isolated relative experiment, 005F trigger; `TL`.
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -99,26 +123,44 @@ struct RoutePlan {
     /** ENABLE and STOP: action deadline after the request. MOVE: the move's immutable deadline after
      * its request, which the library also bounds below. 1..55000. */
     uint32_t deadlineMs = 0;
-    /** MODE_ONE, POSITION and REARM: cycle spacing. ENABLE and STOP: the action's observation
-     * interval. MOVE: the move's MoveOptions::observationIntervalUs, in milliseconds. */
+    /** MODE_ONE, POSITION, RELATIVE, REARM, RELEASED_QUICK and WORD67: cycle spacing. ENABLE and STOP:
+     * the action's observation interval. MOVE: the move's MoveOptions::observationIntervalUs, in
+     * milliseconds. */
     uint32_t intervalMs = 0;
-    uint16_t cycles = 0; ///< MODE_ONE 1..10, POSITION and REARM 1..16 fresh observation cycles.
-    /** STOP: 1 HALT or 2 QUICK_STOP. POSITION and MOVE: 0 none, 1 HALT, 2 QUICK_STOP. */
+    /** Fresh observation cycles: MODE_ONE 1..10; POSITION, RELATIVE, REARM and RELEASED_QUICK 1..16;
+     * WORD67 1..16 after its 0007. */
+    uint16_t cycles = 0;
+    uint8_t wordCycles = 0;  ///< WORD67: fresh observation cycles after its 0006, 1..4.
+    /** REARM: the acknowledged latest word the host expects it to follow on that node: 1 the 001F of a
+     * finished POSITION, 2 the 010F of that record's planned HALT, 3 the 005F of a finished RELATIVE. */
+    uint8_t predecessor = 0;
+    /** STOP: 1 HALT or 2 QUICK_STOP. POSITION, RELATIVE and MOVE: 0 none, 1 HALT, 2 QUICK_STOP. */
     uint8_t stopKind = 0;
-    uint32_t bestEffortMs = 0; ///< STOP, POSITION and MOVE stop: best-effort cutoff, 0 refuses that branch.
-    /** POSITION: request the stop after this many route cycles, 1..cycles. MOVE: after this many
-     * complete move cycles, 1..16, while no completion is observed; a move that ends first is not
-     * stopped. */
+    /** STOP, and the planned stop of POSITION, RELATIVE and MOVE: best-effort cutoff, 0 refuses that
+     * branch. */
+    uint32_t bestEffortMs = 0;
+    /** POSITION and RELATIVE: request the stop after this many route cycles, 1..cycles. MOVE: after
+     * this many complete move cycles, 1..16, while no completion is observed; a move that ends first is
+     * not stopped. */
     uint16_t stopAfter = 0;
-    uint32_t stopDeadlineMs = 0; ///< POSITION and MOVE: the stop's sequenced deadline.
-    uint32_t stopIntervalMs = 0; ///< POSITION and MOVE: the stop's observation interval.
-    int32_t startPosition = 0;   ///< POSITION and MOVE: exact reviewed 6064 the fresh read must show.
-    /** POSITION: 607A, -1000000..1000000 pulses (EN86/ZH86 p11). MOVE: the same range, as an absolute
-     * STEPS request in the native frame, quantized exactly. */
+    uint32_t stopDeadlineMs = 0; ///< POSITION, RELATIVE and MOVE: the stop's sequenced deadline.
+    uint32_t stopIntervalMs = 0; ///< POSITION, RELATIVE and MOVE: the stop's observation interval.
+    /** POSITION, RELATIVE and MOVE: exact reviewed 6064 the fresh read, or both fresh reads, must show. */
+    int32_t startPosition = 0;
+    /** POSITION: 607A, -1000000..1000000 pulses (EN86/ZH86 p11). RELATIVE: 607A as the signed nonzero
+     * displacement, in the same range. MOVE: the same range, as an absolute STEPS request in the native
+     * frame, or the nonzero relative displacement, quantized exactly. */
     int32_t target = 0;
-    uint32_t rpm = 0;        ///< POSITION: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000.
-    uint32_t rampUpMs = 0;   ///< POSITION: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
-    uint32_t rampDownMs = 0; ///< POSITION: 6084, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
+    /** MOVE: 0 absolute; otherwise relative, with MoveEvidence::relativeBase and the request basis 1
+     * ACTUAL or 2 COMMANDED, the drive's base as the host's packet 21 record measured it. */
+    uint8_t relativeBase = 0;
+    /** MOVE: the relative witness's native position. 0 when absolute; for ACTUAL the start position,
+     * which both fresh reads show; for COMMANDED the host's reviewed commanded position, which nothing
+     * here can read back. */
+    int32_t base = 0;
+    uint32_t rpm = 0;        ///< POSITION, RELATIVE: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000.
+    uint32_t rampUpMs = 0;   ///< POSITION, RELATIVE: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
+    uint32_t rampDownMs = 0; ///< POSITION, RELATIVE: 6084, 0..2000 ms (EN86/ZH86 p11). MOVE: 1..2000.
     /** MOVE: MoveEvidence::record, the nonzero identity of the host's reviewed measurement. */
     uint32_t record = 0;
     uint8_t acceptSource = 0;    ///< MOVE: MoveSignalSource of acceptance, 1 STATUSWORD or 2 MONITOR.
@@ -138,13 +180,16 @@ struct RoutePlan {
  * `E<node>,<trial>,<attended>,<start>,<shaft>,<status>,<positionTarget>,<velocityTarget>,
  * <deadlineMs>,<intervalMs>`;
  * `S<node>,<trial>,<attended>,<kind>,<deadlineMs>,<bestEffortMs>,<intervalMs>`;
- * `P<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<cycles>,<intervalMs>,
+ * `P|L<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<cycles>,<intervalMs>,
  * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
- * `R<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
+ * `R<node>,<trial>,<attended>,<predecessor>,<cycles>,<intervalMs>`;
+ * `Q<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
+ * `W<node>,<trial>,<attended>,<wordCycles>,<cycles>,<intervalMs>`;
  * `G<node>,<trial>,<attended>,<startPosition>,<target>,<rpm>,<upMs>,<downMs>,<deadlineMs>,<intervalMs>,
  * <record>,<acceptSource>,<acceptMask>,<acceptValue>,<completeSource>,<completeMask>,<completeValue>,
- * <rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stopKind>,<stopAfter>,
- * <stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each, at most ROUTE_LINE bytes).
+ * <rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relativeBase>,<base>,
+ * <stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>` (one line each, at most
+ * ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
  * @param text Borrowed characters; no terminator required.
  * @param size Character count.
@@ -155,7 +200,8 @@ struct RoutePlan {
 bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcept;
 /** The parser's own range and consistency check of a plan, however it was built: every field the
  * route uses within its stated range, a planned stop naming all of its policy and no stop naming
- * none, and a move signal value within its mask. Fields the route does not use are not judged.
+ * none, a move signal value within its mask, a nonzero relative displacement, and a move base that
+ * is 0 when absolute and the start position for ACTUAL. Fields the route does not use are not judged.
  * @param plan Borrowed for this call.
  * @return True when parseRouteCommand could have produced these route fields.
  */
@@ -223,7 +269,7 @@ enum {
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
     ROUTE_OPERATION_US = 5000000, ///< Deadline of one read or write operation, clamped to the cutoff.
     /** Longest request text after `T` the firmware collects, integrity field included; a longer one
-     * is refused. The longest move line with its field is 204 bytes. */
+     * is refused. The longest move line with its field is 218 bytes. */
     ROUTE_LINE = 256
 };
 /** First grant identity; RawEvidence uses 1000..4029 and ProbeApp reads count from 1. */
@@ -308,7 +354,11 @@ struct RouteRecord {
     RouteTraffic tail[ROUTE_TAIL];            ///< Diagnostics after the terminal.
     bool checkPresent = false; ///< A prerequisite check ran on snapshot below.
     bool checkPassed = false;  ///< That check passed.
-    RouteSnapshot check;       ///< Values the check judged.
+    /** RELEASED_QUICK, WORD67 and a relative MOVE read the state twice before their check: the second
+     * read has begun, and `first` holds the first. The check judges both. */
+    bool firstPresent = false;
+    RouteSnapshot first;       ///< The first of the two fresh check reads.
+    RouteSnapshot check;       ///< Values the check judged; with two reads, the second.
     /** Latest successful fresh read of the blocks RouteSnapshot holds. A read of ERROR_HISTORY
      * alone leaves it unchanged. */
     RouteSnapshot last;
@@ -331,8 +381,26 @@ struct RouteRecord {
     bool moveRequested = false;     ///< MOVE: requestMove accepted; AxisSession::moveAction holds it.
     uint8_t movePhases = 0;         ///< MOVE: bit per MovePhase seen at a service turn while active.
     uint64_t moveRequestedUs = 0;   ///< MOVE: when requestMove was accepted.
-    uint32_t rearmFollows = 0;      ///< REARM: operation of the acknowledged 001F it was admitted after.
-    uint64_t rearmFollowsUs = 0;    ///< REARM: that 001F terminal's completion time.
+    uint32_t rearmFollows = 0;      ///< REARM: operation of the acknowledged predecessor it followed.
+    uint64_t rearmFollowsUs = 0;    ///< REARM: that predecessor terminal's completion time.
+    uint16_t rearmFollowsWord = 0;  ///< REARM: that predecessor's word.
+    /** The session's latest acknowledged controlword at admission, whatever it was; none after an MCU
+     * restart. RELEASED_QUICK and WORD67 print it and require it unchanged at their first write. */
+    bool priorPresent = false;
+    uint16_t priorWord = 0;      ///< Its word.
+    uint32_t priorOperation = 0; ///< Its operation.
+    uint64_t priorUs = 0;        ///< Its terminal's completion time.
+    bool targetReadPresent = false; ///< A 607A upload of this record succeeded; targetRead holds the last.
+    int32_t targetRead = 0;         ///< That 607A, raw signed.
+    /** RELATIVE and a relative MOVE: at admission, this object's own record of the latest acknowledged
+     * 607A download on that node, by a POSITION, RELATIVE or MOVE of this boot and node epoch. Absent
+     * after any 607A that may have been written unacknowledged. */
+    bool commandedKnown = false;
+    int32_t commanded = 0;          ///< That 607A: an absolute target, or a displacement when relative.
+    uint32_t commandedTrial = 0;    ///< The trial that wrote it.
+    bool commandedRelative = false; ///< It was a displacement, with a 005F trigger.
+    uint8_t witnessBasis = 0;       ///< Relative MOVE: the witness's basis, 1 ACTUAL or 2 COMMANDED.
+    int32_t witnessPosition = 0;    ///< Relative MOVE: the witness's native position.
 };
 /** One attended route at a time over borrowed sessions. Large and stationary; allocates nothing.
  * The caller places it, attaches one session per node before that node's first route, services the
@@ -403,7 +471,9 @@ class BenchRoute {
     enum StepKind : uint8_t {
         STEP_STATE, STEP_GROUP, STEP_TUNING, STEP_SINGLE, STEP_CHECK_MODE, STEP_CHECK_POSITION,
         STEP_MODE_WRITE, STEP_ENABLE, STEP_STOP, STEP_POSITION_WRITES, STEP_OBSERVE, STEP_END,
-        STEP_IDENTITY, STEP_CHECK_REARM, STEP_REARM_WRITE, STEP_CHECK_MOVE, STEP_MOVE
+        STEP_IDENTITY, STEP_CHECK_REARM, STEP_WORD_WRITE, STEP_CHECK_MOVE, STEP_MOVE,
+        STEP_SECOND,        ///< A second fresh state read; the first is kept in RouteRecord::first.
+        STEP_CHECK_RELEASED ///< RELEASED_QUICK's and WORD67's check of both reads.
     };
     struct Step {
         uint8_t kind;
@@ -423,10 +493,12 @@ class BenchRoute {
     MotorControlCAN::LICHUAN_C::StateObservation block_;
     MotorControlCANOwner::Diagnostic diagnostic_;
     MotorControlCAN::CANOPEN::SdoTransfer expected_, single_;
-    // MOVE: the identity read the move is checked against, and each node's coordinate configuration,
-    // which requestMove borrows until that node's move is terminal. Written only while it is idle.
+    // MOVE: the identity read the move is checked against, and each node's coordinate configuration
+    // and relative witness, which the session borrows until that node's move is terminal. Written only
+    // while that node's move is idle.
     MotorControlCAN::LICHUAN_C::IdentityObservation identity_;
     MotorControlCAN::AxisConfig moveAxes_[2];
+    MotorControlCAN::AxisReference moveReferences_[2];
     // requestMove's other inputs, borrowed for that call only; kept here, off the owner task's stack.
     MotorControlCAN::LICHUAN_C::MoveEvidence moveEvidence_;
     MotorControlCAN::MoveRequest moveRequest_;
@@ -436,11 +508,21 @@ class BenchRoute {
     uint64_t lastUs_ = 0, cutoffUs_ = 0, nextCycleUs_ = 0, cycleStartUs_ = 0, writeDeadlineUs_ = 0;
     uint32_t lastTrial_ = 0, grant_ = ROUTE_GRANT_BASE - 1, grantedOperation_ = 0, grantedStep_ = 0;
     uint32_t writeOperation_ = 0, overwritten_ = 0, rxLost_ = 0;
-    // Each node's latest acknowledged POSITION trigger: the only 001F a REARM may follow.
-    uint32_t triggerOperation_[2] = {0, 0};
-    uint64_t triggerUs_[2] = {0, 0};
+    // Each node's latest acknowledged POSITION or RELATIVE trigger, 001F or 005F, and the 010F of a
+    // finished POSITION's planned HALT: the only words a REARM may follow.
+    uint32_t triggerOperation_[2] = {0, 0}, haltOperation_[2] = {0, 0};
+    uint64_t triggerUs_[2] = {0, 0}, haltUs_[2] = {0, 0};
+    // The acknowledged word write of the active route, for WORD67's 0007 to follow its own 0006.
+    uint32_t writtenOperation_ = 0;
+    uint64_t writtenUs_ = 0;
+    // Earliest bound of the latest fresh read's 6064 and 606C: a relative witness's observation time.
+    uint64_t feedbackUs_ = 0;
+    // Each node's latest acknowledged 607A download of this object, for TRIAL_BASE; never authority.
+    int32_t commanded_[2] = {0, 0};
+    uint32_t commandedTrial_[2] = {0, 0}, commandedEpoch_[2] = {0, 0};
+    bool commandedKnown_[2] = {false, false}, commandedRelative_[2] = {false, false};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
-    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::MOVE) + 1][2] = {};
+    uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::RELATIVE) + 1][2] = {};
     uint8_t stepIndex_ = 0, subStep_ = 0, readMode_ = 0, readArg_ = 0;
     bool occupied_ = false, pending_ = false, stepActive_ = false, readActive_ = false;
     bool singleAdmitted_ = false, actionStarted_ = false, abortRequested_ = false, emcyHandled_ = false;
@@ -472,13 +554,15 @@ class BenchRoute {
     bool startWrite(uint64_t nowUs) noexcept;
     void serviceWrite(uint64_t nowUs) noexcept;
     bool writeTransfer(MotorControlCAN::CANOPEN::SdoTransfer& output) const noexcept;
-    const char* predecessor(uint8_t write) const noexcept;
+    const char* predecessor(uint8_t write, uint8_t word = 0) const noexcept;
     const char* checkMode() const noexcept;
-    const char* checkIdle() const noexcept;
+    const char* checkIdle(const RouteSnapshot& snapshot) const noexcept;
     const char* checkPosition() const noexcept;
     const char* checkRearm() const noexcept;
     const char* checkMove() const noexcept;
-    bool rearmable(uint8_t slot, const AxisSession& session) const noexcept;
+    const char* checkReleased() const noexcept;
+    bool rearmable(uint8_t slot, const AxisSession& session, uint8_t predecessor) const noexcept;
+    void noteEnd() noexcept;
     void startEnable(uint64_t nowUs) noexcept;
     void startMove(uint64_t nowUs) noexcept;
     void startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffortMs, uint32_t intervalMs,

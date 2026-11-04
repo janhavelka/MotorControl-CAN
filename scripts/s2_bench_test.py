@@ -16,9 +16,10 @@ import s2_evidence as evidence  # noqa: E402
 
 PONG = "PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent=0 pinsReady=1 soak=%d t=5%s\n"
 NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning", "M": "mode1", "E": "enable",
-         "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history"}
+         "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
+         "Q": "released-quick", "W": "word67", "L": "relative"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
-          "R": "rearm", "G": "move", "H": "history"}
+          "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative"}
 
 
 def check_trial_transcript(path):
@@ -26,8 +27,8 @@ def check_trial_transcript(path):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    if len(parts) < 14:
-        problems.append("expected fourteen records, found %d" % len(parts))
+    if len(parts) < 21:
+        problems.append("expected twenty-one records, found %d" % len(parts))
     letters = {part[:1].decode("ascii") for part in parts}
     for letter in NAMES:
         if letter not in letters:
@@ -55,10 +56,17 @@ def check_trial_transcript(path):
                 problems.append("%s: no %s line" % (line, kind))
         if line.startswith("E") and not {"TRIAL_ENABLE", "TRIAL_ENABLE_STEP"} <= kinds:
             problems.append("%s: no enable summary" % line)
-        # Only a position line naming a stop kind (its eleventh field) has stop summaries.
-        if line.startswith("P") and not ({"TRIAL_CHECK"} | ({"TRIAL_STOP", "TRIAL_BEST_EFFORT"}
-                                                            if fields[10] != "0" else set())) <= kinds:
+        # Only a position or relative line naming a stop kind (its eleventh field) has stop summaries.
+        if line[0] in "PL" and not ({"TRIAL_CHECK"} | ({"TRIAL_STOP", "TRIAL_BEST_EFFORT"}
+                                                       if fields[10] != "0" else set())) <= kinds:
             problems.append("%s: no check or stop summary" % line)
+        if line.startswith("L") and "TRIAL_BASE" not in kinds:
+            problems.append("%s: no base summary" % line)
+        if line[0] in "QW" and not {"TRIAL_FIRST", "TRIAL_CHECK", "TRIAL_CONTROL"} <= kinds:
+            problems.append("%s: no first read, check or control summary" % line)
+        # A move naming a relative base (its twenty-seventh field) reads twice and shows its witness.
+        if line.startswith("G") and fields[26] != "0" and not {"TRIAL_FIRST", "TRIAL_BASE"} <= kinds:
+            problems.append("%s: no first read or base summary" % line)
         if line.startswith("R") and not {"TRIAL_CHECK", "TRIAL_REARM"} <= kinds:
             problems.append("%s: no check or rearm summary" % line)
         if line.startswith("G") and not {"TRIAL_CHECK", "TRIAL_EVIDENCE", "TRIAL_MOVE", "TRIAL_MOVE_SAMPLE"} <= kinds:
@@ -190,7 +198,8 @@ MOVE = ["--command", "move", "--node", "1", "--trial", "20", "--start-position",
         "--rule", "after-absence", "--device-type", "0x00040192", "--hardware-version", "0x12",
         "--software-version", "0x34", "--vendor-id", "0x300", "--product-code", "0x8605", "--revision", "0x10001",
         "--model-code", "0x86", "--firmware-code", "0x123", "--stop-kind", "none"]
-MOVE_BODY = ("TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291")
+MOVE_BODY = ("TG1,20,1,0,16,1,1000,1000,10000,1000,19,1,4096,4096,1,32768,32768,1,262546,18,52,768,34309,65537,134,291,"
+             "0,0")  # Absolute: no relative base and no witness.
 
 
 def signed(text):
@@ -317,8 +326,12 @@ class BenchTest(unittest.TestCase):
                 "--target", "1000001", "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000",
                 "--cycles", "4", "--interval-ms", "100", "--stop-kind", "none"],
                ["--command", "ping", "--node", "1"],
-               ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "17", "--interval-ms", "100"],
-               ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms", "19"]]
+               ["--command", "rearm", "--node", "1", "--trial", "1", "--predecessor", "position-trigger", "--cycles",
+                "17", "--interval-ms", "100"],
+               ["--command", "rearm", "--node", "1", "--trial", "1", "--predecessor", "position-trigger", "--cycles",
+                "3", "--interval-ms", "19"],
+               # The predecessor is named, never defaulted.
+               ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms", "100"]]
         for argv in bad:
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
                 bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
@@ -337,8 +350,12 @@ class BenchTest(unittest.TestCase):
             ("--command", "position", "--node", "1", "--trial", "8", "--start-position", "0", "--target", "16",
              "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4", "--interval-ms", "100",
              "--stop-kind", "none"): signed("TP1,8,1,0,16,1,1000,1000,4,100,0,0,0,0,0"),
-            ("--command", "rearm", "--node", "2", "--trial", "9", "--cycles", "3", "--interval-ms", "100"):
-                signed("TR2,9,1,3,100"),
+            ("--command", "rearm", "--node", "2", "--trial", "9", "--predecessor", "position-trigger", "--cycles", "3",
+             "--interval-ms", "100"): signed("TR2,9,1,1,3,100"),
+            ("--command", "rearm", "--node", "2", "--trial", "9", "--predecessor", "position-halt", "--cycles", "3",
+             "--interval-ms", "100"): signed("TR2,9,1,2,3,100"),
+            ("--command", "rearm", "--node", "2", "--trial", "9", "--predecessor", "relative-trigger", "--cycles",
+             "3", "--interval-ms", "100"): signed("TR2,9,1,3,3,100"),
             tuple(MOVE): MOVE_LINE,
             tuple(MOVE[:-1] + ["halt", "--stop-after", "2", "--stop-deadline-ms", "2000", "--stop-best-effort-ms",
                                "3000", "--stop-interval-ms", "500"]): signed(MOVE_BODY + ",1,2,2000,3000,500"),
@@ -537,7 +554,7 @@ class BenchTest(unittest.TestCase):
         board = Board()
         board.answer = record("stop", 1, 6, failure=11, why="stop")
         status, _, _ = self.run_main(["--command", "stop", "--node", "1", "--trial", "6", "--kind", "halt",
-                                      "--deadline-ms", "2000", "--best-effort-ms", "0", "--interval-ms", "100"],
+                                      "--deadline-ms", "2000", "--best-effort-ms", "0", "--interval-ms", "200"],
                                      Backend(board), Operator("ATTENDED 6", "NONE"))
         self.assertEqual(status, 3)
         report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
@@ -565,7 +582,10 @@ class BenchTest(unittest.TestCase):
 
     def test_motion_needs_a_named_campaign(self):
         for argv in (ENABLE, MOVE, position(1, 1),
-                     ["--command", "rearm", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms", "100"]):
+                     ["--command", "rearm", "--node", "1", "--trial", "1", "--predecessor", "position-trigger",
+                      "--cycles", "3", "--interval-ms", "100"],
+                     ["--command", "released-quick", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms",
+                      "100"]):
             with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
                 bench.arguments(BASE + argv + ["--output", "x"])
         for argv in (["--command", "ping"] + LEDGER, ["--command", "ping", "--new-campaign"],
@@ -688,12 +708,13 @@ class BenchTest(unittest.TestCase):
         self.assertIn("campaign lock %s kept" % lock, err)
 
     def test_routes_need_this_line_protocol(self):
-        for command, argv, typed in (("rearm", ["--command", "rearm", "--node", "1", "--trial", "3", "--cycles", "3",
-                                                "--interval-ms", "100"], "ATTENDED 3"),
+        for command, argv, typed in (("rearm", ["--command", "rearm", "--node", "1", "--trial", "3", "--predecessor",
+                                                "position-trigger", "--cycles", "3", "--interval-ms", "100"],
+                                      "ATTENDED 3"),
                                      ("move", MOVE, "ATTENDED 20"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            for routes in (1, 2, 4):  # Older images, and one this runner does not know.
+            for routes in (1, 2, 3, 5):  # Older images, and one this runner does not know.
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -707,7 +728,7 @@ class BenchTest(unittest.TestCase):
             status, _, err = self.run_main(argv, Backend(board), Operator(typed, "none") if typed else None)
             self.assertIn(status, (0, 1), err)  # The synthetic read record has no terminals.
             if command == "rearm":
-                self.assertEqual(board.writes[-1], signed("TR1,3,1,3,100").encode())
+                self.assertEqual(board.writes[-1], signed("TR1,3,1,1,3,100").encode())
             elif command == "move":
                 self.assertEqual(board.writes[-1], MOVE_LINE.encode())
             self.ledger.write_bytes(b"")
@@ -830,6 +851,161 @@ class BenchTest(unittest.TestCase):
         status, _, err = self.run_main(position(1, 20), Backend(Board()), Operator("ATTENDED 20"))
         self.assertEqual(status, 2, err)
         self.assertIn("without its send entry", err)
+
+    def test_new_route_lines_match_the_firmware_grammar(self):
+        relative = ["--command", "relative", "--node", "2", "--trial", "7", "--start-position", "1187", "--target", "-16",
+                    "--rpm", "1", "--ramp-up-ms", "1000", "--ramp-down-ms", "1000", "--cycles", "4",
+                    "--interval-ms", "100", "--stop-kind", "halt", "--stop-after", "2", "--stop-deadline-ms", "2000",
+                    "--stop-best-effort-ms", "0", "--stop-interval-ms", "200"]
+        actual = MOVE + ["--move-base", "actual"]
+        actual[actual.index("--start-position") + 1] = "-7"
+        commanded = MOVE + ["--move-base", "commanded", "--base-position", "1187"]
+        commanded[commanded.index("--target") + 1] = "-16"
+        cases = {
+            ("--command", "released-quick", "--node", "1", "--trial", "5", "--cycles", "3", "--interval-ms", "100"):
+                signed("TQ1,5,1,3,100"),
+            ("--command", "word67", "--node", "2", "--trial", "6", "--word6-cycles", "2", "--word7-cycles", "5",
+             "--interval-ms", "250"): signed("TW2,6,1,2,5,250"),
+            tuple(relative): signed("TL2,7,1,1187,-16,1,1000,1000,4,100,1,2,2000,0,200"),
+            tuple(MOVE + ["--move-base", "absolute"]): MOVE_LINE,
+            tuple(actual): signed(MOVE_BODY.replace("TG1,20,1,0,", "TG1,20,1,-7,")[:-3] + "1,-7,0,0,0,0,0"),
+            tuple(commanded): signed(MOVE_BODY.replace(",16,1,1000,", ",-16,1,1000,")[:-3] + "2,1187,0,0,0,0,0"),
+        }
+        for argv, line in cases.items():
+            args, fields = bench.arguments(BASE + list(argv) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line, argv)
+        # Values outside the firmware's ranges, a zero displacement and a base that does not fit the move.
+        bad = [["--command", "released-quick", "--node", "1", "--trial", "1", "--cycles", "17", "--interval-ms", "100"],
+               ["--command", "released-quick", "--node", "1", "--trial", "1", "--cycles", "0", "--interval-ms", "100"],
+               ["--command", "released-quick", "--node", "1", "--trial", "1", "--cycles", "3", "--interval-ms", "19"],
+               ["--command", "released-quick", "--node", "1", "--trial", "1", "--interval-ms", "100"],
+               ["--command", "word67", "--node", "1", "--trial", "1", "--word6-cycles", "5", "--word7-cycles", "3",
+                "--interval-ms", "100"],
+               ["--command", "word67", "--node", "1", "--trial", "1", "--word6-cycles", "0", "--word7-cycles", "3",
+                "--interval-ms", "100"],
+               ["--command", "word67", "--node", "1", "--trial", "1", "--word6-cycles", "2", "--word7-cycles", "17",
+                "--interval-ms", "100"],
+               ["--command", "word67", "--node", "1", "--trial", "1", "--word6-cycles", "2", "--interval-ms", "100"],
+               [item if item != "-16" else "0" for item in relative],
+               [item if item != "-16" else "1000001" for item in relative],
+               relative + ["--predecessor", "position-trigger"],
+               MOVE + ["--base-position", "5"],
+               MOVE + ["--move-base", "actual", "--base-position", "5"],
+               MOVE + ["--move-base", "commanded"],
+               [item if item != "16" else "0" for item in MOVE] + ["--move-base", "actual"],
+               ["--command", "stop", "--node", "1", "--trial", "1", "--kind", "halt", "--deadline-ms", "2000",
+                "--best-effort-ms", "0", "--interval-ms", "200", "--move-base", "actual"]]
+        for argv in bad:
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        # ACTUAL may restate its start position; it never takes another.
+        args, fields = bench.arguments(BASE + actual + ["--base-position", "-7"] + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.encode(args.command, fields).decode("ascii"), cases[tuple(actual)])
+        # A relative base keeps the stop tail last, so the ledger still finds its stop kind there.
+        self.assertEqual(bench.motion_weight("move", fields), (1, 0))
+        args, fields = bench.arguments(BASE + relative + LEDGER + ["--output", "x"])
+        self.assertEqual(bench.motion_weight("relative", fields), (2, 1))
+        self.assertEqual({"Q", "W", "L"} & bench.MOTION_ROUTES, {"Q", "W", "L"})
+
+    def test_plan_bounds_follow_the_firmware(self):
+        def bounds(argv):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            return bench.plan_bounds(args.command, fields)
+        quick = ["--command", "released-quick", "--node", "1", "--trial", "1", "--interval-ms", "100", "--cycles"]
+        words = ["--command", "word67", "--node", "1", "--trial", "1", "--interval-ms", "20", "--word6-cycles"]
+        # The numbers test/bench_route_test.cpp pins against BenchRoute's own refusals.
+        self.assertEqual(bounds(quick + ["3"]), (40, 300))
+        self.assertEqual(bounds(quick + ["15"]), (124, 1500))
+        self.assertEqual(bounds(quick + ["16"])[0], 131)
+        self.assertEqual(bounds(words + ["2", "--word7-cycles", "3"]), (55, 100))
+        self.assertEqual(bounds(words + ["3", "--word7-cycles", "12"])[0], 125)
+        self.assertEqual(bounds(words + ["4", "--word7-cycles", "12"])[0], 132)
+        # A planned stop's cycles read seven fields: 2000 ms polled every 200 ms is 80 terminals.
+        self.assertEqual(bounds(position(1, 1, "halt"))[0], 18 + 7 * 4 + 80)
+        stop = ["--command", "stop", "--node", "1", "--trial", "1", "--kind", "quick", "--deadline-ms", "2000",
+                "--best-effort-ms", "0", "--interval-ms"]
+        self.assertEqual(bounds(stop + ["200"]), (85, 2000))
+        self.assertEqual(bounds(stop + ["100"])[0], 155)
+        relative = MOVE + ["--move-base", "actual"]
+        self.assertEqual(bounds(MOVE)[0], 108)
+        self.assertEqual(bounds(relative)[0], 117)
+        longer = list(relative)
+        longer[longer.index("--deadline-ms") + 1] = "12000"
+        self.assertEqual(bounds(longer)[0], 131)
+        longer[longer.index("--move-base") + 1] = "absolute"
+        self.assertEqual(bounds(longer)[0], 122)
+        rearm = ["--command", "rearm", "--node", "1", "--trial", "1", "--predecessor", "position-halt", "--cycles",
+                 "16", "--interval-ms", "5000"]
+        self.assertEqual(bounds(rearm), (122, 80000))
+
+    def test_plans_over_capacity_or_duration_refuse_before_sending(self):
+        too_many = [["--command", "released-quick", "--node", "1", "--trial", "5", "--cycles", "16", "--interval-ms",
+                     "100"],
+                    ["--command", "word67", "--node", "1", "--trial", "5", "--word6-cycles", "4", "--word7-cycles", "12",
+                     "--interval-ms", "100"],
+                    ["--command", "stop", "--node", "1", "--trial", "5", "--kind", "quick", "--deadline-ms", "2000",
+                     "--best-effort-ms", "0", "--interval-ms", "100"],
+                    position(1, 5)]
+        too_many[3][too_many[3].index("--cycles") + 1] = "16"  # 18 + 7 * 16 = 130.
+        too_long = [["--command", "released-quick", "--node", "1", "--trial", "5", "--cycles", "12", "--interval-ms",
+                     "5000"],
+                    ["--command", "rearm", "--node", "1", "--trial", "5", "--predecessor", "relative-trigger",
+                     "--cycles", "12", "--interval-ms", "5000"]]
+        for reason, plans in (("capacity", too_many), ("duration", too_long)):
+            for argv in plans:
+                self.clear_output()
+                board = Board()
+                operator = Operator("ATTENDED 5", "none")
+                status, _, err = self.run_main(argv, Backend(board), operator)
+                self.assertEqual(status, 2, (argv, err))
+                self.assertIn("REFUSED: %s" % reason, err)
+                self.assertEqual((board.writes, operator.questions), ([], []))
+                self.assertFalse(self.output.exists())
+                self.assertEqual(self.ledger.read_bytes(), b"")  # Never counted.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + too_many[0] + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
+                       Operator())
+        self.assertIn("would refuse before sending: capacity", out.getvalue())
+
+    def test_new_motion_routes_are_attended_and_counted(self):
+        quick = ["--command", "released-quick", "--node", "2", "--trial", "5", "--cycles", "3", "--interval-ms", "100"]
+        board = Board()
+        operator = Operator("ATTENDED 5", "no movement")
+        status, _, err = self.run_main(quick, Backend(board), operator)
+        self.assertIn(status, (0, 1), err)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("TQ2,5,1,3,100").encode()])
+        self.assertIn("ATTENDED 5", operator.questions[0])
+        self.assertIn("describe the node 2 shaft", operator.questions[1])
+        self.assertEqual(self.meta()["plan"], "packet 16 step 3")
+        # A relative experiment with its planned stop counts against stop too, as position does.
+        self.clear_output()
+        relative = position(2, 6, "halt")
+        relative[relative.index("position")] = "relative"
+        status, _, err = self.run_main(relative, Backend(Board()), Operator("ATTENDED 6", "none"))
+        self.assertIn(status, (0, 1), err)
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["node"], e["trial"], e["motion"], e["stop"]) for e in send],
+                         [("Q", 2, 5, 1, 0), ("L", 2, 6, 2, 1)])
+        # The ledger reads both back; a fourth stop on node 2 is over the stop cap, planned or not.
+        self.write_ledger([send_entry("S", 2, 1), send_entry("S", 2, 2), send_entry("L", 2, 3, 2, 1)])
+        self.clear_output()
+        board = Board()
+        status, _, err = self.run_main(position(2, 7, "halt"), Backend(board), Operator("ATTENDED 7"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("planned stop", err)
+        self.assertEqual(board.writes, [])
+        # With nobody at the bench a waiver replaces the questions, as for every motion route but enable.
+        self.ledger.write_bytes(b"")
+        self.clear_output()
+        words = ["--command", "word67", "--node", "1", "--trial", "8", "--word6-cycles", "2", "--word7-cycles", "3",
+                 "--interval-ms", "100", "--unattended-waiver", "I accept this trial unattended"]
+        board = Board()
+        operator = Operator()
+        status, _, err = self.run_main(words, Backend(board), operator)
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual((operator.questions, board.writes[-1]), ([], signed("TW1,8,1,2,3,100").encode()))
+        self.assertEqual(self.meta()["operator"]["shaft_after"]["typed"], bench.UNOBSERVED)
 
     def test_single_byte_commands_unchanged(self):
         board = Board()

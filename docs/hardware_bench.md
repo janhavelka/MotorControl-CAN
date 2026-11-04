@@ -427,16 +427,17 @@ the host's side file.
 
 ## Attended bench routes
 
-Named finite routes for the attended trials of packets 13, 14, 15, 16, 19 and 20, and the
+Named finite routes for the attended trials of packets 13, 14, 15, 16, 19, 20, 21 and 22, and the
 `1003` error history read of packets 4 and 22, in
 [`BenchRoute`](../examples/s2_bench/BenchRoute.h). The [attended session](reports/2026-11-03_attended_bench.md)
 ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`; the
 [unattended session](reports/2026-11-03_unattended_bench.md) ran `move` once, `stop` twice and
 `history` on both nodes. Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
-typed reads, the session's own `requestEnable`, `requestMove` and `requestStop`, and caller-built
-transfers through `admitPrepared` only for the 6060 write, the position experiment's writes and the
-rearm's `000F`. There is no raw sender, object selector or command language. Startup is passive. A route is refused while a
+typed reads, the session's own `requestEnable`, `requestMove`, `requestMoveRelative` and
+`requestStop`, and caller-built transfers through `admitPrepared` only for the 6060 write, the
+position and relative experiments' writes, the rearm's `000F`, the `released-quick` `000B` and
+`word67`'s `0006` and `0007`. There is no raw sender, object selector or command language. Startup is passive. A route is refused while a
 soak runs or any other record is retained, and nothing else but `p`, `s`, `d`, `r` and `A` is served
 while its own record is held.
 
@@ -448,23 +449,30 @@ while its own record is held.
 | `readiness-history` (packet 4, packet 22 step 2) | `TH<node>,<trial>` | The `readiness-actions` STATE read; STATE `ERROR_HISTORY` alone: `1003:00`, then only the entries `1003:01..` its count names, at most four, each upload with its own one-use grant; STATE `ERRORS` (`1001`, `603F`) again, so both are on record before and after the first `1003` read. Values raw, never interpreted. No write | As above; a `1003:00` count above four fails the typed read after that upload |
 | `mode1` (packet 15 P2) | `TM<node>,<trial>,1,<cycles>,<interval>` | The `readiness-actions` reads, a check, then `2F 60 60 00 01 00 00 00` once, then 1..10 fresh cycles, the first with `1001`/`603F`. No enable | Before the write: `1001` or `603F` nonzero, `2100` alarm or running, `606C` nonzero, `6061` not 0, an earlier write or controlword in this session. After: alarm, running, `606C` nonzero, a fault code |
 | `enable` (packet 15 P3) | `TE<node>,<trial>,1,1,<shaft>,<6041>,<607A>,<60FF>,<deadline>,<interval>` | A fresh `ERRORS`/`MONITORS`/`STATUS`/`FEEDBACK` read, then `requestEnable` with `ATTENDED_EXPERIMENT`, the host's trial, reviewed values and `NO_MOTION_WRITE_RECORDED`, and the attendant's typed `FREE` or `HOLDING` | The library's own conditions; a nonzero EMCY of the node withdraws it with `DRIVE_FAULT` |
-| `stop` (packet 15 P4, packet 16) | `TS<node>,<trial>,1,<1 halt/2 quick>,<deadline>,<best effort or 0>,<interval>` | A fresh `MONITORS`/`STATUS` read, then `requestStop` with that kind and policy | The session decides the path |
+| `stop` (packet 15 P4, packet 16) | `TS<node>,<trial>,1,<1 halt/2 quick>,<deadline>,<best effort or 0>,<interval>` | A fresh `MONITORS`/`STATUS` read, then `requestStop` with that kind and policy; its age cap covers seven fields at the route budgets, so a QUICK_STOP may also read `6064` and `606C` each cycle to observe standstill | The session decides the path |
 | `position` (packet 19) | `TP<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<cycles>,<interval>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | A fresh full read and a check: latest controlword the session's acknowledged `000F`, mode 1, low bits 111, released, alarm and running clear, `606C` 0, `6064` equal to the reviewed start. Then `6081`, `6083`, `6084`, `607A` read for the record; `607A`, `6081`, `6083`, `6084` and `6040=001F` written, each after the previous acknowledgement; 1..16 fresh image cycles; an optional `requestStop` after a named cycle | Alarm, a failed terminal, EMCY. No stop follows unless planned |
-| `rearm` (packet 19) | `TR<node>,<trial>,1,<cycles>,<interval>` | Admitted only while the session's latest controlword is the acknowledged `001F` of a finished `position` record on that node: missing, uncertain or any other word refuses with `control`. A fresh full read and the `position` check without the start position. Then `2B 40 60 00 0F 00 00 00` once through the session, so it becomes the latest word when acknowledged, then 1..16 fresh image cycles, recorded and never judged. Project policy until the mode 1 falling-edge behavior is measured | Alarm, a failed terminal, EMCY. A lost reply leaves no latest word: `position`, `rearm` and `move` then refuse |
-| `move` (packet 20) | `TG<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<deadline>,<interval>,<record>,<accept source>,<accept mask>,<accept value>,<complete source>,<complete mask>,<complete value>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Refused unless the latest word is the acknowledged `000F` and no earlier move is fenced. A fresh identity read (`1009`/`100A` one byte), a fresh full read and the `position` check, then `requestMove` with `MoveEvidence` built only from the line: the record, both signals (1 `6041`, 2 `2100`), the rule (1 after absence, 2 after acceptance) and the raw identity, which must equal the fresh read. An absolute `STEPS` target in the native frame and rpm as motor turns per minute, with no scale claimed. The session writes `607A`, `6081`, `6083`, `6084`, `001F`, runs its cycles to its own terminal and writes its own `000F` only after an observed completion. An optional `requestStop` after a named number of move cycles, with the move's last complete cycle | The library's refusals (`TRIAL_STATUS`), the move's own outcome, EMCY (`DRIVE_FAULT`), abort or lost evidence (`cancelMove`). A trigger without an observed completion fences later moves |
+| `rearm` (packet 19) | `TR<node>,<trial>,1,<predecessor>,<cycles>,<interval>` | The operator names the predecessor: 1 the acknowledged `001F` of a finished `position` record, 2 the acknowledged `010F` of that record's planned HALT (does clearing a halt resume the halted target?), 3 the acknowledged `005F` of a finished `relative` record, all on that node. Admitted only while the session's latest controlword is exactly that terminal: missing, uncertain or any other word refuses with `control`, and a `relative` record's HALT is no predecessor. A fresh full read and the `position` check without the start position. Then `2B 40 60 00 0F 00 00 00` once through the session, so it becomes the latest word when acknowledged, then 1..16 fresh image cycles, recorded and never judged. Project policy until the mode 1 falling-edge behavior is measured | Alarm, a failed terminal, EMCY. A lost reply leaves no latest word: `position`, `relative`, `rearm` and `move` then refuse |
+| `move` (packets 20, 22 step 4) | `TG<node>,<trial>,1,<6064>,<607A>,<rpm>,<up>,<down>,<deadline>,<interval>,<record>,<accept source>,<accept mask>,<accept value>,<complete source>,<complete mask>,<complete value>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<relative base>,<base>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Refused unless the latest word is the acknowledged `000F` and no earlier move is fenced. A fresh identity read (`1009`/`100A` one byte), a fresh full read and the `position` check, then `requestMove` with `MoveEvidence` built only from the line: the record, both signals (1 `6041`, 2 `2100`), the rule (1 after absence, 2 after acceptance) and the raw identity, which must equal the fresh read. An absolute `STEPS` target in the native frame and rpm as motor turns per minute, with no scale claimed. The session writes `607A`, `6081`, `6083`, `6084`, `001F`, runs its cycles to its own terminal and writes its own `000F` only after an observed completion. An optional `requestStop` after a named number of move cycles, with the move's last complete cycle. `<relative base>` 0 is that absolute move, with `<base>` 0. 1 (`ACTUAL`) or 2 (`COMMANDED`), the base packet 21 measured, makes `<607A>` a nonzero displacement: a second fresh full read must pass the same check, and `requestMoveRelative` gets that basis as `MoveEvidence::relativeBase` and the request's basis, and an idle, stationary witness from the two reads (`ACTUAL`: `<base>` equal to `<6064>`, read back; `COMMANDED`: `<base>` the reviewed commanded position, the host's assumption), observed at the second read's earliest `6064` bound and aged by the move's own cap. The session's trigger is then `005F` | As the absolute move. A second read that does not repeat the first's state refuses before any write |
+| `released-quick` (packet 16 step 3) | `TQ<node>,<trial>,1,<cycles>,<interval>` | Two fresh full reads, each with `2100` bit 4 released, alarm clear, `6041` low bits 000, mode 1, `606C` 0, `1001` and `603F` 0; `2100` bit 2 set in either only with the same `6064` in both, because it stayed latched after a `000B` stopped a move (trial 213). No predecessor: the session's latest word is recorded as `TRIAL_CONTROL`, and must be unchanged when the write is offered. Then `2B 40 60 00 0B 00 00 00` once through `admitPrepared` under its own grant, which becomes the session's latest word when acknowledged, then 1..16 fresh image cycles, recorded and never judged. An application-local experiment, not a stop: `requestStop` refuses a released drive by design | The check (`unreleased`, `status`, `mode`, `alarm`, `velocity`, `running` and the error reasons); after the write alarm, a failed terminal, EMCY |
+| `word67` (packet 15) | `TW<node>,<trial>,1,<cycles after 0006>,<cycles after 0007>,<interval>` | The `released-quick` reads and check, then `2B 40 60 00 06 00 00 00` once and 1..4 fresh image cycles; only when the last of them shows mode 1 and low bits 001, `2B 40 60 00 07 00 00 00` once, offered only while this route's acknowledged `0006` is the latest word, and 1..16 fresh image cycles with `6064` and `606C`, recorded and never judged. No other word: the drive is left switched on with `0007` the latest word | As `released-quick`; after `0006` failure 9 `mode` or `status`, and nothing more is written |
+| `relative` (packet 21) | `TL<node>,<trial>,1,<6064>,<displacement>,<rpm>,<up>,<down>,<cycles>,<interval>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Exactly `position`, with the signed nonzero displacement (-1000000..1000000) in `607A` and the trigger `6040=005F`: the base measurement. `TRIAL_BASE` shows the `607A` read before the writes and the firmware's own record of the last `607A` it had acknowledged on that node (trial, value, whether a displacement); the start `6064` is in `TRIAL_CHECK` | As `position` |
 
 Every line also ends in an integrity field the table leaves out: `,K` and eight lowercase hexadecimal
 digits holding the CRC-32 (IEEE, as Python's `zlib.crc32`) of every byte from `T` up to that comma,
 for example `TA1,5,K62328164`. The firmware checks it before parsing and refuses a missing or
 mismatched field with `reason=crc`, because a digit corrupted in transit can still parse as another
-valid plan. `PONG routes=3` names this protocol; the runner refuses any other value before sending.
+valid plan. `PONG routes=4` names this protocol (3 added the integrity field; 4 the rearm's
+predecessor, the move's relative base and `TQ`, `TW`, `TL`); the runner refuses any other value
+before sending, so an image that still reports `routes=3` takes no line from this runner.
 
 `trial-abort` sends `A`: a local withdrawal, with no stop sent. A request on its way settles first,
 an active enable ends through `cancelEnable` and an active move through `cancelMove`, and a stop in
 progress refuses it. The runner sends one `A` on Ctrl-C.
 
-Relative moves are not routed: no specimen has measured what the drive adds a displacement to. A
-`move` refused by the library still counts as a motion admission, as every motion route does.
+A relative `move` needs the base `relative` measures first: until a record shows what the drive adds
+a displacement to, `<relative base>` 1 or 2 is an unsupported claim, and the library only binds the
+host's statement. A `move` refused by the library still counts as a motion admission, as every motion
+route does.
 
 **Prerequisite for an enable.** The session admits its enable words and a sequenced stop as
 ordinary SDO work, which needs a current exact NMT state or service qualification. This fixture's
@@ -481,10 +489,10 @@ take one-use download grants and do not need it.
 
 **Every route** records its admission in `TRIAL admitted` and has a new trial identity, rising for
 the firmware's life; the host's trial log must never reissue one across boots. Motion routes
-(`mode1`, `enable`, `stop`, `position`, `rearm`, `move`) need the attended flag the runner sets only
-after the operator typed `ATTENDED <trial>`. Packet 22's campaign cap is enforced per boot at
-admission: at most twelve motion admissions, and three per route and node. A planned stop inside
-`position` or `move` counts against `stop` as well. Across boots the runner enforces the same caps
+(`mode1`, `enable`, `stop`, `position`, `rearm`, `move`, `released-quick`, `word67`, `relative`) need
+the attended flag the runner sets only after the operator typed `ATTENDED <trial>`. Packet 22's
+campaign cap is enforced per boot at admission: at most twelve motion admissions, and three per route
+and node. A planned stop inside `position`, `relative` or `move` counts against `stop` as well. Across boots the runner enforces the same caps
 from the campaign ledger below. Every unqualified upload and every write of the route's own takes
 an exact one-use grant, numbered from 100000. Queue budgets are 100 ms and response budgets 250 ms,
 as host policy; with them the shortest enable deadline the library admits is 9.13 s. A plan whose
@@ -502,24 +510,37 @@ through `cancelEnable` or `cancelMove`, as an abort withdraws it, and the header
 drive may still be moving, and the attendant's independent cutoff is the control. A trigger that may
 have left without an observed completion still fences later moves.
 
-**Record capacity.** A route is refused as `capacity` after the host has counted it when its polls could exceed 128 terminals. `position` takes 18 plus 7 per cycle, so at most 15 cycles without a stop, and with a planned stop of 2000 ms polled every 250 ms (48 more) at most 8, although the parser accepts 16. Dry-run, then count before sending.
+**Record capacity.** The firmware refuses a route as `capacity` when its polls could exceed 128
+terminals, and as `duration` when its steps could need more than 55 s; it does so after the host has
+counted the send, so the runner computes the same bounds (`plan_bounds`) and refuses such a plan
+first, sending and counting nothing, and `--dry-run` prints them. A stop's cycles are bounded at seven
+fields, because a QUICK_STOP that observes standstill also reads `6064` and `606C`: a stop takes 3 plus
+7 per cycle, one at once and one per interval to its deadline. So `stop` with a 2000 ms deadline needs
+an interval of at least 200 ms (85 terminals; 100 ms would be 155). `position` and `relative` take 18
+plus 7 per cycle, so at most 15 cycles without a stop, and with a planned stop of 2000 ms polled every
+250 ms (66 more) at most 6, although the parser accepts 16. `rearm` takes 10 plus 7 per cycle (16
+fit), `released-quick` 19 plus 7 per cycle (at most 15), `word67` 20 plus 7 per cycle of either word
+(at most 15 in all), and a relative `move` nine more than the absolute one.
 
 **Release after every route.** A route sent while a record is held is refused before its line, and the host still counts it.
 
-**Planned stops and the cutoff.** A `move` or `position` with a planned stop is refused with
+**Planned stops and the cutoff.** A `move`, `position` or `relative` with a planned stop is refused with
 failure 11 (`why=deadline`) before its first write unless the stop's whole span (its deadline, or
 the best-effort cutoff when later) still fits the sixty-second route cutoff when the stop is asked
-for at its latest: for `move`, after the move's deadline; for `position`, after its writes' five-
+for at its latest: for `move`, after the move's deadline; for `position` and `relative`, after its writes' five-
 second operation deadline and `<after>` cycles of up to five seconds each (an interval, or one read's
 operation deadline). A plan that could never fit is refused at admission with `reason=duration`. A
 stop refused for the cutoff can therefore not leave a trigger running.
 
 **Predecessor at the write.** The check step judges the session's latest controlword (the
-acknowledged `000F` for `position`, the acknowledged trigger of a finished `position` for `rearm`,
-no write or controlword yet for `mode1`) on one turn; the first write is offered on a later one. The
-same predecessor is judged again each time that first write is offered, and a changed one ends the
-route with failure 8 and the same reason before anything is written. A plan built in code is judged
-by the parser's own range check at admission (`reason=plan`).
+acknowledged `000F` for `position` and `relative`, the named acknowledged predecessor of a finished
+record for `rearm`, no write or controlword yet for `mode1`) on one turn; the first write is offered
+on a later one. The same predecessor is judged again each time that first write is offered, and a
+changed one ends the route with failure 8 and the same reason before anything is written.
+`released-quick` and `word67` require no predecessor, but the latest word they recorded at admission,
+or none, must still be the latest when their first word is offered, and `word67`'s `0007` is offered
+only while its own acknowledged `0006` is the latest. A plan built in code is judged by the parser's
+own range check at admission (`reason=plan`).
 
 **Sessions stay open** once a route has opened them, so that their written-motion record, latest
 controlword and trial record survive between routes, as P3 and P4 need. While one is open,
@@ -532,15 +553,17 @@ session's own, `TRAFFIC`, `TAIL` and `END trial`. Summaries:
 
 | Line | Meaning |
 | --- | --- |
-| `TRIAL_PLAN` | The parsed request, only the fields the route uses |
+| `TRIAL_PLAN` | The parsed request, only the fields the route uses: `pred` a rearm's predecessor, `c6` the cycles after `0006`, `rel` and `base` a move's relative base and witness position (`rel=0 base=0` absolute); records before 2026-11-04 lack them |
 | `TRIAL_RES` | `stack0` and `stack1`, the task stack high-water mark at admission and at the terminal (a lower `stack1` was reached during the route), heap free before and after, least ever, largest free block, service gap, lost records, a refused admission, and the controller TX and RX error counters at admission and terminal (`tec0`, `rec0`, `tec1`, `rec1`; absent from records before 2026-11-03's counter change) |
-| `TRIAL_CHECK`, `TRIAL_LAST` | The values a prerequisite check judged, and the latest fresh read; `blocks` names the StateBlock bits it holds (`history` ends with `01`, its closing `1001`/`603F`) |
+| `TRIAL_FIRST`, `TRIAL_CHECK`, `TRIAL_LAST` | The first of two fresh check reads (`released-quick`, `word67`, a relative `move`), the values a prerequisite check judged (with two reads, the second), and the latest fresh read; `passed` is the check's verdict on both check reads; `blocks` names the StateBlock bits it holds (`history` ends with `01`, its closing `1001`/`603F`) |
 | `TRIAL_HISTORY` | `history` only, after a successful `1003` read: `count=<1003:00>` and `e1=..e<count>=` the entries read, raw hexadecimal; an entry not read is absent, not zero. `s2_evidence.py` requires it to equal the record's own `1003` terminals |
 | `TRIAL_EMCY`, `TRIAL_STATUS` | The EMCY that ended it; a library refusal with its code, detail and message |
 | `TRIAL_ENABLE`, `TRIAL_ENABLE_STEP` | The enable context and each word's acknowledgement and accepted report |
 | `TRIAL_STOP`, `TRIAL_BEST_EFFORT` | The requested and final path, the sequenced context with its predecessor, and both best-effort contexts; `own=1` marks this route's |
-| `TRIAL_REARM` | The operation and completion time of the `001F` the rearm followed, and the session's latest word afterwards (`latest=0` after a lost `000F`) |
-| `TRIAL_EVIDENCE` | The move's evidence exactly as the line gave it: record, signals, rule, raw identity |
+| `TRIAL_REARM` | The word (`pword`, from 2026-11-04), operation and completion time of the predecessor the rearm followed, and the session's latest word afterwards (`latest=0` after a lost `000F`) |
+| `TRIAL_CONTROL` | `released-quick` and `word67`: the session's latest word at admission (`prior=0` when it knows none, as after an MCU restart), and its latest word afterwards |
+| `TRIAL_BASE` | `relative` and a relative `move`: the `607A` read before the writes (`read`, `target`), the firmware's own record of the last `607A` it had acknowledged on that node at admission (`known`, `prev`, `prevTrial`, `prevRelative`; absent after any `607A` that may have been written unacknowledged, or across a node boot-up), and a relative move's witness (`basis`, `witness`). None of them measures what the drive adds a displacement to |
+| `TRIAL_EVIDENCE` | The move's evidence exactly as the line gave it: record, signals, rule, raw identity, and `rb` its relative base |
 | `TRIAL_MOVE`, `TRIAL_MOVE_SAMPLE` | The session's `MoveContext`: state, final phase and phases seen, outcome, interruption, setup, trigger, completion and rearm execution, uncertainty, cycles, fence; then its admission, latest, acceptance, absence and completed samples, raw |
 
 `failure` values: 0 none, 1 grant, 2 admission, 3 service, 4 correlation, 5 evidence loss,
@@ -561,17 +584,26 @@ python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command readines
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command mode1 --node 1 --trial 104 --cycles 5 --interval-ms 500 --campaign CAMPAIGN.jsonl --new-campaign --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command enable --node 1 --trial 105 --status 0x8037 --position-target 5000 --velocity-target 120 --deadline-ms 10000 --interval-ms 800 --no-motion-write-recorded --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 1 --trial 106 --kind quick --deadline-ms 2000 --best-effort-ms 0 --interval-ms 200 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
-python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command position --node 1 --trial 107 --start-position 0 --target 16 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 8 --interval-ms 250 --stop-kind halt --stop-after 4 --stop-deadline-ms 2000 --stop-best-effort-ms 0 --stop-interval-ms 200 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
-python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command rearm --node 1 --trial 108 --cycles 4 --interval-ms 250 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command position --node 1 --trial 107 --start-position 0 --target 16 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 4 --interval-ms 250 --stop-kind halt --stop-after 2 --stop-deadline-ms 2000 --stop-best-effort-ms 0 --stop-interval-ms 250 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command rearm --node 1 --trial 108 --predecessor position-halt --cycles 4 --interval-ms 250 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command move --node 1 --trial 109 --start-position 16 --target 32 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --deadline-ms 10000 --interval-ms 1000 --record RECORD --accept-source SOURCE --accept-mask MASK --accept-value VALUE --complete-source SOURCE --complete-mask MASK --complete-value VALUE --rule RULE --device-type RAW --hardware-version RAW --software-version RAW --vendor-id RAW --product-code RAW --revision RAW --model-code RAW --firmware-code RAW --stop-kind none --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command released-quick --node 1 --trial 110 --cycles 4 --interval-ms 250 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command word67 --node 1 --trial 111 --word6-cycles 2 --word7-cycles 6 --interval-ms 250 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command relative --node 1 --trial 112 --start-position 0 --target 16 --rpm 1 --ramp-up-ms 1000 --ramp-down-ms 1000 --cycles 4 --interval-ms 250 --stop-kind none --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command move ... --move-base actual --target 16 --stop-kind none --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 ```
+
+`--predecessor` is `position-trigger`, `position-halt` or `relative-trigger` and is always required.
+`--move-base` is `absolute` (the default, as before), `actual`, whose witness is `--start-position`,
+or `commanded` with `--base-position`, the reviewed commanded position; for either relative base
+`--target` is the displacement.
 
 The values are placeholders for review, not recommendations: P2 and P3 take theirs from P1's fresh
 reads, and the position values need packet 19's reviewed bounds. The move's evidence has no
 placeholder at all: every signal, rule and identity value comes from packet 19's reviewed
 measurement record, and without one the move stays unrun. Every route value is required; the
 runner refuses a missing one. Each command checks the recorded USB identity, pings, and refuses
-unless the image reports `routes=3` (the line protocol with the integrity field), no soak, no held
+unless the image reports `routes=4` (the line protocol above), no soak, no held
 record and a started controller. It asks the
 operator to type the attended confirmation, the shaft observation for `enable` and the fault LED for
 `readiness-actions` and `readiness-history` with `--fault-led prompt` (both require `--fault-led`:
@@ -625,10 +657,24 @@ node 2's took the internal heap from 73,640 to 50,060 bytes free and the largest
 49,152 to 25,600, once. Whether both sessions fit beside a soak is unmeasured; `TRIAL_RES largest`
 reports it.
 
+The routes of 2026-11-04 (`released-quick`, `word67`, `relative`, the rearm's predecessor, the
+relative move) add no static DRAM: their step tables, field lists and words are in flash, and the map
+still places no `BenchRoute` `.data` or `.bss`. On that tree `dram0_0_seg` has 2264 bytes left
+(169768 used), the same as an image built without them earlier that day, so the 256 bytes less than
+above predate these routes. `sizeof(BenchRoute)` is 42256 bytes on the S2 (368 more, for the relative move's
+witness per node and the new record fields) and `sizeof(AxisSession)` 28784, measured with the target
+compiler and the build's own flags. Both sessions and the route then need about 99.8 KB of internal heap
+once; whether they fit beside a soak is still unmeasured. The deepest measured stack chain is a move
+request from `BenchRoute::service`, 4784 bytes as a lower bound, inside the 6144-byte chain limit of
+`scripts/check_stack.py`.
+
 **Not established.** Nothing here qualifies an enable, stop, move, scale or firmware. On one
 image, the least stack ever free during the routes was 8,492 of 12,288 bytes, during a moving
 HALT, and the largest service gap 5 ms ([attended report](reports/2026-11-03_attended_bench.md#resources-during-the-actions)).
-`000B` and the `move` route have not been measured.
+The [2026-11-04 session](reports/2026-11-04_bench.md) holds the later stop and move records. None of
+the routes added that day (`released-quick`, `word67`, `relative`, the rearm from a halt or after a
+relative trigger, and the relative move) has run on hardware: their host tests use a synthetic drive
+whose every response is the test's own.
 
 ## Conditional state-changing evidence
 
