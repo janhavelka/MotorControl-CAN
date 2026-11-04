@@ -1,6 +1,6 @@
 # Packet 13: I/O configuration and output evidence
 
-Resumes prompt 21. Host and fake evidence only. **No specimen has accepted a DI write, and no record has ever read `2400:0C..0F`, `2401..2407` or `60FE`. DO and filter capabilities stay gated.**
+Resumes prompt 21. When this packet closed, host and fake evidence only. On 2026-11-04 P1 ran on both specimens as far as `60FE:00`, and P2 and P3 on node 1: node 1 accepted and read back DI3 function and polarity writes ([results](#bench-2026-11-04-p1-to-p3)). **DO and filter capabilities stay gated**, and P4 has not run.
 
 ## Delivered
 
@@ -30,9 +30,22 @@ Recorded as inference only: the register column agrees across EN86 p18 and ZH86 
 
 The subindex map per firmware; DO codes 2 and 3; bit 2 polarity; the `60FE` bit map and truth table for 86C; filter range and equation; the `607D` range and coordinate basis.
 
-## Physical tests not run
+## Bench, 2026-11-04: P1 to P3
 
-They need a harness route that does not exist yet. One drive at a time, a readiness image before and after, node 1 then node 2. Stop on any abort, timeout, uncertain terminal, boot-up, bus fault, change in 2100, 6041, 6061, 6064 or 606C, or reported shaft movement. No retry, save or enable. Protective inputs DI0..2 are never touched.
+Through the `readiness-io` and `io-di3` routes (`TI`, `TJ`). One firmware; the fault LED and terminals were not observed. See the [bench report](../2026-11-04_bench.md).
+
+| Trial | Result |
+| --- | --- |
+| P1, [303](../../bench/20261104T1309Z-io-node1-303/rx.txt) and [304](../../bench/20261104T1309Z-io-node2-304/rx.txt) | 26 reads, both nodes identical: `2400:00=0x10`, `:01=0`, `:02/:03/:04=1/2/3`, `:05..08=0`, **`:0C=0`, `:0D=1`**, `:0E=:0F=0`; `2401..2407` = 2, 1, 0, 0, 0, 0, 0. By the rule in the table below, `:0C=0, :0D=1` suggests the EDS layout and identifies no function. Of the filter words only `2401` equals the manuals' 2; none equals its EDS default. Then **`60FE:00` answered as two bytes**, `4B FE 60 00 00 00 00 00`, against the EDS U8: the typed read aborted it (`06070010`), which left the route unresolved until an MCU restart, so `60FE:01/:02` were not read (backlog D16) |
+| P2, [319](../../bench/20261104T1407Z-io-di3-node1-319/rx.txt) and [320](../../bench/20261104T1407Z-io-di3-node1-320/rx.txt), node 1 | `2400:05` (DI3) 0 → 7 (USER0) acknowledged and read back 7, then 7 → 0, read back 0, each as its own operation. `2101=0` and `60FD=0` after each. Code acceptance on this firmware |
+| P3, [321](../../bench/20261104T1407Z-io-di3-node1-321/rx.txt), node 1 | Polarity bit 3 set: read back `2400:01=0008`, and **`2101` bit 3 went to 1** on the open terminal while `60FD` stayed 0. The return was refused by the runner as a fourth `io-di3` admission against the cap of 3, a planning error |
+| P3 return, [403](../../bench/20261104T1540Z-io-di3-node1-403/rx.txt), node 1, after the user's power cycle | Refused before writing: the prior read was **`2400:01=0`. The polarity write did not survive the power cycle**, with no save sent. One cycle and one field |
+
+**Still owed:** P4 needs an operator with meters on DO0..2 and DOCOM at 0 V, and has no route. `60FE` waits for the measured-width option for `60FE:00`, which is being implemented. The truth table, filter domain and DO map below still need the manufacturer.
+
+## The planned trials
+
+Written before the routes existed. One drive at a time, a readiness image before and after, node 1 then node 2. Stop on any abort, timeout, uncertain terminal, boot-up, bus fault, change in 2100, 6041, 6061, 6064 or 606C, or reported shaft movement. No retry, save or enable. Protective inputs DI0..2 are never touched.
 
 | Trial | Sequence | Closes |
 | --- | --- | --- |

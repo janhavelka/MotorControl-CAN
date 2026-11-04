@@ -8,8 +8,9 @@ The core performs no I/O and owns copies of the evidence it consumes.
 
 Evidence classes below: **source** means the original vendor page or EDS says it;
 **inference** is our reading of a source; **policy** is a project decision;
-**host** is fake-owner test evidence. Nothing here is **physical**: no specimen
-has run either action (packets 17 and 18).
+**host** is fake-owner test evidence; **physical** is a drive's own report on a
+named specimen. The counter zero ran once, on node 2 on 2026-11-04 (below); no
+specimen has had an alarm, so the alarm clear has not run (packets 17 and 18).
 
 ## Supported transition tables
 
@@ -170,9 +171,10 @@ and the restarted application has no coordinate confidence to restore.
 ## Application caller: `AxisSession`
 
 [`AxisSession`](../examples/common/AxisSession.h) is the example application's
-caller of both actions (backlog S12). It is **host** evidence only, through the
-real owner in `axis_session_test`. No specimen has run it, and no bench route
-calls it yet.
+caller of both actions (backlog S12), tested through the real owner in
+`axis_session_test`. The S2 bench's `counter-zero` and `clear-alarm` routes call
+it. `requestCounterZero` ran once on a specimen (below); `requestClearAlarm` has
+not, because no alarm has occurred.
 
 - **Request.** `requestClearAlarm(state, options, deadlineUs, nowUs)` and
   `requestCounterZero(state, nativePosition, axis, reference, options,
@@ -230,10 +232,25 @@ resume/counter relationships remain precise gates. Counter zero, host origin,
 successful homing, release and factory reset stay distinct. No action here
 publishes a home reference or qualified physical measurement.
 
-### Physical cases still required
+### Physical cases
 
-Neither case has run. Both need the lead at the bench, one drive, the
-independent drive-power cutoff in hand and a free, table-mounted shaft.
+Both need the lead at the bench, one drive, the independent drive-power cutoff
+in hand and a free, table-mounted shaft. The alarm clear has not run. The
+counter zero ran once:
+
+**Counter zero, node 2, 2026-11-04** (trial 323, the bench `counter-zero`
+route, [report](reports/2026-11-04_bench.md)). Node 2 was switched on and
+energized at `6064=1180`, mode 1, `2100=0000`, `6041=0033`, `606C=0`, with `1001`
+and `603F` 0; that count was left by a quick-stopped move and a word 7 pull-back
+([drive actions](drive_actions.md)), so `baseline` held 1180, not zero. `2302`
+`0`, `1`, `0` were each acknowledged, the coordinates were withdrawn, and the
+next cycle read raw `6064=0` with `2100`, `6041` and `606C` unchanged:
+`SUCCEEDED`, with no `valueOneMayRemain`. No motion was reported, but the
+shaft was not observed: the user asked that motion be judged from drive reports.
+Whether an internal command counter changed with `6064` is not shown. One
+specimen, one firmware; this is a raw zero, not a home or origin.
+
+The cases as planned:
 
 1. **Alarm clear.** Needs a naturally present, identified alarm: `2100` alarm
    set, the LED flash count recorded, and `603F`, `1001`, `1003` read once. Do
@@ -247,10 +264,10 @@ independent drive-power cutoff in hand and a free, table-mounted shaft.
    One attempt per identified incident; a repeat is a new reviewed trial.
 2. **Counter zero.** Stationary, alarm-free drive in mode 1 with `606C` zero and
    an independent shaft mark. Record `607A`, `6064`, `606C`, the monitor words,
-   `6041` and the axis reference metadata. Both specimens read actual `0` and
-   `607A=5000`, its EDS default, so the first run can only show that an
-   already-zero raw stays zero; a nonzero baseline needs a later, separately
-   qualified move. Do not write an arbitrary counter to manufacture one. Run one
+   `6041` and the axis reference metadata. At power-up both specimens read
+   actual `0` and `607A=5000`, its EDS default, where a zero can only show that
+   an already-zero raw stays zero; a nonzero baseline needs an earlier move, as
+   on 2026-11-04 above. Do not write an arbitrary counter to manufacture one. Run one
    `prepareSetDevicePosition` with the bytes `2B 02 23 00 00 00 00 00`,
    `2B 02 23 00 01 00 00 00` and `2B 02 23 00 00 00 00 00`, then the owner epoch
    synchronization, the new-epoch cycles and the shaft check. Abort on any

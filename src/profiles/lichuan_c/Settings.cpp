@@ -49,8 +49,13 @@ bool settingsShape(const DriverSettingsContext& c) {
     for (unsigned i = 0; i < read.count; ++i) {
         const ReadDescriptor& actual = read.values[i].object;
         ReadDescriptor expected;
-        if (!readDescriptor(plan->fields[i].index, plan->fields[i].subindex, expected) ||
-            actual.index != expected.index || actual.subindex != expected.subindex ||
+        if (!readDescriptor(plan->fields[i].index, plan->fields[i].subindex, expected))
+            return false;
+        // The readback's own explicit width option, as its read checks it. The one field it can
+        // widen, 607D:00, is never written: `allowed` leaves only 2202 changeable in that group.
+        if (const uint8_t width = measuredWidth(read.kind, expected.index, expected.subindex, read.options))
+            expected.widthBytes = width;
+        if (actual.index != expected.index || actual.subindex != expected.subindex ||
             actual.widthBytes != expected.widthBytes ||
             actual.representation != expected.representation ||
             actual.readEffect != expected.readEffect || actual.scope != expected.scope)

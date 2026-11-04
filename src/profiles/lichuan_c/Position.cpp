@@ -164,7 +164,8 @@ uint64_t serviceBudget(const MoveOptions& o, uint64_t services) {
 }
 bool optionsValid(const MoveOptions& o) {
     return o.service.queueTimeoutUs && o.service.responseTimeoutUs &&
-           o.service.identityWidths == IdentityWidths::DECLARED_U16 && o.observationIntervalUs &&
+           o.service.identityWidths == IdentityWidths::DECLARED_U16 &&
+           o.service.countWidths == CountWidths::DECLARED_U8 && o.observationIntervalUs &&
            o.maximumAgeUs && o.maximumAgeUs >= serviceBudget(o, MOVE_OBSERVATION_FIELDS);
 }
 bool signalValid(const MoveSignal& s) {

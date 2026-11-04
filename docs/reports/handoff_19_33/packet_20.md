@@ -2,6 +2,12 @@
 
 **After the 2026-11-03 sessions.** Packet 19's evidence exists for node 1: acceptance `6041` `0x1000`, completion `2100` `0x0001` under `AFTER_ABSENCE` ([packet 19](packet_19.md)). The unattended session then ran the `move` route, which passes that evidence through `AxisSession::requestMove`, once on node 2 (trial 121, record 111): 0 to 250 at 2 rpm, `SUCCEEDED` with completion observed and its own `000F` rearm acknowledged, with node 1's bits. Completion read `6064=251` and the next read 250; whether that is overshoot or counter dither is not established. No shaft was observed. The library default still refuses. One specimen and one firmware: not qualified. See the [unattended bench report](../2026-11-03_unattended_bench.md).
 
+**Session of 2026-11-04.** Drive reports only; no shaft was observed. See the [bench report](../2026-11-04_bench.md).
+- **A stop during a library move**, twice, on the `move` route with a planned quick stop at 30 rpm. On node 2 ([213](../../bench/20261104T1206Z-move-quick-node2-213/rx.txt), 250 → 2250) the stop ended `NOT_OBSERVED` at its deadline and the move ended interrupted, uncertain and fenced; on node 1 ([413](../../bench/20261104T1544Z-move-observed-quick-node1-413/rx.txt), 404 → 2404, node 2 observed) the stop ended `OBSERVED` after the two fixes of [packet 16](packet_16.md), and the move again ended interrupted and fenced. Neither move rearmed: a rearm follows only an observed completion.
+- **The relative lifecycle on this path** ran once on node 1 and succeeded with its own rearm ([411](../../bench/20261104T1543Z-move-rel-node1-411/rx.txt), [packet 21](packet_21.md)).
+- **A refusal before any write** ([412](../../bench/20261104T1544Z-move-observed-quick-node1-412/rx.txt)): the library refused an observed move whose 4 s deadline did not cover every scheduled service at its budgets.
+- **The 251 count** did not recur on the same node and values, through the application-local `position` route rather than this lifecycle: completion at 250, held for 8 s ([packet 19](packet_19.md)).
+
 Owns the absolute part of original prompt 33. When this packet closed, host and fake evidence only. **The lifecycle is gated: the default `MoveEvidence` returns `UNSUPPORTED`.** No source establishes the acceptance and completion bits, so they are an explicit caller input from packet 19's measurement, not a guessed mask.
 
 ## Delivered
@@ -58,7 +64,7 @@ Per specimen and firmware, with raw traffic and a shaft observation:
 - **Closed by packet 21:** `MoveContext` (3,008 bytes) is in `check_stack.py`'s measured context types.
 - **Tested here for packet 18:** a counter zero advances the configuration epoch, so a move prepared before it can neither run nor be admitted again (`counterZeroInvalidates`).
 - An explicit `000F` rearm after a stop or an unknown trigger needs its own action. The move's own rearm, after an observed completion, is part of this lifecycle, and the bench `rearm` route covers only the isolated `position` experiment.
-- **Bench caller added 2026-11-03:** the attended `move` route runs this lifecycle through `AxisSession::requestMove`, with `MoveEvidence` taken only from the host command and a route-owned `AxisConfig` kept alive for the whole move. It is for use after packet 19's evidence is reviewed, and has not run.
+- **Bench caller added 2026-11-03:** the attended `move` route runs this lifecycle through `AxisSession::requestMove`, with `MoveEvidence` taken only from the host command and a route-owned `AxisConfig` kept alive for the whole move. It is for use after packet 19's evidence is reviewed. It ran on 2026-11-03 (trial 121) and on 2026-11-04 (trials 213, 411 to 413), above.
 - **Ledger:** not a gap. Every one of the 99 objects in `lichuan_objects.json`, `6040`, `2301` and `2302` included, keeps whole-object `coverage` false by design, because the ledger is a documentary dictionary with no command-coverage field. Command coverage is recorded in the [coverage matrix](../../coverage.md).
 - `AxisSession` is 23,544 bytes after packet 21; the bench routes allocate it from the heap.
 

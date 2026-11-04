@@ -104,18 +104,19 @@ struct RouteFields {
         return false;
     }
 };
-// Slots 1 and 2 of the identity plan are 1009 and 100A. Only an explicit option selects this.
-bool measuredIdentityWidth(const ReadContext& c, unsigned slot) {
-    return c.kind == ReadKind::IDENTITY && (slot == 1 || slot == 2) &&
-           c.options.identityWidths == IdentityWidths::MEASURED_U8;
+// Each width option is a known enumerator, and a measured width only on the kind it concerns.
+bool widthsFit(ReadKind kind, const ReadOptions& o) {
+    return o.identityWidths <= IdentityWidths::MEASURED_U8 &&
+           (o.identityWidths == IdentityWidths::DECLARED_U16 || kind == ReadKind::IDENTITY) &&
+           o.countWidths <= CountWidths::MEASURED_U16 &&
+           (o.countWidths == CountWidths::DECLARED_U8 || kind == ReadKind::DRIVER_SOFT_LIMITS ||
+            kind == ReadKind::IO_OUTPUT_COMMAND);
 }
 bool shape(const ReadContext& c) {
     if (!validTarget(c.target) || !c.operation || !c.count || c.count > READ_FIELDS ||
         c.cursor > c.count || c.state == ReadState::EMPTY || c.state > ReadState::FAILED ||
         c.source > ReadSource::TPDO || c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs ||
-        !c.options.queueTimeoutUs || !c.options.responseTimeoutUs ||
-        c.options.identityWidths > IdentityWidths::MEASURED_U8 ||
-        (c.options.identityWidths != IdentityWidths::DECLARED_U16 && c.kind != ReadKind::IDENTITY) ||
+        !c.options.queueTimeoutUs || !c.options.responseTimeoutUs || !widthsFit(c.kind, c.options) ||
         (c.kind != ReadKind::STATE && c.blockMask))
         return false;
     unsigned cursor = 0;
@@ -145,8 +146,9 @@ bool shape(const ReadContext& c) {
             ReadDescriptor expected;
             if (!readDescriptor(addresses[i].index, addresses[i].subindex, expected))
                 return false;
-            if (measuredIdentityWidth(c, i))
-                expected.widthBytes = 1;
+            if (const uint8_t width =
+                    measuredWidth(c.kind, addresses[i].index, addresses[i].subindex, c.options))
+                expected.widthBytes = width;
             if (!sameDescriptor(expected, c.values[cursor++].object))
                 return false;
         }
@@ -223,8 +225,7 @@ Status validateInputs(const ReadTarget& target, uint32_t operation, uint64_t now
     if (!validTarget(target))
         return invalid(ReadError::TARGET, "invalid read target or node epoch");
     if (!operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs ||
-        options.identityWidths > IdentityWidths::MEASURED_U8 ||
-        (options.identityWidths != IdentityWidths::DECLARED_U16 && kind != ReadKind::IDENTITY))
+        !widthsFit(kind, options))
         return invalid(ReadError::ARGUMENT, "invalid read identity or budgets");
     if (!visitPlan(kind, mask, PlanNoop()))
         return invalid(ReadError::ARGUMENT, "invalid read selection");
@@ -273,9 +274,11 @@ Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation
     output.options = options;
     output.blockMask = mask;
     visitPlan(kind, mask, PlanWriter{output});
-    for (unsigned i = 0; i < output.count; ++i)
-        if (measuredIdentityWidth(output, i))
-            output.values[i].object.widthBytes = 1;
+    for (unsigned i = 0; i < output.count; ++i) {
+        ReadDescriptor& object = output.values[i].object;
+        if (const uint8_t width = measuredWidth(kind, object.index, object.subindex, options))
+            object.widthBytes = width;
+    }
     if (route) {
         output.source = ReadSource::TPDO;
         output.pdoRoute = *route;
@@ -324,6 +327,18 @@ Status fields(const ReadContext& c, unsigned start, unsigned length, uint64_t no
 } // namespace
 
 namespace Detail {
+uint8_t measuredWidth(ReadKind kind, uint16_t index, uint8_t subindex, const ReadOptions& o) noexcept {
+    if (subindex)
+        return 0;
+    if (kind == ReadKind::IDENTITY && o.identityWidths == IdentityWidths::MEASURED_U8 &&
+        (index == 0x1009 || index == 0x100a))
+        return 1;
+    if (o.countWidths == CountWidths::MEASURED_U16 &&
+        ((kind == ReadKind::DRIVER_SOFT_LIMITS && index == 0x607d) ||
+         (kind == ReadKind::IO_OUTPUT_COMMAND && index == 0x60fe)))
+        return 2;
+    return 0;
+}
 Status prepareRead(ReadContext& output, const ReadTarget& target, uint32_t operation, uint64_t now,
                    uint64_t deadline, const ReadOptions& options, ReadKind kind, uint8_t mask,
                    const CANOPEN::PdoRoute* route) noexcept {

@@ -797,9 +797,10 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
         withdrawClear(M::ActionOutcome::CANCELLED, at);
         lastUs_ = at;
     }
-    // This width concerns identity reads. A stop reads none, so it cannot refuse a stop.
+    // These widths concern identity and group reads. A stop reads neither, so they cannot refuse a stop.
     StopPolicy policy = requested;
     policy.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+    policy.options.service.countWidths = L::CountWidths::DECLARED_U8;
     if (!open_ || kind > L::StopKind::QUICK_STOP || now < latest || policy.deadlineUs <= now ||
         (policy.bestEffortDeadlineUs && policy.bestEffortDeadlineUs < policy.deadlineUs) ||
         !L::stopOptionsValid(policy.options))

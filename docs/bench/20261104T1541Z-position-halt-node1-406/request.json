@@ -1,0 +1,118 @@
+{
+  "started_utc": "2026-11-04T15:41:13.946057+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "position",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 406,
+  "plan": "packet 19",
+  "fields": [
+    1,
+    406,
+    1,
+    0,
+    600,
+    6,
+    500,
+    500,
+    4,
+    1000,
+    1,
+    2,
+    2000,
+    0,
+    250
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 406 to confirm: ",
+      "typed": "ATTENDED 406",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not observed: the user asked that motion be confirmed from the drive's position reports, not by eye"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "position",
+    "--node",
+    "1",
+    "--trial",
+    "406",
+    "--start-position",
+    "0",
+    "--target",
+    "600",
+    "--rpm",
+    "6",
+    "--ramp-up-ms",
+    "500",
+    "--ramp-down-ms",
+    "500",
+    "--cycles",
+    "4",
+    "--interval-ms",
+    "1000",
+    "--stop-kind",
+    "halt",
+    "--stop-after",
+    "2",
+    "--stop-deadline-ms",
+    "2000",
+    "--stop-best-effort-ms",
+    "0",
+    "--stop-interval-ms",
+    "250",
+    "--campaign",
+    "docs\\bench\\20261104d-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1541Z-position-halt-node1-406"
+  ],
+  "host_revision": "e7f28acd8a3a4d983f337aee6150c400fb871dc0",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104d-campaign.jsonl",
+    "motion_total": 2,
+    "cases": {
+      "E1": 1,
+      "J1": 1,
+      "M1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5450312c3430362c312c302c3630302c362c3530302c3530302c342c313030302c312c322c323030302c302c3235302c4b38343265666464620a"
+  ],
+  "image": {
+    "base": "e7f28acd8a3a4d983f337aee6150c400fb871dc0",
+    "elf": "031ba492f276d144672ebdc8281257b76ab6c1b34ccecd33e67b8f1946a615fa",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TP1,406,1,0,600,6,500,500,4,1000,1,2,2000,0,250,K842efddb",
+  "tx_hex": "5450312c3430362c312c302c3630302c362c3530302c3530302c342c313030302c312c322c323030302c302c3235302c4b38343265666464620a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T15:41:19.882717+00:00"
+}

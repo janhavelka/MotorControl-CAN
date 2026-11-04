@@ -435,6 +435,7 @@ Status validateExplicit(const AxisReservation& r, const ReadContext& state, Acti
     if (!validReservation(r) || !operation || deadline <= now || r.acquiredUs > now ||
         !options.service.queueTimeoutUs || !options.service.responseTimeoutUs ||
         options.service.identityWidths != IdentityWidths::DECLARED_U16 ||
+        options.service.countWidths != CountWidths::DECLARED_U8 ||
         !options.observationIntervalUs || !options.maximumAgeUs ||
         !ageCoversCycle(options, kind == ActionKind::SET_DEVICE_POSITION ? 7 : 5))
         return error(ActionError::ARGUMENT, "invalid explicit action reservation or budgets");
@@ -529,6 +530,7 @@ void publishExplicit(ActionContext& c, const AxisReservation& r, const ReadConte
 bool stopOptionsValid(const ActionOptions& options) noexcept {
     return options.service.queueTimeoutUs && options.service.responseTimeoutUs &&
            options.service.identityWidths == IdentityWidths::DECLARED_U16 &&
+           options.service.countWidths == CountWidths::DECLARED_U8 &&
            options.observationIntervalUs && options.maximumAgeUs && ageCoversCycle(options, 5);
 }
 

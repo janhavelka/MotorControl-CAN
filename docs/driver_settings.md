@@ -24,7 +24,7 @@ already usable channel, not a non-consuming bootstrap probe.
 | DRIVER `2200:00` | U16 `directionRaw` | EDS 1274–1282; EN86/ZH86 p18 | No typed write, see Setting decisions. Q04: labels do not establish physical positive direction/CAN effect. |
 | DRIVER `2201:00` | U16 `subdivisionRaw` | EDS 1283–1291; EN86/ZH86 p11/p18 | Q04: default 0 and 0–65535 versus 400–51200 conflict; scale/activation unknown. |
 | SOFT_LIMITS `2202:00` | U16 `softLimitSelectorRaw` | EDS 1292–1300; EN86/ZH86 p18 | Typed write of codes 0 and 1 below. Q05: default 10 stays raw; homing and enforcement unqualified. |
-| SOFT_LIMITS `607D:00` | U8 `softLimitEntries` | EDS 1918–1926 | RO count, never a setter or discovery bound. |
+| SOFT_LIMITS `607D:00` | EDS U8, raw `softLimitEntries` with `softLimitEntriesWidth` | EDS 1918–1926; two-byte 0 measured on both specimens, see `CountWidths` in [reads](reads.md) | RO count, never a setter or discovery bound. |
 | SOFT_LIMITS `607D:01/:02` | I32 `minimumNative/maximumNative` | EDS 1927–1942; EN86 p16/p17, ZH86 p17 | Q05: coordinate basis, operating range, activation and enforcement unresolved. |
 | MOTION_PARAMETERS `6081:00` | U32 `positionSpeedRpm` | EDS 1943–1951; EN86/ZH86 p11/p17 | Explicit native 0..3000 rpm settings implemented under the reserved position-mode contract below; no speed-zero stop claim. |
 | MOTION_PARAMETERS `6083:00` | U32 `rampUpTimeMs` | EDS 1952–1960; EN86/ZH86 p11/p13 | Explicit native 0..2000 ms settings implemented under the contract below; physical zero behavior remains unqualified. |

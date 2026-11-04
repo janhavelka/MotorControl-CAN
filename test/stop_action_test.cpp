@@ -1238,6 +1238,18 @@ void identityWidthsRefusedAtAdmission() {
     L::ActionContext running;
     CHECK(!L::prepareEscalation(action, running, r.operation, r.now, r.deadline, measured));
     empty.unchanged(action);
+    // So are measured count widths: a stop's cycles read no array count, and could not prepare one.
+    L::ActionOptions counted = r.actionOptions();
+    counted.service.countWidths = L::CountWidths::MEASURED_U16;
+    CHECK(!L::stopOptionsValid(counted));
+    const M::Status countRefused = L::prepareStop(action, r.reservation, r.state, r.control, L::StopKind::HALT,
+                                                  r.operation, r.now, r.deadline, counted);
+    CHECK(!countRefused && countRefused.detail == int32_t(M::ActionError::ARGUMENT));
+    empty.unchanged(action);
+    CHECK(!L::validateStop(action, r.reservation, r.state, r.control, L::StopKind::HALT, r.operation,
+                           r.now, r.deadline, counted));
+    CHECK(!L::prepareEscalation(action, running, r.operation, r.now, r.deadline, counted));
+    empty.unchanged(action);
 }
 void validationMatchesPreparationAndChangesNothing() {
     Rig r;
@@ -1282,6 +1294,12 @@ void unpreparableCycleRefusesBeforeAnyMutation() {
         CHECK(!status && status.detail == int32_t(M::ReadError::ARGUMENT));
         refused.unchanged(action);
         action.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+        action.options.service.countWidths = L::CountWidths::MEASURED_U16;
+        const Saved<L::ActionContext> counted(action);
+        const M::Status count = L::advanceAction(action, r.reservation, target(), terminal, r.now);
+        CHECK(!count && count.detail == int32_t(M::ReadError::ARGUMENT));
+        counted.unchanged(action);
+        action.options.service.countWidths = L::CountWidths::DECLARED_U8;
         CHECK(L::advanceAction(action, r.reservation, target(), terminal, r.now));
     };
     L::PreparedAction work = r.next(action);

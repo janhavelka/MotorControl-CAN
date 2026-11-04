@@ -35,15 +35,16 @@
  * read never overrides a newer routed fault. While admitted work is still in flight, deliver it
  * with noteActionWithdrawal instead: that work's terminal is then consumed as evidence, it cannot
  * complete or advance the action, and the outcome is the withdrawal's reason.
- * Enable transition contract: GATED. Two specimens ran prepareEnable once each, attended, on one
- * firmware (docs/drive_actions.md); that qualifies nothing, and every other claim about it below is
+ * Enable transition contract: GATED. Two specimens ran prepareEnable, attended, on one firmware,
+ * five times in all by 2026-11-04 (docs/drive_actions.md); that qualifies nothing, and every other claim about it below is
  * fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15 about 10 ms
  * apart in position mode. No source says what the drive does with an earlier target when it
  * enables, so EnableEvidence must carry the caller's explicit statements and a closed gate refuses.
  * Mode 1 is mandatory: ZH86 p13 and OP86 p11 start the motor at the end of 6, 7, 15 in mode 3, and
  * a mode 3 enable has no approved path. Release has no API: no source pairs a command with an
  * effect. Both specimens read 6041 low bits 111 and 2100 released clear at power-up, the pattern
- * the manual pairs with an enabled drive, so word 6 may be a 15-to-6 step that drops holding torque.
+ * the manual pairs with an enabled drive, and both hold torque then: word 6 releases it (measured
+ * 2026-11-03), and word 7 energizes again, pulling a displaced shaft back (2026-11-04).
  * Read docs/drive_actions.md for the full table.
  * Preparation and advancement validate first, then write the caller's context in place,
  * so no call copies a context onto the stack and a refused call changes nothing. Keep
@@ -367,7 +368,7 @@ Status validateEscalation(const ActionContext& output, const ActionContext& runn
  * @param[in] deadlineUs Immutable exclusive future cutoff for command and observations.
  * @param[in] options Explicit nonzero caller service/observation/freshness policies. maximumAgeUs
  * must cover five fields at the queue plus response budgets, or no cycle could ever qualify.
- * service.identityWidths must stay DECLARED_U16.
+ * service.identityWidths must stay DECLARED_U16 and service.countWidths DECLARED_U8.
  * @return Local validation status only; emits no I/O and establishes no firmware qualification.
  */
 Status prepareStop(ActionContext& output, const AxisReservation& reservation,
@@ -397,7 +398,7 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
  * data, so polling reads MONITORS and STATUS only and never rereads the history. 603F may keep
  * its old raw value; the final read keeps it raw. A persisting alarm repolls until the deadline
  * and never repeats a write. maximumAgeUs must cover five fields at the queue plus response
- * budgets, and service.identityWidths must stay DECLARED_U16.
+ * budgets, service.identityWidths must stay DECLARED_U16 and service.countWidths DECLARED_U8.
  * @param[out] output Owned context, unchanged on failure and disjoint from inputs.
  * @param[in] reservation Continuous actual owner exclusion, CL86-C/OL86-C.
  * @param[in] state Complete fresh prerequisite; its raw values stay in incident.
@@ -429,8 +430,8 @@ Status prepareClearAlarm(ActionContext& output, const AxisReservation& reservati
  * @param[in] axis Valid matching axis with room in both configuration/confidence epochs.
  * @param[in] operation Nonzero live identity. @param[in] nowUs Monotonic microseconds.
  * @param[in] deadlineUs Exclusive future cutoff. @param[in] options Explicit caller policies;
- * maximumAgeUs must cover seven fields at the queue plus response budgets, and
- * service.identityWidths must stay DECLARED_U16.
+ * maximumAgeUs must cover seven fields at the queue plus response budgets,
+ * service.identityWidths must stay DECLARED_U16 and service.countWidths DECLARED_U8.
  * @return Local validation. All three writes keep the original binding. After the last
  * acknowledgement, release old-epoch results and call CanBusOwner::advanceConfiguration before
  * admitting the new-epoch observation uploads. An uncertain write leaves its route unresolved:

@@ -1,6 +1,6 @@
 # Packet 18: device-zero behavior and reference invalidation
 
-Resumes the device-reference part of prompt 32. Host and fake evidence only: **no specimen has run a counter zero.** Both specimens read `6064=0`, so a first physical run could show no change.
+Resumes the device-reference part of prompt 32. When this packet closed, host and fake evidence only. **On 2026-11-04 the counter zero ran once, on node 2, from a nonzero count** ([bench result](#bench-2026-11-04-counter-zero-on-node-2)).
 
 ## Delivered
 
@@ -23,15 +23,23 @@ See the [fault and reference guide](../../fault_reference_actions.md) and the [c
 
 A read-only reviewer of packets 17 and 18 found six defects, all fixed. The main one: a late reply quarantined the route before the later-admission checks ran, so the intact and resolved-withdrawn branches were never tested. The others were overclaims left in prompt 32's report, a wrong page citation, wording, a guide row condition and an untested invariant. It confirmed `oneMayRemain` on every termination path and every vendor page and EDS section cited.
 
-## Physical plan, not run
+## Bench, 2026-11-04: counter zero on node 2
+
+Trial [323](../../bench/20261104T1408Z-counter-zero-node2-323/rx.txt), the `counter-zero` route (`TZ`, `e7f28ac`) through `AxisSession::requestCounterZero`. Node 2 was switched on and energized at `6064=1180`, mode 1, `2100=0000`, `6041=0033`, `606C=0`, `1001` and `603F` 0. That count was left by the quick-stopped move of trial 213 and the word 7 pull-back of trial 308 ([packet 15](packet_15.md)), not by an arbitrary counter write. `TRIAL_BASELINE` kept `6064=1180`, `606C=0`.
+
+`2302` `0`, `1`, `0` were each acknowledged, the coordinates were withdrawn, and the next cycle read **`6064=0`**, `2100=0000`, `6041=0033`, `606C=0`: `SUCCEEDED`, with no `valueOneMayRemain`. No motion was reported. **The shaft was not observed**: the user asked that motion be judged from the drives' reports. TEC and REC 0 at admission and terminal. One specimen, one firmware. See the [bench report](../2026-11-04_bench.md).
+
+**Still owed:** a shaft observation around a zero; whether the drive's internal command counter changed with `6064`; Q14's physical qualification.
+
+## Physical plan, as written before the session
 
 Stationary, alarm-free, mode 1, `606C=0`, a shaft mark, one drive and the cutoff in hand. Record `607A`, `6064`, `606C`, the monitor words and reference metadata, then `2302` `0, 1, 0`, sync, read the new epoch and check the shaft. Abort on motion, alarm, uncertain write or bus fault. A nonzero baseline needs a separately qualified move, never an arbitrary counter write.
 
 ## Open
 
 - **Closed by packet 20:** move admission checks `configurationGeneration`, so a counter zero invalidates prepared moves (`counterZeroInvalidates` in `test/move_absolute_test.cpp` and `test/move_relative_test.cpp`).
-- **No application caller.** `AxisSession` has no counter-zero member, and its configuration callback must not withdraw a second time on counter sync. Tracked as backlog S12.
-- `s2_bench` has no route (S12). Step 4's finite experiment exists only as the plan above and in the [guide](../../fault_reference_actions.md).
+- **Application caller, delivered in `e7f28ac`** (backlog S12): `AxisSession::requestCounterZero` synchronizes the owner epoch itself after the last `0`, and the application's configuration observer must not withdraw a second time. See the [guide](../../fault_reference_actions.md#application-caller-axissession).
+- **Bench route:** `counter-zero` (`TZ`), run once (trial 323, above).
 - Q14's physical qualification.
 
 ## Sibling refresh

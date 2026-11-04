@@ -3,14 +3,14 @@
  * Functions perform bounded C++11 work without I/O, allocation, clock access, retries or replay.
  * SPDX-License-Identifier: MIT
  *
- * preparePositionParameters is pure arithmetic. Both moves are GATED: the acceptance and completion
- * reports of these specimens are not established, so MoveEvidence carries the caller's reviewed
- * measurement and a closed gate refuses. A success with those reports unqualified cannot happen.
+ * preparePositionParameters is pure arithmetic. Both moves are GATED: no source establishes the
+ * acceptance and completion reports, so MoveEvidence carries the caller's reviewed measurement and a
+ * closed gate refuses. A success with those reports unqualified cannot happen.
  * A relative move is gated twice: the manuals give the bit 6 trigger but not what the drive adds
- * the displacement to, so MoveEvidence::relativeBase must name the measured base. No base is
- * measured on any specimen, so every relative request is refused with UNSUPPORTED today. The
- * absolute lifecycle ran once on one specimen and firmware (docs/position_parameters.md); no specimen
- * has run a relative one, and fake-owner tests are the rest of the evidence.
+ * the displacement to, so MoveEvidence::relativeBase must name the measured base; UNMEASURED refuses
+ * with UNSUPPORTED. On one specimen and firmware (2026-11-04, docs/position_parameters.md) the base
+ * measured ACTUAL, and one relative lifecycle with it succeeded; the absolute lifecycle ran on both
+ * specimens. That qualifies nothing, and fake-owner tests are the rest of the evidence.
  *
  * Phase order (D-01): the caller's fresh state read proves mode 1, low bits 111 and released clear
  * after the actual latest acknowledged 000F under this reservation, which no move writes itself.
@@ -117,7 +117,8 @@ enum class MoveSignalSource : uint8_t {
     MONITOR     ///< 2100 of the MONITORS block.
 };
 /** One measured report: present when `(word & mask) == value`. No default mask exists: EN86 bit 12,
- * bit 15 and 2100 bit 0 are documentary candidates whose behavior on these specimens is unmeasured. */
+ * bit 15 and 2100 bit 0 are documentary candidates. The specimens' bench records measured bit 12 as
+ * acceptance and 2100 bit 0 as completion on 001F and 005F; a caller names its own record. */
 struct MoveSignal {
     MoveSignalSource source = MoveSignalSource::NONE; ///< Word the report is read from.
     uint16_t mask = 0;  ///< Nonzero bits examined.
@@ -197,7 +198,7 @@ struct MoveProfile {
 };
 /** Caller policy, not manufacturer timing. Defaults refuse. */
 struct MoveOptions {
-    ReadOptions service; ///< Nonzero queue and response budgets per service; DECLARED_U16 identity widths.
+    ReadOptions service; ///< Nonzero queue and response budgets per service; both widths DECLARED.
     uint64_t observationIntervalUs = 0; ///< Nonzero delay from one finished cycle to the next.
     /** Nonzero inclusive age cap for the admission read and each cycle, at least seven fields at the
      * queue plus response budgets. */
@@ -413,8 +414,9 @@ Status validateMoveRelative(const MoveContext& output, const AxisReservation& re
 /** Prepare one finite relative move: the same phases, gates and progression as prepareMoveAbsolute,
  * with 607A holding the displacement and the edge 000F to 005F. GATED twice: a closed gate returns
  * UNSUPPORTED with CAPABILITY, and a request whose basis the evidence's relativeBase does not name,
- * including every QUEUED request, returns UNSUPPORTED with RELATIVE_BASIS. No relative base is
- * measured on any specimen. Writes nothing itself; all refusals leave output unchanged.
+ * including every QUEUED request, returns UNSUPPORTED with RELATIVE_BASIS. One specimen measured
+ * ACTUAL (2026-11-04); a caller supplies its own record. Writes nothing itself; all refusals leave
+ * output unchanged.
  * @param[out] output Owned context, constructed in place on success; must not overlap any input.
  * @param[in] reservation As prepareMoveAbsolute.
  * @param[in] current As prepareMoveAbsolute.

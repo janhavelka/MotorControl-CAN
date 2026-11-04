@@ -3345,16 +3345,20 @@ void unsupportedTerminalIsRejected() {
     before.unchanged(stop);
 }
 
-// Options shared with identity reads cannot refuse a stop.
+// Options shared with identity or array-count group reads cannot refuse a stop.
 void identityWidthCannotRefuseStop() {
-    for (unsigned withHistory = 0; withHistory < 2; ++withHistory) {
+    for (unsigned variant = 0; variant < 4; ++variant) {
+        const bool withHistory = variant & 1u;
         Rig r;
         openAxis(r, r.a);
         L::ReadContext state;
         if (withHistory)
             history(r, r.a, state);
         E::StopPolicy policy = stopPolicy(r.now);
-        policy.options.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+        if (variant < 2)
+            policy.options.service.identityWidths = L::IdentityWidths::MEASURED_U8;
+        else
+            policy.options.service.countWidths = L::CountWidths::MEASURED_U16;
         const unsigned from = r.wire.sentCount;
         CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, state, policy, r.now) != E::StopPath::NONE);
         r.step();

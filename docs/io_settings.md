@@ -6,8 +6,10 @@ read groups and checked `getIo`. [Prompt 21](reports/prompt_21.md) is **Partial*
 explicit 86C DI function/polarity settings are implemented and proved through the
 real owner; DO assignment, filter writes and output actions keep the per-field
 decisions below. No
-generic port writer or always-rejecting settings/action stub is provided. Nothing here
-has been accepted by a specimen: every write below is host-tested only.
+generic port writer or always-rejecting settings/action stub is provided. One specimen
+has accepted DI writes: on 2026-11-04 node 1 took a DI3 function change and back and a
+polarity bit, each read back ([below](io_settings.md#specimen-readings-2026-11-04)). No DO, filter or
+output-command write exists.
 
 ## Frozen rows and classification
 
@@ -22,12 +24,33 @@ usable channel and are not a non-consuming bootstrap probe.
 | `IO_INPUT_CONFIGURATION` | `2400:00..08` (9 U16 fields) | Raw highest-subindex count, complete polarity word, seven raw DI function codes and documentary labels. |
 | `IO_OUTPUT_CONFIGURATION` | `2400:0C..0F` (4 U16 fields) | Exact-address raw words; no resolved DO polarity/function interpretation. |
 | `IO_INPUT_FILTERS` | `2401..2407:00` (7 U16 fields) | Seven raw coefficients, without an inferred time unit, accepted range or reset default. |
-| `IO_OUTPUT_COMMAND` | `60FE:00` U8, `:01/:02` U32 (3 fields) | Raw count, output value and output mask. Register readback is not electrical observation. |
+| `IO_OUTPUT_COMMAND` | `60FE:00` U8, `:01/:02` U32 (3 fields) | Raw count with its reply width (`outputEntriesWidth`), output value and output mask. Both specimens answered `60FE:00` in two bytes; `CountWidths::MEASURED_U16` in [reads](reads.md) selects that explicitly. Register readback is not electrical observation. |
 
 `2400:09/:0A/:0B/:10` are four excluded reserved EDS entries. Conflicting
 manual aliases do not permit uploading or writing those entries. Counts never
 expand a read plan or discover guessed subindices. Source RW/PDO flags do not
 grant software write permission. All mutation obligations remain assigned to 21.
+
+### Specimen readings, 2026-11-04
+
+Both CL86-C specimens, one firmware, through the bench `readiness-io` and
+`io-di3` routes ([report](reports/2026-11-04_bench.md),
+[packet 13](reports/handoff_19_33/packet_13.md)). These are register values and
+logical monitor bits; no terminal was wired or measured.
+
+- **Read, both nodes, identical:** `2400:00=0x10`, `:01=0`, `:02/:03/:04=1/2/3`,
+  `:05..08=0`, `:0C=0`, `:0D=1`, `:0E=:0F=0`, and `2401..2407` = 2, 1, 0, 0, 0,
+  0, 0. `:0C=0, :0D=1` is the pattern packet 13 expected under the EDS layout; it
+  identifies no function. Only `2401` equals the manuals' 2, and no filter word
+  equals its EDS default.
+- **`60FE:00` answered in two bytes** against its EDS U8, so the strict typed read
+  aborted it and `60FE:01/:02` were not read ([backlog D16](backlog.md)).
+- **DI writes accepted, node 1:** `2400:05` (DI3) 0 → 7 (USER0), then 7 → 0, each
+  acknowledged and read back, with `2101=0` and `60FD=0` after each. Then polarity
+  bit 3: read back `2400:01=0008`, and `2101` bit 3 went to 1 on the open terminal
+  while `60FD` stayed 0. DI0..DI2 were never written.
+- **Volatile:** after the user's next power cycle `2400:01` read 0 again, with no
+  save sent. One power cycle and one field.
 
 The original EDS sections span lines 1343-1558 and 2035-2059. EN86 p8/p18 and
 ZH86 p8/p18-19 support the DI codes and polarity. EN86/ZH86 p17 describe
@@ -158,7 +181,7 @@ firmware, and the specimens' `2000`/`2001` codes have no published table.
 | `60FE:01/:02` address | EDS RW U32, no default; EN86/ZH86 p17 `Physical Outputs`, `Bit mask`, no bit map. Not disputed | Readable. **No action** | The rows below |
 | `60FE` terminal bits | Bits 16/17/18 are DO0/1/2: OP86 p7 (57C header), ZH57 p8. DO1/2/3: ZH57 p17. Nothing in EN86 or ZH86 | **Gate.** No 86C source, and no fourth terminal | Manufacturer table for 86C, or the terminal check |
 | `60FE` value and mask | "Both bits 1 gives output, for a user-defined DO": OP86 p7, ZH57 p8 only. Mask zero, value zero with mask one, clear, untouched bits and order: no source. It also presumes function 9..11, so it depends on the rows above | **Gate.** A value/mask pair cannot be chosen | A manufacturer truth table, or the isolated output check below |
-| `2401..2407` filters | Address agreed, RW U16. EDS defaults 50,40,100,4000,10,2,16; EN86/ZH86 p8 and OP86 p6-7 all 2. No range, equation or unit | **Gate.** A default is not a domain and not a reset recipe | Manufacturer range and equation, then a timed input stimulus. Read the specimens' values meanwhile |
+| `2401..2407` filters | Address agreed, RW U16. EDS defaults 50,40,100,4000,10,2,16; EN86/ZH86 p8 and OP86 p6-7 all 2. No range, equation or unit | **Gate.** A default is not a domain and not a reset recipe | Manufacturer range and equation, then a timed input stimulus. The specimens read 2, 1, 0, 0, 0, 0, 0 ([above](io_settings.md#specimen-readings-2026-11-04)) |
 | `2400:0A` filter alias | Manuals call it a filter coefficient, default 0; EDS `rsvd2` | **Excluded**, with `:09/:0B/:10` | The same manufacturer map |
 
 The register column adds one thing the subindex column does not. EN86 p18 and ZH86 p19 agree

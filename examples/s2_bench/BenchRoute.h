@@ -14,7 +14,8 @@
  *   accepted image (2100..2102, 6041, 6061, 6064, 606C) again. No writes.
  * - READ_IO, packet 13 P1. Image, IO_INPUT_CONFIGURATION(2400:00..08), IO_OUTPUT_CONFIGURATION
  *   (2400:0C..0F), IO_INPUT_FILTERS(2401..2407), IO_OUTPUT_COMMAND(60FE:00..02), image. 2400:0B is
- *   never read. No writes.
+ *   never read. No writes. 60FE:00 is read in two bytes (CountWidths::MEASURED_U16), as both
+ *   specimens answered it; every other group keeps its declared widths.
  * - READ_TUNING, packet 14 T0. Image, the four tuning groups 2502..2520, image. No writes.
  * - READ_HISTORY, packet 4 and packet 22 step 2. STATE(1001, 603F, 2100..2102, 6041, 6061, 6064, 606C),
  *   STATE(ERROR_HISTORY) alone: 1003:00, then only the entries its count names, at most four, then
@@ -75,6 +76,8 @@
  *   epoch; the owner's reservation follows before the readback, and the session, which has no epoch
  *   change of its own for this, is closed and opened again on the new binding. Settings routes are not
  *   motion: they are attended and have their own cap, ROUTE_SETTINGS_PER_CASE per route and node.
+ *   SETTINGS_2202 reads 607D:00 in two bytes (CountWidths::MEASURED_U16) in its prior read and its
+ *   readback, as both specimens answered it.
  * - COUNTER_ZERO and CLEAR_ALARM. A fresh read of what AxisSession::requestCounterZero or
  *   requestClearAlarm judges, CLEAR_ALARM refused unless it reports the alarm, then the session's
  *   request; the session admits every write and read itself. Motion class.
@@ -475,7 +478,7 @@ struct RouteRecord {
     /** Raw group values, 0 the prior read and 1 the matched readback; present only when published. */
     bool groupPresent[2] = {false, false};
     uint16_t limitSelector[2] = {0, 0}; ///< SETTINGS_2202: 2202.
-    uint8_t limitEntries[2] = {0, 0};   ///< SETTINGS_2202: 607D:00.
+    uint16_t limitEntries[2] = {0, 0};  ///< SETTINGS_2202: 607D:00, raw as read (two bytes, MEASURED_U16).
     int32_t limitMinimum[2] = {0, 0};   ///< SETTINGS_2202: 607D:01.
     int32_t limitMaximum[2] = {0, 0};   ///< SETTINGS_2202: 607D:02.
     uint16_t ioEntries[2] = {0, 0};     ///< IO_DI3: 2400:00.

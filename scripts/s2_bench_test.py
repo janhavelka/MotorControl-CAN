@@ -89,6 +89,16 @@ def check_trial_transcript(path):
             problems.append("%s: no history summary" % line)
         if line[0] in "AIUH" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
+        # The routes read 607D:00 and 60FE:00 in two bytes, as both specimens answered them. Against
+        # the io inventory's EDS U8 that stays an observation beside the record, never a correction.
+        if line[0] == "I":
+            seen = {(w["object"], w["actual"], w["documented"]) for w in report.width_discrepancies}
+            if seen != {("60fe:00", 2, 1)}:
+                problems.append("%s: width observations %s" % (line, sorted(seen)))
+        if line[0] == "D":
+            counts = [w["actual"] for w in report.widths if w["object"] == "607d:00"]
+            if counts != [2, 2]:
+                problems.append("%s: 607D:00 widths %s" % (line, counts))
     return problems
 
 

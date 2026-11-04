@@ -1,5 +1,12 @@
 # Packet 19: position evidence and one isolated finite experiment
 
+**Session of 2026-11-04, node 2 and node 1.** Drive reports only; no shaft was observed. See the [bench report](../2026-11-04_bench.md).
+- The same experiment on node 2 ([211](../../bench/20261104T1153Z-position-node2-211/rx.txt)): 0 → 250 at 2 rpm, ramps 500/500 ms. `6064` rose about 33 pulses/s and completed at **250** with `2100` in place, no read above 250. The rearm ([212](../../bench/20261104T1205Z-rearm-node2-212/rx.txt)) cleared `6041` bit 12, and `6064=250` in all 16 reads over 8 s. So the 251-then-250 count of 2026-11-03 did not recur, sampled every 0.5 to 0.7 s; one overshoot of one pulse is still possible, and a dither inside the in-place window was not seen.
+- **`606C` is in rpm** on this configuration: 30 at 30 rpm while `6064` advanced about 500 pulses/s, and 1 at 2 rpm; 211 also read 3 during its ramp.
+- **`000B` from `001F`** ran during two library moves at 30 rpm, so the table's last row is answered in [packet 16](packet_16.md): the drive releases the motor and keeps `2100` running set.
+- **A halt at 6 rpm and its clear** ([406](../../bench/20261104T1541Z-position-halt-node1-406/rx.txt), [408](../../bench/20261104T1541Z-rearm-halt-node1-408/rx.txt), node 1, 0 → 600): `010F` at `6064=75` ended `OBSERVED` with the drive at 104 (`0437`, `0000`), and the `rearm` route's `000F` from that `010F` **did not resume the halted target**: 104 for 8 s, `6041=0037`.
+- Node 2's scale is still not observed on a shaft: its rate of about 33 pulses/s at 2 rpm is what 1000 pulses per revolution predicts, which is consistency, not a measurement.
+
 **Attended session, 2026-11-03: the experiment ran on node 1.** +250 pulses turned about a quarter turn counter-clockwise; `6041` bit 12 marks acceptance (latched until the `000F` rearm, which moved nothing), and `2100` bit 0 marks completion, absent in the first cycle after the trigger and back at the end, so `AFTER_ABSENCE` fits. The command and `6064` share 1000 pulses per revolution. See the [attended bench report](../2026-11-03_attended_bench.md).
 
 Packet 20's list below, answered for node 1 and this firmware only:
@@ -12,7 +19,7 @@ Packet 20's list below, answered for node 1 and this firmware only:
 | Parameter writes before the edge | No motion: `6064=0` at admission and in cycle 1 |
 | Direction and distance | +250 turned about a quarter turn counter-clockwise from the shaft end; 1000 pulses per revolution |
 | Rearm | `000F` only cleared bit 12; nothing moved |
-| Stops from `001F` | `010F` stopped a 2 rpm move and held it; the halted move then reads neither completion signal (`0437`, `0000`). `000B` from `001F` not run |
+| Stops from `001F` | `010F` stopped a 2 rpm move and held it; the halted move then reads neither completion signal (`0437`, `0000`). `000B` from `001F` was not run until 2026-11-04 (above) |
 
 **Before that session the experiment had not run.** It moves a motor, and the packet requires an independent cutoff, a shaft mark that shows direction and approximate rotation, and an operator. The bench ran an unattended communication soak overnight. Packets 15 and 16's attended prerequisites have not run either.
 

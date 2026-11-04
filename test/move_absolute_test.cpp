@@ -371,6 +371,10 @@ void gates() {
     refused(r, r.request(evidence(), moveRequest(), profile(), nullptr, axisConfig(), LEAD, o),
             M::Err::INVALID_CONFIG, M::MoveError::ARGUMENT);
     o = options();
+    o.service.countWidths = L::CountWidths::MEASURED_U16;
+    refused(r, r.request(evidence(), moveRequest(), profile(), nullptr, axisConfig(), LEAD, o),
+            M::Err::INVALID_CONFIG, M::MoveError::ARGUMENT);
+    o = options();
     o.observationIntervalUs = 0;
     refused(r, r.request(evidence(), moveRequest(), profile(), nullptr, axisConfig(), LEAD, o),
             M::Err::INVALID_CONFIG, M::MoveError::ARGUMENT);

@@ -153,7 +153,9 @@ Status prepareDriverSettings(DriverSettingsContext& output, const AxisReservatio
  * @param[in] operation Nonzero unique live operation identity.
  * @param[in] nowUs Supplied nonwrapping microseconds, zero valid.
  * @param[in] deadlineUs Exclusive overall cutoff strictly after nowUs.
- * @param[in] options Nonzero service budgets, clamped by the overall deadline.
+ * @param[in] options Nonzero service budgets, clamped by the overall deadline. They also govern the
+ * readback: CountWidths::MEASURED_U16 reads 607D:00 in two bytes there, for a fixture that answers
+ * so. It is the caller's explicit choice, never taken from prior; the prior read had its own.
  * @param[in] maximumAgeUs Nonzero inclusive earliest-observation age cap for all prerequisites.
  * @return Local status. An unchanged candidate succeeds from fresh evidence without TX or epoch change.
  */

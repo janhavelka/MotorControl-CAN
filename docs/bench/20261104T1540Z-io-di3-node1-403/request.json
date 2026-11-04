@@ -1,0 +1,83 @@
+{
+  "started_utc": "2026-11-04T15:40:29.882520+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "io-di3",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 403,
+  "plan": "packet 13 P2/P3",
+  "fields": [
+    1,
+    403,
+    1,
+    4
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 403 to confirm: ",
+      "typed": "ATTENDED 403",
+      "accepted": true
+    },
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "io-di3",
+    "--node",
+    "1",
+    "--trial",
+    "403",
+    "--di3-change",
+    "polarity-clear",
+    "--fault-led",
+    "unobserved",
+    "--campaign",
+    "docs\\bench\\20261104d-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1540Z-io-di3-node1-403"
+  ],
+  "host_revision": "e7f28acd8a3a4d983f337aee6150c400fb871dc0",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104d-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544a312c3430332c312c342c4b64346634366632620a"
+  ],
+  "image": {
+    "base": "e7f28acd8a3a4d983f337aee6150c400fb871dc0",
+    "elf": "031ba492f276d144672ebdc8281257b76ab6c1b34ccecd33e67b8f1946a615fa",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TJ1,403,1,4,Kd4f46f2b",
+  "tx_hex": "544a312c3430332c312c342c4b64346634366632620a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T15:40:31.481682+00:00"
+}

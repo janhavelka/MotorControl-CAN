@@ -3,6 +3,7 @@
 // synthetic fixtures. These exchanges qualify software, never a physical drive.
 #include "SdoClient.h"
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/Reads.h>
 #include <MotorControlCAN/profiles/lichuan_c/Tuning.h>
@@ -1215,6 +1216,241 @@ void identityWidthOptionRejectsAtomically() {
         }
     }
 }
+// Measured replies to the two array counts on two CL86-C specimens, 2026-11-04: two bytes of 0
+// against the EDS U8 (docs/bench/20261104T1405Z-settings2202-node1-313 and -node2-315,
+// 20261104T1309Z-io-node1-303 and -node2-304). 2202 is those records' own U16 0, and 607D:01/:02
+// the signed extremes the 2026-11-02 raw uploads read (20261102-final-node1). A labelled fixture,
+// not a default and not a claim about another drive or firmware.
+const uint8_t measured2202[8] = {0x4b, 0x02, 0x22, 0x00, 0, 0, 0, 0};
+const uint8_t measured607d00[8] = {0x4b, 0x7d, 0x60, 0x00, 0, 0, 0, 0};
+const uint8_t measured607d01[8] = {0x43, 0x7d, 0x60, 0x01, 0, 0, 0, 0x80};
+const uint8_t measured607d02[8] = {0x43, 0x7d, 0x60, 0x02, 0xff, 0xff, 0xff, 0x7f};
+const uint8_t measured60fe00[8] = {0x4b, 0xfe, 0x60, 0x00, 0, 0, 0, 0};
+// Synthetic: the one-byte forms of the EDS U8 with its default 2, a two-byte count whose high byte
+// is set, and 60FE:01/:02 words, which no retained record reached.
+const uint8_t declared607d00[8] = {0x4f, 0x7d, 0x60, 0x00, 0x02, 0, 0, 0};
+const uint8_t declared60fe00[8] = {0x4f, 0xfe, 0x60, 0x00, 0x02, 0, 0, 0};
+const uint8_t wide607d00[8] = {0x4b, 0x7d, 0x60, 0x00, 0x02, 0x01, 0, 0};
+const uint8_t synthetic60fe01[8] = {0x43, 0xfe, 0x60, 0x01, 0x00, 0x00, 0x01, 0x80};
+const uint8_t synthetic60fe02[8] = {0x43, 0xfe, 0x60, 0x02, 0x00, 0x00, 0x07, 0x00};
+// One group read through the real client with literal replies; returns the last terminal.
+typedef const uint8_t Reply[8];
+C::SdoCompletion groupRead(L::DriverContext& c, L::DriverGroup group, const L::ReadOptions& o,
+                           Reply* const* replies, unsigned count) {
+    C::SdoClient owner;
+    configure(owner);
+    uint64_t now = 0;
+    CHECK(L::prepareDriverRead(c, target(), 1, 0, 10000, o, group));
+    C::SdoCompletion last;
+    for (unsigned i = 0; i < count; ++i)
+        last = exchange(owner, c.read, *replies[i], now);
+    return last;
+}
+void countWidthVariants() {
+    CHECK(L::ReadOptions().countWidths == L::CountWidths::DECLARED_U8);
+    L::DriverObservation untouched;
+    untouched.softLimitEntries = 0xa55a;
+    untouched.softLimitEntriesWidth = 0x7f;
+    const Saved<L::DriverObservation> old(untouched);
+    L::IoObservation untouchedIo;
+    untouchedIo.outputEntries = 0xa55a;
+    untouchedIo.outputEntriesWidth = 0x7f;
+    const Saved<L::IoObservation> oldIo(untouchedIo);
+    L::ReadOptions measured = options();
+    measured.countWidths = L::CountWidths::MEASURED_U16;
+    // DECLARED_U8 with the measured two-byte replies: a width failure with the very cleanup frame
+    // both specimens' records hold, and nothing is published.
+    for (unsigned io = 0; io < 2; ++io) {
+        Reply* const limits[] = {&measured2202, &measured607d00};
+        Reply* const outputs[] = {&measured60fe00};
+        L::DriverContext c;
+        const C::SdoCompletion failed =
+            io ? groupRead(c, L::DriverGroup::IO_OUTPUT_COMMAND, options(), outputs, 1)
+               : groupRead(c, L::DriverGroup::SOFT_LIMITS, options(), limits, 2);
+        CHECK(c.read.values[io ? 0 : 1].object.widthBytes == 1);
+        CHECK(failed.outcome == C::SdoOutcome::CLIENT_ABORT && failed.abortValid);
+        CHECK(failed.abortCode == 0x06070010u && failed.size == 0 && failed.clientAbortQueued);
+        CHECK(failed.effectPossible && failed.effectUncertain);
+        CHECK(c.read.state == M::ReadState::FAILED && c.read.outcome == M::ReadOutcome::REPLY_ERROR);
+        CHECK(c.read.uncertain && !c.read.values[io ? 0 : 1].valid);
+        CHECK(!L::getDriver(c, target(), 10, 1000, untouched) && !L::getIo(c, target(), 10, 1000, untouchedIo));
+        old.unchanged(untouched);
+        oldIo.unchanged(untouchedIo);
+        // Nothing learned the width from that reply. The next default read still declares U8.
+        L::DriverContext again;
+        CHECK(L::prepareDriverRead(again, target(), 2, 10, 10000, options(),
+                                   io ? L::DriverGroup::IO_OUTPUT_COMMAND : L::DriverGroup::SOFT_LIMITS));
+        CHECK(again.read.values[io ? 0 : 1].object.widthBytes == 1);
+    }
+    {
+        // The literal cleanup frames, through the client that sent them on the bench.
+        C::SdoClient owner;
+        configure(owner);
+        uint64_t now = 0;
+        L::DriverContext c;
+        CHECK(L::prepareDriverRead(c, target(), 1, 0, 10000, options(), L::DriverGroup::IO_OUTPUT_COMMAND));
+        exchange(owner, c.read, measured60fe00, now);
+        M::Frame abort;
+        C::SdoTxId abortId;
+        CHECK(owner.nextTx(0, now, abort, abortId));
+        const uint8_t literal[8] = {0x80, 0xfe, 0x60, 0x00, 0x10, 0x00, 0x07, 0x06};
+        CHECK(std::memcmp(abort.data, literal, 8) == 0 && owner.unresolved(0));
+    }
+    // MEASURED_U16 with the measured replies publishes the raw counts and their actual widths.
+    {
+        Reply* const replies[] = {&measured2202, &measured607d00, &measured607d01, &measured607d02};
+        L::DriverContext c;
+        groupRead(c, L::DriverGroup::SOFT_LIMITS, measured, replies, 4);
+        const uint8_t widths[4] = {2, 2, 4, 4};
+        for (unsigned i = 0; i < 4; ++i)
+            CHECK(c.read.values[i].object.widthBytes == widths[i]);
+        CHECK(c.read.state == M::ReadState::SUCCEEDED && !c.read.uncertain);
+        L::DriverObservation o = untouched;
+        CHECK(L::getDriver(c, target(), 10, 1000, o));
+        CHECK(o.group == L::DriverGroup::SOFT_LIMITS && o.softLimitSelectorRaw == 0);
+        CHECK(o.softLimitEntries == 0 && o.softLimitEntriesWidth == 2 && o.fieldCount == 4);
+        CHECK(o.minimumNative == INT32_MIN && o.maximumNative == INT32_MAX && !o.interpreted);
+        CHECK(o.fields[1].index == 0x607d && o.fields[1].subindex == 0);
+        // The descriptor table is untouched: the option narrows this one context only.
+        L::ReadDescriptor table = {};
+        CHECK(L::readDescriptor(0x607d, 0, table) && table.widthBytes == 1);
+        CHECK(L::readDescriptor(0x60fe, 0, table) && table.widthBytes == 1);
+    }
+    {
+        Reply* const replies[] = {&measured60fe00, &synthetic60fe01, &synthetic60fe02};
+        L::DriverContext c;
+        groupRead(c, L::DriverGroup::IO_OUTPUT_COMMAND, measured, replies, 3);
+        CHECK(c.read.values[0].object.widthBytes == 2 && c.read.values[1].object.widthBytes == 4 &&
+              c.read.values[2].object.widthBytes == 4);
+        L::IoObservation o = untouchedIo;
+        CHECK(L::getIo(c, target(), 10, 1000, o));
+        CHECK(o.group == L::DriverGroup::IO_OUTPUT_COMMAND && o.fieldCount == 3);
+        CHECK(o.outputEntries == 0 && o.outputEntriesWidth == 2);
+        CHECK(o.outputValueRaw == 0x80010000u && o.outputMaskRaw == 0x00070000u);
+        CHECK(!o.outputMappingKnown && !o.electricalLevelsKnown);
+    }
+    // Both bytes of a two-byte count are kept, and the count bounds nothing: the plan stays four.
+    {
+        Reply* const replies[] = {&measured2202, &wide607d00, &measured607d01, &measured607d02};
+        L::DriverContext c;
+        groupRead(c, L::DriverGroup::SOFT_LIMITS, measured, replies, 4);
+        L::DriverObservation o;
+        CHECK(L::getDriver(c, target(), 10, 1000, o) && o.softLimitEntries == 0x0102 && c.read.count == 4);
+    }
+    // MEASURED_U16 with a one-byte reply fails, at either count.
+    for (unsigned io = 0; io < 2; ++io) {
+        Reply* const limits[] = {&measured2202, &declared607d00};
+        Reply* const outputs[] = {&declared60fe00};
+        L::DriverContext c;
+        const C::SdoCompletion failed =
+            io ? groupRead(c, L::DriverGroup::IO_OUTPUT_COMMAND, measured, outputs, 1)
+               : groupRead(c, L::DriverGroup::SOFT_LIMITS, measured, limits, 2);
+        CHECK(failed.outcome == C::SdoOutcome::CLIENT_ABORT && failed.abortCode == 0x06070010u);
+        CHECK(c.read.outcome == M::ReadOutcome::REPLY_ERROR && !c.read.values[io ? 0 : 1].valid);
+        CHECK(!L::getDriver(c, target(), 10, 1000, untouched) && !L::getIo(c, target(), 10, 1000, untouchedIo));
+        old.unchanged(untouched);
+        oldIo.unchanged(untouchedIo);
+    }
+    // MEASURED_U16 evidence claiming one byte cannot bypass the width check.
+    {
+        L::DriverContext c;
+        CHECK(L::prepareDriverRead(c, target(), 1, 0, 10000, measured, L::DriverGroup::SOFT_LIMITS));
+        accept(c.read, 0, 0);
+        C::SdoCompletion e = success(c.read, 2, 1, 1);
+        CHECK(e.transfer.size == 2);
+        e.size = 1;
+        const Saved<L::DriverContext> before(c);
+        CHECK(!L::advanceDriver(c, e, 1));
+        before.unchanged(c);
+    }
+    // A public context cannot swap its width or option after preparation.
+    for (unsigned variant = 0; variant < 4; ++variant) {
+        L::DriverContext forged;
+        CHECK(L::prepareDriverRead(forged, target(), 9, 0, 10000, variant == 3 ? options() : measured,
+                                   L::DriverGroup::SOFT_LIMITS));
+        if (variant == 0)
+            forged.read.options.countWidths = L::CountWidths::DECLARED_U8;
+        else if (variant == 1)
+            forged.read.values[1].object.widthBytes = 1;
+        else if (variant == 2)
+            forged.read.values[2].object.widthBytes = 2; // 607D:01 is outside the option.
+        else
+            forged.read.values[1].object.widthBytes = 2; // The declared plan widened by hand.
+        L::PreparedRead p;
+        CHECK(!L::nextDriver(forged, 0, p) && !p.ready);
+    }
+    // DECLARED_U8 with one-byte replies is today's read: width 1 and the raw count.
+    {
+        Reply* const replies[] = {&measured2202, &declared607d00, &measured607d01, &measured607d02};
+        L::DriverContext c;
+        groupRead(c, L::DriverGroup::SOFT_LIMITS, options(), replies, 4);
+        L::DriverObservation o;
+        CHECK(L::getDriver(c, target(), 10, 1000, o) && o.softLimitEntries == 2 && o.softLimitEntriesWidth == 1);
+        Reply* const outputs[] = {&declared60fe00, &synthetic60fe01, &synthetic60fe02};
+        L::DriverContext d;
+        groupRead(d, L::DriverGroup::IO_OUTPUT_COMMAND, options(), outputs, 3);
+        L::IoObservation io;
+        CHECK(L::getIo(d, target(), 10, 1000, io) && io.outputEntries == 2 && io.outputEntriesWidth == 1);
+    }
+}
+// MEASURED_U16 is refused on every kind but its two groups, and an unknown value on all of them.
+void countWidthOptionRejectsAtomically() {
+    const C::PdoMapEvidence map = mapEvidence();
+    const L::CountWidths values[] = {L::CountWidths::MEASURED_U16, static_cast<L::CountWidths>(2),
+                                     static_cast<L::CountWidths>(255)};
+    L::ReadContext c;
+    CHECK(L::prepareConfig(c, target(), 1, 0, 10000, options()));
+    const Saved<L::ReadContext> before(c);
+    L::DriverContext driver;
+    CHECK(L::prepareDriverRead(driver, target(), 1, 0, 10000, options(), L::DriverGroup::DRIVER));
+    const Saved<L::DriverContext> beforeDriver(driver);
+    const L::DriverGroup others[] = {L::DriverGroup::DRIVER, L::DriverGroup::MOTION_PARAMETERS,
+                                     L::DriverGroup::IO_INPUT_CONFIGURATION,
+                                     L::DriverGroup::IO_OUTPUT_CONFIGURATION, L::DriverGroup::IO_INPUT_FILTERS,
+                                     L::DriverGroup::CONTROL, L::DriverGroup::TUNING_CURRENT_HOLDING};
+    for (L::CountWidths value : values) {
+        L::ReadOptions o = options();
+        o.countWidths = value;
+        checkArgument(L::prepareProbe(c, target(), 2, 0, 10000, o));
+        before.unchanged(c);
+        checkArgument(L::prepareIdentity(c, target(), 2, 0, 10000, o));
+        before.unchanged(c);
+        checkArgument(L::prepareConfig(c, target(), 2, 0, 10000, o));
+        before.unchanged(c);
+        checkArgument(L::prepareState(c, target(), 2, 0, 10000, o, mask(L::StateBlock::STATUS)));
+        before.unchanged(c);
+        checkArgument(L::prepareState(c, target(), 2, 0, 10000, o, mask(L::StateBlock::FEEDBACK), &map.route));
+        before.unchanged(c);
+        for (L::DriverGroup group : others) {
+            checkArgument(L::prepareDriverRead(driver, target(), 2, 0, 10000, o, group));
+            beforeDriver.unchanged(driver);
+        }
+        checkArgument(L::prepareControlRead(driver, target(), 2, 0, 10000, o));
+        beforeDriver.unchanged(driver);
+        checkArgument(L::prepareTuningRead(driver, target(), 2, 0, 10000, o, L::TuningGroup::EDS_GAINS));
+        beforeDriver.unchanged(driver);
+        const L::ReadKind kinds[] = {L::ReadKind::DRIVER_SOFT_LIMITS, L::ReadKind::IO_OUTPUT_COMMAND};
+        for (L::ReadKind kind : kinds) {
+            const M::Status checked = L::validateRead(kind, target(), 2, 0, 10000, o);
+            CHECK(bool(checked) == (value == L::CountWidths::MEASURED_U16));
+        }
+        if (value != L::CountWidths::MEASURED_U16) {
+            checkArgument(L::prepareDriverRead(driver, target(), 2, 0, 10000, o, L::DriverGroup::SOFT_LIMITS));
+            beforeDriver.unchanged(driver);
+            checkArgument(L::prepareDriverRead(driver, target(), 2, 0, 10000, o, L::DriverGroup::IO_OUTPUT_COMMAND));
+            beforeDriver.unchanged(driver);
+        }
+        checkArgument(L::validateRead(L::ReadKind::DRIVER_MOTION_PARAMETERS, target(), 2, 0, 10000, o));
+    }
+    // Both options at once are still each on its own kind: neither group admits identity widths.
+    L::ReadOptions both = options();
+    both.countWidths = L::CountWidths::MEASURED_U16;
+    both.identityWidths = L::IdentityWidths::MEASURED_U8;
+    checkArgument(L::prepareDriverRead(driver, target(), 2, 0, 10000, both, L::DriverGroup::SOFT_LIMITS));
+    checkArgument(L::prepareIdentity(c, target(), 2, 0, 10000, both));
+    beforeDriver.unchanged(driver);
+    before.unchanged(c);
+}
 // Existing coverage kept as is: wrong-kind and unfinished getters, stale targets and age limits
 // (preparationAndGetters), timestamp zero (wrongServiceAndTime), full history counts and synthetic
 // reboot/binding/bus-off evidence (partialFailuresAndHistory, cutoffDoesNotEraseInvalidation).
@@ -1580,6 +1816,8 @@ int main() {
     acceptedEffectsStayUnknown();
     identityWidthVariants();
     identityWidthOptionRejectsAtomically();
+    countWidthVariants();
+    countWidthOptionRejectsAtomically();
     mixedAgeBlocks();
     partialHistory();
     realLifecycleInvalidation();

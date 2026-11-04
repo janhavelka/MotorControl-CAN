@@ -26,6 +26,10 @@ struct GroupPlan {
 const GroupPlan* groupPlan(DriverGroup group) noexcept;
 const GroupPlan* groupPlan(ReadKind kind) noexcept;
 
+// The reply width an explicit ReadOptions value selects for one plan address in place of its
+// declaration, or zero for the declaration: one byte for 1009/100A in IDENTITY, two for 607D:00 in
+// DRIVER_SOFT_LIMITS and 60FE:00 in IO_OUTPUT_COMMAND. Defined in Reads.cpp.
+uint8_t measuredWidth(ReadKind kind, uint16_t index, uint8_t subindex, const ReadOptions& options) noexcept;
 inline Status readInvalid(ReadError detail, const char* message) noexcept {
     return Status(Err::INVALID_CONFIG, static_cast<int32_t>(detail), message);
 }

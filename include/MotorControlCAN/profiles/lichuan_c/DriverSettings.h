@@ -39,7 +39,8 @@ struct DriverObservation {
     uint16_t directionRaw = 0;               ///< DRIVER: 2200, no clockwise convention.
     uint16_t subdivisionRaw = 0;             ///< DRIVER: 2201, no counts/turn inference.
     uint16_t softLimitSelectorRaw = 0;       ///< SOFT_LIMITS: 2202, including unknown 10.
-    uint8_t softLimitEntries = 0;  ///< SOFT_LIMITS: 607D:00 raw highest subindex, no discovery.
+    uint16_t softLimitEntries = 0; ///< SOFT_LIMITS: 607D:00 raw highest subindex, no discovery.
+    uint8_t softLimitEntriesWidth = 0; ///< SOFT_LIMITS: actual 607D:00 reply bytes, see CountWidths.
     int32_t minimumNative = 0;     ///< SOFT_LIMITS: 607D:01 coordinate, basis unknown.
     int32_t maximumNative = 0;     ///< SOFT_LIMITS: 607D:02 coordinate, basis unknown.
     uint32_t positionSpeedRpm = 0; ///< MOTION_PARAMETERS: 6081 native U32 rpm.
@@ -56,7 +57,8 @@ struct DriverObservation {
  * @param[in] operation Nonzero identity, unique while prior work can exist.
  * @param[in] nowUs Nonwrapping monotonic microseconds, zero valid.
  * @param[in] deadlineUs Exclusive immutable cutoff, strictly after nowUs.
- * @param[in] options Nonzero queue/response budgets, clamped by the owner.
+ * @param[in] options Nonzero queue/response budgets, clamped by the owner. identityWidths stays
+ * DECLARED_U16; countWidths may be MEASURED_U16 for SOFT_LIMITS and IO_OUTPUT_COMMAND only.
  * @param[in] group One declared finite native group; no 6060 upload or catalogue sweep.
  * @return OK prepares owned work only; errors preserve output with ReadError detail.
  */

@@ -113,7 +113,8 @@ Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now,
         break;
     case DriverGroup::SOFT_LIMITS:
         candidate.softLimitSelectorRaw = uint16_t(v[0].raw);
-        candidate.softLimitEntries = uint8_t(v[1].raw);
+        candidate.softLimitEntries = uint16_t(v[1].raw);
+        candidate.softLimitEntriesWidth = v[1].object.widthBytes;
         candidate.minimumNative = signed32(v[2].raw);
         candidate.maximumNative = signed32(v[3].raw);
         break;
@@ -164,7 +165,8 @@ Status getIo(const DriverContext& c, const ReadTarget& target, uint64_t now, uin
             candidate.inputFilterRaw[i] = uint16_t(v[i].raw);
         break;
     case DriverGroup::IO_OUTPUT_COMMAND:
-        candidate.outputEntries = uint8_t(v[0].raw);
+        candidate.outputEntries = uint16_t(v[0].raw);
+        candidate.outputEntriesWidth = v[0].object.widthBytes;
         candidate.outputValueRaw = v[1].raw;
         candidate.outputMaskRaw = v[2].raw;
         break;

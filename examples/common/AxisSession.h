@@ -168,8 +168,8 @@ class AxisSession {
      * counts as missing: keep the last complete copy for this. It must not be held inside
      * stopAction(kind), which this request overwrites: that also counts as missing. During or after
      * a move pass moveObservation(), whose cycle began after the held trigger word.
-     * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity
-     * width setting is ignored, so options shared with identity reads cannot refuse a stop.
+     * @param[in] requested Copied caller limits; invalid budgets refuse the request. Its identity and
+     * count width settings are ignored, so options shared with those reads cannot refuse a stop.
      * @param[in] nowUs Nondecreasing supplied microseconds. A time before this session's or the
      * owner's last time refuses the stop but still ends an active enable, move or clear, at the later
      * of those two times, where the owner can still cancel the move's or clear's unsent download.

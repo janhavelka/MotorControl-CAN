@@ -15,7 +15,7 @@ application-local `position` experiment measured node 1's acceptance and complet
 the absolute move ([packet 19](reports/handoff_19_33/packet_19.md)). With them, the absolute
 lifecycle ran once, unattended, on node 2 through the bench `move` route and succeeded with the same
 bits ([unattended report](reports/2026-11-03_unattended_bench.md)): one specimen and firmware, no
-qualification. No specimen has run the relative lifecycle. Acceptance/completion, relative wire semantics and a supported post-trigger stop remain gated in the [guide](position_parameters.md).
+qualification. On 2026-11-04 node 1 measured the relative base `ACTUAL` (+200 from 104 with last target 600 ended at 304) and then ran the library's relative lifecycle to `SUCCEEDED` ([bench report](reports/2026-11-04_bench.md)). One specimen and firmware; the remaining gates are in the [guide](position_parameters.md).
 
 [Prompt 32](reports/prompt_32.md) adds conditional fault-clear and zero-only
 device-position actions to R06/R13/R20. Ordered command terminals, original
@@ -39,8 +39,10 @@ observed to stop and hold ([attended report](reports/2026-11-03_attended_bench.m
 `stop` route then sent a stationary `000B` on each node, unattended: from `000F` and from that halted
 `010F`, each drive left operation for low bits `000` and released the motor. A `QUICK_STOP` now
 completes on that report and keeps the release, host-tested by `quickStopReleaseIsTheMeasuredTerminal`
-and not yet retested on hardware ([unattended report](reports/2026-11-03_unattended_bench.md)).
-`000B` during a move or with no known predecessor, and a stationary `010F`, have not run (Q12).
+([unattended report](reports/2026-11-03_unattended_bench.md)), retested on hardware on 2026-11-04 (trial 208).
+That day also ran a stationary `010F` (holds), `000B` with no known predecessor on a released and on a
+never-enabled drive, and `000B` during a move, which completes on standstill after the
+`standstillObserving` fix (trial 413; [bench report](reports/2026-11-04_bench.md)).
 
 [Prompt 30](reports/prompt_30.md) adds checked documentary state interpretation
 to R08/R10/R20: explicit layouts, raw values and acquisition provenance, unknown

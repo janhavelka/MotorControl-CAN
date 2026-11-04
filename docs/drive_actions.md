@@ -60,8 +60,9 @@ CL57-C/OL57-C header; retain that applicability uncertainty.
 `prepareEnable` in `Actions.h` implements the documented position-mode sequence through the
 ordinary `nextAction` and `advanceAction` lifecycle, and `AxisSession::requestEnable` runs it
 through the sole owner. **It succeeded on both bench specimens on 2026-11-03**, after a fix that
-session found (bit 10, below), on one firmware. That is not a qualification: the
-measured paragraph after the transition table and the
+session found (bit 10, below), on one firmware, and again on 2026-11-04 with the same reports, twice
+on node 1 and once on node 2 ([report](reports/2026-11-04_bench.md)). That is not a qualification: the
+measured paragraphs after the transition table and the
 [attended report](reports/2026-11-03_attended_bench.md) say what was and was not observed.
 `EnableEvidence::gate` defaults to `CLOSED`, which returns `UNSUPPORTED`. Opening it to
 `ATTENDED_EXPERIMENT` states an attended trial with an independent drive-power cutoff. It is not a
@@ -108,15 +109,17 @@ This changes how a report can be read:
 
 - A specimen reads low bits `111` and `2100` released clear with **no enable in any record**. So the
   final report alone cannot distinguish this sequence from the power-up state. Only the progression
-  to 1, then 3, then 7 could, and whether a specimen follows it is unmeasured.
+  to 1, then 3, then 7 could. Both specimens followed it in every enable of 2026-11-03 and 2026-11-04
+  after the bit 10 fix (below).
 - Under EN86, `0x8037` has zero-speed clear, which reads as running. Under ZH86 it reads as stopped.
   Decoding cannot decide this word.
 - Mode 0 is not an operating mode here, so a specimen needs an explicit `6060=1` before an enable.
-  That write has never been sent. Nothing has been enabled, and no shaft or torque observation of
-  any kind has been retained.
+  In the November 2 records that write had never been sent and nothing had been enabled; the
+  measured paragraphs below give what the later sessions saw.
 - Low bits `111` with `2100` released clear is the pattern p12 pairs with an enabled drive, and both
   specimens show it at power-up. Word 6 may therefore be a 15-to-6 step that **removes holding
-  torque**, not the first step towards it. Which one it is has not been observed.
+  torque**, not the first step towards it. On 2026-11-03 it was: both shafts held torque at power-up,
+  word 6 set `2100` released on both, and node 1's shaft then turned freely (below).
 
 ### Project policy
 
@@ -182,7 +185,7 @@ action. `6040` is a whole-word write, never a read-modify-write.
 | Admit | Complete SDO read of ERRORS, MONITORS, STATUS, FEEDBACK under this reservation and within `maximumAgeUs`: `2100` in place, with running, alarm, soft limits and unknown bits clear; `6041` equal to the reviewed word; `1001`, `603F`, `606C` zero. Gate open, start recorded, session clean | Reported mode 1 in that read. Modes 0, 3, 6 and any other byte refuse | None | None | The read above | Must leave more than two intervals | Refused atomically. No output changes, no traffic | No claim |
 | Targets | As admitted | Reads, in order, each once. Their effect stays unknown: neither object is on the DEC-1 accepted list | `40 7A 60 00`, then `40 FF 60 00` | Each I32 upload must succeed | Both values equal the reviewed values | Overall | Mismatch: `OBSERVATION_SCOPE`. Abort: `PROTOCOL_REJECTED`. Lost reply: `SERVICE_TIMEOUT`, uncertain. **No `6040` word was sent** | None. Targets stay as they were |
 | Word 6 | Targets matched | Unchanged | `2B 40 60 00 06 00 00 00` | Acknowledged; abort is `REJECTED` and a lost reply `UNKNOWN`, never replayed | New MONITORS, STATUS, FEEDBACK starting after the acknowledgement: low bits 001 by the p12 table, mode 1, every bit but released and `6041` bit 10 unchanged, `6064` unchanged, `606C` zero. Poll at `observationIntervalUs` | Overall; next word no earlier than the acknowledgement plus the interval | Out of scope: `OBSERVATION_SCOPE`, word retained, no later word. Low bits never arriving: `DEADLINE` | **Possible torque loss.** From the specimens' enabled-looking start this may be 15 to 6, dropping holding torque. Low bits 1 is a table example, not a torque state |
-| Word 7 | Word 6 observed | Unchanged | `2B 40 60 00 07 00 00 00` | As above | As above with low bits 3 | As above | As above, prefix retained | Unknown |
+| Word 7 | Word 6 observed | Unchanged | `2B 40 60 00 07 00 00 00` | As above | As above with low bits 3 | As above | As above, prefix retained | Measured, one firmware: `2100` released clears, and a displaced shaft is pulled back to the last commanded position (below), which this row's `6064` rule then ends as out of scope |
 | Word 15 | Word 7 observed | Unchanged | `2B 40 60 00 0F 00 00 00` | As above. On acknowledgement it becomes the latest controlword | As above with low bits 7 and `2100` released clear | Overall | As above. `SUCCEEDED` needs all of it | **A drive report, not torque.** Mode-1 motion is documented only from a later bit 4 edge, and whether an earlier curve resumes is unmeasured. Reference validity is not claimed either way |
 | After success | Word 15 observed | Target unchanged by this action | None | None | A later move or stop needs its own fresh state. The action's last read qualifies a stop | None | A second request refuses: no re-enable on any evidence | Unknown |
 | Enable in mode 3 | Any | Mode 3, with whatever `60FF` reads | None | None | The mode byte | None | Refused at admission | ZH86 p13 and OP86 p11: the motor starts. EN86 p13 disagrees |
@@ -198,6 +201,20 @@ cleared. The shaft then turned freely. So word 6 from this power-up state **drop
 and bit 10 (EN86's zero-speed bit) follows the enable state. The library used to compare every bit
 above 0..2, so it ended that enable at word 6 with `OBSERVATION_SCOPE` and sent nothing further. It
 now ignores bit 10 there (`STATUS_EN86_ZERO_SPEED`), because `606C` already decides velocity.
+`606C` reads rpm on this configuration: 30 during moves at 30 rpm and 1 at 2 rpm, on both nodes
+(2026-11-04).
+
+**Word 7 pulls a displaced shaft back, measured on node 2, 2026-11-04** (trial 308, the bench
+`word67` route, not this action). Released after a quick stop during a move had let it coast, the
+drive read `6064=1187`. Word 6 gave `6041=4031`, still released, at 1187. Word 7 gave `6041=0033` and
+`2100=0000`: energized, and `6064` read 1194 twice, then 1180 for six cycles, near where the
+trajectory was when `000B` arrived. So word 7 restores the drive's last commanded position: it
+neither resets the counter nor adopts the actual position. That also explains trial 105 of
+2026-11-03, `6064` from −545 to 0 at word 7 after a hand check, a pull-back of about half a turn.
+**Never move a released shaft by hand before an enable, and expect motion at word 7 whenever the
+shaft was displaced.** One specimen, a 7-pulse displacement, judged from drive reports; the shaft
+was not observed ([report](reports/2026-11-04_bench.md)). The enable's position rule, `6064` unchanged
+through the sequence, ends such an enable at word 7, as in trial 105, but only after the motion.
 
 Cancellation, a deadline, a reboot, bus-off, a changed epoch or an independently routed
 `DRIVE_FAULT` ends the sequence locally at any step. None is a stop. `execution`, `effectsPossible`,
@@ -221,9 +238,10 @@ gives that:
 - `6040=0` appears only as the example paired with low bits 000. No source says that word releases
   the motor, or from which state it may be written.
 - Low bits 0 are a report. Both specimens reported them, with `2100` released, after a stationary
-  `000B` from `000F` and from `010F` ([unattended report](reports/2026-11-03_unattended_bench.md)).
-  That is a quick stop's measured effect from those two words, not a release command: no word was
-  tried as a release, and the reference consequence is not stated.
+  `000B` from `000F` and from `010F` ([unattended report](reports/2026-11-03_unattended_bench.md)),
+  and on 2026-11-04 after `000B` during a move and from the never-enabled power-up state
+  ([report](reports/2026-11-04_bench.md)). That is a quick stop's measured effect, not a release
+  command: no word was tried as a release, and the reference consequence is not stated.
 - `2100` bit 4 reports released. It is an observation, not a command.
 - Input function 4 is labeled motor enabling or MF, with no behavior text, and is not a CAN command
   (D-28).
@@ -240,7 +258,8 @@ gap stays open too.
 For the lead, on an attended bench. P1 to P3 ran on both specimens in the
 [attended session](reports/2026-11-03_attended_bench.md). P4's `000B` ran on node 2 in the
 [unattended session](reports/2026-11-03_unattended_bench.md), from a library move's rearm `000F`
-rather than the enable's own, and released the motor; P4's `010F` has not run. Default to node 1 alone, and add node 2 only
+rather than the enable's own, and released the motor. On 2026-11-04 P4's `010F` from the enable's own
+`000F` ran on node 1 and left the drive enabled and in place ([report](reports/2026-11-04_bench.md)). Default to node 1 alone, and add node 2 only
 after node 1 passes. Before each state-changing trial, record the operator, cutoff and clear shafts,
 and stop on any abort below. Never retry within a trial.
 
