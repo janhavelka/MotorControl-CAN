@@ -288,9 +288,9 @@ struct Bench {
         CHECK(owner.release(id));
         return copy;
     }
-    void read(L::DriverContext& out, L::DriverGroup group) {
+    void read(L::DriverContext& out, L::DriverGroup group, const L::ReadOptions& o = options()) {
         const uint32_t op = begin();
-        CHECK(L::prepareDriverRead(out, current(), op, now, DEADLINE, options(), group));
+        CHECK(L::prepareDriverRead(out, current(), op, now, DEADLINE, o, group));
         for (;;) {
             L::PreparedRead work;
             CHECK(L::nextDriver(out, now, work));
@@ -855,6 +855,120 @@ void softLimitStateRules() {
         CHECK(c.state == L::SettingsState::SUCCEEDED);
         CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2202, 0, 0));
         CHECK(b.drive.value(0x607d, 1) == 5 && b.drive.value(0x607d, 2) == uint32_t(-5));
+    }
+}
+
+// Both specimens answered 607D:00 with two bytes of 0 against the EDS U8 (2026-11-04, trials 313 and
+// 315). The default read fails there before any write. CountWidths::MEASURED_U16, chosen explicitly
+// for the prior read and for the transaction, lets the 2202 write and its readback run; only 2202 is
+// written, and the count stays raw. No other settings group admits the option.
+void measuredCountWidthSoftLimits() {
+    L::ReadOptions measured = options();
+    measured.countWidths = L::CountWidths::MEASURED_U16;
+    const auto specimenCount = [](Bench& b) {
+        Entry* count = b.drive.find(0x607d, 0);
+        CHECK(count);
+        count->width = 2;
+        count->raw = 0;
+    };
+    {
+        // The default prior read: a width failure and its cleanup abort, so there is no prior.
+        Bench b;
+        specimenCount(b);
+        L::ReadContext state;
+        b.readState(state);
+        L::DriverContext limits;
+        CHECK(L::prepareDriverRead(limits, b.current(), b.begin(), b.now, DEADLINE, options(),
+                                   L::DriverGroup::SOFT_LIMITS));
+        for (;;) {
+            L::PreparedRead work;
+            CHECK(L::nextDriver(limits, b.now, work));
+            if (!work.ready)
+                break;
+            // Sequenced: exchange advances b.now, which the terminal's completion time must not pass.
+            const C::SdoCompletion terminal = b.exchange(work.transfer);
+            CHECK(L::advanceDriver(limits, terminal, b.now));
+        }
+        CHECK(limits.read.state == M::ReadState::FAILED && limits.read.outcome == M::ReadOutcome::REPLY_ERROR);
+        CHECK(limits.read.evidence.abortCode == 0x06070010u && limits.read.uncertain);
+        b.turn(b.now + 1);
+        b.turn(b.now + 1); // The cleanup abort leaves; the route stays unresolved.
+        const uint8_t abort[8] = {0x80, 0x7d, 0x60, 0x00, 0x10, 0x00, 0x07, 0x06};
+        CHECK(b.wire.sentCount && !std::memcmp(b.wire.sent[b.wire.sentCount - 1].data, abort, 8));
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            const M::Status s = L::prepareSoftLimitSettings(c, b.wire.live, b.current(), limits, state, limit(1),
+                                                            b.operation + 1, b.now, DEADLINE, measured, AGE);
+            CHECK(s.detail == int32_t(M::ReadError::STATE));
+            return s;
+        });
+        CHECK(b.drive.downloads == 0 && b.drive.value(0x2202) == 0);
+    }
+    {
+        Bench b;
+        specimenCount(b);
+        L::ReadContext state;
+        L::DriverContext limits;
+        b.readState(state);
+        b.read(limits, L::DriverGroup::SOFT_LIMITS, measured);
+        L::DriverObservation prior;
+        CHECK(L::getDriver(limits, b.current(), b.now, AGE, prior));
+        CHECK(prior.softLimitEntries == 0 && prior.softLimitEntriesWidth == 2);
+        L::DriverSettingsContext c;
+        CHECK(L::prepareSoftLimitSettings(c, b.wire.live, b.current(), limits, state, limit(1), b.begin(), b.now,
+                                          DEADLINE, measured, AGE));
+        CHECK(c.changed == 1 && c.readback.read.options.countWidths == L::CountWidths::MEASURED_U16);
+        const unsigned first = b.mark();
+        b.run(c);
+        CHECK(c.state == L::SettingsState::SUCCEEDED && c.confirmed == 1 && !c.uncertain);
+        CHECK(frameIs(b.wire.sent[first], 0x2b, 0x2202, 0, 1));
+        CHECK(frameIs(b.wire.sent[first + 1], 0x40, 0x2202, 0, 0));
+        CHECK(frameIs(b.wire.sent[first + 2], 0x40, 0x607d, 0, 0));
+        CHECK(frameIs(b.wire.sent[first + 3], 0x40, 0x607d, 1, 0));
+        CHECK(frameIs(b.wire.sent[first + 4], 0x40, 0x607d, 2, 0));
+        CHECK(b.wire.sentCount == first + 5 && b.drive.downloads == 1 && b.drive.value(0x2202) == 1);
+        CHECK(c.readback.read.values[1].object.widthBytes == 2 && c.readback.read.values[1].raw == 0);
+        L::DriverObservation seen;
+        CHECK(L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
+        CHECK(seen.softLimitSelectorRaw == 1 && seen.softLimitEntries == 0 && seen.softLimitEntriesWidth == 2);
+        CHECK(seen.minimumNative == INT32_MIN && seen.maximumNative == INT32_MAX);
+    }
+    {
+        // The transaction's own options govern its readback: DECLARED_U8 there fails after the write.
+        Bench b;
+        specimenCount(b);
+        L::ReadContext state;
+        L::DriverContext limits;
+        b.readState(state);
+        b.read(limits, L::DriverGroup::SOFT_LIMITS, measured);
+        L::DriverSettingsContext c;
+        CHECK(L::prepareSoftLimitSettings(c, b.wire.live, b.current(), limits, state, limit(1), b.begin(), b.now,
+                                          DEADLINE, options(), AGE));
+        b.run(c);
+        CHECK(c.state == L::SettingsState::FAILED && c.confirmed == 1 && c.effectsPossible);
+        CHECK(c.readback.read.outcome == M::ReadOutcome::REPLY_ERROR && b.drive.value(0x2202) == 1);
+        L::DriverObservation seen;
+        CHECK(!L::getDriver(c, b.wire.live, b.current(), b.now, AGE, seen));
+    }
+    {
+        // MEASURED_U16 belongs to SOFT_LIMITS and IO_OUTPUT_COMMAND reads; no other group admits it.
+        Bench b;
+        MotionEvidence e(b);
+        L::DriverSettingsContext c;
+        refused(b, c, [&] {
+            const M::Status s = L::prepareDriverSettings(c, b.wire.live, b.current(), e.prior, e.state, e.control,
+                                                         motion(), b.begin(), b.now, DEADLINE, measured, AGE);
+            CHECK(s.detail == int32_t(M::ReadError::ARGUMENT));
+            return s;
+        });
+        L::DriverContext prior;
+        b.readIo(prior);
+        refused(b, c, [&] {
+            const M::Status s = L::prepareIoSettings(c, b.wire.live, b.current(), prior, b.ioState, asFound(),
+                                                     b.begin(), b.now, DEADLINE, measured, AGE);
+            CHECK(s.detail == int32_t(M::ReadError::ARGUMENT));
+            return s;
+        });
     }
 }
 
@@ -4033,6 +4147,7 @@ int main() {
     deadlineWins();
     generationsAndOldTargetAdmission();
     softLimitStateRules();
+    measuredCountWidthSoftLimits();
     frozenTokenCannotPrepareAFalseNoOp();
     diEveryCodeAndMaskOnTheWire();
     diCandidatesRefusedWhole();

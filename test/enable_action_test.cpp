@@ -575,6 +575,9 @@ void refusalsAreAtomic() {
     changed = budgets;
     changed.service.identityWidths = L::IdentityWidths::MEASURED_U8;
     refuses(good, state, fine, operation, now, deadline, changed, bad, M::ActionError::ARGUMENT);
+    changed = budgets;
+    changed.service.countWidths = L::CountWidths::MEASURED_U16;
+    refuses(good, state, fine, operation, now, deadline, changed, bad, M::ActionError::ARGUMENT);
     // Reservation.
     L::AxisReservation reservation = good;
     reservation.model = static_cast<L::SettingsModel>(0xff);

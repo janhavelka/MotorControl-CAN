@@ -1,0 +1,113 @@
+{
+  "started_utc": "2026-11-04T15:42:21.196425+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "relative",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 409,
+  "plan": "packet 21 relative base",
+  "fields": [
+    1,
+    409,
+    1,
+    104,
+    200,
+    6,
+    500,
+    500,
+    10,
+    1000,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 409 to confirm: ",
+      "typed": "ATTENDED 409",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not observed: the user asked that motion be confirmed from the drive's position reports, not by eye"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "relative",
+    "--node",
+    "1",
+    "--trial",
+    "409",
+    "--start-position",
+    "104",
+    "--target",
+    "200",
+    "--rpm",
+    "6",
+    "--ramp-up-ms",
+    "500",
+    "--ramp-down-ms",
+    "500",
+    "--cycles",
+    "10",
+    "--interval-ms",
+    "1000",
+    "--stop-kind",
+    "none",
+    "--campaign",
+    "docs\\bench\\20261104d-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1542Z-relative-node1-409"
+  ],
+  "host_revision": "e7f28acd8a3a4d983f337aee6150c400fb871dc0",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104d-campaign.jsonl",
+    "motion_total": 5,
+    "cases": {
+      "E1": 1,
+      "J1": 1,
+      "M1": 1,
+      "P1": 1,
+      "R1": 1,
+      "S1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544c312c3430392c312c3130342c3230302c362c3530302c3530302c31302c313030302c302c302c302c302c302c4b38316331323035610a"
+  ],
+  "image": {
+    "base": "e7f28acd8a3a4d983f337aee6150c400fb871dc0",
+    "elf": "031ba492f276d144672ebdc8281257b76ab6c1b34ccecd33e67b8f1946a615fa",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TL1,409,1,104,200,6,500,500,10,1000,0,0,0,0,0,K81c1205a",
+  "tx_hex": "544c312c3430392c312c3130342c3230302c362c3530302c3530302c31302c313030302c302c302c302c302c302c4b38316331323035610a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T15:42:37.644809+00:00"
+}

@@ -1,6 +1,6 @@
 # Packet 14: control, current and tuning groups
 
-Resumes prompt 22. Host and fake evidence only. **Of the 33 rows, only the existing 2500 loop selector has a typed write. No specimen has accepted it.**
+Resumes prompt 22. When this packet closed, host and fake evidence only. **Of the 33 rows, only the existing 2500 loop selector has a typed write. No specimen has accepted it.** T0, the read of 2502..2520, ran on both specimens on 2026-11-04 ([results](#bench-2026-11-04-t0)); T1 and T2 have not run.
 
 ## Delivered
 
@@ -43,9 +43,15 @@ Read and write ownership is unchanged and pinned: `1003`, and `1005`, `1014`, `1
 
 A reviewer rendered the pages and probed the code. The source text, page boundaries, gates and ownership pins held, and T1's bytes are a correct expedited download. It found a stale 2500 ledger prerequisite, a ledger claim that CL86-C accepts the enum, missing citations, a wrong count, contradictory selector-0 wording, an unconditional no-op claim, no energized-drive warning where users read, and a T1 plan whose abort condition a supply ammeter cannot measure. All fixed here.
 
-## Physical tests not run
+## Bench, 2026-11-04: T0
 
-They need a harness route that does not exist yet.
+The `readiness-tuning` route (`TU`) read all 31 words, with an accepted image before and after, on node 1 ([309](../../bench/20261104T1313Z-tuning-node1-309/rx.txt)) and node 2 ([310](../../bench/20261104T1313Z-tuning-node2-310/rx.txt)), each upload under its own one-use grant. Both nodes read the same image, in decimal: `2502=8400`, `2503=100`, `2504=40`, `2505=100`, `2506=40`, `2507=200`, `2508=0`, `2509=5`, `250A=4000`, `250B=20`, `250C=10`, `250D=512`, `250E=6144`, `250F=1228`, `2510=40`, `2511=20`, `2512=2560`, `2513=114`, `2514=25`, `2515=2560`, `2516=1024`, `2517=100`, `2518=20`, `2519=4`, `251A=12001`, `251B=1000`, `251C=1024`, `251D=1228`, `251E=8`, `251F=0`, `2520=0`. These are raw words: no unit, scale or domain follows from them, and every gate in the table above stands. The read effects stay unknown. A first attempt (305, 306) was refused `session`, because the `60FE:00` abort of packet 13 P1 had left both routes unresolved. See the [bench report](../2026-11-04_bench.md).
+
+**Still owed:** T1 and T2. `2502=8400` does not open T1: its go condition compares 2502, read as a peak current, with the LC60H2127's rated phase current, which is still not established, and only a phase-current probe can watch the abort condition. T1 has no bench route.
+
+## The planned trials
+
+Written before the routes existed.
 
 - **T0, read only.** Typed reads of 2502..2520, node 1 then node 2. These words are outside the accepted read list, so the read path needs its own review first.
 - **T1, 2500 register acceptance, node 1.** `601: 2B 00 25 00 01 00 00 00`, readback of 2500 and 2501, then the return `2B 00 25 00 02 00 00 00` as a separate operation. **Selecting open loop may push current into a drive that reads as enabled**, and may snap the rotor.

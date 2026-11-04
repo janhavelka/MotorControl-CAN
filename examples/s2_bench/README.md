@@ -127,7 +127,12 @@ The earlier connection checkpoint
 (`DECLARED_U16`) rejects the width mismatch; an application that has established
 its fixture selects `IdentityWidths::MEASURED_U8` explicitly, and nothing detects
 it. Raw success does not revise the EDS metadata or establish a human firmware
-version. Raw `6041/6061` values establish neither
+version. On 2026-11-04 both specimens answered the EDS U8 counts `607D:00` and
+`60FE:00` with two bytes of 0 ([trial 313](../../docs/bench/20261104T1405Z-settings2202-node1-313/rx.txt),
+[trial 303](../../docs/bench/20261104T1309Z-io-node1-303/rx.txt) and their node 2
+records), so the `settings-2202` route's `SOFT_LIMITS` reads and the
+`readiness-io` route's `IO_OUTPUT_COMMAND` read select
+`CountWidths::MEASURED_U16`; every other group keeps its declared widths. Raw `6041/6061` values establish neither
 operation-mode meaning nor physical standstill.
 The [post-run counters](../../docs/bench/20261102-s2-raw-fixed-stats/rx.txt)
 report 40 RX/40 TX, zero errors/drops and 9852 bytes minimum remaining stack.

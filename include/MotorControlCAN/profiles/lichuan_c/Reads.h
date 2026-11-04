@@ -65,11 +65,26 @@ enum class IdentityWidths : uint8_t {
     DECLARED_U16, ///< EDS U16. A one-byte reply fails as a wrong width.
     MEASURED_U8   ///< One byte, as two CL86-C specimens replied. A two-byte reply fails.
 };
+/** Reply width of the array counts 607D:00 (DRIVER_SOFT_LIMITS) and 60FE:00 (IO_OUTPUT_COMMAND).
+ * The EDS declares both RO U8 with default 2. On 2026-11-04 two CL86-C specimens of one firmware
+ * identity (1000=00040192, 1009=0C, 100A=20, 1018:01..03=1000/1/0, 2000=0400, 2001=0200) answered
+ * each with a two-byte expedited upload of 0 (`4B 7D 60 00 00 00 00 00`, `4B FE 60 00 00 00 00 00`).
+ * Nothing detects this: an application selects it once it has established its fixture, and no other
+ * object's width changes. Unknown: whether the firmware holds a U16 or pads a U8, what a count of 0
+ * means while 607D:01/:02 still answer as I32 (60FE:01/:02 are not yet read on these specimens), and
+ * every other firmware. The count stays a raw observation, never a discovery bound.
+ */
+enum class CountWidths : uint8_t {
+    DECLARED_U8, ///< EDS U8. A two-byte reply fails as a wrong width.
+    MEASURED_U16 ///< Two bytes, as both specimens replied. A one-byte reply fails.
+};
 /** Explicit staging/response budgets, clamped by the immutable operation deadline. */
 struct ReadOptions {
     uint32_t queueTimeoutUs = 0;    ///< Nonzero caller policy, not a vendor delay.
     uint32_t responseTimeoutUs = 0; ///< Nonzero caller policy, not producer heartbeat timing.
     IdentityWidths identityWidths = IdentityWidths::DECLARED_U16; ///< Identity reads only.
+    /** DRIVER_SOFT_LIMITS and IO_OUTPUT_COMMAND reads only; any other kind refuses MEASURED_U16. */
+    CountWidths countWidths = CountWidths::DECLARED_U8;
 };
 /** Conservative acquisition interval, never an atomic device snapshot. */
 struct ReadWindow {

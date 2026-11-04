@@ -49,7 +49,8 @@ struct IoObservation {
     uint16_t outputConfig0ERaw = 0;       ///< OUTPUT_CONFIGURATION: 2400:0E, meaning unresolved.
     uint16_t outputConfig0FRaw = 0;       ///< OUTPUT_CONFIGURATION: 2400:0F, meaning unresolved.
     uint16_t inputFilterRaw[7] = {};      ///< INPUT_FILTERS: 2401..2407 coefficients, no time unit.
-    uint8_t outputEntries = 0;            ///< OUTPUT_COMMAND: U8 60FE:00, never drives enumeration.
+    uint16_t outputEntries = 0;           ///< OUTPUT_COMMAND: raw 60FE:00, never drives enumeration.
+    uint8_t outputEntriesWidth = 0;       ///< OUTPUT_COMMAND: actual 60FE:00 reply bytes, see CountWidths.
     uint32_t outputValueRaw = 0;          ///< OUTPUT_COMMAND: 60FE:01 readback, not pin voltage.
     uint32_t outputMaskRaw = 0; ///< OUTPUT_COMMAND: 60FE:02 readback, no inferred clear behavior.
     bool outputMappingKnown =

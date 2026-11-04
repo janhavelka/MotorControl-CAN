@@ -1,6 +1,6 @@
 # Packet 15: mode and enable behavior, and the supported actions
 
-Resumes prompt 30. **When this packet closed, host and fake evidence only: no specimen had run `prepareEnable`, and its gate is closed by default.** Physical steps 1 and 3 and an enable trial need an attendant, and the bench was running the communication soak with no one present. Release stays absent. The sessions below then ran P1 to P3 on both specimens and P4's `000B` on node 2.
+Resumes prompt 30. **When this packet closed, host and fake evidence only: no specimen had run `prepareEnable`, and its gate is closed by default.** Physical steps 1 and 3 and an enable trial need an attendant, and the bench was running the communication soak with no one present. Release stays absent. The sessions below then ran P1 to P3 on both specimens and P4's `000B` on node 2, and on 2026-11-04 P4's `010F`, word 7 from a displaced released shaft, and three more enables.
 
 ## Delivered
 
@@ -41,11 +41,22 @@ It confirmed every source claim and literal byte, and found no replayed or retri
 
 ## Attended session, 2026-11-03
 
-P1 to P3 ran on both nodes; P4 did not, because the campaign cap was reached. Both shafts hold torque at power-up. Word 6 releases the motor, word 7 energizes it and word 15 completes the enable. The first attempt exposed a defect, fixed in `e17271a`: the enable compared `6041` bit 10, which follows the enable state. After it, both enables succeeded with identical bytes. The heap-allocated `mode1` and `enable` bench routes ran them; the enable's live stack low was 8,700 of 12,288 bytes free. P4, the stationary `010F` and `000B`, is still owed. See the [attended bench report](../2026-11-03_attended_bench.md).
+P1 to P3 ran on both nodes; P4 did not, because the campaign cap was reached. Both shafts hold torque at power-up. Word 6 releases the motor, word 7 energizes it and word 15 completes the enable. The first attempt exposed a defect, fixed in `e17271a`: the enable compared `6041` bit 10, which follows the enable state. After it, both enables succeeded with identical bytes. The heap-allocated `mode1` and `enable` bench routes ran them; the enable's live stack low was 8,700 of 12,288 bytes free. P4, the stationary `010F` and `000B`, was still owed then. See the [attended bench report](../2026-11-03_attended_bench.md).
 
 ## Unattended session, 2026-11-03
 
-P4's `000B` ran on node 2 (trial 124), on the user's written waiver with nobody at the bench, from the `000F` rearm of the library move just before it rather than from the enable's own `000F`. Within one cycle the drive read `6041=8050` and `2100=0011`: it left operation and released the motor. The library ended it `OBSERVATION_SCOPE`; it now completes a quick stop on that report, not yet retested on hardware. P4's `010F` from idle `000F` is still owed. No enable ran: the runner refuses one under the waiver, and the next needs both drives power-cycled and an attendant's power-up shaft observation. See the [unattended bench report](../2026-11-03_unattended_bench.md).
+P4's `000B` ran on node 2 (trial 124), on the user's written waiver with nobody at the bench, from the `000F` rearm of the library move just before it rather than from the enable's own `000F`. Within one cycle the drive read `6041=8050` and `2100=0011`: it left operation and released the motor. The library ended it `OBSERVATION_SCOPE`; it now completes a quick stop on that report, retested on 2026-11-04 ([packet 16](packet_16.md)). P4's `010F` from idle `000F` was still owed; it ran on 2026-11-04, below. No enable ran: the runner refuses one under the waiver, and the next needs both drives power-cycled and an attendant's power-up shaft observation. See the [unattended bench report](../2026-11-03_unattended_bench.md).
+
+## Session of 2026-11-04
+
+The user power-cycled both drives, reported both shafts holding torque and both fault LEDs off, and asked that motion be judged from the drives' reports; no other shaft observation was made. One firmware. See the [bench report](../2026-11-04_bench.md).
+
+- **Enable.** It succeeded again with the same words and reports, 6 → `8031`/`0011`, 7 → `8033`/`0001`, 15 → `8437`/`0001`: on node 1 ([206](../../bench/20261104T1151Z-p3-node1-206/rx.txt)) and node 2 ([210](../../bench/20261104T1152Z-p3-node2-210/rx.txt)), each after `mode1`, and on node 1 after a second power cycle ([405](../../bench/20261104T1540Z-p3-node1-405/rx.txt)).
+- **P4's `010F` from idle `000F`** ([207](../../bench/20261104T1151Z-stop-node1-207/rx.txt), node 1): acknowledged and `OBSERVED`; `6041=8437` and `2100=0001` unchanged, so the drive stays enabled and in place. The `000B` that followed it is in [packet 16](packet_16.md).
+- **Word 7 pulls a displaced shaft back** ([308](../../bench/20261104T1312Z-word67-node2-308/rx.txt), node 2, the `word67` route). Released after the quick stop of a move, the drive read `6064=1187`, about 7 pulses from where its trajectory was when `000B` arrived. Word 6 gave `6041=4031`, still released, at 1187. **Word 7 gave `0033` and `2100=0000`**: energized, the latched running bit gone, and `6064` read 1194 twice, then 1180 for six cycles. So on this firmware word 7 restores the last commanded position; it neither resets the counter nor adopts the actual position. That explains trial 105 of 2026-11-03, `6064` from −545 to 0 at word 7 after a hand check: a pull-back of about half a turn. **Never move a released shaft by hand before an enable**, and expect motion at word 7 whenever the shaft was displaced. One specimen, a 7-pulse displacement. No other word was written: the drive was left switched on.
+- **`606C` is in rpm** on this configuration: it read 30 during moves at 30 rpm, while `6064` advanced about 500 pulses/s, and 1 at 2 rpm (trials [213](../../bench/20261104T1206Z-move-quick-node2-213/rx.txt), [211](../../bench/20261104T1153Z-position-node2-211/rx.txt); 211 also read 3 during its ramp).
+
+**Still owed for this packet:** nothing physical in P1 to P4. Release stays absent, and the enable remains one firmware's observation.
 
 ## Physical plan, as written before the session
 

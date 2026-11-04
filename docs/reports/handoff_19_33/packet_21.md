@@ -1,6 +1,6 @@
 # Packet 21: relative position and complete interruption behavior
 
-Resumes prompt 33's relative scope. **Host and fake evidence only, and every relative request is refused today**: no relative wire base is evidenced on any specimen, so `prepareMoveRelative` returns `UNSUPPORTED` with `MoveError::RELATIVE_BASIS` before any work. Prompt 33 stays Partial.
+Resumes prompt 33's relative scope. **When this packet closed, host and fake evidence only, and every relative request was refused**: no relative wire base was evidenced on any specimen, so `prepareMoveRelative` returns `UNSUPPORTED` with `MoveError::RELATIVE_BASIS` before any work unless the caller's `MoveEvidence` names a measured base. That default is unchanged. **On 2026-11-04 node 1 measured `ACTUAL`, and a library relative move then succeeded** ([bench results](#bench-2026-11-04-the-base-and-a-library-relative-move)). Prompt 33 stays Partial.
 
 ## Delivered
 
@@ -48,7 +48,20 @@ A separate worker fixed the four findings in `examples/common/AxisSession.*`. Ea
 
 Still untested, from the review: one node's urgent stop beside the other's queued or handed-off parameter or trigger; a fault reported in an observation cycle, rather than a local fault cancel, in the relative suite; the `COMMANDED` basis beyond one success; and a record of the build that produced the RS intent vectors in `move_common_test`.
 
-## Physical evidence still needed
+## Bench, 2026-11-04: the base, and a library relative move
+
+On node 1, after the user's second power cycle, drive reports only: no shaft was observed. One specimen, one firmware. See the [bench report](../2026-11-04_bench.md).
+
+| Trial | What | Result |
+| --- | --- | --- |
+| [406](../../bench/20261104T1541Z-position-halt-node1-406/rx.txt), [408](../../bench/20261104T1541Z-rearm-halt-node1-408/rx.txt) | The start this measurement needs: a move 0 → 600 at 6 rpm halted after 2 cycles, then `000F` from the halt's `010F` | Stopped at 104 with target 600 retained; the `000F` did not resume it. So actual 104 and last commanded endpoint 600 differ by 496 |
+| [409](../../bench/20261104T1542Z-relative-node1-409/rx.txt) | The `relative` route, +200 with `005F` | **Ended at 304**, in place, `6041=9437`: the drive added the displacement to the **actual** position. `TRIAL_BASE` read `607A=600` before the writes, matching the firmware's own record of trial 406's acknowledged target. Acceptance (`6041` bit 12 from the first cycle) and completion (`2100` bit 0 absent while running, then present) as after `001F` |
+| [410](../../bench/20261104T1542Z-rearm-rel-node1-410/rx.txt) | `rearm` after `005F` | Bit 12 cleared; 304 held |
+| [411](../../bench/20261104T1543Z-move-rel-node1-411/rx.txt) | **`AxisSession::requestMoveRelative`**, +100, `RelativeBase::ACTUAL` from record 409, witness from two fresh reads | **`SUCCEEDED`**: completed at **404**, the computed endpoint, with its own rearm |
+
+So for node 1 on this firmware items 1 and 2 below are answered: `ACTUAL`, with the absolute signals. **Still owed:** item 3, a zero `607A`, which the library never sends; a negative displacement; node 2; and a shaft observation. The library default stays `UNMEASURED`.
+
+## Physical evidence needed, as written before the session
 
 Per specimen and firmware, with raw traffic and a shaft observation:
 

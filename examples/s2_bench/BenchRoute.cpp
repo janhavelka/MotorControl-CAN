@@ -1340,6 +1340,11 @@ bool BenchRoute::startRead(uint8_t mode, uint8_t arg, uint64_t now) noexcept {
         prepared = L::prepareIdentity(context_.read, target, operation, now, deadline, options);
         break;
     case READ_GROUP:
+        // Both bench specimens answer 607D:00 and 60FE:00 in two bytes (2026-11-04, trials 303, 304,
+        // 313 and 315). Only SETTINGS_2202 reads SOFT_LIMITS and only READ_IO reads IO_OUTPUT_COMMAND;
+        // every other group keeps its declared widths. A one-byte reply then fails.
+        if (arg == uint8_t(L::DriverGroup::SOFT_LIMITS) || arg == uint8_t(L::DriverGroup::IO_OUTPUT_COMMAND))
+            options.countWidths = L::CountWidths::MEASURED_U16;
         prepared = L::prepareDriverRead(context_, target, operation, now, deadline, options,
                                         static_cast<L::DriverGroup>(arg));
         break;
@@ -2041,6 +2046,7 @@ void BenchRoute::startSettings(uint64_t now) noexcept {
     if (p.kind == RouteKind::SETTINGS_2202) {
         L::SoftLimitSettings limits;
         limits.enable = static_cast<L::SoftLimitEnable>(p.code);
+        options.countWidths = L::CountWidths::MEASURED_U16; // The readback's 607D:00, as the prior read it.
         status = L::prepareSoftLimitSettings(w.transaction, live, target, w.prior, context_.read, limits, operation, now,
                                              deadline, options, SETTINGS_AGE_US);
     } else {

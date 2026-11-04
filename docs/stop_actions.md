@@ -29,8 +29,12 @@ stationary `010F` from `000F` held torque with `6041=8437` and `2100=0001` uncha
 from it released the motor again (`8050`, `2100=0011`), now completing as `OBSERVED`. `000B`
 during a 30 rpm move on node 2, about 1,180 pulses into a 2,000-pulse move, released the motor at
 once and it stopped within about 10 pulses, but `2100` then kept running set (`0x0014`) with
-`6041=4050`, minutes later too: see the standstill rule below. `000B` before this library's enable
-stays unmeasured ([unattended session](reports/2026-11-03_unattended_bench.md),
+`6041=4050`, minutes later too: see the standstill rule below; with that rule a second moving
+`000B`, on node 1, completed as `OBSERVED` (trial 413). Clearing a moving `010F` with `000F` did not
+resume the halted target (trial 408). `000B` with no known predecessor was also measured once each:
+on a released drive it changed nothing (trial 307), and on node 2's never-enabled power-up state in
+mode 1 it released the drive with no motion reported (trial 503). On 2026-11-04 no shaft was observed:
+each result is the drive's report ([unattended session](reports/2026-11-03_unattended_bench.md),
 [2026-11-04 session](reports/2026-11-04_bench.md), [packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
@@ -47,8 +51,10 @@ stays unmeasured ([unattended session](reports/2026-11-03_unattended_bench.md),
 power-up, before any enable from this library (packet 11), and the attended session found both
 shafts already holding torque then. After packet 15 P2 sets mode 1, a
 stop requested before P3's acknowledged `000F` therefore sends `000B` to a drive this library
-never enabled, and what `000B` does in that state is the unmeasured question of packet 16.
-Rely on the independent cutoff there, not on a CAN stop.
+never enabled. Measured once, on node 2 (trial 503): the drive acknowledged it and afterwards read
+`2100=0011`, `6041=8050`, `6064=0`, released with no motion reported, so its power-up holding torque
+is gone by that report. The best-effort path still never succeeds and left the route unresolved, and
+the shaft was not observed. Rely on the independent cutoff there, not on a CAN stop.
 
 The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS reporting mode
 1 and low bits 7, and fresh MONITORS reporting alarm and released clear. Fresh reports of an
@@ -125,13 +131,16 @@ When a `QUICK_STOP` cycle reads released, low bits `000` and running, and
 `standstillObserving` and every later cycle also reads `6064` and `606C`. Two such cycles in a row
 with `606C` zero and `6064` unchanged then complete it as `OBSERVED`. With a five-field age budget
 the rule is not offered and the stop ends at its deadline as before. The latched bit is the drive's
-report, not motion: one specimen, one speed, one firmware.
+report, not motion. Retested on node 1 (trial 413): `000B` at `6064=1558` during a 30 rpm move, then
+`6064=1569` twice with `606C=0`, `OBSERVED` about 0.6 s after the command. The latch appeared on
+both specimens; the rule has completed once, on node 1, at one speed and on one firmware.
 
 **No observation at the deadline.** An action yields no new observation read once one exchange's
 queue and response budgets no longer fit before its deadline. On 2026-11-04 a stop's last read
 began 6 ms before the deadline, was cut there with its request possibly sent, and left the route
 unresolved until an MCU restart (Q18). The action now ends at its deadline with nothing in flight,
-and the route stays usable. Commands are not held back. An alarm/fault terminates the
+and the route stays usable; in trial 413 the stop's reads ended about 0.4 s before its deadline.
+Commands are not held back. An alarm/fault terminates the
 operation with its command evidence preserved. The application delivers routed
 fault/lifecycle invalidation before advancing a later successful read result.
 
@@ -193,9 +202,11 @@ reservation. It uses `CanBusOwner::admitBestEffortStop`, and `000B` is never rep
 **An independent physical stop stays mandatory.** Nothing here is a safety function, and a best-effort stop may not reach or affect the drive.
 
 **It is not a confirmed stop and it never reaches `SUCCEEDED`.** The sequenced `000B`
-from `000F` and `010F` released both specimens without enabling them, but this path sends it
-with no known predecessor, and nothing measured covers that
-([packet 16](reports/handoff_19_33/packet_16.md)).
+from `000F` and `010F` released both specimens without enabling them. This path sends it with no
+known predecessor, measured twice on one firmware: from node 2's never-enabled power-up state it
+released the drive (trial 503, through this path), and on an already released node 1 the same word,
+sent by an application-local route, changed nothing (trial 307). Neither is a guarantee for another
+state ([packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Owner terminal | `outcome` | `execution` |
 | --- | --- | --- |
@@ -229,8 +240,9 @@ policy across recovery where this always re-issues `000B`.
 Host tests cover these paths through the real owner and selected SDO engine, with words
 manufactured by a fake. They do not establish firmware applicability, motor standstill,
 stop latency, braking curve, torque, device-target retirement or reference validity.
-Two rows have one measurement each on one firmware (`010F` from `001F`, `000B` from `000F`
-and from `010F`). The other DEC-8 rows, `000B` with no known predecessor, and velocity and
-homing modes need their own fixture evidence. See the
+On one firmware, judged from drive reports: `000B` from `000F`, `010F` and `001F`, `010F` from
+`000F` and from `001F`, and `000B` with no known predecessor on two states, each measured once or
+twice on one or two specimens. A stop from `005F`, any other state, and velocity and homing modes
+need their own fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.

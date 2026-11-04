@@ -586,6 +586,16 @@ void identityWidthsRefusedAtAdmission() {
                                             r.deadline, measured);
         CHECK(!refused && refused.detail == int32_t(M::ActionError::ARGUMENT));
         empty.unchanged(action);
+        // Measured count widths too: these actions' cycles read no array count.
+        L::ActionOptions counted = r.policy();
+        counted.service.countWidths = L::CountWidths::MEASURED_U16;
+        const M::Status count =
+            position ? L::prepareSetDevicePosition(action, r.reservation, r.state, 0, r.axis, r.operation,
+                                                   r.now, r.deadline, counted)
+                     : L::prepareClearAlarm(action, r.reservation, r.state, r.operation, r.now,
+                                            r.deadline, counted);
+        CHECK(!count && count.detail == int32_t(M::ActionError::ARGUMENT));
+        empty.unchanged(action);
     }
 }
 // The cycle that clears the alarm must prepare the final ERRORS read. That is proved first.
@@ -605,6 +615,12 @@ void unpreparableFinalReadRefusesBeforeAnyMutation() {
         CHECK(!status && status.detail == int32_t(M::ReadError::ARGUMENT));
         refused.unchanged(action);
         action.options.service.identityWidths = L::IdentityWidths::DECLARED_U16;
+        action.options.service.countWidths = L::CountWidths::MEASURED_U16;
+        const Saved<L::ActionContext> counted(action);
+        const M::Status count = L::advanceAction(action, r.reservation, r.current, terminal, r.now);
+        CHECK(!count && count.detail == int32_t(M::ReadError::ARGUMENT));
+        counted.unchanged(action);
+        action.options.service.countWidths = L::CountWidths::DECLARED_U8;
         CHECK(L::advanceAction(action, r.reservation, r.current, terminal, r.now));
     }
     CHECK(action.finalErrorRead && action.state == M::ActionState::ACTIVE);

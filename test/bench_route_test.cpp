@@ -63,7 +63,8 @@ const uint16_t HARDWARE = 0x12, SOFTWARE = 0x34, MODEL = 0x0086, FIRMWARE = 0x01
 // This test's acceptance and completion bits for the fake's 6041. Not a dialect: no specimen has shown
 // what either bit does.
 const uint16_t ACCEPT_BIT = 0x1000, COMPLETE_BIT = 0x8000;
-// One synthetic drive. Widths follow the EDS declarations the typed reads expect.
+// One synthetic drive. Widths follow the EDS declarations the typed reads expect, except 1009, 100A,
+// 607D:00 and 60FE:00, which answer as both specimens did and as the routes read them.
 struct Drive {
     uint8_t errorRegister = 0;
     uint16_t errorCode = 0, monitor = 1, status = 0x8037, lastWord = 0;
@@ -102,6 +103,11 @@ struct Drive {
     // The 2400 defaults keep what earlier suites read: undocumented codes on DI3..DI6 and polarity 0101.
     uint16_t limitSelector = 0;
     int32_t limitMinimum = -1000, limitMaximum = 1000;
+    // 607D:00 and 60FE:00: both specimens answered `4B 7D 60 00 00 00 00 00` and `4B FE 60 00 00 00 00 00`
+    // (docs/bench/20261104T1405Z-settings2202-node1-313, 20261104T1309Z-io-node1-303 and their node 2
+    // records), two bytes of 0 against the EDS U8. countWidth 1 is the declared form instead.
+    uint16_t limitEntries = 0, outputEntries = 0;
+    unsigned countWidth = 2;
     uint16_t io[9] = {0x0f, 0x0101, 1, 2, 3, 0x0105, 0x0106, 0x0107, 0x0108};
     uint32_t digitalInputs = 0x00010000; // 60FD.
     bool lateHeld = false;
@@ -114,11 +120,11 @@ struct Drive {
         case 0x1018:
             return sub ? 4 : 1;
         case 0x60fe:
-            return sub ? 4 : 1;
+            return sub ? 4 : countWidth;
         case 0x1003:
             return sub ? 4 : 1;
         case 0x607d:
-            return sub ? 4 : 1;
+            return sub ? 4 : countWidth;
         case 0x1000: case 0x6064: case 0x606c: case 0x607a: case 0x60ff: case 0x6081: case 0x6083: case 0x6084:
         case 0x60fd:
             return 4;
@@ -168,9 +174,9 @@ struct Drive {
         case 0x1017: return 0;
         case 0x2400: return sub < 9 ? io[sub] : 0x100u + sub;
         case 0x2202: return limitSelector;
-        case 0x607d: return sub == 0 ? 2 : sub == 1 ? uint32_t(limitMinimum) : uint32_t(limitMaximum);
+        case 0x607d: return sub == 0 ? limitEntries : sub == 1 ? uint32_t(limitMinimum) : uint32_t(limitMaximum);
         case 0x60fd: return digitalInputs;
-        case 0x60fe: return sub == 0 ? 2 : 0;
+        case 0x60fe: return sub == 0 ? outputEntries : 0;
         default: return index >= 0x2401 && index <= 0x2520 ? uint32_t(index & 0xff) : 0;
         }
     }
@@ -632,7 +638,15 @@ void testIoAndTuningReads() {
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(0) == 0);
     for (const M::Frame& f : r->driver.requests)
         CHECK(!(indexOf(f) == 0x2400 && f.data[3] == 0x0b));
-    r->dump();
+    // 60FE:00 as both specimens answered it, two bytes of 0, read under MEASURED_U16. Every other
+    // group keeps its declared widths: 2400:00 stays two bytes and 60FE:01 four.
+    const E::RouteTerminal& count = io.terminals[7 + 9 + 4 + 7];
+    CHECK(count.index == 0x60fe && count.subindex == 0 && count.size == 2 && count.outcome == 0);
+    CHECK(io.terminals[7].index == 0x2400 && io.terminals[7].size == 2 && io.terminals[7 + 9 + 4 + 7 + 1].size == 4);
+    std::string text = r->dump();
+    CHECK(has(text, "object=60fe:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 "
+                    "data=00000000 "));
+    CHECK(has(text, "id=581 ext=0 rtr=0 dlc=8 data=4bfe600000000000 ok=1"));
     r->release();
     scenario = "tuning";
     const size_t first = r->driver.requests.size();
@@ -645,6 +659,24 @@ void testIoAndTuningReads() {
     expectUploads(*r, at, 1, IMAGE, 7);
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 0);
     r->dump();
+
+    // The declared one-byte form of 60FE:00 now fails as a wrong width, with the client abort the
+    // specimens drew under the declared width, and nothing after it is read.
+    scenario = "io-one-byte-count";
+    std::unique_ptr<Rig> n(new Rig);
+    n->driver.drives[0].countWidth = 1;
+    const E::RouteRecord& narrow = n->run("I1,1");
+    CHECK(narrow.failure == E::RouteFailure::SERVICE && narrow.terminalCount == 7 + 9 + 4 + 7 + 1);
+    const E::RouteTerminal& refused = narrow.terminals[narrow.terminalCount - 1];
+    CHECK(refused.index == 0x60fe && refused.subindex == 0 &&
+          refused.outcome == uint8_t(C::SdoOutcome::CLIENT_ABORT) && refused.abortCode == 0x06070010u &&
+          refused.size == 0 && (refused.flags & 4u));
+    n->turns(5);
+    // Every request was an upload of the plan, then the cleanup abort: no 60FE:01 and no image after.
+    CHECK(n->driver.requests.size() == narrow.terminalCount + 1u);
+    const uint8_t abort[8] = {0x80, 0xfe, 0x60, 0x00, 0x10, 0x00, 0x07, 0x06};
+    CHECK(download(n->driver.requests.back(), 1, abort));
+    CHECK(has(n->dump(), "id=581 ext=0 rtr=0 dlc=8 data=4ffe600000000000 ok=1"));
 }
 // Packet 4 and packet 22 step 2: the full read, 1003:00 and only the entries its count names, then
 // 1001 and 603F again. Uploads only, each through its own grant; every value is this fake's.
@@ -2816,9 +2848,13 @@ void testSettings2202() {
     CHECK(has(text, "TRIAL_PLAN route=settings-2202 node=1 trial=2 attended=1 code=1\n"));
     CHECK(has(text, "TRIAL_SETTINGS prepared=1 noop=0 state=3 outcome=1 changed=1 confirmed=1 effects=1 uncertain=0 "
                     "cfg0=1 cfg1=2 followed=1\n"));
-    CHECK(has(text, "TRIAL_LIMITS which=0 present=1 2202=0000 entries=2 min=-1000 max=1000\n"));
-    CHECK(has(text, "TRIAL_LIMITS which=1 present=1 2202=0001 entries=2 min=-1000 max=1000\n"));
+    // 607D:00 as both specimens answered it: two bytes of 0, in the prior read and in the readback.
+    CHECK(has(text, "TRIAL_LIMITS which=0 present=1 2202=0000 entries=0 min=-1000 max=1000\n"));
+    CHECK(has(text, "TRIAL_LIMITS which=1 present=1 2202=0001 entries=0 min=-1000 max=1000\n"));
     CHECK(has(text, "object=2202:00 dir=1 outcome=0 ack=1"));
+    CHECK(s.terminals[1].index == 0x607d && s.terminals[1].size == 2 && s.terminals[11].index == 0x607d &&
+          s.terminals[11].subindex == 0 && s.terminals[11].size == 2 && s.terminals[12].size == 4);
+    CHECK(has(text, "id=581 ext=0 rtr=0 dlc=8 data=4b7d600000000000 ok=1"));
     r->release();
     // Later routes read at the new epoch through the reopened session.
     CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
@@ -2867,6 +2903,33 @@ void testSettings2202() {
     r->dump();
     r->turns(500);
     CHECK(r->downloadsFrom(first) == 1);
+
+    // Both bytes of a two-byte count are kept as read: this fake's 0x0102, never a truncated 2 and never
+    // a bound on what is read next.
+    scenario = "settings-2202-count";
+    std::unique_ptr<Rig> w(new Rig);
+    w->driver.drives[0].limitEntries = 0x0102;
+    trial = 0;
+    const E::RouteRecord& wide = w->run(limitsLine(1, trial, 1));
+    CHECK(wide.failure == E::RouteFailure::NONE && wide.terminalCount == 14 && w->driver.drives[0].limitSelector == 1);
+    CHECK(wide.limitEntries[0] == 0x0102 && wide.limitEntries[1] == 0x0102);
+    text = w->dump();
+    CHECK(has(text, "TRIAL_LIMITS which=0 present=1 2202=0000 entries=258 min=-1000 max=1000\n"));
+    CHECK(has(text, "TRIAL_LIMITS which=1 present=1 2202=0001 entries=258 min=-1000 max=1000\n"));
+    // The declared one-byte form fails the prior read as a wrong width: no state read, no write.
+    scenario = "settings-2202-one-byte-count";
+    std::unique_ptr<Rig> u(new Rig);
+    u->driver.drives[0].countWidth = 1;
+    trial = 0;
+    const E::RouteRecord& narrow = u->run(limitsLine(1, trial, 1));
+    CHECK(narrow.failure == E::RouteFailure::SERVICE && narrow.terminalCount == 2 && !narrow.settingsPrepared);
+    CHECK(narrow.terminals[1].index == 0x607d && narrow.terminals[1].outcome == uint8_t(C::SdoOutcome::CLIENT_ABORT) &&
+          narrow.terminals[1].abortCode == 0x06070010u && !narrow.groupPresent[0]);
+    u->turns(5);
+    CHECK(u->downloadsFrom(0) == 0 && u->driver.drives[0].downloads == 0); // Two uploads and the abort.
+    const uint8_t abort[8] = {0x80, 0x7d, 0x60, 0x00, 0x10, 0x00, 0x07, 0x06};
+    CHECK(download(u->driver.requests.back(), 1, abort) && u->driver.requests.size() == 3);
+    u->dump();
 }
 // Packet 13 P2/P3: one DI3 change through prepareIoSettings, every other field the prior's.
 void testIoDi3() {

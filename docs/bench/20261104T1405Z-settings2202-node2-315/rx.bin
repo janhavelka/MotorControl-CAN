@@ -1,0 +1,19 @@
+PONG target=esp32s2 base=e7f28acd8a3a4d983f337aee6150c400fb871dc0 elf=031ba492f276d144672ebdc8281257b76ab6c1b34ccecd33e67b8f1946a615fa sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=50873964 routes=5 trial=0 motion=0
+TRIAL admitted route=settings-2202 node=2 trial=315 motion=0 case=1; finite typed route, no retry
+TRIAL id=315 node=2 route=settings-2202 failure=3 why=uncertain lost=0 terminals=2 traffic=7 tail=0 tailLost=0 summaries=5 step=0 cycles=0 motion=0 case=1 unsettled=0 gap=3007 lossCancel=0
+TRIAL_PLAN route=settings-2202 node=2 trial=315 attended=1 code=1
+TRIAL_RES stack0=8976 stack1=8976 heap0=30944 heap1=30944 heapMin=30944 largest=14336 gap=3007 dropped=0 admission=0 started=50904618 completed=50917967 tec0=0 rec0=0 tec1=0 rec1=0
+TRIAL_SETTINGS prepared=0 noop=0 state=0 outcome=0 changed=0 confirmed=0 effects=0 uncertain=0 cfg0=0 cfg1=0 followed=0
+TRIAL_LIMITS which=0 present=0 2202=0000 entries=0 min=0 max=0
+TRIAL_LIMITS which=1 present=0 2202=0000 entries=0 min=0 max=0
+RESULT op=7 req=7 oreq=49 step=1 object=2202:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=50908968 completed=50911970 ne=1 reason=0 st=3f node=2
+RESULT op=7 req=7 oreq=50 step=2 object=607d:00 dir=0 outcome=2 ack=0 possible=1 uncertain=1 abort=06070010 cleanup=1 size=0 data=00000000 admitted=50914977 completed=50917967 ne=1 reason=0 st=df node=2
+TRAFFIC k=1 p=50908968 id=602 ext=0 rtr=0 dlc=8 data=4002220000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=23 txf=1 txc=1
+TRAFFIC k=2 p=50911970 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=23 txf=1 txc=1
+TRAFFIC k=0 p=50911970 id=582 ext=0 rtr=0 dlc=8 data=4b02220000000000 ok=1 exact=0 t=0 bounds=1 lo=50909218 hi=50911181 epoch=1
+TRAFFIC k=1 p=50914977 id=602 ext=0 rtr=0 dlc=8 data=407d600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=24 txf=1 txc=1
+TRAFFIC k=2 p=50917967 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=24 txf=1 txc=1
+TRAFFIC k=0 p=50917967 id=582 ext=0 rtr=0 dlc=8 data=4b7d600000000000 ok=1 exact=0 t=0 bounds=1 lo=50915229 hi=50917189 epoch=1
+TRAFFIC k=1 p=50917967 id=602 ext=0 rtr=0 dlc=8 data=807d600010000706 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=24 txf=2 txc=1
+TAIL k=2 p=50921970 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=24 txf=2 txc=1
+END trial terminals=2 traffic=7 tail=1 tailLost=0 lost=0; r=release

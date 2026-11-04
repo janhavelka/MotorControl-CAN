@@ -121,11 +121,16 @@ class RetainedCaptures(unittest.TestCase):
         # 20261104T1311Z-s2-ping-b: a ping sent while the S2 booted after a reflash. Its capture begins with
         # one "p" (0x70, the byte the host sent) before the boot banner, cause not established, so that line
         # stays unknown, and no PONG followed. The next ping (1311Z-s2-ping-c) was answered.
-        unexplained = {"20261104T1311Z-s2-ping-b": 1}
+        # 20261104T154523Z-s2-ping-boot and 20261104T154630Z-s2-ping-boot: the same, after esptool resets.
+        unexplained = {"20261104T1311Z-s2-ping-b": 1, "20261104T154523Z-s2-ping-boot": 1,
+                       "20261104T154630Z-s2-ping-boot": 1}
+        # 20261104T1407Z-p1-node2-318: one 64-byte console chunk was lost between the S2 and pyserial
+        # inside its TRIAL_LAST line, the UART loss of the soaks, so that one line is malformed.
+        console_loss = {"20261104T1407Z-p1-node2-318": 1}
         for directory in directories:
             report = evidence.replay_capture(directory)
             self.assertEqual(len(report.unknown), unexplained.get(directory.name, 0), directory.name)
-            self.assertEqual(report.malformed, [], directory.name)
+            self.assertEqual(len(report.malformed), console_loss.get(directory.name, 0), directory.name)
             self.assertEqual(report.typed_successes if report.family != "EVIDENCE" else 0, 0)
             request = json.loads((directory / "request.json").read_text(encoding="utf-8"))
             # A run the runner refused before its route line holds only its ping: there is no route
@@ -134,8 +139,13 @@ class RetainedCaptures(unittest.TestCase):
             # 20261102-s2-identity1: the retained reset investigation. 20261103T1010Z-s2-ping and
             # 20261103T1642Z-s2-ping-b: pings sent while the S2 was still booting after a reflash, with
             # no PONG; the next ping (1012Z, 1643Z-s2-ping-c) was answered.
+            # 2026-11-04: pings sent while the S2 was still booting after an esptool reset, answered only
+            # by the boot banner; and trial 318, whose record lost one console chunk mid-line.
             retained_incomplete = ("20261102-s2-identity1", "20261103T1010Z-s2-ping", "20261103T1642Z-s2-ping-b",
-                                   "20261104T1311Z-s2-ping-b")
+                                   "20261104T1311Z-s2-ping-b", "20261104T1406Z-s2-ping-reset",
+                                   "20261104T1539Z-s2-ping-reset2", "20261104T154523Z-s2-ping-boot",
+                                   "20261104T154630Z-s2-ping-boot", "20261104T154731Z-s2-ping-boot",
+                                   "20261104T1407Z-p1-node2-318")
             if directory.name not in retained_incomplete and not refused_before_send:
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
                                  (directory.name, report.errors))

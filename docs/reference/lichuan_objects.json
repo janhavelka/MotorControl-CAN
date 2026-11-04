@@ -17278,7 +17278,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count2.",
+            "value_policy": "Count2. Fixture observation 2026-11-04: both CL86-C specimens (one firmware identity: 1000=0x00040192, 1009=0x0C, 100A=0x20, 1018:01..03=0x1000/1/0, 2000=0x0400, 2001=0x0200) answer an expedited two-byte 0 (4B 7D 60 00 00 00 00 00), contradicting EDS U8 and default2; the default typed read ends in client abort 06070010. See docs/bench/20261104T1405Z-settings2202-node1-313 and docs/bench/20261104T1405Z-settings2202-node2-315. 607D:01/:02 still answer as I32 (raw uploads 2026-11-02). Whether the firmware holds a U16 or pads a U8, and what 0 means, are unresolved; the count is never a discovery bound. CountWidths::MEASURED_U16 is an explicit application option; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -18633,7 +18633,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count2.",
+            "value_policy": "Count2. Fixture observation 2026-11-04: both CL86-C specimens (one firmware identity: 1000=0x00040192, 1009=0x0C, 100A=0x20, 1018:01..03=0x1000/1/0, 2000=0x0400, 2001=0x0200) answer an expedited two-byte 0 (4B FE 60 00 00 00 00 00), contradicting EDS U8 and default2; the default typed read ends in client abort 06070010. See docs/bench/20261104T1309Z-io-node1-303 and docs/bench/20261104T1309Z-io-node2-304. No retained record reads 60FE:01/:02. Whether the firmware holds a U16 or pads a U8, and what 0 means, are unresolved; the count is never a discovery bound. CountWidths::MEASURED_U16 is an explicit application option; original EDS metadata and production qualification remain unchanged.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -22628,6 +22628,12 @@
       "source_claim": "EDS declares 1009 and 100A as U16 with defaults 0x2608 and 1.",
       "measurement": "Two user-labelled CL86-C specimens returned one-byte 1009=0x0C and 100A=0x20, retained in docs/bench/20261102-nmt-pdo-node1 and node2.",
       "decision": "The EDS and declared widths stay unchanged. An application that established these specimens selects the measured widths explicitly; nothing detects them. No version text is inferred."
+    },
+    "count_width_binding": {
+      "selected_by_application": "CountWidths::MEASURED_U16",
+      "source_claim": "EDS declares 607D:00 and 60FE:00 as RO U8 HighestSubIndex with default 2.",
+      "measurement": "On 2026-11-04 two user-labelled CL86-C specimens (one firmware identity: 1000=0x00040192, 1009=0x0C, 100A=0x20, 1018:01..03=0x1000/1/0, 2000=0x0400, 2001=0x0200) returned expedited two-byte uploads of 0 for both (4B 7D 60 00 00 00 00 00, 4B FE 60 00 00 00 00 00); the default typed reads ended in client abort 06070010. Retained in docs/bench/20261104T1405Z-settings2202-node1-313, docs/bench/20261104T1405Z-settings2202-node2-315, docs/bench/20261104T1309Z-io-node1-303 and docs/bench/20261104T1309Z-io-node2-304.",
+      "decision": "The EDS and declared widths stay unchanged. An application that established these specimens selects the measured width explicitly for the SOFT_LIMITS and IO_OUTPUT_COMMAND group reads; nothing detects it and no other object's width changes. The 0 stays raw: it is not evidence of an empty array and never bounds a traversal. A U16 type versus a padded U8, the meaning of 0 and every other firmware remain unresolved."
     },
     "status": "complete",
     "date": "2026-10-28",

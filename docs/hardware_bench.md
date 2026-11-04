@@ -30,7 +30,7 @@ builds, acquisition and physical qualification remain separate facts.
 | Item | Established fact | Evidence needed before dependent live work |
 | --- | --- | --- |
 | Drive | User confirms both labels CL86-C; nodes 1/2 share the captured raw identity tuple | Manufacturer interpretation of version fields, unique specimen identity and applicable dialect |
-| Motor and feedback | User identifies LC60H2127; free shafts with paper mask, somewhat visible but imperfect. [Manufacturer model page](https://en.xlichuan.com/product-xq/71.html) lists representative ratings | Installed variant/ratings, wiring, encoder configuration, adequate motion observation and command/feedback scale remain unqualified |
+| Motor and feedback | User identifies LC60H2127; free shafts with paper mask, somewhat visible but imperfect. [Manufacturer model page](https://en.xlichuan.com/product-xq/71.html) lists representative ratings. On this configuration `6064` counts command pulses, 1000 per revolution on node 1, where 250 turned the marked shaft about a quarter turn ([2026-11-03](reports/2026-11-03_attended_bench.md)), and **`606C` reads rpm**: 30 during moves at 30 rpm, 1 at 2 rpm, both nodes ([2026-11-04](reports/2026-11-04_bench.md)). Both shafts hold torque at power-up (user, both sessions) | Installed variant/ratings, wiring, encoder configuration and adequate motion observation remain unqualified; node 2's scale has no shaft observation |
 | PC interface | User reports PCAN-USB opto IPEH-002022 available; not inspected or exercised | Exact connected interface, driver/version, timestamp and queue behavior, wiring and applicable authorization; availability is not adapter integration or qualification |
 | Embedded controller and SDK | EasyEDA specifies ESP32-S2-MINI-2-N4; ROM reports ESP32-S2FH4 revision 1.0, embedded 4 MB flash, no embedded PSRAM, 40 MHz crystal. S2 UART/core-0/TWAI firmware was built, uploaded and exercised on IDF 5.5.5 | Physical PCB/module revision still unrecorded; requested P4 adapter support remains separate |
 | Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
@@ -39,7 +39,7 @@ builds, acquisition and physical qualification remain separate facts.
 | Bus topology | User reports PCB to drive to drive daisy chain; CN2 pin1 L, pin2 H in both design netlists | Physical cable/reference continuity and endpoint termination. Drive RJ45 pin1 is H, pin2 L, pin3 GND; CN2 is only two pins |
 | Node and bitrate | Matched replies on 581/582 prove service communication with nodes 1/2 using 1 Mbit/s. User reports PCB JP1 bridged and last-drive SW8 ON | Measure unpowered bus resistance and cable/reference continuity; successful short exchanges do not establish electrical margins |
 | Power | User reports both probe selectors and PCB jumpers at 5 V, measured rails 4.75 V and 3.25 V on probe/PCB; green VPROG LED blinks. Design supplies MCU through U14; U3 uses separate VCC/VIO | These are user measurements, not captured rail traces. Green activity indication alone is not a power diagnosis; transient behavior, EN and other attached supplies remain unconfirmed |
-| External I/O | Post-cycle both nodes report 2400:01=0, :02/:03/:04=1/2/3, :05..08=0; raw2101/60FD=0. Terminals reportedly unconnected | Configured origin/positive-limit/negative-limit functions remain present; confirm electrical levels and active semantics needed by the operation. No function was disabled or reassigned |
+| External I/O | Post-cycle both nodes report 2400:01=0, :02/:03/:04=1/2/3, :05..08=0; raw2101/60FD=0. Terminals reportedly unconnected. On 2026-11-04 both also read `2400:00=0x10`, `:0C=0`, `:0D=1`, `:0E=:0F=0` and filters `2401..2407` = 2, 1, 0, 0, 0, 0, 0; `60FE:00` answered in two bytes against its U8 ([backlog D16](backlog.md)). On node 1, DI3 (`2400:05`) was set 0 → 7 → 0, each read back, and polarity bit 3 set, which raised `2101` bit 3 but not `60FD`; that polarity read 0 again after the next power cycle, with no save sent ([report](reports/2026-11-04_bench.md)) | Configured origin/positive-limit/negative-limit functions remain present; confirm electrical levels and active semantics needed by the operation. DI0..DI2 were never written; no protective function was disabled or reassigned. Output terminals and their levels are unobserved |
 | Mechanics | User reconfirmed free shafts, motors bolted to table and independent drive-power cutoff available | Actual ratings, finite motion bounds and independent observation for any motion experiment |
 | Authorization | User explicitly authorizes starting board testing and, on 2 November 2026, physical tests generally for this promptset: bench ready, two drives in series, free shafts, motors fixed to the table. No repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
 | Evidence | First image: heartbeat/NMT/fixed TPDO1; 197RX/80TX, stackFree9452. Second image: post-cycle26 plus readiness30 uploads/node; 112RX/112TX, stackFree9580. Both stats report zero errors/drops | Global network history separately reports49 then351 dropped entries. One-cycle reversion is observed; broader persistence, firmware, electrical, sample and motor qualification remain pending |
@@ -302,9 +302,9 @@ python scripts/s2_soak.py --duration-s 120 --interval-ms 200 --summary-s 10 --re
 python scripts/s2_soak.py --until 09:00 --interval-ms 200 --summary-s 60 --reads full
 ```
 
-Run the short one first. `2102` has no retained read on these specimens, and a reply of an
-unexpected width ends with a local client abort, which leaves that route unresolved until an
-MCU restart. If it fails, use `--reads identity` for the long run and record the result.
+Run the short one first. A reply of an unexpected width ends with a local client abort, which
+leaves that route unresolved until an MCU restart, as `607D:00` and `60FE:00` did on 2026-11-04.
+If it fails, use `--reads identity` for the long run and record the result.
 
 `--keepalive-s N` is a HIL-only diagnostic: the runner writes one bare newline every N seconds
 while it captures, which the firmware ignores outside a command line, and counts them in the
@@ -320,7 +320,7 @@ allowed. Their effects stay unknown, and a clean night does not show they have n
 | Selected by `--reads` | Objects | Typed read | Last read on these specimens |
 | --- | --- | --- | --- |
 | Always | `6041:00`, `6061:00`, `6064:00`, `606C:00` | `STATUS` and `FEEDBACK` blocks | `20261102-motion-readiness-node1/2` |
-| `monitors`, `full` | `2100:00`, `2101:00`, `2102:00` | `MONITORS` block, a separate operation | `2100` and `2101` as above; **`2102` has no retained read** |
+| `monitors`, `full` | `2100:00`, `2101:00`, `2102:00` | `MONITORS` block, a separate operation | `2100` and `2101` as above; `2102` in every `readiness-actions` record and soak since 2026-11-03 |
 | `identity`, `full`: once per node | `1000:00`, `1009:00`, `100A:00`, `1018:00..03`, `2000:00`, `2001:00` | `IDENTITY` with `MEASURED_U8` | `20261102-final-node1/2` |
 
 `603F`, `1001` and `1003` are never read: DEC-1 keeps them explicit single reads, and this is a
@@ -432,7 +432,11 @@ Named finite routes for the attended trials of packets 13, 14, 15, 16, 19, 20, 2
 [`BenchRoute`](../examples/s2_bench/BenchRoute.h). The [attended session](reports/2026-11-03_attended_bench.md)
 ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`; the
 [unattended session](reports/2026-11-03_unattended_bench.md) ran `move` once, `stop` twice and
-`history` on both nodes. Each is
+`history` on both nodes. The [2026-11-04 session](reports/2026-11-04_bench.md) ran every route but
+`clear-alarm`, for which no alarm occurred: `actions`, `history`, `io`, `tuning`, `mode1`, `enable`,
+`stop`, `position`, `rearm` (after a trigger, a halt and a relative trigger), `move` (absolute with a
+planned stop, relative and observed), `released-quick`, `word67`, `relative`, `io-di3`,
+`counter-zero`, and `settings-2202`, which stopped at its prior read before any write. Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
 typed reads, the session's own `requestEnable`, `requestMove`, `requestMoveRelative`,
 `requestStop`, `requestCounterZero` and `requestClearAlarm`, the library's settings transactions
@@ -446,7 +450,7 @@ while its own record is held.
 | Runner `--command` | Firmware line | Reads and writes | Ends early on |
 | --- | --- | --- | --- |
 | `readiness-actions` (packet 15 P1) | `TA<node>,<trial>` | STATE `1001`, `603F`, `2100..2102`, `6041`, `6061`, `6064`, `606C`; MOTION_PARAMETERS `6081`, `6083`, `6084`; single uploads `1017`, `607A`, `60FF`; the accepted image again. No write | Any failed terminal |
-| `readiness-io` (packet 13 P1) | `TI<node>,<trial>` | Image; `2400:00..08`, `2400:0C..0F`, `2401..2407`, `60FE:00..02` as the four typed I/O groups; image. `2400:0B` is never read. No write | As above |
+| `readiness-io` (packet 13 P1) | `TI<node>,<trial>` | Image; `2400:00..08`, `2400:0C..0F`, `2401..2407`, `60FE:00..02` as the four typed I/O groups, `60FE:00` read in two bytes (`CountWidths::MEASURED_U16`), as both specimens answered it; image. `2400:0B` is never read. No write | As above |
 | `readiness-tuning` (packet 14 T0) | `TU<node>,<trial>` | Image; the four typed tuning groups `2502..2520`; image. No write | As above |
 | `readiness-history` (packet 4, packet 22 step 2) | `TH<node>,<trial>` | The `readiness-actions` STATE read; STATE `ERROR_HISTORY` alone: `1003:00`, then only the entries `1003:01..` its count names, at most four, each upload with its own one-use grant; STATE `ERRORS` (`1001`, `603F`) again, so both are on record before and after the first `1003` read. Values raw, never interpreted. No write | As above; a `1003:00` count above four fails the typed read after that upload |
 | `mode1` (packet 15 P2) | `TM<node>,<trial>,1,<cycles>,<interval>` | The `readiness-actions` reads, a check, then `2F 60 60 00 01 00 00 00` once, then 1..10 fresh cycles, the first with `1001`/`603F`. No enable | Before the write: `1001` or `603F` nonzero, `2100` alarm or running, `606C` nonzero, `6061` not 0, an earlier write or controlword in this session. After: alarm, running, `606C` nonzero, a fault code |
@@ -458,7 +462,7 @@ while its own record is held.
 | `released-quick` (packet 16 step 3) | `TQ<node>,<trial>,1,<cycles>,<interval>` | Two fresh full reads, each with `2100` bit 4 released, alarm clear, `6041` low bits 000, mode 1, `606C` 0, `1001` and `603F` 0; `2100` bit 2 set in either only with the same `6064` in both, because it stayed latched after a `000B` stopped a move (trial 213). No predecessor: the session's latest word is recorded as `TRIAL_CONTROL`, and must be unchanged when the write is offered. Then `2B 40 60 00 0B 00 00 00` once through `admitPrepared` under its own grant, which becomes the session's latest word when acknowledged, then 1..16 fresh image cycles, recorded and never judged. An application-local experiment, not a stop: `requestStop` refuses a released drive by design | The check (`unreleased`, `status`, `mode`, `alarm`, `velocity`, `running` and the error reasons); after the write alarm, a failed terminal, EMCY |
 | `word67` (packet 15) | `TW<node>,<trial>,1,<cycles after 0006>,<cycles after 0007>,<interval>` | The `released-quick` reads and check, then `2B 40 60 00 06 00 00 00` once and 1..4 fresh image cycles; only when the last of them shows mode 1 and low bits 001, `2B 40 60 00 07 00 00 00` once, offered only while this route's acknowledged `0006` is the latest word, and 1..16 fresh image cycles with `6064` and `606C`, recorded and never judged. No other word: the drive is left switched on with `0007` the latest word | As `released-quick`; after `0006` failure 9 `mode` or `status`, and nothing more is written |
 | `relative` (packet 21) | `TL<node>,<trial>,1,<6064>,<displacement>,<rpm>,<up>,<down>,<cycles>,<interval>,<stop>,<after>,<stop deadline>,<best effort>,<stop interval>` | Exactly `position`, with the signed nonzero displacement (-1000000..1000000) in `607A` and the trigger `6040=005F`: the base measurement. `TRIAL_BASE` shows the `607A` read before the writes and the firmware's own record of the last `607A` it had acknowledged on that node (trial, value, whether a displacement); the start `6064` is in `TRIAL_CHECK` | As `position` |
-| `settings-2202` (packet 12 T1/T2) | `TD<node>,<trial>,1,<code 0/1>` | A fresh `SOFT_LIMITS` read (`2202`, `607D:00..02`) and a fresh `STATUS`/`MONITORS` read, then `prepareSoftLimitSettings` with that code on the session's reservation (its own prerequisites: a prior code of 0 or 1, no running, alarm or undocumented `2100` bit; for code 1 the minimum below the maximum and homing not complete). Its one write `2B 02 22 00 <code> 00 00 00` through `admitPrepared` under its own grant, with the library's pre-transmit notice, then its readback of the group. An unchanged code sends nothing (`why=unchanged`, `noop=1`). Prior and readback raw in `TRIAL_LIMITS`. Not motion: attended, three per route and node | The library's refusal (`why=settings`, `TRIAL_STATUS`), a failed terminal, EMCY. Codes other than 0 and 1, the EDS default 10 among them, are refused by the parser |
+| `settings-2202` (packet 12 T1/T2) | `TD<node>,<trial>,1,<code 0/1>` | A fresh `SOFT_LIMITS` read (`2202`, `607D:00..02`, `607D:00` in two bytes under `CountWidths::MEASURED_U16` here and in the readback, as both specimens answered it) and a fresh `STATUS`/`MONITORS` read, then `prepareSoftLimitSettings` with that code on the session's reservation (its own prerequisites: a prior code of 0 or 1, no running, alarm or undocumented `2100` bit; for code 1 the minimum below the maximum and homing not complete). Its one write `2B 02 22 00 <code> 00 00 00` through `admitPrepared` under its own grant, with the library's pre-transmit notice, then its readback of the group. An unchanged code sends nothing (`why=unchanged`, `noop=1`). Prior and readback raw in `TRIAL_LIMITS`. Not motion: attended, three per route and node | The library's refusal (`why=settings`, `TRIAL_STATUS`), a failed terminal, EMCY. Codes other than 0 and 1, the EDS default 10 among them, are refused by the parser |
 | `io-di3` (packet 13 P2/P3) | `TJ<node>,<trial>,1,<case 1..4>` | A fresh `IO_INPUT_CONFIGURATION` read (`2400:00..08`) and a fresh `STATUS`/`MONITORS` read, then one complete `IoSettings` candidate through `prepareIoSettings` changing exactly one thing: case 1 `2400:05` (DI3 function) 0 to 7 (USER0), case 2 7 to 0, case 3 sets polarity bit 3 of `2400:01`, case 4 clears it; every other field and unknown polarity bit is the prior readback's. Its one write, the readback, then `2101` (MONITORS) and `60FD` (INPUTS) once (`TRIAL_INPUTS`). Packet 13 P4 (output `2400:0E`) stays unrouted. Not motion, as `settings-2202` | Before any write: the prior not in the state its case names (`why=di3`), another input holding an undocumented code a candidate cannot carry (`why=undocumented`), the library's refusal |
 | `counter-zero` | `TZ<node>,<trial>,1,<deadline>,<interval>` | A fresh `MONITORS`/`STATUS`/`FEEDBACK` read, then `requestCounterZero` with native position 0, this node's coordinate configuration and a witness that knows no position; the session writes `2B 02 23 00 00..`, `..01..`, `..00..`, moves its reservation to the new configuration epoch itself and reads until `6064` reads 0. Motion class: it moves the position reference | The library's refusal (`why=clear`), EMCY (`cancelClear` with `DRIVE_FAULT`), abort or lost evidence (`cancelClear`) |
 | `clear-alarm` | `TC<node>,<trial>,1,<deadline>,<interval>` | A fresh `ERRORS`/`ERROR_HISTORY`/`MONITORS`/`STATUS` read, refused unless `2100` reports the alarm (`why=no-alarm`), then `requestClearAlarm`: `2B 01 23 00 01..` then `..00..`, cycles of `MONITORS`/`STATUS` until the alarm reads clear, then `ERRORS` once. Nothing follows: no enable, controlword or resume. Motion class | As `counter-zero` |
@@ -642,7 +646,7 @@ reads, and the position values need packet 19's reviewed bounds. The move's evid
 placeholder at all: every signal, rule and identity value comes from packet 19's reviewed
 measurement record, and without one the move stays unrun. Every route value is required; the
 runner refuses a missing one. Each command checks the recorded USB identity, pings, and refuses
-unless the image reports `routes=4` (the line protocol above), no soak, no held
+unless the image reports `routes=5` (the line protocol above), no soak, no held
 record and a started controller. It asks the
 operator to type the attended confirmation, the shaft observation for `enable` and the fault LED for
 `readiness-actions` and `readiness-history` with `--fault-led prompt` (both require `--fault-led`:
@@ -719,10 +723,11 @@ request from `BenchRoute::service`.
 **Not established.** Nothing here qualifies an enable, stop, move, scale or firmware. On one
 image, the least stack ever free during the routes was 8,492 of 12,288 bytes, during a moving
 HALT, and the largest service gap 5 ms ([attended report](reports/2026-11-03_attended_bench.md#resources-during-the-actions)).
-The [2026-11-04 session](reports/2026-11-04_bench.md) holds the later stop and move records. None of
-the routes added that day (`released-quick`, `word67`, `relative`, the rearm from a halt or after a
-relative trigger, and the relative move) has run on hardware: their host tests use a synthetic drive
-whose every response is the test's own.
+The [2026-11-04 session](reports/2026-11-04_bench.md) holds the later stop and move records, and the
+first hardware runs of the routes added that day, each once or twice on one or two specimens and one
+firmware, judged from drive reports with no shaft observed. Their host tests use a synthetic drive
+whose every response is the test's own. `clear-alarm` has not run on hardware, and `settings-2202`
+has sent no write.
 
 ## Conditional state-changing evidence
 

@@ -36,8 +36,8 @@ to remain inside that range.
 
 ACTUAL, COMMANDED and QUEUED bases are tested as common host arithmetic with
 explicit matching witnesses and axis policy. None is a supported Lichuan
-relative execution basis: the relative move below needs separate evidence of
-the drive's own base. Current preparation time is used to recheck a
+relative execution basis by default: the relative move below needs separate
+evidence of the drive's own base, which one specimen has supplied for `ACTUAL`. Current preparation time is used to recheck a
 supplied witness without renewing its observation time or age limit. A zero
 native target without a witness says nothing about displacement or standstill;
 a zero relative displacement is also only arithmetic. Numeric zero speed and
@@ -81,7 +81,17 @@ own `000F` rearm acknowledged, the same bits as node 1. Completion was reported 
 the counter dithers inside the in-place window is not established. No shaft was
 observed, and node 2's scale is not measured. That is one specimen and one firmware,
 not a qualification ([unattended report](reports/2026-11-03_unattended_bench.md)).
-All other evidence for this lifecycle is fake-owner tests.
+
+**Later runs, 2026-11-04,** judged from drive reports with no shaft observed
+([report](reports/2026-11-04_bench.md)). The same 0 to 250 at 2 rpm on node 2,
+through the application-local `position` route rather than this lifecycle,
+completed at exactly 250 and held it for 8 s, so the 251 did not recur; a one-pulse
+overshoot is still possible. This lifecycle then ran with a planned quick stop
+twice at 30 rpm (250 to 2250 on node 2, 404 to 2404 on node 1): each move ended
+interrupted and fenced, its stop with its own result. It refused one plan before
+any write, because the deadline did not cover every scheduled service at its
+budgets. The relative move below succeeded once. `606C` reads rpm on this
+configuration. Everything else for this lifecycle is fake-owner evidence.
 
 ### Admission, before any write
 
@@ -97,7 +107,7 @@ All other evidence for this lifecycle is fake-owner tests.
 | Ramps | `6083` and `6084` in 1..2000 ms. Zero is a documentary value with no qualified meaning (Q11) |
 | Witness | Optional. A supplied one must be idle, stationary, `ACTUAL`, fresh and observed at or after the predecessor `000F` completed, and then fixes the displacement, which must not be zero (R-08). Without one the displacement stays `UNKNOWN`; an absolute zero is an ordinary target, and nothing manufactures a no-op success |
 | Deadline | Beyond `MOVE_SERVICE_STEPS` (13) queue-and-response budgets. That cannot guarantee completion |
-| Refused forms | Immediate update (`003F`), relative or wrapped intent, `MEASURED_U8` widths, an age cap below seven fields |
+| Refused forms | Immediate update (`003F`), relative or wrapped intent, `MEASURED_U8` or `MEASURED_U16` widths, an age cap below seven fields |
 
 Preparation validates everything, then constructs the context in place.
 `validateMoveAbsolute` reports the same refusal with nothing written, so an
@@ -210,7 +220,7 @@ observation:
    acceptance or completion.
 7. The DEC-8 stop rows from `001F` belong to packet 16.
 
-## Finite relative move (gated twice, supported for no specimen)
+## Finite relative move (gated twice)
 
 `prepareMoveRelative` and `validateMoveRelative` run a relative move through the
 same `nextMove`, `beginMoveObservation`, `noteMoveTransmission`,
@@ -236,9 +246,15 @@ names the caller's measurement of that base on the exact firmware:
 | `COMMANDED` | `COMMANDED` | `UNSUPPORTED`, `RELATIVE_BASIS` |
 | `QUEUED` | None exists | Always `UNSUPPORTED`, `RELATIVE_BASIS`: a queued base needs an edge in a running curve, and this lifecycle starts a move only from an idle drive. The manuals document bit 5 = 0 as updating the parameters after the current curve completes (EN86/ZH86 p12, OP86 p10), but give no capacity, acknowledgement or base for it |
 
-The default is `UNMEASURED`, and no specimen has measured a base, so every
-relative request is refused today. The axis's `supportedRelativeBases` is a
-separate host-arithmetic policy and is still checked.
+The default is `UNMEASURED`, so a relative request is refused unless the caller
+names a measured base. **Node 1 measured `ACTUAL` on 2026-11-04** (trial 409):
+after a halted move left it at 104 with target 600, `005F` with +200 ended at
+304. With that record, `requestMoveRelative` +100 under `ACTUAL` then
+`SUCCEEDED` at 404, its computed endpoint, with its own rearm (trial 411). One
+specimen, one firmware, a positive displacement, judged from drive reports with
+no shaft observed ([report](reports/2026-11-04_bench.md),
+[packet 21](reports/handoff_19_33/packet_21.md)). The axis's
+`supportedRelativeBases` is a separate host-arithmetic policy and is still checked.
 
 Two bases stay apart in the context. `parameters.target.retainedReference` is
 the host arithmetic reference; `evidence.relativeBase` is the drive's measured
@@ -270,3 +286,9 @@ observation, beside the absolute items above:
 2. That the absolute acceptance and completion signals behave the same after
    `005F`, or the record must carry measured ones for it.
 3. What `005F` does with a zero `607A`, which the library never sends.
+
+For node 1 on its firmware, items 1 and 2 are answered by drive reports, without
+a shaft observation: the base is the actual position, and acceptance (`6041` bit
+12 from the first cycle) and completion (`2100` bit 0 absent while running, then
+present) behave as after `001F`. Item 3, node 2, a negative displacement and the
+shaft remain.

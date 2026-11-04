@@ -98,6 +98,16 @@ established its own fixture selects `MEASURED_U8` explicitly; nothing detects it
 `1018:00=5` stays raw. No version text is inferred, and
 `hardwareVersionWidth`/`softwareVersionWidth` report the actual reply bytes.
 
+`ReadOptions::countWidths` does the same for the array counts `607D:00`
+(`DRIVER_SOFT_LIMITS`) and `60FE:00` (`IO_OUTPUT_COMMAND`). The EDS declares U8;
+on 2026-11-04 both specimens, of one firmware identity, answered each with two
+bytes of 0. The default `DECLARED_U8` fails there as a wrong width, and the
+client abort leaves the route unresolved. `MEASURED_U16` is selected explicitly,
+only for those two groups; any other kind refuses it, and a one-byte reply then
+fails. `softLimitEntriesWidth`/`outputEntriesWidth` report the reply bytes, and
+the count stays raw: it is not evidence of an empty array and bounds nothing.
+See [device conflicts](device_conflicts.md#conflict-and-observation-table).
+
 There is no `1018:04` serial field in this EDS and no established actual
 following-error read. Driver, I/O configuration and tuning reads retain owners
 20–22. Prompt 20's nine native rows use the same engine through the

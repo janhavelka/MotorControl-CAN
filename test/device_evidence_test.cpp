@@ -984,6 +984,13 @@ void measuredWidthsThroughTheApplication() {
     E::AcquisitionPlan unknown = other.plan();
     unknown.options.identityWidths = static_cast<L::IdentityWidths>(2);
     CHECK(other.evidence.request(unknown, 0) == E::EvidenceAdmission::INVALID);
+    // The array-count width belongs to two group reads, none of which this harness plans.
+    const L::ReadKind kinds[] = {L::ReadKind::IDENTITY, L::ReadKind::STATE, L::ReadKind::CONFIG};
+    for (L::ReadKind kind : kinds) {
+        E::AcquisitionPlan counted = other.plan(kind);
+        counted.options.countWidths = L::CountWidths::MEASURED_U16;
+        CHECK(other.evidence.request(counted, 0) == E::EvidenceAdmission::INVALID);
+    }
     CHECK(!other.evidence.record() && !other.wire.transmitted);
 }
 void receiveIntervalsStayIntervals() {

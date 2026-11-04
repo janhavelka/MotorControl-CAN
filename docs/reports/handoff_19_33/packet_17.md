@@ -1,6 +1,6 @@
 # Packet 17: explicit alarm clearing and retained fault evidence
 
-Resumes the alarm-clear part of prompt 32. Host and fake evidence only: **no retained read has reported an alarm on either specimen, so no clear has run.** A physical trial needs a naturally present, identified fault.
+Resumes the alarm-clear part of prompt 32. Host and fake evidence only: **no retained read has reported an alarm on either specimen, so no clear has run.** A physical trial needs a naturally present, identified fault. Since `e7f28ac` the application caller and the `clear-alarm` bench route exist; through the [2026-11-04 session](../2026-11-04_bench.md), every route read of `2100`, `1001` and `603F` on both nodes still showed no alarm.
 
 ## Delivered
 
@@ -30,9 +30,9 @@ Only for a naturally present, identified alarm, one drive, cutoff in hand. Recor
 
 ## Open
 
-- **No application caller.** `AxisSession` has no clear-alarm member yet. It should keep a per-axis block when `valueOneMayRemain` is set, surviving result release, as RS `actionConflicts` does, and copy the EMCY on the ordinary path. Tracked as backlog S12.
-- `s2_bench` has no route for it (S12).
-- Q13's physical qualification.
+- **Application caller, delivered in `e7f28ac`** (backlog S12): `AxisSession::requestClearAlarm`, with `clearBlocked()` set for the session object's life when a clear ends with `valueOneMayRemain`, surviving result release, as RS `actionConflicts` does. The session has no EMCY view: the application copies the incident's EMCY before the request and routes a later one to `cancelClear`. See the [guide](../../fault_reference_actions.md#application-caller-axissession).
+- **Bench route:** `clear-alarm` (`TC`) in `examples/s2_bench`, refused unless `2100` reports the alarm. It has not run: no alarm has occurred.
+- **Still owed:** the physical plan above, on a naturally present alarm, and Q13's physical qualification.
 
 ## Sibling refresh
 
