@@ -1,9 +1,11 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 # Packet 20: Complete finite absolute-position lifecycle
 
 Execute this packet fully. Apply [COMMON.md](COMMON.md). Prerequisites: verified
 W1–W8 closure in packets 1–10, packet 12's settings contracts, packet 15's usable
 enable/state artifacts, packet 16's stop contract and packet 19's applicable
-position evidence. Read repaired [original33](../33_position_moves.md) in full.
+position evidence. Read repaired [original33](../../33_position_moves.md) in full.
 This packet owns absolute behavior and shared move context; packet 21 owns
 relative behavior and the complete interruption matrix. Do not claim original 33
 Complete at this intermediate boundary.

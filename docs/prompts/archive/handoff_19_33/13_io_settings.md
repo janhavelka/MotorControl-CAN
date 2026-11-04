@@ -1,8 +1,10 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`. P4 is still owed. The pre-mutation checklist under "Bounded HIL and verification" below still applies to it.
+
 # Packet 13: I/O configuration and output evidence
 
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
-Prerequisite: packet 12, as recorded in this handoff's index. Resume [original prompt 21](../21_io_settings.md). Complete its independently supported I/O groups and investigate the remaining address/function/output gates. Do not make optional DO/filter qualification a prerequisite for unrelated motion work.
+Prerequisite: packet 12, as recorded in this handoff's index. Resume [original prompt 21](../../21_io_settings.md). Complete its independently supported I/O groups and investigate the remaining address/function/output gates. Do not make optional DO/filter qualification a prerequisite for unrelated motion work.
 
 ## Read code, corrections and originals
 

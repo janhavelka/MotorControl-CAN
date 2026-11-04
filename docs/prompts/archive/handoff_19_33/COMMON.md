@@ -1,10 +1,12 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`. Its sections "Physical test authorization and boundaries" and "Diagnose, reproduce, correct and retest" still govern those owed trials.
+
 # External coder execution contract
 
 This is a continuation of the existing MotorControl-CAN promptset, scoped to
 prompts 19–22 and 29–33 and their necessary repairs. Apply root `AGENTS.md`, the
-parent Projects guidance, and [COMMON](../COMMON.md), [CONVENTIONS](../CONVENTIONS.md),
-[DOCUMENTATION](../DOCUMENTATION.md), [MAINTAINABILITY](../MAINTAINABILITY.md),
-[MULTIDRIVE](../MULTIDRIVE.md) and [DELEGATION](../DELEGATION.md). Read the numbered
+parent Projects guidance, and [COMMON](../../COMMON.md), [CONVENTIONS](../../CONVENTIONS.md),
+[DOCUMENTATION](../../DOCUMENTATION.md), [MAINTAINABILITY](../../MAINTAINABILITY.md),
+[MULTIDRIVE](../../MULTIDRIVE.md) and [DELEGATION](../../DELEGATION.md). Read the numbered
 packet in full. Execute it, including corrections, tests, documentation and sync;
 do not answer with another plan or rewrite this handoff as the deliverable.
 
@@ -37,7 +39,7 @@ not invent a remote or push to the base branch.
 
 The authoring baseline is `4ae93e3` on 2026-11-02; `c643af8` is the tested
 communication/PDO implementation. Refresh both code and reports. Read the
-[repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md), particularly its
+[repair audit](../../PROMPTSET_AUDIT_34_50_2026-11-02.md), particularly its
 changes-since-baseline note, decisions and the packet's W/A/C/G/D findings.
 Packets 1–10 closed W1–W8. Isolated prompt-29 experiments do not assert
 that a production lifecycle exists.

@@ -1,8 +1,10 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`. T1 and T2 are still owed. The rule under "HIL, tests and handoff" below, not to vary gains or current blindly, still applies to them.
+
 # Packet 14: control, current and tuning groups
 
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
-Prerequisite: packet 12, as recorded in this handoff's index. Resume [original prompt 22](../22_tuning_settings.md). This packet owns the finite `2500..2520:00` assignment, not every future native feature. Unneeded gain/filter qualification must not block independent motion evidence work.
+Prerequisite: packet 12, as recorded in this handoff's index. Resume [original prompt 22](../../22_tuning_settings.md). This packet owns the finite `2500..2520:00` assignment, not every future native feature. Unneeded gain/filter qualification must not block independent motion evidence work.
 
 ## Establish the current boundary
 

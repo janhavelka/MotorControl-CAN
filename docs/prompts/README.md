@@ -8,11 +8,10 @@ Create one new branch at the start of a new execution and retain it across all 5
 
 ## Shared contracts
 
-For the current continuation of prompts19–22 and29–33, use the
-[external coder handoff](handoff_19_33/README.md): 22 numbered, paste-ready packets
-cover required repairs, HIL diagnostics, bounded physical experiments and the
-remaining settings/action/position work. It continues the existing branch and
-retains the active audit's prerequisites; it is not a replacement sequence.
+The [external coder handoff](archive/handoff_19_33/README.md) for prompts 19–22 and
+29–33 has run all 22 packets and is archived for traceability; do not execute it again.
+Its [execution table](../reports/handoff_19_33/README.md) records what each packet
+delivered, and the [backlog](../backlog.md) tracks the physical trials still owed.
 
 - [CONVENTIONS.md](CONVENTIONS.md): authoritative names, Status/outcomes, owner, health/statistics and CLI behavior.
 - [DOCUMENTATION.md](DOCUMENTATION.md): current guides, general project files, meaningful public Doxygen and strict tooling.

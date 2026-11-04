@@ -1,3 +1,5 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 # External coder handoff: prompts 19–22 and 29–33
 
 Paste the **entire numbered file** into the external coder's chat while this
@@ -73,7 +75,7 @@ and counter zero have conditional implementations. Position has pure
 `preparePositionParameters`, not a finite move engine. `MotionPreview` is offline
 and always has `executionReady=false`; changing that flag is not implementation.
 
-The [repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1–W8 in packet 10.
+The [repair audit](../../PROMPTSET_AUDIT_34_50_2026-11-02.md) closed W1–W8 in packet 10.
 It was written against older code. Current NMT, S2 and
 receive-bound work already resolves parts of it. Reproduce each affected finding
 against current source before fixing it. The current firmware task stack is

@@ -1,3 +1,5 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 # Packet 3: TWAI submission, receive ordering and TX retirement
 
 Execute this packet fully. Apply [COMMON.md](COMMON.md). Prerequisite: packet 2.

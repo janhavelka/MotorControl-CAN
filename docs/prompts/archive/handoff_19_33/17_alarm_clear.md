@@ -1,16 +1,18 @@
+> Executed handoff, retained for traceability. Do not execute this copy. All 22 packets ran between 2 and 4 November 2026. The [execution table](../../../reports/handoff_19_33/README.md) records what each delivered, each packet report records what remains, and the [backlog](../../../backlog.md) rows H03 and H04 track the physical trials still owed. Relative links were relocated; task wording is retained from `2920479`.
+
 Execute this packet fully. Apply [COMMON.md](COMMON.md).
 
 # Packet 17: Finish explicit alarm clearing and retained fault evidence
 
-Prerequisites: packets 15 and 16's usable action/session contracts and packet 11's diagnostic path. Resume the alarm-clear portion of [prompt 32](../32_fault_reference_actions.md). Device counter clear is packet 18; persistence, factory restore and homing are outside this packet.
+Prerequisites: packets 15 and 16's usable action/session contracts and packet 11's diagnostic path. Resume the alarm-clear portion of [prompt 32](../../32_fault_reference_actions.md). Device counter clear is packet 18; persistence, factory restore and homing are outside this packet.
 
 ## Read the implementation and exact fault claims
 
-Read [Actions.h](../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../src/profiles/lichuan_c/Actions.cpp), [fault/reference guidance](../../fault_reference_actions.md), [reference action tests](../../../test/reference_action_test.cpp), [prompt 32's report](../../reports/prompt_32.md) and [the independent audit](../../reports/prompts_31_32_audit.md). Inspect `prepareClearAlarm`, observation-plan construction, command history, terminal publication, the current application incident/session record and owner EMCY dispatch. Follow any earlier shared-helper/path changes.
+Read [Actions.h](../../../../include/MotorControlCAN/profiles/lichuan_c/Actions.h), [Actions.cpp](../../../../src/profiles/lichuan_c/Actions.cpp), [fault/reference guidance](../../../fault_reference_actions.md), [reference action tests](../../../../test/reference_action_test.cpp), [prompt 32's report](../../../reports/prompt_32.md) and [the independent audit](../../../reports/prompts_31_32_audit.md). Inspect `prepareClearAlarm`, observation-plan construction, command history, terminal publication, the current application incident/session record and owner EMCY dispatch. Follow any earlier shared-helper/path changes.
 
 Refresh RS `prepareClearAlarm` and actual caller/tests, INA228 retained dirty-cause/validity handling, PCA9555 explicit actions and FieldCore fault consumers read-only. Preserve common intent names without importing their native commands or fault-code interpretation.
 
-Render EN86 PDF 15,16,18,20, ZH86 PDF 12,15,18 and OP86 PDF 10,13; inspect EDS `[2301]`, `[603F]`, `[6040]` and `[1003]`. Recheck Q13 and D-26/D-27 in [the repair audit](../PROMPTSET_AUDIT_34_50_2026-11-02.md). `2301` is U16; EN86 describes 1 clear and 0 ineffective. The current `1,0` sequence is explicit library policy, not proof of an edge or rearm requirement. The link between FF05 position deviation and the separately named resettable LED fault is an inference; the LED table has no numeric mapping or route assignment.
+Render EN86 PDF 15,16,18,20, ZH86 PDF 12,15,18 and OP86 PDF 10,13; inspect EDS `[2301]`, `[603F]`, `[6040]` and `[1003]`. Recheck Q13 and D-26/D-27 in [the repair audit](../../PROMPTSET_AUDIT_34_50_2026-11-02.md). `2301` is U16; EN86 describes 1 clear and 0 ineffective. The current `1,0` sequence is explicit library policy, not proof of an edge or rearm requirement. The link between FF05 position deviation and the separately named resettable LED fault is an inference; the LED table has no numeric mapping or route assignment.
 
 ## Complete the action and investigation
 

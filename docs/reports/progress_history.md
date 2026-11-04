@@ -2,7 +2,7 @@
 
 This is the narrative formerly kept at the top of [PROGRESS.md](../prompts/PROGRESS.md), newest entries first, moved here unchanged when that file became a current-state table. The only edits are one mis-decoded en dash and link targets rewritten for the new location. Treat each statement as true when written; the [current table](../prompts/PROGRESS.md) and each prompt's report are authoritative for today.
 
-The [external coder handoff for19–22/29–33](../prompts/handoff_19_33/README.md) divides the
+The [external coder handoff for19–22/29–33](../prompts/archive/handoff_19_33/README.md) divides the
 remaining work and mandatory prerequisite repairs into 22 executable packets,
 including explicit HIL diagnostics/reproduction and finite test authority. This
 is documentation prepared at 4ae93e3; none of those packets was executed while
