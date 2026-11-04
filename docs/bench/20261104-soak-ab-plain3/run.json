@@ -1,0 +1,63 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-04T18:48:10.573371+00:00",
+  "trials": [
+    {
+      "trial": 1793807290,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 1070,
+          "detail": "bad value gapWin==0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 1411,
+          "detail": "duplicate field t"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 1071,
+          "detail": "expected 1067 found 1068"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 1412,
+          "detail": "expected 1408 found 1409"
+        }
+      ],
+      "error_count": 4,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793807290,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 75,
+          "SOAK_SUM": 180,
+          "SOAK_GAP": 178,
+          "SOAK_CON": 180,
+          "SOAK_NODE": 360,
+          "SOAK_HIST": 360,
+          "SOAK_OUT": 360,
+          "SOAK_ABORT": 360,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 2,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 2
+        }
+      },
+      "unknown": 0,
+      "malformed": 2,
+      "bytes": 284068,
+      "sha256": "7ad12a9d721652a08737e971343e0fb354a5d007a0d4b6c4f0d0498abe38dfd3"
+    }
+  ]
+}

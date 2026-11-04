@@ -1,6 +1,6 @@
 # Packet 12: driver settings and scale-dependent gaps
 
-Resumes prompt 20. When this packet closed, host and fake evidence only, because bench time went to the communication soak and no firmware route called these writes. **No specimen has accepted any write here.** The `settings-2202` route ran T1 and T2 on 2026-11-04 and stopped at its prior read, before any write: see [the bench result](#bench-2026-11-04-t1-and-t2-blocked-before-the-write) below.
+Resumes prompt 20. When this packet closed, host and fake evidence only, because bench time went to the communication soak and no firmware route called these writes. On 2026-11-04 the `settings-2202` route first stopped at its prior read, before any write, then, with the measured count width, **ran T1 and T2: both specimens accepted `2202` codes 1 and 0**: see [the bench result](#bench-2026-11-04-t1-and-t2) below.
 
 ## Delivered
 
@@ -42,11 +42,11 @@ An independent reviewer rendered the pages and probed the code. It found no fram
 | Undocumented 2100 bits passed | Bits 7..15 refuse for 2202 |
 | Selector wire bytes were never asserted, and three mutants survived (not retained) | Pinned |
 
-## Bench, 2026-11-04: T1 and T2 blocked before the write
+## Bench, 2026-11-04: T1 and T2
 
 The `settings-2202` route (`TD`, `e7f28ac`) ran code 1 on node 1 ([313](../../bench/20261104T1405Z-settings2202-node1-313/rx.txt)) and node 2 ([315](../../bench/20261104T1405Z-settings2202-node2-315/rx.txt)). Its `SOFT_LIMITS` prior read got `2202=0`, then **`607D:00` answered as two bytes**, `4B 7D 60 00 00 00 00 00`, against the EDS U8, and the strict typed read aborted it (`06070010`). The route ended before `prepareSoftLimitSettings` ran, **no write was sent**, and the abort left each route unresolved, so the returns (314, 316) were refused `session`. Both drives read the specimens' code 0, as before. See the [bench report](../2026-11-04_bench.md) and backlog D16.
 
-**Still owed:** T1 and T2 themselves, after the typed `SOFT_LIMITS` read has an explicit measured-width option for `607D:00`, as `1009`/`100A` have. That option is being implemented. Until then no `2202` code has been written to any specimen, and the default-10 question stays open.
+**Then T1 and T2 ran** on `2920479`, whose `CountWidths::MEASURED_U16` accepts the measured two bytes for `607D:00` only when the caller selects it (backlog D16): on node 1 ([604](../../bench/20261104T1850Z-settings2202-node1-604/rx.txt), [605](../../bench/20261104T1850Z-settings2202-node1-605/rx.txt)) and node 2 ([606](../../bench/20261104T1850Z-settings2202-node2-606/rx.txt), [607](../../bench/20261104T1850Z-settings2202-node2-607/rx.txt)), `2202` went 0 to 1, then 1 to 0, each write acknowledged and read back exactly. The prior reads gave `607D:00=0` (two bytes) and `607D:01/:02` = -2147483648 and 2147483647. So codes 0 and 1 are accepted on this firmware. With limits at the signed extremes, code 1 bounds nothing here: enforcement and the default-10 question stay open.
 
 ## The planned trials
 
@@ -71,7 +71,7 @@ The return write is a separate explicit operation, sent only if the forward writ
 
 ## Open
 
-Prompt 20 stays Partial: the 2200, 2201, 607D and 6060 gates above, enforcement of 2202, and the `607D:00` reply width that keeps T1 and T2 from reaching their write. A stored 2202 of 10 has no typed way out, deliberately. `examples/driver_settings_preview` stays read-only.
+Prompt 20 stays Partial: the 2200, 2201, 607D and 6060 gates above, and enforcement of 2202; the `607D:00` reply width is handled by the explicit measured option. A stored 2202 of 10 has no typed way out, deliberately. `examples/driver_settings_preview` stays read-only.
 
 ## Checks
 

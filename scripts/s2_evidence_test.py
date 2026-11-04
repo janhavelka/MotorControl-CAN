@@ -123,7 +123,7 @@ class RetainedCaptures(unittest.TestCase):
         # stays unknown, and no PONG followed. The next ping (1311Z-s2-ping-c) was answered.
         # 20261104T154523Z-s2-ping-boot and 20261104T154630Z-s2-ping-boot: the same, after esptool resets.
         unexplained = {"20261104T1311Z-s2-ping-b": 1, "20261104T154523Z-s2-ping-boot": 1,
-                       "20261104T154630Z-s2-ping-boot": 1}
+                       "20261104T154630Z-s2-ping-boot": 1, "20261104T185132Z-s2-ping-boot": 1}
         # 20261104T1407Z-p1-node2-318: one 64-byte console chunk was lost between the S2 and pyserial
         # inside its TRIAL_LAST line, the UART loss of the soaks, so that one line is malformed.
         console_loss = {"20261104T1407Z-p1-node2-318": 1}
@@ -145,6 +145,7 @@ class RetainedCaptures(unittest.TestCase):
                                    "20261104T1311Z-s2-ping-b", "20261104T1406Z-s2-ping-reset",
                                    "20261104T1539Z-s2-ping-reset2", "20261104T154523Z-s2-ping-boot",
                                    "20261104T154630Z-s2-ping-boot", "20261104T154731Z-s2-ping-boot",
+                                   "20261104T184948Z-s2-ping-boot", "20261104T185132Z-s2-ping-boot",
                                    "20261104T1407Z-p1-node2-318")
             if directory.name not in retained_incomplete and not refused_before_send:
                 self.assertNotIn(report.verdict, ("inconsistent", "incomplete"),
