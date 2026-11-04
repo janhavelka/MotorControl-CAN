@@ -1,0 +1,17 @@
+{
+  "name": "idf_version",
+  "command": [
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\build\\p25\\idf-python\\Scripts\\python.exe",
+    "C:\\pio\\packages\\framework-espidf\\tools\\idf.py",
+    "--version"
+  ],
+  "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN",
+  "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T120923Z-s2-upload\\tools\\20261104T120923783572Z-68284-ilmjpwib\\00_idf_version.log",
+  "returncode": 0,
+  "status": "passed",
+  "seconds": 1.36
+}
+
+fatal: not a git repository: 'C:\pio\packages\framework-espidf\.git'
+WARNING: Git version unavailable, reading from source
+ESP-IDF v5.5.5

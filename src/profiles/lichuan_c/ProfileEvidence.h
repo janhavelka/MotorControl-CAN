@@ -44,6 +44,14 @@ inline bool acknowledgedControlWrite(const CANOPEN::SdoCompletion& e, const Axis
            !e.size && r.acquiredUs <= e.admittedUs && e.admittedUs <= e.completedUs &&
            e.completedUs <= now;
 }
+// True when one exchange begun at `at` keeps its whole queue and response budget before the
+// deadline. The owner cuts work still open at its deadline, and a request that may have left then
+// leaves its channel unresolved until a restart (Q18): a stop's last observation read, begun 6 ms
+// before its deadline, did that on 2026-11-04 (trial 213). So actions and moves yield no new
+// observation read once this is false.
+inline bool exchangeFits(uint64_t deadline, uint64_t at, uint32_t queueUs, uint32_t responseUs) noexcept {
+    return at < deadline && deadline - at >= uint64_t(queueUs) + responseUs;
+}
 // Maps a service terminal that arrived before the overall cutoff, which every caller settles first.
 // TIMEOUT here means a queue or response budget; whether a frame left stays in the evidence.
 inline ReadOutcome readOutcome(CANOPEN::SdoOutcome o) noexcept {

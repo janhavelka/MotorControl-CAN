@@ -24,9 +24,14 @@ stopped a 2 rpm move on node 1 within its 500 ms ramp, and the shaft held for 26
 specimen, firmware and speed. `000B` was then measured stationary, unattended, on both
 specimens: from `000F` on node 2 (`8050`, `2100=0011`) and from that halted `010F` on node 1
 (`0050`, `2100=0010`). Both drives left operation for low bits `000` and **released the motor**,
-and neither moved: node 1 stayed at 316 with its target 750 still retained. The other rows,
-`000B` during a move, and `000B` before this library's enable stay unmeasured
-([unattended session](reports/2026-11-03_unattended_bench.md), [packet 16](reports/handoff_19_33/packet_16.md)).
+and neither moved: node 1 stayed at 316 with its target 750 still retained. On 2026-11-04 a
+stationary `010F` from `000F` held torque with `6041=8437` and `2100=0001` unchanged, and `000B`
+from it released the motor again (`8050`, `2100=0011`), now completing as `OBSERVED`. `000B`
+during a 30 rpm move on node 2, about 1,180 pulses into a 2,000-pulse move, released the motor at
+once and it stopped within about 10 pulses, but `2100` then kept running set (`0x0014`) with
+`6041=4050`, minutes later too: see the standstill rule below. `000B` before this library's enable
+stays unmeasured ([unattended session](reports/2026-11-03_unattended_bench.md),
+[2026-11-04 session](reports/2026-11-04_bench.md), [packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
@@ -111,7 +116,22 @@ no alarm, is `OBSERVED`, because that is what `000B` did on both specimens.
 `monitorObservation` keeps the released bit: **after a quick stop this drive holds no
 torque**, so a load the motor held is no longer held. A `HALT` held torque when
 measured, so a release still ends it outside the scope, as does a release with any low
-bit set. An alarm/fault terminates the
+bit set.
+
+**Standstill after a moving quick stop, measured.** After `000B` during a move the drive released
+the motor but kept `2100` bit 2 set while its target stayed unreached, so "not running" never came.
+When a `QUICK_STOP` cycle reads released, low bits `000` and running, and
+`options.maximumAgeUs` covers a seven-field cycle (seven times queue plus response), the stop sets
+`standstillObserving` and every later cycle also reads `6064` and `606C`. Two such cycles in a row
+with `606C` zero and `6064` unchanged then complete it as `OBSERVED`. With a five-field age budget
+the rule is not offered and the stop ends at its deadline as before. The latched bit is the drive's
+report, not motion: one specimen, one speed, one firmware.
+
+**No observation at the deadline.** An action yields no new observation read once one exchange's
+queue and response budgets no longer fit before its deadline. On 2026-11-04 a stop's last read
+began 6 ms before the deadline, was cut there with its request possibly sent, and left the route
+unresolved until an MCU restart (Q18). The action now ends at its deadline with nothing in flight,
+and the route stays usable. Commands are not held back. An alarm/fault terminates the
 operation with its command evidence preserved. The application delivers routed
 fault/lifecycle invalidation before advancing a later successful read result.
 

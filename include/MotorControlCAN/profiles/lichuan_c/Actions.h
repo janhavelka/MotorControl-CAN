@@ -20,9 +20,13 @@
  * during that sequential read window. The one exception is QUICK_STOP's measured
  * terminal: on both specimens and one firmware, 000B from 000F and from 010F left 2100
  * released with 6041 low bits 000 (docs/stop_actions.md), so that report completes a
- * QUICK_STOP, and monitorObservation keeps the release: the motor holds no torque. Other
+ * QUICK_STOP, and monitorObservation keeps the release: the motor holds no torque. During a
+ * move the same release kept 2100 running set (2026-11-04), so a QUICK_STOP then completes on
+ * standstill instead (ActionContext::standstillObserving). Other
  * mode/alarm/release is outside the observation scope, not proof that physical stopping
- * failed. Other statusword dialect bits never decide completion. No 605A/6085, guessed 605D, queue disposition,
+ * failed. Other statusword dialect bits never decide completion. No observation read starts once
+ * one exchange's queue and response budgets no longer fit before the deadline: the action then
+ * ends at its deadline with nothing in flight. No 605A/6085, guessed 605D, queue disposition,
  * torque/reference retention, shaft standstill or firmware qualification is claimed.
  * One owner must retire obsolete queued/controller work before stop admission.
  * BestEffortStop is the separate DEC-2 path for an unresolved route or missing history.
@@ -225,6 +229,13 @@ struct ActionContext {
     bool predecessorDocumented = false; ///< STOP only: false for DEC-8 project-decision arrows.
     PredecessorBasis predecessorBasis = PredecessorBasis::NONE; ///< STOP only: which sources show it.
     bool finalErrorRead = false; ///< CLEAR_ALARM only: alarm reported clear; read ERRORS once.
+    /** QUICK_STOP only. Set when a cycle after the command reported 2100 released and 6041 low
+     * bits 000 with 2100 running still set, and options.maximumAgeUs covers a seven-field cycle.
+     * Measured on 2026-11-04 (trial 213): after 000B during a 30 rpm move the drive released the
+     * motor, which stopped within about 10 pulses, but kept running set while its target stayed
+     * unreached. Every later cycle then also reads FEEDBACK, and two cycles in a row with 606C zero
+     * and 6064 unchanged complete the stop. Never cleared. */
+    bool standstillObserving = false;
     ActionExecution execution =
         ActionExecution::NOT_TRANSMITTED; ///< Effecting command evidence only.
     ActionCompletion completion = ActionCompletion::NOT_OBSERVED; ///< Narrow report evidence only.
@@ -274,7 +285,8 @@ struct ActionContext {
     /** Selected by its block. CLEAR_ALARM: raw 1001/603F, the prerequisite until the final read.
      * SET_DEVICE_POSITION and ENABLE: signed 6064/606C, the admission's until the first cycle
      * replaces it, no scale/home proof.
-     * Stop: unused.
+     * QUICK_STOP: the latest 6064/606C once standstillObserving is set; otherwise unused, as for
+     * HALT.
      * The default block is ERRORS with fieldCount 0, so check fieldCount before reading it. */
     StateObservation extraObservation;
     bool observationKnown = false;        ///< All required blocks of a complete cycle are retained.
@@ -502,7 +514,9 @@ Status noteActionWithdrawal(ActionContext& context, const AxisReservation& live,
 /** Yield copied work without mutation, I/O or automatic replay.
  * @param[in] context Prepared action. @param[in] live Actual continuous owner reservation.
  * @param[in] current Actual current full target/epochs. @param[in] nowUs Nondecreasing caller time.
- * @param[out] output Unchanged on rejection; no overlap with inputs. ready=false during wait/terminal.
+ * @param[out] output Unchanged on rejection; no overlap with inputs. ready=false during wait/terminal,
+ * and for an observation read once one exchange's queue and response budgets no longer fit before
+ * the deadline, so none can be cut there; commands are not held back.
  * @return Local status; active calls at/after cutoff reject until explicitly advanced to DEADLINE.
  */
 Status nextAction(const ActionContext& context, const AxisReservation& live,

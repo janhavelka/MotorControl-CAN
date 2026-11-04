@@ -858,6 +858,31 @@ void processingCutoff() {
     CHECK(!wordsFrom(r, r.startFrame, 0x000f) && r.a.moveFenced());
 }
 
+// 14b. Trial 213, 2026-11-04: an observation read begun 6 ms before its deadline was cut there with
+// its request possibly sent, which left the route unresolved until an MCU restart. A move that never
+// completes starts no read once one exchange's budgets no longer fit, so none can be cut, and the
+// route serves an ordinary read straight after.
+void lateReadIsHeldBack() {
+    scenario = "late read";
+    Rig r;
+    r.drive.travelReads = 1000000;
+    r.ready();
+    CHECK(r.request(evidence(), moveRequest(), profile(), nullptr, axisConfig(), 60000).isOk());
+    const uint64_t deadline = moveOf(r).deadlineUs;
+    r.finishMove();
+    CHECK(moveOf(r).outcome == M::ActionOutcome::DEADLINE && moveOf(r).observations > 1);
+    // Each upload leaves at the owner turn after it was handed out.
+    unsigned uploads = 0;
+    for (unsigned i = r.startFrame; i < r.wire.sentCount; ++i)
+        if (r.wire.sent[i].data[0] == 0x40) {
+            ++uploads;
+            CHECK(r.sentAt[i] + QUEUE + RESPONSE <= deadline + TICK);
+        }
+    CHECK(uploads > 7);
+    r.readState(r.state);
+    CHECK(r.state.state == M::ReadState::SUCCEEDED);
+}
+
 // 15. The library calls directly: every refusal leaves its outputs byte for byte unchanged.
 void atomicity() {
     scenario = "atomicity";
@@ -1187,6 +1212,7 @@ void runAll() {
     abortedTrigger();
     rearmFailure();
     processingCutoff();
+    lateReadIsHeldBack();
     atomicity();
     counterZeroInvalidates();
     unsentKeepsControl();

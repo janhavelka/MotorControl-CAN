@@ -1,0 +1,107 @@
+{
+  "started_utc": "2026-11-04T11:51:32.353237+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "enable",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 206,
+  "plan": "packet 15 P3",
+  "fields": [
+    1,
+    206,
+    1,
+    1,
+    2,
+    33847,
+    5000,
+    120,
+    10000,
+    800
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 206 to confirm: ",
+      "typed": "ATTENDED 206",
+      "accepted": true
+    },
+    "power_up_shaft": {
+      "question": "Attendant: turn the node 1 shaft by hand now. Type FREE or HOLDING: ",
+      "typed": "HOLDING",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not observed: attendant present at the bench; routine shaft questions not asked, at the user's instruction"
+    },
+    "holding_after": {
+      "question": "Attendant: turn the node 1 shaft by hand now: FREE or HOLDING? ",
+      "typed": "not observed: attendant present at the bench; routine shaft questions not asked, at the user's instruction"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "enable",
+    "--node",
+    "1",
+    "--trial",
+    "206",
+    "--status",
+    "0x8437",
+    "--position-target",
+    "5000",
+    "--velocity-target",
+    "120",
+    "--deadline-ms",
+    "10000",
+    "--interval-ms",
+    "800",
+    "--no-motion-write-recorded",
+    "--campaign",
+    "docs\\bench\\20261104-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261104T1151Z-p3-node1-206"
+  ],
+  "host_revision": "e356baf19a3d47a7035c48bb8d9f52708c6455c6",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261104-campaign.jsonl",
+    "motion_total": 1,
+    "cases": {
+      "M1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5445312c3230362c312c312c322c33333834372c353030302c3132302c31303030302c3830302c4b31316161623439340a"
+  ],
+  "image": {
+    "base": "711c6329581548310c0270c6c4001304810ee7fe",
+    "elf": "9a103558d3624e5eb0d1f36d74dbf1bd39cf5493bc60853ea56bcaf5bab1c161",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TE1,206,1,1,2,33847,5000,120,10000,800,K11aab494",
+  "tx_hex": "5445312c3230362c312c312c322c33333834372c353030302c3132302c31303030302c3830302c4b31316161623439340a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-04T11:51:37.169176+00:00"
+}
