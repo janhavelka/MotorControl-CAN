@@ -1,0 +1,85 @@
+{
+  "started_utc": "2026-11-05T15:42:16.333062+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-actions",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 715,
+  "plan": "packet 15 P1",
+  "fields": [
+    2,
+    715
+  ],
+  "operator": {
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-actions",
+    "--node",
+    "2",
+    "--trial",
+    "715",
+    "--fault-led",
+    "unobserved",
+    "--campaign",
+    "docs\\bench\\20261105-campaign.jsonl",
+    "--seconds",
+    "30",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261105T1542Z-p1-node2-715"
+  ],
+  "host_revision": "15f5a2f5ce1fbe333b6683b6e6e89527c292e651",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261105-campaign.jsonl",
+    "motion_total": 12,
+    "cases": {
+      "E1": 1,
+      "E2": 1,
+      "G1": 3,
+      "M1": 1,
+      "M2": 1,
+      "P1": 1,
+      "P2": 1,
+      "R1": 1,
+      "S1": 1,
+      "S2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5441322c3731352c4b30653364303066370a"
+  ],
+  "image": {
+    "base": "2920479b73c7693c908953055cd9e25dcd944f47",
+    "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TA2,715,K0e3d00f7",
+  "tx_hex": "5441322c3731352c4b30653364303066370a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-05T15:42:18.605219+00:00"
+}

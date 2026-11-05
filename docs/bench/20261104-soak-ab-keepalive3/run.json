@@ -1,0 +1,73 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-04T21:51:52.874841+00:00",
+  "trials": [
+    {
+      "trial": 1793818313,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 772,
+          "detail": "missing twaiFlags,twaiDrop"
+        },
+        {
+          "code": "malformed_line",
+          "line": 1564,
+          "detail": "duplicate field t"
+        },
+        {
+          "code": "malformed_line",
+          "line": 1619,
+          "detail": "missing netDrop,stack,heap,heapMin"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 773,
+          "detail": "expected 769 found 771"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 1565,
+          "detail": "expected 1562 found 1563"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 1620,
+          "detail": "expected 1617 found 1618"
+        }
+      ],
+      "error_count": 6,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793818313,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 75,
+          "SOAK_SUM": 179,
+          "SOAK_GAP": 177,
+          "SOAK_CON": 180,
+          "SOAK_NODE": 360,
+          "SOAK_HIST": 360,
+          "SOAK_OUT": 360,
+          "SOAK_ABORT": 360,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 4,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 3
+        }
+      },
+      "unknown": 0,
+      "malformed": 3,
+      "bytes": 284038,
+      "sha256": "6f513dfbe5ee4cd3108997c14e81a40efeac1aaf0aa77b5a69677cfe54a82f2a"
+    }
+  ]
+}
