@@ -1,0 +1,204 @@
+2026-11-05T15:42:51.837315+00:00 HOST trial_start {"number": 1, "trial": 1793893371, "remaining_s": 10799, "usb": {"port": "COM15", "serial": "94A990398B40", "vid": 12346, "pid": 4098}}
+2026-11-05T15:42:52.109405+00:00 HOST send {"trial": 1793893371, "tx_hex": "70", "text": "p"}
+2026-11-05T15:42:52.131931+00:00 HOST ping {"trial": 1793893371, "base": "2920479b73c7693c908953055cd9e25dcd944f47", "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9", "active": 0, "running": 0, "soak": 0}
+2026-11-05T15:42:52.132931+00:00 HOST send {"trial": 1793893371, "tx_hex": "63", "text": "c"}
+2026-11-05T15:42:52.143601+00:00 HOST send {"trial": 1793893371, "tx_hex": "53313739333839333337312c31303739392c32302c312c330a", "text": "S1793893371,10799,20,1,3"}
+2026-11-05T15:42:52.212653+00:00 trial=1 SOAK_BEGIN n=0 t=14316485 trial=1793893371 dur=10799 interval=20 summary=1 monitors=1 identity=1 opDeadline=2000000 queue=250000 resp=250000 stack=10000 heap=127876 heapMin=123436 base=2920479b73c7693c908953055cd9e25dcd944f47
+2026-11-05T15:42:52.223010+00:00 trial=1 SOAK_TR n=1 t=14314340 node=0 sig=controller from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.243334+00:00 trial=1 SOAK_TR n=2 t=14314340 node=0 sig=controllerEpoch from=0 to=1 first=1 ne=0 ce=1
+2026-11-05T15:42:52.254337+00:00 trial=1 SOAK_TR n=3 t=14314340 node=0 sig=inhibited from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.263335+00:00 trial=1 SOAK_TR n=4 t=14314340 node=0 sig=recovery from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.272569+00:00 trial=1 SOAK_TR n=5 t=14314340 node=0 sig=firmware from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.282569+00:00 trial=1 SOAK_TR n=6 t=14314340 node=0 sig=busOff from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.302761+00:00 trial=1 SOAK_TR n=7 t=14314340 node=0 sig=recoveries from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.312591+00:00 trial=1 SOAK_TR n=8 t=14314340 node=0 sig=twaiErrors from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.322597+00:00 trial=1 SOAK_TR n=9 t=14314340 node=0 sig=twaiFlags from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.343106+00:00 trial=1 SOAK_TR n=10 t=14314340 node=0 sig=twaiDropped from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.352614+00:00 trial=1 SOAK_TR n=11 t=14314340 node=0 sig=rxDropped from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.362908+00:00 trial=1 SOAK_TR n=12 t=14314340 node=0 sig=rxLost from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.383417+00:00 trial=1 SOAK_TR n=13 t=14314340 node=0 sig=txRejected from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.393421+00:00 trial=1 SOAK_TR n=14 t=14314340 node=0 sig=unmatched from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.413285+00:00 trial=1 SOAK_TR n=15 t=14314340 node=0 sig=queueRejected from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.422683+00:00 trial=1 SOAK_TR n=16 t=14314340 node=0 sig=resultsRejected from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.432990+00:00 trial=1 SOAK_TR n=17 t=14314340 node=0 sig=traceOverwritten from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.452649+00:00 trial=1 SOAK_TR n=18 t=14314340 node=0 sig=networkDropped from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.463157+00:00 trial=1 SOAK_TR n=19 t=14314340 node=0 sig=submitOverwritten from=0 to=0 first=1 ne=0 ce=1
+2026-11-05T15:42:52.483157+00:00 trial=1 SOAK_TR n=20 t=14314340 node=1 sig=nodeEpoch from=0 to=1 first=1 ne=1 ce=1
+2026-11-05T15:42:52.492933+00:00 trial=1 SOAK_TR n=21 t=14314340 node=1 sig=health from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.503440+00:00 trial=1 SOAK_TR n=22 t=14314340 node=1 sig=streak from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.522952+00:00 trial=1 SOAK_TR n=23 t=14314340 node=1 sig=lastError from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.532529+00:00 trial=1 SOAK_TR n=24 t=14314340 node=1 sig=nmt from=0 to=ff first=1 ne=1 ce=1
+2026-11-05T15:42:52.542528+00:00 trial=1 SOAK_TR n=25 t=14314340 node=1 sig=eligibility from=0 to=4 first=1 ne=1 ce=1
+2026-11-05T15:42:52.552528+00:00 trial=1 SOAK_TR n=26 t=14314340 node=1 sig=heartbeat from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.573546+00:00 trial=1 SOAK_TR n=27 t=14314340 node=1 sig=unresolved from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.582550+00:00 trial=1 SOAK_TR n=28 t=14314340 node=1 sig=serverSessions from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.592553+00:00 trial=1 SOAK_TR n=29 t=14314340 node=1 sig=producer from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.613363+00:00 trial=1 SOAK_TR n=30 t=14314340 node=2 sig=nodeEpoch from=0 to=1 first=1 ne=1 ce=1
+2026-11-05T15:42:52.624365+00:00 trial=1 SOAK_TR n=31 t=14314340 node=2 sig=health from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.633205+00:00 trial=1 SOAK_TR n=32 t=14314340 node=2 sig=streak from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.643205+00:00 trial=1 SOAK_TR n=33 t=14314340 node=2 sig=lastError from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.663252+00:00 trial=1 SOAK_TR n=34 t=14314340 node=2 sig=nmt from=0 to=ff first=1 ne=1 ce=1
+2026-11-05T15:42:52.674257+00:00 trial=1 SOAK_TR n=35 t=14314340 node=2 sig=eligibility from=0 to=4 first=1 ne=1 ce=1
+2026-11-05T15:42:52.683337+00:00 trial=1 SOAK_TR n=36 t=14314340 node=2 sig=heartbeat from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.702814+00:00 trial=1 SOAK_TR n=37 t=14314340 node=2 sig=unresolved from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.712765+00:00 trial=1 SOAK_TR n=38 t=14314340 node=2 sig=serverSessions from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.722773+00:00 trial=1 SOAK_TR n=39 t=14314340 node=2 sig=producer from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.743467+00:00 trial=1 SOAK_TR n=40 t=14342622 node=1 sig=health from=0 to=1 first=0 ne=1 ce=1
+2026-11-05T15:42:52.752975+00:00 trial=1 SOAK_TR n=41 t=14342622 node=1 sig=eligibility from=4 to=e first=0 ne=1 ce=1
+2026-11-05T15:42:52.762978+00:00 trial=1 SOAK_TR n=42 t=14406625 node=1 sig=1000 from=0 to=40192 first=1 ne=1 ce=1
+2026-11-05T15:42:52.782835+00:00 trial=1 SOAK_TR n=43 t=14406625 node=1 sig=1009 from=0 to=c first=1 ne=1 ce=1
+2026-11-05T15:42:52.792837+00:00 trial=1 SOAK_TR n=44 t=14406625 node=1 sig=100a from=0 to=20 first=1 ne=1 ce=1
+2026-11-05T15:42:52.803342+00:00 trial=1 SOAK_TR n=45 t=14406625 node=1 sig=1018:00 from=0 to=5 first=1 ne=1 ce=1
+2026-11-05T15:42:52.812850+00:00 trial=1 SOAK_TR n=46 t=14406625 node=1 sig=1018:01 from=0 to=1000 first=1 ne=1 ce=1
+2026-11-05T15:42:52.834020+00:00 trial=1 SOAK_TR n=47 t=14406625 node=1 sig=1018:02 from=0 to=1 first=1 ne=1 ce=1
+2026-11-05T15:42:52.843019+00:00 trial=1 SOAK_TR n=48 t=14406625 node=1 sig=1018:03 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.853063+00:00 trial=1 SOAK_TR n=49 t=14406625 node=1 sig=2000 from=0 to=400 first=1 ne=1 ce=1
+2026-11-05T15:42:52.872571+00:00 trial=1 SOAK_TR n=50 t=14406625 node=1 sig=2001 from=0 to=200 first=1 ne=1 ce=1
+2026-11-05T15:42:52.882577+00:00 trial=1 SOAK_TR n=51 t=14415629 node=2 sig=health from=0 to=1 first=0 ne=1 ce=1
+2026-11-05T15:42:52.892574+00:00 trial=1 SOAK_TR n=52 t=14415629 node=2 sig=eligibility from=4 to=e first=0 ne=1 ce=1
+2026-11-05T15:42:52.902916+00:00 trial=1 SOAK_TR n=53 t=14480623 node=2 sig=1000 from=0 to=40192 first=1 ne=1 ce=1
+2026-11-05T15:42:52.923426+00:00 trial=1 SOAK_TR n=54 t=14480623 node=2 sig=1009 from=0 to=c first=1 ne=1 ce=1
+2026-11-05T15:42:52.933250+00:00 trial=1 SOAK_TR n=55 t=14480623 node=2 sig=100a from=0 to=20 first=1 ne=1 ce=1
+2026-11-05T15:42:52.943253+00:00 trial=1 SOAK_TR n=56 t=14480623 node=2 sig=1018:00 from=0 to=5 first=1 ne=1 ce=1
+2026-11-05T15:42:52.963256+00:00 trial=1 SOAK_TR n=57 t=14480623 node=2 sig=1018:01 from=0 to=1000 first=1 ne=1 ce=1
+2026-11-05T15:42:52.972760+00:00 trial=1 SOAK_TR n=58 t=14480623 node=2 sig=1018:02 from=0 to=1 first=1 ne=1 ce=1
+2026-11-05T15:42:52.982767+00:00 trial=1 SOAK_TR n=59 t=14480623 node=2 sig=1018:03 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:52.992783+00:00 trial=1 SOAK_TR n=60 t=14480623 node=2 sig=2000 from=0 to=400 first=1 ne=1 ce=1
+2026-11-05T15:42:53.013073+00:00 trial=1 SOAK_TR n=61 t=14480623 node=2 sig=2001 from=0 to=200 first=1 ne=1 ce=1
+2026-11-05T15:42:53.022810+00:00 trial=1 SOAK_TR n=62 t=14514633 node=1 sig=6041 from=0 to=37 first=1 ne=1 ce=1
+2026-11-05T15:42:53.033308+00:00 trial=1 SOAK_TR n=63 t=14514633 node=1 sig=6061 from=0 to=1 first=1 ne=1 ce=1
+2026-11-05T15:42:53.043345+00:00 trial=1 SOAK_TR n=64 t=14514633 node=1 sig=6064 from=0 to=1278 first=1 ne=1 ce=1
+2026-11-05T15:42:53.063337+00:00 trial=1 SOAK_TR n=65 t=14514633 node=1 sig=606c from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:53.073337+00:00 trial=1 SOAK_TR n=66 t=14549625 node=2 sig=6041 from=0 to=4050 first=1 ne=1 ce=1
+2026-11-05T15:42:53.082992+00:00 trial=1 SOAK_TR n=67 t=14549625 node=2 sig=6061 from=0 to=1 first=1 ne=1 ce=1
+2026-11-05T15:42:53.092992+00:00 trial=1 SOAK_TR n=68 t=14549625 node=2 sig=6064 from=0 to=380 first=1 ne=1 ce=1
+2026-11-05T15:42:53.113337+00:00 trial=1 SOAK_TR n=69 t=14549625 node=2 sig=606c from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:53.123580+00:00 trial=1 SOAK_TR n=70 t=14574623 node=1 sig=2100 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:53.133092+00:00 trial=1 SOAK_TR n=71 t=14574623 node=1 sig=2101 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:53.143345+00:00 trial=1 SOAK_TR n=72 t=14574623 node=1 sig=2102 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:53.163338+00:00 trial=1 SOAK_TR n=73 t=14599623 node=2 sig=2100 from=0 to=14 first=1 ne=1 ce=1
+2026-11-05T15:42:53.173176+00:00 trial=1 SOAK_TR n=74 t=14599623 node=2 sig=2101 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:42:53.183387+00:00 trial=1 SOAK_TR n=75 t=14599623 node=2 sig=2102 from=0 to=0 first=1 ne=1 ce=1
+2026-11-05T15:48:48.703132+00:00 trial=1 PARSE malformed line=3984 SOAK_SUM n=3981 t=370765492 trial=1793893371 up=356451152 rx=426=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T15:48:48.703132+00:00 trial=1 CHECK soak_line_gap line=3985 expected 3981 found 3982
+2026-11-05T15:49:00.713364+00:00 trial=1 PARSE malformed line=4116 SOAK_SUM n=4113 t=382776991 trial=1793893371 up=368462651 rx=44089 tx=44089 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull twaiDrop=0
+2026-11-05T15:49:00.713364+00:00 trial=1 CHECK soak_line_gap line=4117 expected 4113 found 4114
+2026-11-05T15:50:07.781941+00:00 trial=1 PARSE malformed line=4853 SOAK_SUM n=4850 t=449849087 trial=1793893371 up=435534747 rx=521=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T15:50:07.781941+00:00 trial=1 CHECK soak_line_gap line=4854 expected 4850 found 4851
+2026-11-05T15:50:13.792682+00:00 trial=1 PARSE malformed line=4919 SOAK_SUM n=4916 t=455859091 trial=1793893371 up=441544751 rx=52833 tx=52833 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 busOff
+2026-11-05T15:50:13.831728+00:00 trial=1 CHECK soak_line_gap line=4920 expected 4916 found 4918
+2026-11-05T15:51:18.862825+00:00 trial=1 PARSE malformed line=5633 SOAK_SUM n=5631 t=520922827 trial=1793893371 up=506608487 rx=606=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T15:51:18.862825+00:00 trial=1 CHECK soak_line_gap line=5634 expected 5631 found 5632
+2026-11-05T15:51:57.903018+00:00 trial=1 PARSE malformed line=6063 SOAK_GAP n=6061 t=559968296 gapMax=4804 gapWin=4804 ack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T15:51:57.942024+00:00 trial=1 CHECK soak_line_gap line=6064 expected 6061 found 6062
+2026-11-05T15:53:50.032128+00:00 trial=1 PARSE malformed line=7294 SOAK_SUM n=7292 t=672086827 trial=1793893371 up=657772487 rx=787=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T15:53:50.032128+00:00 trial=1 CHECK soak_line_gap line=7295 expected 7292 found 7293
+2026-11-05T15:54:02.032941+00:00 trial=1 PARSE malformed line=7426 SOAK_SUM n=7424 t=684095989 trial=1793893371 up=669781649 rx=80149 tx=80149 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull twaiDrop=0
+2026-11-05T15:54:02.032941+00:00 trial=1 CHECK soak_line_gap line=7427 expected 7424 found 7425
+2026-11-05T15:54:14.052482+00:00 trial=1 PARSE malformed line=7558 SOAK_SUM n=7556 t=696112498 trial=1793893371 up=681798158 rx=81588 tx=81588 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 busOff
+2026-11-05T15:54:14.091728+00:00 trial=1 CHECK soak_line_gap line=7559 expected 7556 found 7558
+2026-11-05T15:55:05.112391+00:00 trial=1 PARSE malformed line=8118 SOAK_SUM n=8117 t=747173823 trial=1793893371 up=732859483 rx=877=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T15:55:05.112391+00:00 trial=1 CHECK soak_line_gap line=8119 expected 8117 found 8118
+2026-11-05T15:57:19.282888+00:00 trial=1 PARSE malformed line=9593 SOAK_GAP n=9592 t=881344999 gapMax=4804 gapWin=465stack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T15:57:19.321443+00:00 trial=1 CHECK soak_line_gap line=9594 expected 9592 found 9593
+2026-11-05T15:59:22.421667+00:00 trial=1 PARSE malformed line=10946 SOAK_GAP n=10945 t=1004484286 gapMax=4804 gapWinp=0 stack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T15:59:22.461287+00:00 trial=1 CHECK soak_line_gap line=10947 expected 10945 found 10946
+2026-11-05T16:00:17.481188+00:00 trial=1 PARSE malformed line=11550 SOAK_SUM n=11549 t=1059533823 trial=1793893371 up=1045219483 rx=125090 tx=125090 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:00:17.510283+00:00 trial=1 CHECK soak_line_gap line=11551 expected 11549 found 11551
+2026-11-05T16:01:16.541224+00:00 trial=1 PARSE malformed line=12198 SOAK_SUM n=12198 t=1118598828 trial=1793893371 up=1104284488 rx=sFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T16:01:16.541224+00:00 trial=1 CHECK soak_line_gap line=12199 expected 12198 found 12199
+2026-11-05T16:04:46.761039+00:00 trial=1 PARSE malformed line=14509 SOAK_GAP n=14509 t=1328820632 gapMax=4804 gapWin=4671 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDMin=123436 tec=0 rec=0
+2026-11-05T16:04:46.799921+00:00 trial=1 CHECK soak_line_gap line=14510 expected 14509 found 14510
+2026-11-05T16:05:14.790845+00:00 trial=1 PARSE malformed line=14816 SOAK_SUM n=14816 t=1356846122 trial=1793893371 up=1342531782 rx=160682 tx=160682 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:05:14.790845+00:00 trial=1 CHECK soak_line_gap line=14817 expected 14816 found 14817
+2026-11-05T16:07:45.940145+00:00 trial=1 PARSE malformed line=16477 SOAK_SUM n=16477 t=1507995122 trial=1793893371 up=1493680782 rx=178770 tx=178770 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:07:45.940145+00:00 trial=1 CHECK soak_line_gap line=16478 expected 16477 found 16478
+2026-11-05T16:11:32.199938+00:00 trial=1 PARSE malformed line=18963 SOAK_SUM n=18963 t=1734251823 trial=1793893371 up=1719937483 rx=205856 tx=205856 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:11:32.199938+00:00 trial=1 CHECK soak_line_gap line=18964 expected 18963 found 18964
+2026-11-05T16:11:59.240658+00:00 trial=1 PARSE malformed line=19261 SOAK_GAP n=19261 t=1761299286 gapMax=4804 gapWin=4637 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrheap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T16:11:59.279254+00:00 trial=1 CHECK soak_line_gap line=19262 expected 19261 found 19262
+2026-11-05T16:12:45.309812+00:00 trial=1 PARSE malformed line=19766 SOAK_SUM n=19766 t=1807367495 trial=1793893371 up=1793053155 rx=214617 tx=214617 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:12:45.349471+00:00 trial=1 CHECK soak_line_gap line=19767 expected 19766 found 19768
+2026-11-05T16:14:39.528991+00:00 trial=1 PARSE malformed line=21021 SOAK_CON 2157 lines=21022 blocked=104240 conRej=0 conHw=496 evFull=0 evLimit=0 evHw=49 anomalies=0 dumps=0 dumpSkip=0 dumpAb=0 trLost=0 dumpUs=0 defDump=0 defBu
+2026-11-05T16:14:39.561599+00:00 trial=1 CHECK soak_line_gap line=21022 expected 21022 found 21023
+2026-11-05T16:16:51.738632+00:00 trial=1 PARSE malformed line=22472 SOAK_GAP n=22473 t=2053757631 gapMax=4804 gapWin=4637 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrn=22474 t=2053761279 lines=22474 blocked=111632 c
+2026-11-05T16:16:51.768984+00:00 trial=1 CHECK soak_line_gap line=22473 expected 22473 found 22475
+2026-11-05T16:17:25.759546+00:00 trial=1 PARSE malformed line=22844 SOAK_SUM n=22846 t=2087807495 trial=1793893371 up=2073493155 rx=248217 tx=248217 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:17:25.759546+00:00 trial=1 CHECK soak_line_gap line=22845 expected 22846 found 22847
+2026-11-05T16:17:49.789045+00:00 trial=1 PARSE malformed line=23108 SOAK_SUM n=23110 t=2111845492 trial=1793893371 up=2097531152 rx=251097 tx=251097 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:17:49.828269+00:00 trial=1 CHECK soak_line_gap line=23109 expected 23110 found 23112
+2026-11-05T16:22:18.218269+00:00 trial=1 PARSE malformed line=26055 SOAK_SUM n=26058 t=2380265498 trial=1793893371 up=2365951158 rx=283257 tx=283257 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:22:18.218269+00:00 trial=1 CHECK soak_line_gap line=26056 expected 26058 found 26059
+2026-11-05T16:22:42.258544+00:00 trial=1 PARSE malformed line=26319 SOAK_SUM n=26322 t=2404303828 trial=1793893371 up=2389989488 rx=286136 tx=286136 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:22:42.258544+00:00 trial=1 CHECK soak_line_gap line=26320 expected 26322 found 26323
+2026-11-05T16:23:02.289265+00:00 trial=1 PARSE malformed line=26540 SOAK_GAP n=26543 t=2424339291 gapMax=4804 gapWin=3834 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrop=0 stack=9008 heap=1 rec=0
+2026-11-05T16:23:02.317667+00:00 trial=1 CHECK soak_line_gap line=26541 expected 26543 found 26544
+2026-11-05T16:24:14.398256+00:00 trial=1 PARSE malformed line=27332 SOAK_GAP n=27335 t=2496451631w=3 trOver=0 netDrop=0 stack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T16:24:14.427261+00:00 trial=1 CHECK soak_line_gap line=27333 expected 27335 found 27336
+2026-11-05T16:24:55.468810+00:00 trial=1 PARSE malformed line=27782 SOAK_SUM n=27785 t=2537512827 trial=1793893371 up=2523198487 rx=sFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T16:24:55.468810+00:00 trial=1 CHECK soak_line_gap line=27783 expected 27785 found 27786
+2026-11-05T16:26:23.598132+00:00 trial=1 PARSE malformed line=28750 SOAK_SUM n=28753 t=2625650498 trial=1793893371 up=2611336158 rx=312657 tx=312657 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:26:23.598132+00:00 trial=1 CHECK soak_line_gap line=28751 expected 28753 found 28754
+2026-11-05T16:26:39.628289+00:00 trial=1 PARSE malformed line=28926 SOAK_SUM n=28929 t=2641676495 trial=1793893371 up=2627362155 rx=314577 tx=314577 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:26:39.667603+00:00 trial=1 CHECK soak_line_gap line=28927 expected 28929 found 28931
+2026-11-05T16:26:45.638162+00:00 trial=1 PARSE malformed line=28992 SOAK_GAP n=28996 t=2647689632 gapMax=4804 gapWiop=0 stack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T16:26:45.667685+00:00 trial=1 CHECK soak_line_gap line=28993 expected 28996 found 28997
+2026-11-05T16:30:19.977225+00:00 trial=1 PARSE malformed line=31345 SOAK_SUM n=31349 t=2862022492 trial=1793893371 up=2847708152 rx=340977 tx=340977 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:30:20.006851+00:00 trial=1 CHECK soak_line_gap line=31346 expected 31349 found 31351
+2026-11-05T16:31:22.077858+00:00 trial=1 PARSE malformed line=32026 SOAK_SUM n=32031 t=2924118827 trial=1793893371 up=2909804487 rx=348416 tx=348416 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:31:22.077858+00:00 trial=1 CHECK soak_line_gap line=32027 expected 32031 found 32032
+2026-11-05T16:34:05.337460+00:00 trial=1 PARSE malformed line=33819 SOAK_SUM n=33824 t=3087374824 trial=1793893371 up=3073060484 rx=367976 tx=367976 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:34:05.356462+00:00 trial=1 CHECK soak_line_gap line=33820 expected 33824 found 33826
+2026-11-05T16:35:17.446675+00:00 trial=1 PARSE malformed line=34610 SOAK_SUM n=34616 t=3159488826 trial=1793893371 up=3145174486 rx=376616 tx=376616 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:35:17.476260+00:00 trial=1 CHECK soak_line_gap line=34611 expected 34616 found 34618
+2026-11-05T16:36:05.517376+00:00 trial=1 PARSE malformed line=35137 SOAK_SUM n=35144 t=3207563498 trial=1793893371 up=3193249158 rx=sFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T16:36:05.517376+00:00 trial=1 CHECK soak_line_gap line=35138 expected 35144 found 35145
+2026-11-05T16:37:20.637586+00:00 trial=1 PARSE malformed line=35963 SOAK_GAP n=35970 t=3282686286 gapMax=4804 gapWin=4637 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrMin=123436 tec=0 rec=0
+2026-11-05T16:37:20.676372+00:00 trial=1 CHECK soak_line_gap line=35964 expected 35970 found 35971
+2026-11-05T16:37:31.656605+00:00 trial=1 PARSE malformed line=36083 SOAK_SUM n=36090 t=3293699495 trial=1793893371 up=3279385155 rx=392697 tx=392697 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:37:31.685965+00:00 trial=1 CHECK soak_line_gap line=36084 expected 36090 found 36092
+2026-11-05T16:38:56.798559+00:00 trial=1 PARSE malformed line=37018 SOAK_GAP n=37026 t=3378836631 gapMax=4804 gapWiop=0 stack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T16:38:56.827266+00:00 trial=1 CHECK soak_line_gap line=37019 expected 37026 found 37027
+2026-11-05T16:39:10.816202+00:00 trial=1 PARSE malformed line=37172 SOAK_GAP n=37180 t=3392858631 gapMax=4804 gapWirGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrop=0 stack=9008 heap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T16:39:10.845617+00:00 trial=1 CHECK soak_line_gap line=37173 expected 37180 found 37181
+2026-11-05T16:40:22.926370+00:00 trial=1 PARSE malformed line=37963 SOAK_SUM n=37971 t=3464968492 trial=1793893371 up=3450654152 rx=413217 tx=413217 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:40:22.955415+00:00 trial=1 CHECK soak_line_gap line=37964 expected 37971 found 37973
+2026-11-05T16:40:34.975898+00:00 trial=1 PARSE malformed line=38095 SOAK_GAP n=38104 t=3476990631 gapMax=4804 gapWin=4637 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrn=38105 t=3476994279 lines=38105 blocked=191208 c
+2026-11-05T16:40:35.005924+00:00 trial=1 CHECK soak_line_gap line=38096 expected 38104 found 38106
+2026-11-05T16:41:18.005984+00:00 trial=1 PARSE malformed line=38566 SOAK_SUM n=38576 t=3520053827 trial=1793893371 up=3505739487 rx=419816 tx=419816 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 rerecov=0 twaiErr=0 twaiFlags=0 tw
+2026-11-05T16:41:18.005984+00:00 trial=1 CHECK soak_line_gap line=38567 expected 38576 found 38577
+2026-11-05T16:42:01.485285+00:00 trial=1 SOAK_TR n=39060 t=3563520495 node=2 sig=6064 from=380 to=37f first=0 ne=1 ce=1
+2026-11-05T16:42:01.535930+00:00 trial=1 SOAK_TR n=39061 t=3563637495 node=2 sig=6064 from=37f to=352 first=0 ne=1 ce=1
+2026-11-05T16:42:01.545478+00:00 trial=1 SOAK_TR n=39062 t=3563637495 node=2 sig=606c from=0 to=ffffffd3 first=0 ne=1 ce=1
+2026-11-05T16:42:01.745952+00:00 trial=1 SOAK_TR n=39063 t=3563755495 node=2 sig=6064 from=352 to=32e first=0 ne=1 ce=1
+2026-11-05T16:42:01.745952+00:00 trial=1 SOAK_TR n=39064 t=3563755495 node=2 sig=606c from=ffffffd3 to=0 first=0 ne=1 ce=1
+2026-11-05T16:42:02.355232+00:00 trial=1 SOAK_TR n=39076 t=3564463495 node=2 sig=6064 from=32e to=2e5 first=0 ne=1 ce=1
+2026-11-05T16:42:02.374991+00:00 trial=1 SOAK_TR n=39077 t=3564463495 node=2 sig=606c from=0 to=ffffffd3 first=0 ne=1 ce=1
+2026-11-05T16:42:02.475121+00:00 trial=1 SOAK_TR n=39078 t=3564581495 node=2 sig=6064 from=2e5 to=2b2 first=0 ne=1 ce=1
+2026-11-05T16:42:02.495128+00:00 trial=1 SOAK_TR n=39079 t=3564581495 node=2 sig=606c from=ffffffd3 to=ffffffea first=0 ne=1 ce=1
+2026-11-05T16:42:02.595796+00:00 trial=1 SOAK_TR n=39080 t=3564699495 node=2 sig=6064 from=2b2 to=28e first=0 ne=1 ce=1
+2026-11-05T16:42:02.615946+00:00 trial=1 SOAK_TR n=39081 t=3564699495 node=2 sig=606c from=ffffffea to=fffffffb first=0 ne=1 ce=1
+2026-11-05T16:42:02.715980+00:00 trial=1 SOAK_TR n=39082 t=3564817495 node=2 sig=606c from=fffffffb to=0 first=0 ne=1 ce=1
+2026-11-05T16:42:02.915518+00:00 trial=1 SOAK_TR n=39083 t=3564934495 node=2 sig=6064 from=28e to=292 first=0 ne=1 ce=1
+2026-11-05T16:42:02.915518+00:00 trial=1 SOAK_TR n=39084 t=3564934495 node=2 sig=606c from=0 to=9 first=0 ne=1 ce=1
+2026-11-05T16:42:02.946050+00:00 trial=1 SOAK_TR n=39085 t=3565052495 node=2 sig=6064 from=292 to=2d1 first=0 ne=1 ce=1
+2026-11-05T16:42:02.965766+00:00 trial=1 SOAK_TR n=39086 t=3565052495 node=2 sig=606c from=9 to=23 first=0 ne=1 ce=1
+2026-11-05T16:42:03.165211+00:00 trial=1 SOAK_TR n=39091 t=3565174625 node=2 sig=6064 from=2d1 to=30d first=0 ne=1 ce=1
+2026-11-05T16:42:03.295708+00:00 trial=1 SOAK_TR n=39098 t=3565295639 node=2 sig=6064 from=30d to=335 first=0 ne=1 ce=1
+2026-11-05T16:42:03.305712+00:00 trial=1 SOAK_TR n=39099 t=3565295639 node=2 sig=606c from=23 to=1 first=0 ne=1 ce=1
+2026-11-05T16:42:03.334788+00:00 trial=1 SOAK_TR n=39101 t=3565412627 node=2 sig=606c from=1 to=0 first=0 ne=1 ce=1
+2026-11-05T16:42:15.096668+00:00 trial=1 PARSE malformed line=39213 SOAK_SUM n=39223 t=3577141991 trial=1793893371 up=3562827651 rx=426652 tx=426652 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 reags=0 twaiDrop=0
+2026-11-05T16:42:15.096668+00:00 trial=1 CHECK soak_line_gap line=39214 expected 39223 found 39224
+2026-11-05T16:45:57.445437+00:00 trial=1 PARSE malformed line=41655 SOAK_SUM n=41665 t=3799491827 trial=1793893371 up=3785177487 rx=sFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T16:45:57.445437+00:00 trial=1 CHECK soak_line_gap line=41656 expected 41665 found 41666
+2026-11-05T16:46:26.496270+00:00 trial=1 PARSE malformed line=41974 SOAK_SUM n=41984 t=3828538492 trial=1793893371 up=3814224152 rx=456771 tx=456771 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:46:26.535464+00:00 trial=1 CHECK soak_line_gap line=41975 expected 41984 found 41986
+2026-11-05T16:46:47.526125+00:00 trial=1 PARSE malformed line=42205 SOAK_GAP n=42216 t=3849575286 gapMax=4804 gapWin=4637 ownerGap=5215 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrheap=127876 heapMin=123436 tec=0 rec=0
+2026-11-05T16:46:47.565536+00:00 trial=1 CHECK soak_line_gap line=42206 expected 42216 found 42217
+2026-11-05T16:47:15.575467+00:00 trial=1 PARSE malformed line=42512 SOAK_SUM n=42523 t=3877615492 trial=1793893371 up=3863301152 rx=sFull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-05T16:47:15.575467+00:00 trial=1 CHECK soak_line_gap line=42513 expected 42523 found 42524
+2026-11-05T16:48:47.725753+00:00 trial=1 PARSE malformed line=43524 SOAK_SUM n=43535 t=3969758823 trial=1793893371 up=3955444483 rx=473690 tx=473690 txRej=0 rxDrop=0 rxLost=0 unmatched=0 qRej=0 resFull=0 timeouts=0 cancelled=0 b
+2026-11-05T16:48:47.745258+00:00 trial=1 CHECK soak_line_gap line=43525 expected 43535 found 43537
+2026-11-05T18:42:51.440818+00:00 trial=1 SOAK_END n=118731 t=10813460656 trial=1793893371 reason=duration up=10799146316 lines=118731 settled=1
+2026-11-05T18:42:51.444329+00:00 HOST trial_end {"trial": 1793893371, "reason": "end:duration", "bytes": 16909520}
+2026-11-05T18:42:52.962821+00:00 HOST verdict {"trial": 1793893371, "verdict": "incomplete", "errors": 226, "soak": {"trial": 1793893371, "end": "duration", "lines": {"SOAK_BEGIN": 1, "SOAK_TR": 95, "SOAK_SUM": 10686, "SOAK_GAP": 10668, "SOAK_CON": 10762, "SOAK_NODE": 21570, "SOAK_HIST": 21570, "SOAK_OUT": 21570, "SOAK_ABORT": 21570, "SOAK_END": 1}, "anomalies": {}, "nodes_stopped": {}, "lost_lines": 239, "signals": 71, "note_counts": {"soak_line_gap": 182}}, "sha256": "32323abc1152394ea84d1716b1d2e56d6cd4103b40918bbed5598722a3e3923d"}

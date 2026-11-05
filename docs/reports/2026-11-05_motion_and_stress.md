@@ -54,4 +54,33 @@ Every loss, in both runs, was a 64-byte transfer in the first lines of a summary
 
 ## Overnight communication stress
 
-To be completed as the runs end.
+Read-only soaks on `2920479`, motion waived off: no enable, mode change, write or motion. Before each run the S2 was reset through esptool's hard reset and pinged twice. The first ping catches the boot banner and is kept only in disposable build output; the second is retained. Node 1 stayed enabled and holding at 4728, node 2 released at 896 with `2100=0014`, as the motion campaign left them.
+
+### R1: 20 ms reads, 1 s summaries
+
+[`20261105-stress-r1-summary1s`](../bench/20261105-stress-r1-summary1s/transitions.txt), 15:42Z to 18:42Z. Its capture, timing and summary files are stored as lossless xz; `COMPRESSED.json` holds the original SHA-256 values, and the `rx.bin` value matches the runner's record. R2 is stored the same way.
+
+**CAN: clean.** 184,761 operations and 646,669 SDO steps per node, every one successful. No timeout, abort, TX rejection, drop, bus error or recovery; TEC and REC 0 throughout. Largest service gap 4.8 ms, slowest operation 6.9 ms, least free stack 9,008 bytes, heap unchanged. Against the 60 s-summary A/B runs, the extra console output cost 0.8% of the read rate (184,761 against 186,169 operations).
+
+**Transitions.** At the first replies both nodes went from `health=UNINIT` to `READY` and from `eligibility=0x4` to `0xE`, as at every start. After that only node 2's position changed:
+
+| UTC | Node 2 `6064` | `606C` |
+| --- | --- | --- |
+| 16:42:01 | 896 → 895 → 850 → 814 → 741 → 690 → 654 | 0, −45, 0, −45, −22, −5, 0 rpm |
+| 16:42:03 | 654 → 658 → 721 → 781 → 821 | 9, 35, 1, 0 rpm |
+
+**The released, free shaft of node 2 turned by 242 pulses one way and 167 back within 2 s, while the S2 sent nothing but reads.** Node 2's statusword stayed `4050` (switch on disabled) and `2100` stayed `0014`; node 1, enabled and holding, did not move. A drive in that state applies no torque, so an outside force turned the shaft: most likely a hand or a knock on the table, which nobody observed. It is recorded as unexplained, not as a drive behavior.
+
+**Console: 182 losses in 10,686 bursts (1.7%), against 2 to 3 in 180 (1.1 to 1.7%) at 60 s summaries.** Every loss again fell in the first 600 bytes of a burst, which began after under a second of quiet. The rate per burst did not change with the quiet spell, from 0.8 s to 60 s, so **the idle-link explanation is refuted**: neither the host's transmit direction (the A/B) nor the S2's is the trigger. Per half hour R1 lost 20, 25, 28, 32, 42 and 35.
+
+The same 1 s bursts lost nothing in 1,199 bursts on 2026-11-03 ([`20261103-soak-burst1s`](../bench/20261103-soak-burst1s/summary.txt)), where reads ran every 200 ms. At R1's first-half-hour rate it should have shown about 13 losses. So the loss follows the 20 ms read load, or the image (`261a25b` against `2920479`), not quiet time. The later runs separate the two.
+
+### R2: R1 repeated after an S2 reset
+
+[`20261105-stress-r2-summary1s-repeat`](../bench/20261105-stress-r2-summary1s-repeat/transitions.txt), 18:45Z to 21:45Z, same settings.
+
+**CAN: clean**, as R1: 184,764 operations and 646,680 steps per node, all successful; TEC and REC 0; largest gap 4.8 ms. **No signal changed after the first replies**: node 2's shaft stayed at 821.
+
+**Console: 212 losses in 10,672 bursts (2.0%)**, 28, 42, 25, 36, 45 and 36 per half hour, all in the first 602 bytes of a burst. The S2 reset did not bring back R1's lower first half hour, and R2 shows no rise, so **R1's rise was scatter, not something accumulating** in the S2 or in the host's session. Between the two runs the rate per burst is steady at about 1.7 to 2.0%.
+
+The runner refuses read intervals under 20 ms (`--interval-ms must be 20..60000`), so a 5 ms run was not possible; 20 ms is the heaviest load it offers.
