@@ -103,6 +103,8 @@ At 18:13:49 both drives stopped acknowledging; the cause was not observed. After
 
 So far: 6 losses in 278 bursts that followed about a minute of quiet (stress1 and A), and none in 4.5 h of continuous output or in 1,379 bursts after quiet spells of at most about 10 s. A fresh bridge session did not prevent loss: A's first loss came 68 minutes after the flash. These results still fit loss following the idle link, but they do not prove it, because the 20 ms read load ran only in the phases that lost data. The next measurement is unchanged and needs the drives answering.
 
+**Rerun with the drives answering, 2026-11-04** ([report](2026-11-05_motion_and_stress.md#console-loss-ab-completed)): 3 h each, same settings. Run A, plain, lost 2 transfers in 180 bursts; run B, with `--keepalive-s 1` (10,568 newlines sent), lost 3. Every loss was again in the first lines of a burst after about 60 s of quiet. So the host keepalive does not prevent it, and the loss does not follow the host's transmit idling. It still fits the S2-to-host direction idling, which only output from the S2 itself can keep busy.
+
 **Effect on the evidence.** The line numbering detected each loss, as designed. Bus, owner and node counters are cumulative, so the next summary restored them; only `gapWin` for those minutes is lost. A lost transition would show as a chain break, and none occurred. No CAN behavior is implicated.
 
 ## Final runs on the new image
