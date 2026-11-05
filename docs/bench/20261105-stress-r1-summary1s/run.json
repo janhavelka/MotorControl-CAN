@@ -1,0 +1,143 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-05T18:42:52.962821+00:00",
+  "trials": [
+    {
+      "trial": 1793893371,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 3984,
+          "detail": "bad value rx=426=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 4116,
+          "detail": "missing resFull,timeouts,cancelled,busOff,recov,twaiErr,twaiFlags"
+        },
+        {
+          "code": "malformed_line",
+          "line": 4853,
+          "detail": "bad value rx=521=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 4919,
+          "detail": "bad value twaiFlags=0ownerGap=5215"
+        },
+        {
+          "code": "malformed_line",
+          "line": 5633,
+          "detail": "bad value rx=606=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 6063,
+          "detail": "missing ownerGap,qHw,actHw,retHw,trHw,trOver,netDrop,stack"
+        },
+        {
+          "code": "malformed_line",
+          "line": 7294,
+          "detail": "bad value rx=787=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 7426,
+          "detail": "missing resFull,timeouts,cancelled,busOff,recov,twaiErr,twaiFlags"
+        },
+        {
+          "code": "malformed_line",
+          "line": 7558,
+          "detail": "bad value twaiFlags=0ownerGap=5215"
+        },
+        {
+          "code": "malformed_line",
+          "line": 8118,
+          "detail": "bad value rx=877=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 9593,
+          "detail": "bad value gapWin=465stack=9008"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10946,
+          "detail": "missing gapWin,ownerGap,qHw,actHw,retHw,trHw,trOver,netDrop"
+        },
+        {
+          "code": "malformed_line",
+          "line": 11550,
+          "detail": "duplicate field ownerGap"
+        },
+        {
+          "code": "malformed_line",
+          "line": 12198,
+          "detail": "bad value rx=sFull=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14509,
+          "detail": "missing netDrop,stack,heap,heapMin"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14816,
+          "detail": "missing resFull,timeouts,cancelled,busOff,recov,twaiErr,twaiFlags"
+        },
+        {
+          "code": "malformed_line",
+          "line": 16477,
+          "detail": "missing resFull,timeouts,cancelled,busOff,recov,twaiErr,twaiFlags"
+        },
+        {
+          "code": "malformed_line",
+          "line": 18963,
+          "detail": "missing resFull,timeouts,cancelled,busOff,recov,twaiErr,twaiFlags"
+        },
+        {
+          "code": "malformed_line",
+          "line": 19261,
+          "detail": "missing netDrop,stack,heap"
+        },
+        {
+          "code": "malformed_line",
+          "line": 19766,
+          "detail": "missing twaiFlags,twaiDrop"
+        }
+      ],
+      "error_count": 226,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793893371,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 95,
+          "SOAK_SUM": 10686,
+          "SOAK_GAP": 10668,
+          "SOAK_CON": 10762,
+          "SOAK_NODE": 21570,
+          "SOAK_HIST": 21570,
+          "SOAK_OUT": 21570,
+          "SOAK_ABORT": 21570,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 239,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 182
+        }
+      },
+      "unknown": 6,
+      "malformed": 176,
+      "bytes": 16909520,
+      "sha256": "32323abc1152394ea84d1716b1d2e56d6cd4103b40918bbed5598722a3e3923d"
+    }
+  ]
+}
