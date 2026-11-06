@@ -1200,8 +1200,71 @@ void recheckAtHandover() {
                                           int32_t(M::AxisError::STALE_REFERENCE));
 }
 
+// 25. Trial 706 replayed (node 1, 2026-11-05, image 2920479): every 2100, 6041, 6064 and 606C value
+// below is the capture's, under the measured signals of record 111: acceptance 6041 bit 12, completion
+// 2100 bit 0, AFTER_ABSENCE. The completion report came at 6064 -999, one pulse short of the target;
+// trial 707, 44 s later, read -1000. The move keeps the observed -999, never the target, and a later
+// read changes neither the move nor the witness. Drive reports only; no shaft was observed.
+void trial706() {
+    scenario = "trial 706";
+    const Report cycles[] = {{0x0004, 0x5037, 1000, 0},
+                             {0x0004, 0x5037, 435, -60},
+                             {0x0004, 0x5037, -599, -54},
+                             {0x0001, 0x9437, -999, 0}};
+    Rig r;
+    r.drive.status = 0x8437; // Admission: 2100 0001, 6041 8437, 6064 1000.
+    r.drive.monitor = 0x0001;
+    r.drive.position = 1000;
+    r.drive.script = cycles;
+    r.drive.scriptLength = 4;
+    r.ready();
+    L::MoveEvidence measured = evidence(L::CompletionRule::AFTER_ABSENCE);
+    measured.record = 111;
+    measured.completion.source = L::MoveSignalSource::MONITOR;
+    measured.completion.mask = measured.completion.value = L::MONITOR_POSITION_COMPLETE;
+    const M::AxisReference start = witness(r, 1000);
+    CHECK(r.request(measured, moveRequest(-1000, 60), profile(1000, 1000), &start).isOk());
+    r.finishMove();
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(c.rearm == M::ActionExecution::ACKNOWLEDGED && !c.uncertain && !r.a.moveFenced());
+    unsigned i = r.startFrame;
+    const uint8_t target[8] = {0x23, 0x7a, 0x60, 0x00, 0x18, 0xfc, 0xff, 0xff};
+    CHECK(frameIs(r, i++, target));
+    CHECK(downloadAt(r, i++, 0x6081, 4, 60) && downloadAt(r, i++, 0x6083, 4, 1000));
+    CHECK(downloadAt(r, i++, 0x6084, 4, 1000) && wordAt(r, i++, 0x001f));
+    for (unsigned k = 0; k < 4; ++k, i += 7)
+        CHECK(cycleAt(r, i));
+    CHECK(wordAt(r, i++, 0x000f) && i == r.wire.sentCount);
+    CHECK(c.parameters.targetNative == -1000 && c.parameters.target.endpointNative == -1000);
+    CHECK(c.displacement == M::MoveDisplacement::KNOWN && c.displacementNative == -2000);
+    CHECK(c.admission.statusword == 0x8437 && c.admission.monitor == 0x0001);
+    CHECK(c.observations == 4 && c.acceptance.cycle == 1 && c.absence.cycle == 1);
+    CHECK(c.acceptance.statusword == 0x5037 && c.acceptance.monitor == 0x0004 && c.acceptance.position == 1000);
+    CHECK(c.completed.cycle == 4 && c.completed.monitor == 0x0001 && c.completed.statusword == 0x9437);
+    CHECK(c.completed.position == -999 && c.completed.velocity == 0 && c.latest.position == -999);
+    // The rearm cleared bit 12, as the capture's later 6041 8437 shows. Then the settled -1000.
+    r.drive.position = -1000;
+    const Saved<L::MoveContext> done(c);
+    const Saved<M::AxisReference> borrowed(r.one.witness);
+    static L::ReadContext later;
+    r.readState(later, uint8_t(STATE_MASK | bit(L::StateBlock::FEEDBACK)));
+    L::StateObservation status, monitors, feedback;
+    CHECK(L::getStateBlock(later, L::StateBlock::STATUS, r.current(), r.now, LEAD, status) &&
+          status.statusword == 0x8437);
+    CHECK(L::getStateBlock(later, L::StateBlock::MONITORS, r.current(), r.now, LEAD, monitors) &&
+          monitors.monitor == 0x0001);
+    CHECK(L::getStateBlock(later, L::StateBlock::FEEDBACK, r.current(), r.now, LEAD, feedback) &&
+          feedback.actualPosition == -1000 && feedback.actualVelocity == 0);
+    done.unchanged(c);
+    borrowed.unchanged(r.one.witness);
+    CHECK(c.completed.position == -999 && r.one.witness.nativePosition == 1000);
+}
+
 void runAll() {
     golden();
+    trial706();
     enableChain();
     targetsAndQuantization();
     referenceAndZero();

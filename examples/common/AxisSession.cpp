@@ -32,6 +32,8 @@ bool sameSequence(SequenceId a, SequenceId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
 }
 const char* const CLEAR_BLOCKED = "an earlier clear's value 1 may still be held; only a stop is admitted";
+const char* const FAULT_BLOCKED =
+    "a drive fault was reported on this session: no move, enable or counter clear is admitted";
 } // namespace
 
 // The owner refuses a time before its own last one, so a session call at such a time would fail part
@@ -106,6 +108,8 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     moveAxis_ = nullptr;
     moveReference_ = nullptr;
     // clearBlocked_ stays: reopening cannot show that the drive's 2301 or 2302 returned to 0.
+    // faultBlocked_ stays too: reopening cannot show that the reported fault left the drive
+    // enabled.
     L::resetAction(clear_);
     clearTarget_ = target;
     clearAxis_ = nullptr;
@@ -212,6 +216,8 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (clearBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
+    if (faultBlocked_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
     if (motionWritten_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "this session wrote to the drive; no fresh enable history remains");
@@ -250,6 +256,7 @@ bool AxisSession::cancelEnable(uint64_t now, M::ActionOutcome reason) noexcept {
         (reason != M::ActionOutcome::CANCELLED && reason != M::ActionOutcome::DRIVE_FAULT))
         return false;
     lastUs_ = now;
+    faultBlocked_ |= reason == M::ActionOutcome::DRIVE_FAULT;
     withdrawEnable(reason, now);
     return true;
 }
@@ -350,6 +357,8 @@ M::Status AxisSession::startMove(bool relative, const L::ReadContext& state,
                          "no usable reservation for a move");
     if (busy())
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
+    if (faultBlocked_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
     if (moveFenced_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "an earlier trigger may still be moving the drive: new moves stay fenced");
@@ -407,6 +416,7 @@ bool AxisSession::cancelMove(uint64_t now, M::MoveInterruption reason) noexcept 
         (reason != M::MoveInterruption::CANCELLED && reason != M::MoveInterruption::DRIVE_FAULT))
         return false;
     lastUs_ = now;
+    faultBlocked_ |= reason == M::MoveInterruption::DRIVE_FAULT;
     withdrawMove(reason, now);
     return true;
 }
@@ -574,6 +584,8 @@ M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePos
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (clearBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
+    if (faultBlocked_ && axis)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
     const uint32_t next = nextOperation();
     if (!next)
         return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
@@ -723,29 +735,60 @@ void AxisSession::serviceClear(uint64_t now) noexcept {
     if (!noted.isOk())
         withdrawClear(M::ActionOutcome::INVALIDATED, now);
 }
-// noteMoveTransmission's recheck of a parameter or trigger download, without its notice or
-// retirements, so that it can run again at the handover. Keep the two in step.
-M::Status AxisSession::recheckMove(uint64_t now) const noexcept {
-    const M::PreparedTarget& target = move_.parameters.target;
-    M::Status s = M::validatePreparedTarget(target, *moveAxis_, moveReference_, now);
-    if (!s) {
-        s.detail += static_cast<int32_t>(L::PositionParameterError::AXIS_ERROR_BASE) +
-                    static_cast<int32_t>(M::MoveError::PARAMETER_ERROR_BASE);
-        return s;
-    }
-    // validatePreparedTarget has refused a used witness that is missing.
-    if (target.referenceUsed && (!moveReference_->idle || !moveReference_->stationary))
-        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::REFERENCE),
-                         "the move's witness is no longer idle and stationary");
-    if (now - move_.admission.earliestUs > move_.options.maximumAgeUs)
-        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::MoveError::STATE),
-                         "the admission state read is older than its age cap");
-    return M::Ok();
-}
 // Inside the owner's turn: reads this session and its borrowed inputs, and makes no owner call.
-bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now) noexcept {
+// A fault the application has decided but not yet handled: the owner received its EMCY earlier in
+// this turn, before transmitting, so the download it would hand over now must not leave. The action
+// it belongs to is withdrawn as cancelEnable, cancelMove or cancelClear with DRIVE_FAULT would
+// withdraw it. Inside the owner's turn only local records change, and the refusal itself closes the
+// download unsent, so no owner cancel is needed. A stop and any other download are not this
+// session's action.
+bool AxisSession::holdForFault(const C::SdoTransfer& transfer, uint64_t now) noexcept {
+    const M::ActionOutcome fault = M::ActionOutcome::DRIVE_FAULT;
+    if (enableActive() && transfer.operation == enable_.operation) {
+        faultBlocked_ = true;
+        if (enableWithdrawn_ == M::ActionOutcome::NONE) {
+            enableWithdrawn_ = fault;
+            if (!L::noteActionWithdrawal(enable_, reservation_, reservation_.target, fault, now)
+                     .isOk())
+                L::noteActionWithdrawal(enable_, reservation_, reservation_.target,
+                                        M::ActionOutcome::INVALIDATED, now);
+        }
+        return true;
+    }
+    if (moveActive() && transfer.operation == move_.operation) {
+        faultBlocked_ = true;
+        if (moveWithdrawn_ == M::MoveInterruption::NONE) {
+            moveWithdrawn_ = M::MoveInterruption::DRIVE_FAULT;
+            if (!L::noteMoveWithdrawal(move_, reservation_, reservation_.target,
+                                       M::MoveInterruption::DRIVE_FAULT, now)
+                     .isOk())
+                L::noteMoveWithdrawal(move_, reservation_, reservation_.target,
+                                      M::MoveInterruption::INVALIDATED, now);
+        }
+        return true;
+    }
+    if (clearActive() && transfer.operation == clear_.operation) {
+        if (clearWithdrawn_ == M::ActionOutcome::NONE) {
+            clearWithdrawn_ = fault;
+            if (!L::noteActionWithdrawal(clear_, reservation_, clearTarget_, fault, now).isOk())
+                L::noteActionWithdrawal(clear_, reservation_, clearTarget_,
+                                        M::ActionOutcome::INVALIDATED, now);
+        }
+        return true;
+    }
+    return false;
+}
+bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now,
+                            bool driveFault) noexcept {
     if (!sameSequence(sequence, sequence_) || transfer.direction != C::SdoDirection::DOWNLOAD)
         return true;
+    // A session time ahead of the owner's can only have aged the inputs further.
+    const uint64_t at = now < lastUs_ ? lastUs_ : now;
+    if (driveFault && holdForFault(transfer, at))
+        return false;
+    // A withdrawn action's word must not leave after its withdrawal, though it waited in the owner.
+    if (enableActive() && transfer.operation == enable_.operation)
+        return enableWithdrawn_ == M::ActionOutcome::NONE;
     if (clearActive() && transfer.operation == clear_.operation)
         return clearWithdrawn_ == M::ActionOutcome::NONE; // Withdrawn while it waited; its cancel lost.
     if (!moveActive() || transfer.operation != move_.operation)
@@ -754,8 +797,9 @@ bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
         return false; // Withdrawn while it waited, and its cancel did not win.
     if (move_.phase == L::MovePhase::REARM)
         return true; // As at its notice: the rearm follows an observed completion.
-    // A session time ahead of the owner's can only have aged the inputs further.
-    const M::Status checked = recheckMove(now < lastUs_ ? lastUs_ : now);
+    // The library's own admission recheck, which noteMoveTransmission ran at admission, now at the
+    // handover.
+    const M::Status checked = L::validateMoveAdmission(move_, *moveAxis_, moveReference_, at);
     if (checked.isOk())
         return true;
     moveRefusal_ = checked;

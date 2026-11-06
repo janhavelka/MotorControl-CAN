@@ -624,20 +624,38 @@ void matrixCase(Point p, bool handedOff, Cut cut) {
     const Saved<L::MoveContext> terminal(c);
     quiet(r, 20);
     terminal.unchanged(c);
-    // Attempted new motion. Once any download of the move may have reached the drive, the latest
-    // controlword is gone and only a new explicit history can admit one. Before that nothing was
+    // Attempted new motion, with the admission read taken before the move. A drive fault fences the
+    // session (faultBlocked), whatever is read. Otherwise, once any download of the move may have
+    // reached the drive, that read no longer follows the latest acknowledged controlword: the 000F it
+    // followed is withdrawn, or the move's own acknowledged rearm has replaced it. It is refused, and
+    // only a fresh read after the latest word can admit a new move. After a cancel at a handed-off
+    // rearm that latest word is the rearm itself, as after a completed move, so a fresh read admits
+    // a new move: a new explicit edge, not a resumption. Before any download may have left nothing was
     // written: a download closed provably unsent leaves the same 000F the latest, so it and a fresh
     // read still describe the drive, and a new request is a new explicit edge.
     if (c.state == M::ActionState::FAILED) {
         const bool written = c.effectsPossible || cut == Cut::STOP;
         const unsigned before = r.wire.sentCount;
         const M::Status again = r.relative(witness(r, 1700), relEvidence(), relRequest(1000));
-        if (written)
+        CHECK(r.a.faultBlocked() == (cut == Cut::FAULT));
+        if (cut == Cut::FAULT)
+            CHECK(!again && again.msg && std::strstr(again.msg, "drive fault"));
+        else if (written)
             CHECK(!again);
         else if (again)
             CHECK(r.a.cancelMove(r.now)); // Ended before any service: nothing of it can leave.
+        unsigned reads = 0; // The fresh read's uploads below.
+        if (p == Point::REARM && handedOff && cut == Cut::CANCEL) {
+            CHECK(r.a.latestControl() && r.a.latestControl()->transfer.operation == moveOperation);
+            r.readState(r.state);
+            reads = r.wire.sentCount - before;
+            CHECK(reads == 5 && !downloadsFrom(r, before, 0x6040));
+            CHECK(r.relative(witness(r, 1700), relEvidence(), relRequest(1000)).isOk());
+            CHECK(r.a.cancelMove(r.now)); // Ended before any service: nothing of it can leave.
+        }
         r.steps(4);
-        CHECK(r.wire.sentCount == before && r.drive.edges == triggers);
+        CHECK(r.wire.sentCount == before + reads);
+        CHECK(r.drive.edges == triggers);
     }
 }
 void interruptionMatrix() {
@@ -706,6 +724,20 @@ void stopFromHeldTrigger() {
     CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && r.a.moveFenced());
 }
 
+// A quick stop during a move completes through the standstill rule on the captured 000B report:
+// released with 6041 low bits 000 and running still latched (2100 0014, 6041 4050), then two cycles
+// with FEEDBACK whose 606C reads 0 in both and whose 6064 did not change. A running bit that clears is
+// not this path: the fake keeps it latched, as every capture did.
+void quickStopStandstill(const L::ActionContext& s, const FakeDrive& d) {
+    CHECK(s.state == M::ActionState::SUCCEEDED && s.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(s.standstillObserving && s.monitorObservation.monitor == 0x0014 &&
+          s.statusObservation.statusword == 0x4050);
+    CHECK((s.monitorObservation.monitor & L::MONITOR_RUNNING) && d.velocity == 0);
+    CHECK(s.extraObservation.fieldCount == 2 && s.extraObservation.actualVelocity == 0 &&
+          s.extraObservation.actualPosition == d.position);
+    CHECK(s.observations >= 3); // The release, then two cycles with FEEDBACK.
+}
+
 // 11. Both nodes under urgent pressure: simultaneous stops, one node's results left unread.
 void bothNodesUrgent() {
     scenario = "two nodes urgent";
@@ -733,7 +765,7 @@ void bothNodesUrgent() {
     CHECK(r.two.a.stopActive());
     r.serviceTwo = true;
     finishAll(r);
-    CHECK(r.two.a.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::SUCCEEDED);
+    quickStopStandstill(r.two.a.stopAction(L::StopKind::QUICK_STOP), r.two.drive);
     for (unsigned node = 1; node <= 2; ++node) {
         const L::ActionContext& s = r.axis(node).a.stopAction(node == 1 ? L::StopKind::HALT : L::StopKind::QUICK_STOP);
         CHECK(s.predecessorWord == 0x005f && !s.predecessorDocumented && s.operation > moveOf(r, node).operation);
@@ -744,6 +776,173 @@ void bothNodesUrgent() {
     CHECK(wordsFrom(r, at, 0x010f, 1) == 1 && !wordsFrom(r, at, 0x000b, 1));
     CHECK(wordsFrom(r, at, 0x000b, 2) == 1 && !wordsFrom(r, at, 0x010f, 2));
     CHECK(r.one.drive.edges == 1 && r.two.drive.edges == 1);
+}
+
+// 11b. One node's urgent stop while the other node's parameter or trigger download is queued in the
+// owner, held in the adapter or already handed off, both ways round. The stop retires only its own
+// axis's work and waits only for its own in-flight poll. The other move keeps every write exactly once,
+// in order, and completes, or, when the adapter reports its held frame unsent, fails on that frame
+// alone with nothing after it. Neither node receives the other's words, heartbeats keep arriving, and
+// nothing is replayed after either terminal.
+enum class Pending { PARAMETER, TRIGGER };
+enum class Held { QUEUED, ADAPTER, ADAPTER_FAILED, HANDED_OFF };
+const char* const PENDINGS[] = {"6081", "trigger"};
+const char* const HELDS[] = {"queued", "in the adapter", "in the adapter, then failed", "handed off"};
+// The other node's download admitted, noted and queued in the owner, not yet started.
+bool pendingAt(const Rig& r, unsigned node, Pending p) {
+    const L::MoveContext& c = moveOf(r, node);
+    return c.state == M::ActionState::ACTIVE && c.transmissionNoted &&
+           (p == Pending::TRIGGER ? c.phase == L::MovePhase::TRIGGER
+                                  : c.phase == L::MovePhase::PARAMETERS && c.setupCursor == 1);
+}
+bool isDownloadFrame(const Rig& r, unsigned i, unsigned node) {
+    return r.wire.sent[i].id == 0x600 + node && r.wire.sent[i].data[0] != 0x40;
+}
+void urgentBesideOtherWork(unsigned stopping, L::StopKind kind, Pending pending, Held held) {
+    static char name[96];
+    std::snprintf(name, sizeof name, "node %u %s beside node %u %s %s", stopping,
+                  kind == L::StopKind::HALT ? "halt" : "quick stop", 3 - stopping,
+                  PENDINGS[unsigned(pending)], HELDS[unsigned(held)]);
+    scenario = name;
+    const unsigned other = 3 - stopping;
+    Rig r(true);
+    Axis& s = r.axis(stopping);
+    Axis& o = r.axis(other);
+    s.drive.travelReads = 1000000;
+    o.drive.travelReads = 1;
+    r.ready(1);
+    r.ready(2);
+    const unsigned start = r.wire.sentCount;
+    CHECK(r.relative(witness(r, 0, M::RelativeBasis::ACTUAL, stopping), relEvidence(), relRequest(5000),
+                     stopping)
+              .isOk());
+    for (unsigned k = 0; k < 600 && moveOf(r, stopping).observations < 1; ++k)
+        r.step();
+    CHECK(moveOf(r, stopping).observations >= 1);
+    // A fresh admission read: the one from ready() has aged while the stopping move ran.
+    r.readState(o.state, STATE_MASK, other);
+    const unsigned otherStart = r.wire.sentCount;
+    CHECK(r.relative(witness(r, 0, M::RelativeBasis::ACTUAL, other), relEvidence(), relRequest(-3000), other)
+              .isOk());
+    for (unsigned k = 0; k < 600 && o.a.moveActive() && !pendingAt(r, other, pending); ++k)
+        r.step();
+    CHECK(pendingAt(r, other, pending) && s.a.moveActive());
+    const uint16_t pendingIndex = pending == Pending::TRIGGER ? 0x6040 : 0x6081;
+    const unsigned queuedAt = r.wire.sentCount;
+    unsigned handed = r.wire.sentCount; // The other node's pending download, once on the wire.
+    if (held != Held::QUEUED) {
+        if (held == Held::ADAPTER || held == Held::ADAPTER_FAILED)
+            r.holdAdapter();
+        r.serviceSession = r.serviceTwo = false;
+        r.step(); // An owner turn alone: it hands the download to the controller.
+        r.serviceSession = r.serviceTwo = true;
+        for (unsigned i = queuedAt; i < r.wire.sentCount && handed == r.wire.sentCount; ++i)
+            if (isDownloadFrame(r, i, other))
+                handed = i;
+        CHECK(handed < r.wire.sentCount && frameIndex(r.wire.sent[handed]) == pendingIndex);
+        CHECK(r.wire.pending[handed] == (held != Held::HANDED_OFF));
+    } else {
+        CHECK(!downloadsFrom(r, otherStart, pendingIndex, other)); // Not yet on the wire.
+    }
+    const uint32_t otherOperation = moveOf(r, other).operation;
+    const uint32_t stoppingMove = moveOf(r, stopping).operation;
+    const unsigned at = r.wire.sentCount;
+    const E::StopPolicy policy = stopPolicy(r);
+    CHECK(s.a.requestStop(kind, s.a.moveObservation(), policy, r.now) == E::StopPath::CONFIRMED);
+    // The stop retired nothing of the other axis: its download is still live in the owner.
+    CHECK(o.a.moveActive() && o.a.busy() && moveOf(r, other).withdrawal == M::MoveInterruption::NONE);
+    const bool failed = held == Held::ADAPTER_FAILED;
+    if (held == Held::ADAPTER || failed) {
+        r.step(); // Within the frames' response budgets: the adapter then reports them in order.
+        // Still off the bus: the other drive has not seen it.
+        CHECK(r.wire.pending[handed] && (pending == Pending::TRIGGER ? !o.drive.edges : o.drive.speed != 120));
+        r.releaseAdapter(handed, !failed);
+    }
+    finishAll(r);
+
+    // The stopping node: its own urgent operation, from the held 005F, with no 000F before it.
+    const L::ActionContext& stop = s.a.stopAction(kind);
+    const uint16_t stopWord = kind == L::StopKind::HALT ? 0x010f : 0x000b;
+    CHECK(stop.operation > stoppingMove && stop.deadlineUs == policy.deadlineUs);
+    CHECK(stop.predecessorWord == 0x005f && !stop.predecessorDocumented);
+    if (kind == L::StopKind::HALT)
+        CHECK(stop.state == M::ActionState::SUCCEEDED && !(stop.monitorObservation.monitor & L::MONITOR_RUNNING));
+    else
+        quickStopStandstill(stop, s.drive);
+    const L::MoveContext& stopped = moveOf(r, stopping);
+    CHECK(stopped.state == M::ActionState::FAILED && stopped.outcome == M::ActionOutcome::CANCELLED);
+    CHECK(stopped.interruption == M::MoveInterruption::STOP && stopped.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(stopped.uncertain && s.a.moveFenced());
+    CHECK(wordsFrom(r, start, 0x005f, stopping) == 1 && s.drive.edges == 1);
+    CHECK(wordsFrom(r, at, stopWord, stopping) == 1);
+    CHECK(wordsFrom(r, start, 0x010f, stopping) + wordsFrom(r, start, 0x000b, stopping) == 1);
+    CHECK(!wordsFrom(r, start, 0x000f, stopping));
+    for (unsigned i = at; i < r.wire.sentCount; ++i)
+        if (isDownloadFrame(r, i, stopping))
+            CHECK(wordAt(r, i, stopWord, stopping)); // Nothing of the move after the stop.
+    onlyRelativeWords(r, start, stopping);
+
+    // The other node: every write once, in order, and its own completion and rearm.
+    const L::MoveContext& c = moveOf(r, other);
+    CHECK(c.operation == otherOperation && c.interruption == M::MoveInterruption::NONE);
+    unsigned writes[8], count = 0;
+    for (unsigned i = otherStart; i < r.wire.sentCount; ++i)
+        if (isDownloadFrame(r, i, other)) {
+            CHECK(count < 8);
+            writes[count++] = i;
+        }
+    const uint32_t expected[6] = {uint32_t(-3000), 120, 100, 200, 0x005f, 0x000f};
+    const uint16_t objects[6] = {0x607a, 0x6081, 0x6083, 0x6084, 0x6040, 0x6040};
+    const unsigned planned = failed ? (pending == Pending::TRIGGER ? 5u : 2u) : 6u;
+    CHECK(count == planned);
+    for (unsigned k = 0; k < count && k < 6; ++k)
+        CHECK(downloadAt(r, writes[k], objects[k], k < 4 ? 4 : 2, expected[k], other));
+    if (held != Held::QUEUED)
+        CHECK(writes[pending == Pending::TRIGGER ? 4 : 1] == handed);
+    CHECK(!wordsFrom(r, start, 0x010f, other) && !wordsFrom(r, start, 0x000b, other));
+    onlyRelativeWords(r, otherStart, other);
+    if (!failed) {
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+        CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::ACKNOWLEDGED);
+        CHECK(c.rearm == M::ActionExecution::ACKNOWLEDGED && !c.uncertain && !o.a.moveFenced());
+        CHECK(o.drive.edges == 1 && o.drive.position == -3000 && c.completed.present);
+    } else {
+        // Never on the bus, yet not proven unsent: its effect stays possible, and nothing follows it.
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::TRANSPORT_ERROR);
+        CHECK(c.uncertain && c.effectsPossible && !o.drive.edges);
+        if (pending == Pending::TRIGGER)
+            CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::UNKNOWN &&
+                  c.trigger.transmissionPossible && o.a.moveFenced());
+        else
+            CHECK(c.setup == M::ActionExecution::UNKNOWN && c.execution == M::ActionExecution::NOT_TRANSMITTED &&
+                  !c.triggerPresent && c.setupHistory[1].transmissionPossible && !o.a.moveFenced() &&
+                  o.drive.speed != 120);
+    }
+
+    // Passive traffic was never consumed or blocked by either service.
+    if (asyncTraffic)
+        for (unsigned node = 0; node < 2; ++node)
+            CHECK(r.services.node(uint8_t(node))->heartbeat.present &&
+                  r.services.node(uint8_t(node))->heartbeat.processedUs == r.now);
+    CHECK(!r.owner.stats().rxDropped && !r.owner.stats().unmatchedFrames);
+
+    // Both retained outcomes stay, and nothing follows either.
+    const Saved<L::MoveContext> one(moveOf(r, 1)), two(moveOf(r, 2));
+    const Saved<L::ActionContext> kept(stop);
+    quiet(r, 20);
+    one.unchanged(moveOf(r, 1));
+    two.unchanged(moveOf(r, 2));
+    kept.unchanged(stop);
+}
+void urgentBesideOtherNode() {
+    const Pending pendings[] = {Pending::PARAMETER, Pending::TRIGGER};
+    const Held helds[] = {Held::QUEUED, Held::ADAPTER, Held::ADAPTER_FAILED, Held::HANDED_OFF};
+    const L::StopKind kinds[] = {L::StopKind::HALT, L::StopKind::QUICK_STOP};
+    for (unsigned stopping = 1; stopping <= 2; ++stopping)
+        for (L::StopKind kind : kinds)
+            for (Pending pending : pendings)
+                for (Held held : helds)
+                    urgentBesideOtherWork(stopping, kind, pending, held);
 }
 
 // 12. A lost trigger reply: unknown, fenced, best-effort stop only, and an identical late ACK changes
@@ -1005,12 +1204,43 @@ void atomicity() {
     CHECK(L::noteMoveTransmission(c, live, here, axis, &c.parameters.target.retainedReference, nullptr, 0, r.now)
               .detail == int32_t(M::MoveError::OVERLAP));
     active.unchanged(c);
+    // validateMoveAdmission is that recheck alone: each refusal has the notice's status and detail,
+    // and nothing changes.
+    struct Recheck {
+        const M::AxisConfig* axis;
+        const M::AxisReference* witness;
+        uint64_t at;
+    };
+    M::AxisReference replaced = w, busy = w;
+    ++replaced.observedUs;
+    busy.idle = false;
+    const Recheck rechecks[] = {{&axis, &replaced, r.now},
+                                {&axis, nullptr, r.now},
+                                {&axis, &busy, r.now},
+                                {&moved, &w, r.now},
+                                {&axis, &w, r.now + o.maximumAgeUs + 1},
+                                {&c.parameters.axis, &w, r.now},
+                                {&axis, &c.parameters.target.retainedReference, r.now}};
+    for (const Recheck& k : rechecks) {
+        const M::Status noted = L::noteMoveTransmission(c, live, here, *k.axis, k.witness, nullptr, 0, k.at);
+        const M::Status checked = L::validateMoveAdmission(c, *k.axis, k.witness, k.at);
+        CHECK(!noted && !checked && checked.code == noted.code && checked.detail == noted.detail);
+    }
+    active.unchanged(c);
+    CHECK(L::validateMoveAdmission(c, axis, &w, r.now));
+    active.unchanged(c);
     CHECK(L::noteMoveTransmission(c, live, here, axis, &w, nullptr, 0, r.now));
+    // After the notice, as at the handover, the recheck still runs and still refuses a change.
+    CHECK(L::validateMoveAdmission(c, axis, &w, r.now));
+    CHECK(L::validateMoveAdmission(c, axis, &replaced, r.now).detail == AXIS + int32_t(M::AxisError::STALE_REFERENCE));
+    static L::MoveContext none;
+    CHECK(L::validateMoveAdmission(none, axis, &w, r.now).detail == int32_t(M::MoveError::STATE));
     C::SdoCompletion ack = acknowledged(work.transfer, r.now, here.nodeGeneration);
     CHECK(L::advanceMove(c, observation, live, here, ack, r.now));
     CHECK(c.setupCursor == 1 && c.setup == M::ActionExecution::UNKNOWN);
     CHECK(L::advanceMove(c, observation, live, here, M::MoveInterruption::CANCELLED, r.now));
     CHECK(c.state == M::ActionState::FAILED && c.setupHistory[0].outcome == C::SdoOutcome::SUCCESS);
+    CHECK(L::validateMoveAdmission(c, axis, &w, r.now).detail == int32_t(M::MoveError::STATE));
 }
 
 // 21. A device counter zero advances the configuration epoch: the prepared relative move can only be
@@ -1217,6 +1447,389 @@ void cancelWhileHeld() {
     }
 }
 
+// 25. A fault reported through the move's own observation cycle, not a local fault cancel. The fake's
+// alarm and its 6041 are manufactured; no capture of an alarm during a move exists. The cycle is
+// sequential, not atomic: a report counts in the field it was read in. The scope check precedes the
+// acceptance and completion rule, so a faulted cycle records neither, even when it carries both. The
+// trigger may have moved the drive and no completion was observed: the move is uncertain and fenced,
+// the held 005F stays the latest word, and no 000F follows it.
+enum class Fault { BEFORE_ACCEPTANCE, AFTER_ACCEPTANCE, SAME_CYCLE, UNFINISHED_CYCLE };
+const char* const FAULTS[] = {"before acceptance", "after acceptance", "mid-cycle, same cycle",
+                              "mid-cycle, unfinished"};
+void faultInCycle(Fault fault) {
+    static char name[64];
+    std::snprintf(name, sizeof name, "cycle fault %s", FAULTS[unsigned(fault)]);
+    scenario = name;
+    Rig r;
+    r.drive.travelReads = fault == Fault::BEFORE_ACCEPTANCE ? 1000000 : 1; // Else cycle 2 completes.
+    r.ready();
+    if (fault == Fault::SAME_CYCLE) {
+        // Raised by cycle 2's 6041 read, after its 2100 read was clean, and shown in that 6041.
+        r.drive.alarmAtRead = r.drive.statusReads + 2;
+        r.drive.alarmDisables = true;
+    }
+    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(800)).isOk());
+    const unsigned start = r.startFrame;
+    const L::MoveContext& c = moveOf(r);
+    switch (fault) {
+    case Fault::BEFORE_ACCEPTANCE:
+        // Acknowledged; cycle 1's 2100 upload is admitted but not yet answered.
+        for (unsigned k = 0; k < 400 && c.execution != M::ActionExecution::ACKNOWLEDGED; ++k)
+            r.step();
+        CHECK(c.execution == M::ActionExecution::ACKNOWLEDGED && !uploadsFrom(r, start, 0x2100));
+        r.drive.monitor = uint16_t(r.drive.monitor | L::MONITOR_ALARM);
+        break;
+    case Fault::AFTER_ACCEPTANCE:
+        // Between cycles 1 and 2: cycle 1 has accepted.
+        for (unsigned k = 0; k < 400 && !(c.observations == 1 && c.phase == L::MovePhase::WAITING); ++k)
+            r.step();
+        CHECK(c.observations == 1 && c.acceptance.present && c.phase == L::MovePhase::WAITING);
+        r.drive.monitor = uint16_t(r.drive.monitor | L::MONITOR_ALARM);
+        break;
+    case Fault::UNFINISHED_CYCLE:
+        // Cycle 2's 2100 upload on the wire, unanswered: it reads the alarm, and the faulted drive
+        // then aborts 2101, so cycle 2 never completes.
+        for (unsigned k = 0; k < 400 && !(uploadsFrom(r, start, 0x2100) == 2 && r.served < r.wire.sentCount); ++k)
+            r.step();
+        CHECK(c.observations == 1 && uploadAt(r, r.wire.sentCount - 1, 0x2100));
+        r.drive.monitor = uint16_t(r.drive.monitor | L::MONITOR_ALARM);
+        r.drive.abortIndex = 0x2101;
+        break;
+    default:
+        break;
+    }
+    finishAll(r);
+    CHECK(c.state == M::ActionState::FAILED && c.interruption == M::MoveInterruption::NONE);
+    CHECK(c.execution == M::ActionExecution::ACKNOWLEDGED && c.completion == M::ActionCompletion::NOT_OBSERVED);
+    CHECK(!c.completed.present && c.uncertain && r.a.moveFenced());
+    switch (fault) {
+    case Fault::BEFORE_ACCEPTANCE:
+        // Cycle 1 carried the acceptance report too; the alarm in the same cycle wins.
+        CHECK(c.outcome == M::ActionOutcome::OBSERVATION_SCOPE && c.observations == 1);
+        CHECK((c.latest.monitor & L::MONITOR_ALARM) && (c.latest.statusword & ACCEPT_BIT));
+        CHECK(!c.acceptance.present && !c.absence.present);
+        break;
+    case Fault::AFTER_ACCEPTANCE:
+        // Cycle 2 reports the alarm and completion together; completion does not count.
+        CHECK(c.outcome == M::ActionOutcome::OBSERVATION_SCOPE && c.observations == 2);
+        CHECK(c.acceptance.cycle == 1 && c.absence.cycle == 1 && c.latest.cycle == 2);
+        CHECK((c.latest.monitor & L::MONITOR_ALARM) && (c.latest.statusword & COMPLETE_BIT));
+        break;
+    case Fault::SAME_CYCLE:
+        // Cycle 2's clean 2100 was read before the fault, its 6041 after: that 6041 ends the cycle,
+        // though it also reports completion.
+        CHECK(c.outcome == M::ActionOutcome::OBSERVATION_SCOPE && c.observations == 2);
+        CHECK(c.acceptance.cycle == 1 && c.latest.cycle == 2 && !(c.latest.monitor & L::MONITOR_ALARM));
+        CHECK(!(c.latest.statusword & L::STATUS_LOW_BITS) && (c.latest.statusword & COMPLETE_BIT));
+        break;
+    case Fault::UNFINISHED_CYCLE:
+        // The read failed on its third field, so the alarm read in its first never became a cycle.
+        // The last complete cycle, which a stop may use, is still cycle 1.
+        CHECK(c.outcome == M::ActionOutcome::PROTOCOL_REJECTED && c.status.code == M::Err::PROTOCOL_ERROR);
+        CHECK(c.observations == 1 && c.latest.cycle == 1 && !(c.latest.monitor & L::MONITOR_ALARM));
+        CHECK(c.observationEvidencePresent && c.observationEvidence.transfer.index == 0x2101 &&
+              c.observationEvidence.abortValid);
+        CHECK(r.a.moveObservation().state == M::ReadState::SUCCEEDED &&
+              r.a.moveObservation().startedUs < c.observationStartedUs);
+        CHECK(uploadsFrom(r, start, 0x2101) == 2 && uploadsFrom(r, start, 0x2102) == 1);
+        break;
+    }
+    // No trailing 000F, no stop and no second edge: only the trigger and the cycles' uploads.
+    CHECK(wordsFrom(r, start, 0x005f) == 1 && r.drive.edges == 1 && !wordsFrom(r, start, 0x000f));
+    CHECK(!wordsFrom(r, start, 0x010f) && !wordsFrom(r, start, 0x000b));
+    CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x5f);
+    for (unsigned i = start + 5; i < r.wire.sentCount; ++i)
+        CHECK(r.wire.sent[i].data[0] == 0x40);
+    onlyRelativeWords(r, start);
+    const Saved<L::MoveContext> ended(c);
+    quiet(r);
+    ended.unchanged(c);
+    // The admission fence: even a fresh read and a fresh witness admit no new move.
+    r.drive.abortIndex = 0;
+    r.readState(r.state);
+    const M::Status again = r.relative(witness(r, 800), relEvidence(), relRequest(800));
+    CHECK(again.msg && std::strstr(again.msg, "fenced"));
+    refused(r, again, M::Err::INVALID_CONFIG, M::MoveError::STATE);
+    ended.unchanged(c);
+}
+void cycleFaults() {
+    const Fault faults[] = {Fault::BEFORE_ACCEPTANCE, Fault::AFTER_ACCEPTANCE, Fault::SAME_CYCLE,
+                            Fault::UNFINISHED_CYCLE};
+    for (Fault fault : faults)
+        faultInCycle(fault);
+}
+
+// 26. A drive fault reported by EMCY while a move's download waits. REARM has no read cycle, and a
+// parameter or trigger write has none either, so the EMCY is the report. It reaches the owner's one
+// receive path in an ordinary owner turn, which receives before it transmits: the application's
+// transmit guard passes its unhandled-fault fact to preflight, so the queued download is refused there,
+// provably unsent, and the move ends DRIVE_FAULT. No word trails the EMCY. A frame already handed over
+// is not recalled: the application's own handling, after its sessions' turn, withdraws the move and
+// the frame's terminal settles as evidence, acknowledged or lost. Every case fences the session
+// (faultBlocked): a clean fresh read later still admits no move. Without the guard's fact, the contrast,
+// the queued 000F leaves in the very turn that received the EMCY. The EMCY code is manufactured.
+enum class EmcyAt { PARAMETER, TRIGGER, REARM, REARM_HANDED_OFF, REARM_LOST, REARM_UNGUARDED };
+const char* const EMCYS[] = {"6081 queued", "trigger queued", "rearm queued", "rearm handed off",
+                             "rearm handed off, lost", "rearm queued, no fault fact"};
+void emcyBeforeHandover(EmcyAt at) {
+    static char name[64];
+    std::snprintf(name, sizeof name, "emcy, %s", EMCYS[unsigned(at)]);
+    scenario = name;
+    const bool rearm = at >= EmcyAt::REARM, handedOff = at == EmcyAt::REARM_HANDED_OFF || at == EmcyAt::REARM_LOST;
+    const bool unguarded = at == EmcyAt::REARM_UNGUARDED;
+    Rig r;
+    r.drive.travelReads = 1;
+    r.ready();
+    if (at == EmcyAt::REARM_LOST) { // The rearm's reply is lost; ready()'s own 000F was answered.
+        r.drive.silentIndex = 0x6040;
+        r.drive.silentWord = 0x000f;
+    }
+    r.wire.faultHook = !unguarded;
+    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(600)).isOk());
+    const unsigned start = r.startFrame;
+    const L::MoveContext& c = moveOf(r);
+    const Point point = at == EmcyAt::PARAMETER ? Point::PARAM1 : at == EmcyAt::TRIGGER ? Point::POSSIBLE_TRIGGER
+                                                                                      : Point::REARM;
+    for (unsigned k = 0; k < 400 && r.a.moveActive() && !reached(r, point); ++k)
+        r.step();
+    CHECK(reached(r, point)); // Admitted and noted; still queued in the owner.
+    const uint16_t queuedIndex = at == EmcyAt::PARAMETER ? 0x6081 : 0x6040;
+    const unsigned queuedAt = r.wire.sentCount;
+    unsigned held = r.wire.sentCount;
+    if (handedOff) {
+        r.holdAdapter();
+        r.serviceSession = false;
+        r.step(); // The owner hands the 000F over; it waits in the adapter, unanswered.
+        r.serviceSession = true;
+        held = r.wire.sentCount - 1;
+        CHECK(wordAt(r, held, 0x000f) && r.wire.pending[held]);
+    }
+    const unsigned beforeFault = r.wire.sentCount;
+    const unsigned refusals = r.wire.preflightRefusals;
+    const uint32_t emcys = r.services.node(0)->emcyCount;
+    r.drive.monitor = uint16_t(r.drive.monitor | L::MONITOR_ALARM); // The fake's own report of it.
+    r.later(emcyFrame(1, 0xff05, 0x5a));
+    r.step(); // An ordinary turn: it receives the EMCY, then would transmit.
+    const uint64_t emcyTurn = r.now;
+    CHECK(r.services.node(0)->emcyCount == emcys + 1 && r.faultsHandled == 1);
+    CHECK(r.handled[0].kind == C::NetworkEventKind::EMCY && r.handled[0].errorCode == 0xff05 &&
+          r.handled[0].manufacturer[4] == 0x5a); // The application's own copy.
+    if (handedOff)
+        r.releaseAdapter(held, true);
+    finishAll(r);
+    CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::DRIVE_FAULT);
+    CHECK(c.interruption == M::MoveInterruption::DRIVE_FAULT && r.a.faultBlocked());
+    CHECK(!wordsFrom(r, start, 0x010f) && !wordsFrom(r, start, 0x000b));
+    if (rearm) {
+        // The completion observed before the fault stays.
+        CHECK(c.completion == M::ActionCompletion::OBSERVED && c.completed.present && c.rearmPresent);
+        CHECK(c.execution == M::ActionExecution::ACKNOWLEDGED && !r.a.moveFenced());
+        CHECK(wordsFrom(r, start, 0x005f) == 1 && r.drive.edges == 1);
+    }
+    switch (at) {
+    case EmcyAt::PARAMETER:
+    case EmcyAt::TRIGGER:
+    case EmcyAt::REARM:
+        // Refused at the handover in the EMCY's own turn: never on the wire, closed provably unsent.
+        CHECK(r.wire.preflightRefusals == refusals + 1 && r.wire.sentCount >= queuedAt);
+        CHECK(!downloadsFrom(r, queuedAt, queuedIndex) && !downloadsFrom(r, beforeFault, queuedIndex));
+        if (at == EmcyAt::PARAMETER) {
+            CHECK(c.setup == M::ActionExecution::UNKNOWN && c.setupEvidenceMask == 3 &&
+                  !c.setupHistory[1].transmissionPossible && r.drive.speed != 120);
+            CHECK(c.execution == M::ActionExecution::NOT_TRANSMITTED && !c.triggerPresent);
+        } else if (at == EmcyAt::TRIGGER) {
+            CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::NOT_TRANSMITTED);
+            CHECK(c.triggerPresent && !c.trigger.transmissionPossible && !r.drive.edges);
+            // The acknowledged parameter writes already withdrew the 000F, and the unsent trigger
+            // restores nothing: no latest word remains.
+            CHECK(!r.a.latestControl());
+        } else {
+            CHECK(c.rearm == M::ActionExecution::NOT_TRANSMITTED && !c.rearmEvidence.transmissionPossible);
+            CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x5f);
+        }
+        CHECK(!wordsFrom(r, start, 0x000f) && !r.a.moveFenced() && c.effectsPossible);
+        break;
+    case EmcyAt::REARM_HANDED_OFF:
+        CHECK(wordsFrom(r, start, 0x000f) == 1 && held < beforeFault && c.rearm == M::ActionExecution::ACKNOWLEDGED);
+        CHECK(c.rearmEvidence.outcome == C::SdoOutcome::SUCCESS && c.rearmEvidence.transmissionPossible);
+        CHECK(!c.uncertain && r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x0f);
+        break;
+    case EmcyAt::REARM_LOST:
+        CHECK(wordsFrom(r, start, 0x000f) == 1 && held < beforeFault && c.rearm == M::ActionExecution::UNKNOWN);
+        CHECK(c.rearmEvidence.transmissionPossible && c.rearmEvidence.effectUncertain && c.uncertain);
+        CHECK(!r.a.latestControl() && r.services.unresolved(0));
+        break;
+    case EmcyAt::REARM_UNGUARDED:
+        // The defect the guard closes: the 000F left in the EMCY's own turn, after its receipt.
+        CHECK(r.wire.preflightRefusals == refusals && wordsFrom(r, beforeFault, 0x000f) == 1);
+        for (unsigned i = beforeFault; i < r.wire.sentCount; ++i)
+            if (wordAt(r, i, 0x000f))
+                CHECK(r.sentAt[i] == emcyTurn);
+        CHECK(c.rearm == M::ActionExecution::ACKNOWLEDGED);
+        break;
+    }
+    if (at != EmcyAt::REARM_UNGUARDED)
+        CHECK(!wordsFrom(r, beforeFault, 0x000f)); // Nothing trails the fault.
+    // The owner's store still holds that EMCY, and no later frame replaced it.
+    CHECK(r.services.node(0)->emcyCount == emcys + 1 && r.services.node(0)->emcy.manufacturer[4] == 0x5a);
+    const Saved<L::MoveContext> ended(c);
+    quiet(r);
+    // The fence: the admission read from before the fault, and then a clean fresh read after the alarm
+    // has gone, admit no new move.
+    const M::Status stale = r.relative(witness(r, 600), relEvidence(), relRequest(600));
+    if (at == EmcyAt::REARM_LOST) {
+        refused(r, stale, M::Err::INVALID_CONFIG, M::MoveError::TARGET); // No usable reservation.
+    } else {
+        CHECK(stale.msg && std::strstr(stale.msg, "drive fault"));
+        refused(r, stale, M::Err::INVALID_CONFIG, M::MoveError::STATE);
+        r.drive.monitor = uint16_t(r.drive.monitor & ~L::MONITOR_ALARM);
+        r.readState(r.state);
+        const M::Status clean = r.relative(witness(r, 600), relEvidence(), relRequest(600));
+        CHECK(clean.msg && std::strstr(clean.msg, "drive fault"));
+        refused(r, clean, M::Err::INVALID_CONFIG, M::MoveError::STATE);
+    }
+    CHECK(wordsFrom(r, start, 0x000f) == (handedOff || unguarded ? 1u : 0u) && r.drive.edges == (rearm ? 1u : 0u));
+    ended.unchanged(c);
+}
+void emcyDuringMove() {
+    const EmcyAt cases[] = {EmcyAt::PARAMETER, EmcyAt::TRIGGER, EmcyAt::REARM, EmcyAt::REARM_HANDED_OFF,
+                            EmcyAt::REARM_LOST, EmcyAt::REARM_UNGUARDED};
+    for (EmcyAt at : cases)
+        emcyBeforeHandover(at);
+}
+
+// 27. The fault fence (faultBlocked). Once a move or an enable is withdrawn for a reported drive fault,
+// this session object admits no move, enable or counter clear, across result release, close and open,
+// even after a clean fresh read that would otherwise admit one: today's 000F and an alarm-free 2100.
+// A stop and an explicit alarm clear stay admissible, and the clear's success does not lift the fence.
+// The move fault comes through cancelMove before any download; the enable fault through the guard's
+// fact, with its first word queued when the EMCY arrives.
+void expectFenced(Rig& r) {
+    r.readState(r.state);
+    const M::Status relative = r.relative(witness(r, 0), relEvidence(), relRequest(600));
+    CHECK(relative.msg && std::strstr(relative.msg, "drive fault"));
+    refused(r, relative, M::Err::INVALID_CONFIG, M::MoveError::STATE);
+    const M::Status absolute = r.request();
+    CHECK(absolute.msg && std::strstr(absolute.msg, "drive fault"));
+    refused(r, absolute, M::Err::INVALID_CONFIG, M::MoveError::STATE);
+    L::ReadContext enableState;
+    r.readState(enableState, ENABLE_MASK);
+    L::ActionOptions budgets;
+    budgets.service = reads();
+    budgets.observationIntervalUs = 1000;
+    budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+    budgets.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+    const M::Status enable = r.a.requestEnable(enableState, L::EnableEvidence(), budgets, r.now + LEAD, r.now);
+    CHECK(!enable && enable.code == M::Err::INVALID_CONFIG && enable.detail == int32_t(M::ActionError::STATE));
+    CHECK(enable.msg && std::strstr(enable.msg, "drive fault"));
+    L::ReadContext feedback;
+    r.readState(feedback, ENABLE_MASK);
+    M::AxisConfig axis = axisConfig();
+    M::AxisReference reference = witness(r, 0);
+    const M::Status zero = r.a.requestCounterZero(feedback, 0, axis, reference, budgets, r.now + LEAD, r.now);
+    CHECK(!zero && zero.code == M::Err::INVALID_CONFIG && zero.detail == int32_t(M::ActionError::STATE));
+    CHECK(zero.msg && std::strstr(zero.msg, "drive fault"));
+    CHECK(!r.a.busy() && r.a.faultBlocked());
+    quiet(r, 4);
+}
+void faultFence() {
+    for (unsigned viaEnable = 0; viaEnable < 2; ++viaEnable) {
+        scenario = viaEnable ? "fault fence, enable" : "fault fence, move";
+        Rig r;
+        const unsigned start = r.wire.sentCount;
+        if (!viaEnable) {
+            r.ready();
+            CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(600)).isOk());
+            CHECK(!r.a.faultBlocked());
+            CHECK(r.a.cancelMove(r.now, M::MoveInterruption::DRIVE_FAULT));
+            finishAll(r);
+            const L::MoveContext& c = moveOf(r);
+            CHECK(c.outcome == M::ActionOutcome::DRIVE_FAULT && c.execution == M::ActionExecution::NOT_TRANSMITTED);
+            CHECK(r.wire.sentCount == r.startFrame && !r.a.moveFenced());
+            CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x0f);
+        } else {
+            r.drive.followEnable = true;
+            r.open();
+            r.readIdentity();
+            L::ReadContext enableState;
+            r.readState(enableState, ENABLE_MASK);
+            L::EnableEvidence e;
+            e.gate = L::EnableGate::ATTENDED_EXPERIMENT;
+            e.trial = 1;
+            e.start = L::EnableStart::NO_MOTION_WRITE_RECORDED;
+            e.powerUpShaft = L::ShaftObservation::FREE;
+            e.reviewed = true;
+            e.reviewedStatusword = IDLE_STATUS;
+            e.reviewedPositionTarget = 5000;
+            e.reviewedVelocityTarget = 120;
+            e.reservation = r.reservation();
+            e.operation = r.a.nextOperation();
+            e.expiresUs = r.now + 1000000;
+            L::ActionOptions budgets;
+            budgets.service = reads();
+            budgets.observationIntervalUs = 1000;
+            budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+            budgets.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+            CHECK(r.a.requestEnable(enableState, e, budgets, r.now + LEAD, r.now).isOk());
+            const L::ActionContext& enable = r.a.enableAction();
+            for (unsigned k = 0; k < 600 && r.a.enableActive() &&
+                                 !(enable.phase == L::ActionPhase::COMMAND && enable.transmissionNoted);
+                 ++k)
+                r.step();
+            CHECK(enable.phase == L::ActionPhase::COMMAND && enable.transmissionNoted && !r.drive.words);
+            const unsigned refusals = r.wire.preflightRefusals;
+            r.later(emcyFrame(1, 0xff05));
+            r.step(); // Receives the EMCY, then refuses the queued word 0006.
+            for (unsigned k = 0; k < 600 && r.a.enableActive(); ++k)
+                r.step();
+            CHECK(enable.state == M::ActionState::FAILED && enable.outcome == M::ActionOutcome::DRIVE_FAULT);
+            CHECK(enable.execution == M::ActionExecution::NOT_TRANSMITTED && r.wire.preflightRefusals == refusals + 1);
+            CHECK(!downloadsFrom(r, start, 0x6040) && !r.drive.words && !r.a.latestControl());
+        }
+        CHECK(r.a.faultBlocked() && !r.a.busy());
+        expectFenced(r);
+        if (!viaEnable) {
+            // A stop is admitted, sequenced from the 000F that is still the latest word.
+            const unsigned stopAt = r.wire.sentCount;
+            r.readState(r.state);
+            CHECK(r.a.requestStop(L::StopKind::HALT, r.state, stopPolicy(r), r.now) == E::StopPath::CONFIRMED);
+            finishAll(r);
+            CHECK(r.a.stopAction(L::StopKind::HALT).state == M::ActionState::SUCCEEDED);
+            CHECK(wordsFrom(r, stopAt, 0x010f) == 1 && r.wire.sentCount > stopAt);
+            CHECK(r.a.faultBlocked());
+        }
+        // An explicit alarm clear is admitted and succeeds; the fence stays.
+        r.drive.monitor = uint16_t((r.drive.monitor | L::MONITOR_ALARM) & ~L::MONITOR_RUNNING);
+        r.drive.errorCode = 0xff05;
+        L::ReadContext alarm;
+        r.readState(alarm, uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::ERROR_HISTORY) |
+                                   bit(L::StateBlock::MONITORS) | bit(L::StateBlock::STATUS)));
+        L::ActionOptions budgets;
+        budgets.service = reads();
+        budgets.observationIntervalUs = 1000;
+        budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+        const unsigned clearAt = r.wire.sentCount;
+        CHECK(r.a.requestClearAlarm(alarm, budgets, r.now + LEAD, r.now).isOk());
+        finishAll(r);
+        CHECK(r.a.clearAction().state == M::ActionState::SUCCEEDED && !(r.drive.monitor & L::MONITOR_ALARM));
+        CHECK(downloadsFrom(r, clearAt, 0x2301) == 2 && !r.a.clearBlocked());
+        CHECK(r.a.faultBlocked());
+        expectFenced(r);
+        // Release, close and open change nothing.
+        CHECK(r.a.close());
+        r.open();
+        CHECK(r.a.faultBlocked());
+        expectFenced(r);
+        // A stop is still admitted: reopening left no latest word, so it is the 000B branch.
+        const unsigned lastStop = r.wire.sentCount;
+        const E::StopPath path = r.a.requestStop(L::StopKind::HALT, r.state, stopPolicy(r), r.now);
+        CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
+        finishAll(r);
+        CHECK(wordsFrom(r, lastStop, 0x000b) == 1 && r.wire.sentCount == lastStop + 1);
+        CHECK(!wordsFrom(r, start, 0x005f) && !wordsFrom(r, start, 0x001f) && !r.drive.edges);
+    }
+}
+
 void runAll() {
     golden();
     gates();
@@ -1229,6 +1842,7 @@ void runAll() {
     cancelAroundHandoff();
     stopFromHeldTrigger();
     bothNodesUrgent();
+    urgentBesideOtherNode();
     ambiguousLateAck();
     explicitRecovery();
     repeatedValues();
@@ -1242,6 +1856,9 @@ void runAll() {
     ownerClockAhead();
     recheckAtHandover();
     cancelWhileHeld();
+    cycleFaults();
+    emcyDuringMove();
+    faultFence();
 }
 } // namespace
 

@@ -235,6 +235,13 @@ operation stepping, I/O or reentrant owner call. `nextTx`, exact-token
 `canTransmit` and one-shot `transmit` then run in the same cooperative turn
 without receive interleaving. Failed enqueue is not retried.
 
+A turn receives before it transmits, so an EMCY received in a turn does not by
+itself stop a download queued earlier from leaving in that turn. An application
+that withdraws motion on a fault decides the fault itself (the S2 bench: a
+nonzero EMCY code since its per-node baseline) and passes that fact through
+`beforeTransmit`, as `AxisSession::preflight`'s `driveFault`, so that the
+download is refused unsent. A frame already handed over settles as evidence.
+
 The transmit callback now has signature
 `bool transmit(void*, const Frame&, TransportTxId, uint32_t controllerEpoch)`.
 `TransportTxId::Kind` distinguishes an exact SDO request/frame ID from an NMT

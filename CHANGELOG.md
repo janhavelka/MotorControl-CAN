@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Bench continuation packet 2: position admission and regression gaps (2026-11-06)
+
+- `validateMoveAdmission(context, axis, reference, nowUs)` (`Position.h`): the move's nonmutating admission recheck. `noteMoveTransmission` and `AxisSession::preflight` both call it, with unchanged status and detail; `AxisSession::recheckMove` is removed.
+- `AxisSession::preflight` takes the application's `driveFault` fact. One owner turn receives before it transmits, so an application's `Transport::beforeTransmit` must pass it while a node has an EMCY it has not yet handled that is, or may be, a fault. That node's queued enable, move and clear downloads are then refused unsent, and the action ends `DRIVE_FAULT`. A withdrawn enable's queued word is now refused at handover.
+- `AxisSession::faultBlocked()`: once a move or an enable is withdrawn for a drive fault, `requestMove`, `requestMoveRelative`, `requestEnable` and `requestCounterZero` are refused for that session object's life; a stop and `requestClearAlarm` stay admissible, and a clear's success does not lift it.
+- S2 bench: `BenchRoute`'s transmit hook passes the route's EMCY policy (a nonzero code is a fault) per node.
+- Tests: two-node urgent stops beside queued, adapter-held and handed-off work; faults through real observation cycles and copied EMCYs at rearm; COMMANDED-basis contract tests (`move_commanded`); trial 706 replayed. The RS common-intent vectors are retained with their source revision and blob IDs, and an optional producer (`scripts/rs_move_vectors.py`) checks them. The test fake's `000B` from idle gives the captured `8050`/`0050`.
+- [Packet 2 record](docs/reports/bench_closure_18_33/packet_2.md).
+
 ### Bench continuation packet 5, part 1: console byte accounting (2026-11-06)
 
 - `ProbeIoStats::outputWritten`: the bytes `writeByte` accepted since construction, modulo 2^32. It wraps by design, unlike the saturating totals beside it.

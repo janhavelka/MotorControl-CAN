@@ -7,7 +7,7 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | Packet | Report | Packet status | Original prompts | Hardware |
 | --- | --- | --- | --- | --- |
 | [1](../../prompts/bench_closure_18_33/1_evidence_contracts.md) Evidence contracts | [packet_1](packet_1.md) | Complete (`eccba4b`) | 19-22, 29-33 stay Partial | None: host work |
-| [2](../../prompts/bench_closure_18_33/2_position_regressions.md) Position regressions | - | Pending | 31, 33 | None: host work |
+| [2](../../prompts/bench_closure_18_33/2_position_regressions.md) Position regressions | [packet_2](packet_2.md) | Complete | 31, 33 stay Partial | None: host work |
 | [3](../../prompts/bench_closure_18_33/3_s2_shared_firmware.md) Shared S2 firmware | - | In progress (host) | 27, 28 | S2 smoke test pending |
 | [4](../../prompts/bench_closure_18_33/4_passive_capture.md) Passive capture | - | Pending, after 3 | 27-29 | Passivity smoke pending; physical silence needs an independent observer |
 | [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | - | In progress (host) | 28, 29 | Short 200 ms and 20 ms runs pending; attribution needs a GPIO43 capture |
@@ -32,7 +32,7 @@ Each row names existing public behavior, then what is missing by kind and who ow
 | 30 Enable and release | Gated enable, run on both specimens; documentary decoder | Release API: no reviewed transition | Release transition and its consequences | Independent shaft or torque observation | Outside this continuation |
 | 31 Stop operations | HALT and quick stop operations; quick-stop standstill rule; run from `000F`, `010F`, `001F`, moving and no-predecessor states | None found | Stops from an acknowledged `005F`; velocity and homing stops | None for drive-report cases | Packet 8 (005F); prompts 35, 36 |
 | 32 Fault and reference | Alarm clear and counter zero through `AxisSession`; counter zero ran once on node 2 | None found | An alarm clear on a naturally present alarm | A naturally present alarm | Waits for a natural alarm; packet 8 for counter cases only if justified |
-| 33 Finite position | Absolute and relative lifecycles; node 1 relative base `ACTUAL`; moves run on both nodes | Packet 2's test gaps, admission duplication, reproducible RS vectors | Node 2's relative base; a negative relative move; stops from `005F` | None for drive-report cases | Packets 2, 8 |
+| 33 Finite position | Absolute and relative lifecycles; node 1 relative base `ACTUAL`; moves run on both nodes; `validateMoveAdmission`; the drive-fault fence (`faultBlocked`) | None found after packet 2; a fault reported after the move ended sets no fence | Node 2's relative base; a negative relative move; stops from `005F` | None for drive-report cases | Packets 2, 8 |
 
 ## Sibling audit
 

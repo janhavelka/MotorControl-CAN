@@ -2078,6 +2078,49 @@ void testMoveEarlyWithdrawals() {
         r->dump();
     }
 }
+// An EMCY that arrives while the trigger is admitted but not yet handed over. The owner receives it
+// and then transmits in the same turn, before the route can see it: the transmit hook refuses the
+// 001F unsent, so the trigger never leaves, the move ends DRIVE_FAULT and the session is fenced. An
+// EMCY with code zero is the no-error form under this route's policy and holds nothing back.
+void testMoveEmcyBeforeTrigger() {
+    const char* const names[] = {"move-emcy-queued-trigger", "move-emcy-zero-queued-trigger"};
+    for (unsigned zero = 0; zero < 2; ++zero) {
+        scenario = names[zero];
+        std::unique_ptr<Rig> r(new Rig);
+        r->driver.drives[0].statusBits = true;
+        r->driver.drives[0].travelReads = zero ? 2 : 40;
+        uint32_t trial = 0;
+        enabled(*r, trial);
+        const size_t first = r->driver.requests.size();
+        CHECK(!r->start(move(1, trial)));
+        for (unsigned i = 0; i < 20000 && r->one.moveAction().phase != L::MovePhase::TRIGGER; ++i)
+            r->turn();
+        CHECK(r->downloadsFrom(first) == 4 && !triggerSent(*r, first)); // Admitted, not yet handed over.
+        CHECK(r->one.moveAction().transmissionNoted && !r->one.faultBlocked());
+        M::Frame emcy = frame(0x81, 8);
+        emcy.data[0] = zero ? 0x00 : 0x10;
+        emcy.data[1] = zero ? 0x00 : 0xff;
+        r->driver.push(emcy);
+        r->turn(); // Receives the EMCY, then reaches the trigger's handover.
+        CHECK(triggerSent(*r, first) == (zero != 0));
+        finishRoute(*r);
+        r->turns(500);
+        const E::RouteRecord& x = *r->route.record();
+        const L::MoveContext& c = r->one.moveAction();
+        if (zero) {
+            CHECK(x.failure == E::RouteFailure::NONE && !x.emcy);
+            CHECK(c.state == M::ActionState::SUCCEEDED && !r->one.faultBlocked());
+        } else {
+            CHECK(x.failure == E::RouteFailure::OBSERVATION && std::strcmp(x.why, "emcy") == 0 && x.emcy);
+            CHECK(c.outcome == M::ActionOutcome::DRIVE_FAULT && c.interruption == M::MoveInterruption::DRIVE_FAULT);
+            CHECK(c.execution == M::ActionExecution::NOT_TRANSMITTED && c.triggerPresent &&
+                  !c.trigger.transmissionPossible);
+            CHECK(!triggerSent(*r, first) && r->downloadsFrom(first) == 4 && !x.stopRequested);
+            CHECK(r->one.faultBlocked() && !r->one.moveFenced());
+            CHECK(has(r->dump(), "TRIAL_EMCY data=10ff"));
+        }
+    }
+}
 // A trigger acknowledgement that arrives after its budget, and a boot-up during the cycles: the move
 // ends without its rearm, stays fenced, and the late frame is only kept in the tail.
 void testMoveLateTriggerAndBoot() {
@@ -3440,6 +3483,7 @@ int main(int argc, char** argv) {
     testIntegrity();
     testMoveStopRefused();
     testMoveEarlyWithdrawals();
+    testMoveEmcyBeforeTrigger();
     testMoveLateTriggerAndBoot();
     testFencedNodeIsolation();
     testRearmAfterRefusedStop();

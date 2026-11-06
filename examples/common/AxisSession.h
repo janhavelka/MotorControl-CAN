@@ -43,10 +43,12 @@ struct StopPolicy {
  * across one explicit recovery and goes out once as 000B. A second recovery ends it. A
  * possibly sent frame is never sent again.
  *
- * Enable is gated: two specimens ran it once each, attended, on one firmware. It takes one member,
- * one request, one service branch and one advance. Its words pass through the same path as every other command, so an acknowledged 000F
- * becomes the latest controlword that a stop may follow. A stop request ends an active enable first,
- * even if the stop itself is refused: no further word follows it. The session refuses an enable once
+ * Enable is gated. Both specimens have run it on one firmware, reported by the drives only
+ * (records 108 and 118 on 2026-11-03, 206, 210 and 405 on 2026-11-04, 704 and 712 on 2026-11-05).
+ * It takes one member, one request, one service branch and one advance. Its words pass through the
+ * same path as every other command, so an acknowledged 000F becomes the latest controlword that a
+ * stop may follow. A stop request ends an active enable first, even if the stop itself is refused:
+ * no further word follows it. The session refuses an enable once
  * it has itself admitted a write other than an acknowledged 6060=1. That record lasts as long as this
  * object, across close and open, because reopening cannot retire earlier drive work. A new object
  * knows nothing, as after an MCU restart, so the caller's EnableEvidence must speak for that time.
@@ -61,8 +63,8 @@ struct StopPolicy {
  * preflight() refuses it if it comes up for transmission. A download that closed provably unsent
  * leaves the controlword before it as the latest. After a move whose trigger may have reached the
  * drive without an observed completion, new moves stay fenced for this object's life: nothing here
- * can show that motion ended. No relative base is measured on any specimen, so every relative request
- * is refused today.
+ * can show that motion ended. A relative request is refused unless the caller's evidence names the
+ * drive's measured base; node 1's records name ACTUAL on one firmware, from drive reports only.
  *
  * The move's actual admission is rechecked when each parameter or trigger download is admitted:
  * the borrowed axis, the witness and the admission read's age. The owner hands the frame over at a
@@ -79,6 +81,16 @@ struct StopPolicy {
  * object's life, across result release, close and open, as MotorControl-RS's actionConflicts does. A
  * counter clear withdraws the borrowed axis's coordinates when its 1 is admitted, once, and then moves the
  * owner's reservation to that new configuration epoch itself, withdrawing nothing a second time.
+ *
+ * Drive faults: the owner gives this session no EMCY view, so the application routes its own
+ * checked fault decision here. cancelMove or cancelEnable with DRIVE_FAULT fences the session for
+ * this object's life, across result release, close and open, as clearBlocked() does: requestMove,
+ * requestMoveRelative, requestEnable and requestCounterZero are refused, and only a stop and an
+ * explicit requestClearAlarm stay admissible. A clear-alarm success does not lift the fence:
+ * resuming motion is the application's explicit decision, with a new session object. The owner
+ * receives before it transmits in one turn, so a download queued before the EMCY would leave in the
+ * very turn that received it; the application's Transport::beforeTransmit therefore passes its
+ * undecided-fault fact to preflight(), which holds that download back.
  */
 class AxisSession {
   public:
@@ -183,8 +195,9 @@ class AxisSession {
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,
                          const StopPolicy& policy, uint64_t nowUs) noexcept;
-    /** Request the gated position-mode enable sequence on this axis. No specimen has run it.
-     * Starts a new owner operation, then prepares in place. Yields no traffic here: service() does.
+    /** Request the gated position-mode enable sequence on this axis. Both specimens have run it on
+     * one firmware, reported by the drives only. Starts a new owner operation, then prepares in
+     * place. Yields no traffic here: service() does.
      * @param[in] state Complete fresh SDO read under this reservation, as prepareEnable requires,
      * and not held inside enableAction().
      * @param[in] evidence Caller's explicit gate, trial, reservation, operation (use nextOperation),
@@ -194,9 +207,9 @@ class AxisSession {
      * @param[in] options Copied budgets, as prepareEnable requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareEnable's status, or a local refusal with ActionError::STATE, TARGET or TIME, which
-     * includes clearBlocked(). On any refusal nothing changes, and on success no word has yet been
-     * admitted.
+     * @return prepareEnable's status, or a local refusal with ActionError::STATE, TARGET or TIME,
+     * which includes clearBlocked() and faultBlocked(). On any refusal nothing changes, and on
+     * success no word has yet been admitted.
      */
     MotorControlCAN::Status requestEnable(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                           const MotorControlCAN::LICHUAN_C::EnableEvidence& evidence,
@@ -207,13 +220,15 @@ class AxisSession {
      * only: it cannot complete the enable, which ends with this reason. The owner
      * gives this session no EMCY view, so an application that routes a drive fault reports it here.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault.
+     * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault, which
+     * also sets faultBlocked().
      * @return False when no enable is active, the reason is another value or time moved backward.
      */
     bool cancelEnable(uint64_t nowUs,
                       MotorControlCAN::ActionOutcome reason = MotorControlCAN::ActionOutcome::CANCELLED) noexcept;
-    /** Request the gated finite absolute move on this axis. No specimen has run it.
-     * Starts a new owner operation, then prepares in place. Yields no traffic here: service() does.
+    /** Request the gated finite absolute move on this axis. Both specimens have run it on one
+     * firmware, reported by the drives only, with no shaft observed. Starts a new owner operation,
+     * then prepares in place. Yields no traffic here: service() does.
      * The session supplies the reservation, its actual latest acknowledged controlword, which must be
      * 000F, and the operation identity; prepareMoveAbsolute refuses anything else.
      * @param[in] state Complete fresh SDO read under this reservation after that 000F, as
@@ -232,9 +247,9 @@ class AxisSession {
      * @param[in] options Copied budgets.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole move.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE, TARGET or TIME,
-     * which includes moveFenced() and clearBlocked(). On any refusal nothing changes, and on success
-     * nothing has been admitted.
+     * @return prepareMoveAbsolute's status, or a local refusal with MoveError::STATE, TARGET or
+     * TIME, which includes moveFenced(), clearBlocked() and faultBlocked(). On any refusal nothing
+     * changes, and on success nothing has been admitted.
      */
     MotorControlCAN::Status requestMove(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                         const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
@@ -246,10 +261,11 @@ class AxisSession {
                                         const MotorControlCAN::AxisReference* reference,
                                         const MotorControlCAN::LICHUAN_C::MoveOptions& options,
                                         uint64_t deadlineUs, uint64_t nowUs) noexcept;
-    /** Request the gated finite relative move on this axis, through the same path as requestMove. No
-     * relative base is measured on any specimen, so this refuses with UNSUPPORTED unless the caller's
-     * evidence names one. Each call is one new explicitly admitted edge: identical values twice are two
-     * moves with two witnesses, never a retry.
+    /** Request the gated finite relative move on this axis, through the same path as requestMove.
+     * It refuses with UNSUPPORTED unless the caller's evidence names the drive's measured base;
+     * only node 1 has one, ACTUAL, on one firmware, from drive reports only. Each call is one new
+     * explicitly admitted edge: identical values twice are two moves with two witnesses, never a
+     * retry.
      * @param[in] state As requestMove.
      * @param[in] identity As requestMove.
      * @param[in] evidence As requestMove, with the measured relativeBase.
@@ -281,7 +297,8 @@ class AxisSession {
      * settles into the context later as evidence only, and its terminal says whether it left. An
      * application that routes a drive fault reports it here.
      * @param[in] nowUs Nondecreasing supplied microseconds, at or after owner.lastTimeUs().
-     * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault.
+     * @param[in] reason CANCELLED, or DRIVE_FAULT for an independently routed checked fault, which
+     * also sets faultBlocked().
      * @return False, with nothing changed, when no move is active, the reason is another value or the
      * time is behind this session's or the owner's last time.
      */
@@ -342,7 +359,8 @@ class AxisSession {
      * @param[in] deadlineUs Immutable exclusive cutoff of the writes, the synchronization and every
      * observation.
      * @param[in] nowUs Nondecreasing supplied microseconds.
-     * @return prepareSetDevicePosition's status, or a local refusal as requestClearAlarm's.
+     * @return prepareSetDevicePosition's status, or a local refusal as requestClearAlarm's, which
+     * here includes faultBlocked().
      */
     MotorControlCAN::Status requestCounterZero(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                                int64_t nativePosition, MotorControlCAN::AxisConfig& axis,
@@ -366,21 +384,36 @@ class AxisSession {
     /** The pre-transmit recheck of this session's move downloads. Call it from the application's
      * Transport::beforeTransmit, for the session that holds the sequence, and return its result. It
      * runs inside the owner's service turn, performs no owner call and keeps only a refusal reason.
-     * For a parameter or trigger download of the active move it reruns the recheck its admission ran,
-     * at this time: the borrowed axis and witness by validatePreparedTarget, an idle stationary witness
-     * and the admission read's age. A download of a withdrawn move is refused too, so it never leaves
-     * after the withdrawal even if its cancel did not win. The owner then closes the download with
+     * For a parameter or trigger download of the active move it reruns, at this time, the library
+     * recheck its admission ran, validateMoveAdmission: the borrowed axis and witness by
+     * validatePreparedTarget, an idle stationary witness and the admission read's age. A download
+     * of a withdrawn move is refused too, so it never leaves after the withdrawal even if its
+     * cancel did not win. The owner then closes the download with
      * CompletionReason::PREFLIGHT_REJECTED, provably unsent, and the move ends INVALIDATED, or with its
-     * withdrawal's reason, and moveRefusal() keeps why. A write of a withdrawn clear is refused the same
-     * way, and its clear ends with its withdrawal's reason.
+     * withdrawal's reason, and moveRefusal() keeps why. A word of a withdrawn enable and a write of
+     * a withdrawn clear are refused the same way, and the action ends with its withdrawal's reason.
+     *
+     * The application's obligation for faults: the owner receives before it transmits in one turn,
+     * so an EMCY received in a turn does not by itself stop a download queued before it from
+     * leaving in that same turn, before any application code runs. The application therefore
+     * keeps, per node, the EMCY it last handled (for example a baseline of the node's emcyCount) and passes
+     * driveFault true while that node has an unhandled EMCY its policy counts as a fault, or
+     * cannot yet judge.
+     * The download is then refused, and its action withdrawn with DRIVE_FAULT as cancelEnable,
+     * cancelMove or cancelClear would withdraw it; a move or an enable sets faultBlocked(). A frame
+     * already handed over is not recalled: its terminal settles as evidence.
      * @param[in] sequence Reservation of the work about to be handed over.
      * @param[in] transfer Its download, borrowed for this call.
      * @param[in] nowUs The owner turn's processing time.
+     * @param[in] driveFault The application's fact that this axis's node has an unhandled EMCY
+     * that is, or may be, a drive fault. It holds back this session's enable, move and clear
+     * downloads only; a stop and every other download pass.
      * @return False to withdraw the download; true for every other sequence, operation, the rearm,
-     * a live clear's writes and uploads.
+     * a live clear's writes, a stop's word and uploads.
      */
     bool preflight(MotorControlCANOwner::SequenceId sequence,
-                   const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t nowUs) noexcept;
+                   const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t nowUs,
+                   bool driveFault = false) noexcept;
     /** @return Why the latest move's actual admission refused a download: the status
      * noteMoveTransmission gave at admission, or the same recheck in preflight() just before
      * transmission. Its detail is noteMoveTransmission's: an AxisError plus PARAMETER_ERROR_BASE and
@@ -419,6 +452,13 @@ class AxisSession {
      * close and open; nothing here resends either value or can show that the object returned to 0. A new
      * object, as after an MCU restart, knows nothing, so the application's own record must carry it. */
     bool clearBlocked() const noexcept { return clearBlocked_; }
+    /** @return True once a move or an enable was withdrawn for a reported drive fault, through
+     * cancelMove or cancelEnable with DRIVE_FAULT or preflight()'s driveFault. requestMove,
+     * requestMoveRelative, requestEnable and requestCounterZero are then refused for this object's
+     * life, across result release, close and open; a stop and requestClearAlarm stay admissible,
+     * and a clear's success does not lift it. A new object knows nothing, so the application's own
+     * record must carry the fault across an MCU restart. */
+    bool faultBlocked() const noexcept { return faultBlocked_; }
     /** @return The operation identity requestEnable would run under now, for EnableEvidence::operation;
      * zero without a usable reservation or with identities exhausted. */
     uint32_t nextOperation() const noexcept;
@@ -499,12 +539,13 @@ class AxisSession {
     MotorControlCAN::AxisReference* clearReference_ = nullptr;
     MotorControlCAN::ActionOutcome clearWithdrawn_ = MotorControlCAN::ActionOutcome::NONE;
     bool clearBlocked_ = false;
+    // A move or enable was withdrawn for a reported drive fault; lasts for this object's life.
+    bool faultBlocked_ = false;
 
     bool usable() const noexcept;
     uint64_t latestUs() const noexcept;
     void dropControl() noexcept;
     void keepUnsentControl(const MotorControlCAN::CANOPEN::SdoCompletion& terminal) noexcept;
-    MotorControlCAN::Status recheckMove(uint64_t nowUs) const noexcept;
     MotorControlCANOwner::BusAdmission admitWork(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                                                  uint64_t nowUs) noexcept;
     bool takeTerminal(MotorControlCAN::CANOPEN::SdoCompletion& output) noexcept;
@@ -521,6 +562,8 @@ class AxisSession {
                                       const MotorControlCAN::LICHUAN_C::MoveOptions& options,
                                       uint64_t deadlineUs, uint64_t nowUs) noexcept;
     void withdrawMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
+    bool holdForFault(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                      uint64_t nowUs) noexcept;
     void endMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
     void afterMove() noexcept;
     void serviceMove(uint64_t nowUs) noexcept;

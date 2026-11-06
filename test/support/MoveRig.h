@@ -107,9 +107,17 @@ inline L::MoveEvidence evidence(L::CompletionRule rule = L::CompletionRule::AFTE
     value.rule = rule;
     return value;
 }
+// One cycle's reports of a scripted fake: 2100, 6041, 6064 and 606C raw.
+struct Report {
+    uint16_t monitor, status;
+    int32_t position, velocity;
+};
 // A fake server with a crude motion model. Only its wire shape means anything. target is the raw
 // 607A value; endpoint is where the fake moves to. A 001F edge moves to target. A 005F edge adds
-// target to the fake's own base: its actual position, or with commandedBase its last endpoint.
+// target to the fake's own base: its actual position, or with commandedBase its last endpoint. A
+// script, when set, replaces the motion model from the edge on: each 2100 read after the edge takes
+// the next report, and that cycle's 6041, 6064 and 606C reads return it, so a captured trial
+// replays value for value. The last report stays once the script is used up.
 struct FakeDrive {
     uint16_t status = IDLE_STATUS, monitor = 1;
     uint8_t mode = 1;
@@ -118,16 +126,33 @@ struct FakeDrive {
     bool answer = true, acceptOnTrigger = true, clearCompletion = true, followEnable = false;
     bool commandedBase = false;
     bool mute = false; // Acts on every frame but its replies are lost: missing feedback.
+    // Manufactured, no capture: the alarm raised at alarmAtRead also clears 6041 low bits in that
+    // read.
+    bool alarmDisables = false;
+    uint16_t errorCode = 0;      // 603F raw, manufactured.
+    bool clearOne = false;       // A 2301 = 1 was acknowledged; a following 0 clears the alarm.
     unsigned travelReads = 1; // 6041 reads reporting motion after a trigger, before arrival.
     unsigned remaining = 0, statusReads = 0, words = 0, alarmAtRead = 0, edges = 0;
     bool moving = false;
     uint16_t lastWord = 0xffff;
     uint16_t silentIndex = 0, abortIndex = 0, silentWord = 0, abortWord = 0;
+    const Report* script = nullptr;
+    unsigned scriptLength = 0, scriptCursor = 0;
+    bool scripted = false;
     void arrive() {
         moving = false;
         status = uint16_t(status | COMPLETE_BIT);
         monitor = uint16_t((monitor | L::MONITOR_POSITION_COMPLETE) & ~L::MONITOR_RUNNING);
         position = endpoint;
+    }
+    void nextReport() {
+        if (!scripted || scriptCursor >= scriptLength)
+            return;
+        const Report& r = script[scriptCursor++];
+        monitor = r.monitor;
+        status = r.status;
+        position = r.position;
+        velocity = r.velocity;
     }
     void word(uint16_t w) {
         if ((w == 0x001f || w == 0x005f) && lastWord == 0x000f) {
@@ -138,14 +163,29 @@ struct FakeDrive {
                 status = uint16_t(status | ACCEPT_BIT);
             if (clearCompletion)
                 status = uint16_t(status & ~COMPLETE_BIT);
-            moving = true;
+            moving = !script;
+            scripted = script != nullptr;
+            scriptCursor = 0;
             remaining = travelReads;
             monitor = uint16_t((monitor & ~L::MONITOR_POSITION_COMPLETE) | L::MONITOR_RUNNING);
         } else if (w == 0x000f && (lastWord == 0x001f || lastWord == 0x005f)) {
             status = uint16_t(status & ~ACCEPT_BIT);
-        } else if (w == 0x010f || w == 0x000b) {
+        } else if (w == 0x010f) {
             moving = false;
             monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
+        } else if (w == 0x000b) {
+            // As captured on both specimens: 000B during a move released the drive and left running
+            // latched, 2100 = 0014 with 6041 = 4050 (trials 213, 413, 713). From idle it released
+            // the drive with 6041 = 8050 while in place (124, 2100 = 0011) and 0050 while not (126,
+            // 2100 = 0010). The fake freezes its position at the word and reads 606C 0, so it never
+            // decelerates: trial 713 moved from 854 to 896 after its 000B. No stop test here
+            // exercises the motion after the word.
+            const bool running = (monitor & L::MONITOR_RUNNING) != 0;
+            moving = false;
+            velocity = 0;
+            monitor = uint16_t(monitor | L::MONITOR_RELEASED);
+            const unsigned inPlace = monitor & L::MONITOR_POSITION_COMPLETE ? 0x8000u : 0u;
+            status = running ? uint16_t(0x4050) : uint16_t(inPlace | 0x0050u);
         }
         if (followEnable && (w == 6 || w == 7 || w == 15)) {
             const uint16_t low = w == 6 ? 1 : w == 7 ? 3 : 7;
@@ -156,6 +196,15 @@ struct FakeDrive {
     }
 };
 inline uint16_t frameIndex(const M::Frame& f) { return uint16_t(f.data[1] | (uint16_t(f.data[2]) << 8)); }
+// A manufactured EMCY: code and register, and one marker byte so a copy can be told apart.
+inline M::Frame emcyFrame(unsigned node, uint16_t code, uint8_t marker = 0xa5) {
+    M::Frame value = frame(0x80 + node, 8);
+    value.data[0] = uint8_t(code);
+    value.data[1] = uint8_t(code >> 8);
+    value.data[2] = 1;
+    value.data[7] = marker;
+    return value;
+}
 inline uint32_t frameValue(const M::Frame& f) {
     return uint32_t(f.data[4]) | (uint32_t(f.data[5]) << 8) | (uint32_t(f.data[6]) << 16) |
            (uint32_t(f.data[7]) << 24);
@@ -190,6 +239,12 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
             drive.rampDown = value;
         else if (isWord)
             drive.word(word);
+        else if (index == 0x2301) {
+            // Manufactured: the documented 1-then-0 clear ends the alarm. No specimen has run it.
+            if (value == 0 && drive.clearOne)
+                drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_ALARM);
+            drive.clearOne = value == 1;
+        }
         out.data[0] = 0x60;
         return true;
     }
@@ -206,14 +261,21 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
     case 0x2000: raw = MODEL; break;
     case 0x2001: raw = FIRMWARE; break;
     case 0x1001: raw = 0; size = 1; break;
-    case 0x603f: raw = 0; break;
-    case 0x2100: raw = drive.monitor; break;
+    case 0x1003: raw = 0; size = sub ? 4 : 1; break; // No error history.
+    case 0x603f: raw = drive.errorCode; break;
+    case 0x2100:
+        drive.nextReport(); // A move cycle's first field.
+        raw = drive.monitor;
+        break;
     case 0x2101: raw = 0xa580; break;
     case 0x2102: raw = 0xf008; break;
     case 0x6041:
         ++drive.statusReads;
-        if (drive.alarmAtRead && drive.statusReads == drive.alarmAtRead)
+        if (drive.alarmAtRead && drive.statusReads == drive.alarmAtRead) {
             drive.monitor = uint16_t(drive.monitor | L::MONITOR_ALARM);
+            if (drive.alarmDisables)
+                drive.status = uint16_t(drive.status & ~L::STATUS_LOW_BITS);
+        }
         if (drive.moving) {
             if (!drive.remaining)
                 drive.arrive();
@@ -237,12 +299,24 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
         out.data[4 + i] = uint8_t(raw >> (8 * i));
     return true;
 }
+// The application's EMCY policy, as the bench route's: a nonzero error code is a drive fault, zero
+// is the no-error form. Of several EMCYs since the last handled one only the newest is kept, so
+// they count as a fault unless that one alone arrived and is the no-error form.
+inline bool emcyFault(const C::SdoClient& services, unsigned slot, uint32_t handled) {
+    const auto* node = services.node(uint8_t(slot));
+    return node && node->emcyCount != handled &&
+           (node->emcyCount != handled + 1 || node->emcy.errorCode != 0);
+}
 struct Wire : OwnerRig::WireBase {
     O::RecoveryProgress progress = O::RecoveryProgress::RETIRED;
-    // The application's transmit guard, as AxisSession documents it: the session holding the sequence
-    // judges the download.
+    // The application's transmit guard, as AxisSession documents it: the session holding the
+    // sequence judges the download, told whether its node has an EMCY fault the application has not
+    // handled.
     E::AxisSession* sessions[2] = {nullptr, nullptr};
+    const C::SdoClient* services = nullptr;
+    uint32_t handledEmcys[2] = {0, 0}; // Each node's emcyCount when the application handled it.
     bool preflight = true; // False stands for an application that does not wire the hook.
+    bool faultHook = true; // False stands for an application that does not pass its EMCY fact.
     unsigned preflightCalls = 0, preflightRefusals = 0;
     static Wire& of(void* context) { return *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context)); }
     static bool beginRecovery(void*, uint32_t) { return true; }
@@ -252,12 +326,15 @@ struct Wire : OwnerRig::WireBase {
         if (!w.preflight)
             return true;
         ++w.preflightCalls;
-        for (E::AxisSession* s : w.sessions) {
+        for (unsigned slot = 0; slot < 2; ++slot) {
+            E::AxisSession* s = w.sessions[slot];
             const O::SequenceId held = s ? s->sequence() : O::SequenceId();
             if (!held.owner || held.owner != sequence.owner || held.slot != sequence.slot ||
                 held.generation != sequence.generation)
                 continue;
-            if (s->preflight(sequence, transfer, now))
+            const bool fault =
+                w.faultHook && w.services && emcyFault(*w.services, slot, w.handledEmcys[slot]);
+            if (s->preflight(sequence, transfer, now, fault))
                 return true;
             ++w.preflightRefusals;
             return false;
@@ -299,14 +376,17 @@ struct Rig {
     unsigned stamped = 0;
     bool serviceSession = true, serviceTwo = true;
     // With wire.autoReport false: a frame the adapter accepted but has not reported stays in the
-    // adapter, off the bus, so the fake does not see it until reported.
+    // adapter, off the bus, so the fake does not see it until reported. The adapter is one FIFO, as
+    // a single controller transmit queue is: a held frame holds back every later one, on any node.
     bool holdTx = false;
+    bool dropped[OwnerRig::WireBase::CAPACITY] = {}; // Reported unsent: never on the bus.
     unsigned nodes = 1;
     explicit Rig(bool twoNodes = false)
         : owner(services, wire.callbacks(), 73), one(owner), two(owner), a(one.a), drive(one.drive),
           state(one.state), identity(one.identity), nodes(twoNodes ? 2u : 1u) {
         wire.sessions[0] = &one.a;
         wire.sessions[1] = &two.a;
+        wire.services = &services;
         for (unsigned node = 1; node <= nodes; ++node) {
             const L::ReadTarget t = target(node);
             CHECK(services.configure(uint8_t(node - 1), t.channel, true, true));
@@ -336,6 +416,8 @@ struct Rig {
         for (; served < wire.sentCount; ++served) {
             if (holdTx && wire.pending[served])
                 break; // Still in the adapter; later frames wait behind it.
+            if (dropped[served])
+                continue;
             const M::Frame& sent = wire.sent[served];
             if (sent.id != 0x601 && sent.id != 0x602)
                 continue;
@@ -357,6 +439,52 @@ struct Rig {
             one.a.service(now);
         if (serviceTwo)
             two.a.service(now);
+        if (serviceSession)
+            handleEmcy(1);
+        if (serviceTwo && nodes == 2)
+            handleEmcy(2);
+    }
+    // The application's EMCY handling, after its sessions' turn as on the bench: copy the newest,
+    // record it as handled, and withdraw that node's active enable, move or clear with DRIVE_FAULT
+    // when the policy counts it a fault. Nothing is sent because of it.
+    C::NetworkEvent handled[2];
+    unsigned faultsHandled = 0;
+    void handleEmcy(unsigned node) {
+        const auto* n = services.node(uint8_t(node - 1));
+        uint32_t& baseline = wire.handledEmcys[node - 1];
+        if (!n || n->emcyCount == baseline)
+            return;
+        const bool fault = emcyFault(services, node - 1, baseline);
+        handled[node - 1] = n->emcy;
+        baseline = n->emcyCount;
+        if (!fault)
+            return;
+        ++faultsHandled;
+        E::AxisSession& s = axis(node).a;
+        const uint64_t at = now < owner.lastTimeUs() ? owner.lastTimeUs() : now;
+        if (s.enableActive())
+            s.cancelEnable(at, M::ActionOutcome::DRIVE_FAULT);
+        if (s.moveActive())
+            s.cancelMove(at, M::MoveInterruption::DRIVE_FAULT);
+        if (s.clearActive())
+            s.cancelClear(at, M::ActionOutcome::DRIVE_FAULT);
+    }
+    // Hold every frame from here in the adapter, unreported and off the bus.
+    void holdAdapter() {
+        wire.autoReport = false;
+        holdTx = true;
+    }
+    // The adapter reports its held frames in FIFO order: the first as sent or not, every later one
+    // as sent. A frame reported unsent never reaches the bus.
+    void releaseAdapter(unsigned first, bool sent) {
+        for (unsigned i = first; i < wire.sentCount; ++i)
+            if (wire.pending[i]) {
+                const bool out = i != first || sent;
+                wire.report(i, out);
+                dropped[i] = !out;
+            }
+        wire.autoReport = true;
+        holdTx = false;
     }
     void step() { turn(now + TICK); }
     void steps(unsigned count) {

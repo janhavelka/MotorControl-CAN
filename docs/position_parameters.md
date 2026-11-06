@@ -144,7 +144,10 @@ aged witness therefore refuses the next write, and the download must be
 cancelled unsent; the rearm takes no recheck. The owner hands the frame over
 only at a later turn. `AxisSession::preflight`, called from the application's
 `Transport::beforeTransmit`, reruns the same recheck at that handover, and a
-refusal there closes the download provably unsent (`PREFLIGHT_REJECTED`).
+refusal there closes the download provably unsent (`PREFLIGHT_REJECTED`). Both
+uses call one nonmutating function, `validateMoveAdmission(context, axis,
+reference, nowUs)`, with the same status and detail; mutation stays in
+`noteMoveTransmission`.
 Without that hook the recheck holds at admission only. For a parameter download the call
 then runs `retireMotionParameters` on every retained context; if one refuses,
 the download must be cancelled unsent too. The configuration epoch does not
@@ -284,6 +287,21 @@ Each call is one explicit edge: identical values twice are
 two moves with two witnesses, and nothing retries a trigger, a parameter or a
 rearm. After a trigger that may have reached the drive without an observed
 completion, new moves stay fenced as for an absolute move.
+
+**Drive faults.** One owner turn receives before it transmits, so an EMCY
+received in a turn does not by itself stop a download queued before it from
+leaving in that same turn. The application keeps a per-node EMCY baseline and
+passes its unhandled-fault fact as `preflight`'s `driveFault`; that node's
+queued parameter, trigger or rearm download is then refused unsent and the move
+ends `DRIVE_FAULT`. A frame already handed over settles as evidence, with its
+possible effect kept. A move or enable withdrawn for a drive fault sets
+`AxisSession::faultBlocked()`: for that session object's life, across release,
+close and open, every later move, relative move, enable and counter zero is
+refused (`STATE`); a stop and an alarm clear stay admissible, and a clear's
+success does not lift it. Resuming motion is an explicit application decision
+with a new session object. A fault reported only after the move has already
+ended withdraws nothing and sets no fence; the next move's fresh admission read
+must then show the drive's state.
 
 ### Evidence a relative base needs
 

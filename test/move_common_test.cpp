@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 // The shared move types without any wire protocol: a test-only servo with no full-step geometry, a
-// test-only non-CANopen drive on an invented serial frame, and common exact intent vectors compared
-// with MotorControl-RS. Nothing here is a drive, a protocol or a measurement.
+// test-only non-CANopen drive on an invented serial frame, and common exact intent vectors retained
+// from MotorControl-RS in vectors/rs_common_intent.inc. Nothing here is a drive, a protocol or a
+// measurement.
 #include <MotorControlCAN/MoveOperation.h>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 // Type neutrality at compile time: MoveOperation.h must declare no CANopen or Lichuan name. If any
 // header it includes ever did, these internal-linkage sentinels would collide and this file would
@@ -47,15 +49,6 @@ M::AxisConfig servo() {
     c.supportedRelativeBases = 1;
     c.originKnown = true;
     c.originSource = M::ScaleSource::QUALIFIED;
-    return c;
-}
-// A stepper: 3200 command increments and 200 full steps per motor turn, gear 5.
-M::AxisConfig stepper() {
-    M::AxisConfig c = servo();
-    c.binding = binding(M::Protocol::CANOPEN);
-    c.units.commandStepsPerMotorTurn = M::UnitScale(3200, 1, M::ScaleSource::QUALIFIED);
-    c.units.motorTurnsPerLoadTurn = M::UnitScale(5, 1, M::ScaleSource::QUALIFIED);
-    c.units.fullStepsPerMotorTurn = M::UnitScale(200, 1, M::ScaleSource::QUALIFIED);
     return c;
 }
 M::AxisReference witness(const M::AxisConfig& c, int64_t position) {
@@ -172,49 +165,68 @@ void servoWithoutFullSteps() {
     CHECK(move.execution == M::ActionExecution::NOT_TRANSMITTED);
 }
 
-// Common intent vectors. Every field is set: the defaults differ between the libraries
+// Common intent vectors, retained with their exact inputs in vectors/rs_common_intent.inc. Its
+// expected values are what MotorControl-RS preparePosition (src/Axis.cpp) returns at the revision
+// and source blobs that file records; scripts/rs_move_vectors.py recompiles that RS source read-only
+// to check them. This test needs neither the sibling checkout nor the network, and no device frame
+// is involved. Every request field is set: the defaults differ between the libraries
 // (PositionRequest.relative is true in RS and false here, the allowance is double there and
-// Rational here). Expected values are RS's preparePosition at MotorControl-RS a13f767
-// (src/Axis.cpp), computed by a scratch build for packet 21; no device frame is involved.
+// Rational here).
+struct VectorAxis {
+    const char* name;
+    uint32_t steps, stepsDenominator, gear, gearDenominator, fullSteps, fullStepsDenominator;
+    int64_t origin;
+};
+const VectorAxis vectorAxes[] = {
+#define RS_MOVE_AXIS(name, steps, stepsDen, gear, gearDen, full, fullDen, origin)                       \
+    {name, steps, stepsDen, gear, gearDen, full, fullDen, origin},
+#include "vectors/rs_common_intent.inc"
+};
+// The retained scales and origin on the shared fixture's binding, generation, origin provenance
+// and ACTUAL relative basis; the protocol in the binding does not enter this arithmetic.
+bool vectorAxis(const char* name, M::AxisConfig& c) {
+    for (const VectorAxis& a : vectorAxes) {
+        if (std::strcmp(a.name, name))
+            continue;
+        c = servo();
+        c.units.commandStepsPerMotorTurn = M::UnitScale(a.steps, a.stepsDenominator, M::ScaleSource::QUALIFIED);
+        c.units.motorTurnsPerLoadTurn = M::UnitScale(a.gear, a.gearDenominator, M::ScaleSource::QUALIFIED);
+        c.units.fullStepsPerMotorTurn =
+            a.fullSteps ? M::UnitScale(a.fullSteps, a.fullStepsDenominator, M::ScaleSource::QUALIFIED) : M::UnitScale();
+        c.originNative = a.origin;
+        return true;
+    }
+    return false;
+}
 struct Vector {
     const char* name;
-    bool servoAxis;
-    int64_t numerator, denominator;
+    const char* axis;
+    int64_t numerator;
+    uint64_t denominator;
     M::PositionUnit unit;
     M::CoordinateFrame frame;
     bool relative;
     M::Rounding rounding;
     int64_t allowance; // Halves of a native increment.
-    int64_t witness, effective, endpoint;
-    int64_t errorThirds; // RS roundingError times 6, so thirds and halves are both exact.
+    int64_t witness;
+    bool refused; // RS refuses it; then effective, endpoint and error are unused.
+    int64_t effective, endpoint;
+    int64_t errorSixths; // RS roundingError times 6, so thirds and halves are both exact.
+};
+const Vector vectors[] = {
+#define RS_MOVE_VECTOR(name, axis, n, d, unit, frame, relative, rounding, allowance, witness, effective,     \
+                       endpoint, sixths)                                                                  \
+    {name, axis, n, d, M::PositionUnit::unit, M::CoordinateFrame::frame, relative, M::Rounding::rounding,    \
+     allowance, witness, false, effective, endpoint, sixths},
+#define RS_MOVE_REFUSAL(name, axis, n, d, unit, frame, relative, rounding, allowance, witness, code, detail) \
+    {name, axis, n, d, M::PositionUnit::unit, M::CoordinateFrame::frame, relative, M::Rounding::rounding,    \
+     allowance, witness, true, 0, 0, 0},
+#include "vectors/rs_common_intent.inc"
 };
 void intentVectors() {
-    const Vector vectors[] = {
-        {"2500 steps", false, 2500, 1, M::PositionUnit::STEPS, M::CoordinateFrame::NATIVE, true,
-          M::Rounding::EXACT, 0, 1000, 2500, 3500, 0},
-        {"+1/3 motor turn", false, 1, 3, M::PositionUnit::TURNS, M::CoordinateFrame::MOTOR, true,
-          M::Rounding::NEAREST, 1, 50, 1067, 1117, 2},
-        {"-1/3 motor turn", false, -1, 3, M::PositionUnit::TURNS, M::CoordinateFrame::MOTOR, true,
-          M::Rounding::NEAREST, 1, 50, -1067, -1017, -2},
-        {"1/5 load turn", false, 1, 5, M::PositionUnit::TURNS, M::CoordinateFrame::LOAD, true,
-          M::Rounding::EXACT, 0, 0, 3200, 3200, 0},
-        {"90 load degrees", false, 90, 1, M::PositionUnit::DEGREES, M::CoordinateFrame::LOAD, true,
-          M::Rounding::EXACT, 0, -100, 4000, 3900, 0},
-        {"7/2 steps", false, 7, 2, M::PositionUnit::STEPS, M::CoordinateFrame::NATIVE, true,
-          M::Rounding::NEAREST, 1, 0, 4, 4, 3},
-        {"5/2 steps", false, 5, 2, M::PositionUnit::STEPS, M::CoordinateFrame::NATIVE, true,
-          M::Rounding::NEAREST, 1, 0, 2, 2, -3},
-        {"1 full step", false, 1, 1, M::PositionUnit::FULL_STEPS, M::CoordinateFrame::MOTOR, true,
-          M::Rounding::EXACT, 0, 0, 16, 16, 0},
-        {"servo 1/4 turn", true, 1, 4, M::PositionUnit::TURNS, M::CoordinateFrame::MOTOR, true,
-          M::Rounding::EXACT, 0, 0, 2500, 2500, 0},
-        {"servo -1/3 turn", true, -1, 3, M::PositionUnit::TURNS, M::CoordinateFrame::MOTOR, true,
-          M::Rounding::NEAREST, 1, 0, -3333, -3333, 2},
-        {"absolute 1/3 motor turn", false, 1, 3, M::PositionUnit::TURNS, M::CoordinateFrame::MOTOR, false,
-          M::Rounding::NEAREST, 1, 0, 1067, 1067, 2},
-    };
     for (const Vector& v : vectors) {
-        const M::AxisConfig axis = v.servoAxis ? servo() : stepper();
+        M::AxisConfig axis;
+        CHECK(vectorAxis(v.axis, axis));
         M::PositionRequest r;
         r.value = M::Rational(v.numerator, v.denominator);
         r.unit = v.unit;
@@ -232,30 +244,21 @@ void intentVectors() {
         r.maximumApproximationError = 0;
         const M::AxisReference w = witness(axis, v.witness);
         M::PreparedTarget t;
-        if (!M::preparePosition(r, axis, &w, t)) {
-            std::fprintf(stderr, "vector %s refused\n", v.name);
-            CHECK(false);
-        }
+        const M::Status s = M::preparePosition(r, axis, &w, t);
+        if (s.isOk() == v.refused)
+            std::fprintf(stderr, "vector %s: RS %s it, CAN %s it\n", v.name, v.refused ? "refuses" : "accepts",
+                         s.isOk() ? "accepts" : "refuses");
+        CHECK(s.isOk() != v.refused);
+        if (v.refused)
+            continue;
         CHECK(t.effectiveNative == v.effective && t.endpointNative == v.endpoint);
+        CHECK(t.quantization.errorNumerator * 6 % t.quantization.errorDenominator == 0);
         const int64_t magnitude = t.quantization.errorNumerator
                                       ? int64_t(t.quantization.errorNumerator) * 6 /
                                             int64_t(t.quantization.errorDenominator)
                                       : 0;
-        CHECK((t.quantization.errorNegative ? -magnitude : magnitude) == v.errorThirds);
+        CHECK((t.quantization.errorNegative ? -magnitude : magnitude) == v.errorSixths);
     }
-    // RS also refuses a full-step request on the servo, which has no full-step geometry.
-    M::PositionRequest r;
-    r.value = M::Rational(1);
-    r.unit = M::PositionUnit::FULL_STEPS;
-    r.frame = M::CoordinateFrame::MOTOR;
-    r.relative = true;
-    r.basis = M::RelativeBasis::ACTUAL;
-    r.configurationGeneration = 5;
-    r.rounding = M::Rounding::EXACT;
-    const M::AxisConfig axis = servo();
-    const M::AxisReference w = witness(axis, 0);
-    M::PreparedTarget t;
-    CHECK(!M::preparePosition(r, axis, &w, t));
 }
 } // namespace
 
