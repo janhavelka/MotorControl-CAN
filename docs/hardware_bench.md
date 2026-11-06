@@ -30,7 +30,7 @@ builds, acquisition and physical qualification remain separate facts.
 | Item | Established fact | Evidence needed before dependent live work |
 | --- | --- | --- |
 | Drive | User confirms both labels CL86-C; nodes 1/2 share the captured raw identity tuple | Manufacturer interpretation of version fields, unique specimen identity and applicable dialect |
-| Motor and feedback | User identifies LC60H2127; free shafts with paper mask, somewhat visible but imperfect. [Manufacturer model page](https://en.xlichuan.com/product-xq/71.html) lists representative ratings. On this configuration `6064` counts command pulses, 1000 per revolution on node 1, where 250 turned the marked shaft about a quarter turn ([2026-11-03](reports/2026-11-03_attended_bench.md)), and **`606C` reads rpm**: 30 during moves at 30 rpm, 1 at 2 rpm, both nodes ([2026-11-04](reports/2026-11-04_bench.md)). Both shafts hold torque at power-up (user, both sessions) | Installed variant/ratings, wiring, encoder configuration and adequate motion observation remain unqualified; node 2's scale has no shaft observation |
+| Motor and feedback | User identifies LC60H2127; free shafts with paper mask, somewhat visible but imperfect. [Manufacturer model page](https://en.xlichuan.com/product-xq/71.html) lists representative ratings. On this configuration `6064` counts command pulses, 1000 per revolution on node 1, where 250 turned the marked shaft about a quarter turn ([2026-11-03](reports/2026-11-03_attended_bench.md)), and **`606C` reads rpm**: 30 during moves at 30 rpm, 1 at 2 rpm, both nodes ([2026-11-04](reports/2026-11-04_bench.md)). Both shafts hold torque at power-up (user, 2026-11-03 and 2026-11-04, except trial 108; not checked by hand on 2026-11-05, see the NOTE.txt of trials 108, 704 and 712) | Installed variant/ratings, wiring, encoder configuration and adequate motion observation remain unqualified; node 2's scale has no shaft observation |
 | PC interface | User reports PCAN-USB opto IPEH-002022 available; not inspected or exercised | Exact connected interface, driver/version, timestamp and queue behavior, wiring and applicable authorization; availability is not adapter integration or qualification |
 | Embedded controller and SDK | EasyEDA specifies ESP32-S2-MINI-2-N4; ROM reports ESP32-S2FH4 revision 1.0, embedded 4 MB flash, no embedded PSRAM, 40 MHz crystal. S2 UART/core-0/TWAI firmware was built, uploaded and exercised on IDF 5.5.5 | Physical PCB/module revision still unrecorded; requested P4 adapter support remains separate |
 | Transceiver | User confirms TJA1051TK/3/1J on the ESP32-S2 PCB; user-reported, physically unqualified | Supply, electrical connections, silent polarity/behavior and compatibility on the actual board |
@@ -39,7 +39,7 @@ builds, acquisition and physical qualification remain separate facts.
 | Bus topology | User reports PCB to drive to drive daisy chain; CN2 pin1 L, pin2 H in both design netlists | Physical cable/reference continuity and endpoint termination. Drive RJ45 pin1 is H, pin2 L, pin3 GND; CN2 is only two pins |
 | Node and bitrate | Matched replies on 581/582 prove service communication with nodes 1/2 using 1 Mbit/s. User reports PCB JP1 bridged and last-drive SW8 ON | Measure unpowered bus resistance and cable/reference continuity; successful short exchanges do not establish electrical margins |
 | Power | User reports both probe selectors and PCB jumpers at 5 V, measured rails 4.75 V and 3.25 V on probe/PCB; green VPROG LED blinks. Design supplies MCU through U14; U3 uses separate VCC/VIO | These are user measurements, not captured rail traces. Green activity indication alone is not a power diagnosis; transient behavior, EN and other attached supplies remain unconfirmed |
-| External I/O | Post-cycle both nodes report 2400:01=0, :02/:03/:04=1/2/3, :05..08=0; raw2101/60FD=0. Terminals reportedly unconnected. On 2026-11-04 both also read `2400:00=0x10`, `:0C=0`, `:0D=1`, `:0E=:0F=0` and filters `2401..2407` = 2, 1, 0, 0, 0, 0, 0; `60FE:00` answered in two bytes against its U8 ([backlog D16](backlog.md)). On node 1, DI3 (`2400:05`) was set 0 → 7 → 0, each read back, and polarity bit 3 set, which raised `2101` bit 3 but not `60FD`; that polarity read 0 again after the next power cycle, with no save sent ([report](reports/2026-11-04_bench.md)) | Configured origin/positive-limit/negative-limit functions remain present; confirm electrical levels and active semantics needed by the operation. DI0..DI2 were never written; no protective function was disabled or reassigned. Output terminals and their levels are unobserved |
+| External I/O | Post-cycle both nodes report 2400:01=0, :02/:03/:04=1/2/3, :05..08=0; raw2101/60FD=0. Terminals reportedly unconnected. On 2026-11-04 both also read `2400:00=0x10`, `:0C=0`, `:0D=1`, `:0E=:0F=0` and filters `2401..2407` = 2, 1, 0, 0, 0, 0, 0; `60FE:00` answered in two bytes against its U8 ([backlog D16](backlog.md)), and under `CountWidths::MEASURED_U16` `60FE:00`, `:01` and `:02` read 0, 0 and 0 (trials 608, 609). On node 1, DI3 (`2400:05`) was set 0 → 7 → 0, each read back, and polarity bit 3 set, which raised `2101` bit 3 but not `60FD`; that polarity read 0 again after the next power cycle, with no save sent ([report](reports/2026-11-04_bench.md)) | Configured origin/positive-limit/negative-limit functions remain present; confirm electrical levels and active semantics needed by the operation. DI0..DI2 were never written; no protective function was disabled or reassigned. Output terminals and their levels are unobserved |
 | Mechanics | User reconfirmed free shafts, motors bolted to table and independent drive-power cutoff available | Actual ratings, finite motion bounds and independent observation for any motion experiment |
 | Authorization | User explicitly authorizes starting board testing and, on 2 November 2026, physical tests generally for this promptset: bench ready, two drives in series, free shafts, motors fixed to the table. No repeat permission request for that scope is needed | Concrete electrical/session facts and experiment bounds must still exist; no arbitrary motion recipe, save/reset or eFuse change follows |
 | Evidence | First image: heartbeat/NMT/fixed TPDO1; 197RX/80TX, stackFree9452. Second image: post-cycle26 plus readiness30 uploads/node; 112RX/112TX, stackFree9580. Both stats report zero errors/drops | Global network history separately reports49 then351 dropped entries. One-cycle reversion is observed; broader persistence, firmware, electrical, sample and motor qualification remain pending |
@@ -436,7 +436,10 @@ ran `actions`, `mode1`, `enable`, `position` (one with a named HALT) and `rearm`
 `clear-alarm`, for which no alarm occurred: `actions`, `history`, `io`, `tuning`, `mode1`, `enable`,
 `stop`, `position`, `rearm` (after a trigger, a halt and a relative trigger), `move` (absolute with a
 planned stop, relative and observed), `released-quick`, `word67`, `relative`, `io-di3`,
-`counter-zero`, and `settings-2202`, which stopped at its prior read before any write. Each is
+`counter-zero`, and `settings-2202`, which first stopped at its prior read before any write and,
+on `2920479`, wrote and read back codes 1 and 0 on both nodes (trials 604 to 607). The
+[2026-11-05 campaign](reports/2026-11-05_motion_and_stress.md) ran `mode1`, `enable`, `move`,
+`position` and `rearm` again at higher speeds. Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
 typed reads, the session's own `requestEnable`, `requestMove`, `requestMoveRelative`,
 `requestStop`, `requestCounterZero` and `requestClearAlarm`, the library's settings transactions
@@ -653,7 +656,11 @@ operator to type the attended confirmation, the shaft observation for `enable` a
 they upload objects whose read effect is unqualified), and after the route a free-text shaft
 observation.
 These go to `request.json` and are never interpreted; only the enable's `FREE` or `HOLDING` is
-sent. **With nobody at the bench**, `--unattended-waiver TEXT` replaces those questions, and only on
+sent. The runner cannot tell who typed an answer: on 2026-11-05 the lead typed `HOLDING` and the
+attended confirmation for trials 704 and 712 from the drives' start reports, and on 2026-11-03
+relayed `HOLDING` for trial 108 with no fresh question after a power cycle, so those records hold
+no observation of that power-up (see their NOTE.txt). `UNOBSERVED` is now the truthful answer when
+nobody felt the shaft, and it refuses the enable before anything is sent. **With nobody at the bench**, `--unattended-waiver TEXT` replaces those questions, and only on
 the user's own written statement that they accept the trial unattended: TEXT is stored verbatim in
 `request.json` and the ledger's send entry, every answer only an attendant could give is stored as
 `unattended: not observed`, and the line's attended field still reads 1, recording that the host's
@@ -726,8 +733,8 @@ HALT, and the largest service gap 5 ms ([attended report](reports/2026-11-03_att
 The [2026-11-04 session](reports/2026-11-04_bench.md) holds the later stop and move records, and the
 first hardware runs of the routes added that day, each once or twice on one or two specimens and one
 firmware, judged from drive reports with no shaft observed. Their host tests use a synthetic drive
-whose every response is the test's own. `clear-alarm` has not run on hardware, and `settings-2202`
-has sent no write.
+whose every response is the test's own. `clear-alarm` has not run on hardware; `settings-2202`
+has written and read back `2202` codes 1 and 0 on both nodes (trials 604 to 607).
 
 ## Conditional state-changing evidence
 
@@ -739,8 +746,12 @@ remain owned by prompt 29 and can be resumed before completed motion APIs or the
 later CLI exist.
 
 The user authorized the bounded PDO test and confirmed independent power cutoff.
-No state-changing sequence has run: selected-firmware edit/state prerequisites
-are still unproved. Before one runs,
+State-changing sequences have since run through the bench routes: enables, moves,
+stops, the counter zero, the `2202` and DI writes (2026-11-03 to 2026-11-05), and the
+2026-11-06 [PDO sessions](reports/2026-11-06_pdo_stream.md)' `1017` and `1800:05`
+writes and addressed NMT transitions. Each was a reviewed finite sequence; none
+qualifies the firmware, and the selected-firmware edit/state prerequisites of other
+sequences are still unproved. Before another runs,
 specify and independently review a single exact finite sequence through the
 checked public codec/service path and the same owner, implement its isolated
 harness support, and fake-test its bytes and failure/uncertainty branches.

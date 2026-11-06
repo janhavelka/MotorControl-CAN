@@ -199,7 +199,7 @@ physically established. Pages are PDF pages. No value below is hardware-qualifie
 | --- | --- | --- | --- |
 | `2200` | **Gate kept, no write.** A domain is not enough: effect is needed too | EN86/ZH86 p18 say only `0 Pulse Sign`, `1 Pulse /Sign`, and neither says what the codes do under CAN; EDS `[2200]` U16 RW default 0; both specimens 0 | The same native target at each code, a finite move, independent shaft observation and raw `6064`, plus a power cycle for activation. Motion, so packet 19 or later. A flip with no motion shows only that the code is accepted, so it closes nothing |
 | `2201` | **Gate kept, no write.** At most 400..51200 if later admitted | p11 0..65535 versus p18 400..51200; EDS default 0; both specimens 1000 | Manufacturer range, then at the baseline and one other in-range value: raw `6064`, `607A`, `607D` after the write, and measured displacement for one fixed native target. The ratio gives the scale; a power cycle between them gives activation. No sweep |
-| `2202` | **Settled, codes 0 and 1**, from a documented prior code. Code 1 needs `607D:01` below `607D:02` (project policy) and no homing report | EN86/ZH86 p18 `0 noneffective`, `1 effective after homing`; EDS default 10 undocumented, both specimens 0 | Enforcement. See the note below: no test closes this until `607D` has a domain |
+| `2202` | **Settled, codes 0 and 1**, from a documented prior code. Code 1 needs `607D:01` below `607D:02` (project policy) and no homing report | EN86/ZH86 p18 `0 noneffective`, `1 effective after homing`; EDS default 10 undocumented, both specimens 0. On 2026-11-04 both specimens accepted codes 1 and 0, each written and read back (trials 604 to 607, [report](reports/2026-11-04_bench.md)) | Enforcement, which that readback does not show. See the note below: no test closes this until `607D` has a domain |
 | `607D:01/:02` | **Gate kept, no write.** No admissible domain | EDS and EN86 p16/p17, ZH86 p17 give I32 and a name only; both specimens signed extremes. `607A` and `607C` ranges are not its range | **A manufacturer range or coordinate basis.** See the note below. `2100` bits need homing first, so no no-motion test can show the frame |
 | `6060` | **Gate kept, no write here.** Codes 1, 3, 6 share U8 and I8 encoding; 0 is undefined | p11, p13; EDS `[6060]` WO U8 versus manual RW I8; both specimens display 0 with `6041` low bits 7, the documentary pattern for `6040=15` | Packet 15's isolated `6060:00=1` with fresh mode, status, monitor, error and feedback evidence and independent shaft observation. Enabling in mode 3 or 6 and changing mode while enabled are separate gates (Q03, Q11, Q21). ZH86 p13 says the motor starts at the end of `6,7,15` in mode 3, with `60FF` reading 120 on both specimens, so code 3 is not a no-motion test |
 
@@ -212,7 +212,10 @@ sequence inside the current gates can supply it.
 
 Current/holding remains solely prompt 22. No request writes a native setting merely
 because an EDS flag is RW. The position-parameter physical path needs acknowledged
-`6040=000F`, which is an enable. Packet 15 added the gated enable but ran no bench
-trial, so the position parameters have had no bench use. The first needs packet 15's
-attended enable trial P3, then the `position` bench route with packet 19's reviewed
-values; neither has run.
+`6040=000F`, which is an enable. Packet 15's gated enable has since run on both
+specimens (trials 108, 118, 206, 210, 405, 704 and 712), and the position parameters
+were then written by the bench `position` route (110 to 113 on 2026-11-03, where 110
+was refused and 112 is its rearm; 211, 406, 709 and 713) and by the library moves in
+the [position guide](position_parameters.md). Trial 709 wrote `6081`, `6083` and
+`6084` for a 300 rpm move with 500 ms ramps. All of this is judged from drive reports
+on one firmware; none of it qualifies a parameter's effect.

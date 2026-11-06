@@ -24,33 +24,36 @@ implemented, host-tested and observed on node1; broader Q17 gates remain.
 implemented. Packet 4 admits the DEC-1 accepted list and `prepareProbe` as a
 project decision; Q20 read effects stay open, and every other row stays gated.
 
-**Handoff state, 2026-11-03.** Packets 1 to 22 have run their host scope. The [execution table](reports/handoff_19_33/README.md)
+**Handoff state, 2026-11-03, and later bench sessions.** Packets 1 to 22 have run their host scope. The [execution table](reports/handoff_19_33/README.md)
 records each packet's delivery, checks and CI. Packet 10 closed the repair
 audit's W1 to W8 for host scope. Packet 11 ran the first live typed reads and a
 read-only communication soak on two specimens. A first
 [attended campaign](reports/2026-11-03_attended_bench.md) enabled both
 specimens, and on node 1 ran one absolute experiment move, its rearm and a
 moving HALT. An [unattended campaign](reports/2026-11-03_unattended_bench.md), on
-the user's written waiver, ran the library's move lifecycle once on node 2 and a
-stationary `000B` on each node, which released the motor; the quick stop now
+the user's written waiver, ran the library's move lifecycle for the first time, on node 2, and a
+stationary `000B` on each node, which the drives reported as a release; the quick stop now
 completes on that report. On 2026-11-04 ([bench report](reports/2026-11-04_bench.md)) that
 quick stop completed on hardware, a moving quick stop completed on standstill after two library
 fixes, the relative base measured `ACTUAL` and the library's relative move succeeded on node 1,
 DI3's function and polarity writes were accepted, and a counter zero zeroed `6064` on node 2. No
-specimen has cleared an alarm; both accepted `2202` codes 1 and 0 once a measured count width let `607D:00` through. The open
-physical gates are listed in the [backlog](backlog.md).
+specimen has cleared an alarm; both accepted `2202` codes 1 and 0 once a measured count width let `607D:00` through. On
+2026-11-05 ([report](reports/2026-11-05_motion_and_stress.md)) node 1 ran library moves at 10 and
+60 rpm, a relative move at 120 rpm and a HALT at 300 rpm, and node 2 a quick stop at about 100 rpm,
+all judged from drive reports. The open physical gates are listed in the [backlog](backlog.md).
 
 On 2026-11-06 the bench's first [PDO stream sessions](reports/2026-11-06_pdo_stream.md) read every PDO record of
 both nodes, started and stopped the TPDO stream with addressed NMT, and measured the TPDO1 event timer.
 
-The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
+**As of the 2026-11-02 checkpoint.** The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
 26 uploads per node, node1 heartbeat1000, fresh addressed Pre-operational and
 complete fixed-map readback. No motor action, start/reset, save or restore was
 sent. One physical power cycle subsequently reverted node1 producer/map to
 0/map3 without save/restore; both nodes completed26 baseline plus30 readiness
 uploads. Reads of 607A/60FF equal to EDS defaults, origin unknown, mode0 and configured DI functions require
 further motion-admission evidence. Timer/SYNC, broader persistence, sample
-qualification and executable finite motion remain pending.
+qualification and executable finite motion were then pending; gated finite motion and the
+TPDO1 event-timer measurement have since run (above).
 
 The [sequence manifest](prompts/SEQUENCE.json) owns exact dependencies;
 [PROGRESS](prompts/PROGRESS.md) owns stage status. This roadmap gives executable
@@ -85,9 +88,9 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 28 | Shared Arduino/ESP-IDF application | Arduino/S3 IDF/S2 bench/isolated component build gates; Partial on inherited 27/24/26/19/Q20. [Report](reports/prompt_28.md). S2 uses explicit fixture configuration and UART; P4 complete firmware remains pending. |
 | 29 | Evidence harness, fixture record and conflict acquisition | Typed and raw finite collectors implemented and host/firmware checked; [two-node S2 raw acquisition](reports/2026-11-02_s2_live_connection.md) observed. Packet 11 added flash, parser and soak tools, and ran typed identity, the readiness image and a read-only soak live on two specimens. Partial on Q20 and remaining [measurement gates](device_conflicts.md); no PDO mutation or motor qualification. |
 | 30 | State interpretation, enable/release | Partial: checked documentary decoder and a [gated enable](drive_actions.md) (packet 15), closed by default, which succeeded on both specimens in the attended session. The release command remains unresolved and absent. |
-| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. One HALT from `001F` stopped and held a 2 rpm move on node 1. A stationary `000B` from `000F` and from `010F` released the motor on each node, and the quick stop completes on that report on hardware (2026-11-04). A stationary `010F` holds; `000B` during a move releases with `2100` running latched and completes on standstill; `000B` to a released or never-enabled drive changes nothing or releases it. Only `005F`/`003F`/`007F` predecessors stay unmeasured; [remaining gates](stop_actions.md). No enabling preamble. |
+| 31 | Stop actions and urgent owner integration | Partial: halt and quick stop from the DEC-8 predecessors, the best-effort `000B` route and `AxisSession` history (packets 6 and 7) implemented on the host; fresh not-running reports decide completion. Judged from drive reports on one firmware: a HALT from `001F` stopped a move on node 1 three times (113 at 2 rpm, after which `6064` stayed 316 for 26 s; 406 at 6 rpm; 709 at 300 rpm). A stationary `000B` from `000F` and from `010F` was reported as a release on each node, and the quick stop completes on that report on hardware (208, 2026-11-04). A stationary `010F` left the reported state unchanged (207); `000B` during a move from `001F` was reported released with `2100` running latched (213 and 413 at 30 rpm, 713 at about 100 rpm) and, after the standstill fix, completes on standstill (413, 713); `000B` to a released or never-enabled drive changed nothing (307) or was reported as a release (503). Unmeasured: stops from `005F`/`003F`/`007F`, velocity and homing stops and a moving `010F` to `000B` escalation; [remaining gates](stop_actions.md). No enabling preamble. |
 | 32 | Fault/reference actions | Partial: alarm clear with explicitly unresolved fault identity (packet 17) and zero-only counter clear with a retained baseline (packet 18), with exact owner/reference handoff, both called through `AxisSession`. A counter zero ran on node 2 (2026-11-04, `6064` 1180 to 0); no alarm clear has run, as no natural alarm has occurred. [Other reset/firmware gates](fault_reference_actions.md) remain; no enable or home claim. |
-| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20), closed by default. Packet 19 measured node 1's acceptance and completion signals, and with them the `move` route ran the lifecycle once, unattended, on node 2 and succeeded: one specimen and firmware, not qualified. Stop rows during a move (packet 16) and relative moves (packet 21) remain. |
+| 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20), closed by default. Packet 19 measured node 1's acceptance and completion signals, and with them the absolute lifecycle has run on both nodes (121 and 213 on node 2; 413, 705 and 706 on node 1). Stops during moves have run (213, 413, 709, 713), and packet 21's relative lifecycle succeeded on node 1 (411, 708). One firmware, judged from drive reports, not qualified; [remaining gates](position_parameters.md). |
 | 34-36 | Angles, finite velocity and homing | Pending; the repair audit's hold is lifted only for consumed qualified contracts. Explicit trigger/acceptance/completion, reference/scale and bounded deadlines |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |

@@ -24,8 +24,9 @@ called non-changing or harmless. Packet 11 read all 16 rows live on two
 specimens, with no read-effect observation, so success there settles nothing
 about effects. `603F`, `1001` and `1003` stay `UNQUALIFIED`: explicit single
 reads, never polled, reached
-through `requestExperiment` or an action's prerequisites. The first bench read
-of each records LED fault state before and after. Every other row stays gated by
+through `requestExperiment` or an action's prerequisites. The first bench reads
+of them (trials 128, 129 and 203) recorded the fault LED as unobserved; a `1003`
+read with the LED observed is still owed. Every other row stays gated by
 Q20 (owner prompts 19, 29, 37, 41, 44, 47). Ordinary reads need an already
 usable SDO channel and the owner's ordinary admission policy. They cannot
 bootstrap service reconciliation.

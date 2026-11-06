@@ -90,8 +90,19 @@ overshoot is still possible. This lifecycle then ran with a planned quick stop
 twice at 30 rpm (250 to 2250 on node 2, 404 to 2404 on node 1): each move ended
 interrupted and fenced, its stop with its own result. It refused one plan before
 any write, because the deadline did not cover every scheduled service at its
-budgets. The relative move below succeeded once. `606C` reads rpm on this
-configuration. Everything else for this lifecycle is fake-owner evidence.
+budgets. The relative move below succeeded (trial 411). `606C` reads rpm on this
+configuration.
+
+**Later runs, 2026-11-05,** node 1, drive reports only
+([report](reports/2026-11-05_motion_and_stress.md)). This lifecycle succeeded
+at 10 rpm from 0 to 1000 with 200 ms ramps, completing at exactly 1000 (705), and
+at 60 rpm from 1000 to -1000 with 1000 ms ramps, where completion was reported at
+-999 and a read 40 s later gave -1000 (706, 707). The relative lifecycle succeeded
+with +3000 at 120 rpm, completing at exactly 2000 (708). Across the retained moves,
+library and `position` route, completion was reported 0 or 1 pulse from the target
+(121 and 706: 1; 211, 411, 705 and 708: 0); the in-place window's size is not
+measured. Everything else for these lifecycles
+is fake-owner evidence.
 
 ### Admission, before any write
 
@@ -250,9 +261,9 @@ The default is `UNMEASURED`, so a relative request is refused unless the caller
 names a measured base. **Node 1 measured `ACTUAL` on 2026-11-04** (trial 409):
 after a halted move left it at 104 with target 600, `005F` with +200 ended at
 304. With that record, `requestMoveRelative` +100 under `ACTUAL` then
-`SUCCEEDED` at 404, its computed endpoint, with its own rearm (trial 411). One
-specimen, one firmware, a positive displacement, judged from drive reports with
-no shaft observed ([report](reports/2026-11-04_bench.md),
+`SUCCEEDED` at 404, its computed endpoint, with its own rearm (trial 411), and on
+2026-11-05 +3000 at 120 rpm `SUCCEEDED` at 2000 (trial 708). One specimen, one
+firmware, positive displacements, judged from drive reports with no shaft observed ([report](reports/2026-11-04_bench.md),
 [packet 21](reports/handoff_19_33/packet_21.md)). The axis's
 `supportedRelativeBases` is a separate host-arithmetic policy and is still checked.
 
