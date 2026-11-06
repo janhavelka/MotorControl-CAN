@@ -233,8 +233,8 @@ class AnalyzeTest(unittest.TestCase):
         watch = report["watches"][0]
         self.assertEqual(watch["console_gaps"], [])
         stream = watch["ids"]["281"]
-        self.assertEqual(stream["host_stats"]["count"], 4)
-        self.assertEqual((stream["host_stats"]["min_gap"], stream["host_stats"]["max_gap"]), (99940, 100050))
+        self.assertEqual(stream["printed_stats"]["count"], 4)
+        self.assertEqual((stream["printed_stats"]["min_gap"], stream["printed_stats"]["max_gap"]), (99940, 100050))
         self.assertEqual(stream["decoded_first"], {"6064:00": 4728, "606c:00": 0})
         self.assertEqual(stream["decoded_last"], {"6064:00": -5, "606c:00": 0})
         self.assertEqual(stream["decode_failures"], 0)

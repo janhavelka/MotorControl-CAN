@@ -448,11 +448,16 @@ def analyze(directory):
     report["nmt"] = nmts
     report["watches"] = []
     for watch in watches:
+        last = watch["end"] or (watch["sums"][-1] if watch["sums"] else {})
         out = {"begin": watch["begin"], "end": watch["end"], "console_gaps": watch["gaps"],
-               "last_sum": watch["sums"][-1] if watch["sums"] else None, "ids": {}}
+               "last_sum": watch["sums"][-1] if watch["sums"] else None,
+               "unprinted": last.get("unprinted"), "tap_dropped": last.get("tapDropped"), "ids": {}}
         for ident, frames in sorted(watch["frames"].items()):
             timed = [f["hi"] for f in frames if f["timed"]]
-            entry = {"printed": len(frames), "host_stats": _stats(timed), "device": watch["ids"].get(ident)}
+            # Printed frames only: a frame the console could not take is in the device statistics
+            # (PDOW_ID) but absent here, so these gaps, and the first and last frames around an NMT
+            # request below, hold only while the watch's unprinted count stays 0.
+            entry = {"printed": len(frames), "printed_stats": _stats(timed), "device": watch["ids"].get(ident)}
             node = int(ident, 16) & 0x7F
             kind = int(ident, 16) & 0x780
             if kind in (0x180, 0x280, 0x380, 0x480):
@@ -515,7 +520,8 @@ def main(argv=None):
         print(json.dumps({k: report[k] for k in ("directory", "bytes", "lines", "reason") if k in report}))
         print("unknown=%d malformed=%d" % (len(report["unknown"]), len(report["malformed"])))
         for watch in report["watches"]:
-            print("watch %s console_gaps=%s" % (watch["begin"].get("seconds"), watch["console_gaps"]))
+            print("watch %s console_gaps=%s unprinted=%s tapDropped=%s" % (
+                watch["begin"].get("seconds"), watch["console_gaps"], watch["unprinted"], watch["tap_dropped"]))
             for ident, entry in watch["ids"].items():
                 print("  %s %s" % (ident, json.dumps({k: entry[k] for k in entry if k != "device"})))
         for nmt in report["nmt"]:
