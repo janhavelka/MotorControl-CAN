@@ -2,6 +2,7 @@
 """Contract tests for scripts/s2_pdo.py: plan checks, the step runner's stop rules and the offline analysis."""
 import json
 from pathlib import Path
+import re
 import sys
 import tempfile
 import unittest
@@ -35,11 +36,11 @@ class Item:
 class Board:
     """The firmware console as the runner sees it: replies keyed by the exact bytes written."""
 
-    def __init__(self, replies=None, pdo="1", watch=0, soak=0):
+    def __init__(self, replies=None, pdo="1", watch=0, soak=0, capture=None):
         self.replies = dict(replies or {})
         self.writes = []
         self.queue = bytearray(b"stale\n")
-        self.pdo, self.watch, self.soak = pdo, watch, soak
+        self.pdo, self.watch, self.soak, self.capture = pdo, watch, soak, capture
         self.closed = False
 
     @property
@@ -55,6 +56,8 @@ class Board:
         self.writes.append(bytes(data))
         if data == b"p":
             extra = "" if self.pdo is None else " pdo=%s watch=%d" % (self.pdo, self.watch)
+            if self.capture is not None:
+                extra += " capture=%d" % self.capture
             self.queue.extend((PONG % ("a" * 40, "b" * 64, self.soak, extra)).encode("ascii"))
         else:
             self.queue.extend(self.replies.get(bytes(data), b""))
@@ -238,7 +241,8 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running"), (Board(pdo="3"), "image_without_pdo_lines")):
+                           (Board(watch=1), "watch_running"), (Board(pdo="4"), "image_without_pdo_lines"),
+                           (Board(pdo="3", capture=1), "capture_held")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
             self.assertEqual(board.writes, [b"p"])
@@ -492,6 +496,183 @@ def config_reply(node=2, raw=100, header=None, drop_result=None, outcome_at=None
                       "epoch=1 txk=0 txr=99 txf=1" % (0x600 + node, extra_tx))
     lines += frames + ["END PDO; map readback and sample qualification are separate; r=release"]
     return ("\n".join(lines) + "\n").encode("ascii")
+
+
+def capture_reply(identity=1, seconds=2, frames=8, reason="duration", stored=2, overflow=0, tap=0, lost=0,
+                  refused=0, exit_=1, reopened=1, f_lines=None, other_cap=None):
+    """The firmware's C-line output, as SilentCapture.cpp formats it."""
+    cap = identity if other_cap is None else other_cap
+    lines = ["CAP admitted cap=%d seconds=%d frames=%d gpio=18 silentHigh=1; TX gate closed, silent level "
+             "requested, nothing sent" % (identity, seconds, frames),
+             "CAP_REC cap=%d reason=%s seconds=%d capacity=%d stored=%d overflow=%d tapDropped=%d pre=0 post=0 "
+             "untimed=0 txRefused=%d lost=%d" % (identity, reason, seconds, frames, stored, overflow, tap, refused,
+                                                lost),
+             "CAP_TIME cap=%d begin=1000 end=%d nominal=%d gap=900 clock=esp_timer_us" %
+             (cap, 1000 + seconds * 1000000, 1000 + seconds * 1000000),
+             "CAP_LEVEL cap=%d gpio=18 silentHigh=1 begin=1 exit=%d reopened=%d at=%d latched=0" %
+             (identity, exit_, reopened, 1000 + seconds * 1000000)]
+    for which in (0, 1):
+        lines.append("CAP_CTRL cap=%d which=%d t=%d epoch=1 counters=1 tec=0 rec=0 inhibited=0 adapterInhibited=0 "
+                     "twaiDropped=0 twaiErrors=0 twaiFlags=00000000" % (identity, which, 1000 + which * seconds))
+    for which in (0, 1):
+        lines.append("CAP_OWNER cap=%d which=%d rx=%d dropped=0 lost=0 unmatched=%d tx=4 txRej=0 busOff=0 refused=0" %
+                     (identity, which, 10 + which * stored, 10 + which * stored))
+    lines.append("CAP_IMAGE cap=%d base=%s elf=%s" % (identity, "a" * 40, "b" * 64))
+    if f_lines is None:
+        f_lines = ["CAP_F cap=%d i=%d id=%x ext=0 rtr=0 dlc=1 data=7f bounds=1 exact=0 lo=%d hi=%d epoch=1 pre=0 "
+                   "post=0" % (identity, i, 0x701 + i, 1000 + i * 1000, 1200 + i * 1000) for i in range(stored)]
+    lines += f_lines
+    lines.append("END capture cap=%d stored=%d overflow=%d lost=%d; r=release" % (identity, stored, overflow, lost))
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+CAPTURE_STEP = {"send": "C1,2,8", "expect": "CAP admitted", "end": "END capture", "end_timeout_s": 5}
+
+
+class CaptureTest(unittest.TestCase):
+    """The C line (examples/s2_bench/SilentCapture.h): one held record, its own terminal check, the
+    pdo=3 protocol gate and a local-only cleanup. The fake board answers as the firmware formats."""
+
+    session = RunTest.session
+
+    def test_capture_plan_rules(self):
+        self.assertEqual(len(pdo.check_plan(plan(CAPTURE_STEP, {"send": "r", "expect": "CAP record released"}))), 2)
+        self.assertEqual(len(pdo.check_plan(plan({"send": "C0", "expect": "CAP_STOPPING"}))), 1)
+        for bad in (plan(dict(CAPTURE_STEP, expect="CAP")),  # A looser admission.
+                    plan(dict(CAPTURE_STEP, end="END raw")),
+                    plan({"send": "C1,2,8", "expect": "CAP admitted"}),  # No terminal to check.
+                    plan(dict(CAPTURE_STEP, end_timeout_s=2)),  # The record prints after the duration.
+                    plan(dict(CAPTURE_STEP, send="C1,2")),
+                    plan(dict(CAPTURE_STEP, send="C1,x,8"))):
+            with self.assertRaises(pdo.SessionError):
+                pdo.check_plan(bad)
+
+    def test_a_capture_holds_its_record_until_its_own_release(self):
+        n = {"send": "N2,p", "expect": "NMT admitted", "end": "NMT request"}
+        with self.assertRaises(pdo.SessionError):
+            pdo.check_plan(plan(CAPTURE_STEP, n))
+        with self.assertRaises(pdo.SessionError):
+            pdo.check_plan(plan(CAPTURE_STEP, {"send": "r", "expect": "RELEASED record"}))
+        with self.assertRaises(pdo.SessionError):
+            pdo.check_plan(plan(n, CAPTURE_STEP))
+        # C0 and waits hold nothing; the release names the capture's own line.
+        self.assertEqual(len(pdo.check_plan(plan({"send": "C0", "expect": "CAP_STOPPING"}, n))), 2)
+        self.assertEqual(len(pdo.check_plan(plan(CAPTURE_STEP, {"wait_s": 1},
+                                                 {"send": "r", "expect": "CAP record released"}, n))), 4)
+
+    def test_an_image_without_c_lines_is_never_sent_one(self):
+        # On a pdo=2 image C is unknown and its digits would be single-byte commands: refused unsent.
+        for version in ("1", "2"):
+            board = Board({b"C1,2,8\n": capture_reply()}, pdo=version)
+            code, meta, _ = self.session(board, [CAPTURE_STEP])
+            self.assertEqual((code, meta["reason"]), (1, "image_without_pdo_config"))
+            self.assertEqual(board.writes, [b"p"])
+
+    def test_a_complete_capture_lets_the_plan_continue(self):
+        board = Board({b"C1,2,8\n": capture_reply(), b"r": b"CAP record released; level, gate and SDO state "
+                                                          b"unchanged\n"}, pdo="3", capture=0)
+        code, meta, out = self.session(board, [CAPTURE_STEP, {"send": "r", "expect": "CAP record released"}])
+        self.assertEqual((code, meta["reason"]), (0, "completed"))
+        self.assertEqual(board.writes, [b"p", b"C1,2,8\n", b"r"])
+        report = pdo.analyze(out)
+        # The board's leftover "stale" line, retained before the plan, is the only unknown one.
+        self.assertEqual((report["unknown"], report["malformed"]), (["stale"], []))
+        (item,) = report["captures"]
+        self.assertEqual(item["record"]["reason"], "duration")
+        self.assertEqual(sorted(item["ids"]), ["701", "702"])
+        self.assertEqual(item["frames"], 2)
+        self.assertEqual(item["level"]["exit"], 1)
+        self.assertEqual(sorted(item["ctrl"]), [0, 1])
+
+    def test_a_failed_capture_record_stops_every_later_step(self):
+        cases = {"capture_ended_stop": capture_reply(reason="stop"),
+                 "capture_ended_controller": capture_reply(reason="controller", exit_=3, reopened=0),
+                 "capture_incomplete": capture_reply(overflow=3),
+                 "capture_send_attempted": capture_reply(refused=1),
+                 "capture_exit_not_normal": capture_reply(exit_=2, reopened=0),
+                 "capture_frames_differ": capture_reply(stored=2, f_lines=[]),
+                 "capture_record_unparsed": capture_reply(other_cap=9),
+                 "capture_wrong_plan": capture_reply(frames=16)}
+        for problem, reply in cases.items():
+            board = Board({b"C1,2,8\n": reply}, pdo="3", capture=0)
+            code, meta, _ = self.session(board, [CAPTURE_STEP, {"send": "r", "expect": "CAP record released"}])
+            self.assertEqual((code, meta["reason"], meta["steps"][0].get("problem")),
+                             (1, "terminal_failed", problem), problem)
+            self.assertEqual(board.writes, [b"p", b"C1,2,8\n"], problem)
+
+    def test_zero_frames_is_a_complete_record_not_a_proof(self):
+        board = Board({b"C1,2,8\n": capture_reply(stored=0)}, pdo="3", capture=0)
+        code, meta, _ = self.session(board, [CAPTURE_STEP])
+        self.assertEqual((code, meta["reason"]), (0, "completed"))
+
+    def test_an_early_end_while_collecting_sends_only_c0(self):
+        admitted = (b"CAP admitted cap=1 seconds=60 frames=8 gpio=18 silentHigh=1; TX gate closed, silent level "
+                    b"requested, nothing sent\n")
+        # The fake clock runs 10 ms per read, so the 61 s end wait passes quickly.
+        step = dict(CAPTURE_STEP, send="C1,60,8", end_timeout_s=61)
+        board = Board({b"C1,60,8\n": admitted, b"C0\n": b"CAP_STOPPING; the record follows; nothing sent\n" +
+                       capture_reply(seconds=60, reason="stop").split(b"\n", 1)[1]}, pdo="3", capture=0)
+        code, meta, _ = self.session(board, [step])
+        self.assertEqual((code, meta["reason"]), (1, "no_end"))
+        self.assertEqual(board.writes, [b"p", b"C1,60,8\n", b"C0\n"])
+        self.assertEqual(meta["steps"][-1]["outcome"], "capture_ended")
+
+
+class FirmwareTextTest(unittest.TestCase):
+    """The firmware's own format strings against the grammar and their buffers, read from source."""
+
+    WIDTH = {"u": 10, "lu": 10, "llu": 20, "d": 11, "lx": 8, "08lx": 8, "02x": 2, "x": 8}
+
+    def literal(self, body):
+        return re.sub(r'"\s*"', "", body)
+
+    def fields(self, kind):
+        from s2_evidence import GRAMMAR
+        names = set()
+        for row in GRAMMAR:
+            if row.kind == kind:
+                names |= {token.split(":")[0] for token in row.fields.split()}
+        return names
+
+    def test_capture_lines_are_in_the_grammar_and_fit(self):
+        source = (REPOSITORY / "examples/s2_bench/SilentCapture.cpp").read_text(encoding="utf-8")
+        header = (REPOSITORY / "examples/s2_bench/SilentCapture.h").read_text(encoding="utf-8")
+        capacity = int(re.search(r"CAPTURE_LINE_BYTES = (\d+)", header).group(1))
+        kinds = {"CAP_REC": "CAP_REC", "CAP_TIME": "CAP_TIME", "CAP_LEVEL": "CAP_LEVEL", "CAP_CTRL": "CAP_CTRL",
+                 "CAP_OWNER": "CAP_OWNER", "CAP_IMAGE": "CAP_IMAGE", "CAP_F": "CAP_F", "END capture": "CAP_END"}
+        strings = {self.literal(m) for m in re.findall(r'"((?:CAP_[A-Z]+|END capture) (?:[^"]|"\s*")*?)\\n"',
+                                                          source)}
+        found = set()
+        widths = {"reason": 10, "data": 16, "base": 40, "elf": 64}
+        for body in strings:
+            tag = body.split(" ")[0] if body.startswith("CAP_") else "END capture"
+            found.add(tag)
+            names = set(re.findall(r"(\w+)=%", body.partition(";")[0]))
+            self.assertTrue(names, tag)
+            self.assertLessEqual(names, self.fields(kinds[tag]), tag)
+            widest = body
+            for name, spec in re.findall(r"(\w+)=%([0-9]*l{0,2}[udxs])", body):
+                width = widths.get(name, 64) if spec == "s" else self.WIDTH[spec]
+                widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * width), 1)
+            self.assertNotIn("%", widest, tag)
+            self.assertLess(len(widest) + 1, capacity, tag)  # Newline; vsnprintf's terminator fits too.
+        self.assertEqual(found, set(kinds))
+
+    def test_pong_fits_its_buffers(self):
+        text = (REPOSITORY / "examples/s2_bench/main/main.cpp").read_text(encoding="utf-8")
+        body = self.literal(re.search(r'"PONG (.*?)\\n"\s*,', text, re.S).group(1))
+        output = int(re.search(r"char output\[(\d+)\] = \{\};", text).group(1))
+        retained = int(re.search(r"char retainedResponse\[(\d+)\];", text).group(1))
+        # Booleans print one digit; motion is an unsigned count; idf_ver is esp_app_desc_t's 32-byte text.
+        widths = {"base": 40, "elf": 64, "sdk": 31, "t": 20, "motion": 10}
+        widest = "PONG " + body
+        for name, spec in re.findall(r"(\w+)=%(l{0,2}[us])", body):
+            widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
+        self.assertNotIn("%", widest)
+        self.assertIn("pdo=3", widest)
+        self.assertIn("capture=9", widest)
+        self.assertLess(len(widest) + 1, output)
+        self.assertLess(len(widest) + 1, retained)  # line() keeps only a response shorter than the buffer.
 
 
 class AnalyzeTest(unittest.TestCase):

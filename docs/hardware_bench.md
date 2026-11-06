@@ -297,6 +297,99 @@ counters are not transitions. After an observed MCU boot, previous values are st
 The log shows what the capture recorded, not continuous bus history: `NETWORK` and
 `EVENT` come from bounded copies with their own dropped counter.
 
+## Silent capture
+
+The bench image from packet 4 on (PONG `pdo=3 capture=0`) has one bounded receive capture,
+[`SilentCapture`](../examples/s2_bench/SilentCapture.h). It records what the ordinary owner receives
+while every transmission is refused and GPIO18 requests the TJA1051 Silent mode. It runs on the same
+controller, driver, owner and tap as everything else, adds no receive task or TWAI node, and sends
+nothing. Its record shows what the software did. It does not show what reached the bus.
+
+`C<capture>,<seconds>,<frames>` and a line end start one capture. `capture` is a nonzero identity
+above every earlier accepted capture in this boot; `seconds` is 1..600 and `frames` the record's
+capacity, 1..128. `C0` ends a running capture early. Lines are collected like the `N`, `P`, `R`, `W`
+and `E` lines ([`PdoCommand.h`](../examples/s2_bench/PdoCommand.h)). An older image reads `C` as an
+unknown command followed by single-byte commands, so `scripts/s2_pdo.py` sends a `C` line only to
+an image reporting `pdo=3`.
+
+**Entry.** The firmware refuses a capture unless all of the following hold. The answer is
+`CAP refused reason=...; no work`; the reason is in brackets below.
+
+- `c` has started the controller and lowered S18, and no soak, route record, PDO, raw or evidence
+  record, NMT result, watch, dump or network listing is held (`state`; `busy` while a capture
+  collects or its record is held).
+- The firmware runs, and the owner is neither inhibited nor recovering (`controller`).
+- No ordinary, urgent or NMT request is queued or active, and no typed read or acquisition is active
+  (`work`).
+- Each configured SDO slot passes `CanBusOwner::localTxRetired`, no NMT handoff awaits its report,
+  and the tap holds no frame the SDK may still transmit (`unretired`). Unknown retirement refuses.
+  A reply that overtook its TX report, a staged client abort and an uncertain submission all
+  refuse.
+- The silent-level request is accepted (`silent`). If it is refused, the normal level is requested
+  once. The gate opens again only if that request is accepted; otherwise transmission stays closed
+  for the boot (`closed` from then on).
+
+Then the tap's transmit gate closes, and only then is S18 requested high. The reply is
+`CAP admitted cap=... seconds=... frames=... gpio=18 silentHigh=1; TX gate closed, silent level
+requested, nothing sent`. Entry starts no drive PDO, NMT or SDO, and changes no route, quarantine
+or retained result.
+
+**While capturing.** Received frames reach the owner as before: heartbeats, EMCY, unsolicited SDO
+and every unknown frame are still dispatched. The capture keeps a copy of each, taken at the tap as
+the watch does. The watch is refused meanwhile, because it shares that ring. Every path to the SDK
+meets the closed gate and closes provably unsent: SDO requests, segments and client aborts, drain
+markers, best-effort stops, urgent work and NMT. The library has no PDO or SYNC producer, and the
+gate would refuse those frames too. Only `p`, `s`, `n`, `d`, `r` and `C0` are served; any other byte
+answers `CAP refused reason=active` and any other line `PDO_LINE refused reason=capture`. The
+capture ends at its duration (`duration`), at `C0` (`stop`), or when the firmware stops, the owner
+becomes inhibited or a recovery begins (`controller`).
+
+**Exit.** The copies stop first. After a `duration` or `stop` end with a usable controller, S18 is
+requested low. The gate opens only once the owner and the tap are idle and retired again, normally
+in the same turn. Work admitted during the capture closes unsent at the gate before it opens. After a
+`controller` end no normal level is requested, and the gate stays closed for this boot. A refused
+normal request also leaves the level unknown and the gate closed for the boot. The record then
+prints, one line per turn, is reprinted with `d` and is released with `r`
+(`CAP record released; level, gate and SDO state unchanged`).
+
+| Line | Fields |
+| --- | --- |
+| `CAP_REC` | `cap`, `reason`, `seconds`, `capacity`, `stored`, `overflow` (copies after the record was full), `tapDropped` (copies the 32-entry tap ring had no room for), `pre`, `post`, `untimed`, `txRefused` (submissions refused at the gate between begin and end), `lost` (any tap, driver or owner receive loss) |
+| `CAP_TIME` | `begin` and `end` processing times, `nominal` end, `gap` (largest interval between capture services), `clock=esp_timer_us` |
+| `CAP_LEVEL` | `gpio`, `silentHigh`, `begin=1`, `exit` (1 normal requested, 2 refused, 3 left silent), `reopened` and its time `at`, as at printing, and `latched` |
+| `CAP_CTRL` (`which=0` begin, `1` end) | `t`, controller `epoch`, `counters` with `tec` and `rec` from `twai_node_get_info`, owner and adapter `inhibited`, adapter `twaiDropped`, `twaiErrors`, `twaiFlags` |
+| `CAP_OWNER` (`which=0`, `1`) | Owner lifetime totals `rx`, `dropped`, `lost`, `unmatched`, `tx`, `txRej`, `busOff`, and the tap's lifetime `refused` |
+| `CAP_IMAGE` | `base` (source revision) and `elf` (the image's ELF SHA-256) |
+| `CAP_F` | `i`, `id`, `ext`, `rtr`, `dlc`, `data` (hex, `-` without payload), `bounds`, `exact`, `lo`, `hi`, `epoch`, and `pre` (received wholly before `begin`, copied after it) or `post` (received wholly after the nominal end, copied in the end turn) |
+| `END capture` | `cap`, `stored`, `overflow`, `lost` |
+
+`lo` and `hi` are the driver's receive bounds on the S2 clock, never bus timestamps. The record
+holds frames the owner took between the begin turn and the end turn. A frame still in the driver's
+FIFO at the end turn is outside it.
+
+**What a capture shows, and what it does not.** It shows that the software refused every
+submission (`txRefused` and the tap counters), which frames the owner received, the counters at both
+boundaries, and the GPIO levels that were requested. It does not show that the transceiver was
+silent, that the S2 sent no ACK or error flag, or that a drive's pending SDO session drained. The
+controller stays in normal mode and still drives ACK and error bits onto TXD; only Silent mode on a
+correctly wired pin S keeps them off the bus ([SDK evidence](adapters/twai_sdk.md#listen-only-mode-the-silent-transceiver-input-and-the-bench-capture)).
+When both drives are powered, each acknowledges the other's heartbeats, so a correct capture sees
+their frames whether or not the S2 is silent. With only one drive powered, the S2 would be the only
+acknowledger. A silent S2's controller would then read its own dominant ACK back as recessive, a bit
+error under the CAN 2.0B rule. It would drop each attempt and raise its own error counters, while
+the drive retransmits. This is an expectation from the standard, not a measurement, and a wiring
+fault could look the same. A capture of zero frames proves neither capture nor silence. Physical
+no-ACK and no-TX need an independent listen-only observer, still to be integrated.
+
+**Runner.** `scripts/s2_pdo.py run` accepts a `C` step with `expect` `CAP admitted`, `end`
+`END capture` and an `end_timeout_s` longer than the capture. Its record is the one held record
+until an `r` expecting `CAP record released`. The step succeeds only when the record names the sent
+identity, ends at its duration with no loss, overflow or gate refusal, requested the normal level,
+reopened the gate, and holds exactly the `CAP_F` lines it says it stored. Zero frames pass that
+check. If a plan stops while a capture collects, only `C0` is sent. The preflight refuses an image
+that reports `capture=1`, and `analyze` lists each capture's frames per identifier with their gaps
+on `hi`, leaving out `pre` and `post` frames.
+
 ## Communication soak
 
 A finite, read-only soak of the two-drive bus, through the ordinary public path. It does not

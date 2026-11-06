@@ -151,3 +151,50 @@ reset, including an explicitly documented duplicate-send possibility in
 for another SDK release. Firmware compilation, electrical behavior, bus-off
 reproduction, sustained load, memory use and maximum service gaps remain separate
 verification and qualification evidence.
+
+## Listen-only mode, the silent transceiver input and the bench capture
+
+Reviewed 2026-11-06 for [bench continuation packet 4](../reports/bench_closure_18_33/packet_4.md),
+against the same pinned SDK. These are source facts and the reasons for the bench capture's design.
+Nothing here is a physical measurement.
+
+| Evidence | Original source | Consequence |
+| --- | --- | --- |
+| The node API offers a hardware listen-only mode, "will not influence the bus (No transmissions or acknowledgments)". It is a creation flag only. | `include/esp_twai_onchip.h:36` (`flags.enable_listen_only`); `onchip:676`, `:768-771` copy it into the HAL configuration; `esp_twai.h:24-149` has no call that changes the mode of an existing node | Entering listen-only means deleting the running node and creating another, which is the owner's recovery path: every reservation and node's freshness is invalidated and a new epoch begins, and the exit needs a second recreation. |
+| The HAL writes the mode only in reset mode, when a node is enabled. | `HAL:142-163` (`twai_hal_start`, mode set at `:144`); S2 `LL:251-264` ("Must be called in reset mode"); called from `onchip:463` | A running node cannot be switched, by the SDK or by the adapter. |
+| In listen-only mode `twai_node_transmit` returns `ESP_ERR_NOT_SUPPORTED`. | `esp_twai.h:121`; `onchip:587` | A software check before the queue, the same kind of guarantee as the bench's own gate. |
+| A listen-only node may be created with no TX pin. | `onchip:129`, `:142` | Not usable here: the old node's deletion leaves the TX signal routed to GPIO17 ([S2 review](twai_esp32s2.md)), and the level after clock gating is unmeasured. |
+| The ESP32-S2 controller in listen-only mode "will still transmit dominant bits when it detects an error (i.e., as part of an active error frame)". The SDK's workaround sets REC to 128 before leaving reset, so the controller stays error passive. | `components/driver/twai/Kconfig.twai:52-61` (`CONFIG_TWAI_ERRATA_FIX_LISTEN_ONLY_DOM`, default y for S2); applied only under `#ifdef` at `HAL:147-157` | The option lives in the legacy `driver` component's menu (`Kconfig.twai:1-2`, sourced from `components/driver/Kconfig:3`). The S2 bench builds with `set(COMPONENTS main)` (`examples/s2_bench/CMakeLists.txt:2`) and does not require `driver`, so its resolved `sdkconfig` has no such option (checked in the packet 7 and packet 4 `s2` gate outputs). In this build, listen-only alone would not keep the controller from driving error flags. |
+| Normal mode acknowledges every correctly received frame and sends error flags; single-shot (retry count 0) only stops retransmission of a frame of its own. | ISO 11898-1 general CAN behavior; `HAL:370-378` | No SDK mode of a running normal node suppresses acknowledgements. |
+
+NXP's TJA1051 product data sheet, Rev. 9 of 28 November 2017, §7.1.2 and Table 4 (page 5):
+"A HIGH level on pin S selects Silent mode. In Silent mode the transmitter is disabled, releasing
+the bus pins to recessive state. All other IC functions, including the receiver, continue to operate
+as in Normal mode." §7.2.2 (page 6): pin S has an internal pull-down, so a floating S selects
+Normal mode. Table 7 gives the S input HIGH threshold as 0.7·VIO. The document was fetched from
+`https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf` on 2026-11-06 (SHA-256
+`6637cd500dda3c1c951ce29bed7fe909f11f9a3bef64b096dbb486827add9f11`). It is not retained in this
+repository, and the TJA1051TK/3 on the board is a user report.
+
+**Selected design.** The bench capture ([`SilentCapture`](../../examples/s2_bench/SilentCapture.h))
+keeps the running node in normal mode. It closes a software transmit gate at the last point before
+the SDK (`SoakTwaiTap`'s submit, the only caller of `IdfTwaiDriver::submit`, the only caller of
+`twai_node_transmit` at `IdfTwaiDriver.cpp:195`). Only then does it request the TJA1051 silent
+level on GPIO18. Entry requires established local retirement, so no frame of ours is in the SDK or
+the controller for hardware retransmission to repeat. This application calls neither
+`twai_node_recover` nor any other SDK transmit path.
+
+**What stays open.** With the controller in normal mode it still drives its acknowledgement and
+error-flag bits onto TXD. Only the transceiver's Silent mode keeps them off the bus, and only if
+GPIO18 really reaches pin S at a valid level. A successful `gpio_set_level` requests a level and
+measures nothing. Neither the request nor a capture that received frames proves that the S2 sent
+no ACK or error flag. Physical no-ACK and no-TX need an independent observer on the bus. A
+connected but unintegrated PCAN-USB does not count.
+
+When both drives are powered, each acknowledges the other's frames, so a silent S2 changes
+nothing they can see. A frame that only the S2 would acknowledge, such as one from the only
+powered drive, then loses its ACK. That drive retransmits, and its error counter rises. The S2's
+controller, still in normal mode, would read its own dominant ACK back as recessive. That is a bit
+error under the CAN 2.0B rule, which exempts only a recessive bit sent in the arbitration field or
+the ACK slot. The S2 would drop each attempt and raise its own error counters. This is general CAN
+knowledge, unmeasured on this board, and an open or miswired TX path would look the same.

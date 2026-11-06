@@ -3,12 +3,14 @@
 #include "BenchRoute.h"
 #include "EspProbeMain.h"
 #include "EspProbePlatform.h"
+#include "EspTransceiverPin.h"
 #include "FirmwareProbe.h"
 #include "IdfTwaiDriver.h"
 #include "PdoCommand.h"
 #include "PdoExperiment.h"
 #include "PdoWatch.h"
 #include "RawEvidence.h"
+#include "SilentCapture.h"
 #include "Soak.h"
 #include "driver/gpio.h"
 #include "esp_app_desc.h"
@@ -53,7 +55,8 @@ void formatLine(char* output, size_t capacity, const char* pattern, ...) {
 // Output is copied once into the ordinary bounded platform queue; CAN service never
 // waits for serial output. A one-shot response that does not fit waits here, and no
 // further command is taken until it has gone, so a response is not silently lost.
-DRAM_ATTR char retainedResponse[256];
+// 320 bytes: PONG with every field at its widest is 300 with its newline (scripts/s2_pdo_test.py).
+DRAM_ATTR char retainedResponse[320];
 size_t retainedSize = 0;
 bool written(E::FirmwareProbe& firmware, const char* text, size_t size) {
     return firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(text), size);
@@ -70,6 +73,19 @@ void line(E::FirmwareProbe& firmware, const char* text) {
 void flushResponse(E::FirmwareProbe& firmware) {
     if (retainedSize && written(firmware, retainedResponse, retainedSize))
         retainedSize = 0;
+}
+// The one path to GPIO18, the TJA1051 S input (high = transmitter off, receiver kept): boot, `c`,
+// a progression failure and the capture all request its level here, so this one variable holds
+// the last request. A request is what the GPIO driver accepted, never a measured pin or bus.
+const int SILENT_GPIO = 18;
+E::TransceiverState silentLevel = E::TransceiverState::NOT_CONTROLLED;
+bool driveSilent(void*, int gpio, bool high) {
+    const E::SilentPin pin = E::espSilentPin();
+    const bool accepted = pin.drive(pin.context, gpio, high);
+    silentLevel = !accepted ? E::TransceiverState::FAILED
+                  : high    ? E::TransceiverState::SILENT_REQUESTED
+                            : E::TransceiverState::NORMAL_REQUESTED;
+    return accepted;
 }
 L::ReadTarget target(unsigned node) {
     L::ReadTarget result;
@@ -683,6 +699,45 @@ bool dumpTrial(E::FirmwareProbe& firmware, const E::BenchRoute& route, unsigned&
         ++cursor;
     return true;
 }
+// Capture counters at its begin and end only: twai_node_get_info, never per turn.
+void captureSample(void* context, E::CaptureSample& output) {
+    output.counters =
+        static_cast<const E::IdfTwaiDriver*>(context)->errorCounters(output.tec, output.rec);
+}
+// Like the watch: one allocation on the first capture request, never freed, because dram0_0_seg
+// cannot hold it. A failure refuses the capture; nothing else depends on it.
+E::SilentCapture* captureStorage(E::FirmwareProbe& firmware, C::SdoClient& services,
+                                 E::SoakTwaiTap& tap, E::IdfTwaiDriver& driver) {
+    static E::SilentCapture* capture = nullptr;
+    static char image[65] = {};
+    if (capture)
+        return capture;
+    void* memory = heap_caps_aligned_alloc(alignof(E::SilentCapture), sizeof(E::SilentCapture),
+                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!memory)
+        return nullptr;
+    const esp_app_desc_t* app = esp_app_get_description();
+    for (unsigned i = 0; i < 32; ++i)
+        formatLine(image + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
+    E::CaptureTransceiver transceiver;
+    transceiver.gpio = SILENT_GPIO;
+    transceiver.level = E::SilentLevel::HIGH;
+    transceiver.pin.drive = driveSilent;
+    E::CaptureCallbacks callbacks;
+    callbacks.context = &driver;
+    callbacks.sample = captureSample;
+    capture = new (memory) E::SilentCapture(firmware, services, tap, transceiver, callbacks,
+                                            MOTORCONTROLCAN_SOURCE_REVISION, image);
+    return capture;
+}
+bool dumpCapture(E::FirmwareProbe& firmware, const E::SilentCapture& capture, unsigned& cursor) {
+    char out[E::CAPTURE_LINE_BYTES];
+    if (!capture.formatLine(cursor, out, sizeof out))
+        return false;
+    if (firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out), std::strlen(out)))
+        ++cursor;
+    return true;
+}
 void ownerTask(void*) {
     static DRAM_ATTR C::SdoClient services;
     static DRAM_ATTR E::IdfTwaiDriver driver;
@@ -691,9 +746,8 @@ void ownerTask(void*) {
     static DRAM_ATTR E::FirmwareProbe firmware(services, tap.driver(), console.callbacks());
     static DRAM_ATTR E::RawEvidence raw(firmware.owner(), services);
     static DRAM_ATTR E::PdoExperiment pdo(firmware.owner(), services);
-    // TJA1051 S=1 suppresses bus transmission. Set the latch before enabling GPIO.
-    const bool silentReady = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK &&
-                             gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT) == ESP_OK;
+    // TJA1051 S=1 requests silence. espSilentPin latches the level before enabling the output.
+    const bool silentReady = driveSilent(nullptr, SILENT_GPIO, true);
     if (!console.begin()) {
         for (;;)
             vTaskDelay(1);
@@ -709,12 +763,14 @@ void ownerTask(void*) {
     bool nmtReported = false, networkDump = false;
     bool pdoUsed = false;
     unsigned networkCursor = 0;
-    bool silent = true, controllerReady = false;
+    bool controllerReady = false;
     uint32_t acquisition = 0, grants[2] = {}, grantedOperation[2] = {}, grantedStep[2] = {};
     unsigned dumpCursor = 0;
     E::Soak* soak = nullptr;
     E::PdoWatch* watch = nullptr;
-    // N, P, R, W and E lines (PdoCommand.h), collected whole like the soak and trial requests.
+    // The bounded silent capture (SilentCapture.h, the C line): allocated on its first request.
+    E::SilentCapture* capture = nullptr;
+    // N, P, R, W, E and C lines (PdoCommand.h), collected whole like the soak and trial requests.
     char pdoText[48] = {};
     size_t pdoLength = 0;
     bool pdoCollecting = false;
@@ -783,12 +839,20 @@ void ownerTask(void*) {
             watch->service(firmware.owner().lastTimeUs(),
                            retainedSize != 0 || dumping || networkDump ||
                                (nmtRequest.owner && !nmtReported));
-        if (firmware.progressionFailed() && !silent)
-            silent = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK;
+        if (capture) {
+            // After a progression failure the owner's time stops; the capture then ends at once.
+            uint64_t clock = firmware.owner().lastTimeUs(), sample = 0;
+            if (!firmware.running() && firmware.platform().nowUs(sample) && sample > clock)
+                clock = sample;
+            capture->service(clock);
+        }
+        if (firmware.progressionFailed() && silentLevel != E::TransceiverState::SILENT_REQUESTED)
+            driveSilent(nullptr, SILENT_GPIO, true);
         const E::AcquisitionRecord* record = firmware.evidence().record();
         const E::RawEvidenceRecord* rawRecord = raw.record();
         const auto* pdoRecord = pdo.record();
         const E::RouteRecord* trialRecord = route ? route->record() : nullptr;
+        const E::CaptureRecord* captureRecord = capture ? capture->record() : nullptr;
         if (nmtRequest.owner && !nmtReported) {
             const auto* result = firmware.owner().nmtResult(nmtRequest);
             if (result) {
@@ -808,7 +872,8 @@ void ownerTask(void*) {
             }
         }
         if (((record && record->terminal) || (rawRecord && rawRecord->terminal) ||
-             (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal)) &&
+             (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal) ||
+             (captureRecord && captureRecord->terminal)) &&
             !reported) {
             reported = true;
             dumping = true;
@@ -817,10 +882,11 @@ void ownerTask(void*) {
             services.clearUploadExperiment(1);
         }
         if (dumping)
-            dumping = trialRecord ? dumpTrial(firmware, *route, dumpCursor)
-                      : pdoRecord ? dumpPdo(firmware, pdo, dumpCursor)
-                      : rawRecord ? dumpRaw(firmware, raw, dumpCursor)
-                                  : dump(firmware, dumpCursor);
+            dumping = trialRecord     ? dumpTrial(firmware, *route, dumpCursor)
+                      : pdoRecord     ? dumpPdo(firmware, pdo, dumpCursor)
+                      : rawRecord     ? dumpRaw(firmware, raw, dumpCursor)
+                      : captureRecord ? dumpCapture(firmware, *capture, dumpCursor)
+                                      : dump(firmware, dumpCursor);
         else if (networkDump)
             networkDump = dumpNetwork(firmware, services, networkCursor);
         flushResponse(firmware);
@@ -840,8 +906,11 @@ void ownerTask(void*) {
         }
         // A trial record, active or retained, admits nothing else but inspection and release.
         const bool trialHeld = trialRecord != nullptr;
+        // A capture collecting, its record held or its gate still closed: only p, s, n, d, r and
+        // the C0 stop line are served; whole lines are still collected and then refused.
+        const char* captureBlock = capture ? capture->blocking() : nullptr;
         if (!retainedSize && firmware.platform().takeInput(command)) {
-            char output[256] = {};
+            char output[320] = {};
             if (trialCollecting) {
                 bool ended = false;
                 uint8_t byte = command;
@@ -859,8 +928,8 @@ void ownerTask(void*) {
                     trialCollecting = false;
                     const char* refusal = "length";
                     if (trialLength <= sizeof trialText) {
-                        refusal = "state";
-                        if (controllerReady && !soakActive && !dumping && !networkDump &&
+                        refusal = captureBlock ? "capture" : "state";
+                        if (!captureBlock && controllerReady && !soakActive && !dumping && !networkDump &&
                             !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !trialHeld &&
                             firmware.platform().nowUs(now))
                             refusal = startRoute(firmware, services, driver, route, configured,
@@ -900,6 +969,49 @@ void ownerTask(void*) {
                     if (pdoLength > sizeof pdoText ||
                         !E::parsePdoCommand(pdoText, pdoLength, parsed)) {
                         line(firmware, "PDO_LINE refused reason=syntax; no work\n");
+                    } else if (parsed.kind == E::PdoCommandKind::CAPTURE && !parsed.capture) {
+                        line(firmware, capture && capture->requestStop()
+                                           ? "CAP_STOPPING; the record follows; nothing sent\n"
+                                           : "CAP_STOP refused; none running\n");
+                    } else if (parsed.kind == E::PdoCommandKind::CAPTURE) {
+                        // The owner, adapter and tap evidence is checked by begin itself; here only
+                        // the bench's own activities, each of which can still send or share the ring.
+                        const char* refusal = captureBlock ? "busy" : "state";
+                        if (!captureBlock && controllerReady && !soakActive && !trialHeld &&
+                            !(watch && watch->active()) && !dumping && !networkDump &&
+                            !nmtRequest.owner && !record && !rawRecord && !pdoRecord &&
+                            firmware.platform().nowUs(now)) {
+                            if (!capture)
+                                capture = captureStorage(firmware, services, tap, driver);
+                            refusal = "memory";
+                            if (capture) {
+                                E::CapturePlan plan;
+                                plan.id = parsed.capture;
+                                plan.seconds = parsed.seconds;
+                                plan.frames = parsed.frames;
+                                const E::CaptureAdmission admitted = capture->begin(plan, now);
+                                refusal = admitted == E::CaptureAdmission::ACCEPTED
+                                              ? nullptr
+                                              : E::captureAdmissionName(admitted);
+                            }
+                        }
+                        if (refusal) {
+                            formatLine(output, sizeof output, "CAP refused reason=%s; no work\n",
+                                       refusal);
+                        } else {
+                            reported = false;
+                            formatLine(output, sizeof output,
+                                       "CAP admitted cap=%lu seconds=%lu frames=%u gpio=%d "
+                                       "silentHigh=1; TX gate closed, silent level requested, "
+                                       "nothing sent\n",
+                                       static_cast<unsigned long>(parsed.capture),
+                                       static_cast<unsigned long>(parsed.seconds),
+                                       unsigned(parsed.frames), SILENT_GPIO);
+                        }
+                        line(firmware, output);
+                    } else if (captureBlock) {
+                        // The watch shares the capture's tap ring; every other line can send.
+                        line(firmware, "PDO_LINE refused reason=capture; no work\n");
                     } else if (parsed.kind == E::PdoCommandKind::WATCH) {
                         if (!parsed.seconds) {
                             line(firmware, watch && watch->requestStop()
@@ -1023,8 +1135,8 @@ void ownerTask(void*) {
                     soakCollecting = false;
                     const char* refusal = "active";
                     if (!soakActive) {
-                        refusal = "state";
-                        if (soakLength <= sizeof soakText && controllerReady && !dumping &&
+                        refusal = captureBlock ? "capture" : "state";
+                        if (!captureBlock && soakLength <= sizeof soakText && controllerReady && !dumping &&
                             !networkDump && !nmtRequest.owner && !record && !rawRecord &&
                             !pdoRecord && !trialHeld && firmware.platform().nowUs(now))
                             refusal = startSoak(firmware, services, tap, driver, soak, configured,
@@ -1045,12 +1157,17 @@ void ownerTask(void*) {
                 soakLength = 0;
                 soakCollectUs = firmware.platform().nowUs(now) ? now : 0;
             } else if (command == 'N' || command == 'P' || command == 'R' || command == 'W' ||
-                       command == 'E') {
+                       command == 'E' || command == 'C') {
                 // A soak or a trial admits only the watch line; the collector refuses the rest.
                 pdoCollecting = true;
                 pdoText[0] = char(command);
                 pdoLength = 1;
                 pdoCollectUs = firmware.platform().nowUs(now) ? now : 0;
+            } else if (captureBlock && command != 'p' && command != 's' && command != 'n' &&
+                       command != 'd' && command != 'r' && command != 'T' && command != '\r' &&
+                       command != '\n') {
+                formatLine(output, sizeof output, "CAP refused reason=%s; no work\n", captureBlock);
+                line(firmware, output);
             } else if (soakActive && command != 'p' && command != 's' && command != '\r' &&
                        command != '\n') {
                 line(firmware, "SOAK_REFUSED reason=active; no work\n");
@@ -1154,7 +1271,8 @@ void ownerTask(void*) {
                                    : "IDENTITY refused; no work\n");
             } else if (command == 'd') {
                 if (((record && record->terminal) || (rawRecord && rawRecord->terminal) ||
-                     (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal)) &&
+                     (pdoRecord && pdoRecord->terminal) || (trialRecord && trialRecord->terminal) ||
+                     (captureRecord && captureRecord->terminal)) &&
                     !dumping) {
                     dumping = true;
                     dumpCursor = 0;
@@ -1162,6 +1280,12 @@ void ownerTask(void*) {
                     line(firmware, "DUMP unavailable\n");
                 }
             } else if (command == 'r') {
+                if (captureRecord) {
+                    line(firmware, !dumping && capture->release()
+                                       ? "CAP record released; level, gate and SDO state unchanged\n"
+                                       : "CAP release refused\n");
+                    continue;
+                }
                 if (trialRecord) {
                     line(firmware, !dumping && route->release()
                                        ? "TRIAL record released; sessions and uncertainty retained\n"
@@ -1211,14 +1335,15 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u pdo=2 "
-                           "watch=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u pdo=3 "
+                           "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
-                           unsigned(silent), unsigned(silentReady), unsigned(soakActive),
+                           unsigned(silentLevel != E::TransceiverState::NORMAL_REQUESTED),
+                           unsigned(silentReady), unsigned(soakActive),
                            static_cast<unsigned long long>(firmware.owner().lastTimeUs()),
                            unsigned(trialHeld), unsigned(route ? route->motionAdmissions() : 0),
-                           unsigned(watch && watch->active()));
+                           unsigned(watch && watch->active()), unsigned(captureBlock != nullptr));
                 line(firmware, output);
             } else if (command == 'c') {
                 bool ready = false;
@@ -1232,13 +1357,9 @@ void ownerTask(void*) {
                     config.controller.sdkTxQueueDepth = 1;
                     config.controller.rxQueueDepth = 16;
                     ready = firmware.begin(config);
-                    if (ready) {
-                        if (gpio_set_level(GPIO_NUM_18, 0) != ESP_OK) {
-                            firmware.transport().shutdown();
-                            ready = false;
-                        } else {
-                            silent = false;
-                        }
+                    if (ready && !driveSilent(nullptr, SILENT_GPIO, false)) {
+                        firmware.transport().shutdown();
+                        ready = false;
                     }
                     controllerReady = ready;
                 }

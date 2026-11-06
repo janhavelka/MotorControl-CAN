@@ -345,7 +345,7 @@ GRAMMAR = (
     Row("END_NETWORK", "END network", "response"),
     Row("PONG", "PONG ", "response",
         "target:s base:s elf:s sdk:s running:b active:b silent:b pinsReady:b soak:b? t:u? routes:u? trial:b? "
-        "motion:u? pdo:u? watch:b?", "t", _PONG + (("controller", "trial"), ("health", "motion"))),
+        "motion:u? pdo:u? watch:b? capture:b?", "t", _PONG + (("controller", "trial"), ("health", "motion"))),
     Row("STATS", "STATS ", "response",
         "running:b inhibited:b rx:u tx:u dropped:u errors:u flags:x stackFree:u t:u? txRej:u? rxLost:u? "
         "unmatched:u? traceOver:u? ownerGap:u? conRej:u?", "t", _STATS),
@@ -393,6 +393,30 @@ GRAMMAR = (
         "data:s", "t"),
     Row("PDOW_END", "PDOW_END ", "watch",
         "n:u t:u reason:s frames:u printed:u unprinted:u tapDropped:u untimed:u sdo:u idOverflow:u", "t"),
+    # The bounded silent capture (examples/s2_bench/SilentCapture.h, the C line, PONG pdo=3). Its
+    # record is printed after the end, one line per turn, and held until r. A CAP_F line is a receive
+    # copy; the record shows what the software did, never that the bus saw no ACK or TX.
+    Row("ADMITTED", "CAP admitted", "start", "cap:u seconds:u frames:u gpio:u silentHigh:b"),
+    Row("REFUSED", "CAP refused", "refused", "reason:s"),
+    Row("CAP_STOPPING", "CAP_STOPPING", "response"),
+    Row("CAP_STOP_REFUSED", "CAP_STOP refused", "response"),
+    Row("RELEASED", "CAP record released", "response"),
+    Row("RELEASE_REFUSED", "CAP release refused", "response"),
+    Row("CAP_REC", "CAP_REC ", "capture",
+        "cap:u reason:s seconds:u capacity:u stored:u overflow:u tapDropped:u pre:u post:u untimed:u "
+        "txRefused:u lost:b"),
+    Row("CAP_TIME", "CAP_TIME ", "capture", "cap:u begin:u end:u nominal:u gap:u clock:s", "end"),
+    Row("CAP_LEVEL", "CAP_LEVEL ", "capture",
+        "cap:u gpio:u silentHigh:b begin:b exit:u reopened:b at:u latched:b"),
+    Row("CAP_CTRL", "CAP_CTRL ", "capture",
+        "cap:u which:u t:u epoch:u counters:b tec:u rec:u inhibited:b adapterInhibited:b twaiDropped:u "
+        "twaiErrors:u twaiFlags:x", "t"),
+    Row("CAP_OWNER", "CAP_OWNER ", "capture",
+        "cap:u which:u rx:u dropped:u lost:u unmatched:u tx:u txRej:u busOff:u refused:u"),
+    Row("CAP_IMAGE", "CAP_IMAGE ", "capture", "cap:u base:s elf:s"),
+    Row("CAP_F", "CAP_F ", "capture",
+        "cap:u i:u id:x ext:b rtr:b dlc:u data:s bounds:b exact:b lo:u hi:u epoch:u pre:b post:b"),
+    Row("CAP_END", "END capture", "capture", "cap:u stored:u overflow:u lost:b"),
     Row("UNKNOWN_COMMAND", "UNKNOWN command", "response"),
     Row("FORMAT_ERROR", "OUTPUT_FORMAT_ERROR", "error"),
     Row("BOOT_READY", "S2_BENCH ready", "boot", signals=_boot_signals),

@@ -55,10 +55,13 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
 | `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
 | `E<node>,<0\|100>` | The supported TPDO1 event-timer change on node 1 or 2: `1800:05` from raw 100 to raw 0 or from raw 0 to raw 100, through the profile's typed lifecycle (below) |
+| `C<capture>,<seconds>,<frames>`, `C0` | One bounded silent capture, 1..600 s and 1..128 stored frames, with every transmission refused and S18 requested high; `C0` ends it early (below) |
 
 While a soak runs, only `p`, `s`, `X` and a `P` watch line are served; anything else answers
 `SOAK_REFUSED reason=active` (an `N`, `R`, `W` or `E` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
-are served; anything else answers `TRIAL_REFUSED reason=active`. A response that finds the console queue full waits in
+are served; anything else answers `TRIAL_REFUSED reason=active`. While a capture collects, its record is held or its
+transmit gate stays closed, only `p`, `s`, `n`, `d`, `r` and `C0` are served; any other byte answers `CAP refused reason=active`
+(`held`, `closed`), any other line `PDO_LINE refused reason=capture`, and a soak or trial line `reason=capture`. A response that finds the console queue full waits in
 one retained buffer, and no further command is taken until it has gone.
 
 ### PDO stream sessions
@@ -206,6 +209,20 @@ A processing timestamp is never relabeled as arrival. A boot-up is recorded
 only when an actual matching `00` event is received; absence of such an event
 is not proof of a fresh server session. Network history and serial output are
 bounded, with loss/truncation reported explicitly.
+
+### Silent capture
+
+`C<capture>,<seconds>,<frames>` ([`SilentCapture.h`](SilentCapture.h), packet 4) records copies of what the ordinary owner
+receives for a stated time, into a record of stated capacity, while the tap's transmit gate refuses every submission and
+S18 requests the TJA1051 Silent mode. Entry is refused unless the controller runs, nothing is queued or active, and every
+slot, the NMT handoff and the tap prove local TX retirement; unknown retirement refuses. The gate closes before the silent
+request. At the end the copies stop, S18 is requested low, and the gate opens only once the owner is idle and retired
+again. The record (`CAP_REC`, `CAP_TIME`, `CAP_LEVEL`, two `CAP_CTRL`, two `CAP_OWNER`, `CAP_IMAGE`, one `CAP_F` per frame,
+`END capture`) is printed after the end and released with `r`. `SilentCapture` is allocated from internal heap on first
+use (7608 bytes on S2, measured with the pinned compiler). PONG reports `pdo=3` and `capture`, 1 while a capture
+collects, its record is held or its gate is closed. The controller stays in normal mode: the record shows what the
+software refused and received, never that the bus saw no ACK or TX from the S2. Lines, refusal reasons and limits are in
+[hardware_bench.md](../../docs/hardware_bench.md#silent-capture).
 
 ## Communication soak
 

@@ -175,15 +175,31 @@ TwaiDriver SoakTwaiTap::driver() noexcept {
         return self.inner_.start(self.inner_.context, config, epoch);
     };
     result.stop = [](void* p) {
-        const SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
-        return self.inner_.stop(self.inner_.context);
+        SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
+        const bool stopped = self.inner_.stop(self.inner_.context);
+        // A confirmed stop deletes the node with its queued and active frames; a refused one
+        // leaves everything as it was.
+        if (stopped)
+            self.outstanding_ = self.uncertain_ = false;
+        return stopped;
     };
     result.submit = [](void* p, const M::Frame& frame, uint32_t serial) {
         SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
-        const TwaiSubmit submitted = self.inner_.submit(self.inner_.context, frame, serial);
+        // Closed: refused before the SDK, so the frame provably never left. The adapter reports it
+        // unsent and the owner withdraws it; nothing is queued for later.
+        const TwaiSubmit submitted = self.closed_ ? TwaiSubmit::FAILED_UNSENT
+                                                  : self.inner_.submit(self.inner_.context, frame, serial);
+        if (self.closed_)
+            add(self.refused_);
         if (submitted == TwaiSubmit::DEFERRED) {
             add(self.deferred_);
             return submitted;
+        }
+        if (submitted == TwaiSubmit::SENT) {
+            self.outstanding_ = true;
+            self.outstandingSerial_ = serial;
+        } else if (submitted == TwaiSubmit::FAILED_UNCERTAIN) {
+            self.uncertain_ = true; // The SDK may hold it; only a confirmed stop retires it.
         }
         if (self.present_)
             add(self.overwritten_);
@@ -194,8 +210,13 @@ TwaiDriver SoakTwaiTap::driver() noexcept {
         return submitted;
     };
     result.events = [](void* p) {
-        const SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
-        return self.inner_.events(self.inner_.context);
+        SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
+        const TwaiEvents events = self.inner_.events(self.inner_.context);
+        // Only the exact final report of the frame handed over retires it here; a report with
+        // another serial is a correlation fault the adapter handles, and retires nothing.
+        if (events.txDone && self.outstanding_ && events.serial == self.outstandingSerial_)
+            self.outstanding_ = false;
+        return events;
     };
     // Runs on the owner task, never in an ISR: CanBusOwner::service calls Transport::receive,
     // TwaiAdapter forwards it here with its turn time as the cutoff, and IdfTwaiDriver::receive

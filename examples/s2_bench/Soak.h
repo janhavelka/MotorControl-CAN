@@ -61,6 +61,12 @@ struct ReceiveRing {
  * and its driver. The adapter has no public view of this boundary, and owner diagnostics stop at
  * its queue. A forwarding shim: it adds no retry, no delay and no second receive path.
  * Stationary, and it outlives the adapter that borrows its callbacks.
+ *
+ * It is also the last software point before the SDK, so it holds the bench's transmit gate
+ * (SilentCapture): while closed, every submission is refused here as FAILED_UNSENT without
+ * calling the inner driver. That result proves to the adapter and owner that the frame never
+ * reached the SDK, so nothing is left uncertain by the refusal. The gate does not stop the
+ * controller acknowledging frames or sending error flags: those are bits, not submissions.
  */
 class SoakTwaiTap {
   public:
@@ -79,6 +85,21 @@ class SoakTwaiTap {
     uint32_t deferred() const noexcept { return deferred_; }
     /** @return Saturating count of records replaced before they were taken. */
     uint32_t overwritten() const noexcept { return overwritten_; }
+    /** Refuse every later submission at this boundary until openTransmit. No I/O. */
+    void closeTransmit() noexcept { closed_ = true; }
+    /** Forward submissions to the inner driver again. No I/O; sends nothing itself. */
+    void openTransmit() noexcept { closed_ = false; }
+    /** @return True while submissions are refused here. */
+    bool transmitClosed() const noexcept { return closed_; }
+    /** @return Saturating count of submissions refused by the closed gate; none reached the SDK. */
+    uint32_t refused() const noexcept { return refused_; }
+    /** Driver-boundary retirement evidence, independent of the owner's own.
+     * @return False while a frame the inner driver accepted (SENT) has had no final report with
+     * its serial, or after a FAILED_UNCERTAIN, until a confirmed inner stop deleted the node. True
+     * means no frame this tap handed over can still be in the SDK or controller, so the
+     * controller has nothing of ours to retransmit. Nothing here observes the bus.
+     */
+    bool sdkRetired() const noexcept { return !outstanding_ && !uncertain_; }
     /** Start or stop copying received frames. Off by default.
      * A copy is made only when the inner receive returned a frame, after it returned, and the
      * owner still gets that frame unchanged. Copying never consumes, delays or repeats a receive.
@@ -96,8 +117,8 @@ class SoakTwaiTap {
     TwaiDriver inner_;
     SoakSubmission latest_;
     ReceiveRing* ring_ = nullptr;
-    uint32_t deferred_ = 0, overwritten_ = 0;
-    bool present_ = false;
+    uint32_t deferred_ = 0, overwritten_ = 0, refused_ = 0, outstandingSerial_ = 0;
+    bool present_ = false, closed_ = false, outstanding_ = false, uncertain_ = false;
 };
 /** Local resource sample; the SDK calls behind it live in the firmware entry. */
 struct SoakResources {
