@@ -15,15 +15,23 @@ if(IDF_TARGET STREQUAL "esp32s2")
 else()
     set(console_driver esp_driver_usb_serial_jtag)
 endif()
-idf_component_register(SRCS main.cpp ${firmware_sources}
+# The finite smoke check is test-only: its source joins only an explicitly enabled build.
+set(smoke_sources)
+if(CONFIG_MOTORCONTROLCAN_SMOKE_HOOK)
+    set(smoke_sources "${can_root}/examples/common/FirmwareSmoke.cpp")
+endif()
+idf_component_register(SRCS main.cpp ${firmware_sources} ${smoke_sources}
     INCLUDE_DIRS ${firmware_include_dirs}
-    REQUIRES MotorControlCAN esp_driver_twai ${console_driver} esp_driver_gpio esp_timer)
+    REQUIRES MotorControlCAN esp_driver_twai ${console_driver} esp_driver_gpio esp_timer
+             esp_app_format)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     MOTORCONTROLCAN_COMPILE_FIXTURE=$<BOOL:${CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE}>
     MOTORCONTROLCAN_CAN_TX_PIN=${CONFIG_MOTORCONTROLCAN_CAN_TX_PIN}
     MOTORCONTROLCAN_CAN_RX_PIN=${CONFIG_MOTORCONTROLCAN_CAN_RX_PIN}
     MOTORCONTROLCAN_CAN_BITRATE=${CONFIG_MOTORCONTROLCAN_CAN_BITRATE}
-    MOTORCONTROLCAN_CAN_RX_DEPTH=${CONFIG_MOTORCONTROLCAN_CAN_RX_DEPTH})
+    MOTORCONTROLCAN_CAN_RX_DEPTH=${CONFIG_MOTORCONTROLCAN_CAN_RX_DEPTH}
+    MOTORCONTROLCAN_CAN_SILENT_PIN=${CONFIG_MOTORCONTROLCAN_CAN_SILENT_PIN}
+    MOTORCONTROLCAN_CAN_SILENT_LEVEL=${CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL})
 set_target_properties(${COMPONENT_LIB} PROPERTIES
     CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF
     C_STANDARD 99 C_STANDARD_REQUIRED YES)

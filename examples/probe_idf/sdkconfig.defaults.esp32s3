@@ -1,0 +1,2 @@
+# ESP32-S3 N8 / no-PSRAM compile fixture; not an installed board fact.
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y

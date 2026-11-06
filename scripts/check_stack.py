@@ -58,6 +58,7 @@ SDK_ONLY = {
     "adapters/twai/IdfTwaiDriver.cpp": "includes ESP-IDF TWAI driver headers",
     "examples/common/EspProbeMain.cpp": "includes FreeRTOS and esp_attr headers",
     "examples/common/EspProbePlatform.cpp": "includes FreeRTOS, esp_timer and console driver headers",
+    "examples/common/EspTransceiverPin.cpp": "includes ESP-IDF GPIO driver headers",
     "examples/s2_bench/main/main.cpp": "includes FreeRTOS and console driver headers",
     "examples/probe_idf/main/main.cpp": "includes FreeRTOS headers through EspProbeMain.h",
 }

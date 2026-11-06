@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: MIT
 #include "EspProbeMain.h"
 #include "EspProbePlatform.h"
+#include "EspTransceiverPin.h"
 #include "IdfTwaiDriver.h"
 #include "esp_attr.h"
+#include "sdkconfig.h"
 #include <atomic>
 
 #if !configSUPPORT_STATIC_ALLOCATION || portNUM_PROCESSORS < 1
 #error "This example requires static task allocation and an owner core"
+#endif
+// The console platform's core rule, checked in each real target build.
+#if CONFIG_IDF_TARGET_ESP32S2
+static_assert(MotorControlCANExample::FIRMWARE_OWNER_CORE == 0, "S2 owner uses its sole core");
+#elif CONFIG_IDF_TARGET_ESP32S3
+static_assert(MotorControlCANExample::FIRMWARE_OWNER_CORE == 1, "S3 owner keeps core 1");
 #endif
 
 namespace MotorControlCANExample {
@@ -14,45 +22,57 @@ namespace {
 DRAM_ATTR StackType_t stack[FIRMWARE_STACK_BYTES / sizeof(StackType_t)];
 DRAM_ATTR StaticTask_t taskState;
 DRAM_ATTR FirmwareConfig configuration;
+FirmwareTurnHook turnHook;
 std::atomic<FirmwareBootStatus> boot(FirmwareBootStatus::NOT_STARTED);
 bool attempted = false;
+void write(FirmwareProbe& firmware, const char* message) {
+    size_t length = 0;
+    while (message[length])
+        ++length; // Fixed bounded messages, each shorter than 96 bytes.
+    firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(message), length);
+}
 void ownerTask(void*) {
     // Lifetime continues even after failed initialization/deletion. SDK callback
     // storage never resides in optional PSRAM or on a returning task stack.
     static DRAM_ATTR MotorControlCAN::CANOPEN::SdoClient services;
     static DRAM_ATTR IdfTwaiDriver driver;
     static DRAM_ATTR EspProbePlatform console;
-    static DRAM_ATTR FirmwareProbe firmware(services, driver.driver(), console.callbacks());
+    static DRAM_ATTR FirmwareProbe firmware(services, driver.driver(), console.callbacks(),
+                                            espSilentPin());
+    // Silence a configured transceiver before anything else; the controller stays closed.
+    firmware.prepare(configuration);
     const bool platformReady = console.begin();
-    const bool controllerReady = platformReady && firmware.begin(configuration);
-    boot.store(!platformReady              ? FirmwareBootStatus::PLATFORM_FAILED
-               : !configuration.configured ? FirmwareBootStatus::CONFIGURATION_REQUIRED
-               : controllerReady           ? FirmwareBootStatus::RUNNING
-                                           : FirmwareBootStatus::CONTROLLER_FAILED);
-    const char ready[] = "MotorControl-CAN: local controller ready; no target or request.\n";
-    const char disabled[] =
-        "MotorControl-CAN: compile fixture; CAN disabled, configuration required.\n";
-    const char failed[] = "MotorControl-CAN: local initialization failed; no retry.\n";
-    const char* message = controllerReady ? ready : !configuration.configured ? disabled : failed;
-    size_t length = 0;
-    while (message[length])
-        ++length; // Three fixed bounded messages, each shorter than 96 bytes.
-    firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(message), length);
+    FirmwareBootStatus status = firmwareStatus(firmware, platformReady);
+    boot.store(status);
+    write(firmware,
+          status == FirmwareBootStatus::INACTIVE
+              ? "MotorControl-CAN: board accepted; CAN inactive until explicit start.\n"
+          : status == FirmwareBootStatus::CONFIGURATION_REQUIRED
+              ? "MotorControl-CAN: compile fixture; CAN disabled, configuration required.\n"
+          : status == FirmwareBootStatus::TRANSCEIVER_FAILED
+              ? "MotorControl-CAN: transceiver silent level refused; CAN disabled.\n"
+          : status == FirmwareBootStatus::PLATFORM_FAILED
+              ? "MotorControl-CAN: platform refused; CAN disabled.\n"
+              : "MotorControl-CAN: board configuration refused; CAN disabled.\n");
     bool failureReported = false;
     for (;;) {
         firmware.service();
+        if (turnHook.turn)
+            turnHook.turn(turnHook.context, firmware);
+        // Explicit start/stop happen only through the hook; startup itself never moves on.
+        const FirmwareBootStatus next = firmwareStatus(firmware, platformReady);
+        if (next != status) {
+            status = next;
+            boot.store(status);
+        }
         if (firmware.progressionFailed() && !failureReported) {
             failureReported = true;
-            boot.store(FirmwareBootStatus::PROGRESSION_FAILED);
-            const char* fault = firmware.failure() == FirmwareFailure::CLOCK
-                                    ? "MotorControl-CAN: clock fault; controller inhibited.\n"
-                                    : firmware.failure() == FirmwareFailure::APPLICATION
-                                          ? "MotorControl-CAN: application service rejected; controller inhibited.\n"
-                                          : "MotorControl-CAN: evidence service rejected; controller inhibited.\n";
-            size_t length = 0;
-            while (fault[length])
-                ++length;
-            firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(fault), length);
+            write(firmware,
+                  firmware.failure() == FirmwareFailure::CLOCK
+                      ? "MotorControl-CAN: clock fault; controller inhibited.\n"
+                  : firmware.failure() == FirmwareFailure::APPLICATION
+                      ? "MotorControl-CAN: application service rejected; controller inhibited.\n"
+                      : "MotorControl-CAN: evidence service rejected; controller inhibited.\n");
         }
         // ProbeCallbacks.idle is null. Scheduling follows owner + transport.
         if (platformReady)
@@ -62,11 +82,12 @@ void ownerTask(void*) {
     }
 }
 } // namespace
-bool startProbeFirmware(const FirmwareConfig& config) noexcept {
+bool startProbeFirmware(const FirmwareConfig& config, const FirmwareTurnHook& hook) noexcept {
     if (attempted)
         return false;
     attempted = true;
     configuration = config;
+    turnHook = hook;
     if (!xTaskCreateStaticPinnedToCore(ownerTask, "can_owner", sizeof(stack), nullptr, 1, stack,
                                        &taskState, FIRMWARE_OWNER_CORE)) {
         boot.store(FirmwareBootStatus::TASK_FAILED);
