@@ -1,0 +1,143 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-06T03:47:38.680413+00:00",
+  "trials": [
+    {
+      "trial": 1793926057,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 1340,
+          "detail": "bad value mean=tireMax=4558"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10573,
+          "detail": "bad value rx=66l=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10584,
+          "detail": "bad value rx=66l=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10716,
+          "detail": "missing resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10727,
+          "detail": "missing resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10749,
+          "detail": "missing resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10771,
+          "detail": "missing resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10782,
+          "detail": "missing resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 10826,
+          "detail": "missing resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14753,
+          "detail": "bad value rx=ull=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14764,
+          "detail": "bad value rx=9ll=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14775,
+          "detail": "missing rxDrop,rxLost,unmatched,qRej,resFull,timeouts,cancelled"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14788,
+          "detail": "bad value evHw=lies=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14793,
+          "detail": "missing opsFail,refused,steps"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14799,
+          "detail": "bad value evHw=lies=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 14804,
+          "detail": "missing opsFail,refused,steps"
+        },
+        {
+          "code": "malformed_line",
+          "line": 18986,
+          "detail": "duplicate field node"
+        },
+        {
+          "code": "malformed_line",
+          "line": 18996,
+          "detail": "duplicate field node"
+        },
+        {
+          "code": "malformed_line",
+          "line": 19006,
+          "detail": "duplicate field node"
+        },
+        {
+          "code": "malformed_line",
+          "line": 19795,
+          "detail": "duplicate field ops"
+        }
+      ],
+      "error_count": 120,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793926057,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 75,
+          "SOAK_SUM": 10761,
+          "SOAK_GAP": 10799,
+          "SOAK_CON": 10791,
+          "SOAK_NODE": 21587,
+          "SOAK_HIST": 21598,
+          "SOAK_OUT": 21586,
+          "SOAK_ABORT": 21587,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 80,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 69
+        }
+      },
+      "unknown": 1,
+      "malformed": 70,
+      "bytes": 16787854,
+      "sha256": "001f7b44303192a6ab40aa060f7f390e718fa25a97f246a645941260f1584521"
+    }
+  ]
+}

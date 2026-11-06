@@ -94,3 +94,20 @@ The runner refuses read intervals under 20 ms (`--interval-ms must be 20..60000`
 **Console: no loss in 10,791 bursts**, with the same 1 s summaries, about the same 16.6 MB of output and the same image. At R1 and R2's rate it would have lost about 200. So **the loss follows the 20 ms read load, not the image**, and the 2026-11-03 200 ms run's clean result was not luck.
 
 **What the read load changes.** At 20 ms the S2 cannot keep the schedule: it slipped 140,119 ticks and an operation waited for its predecessor in 2.0 million turns, giving about 34 operations per second instead of 50. At 200 ms both counts are 0. The firmware writes console bytes straight into the S2's 128-byte UART FIFO, at most 16 per service turn and only while there is room (`uart_tx_chars` with no TX ring, `examples/common/EspProbePlatform.cpp`; `OUTPUT_BUDGET`, `examples/common/ProbePlatform.h`). A turn ends with a 1 ms tick delay, so an idle loop can feed up to 16 kB/s against the line's 11.5 kB/s. A loop busy with CAN service feeds less, and the UART stream breaks up. It still cannot drop a byte the FIFO accepted. The firmware's own line counter stayed contiguous in every run. What vanishes is a whole 64-byte USB full-speed transfer (one 35-byte one on 2026-11-03), so the bytes are lost after the S2's UART: in the ESP-Prog-2 bridge, on the USB link or in the host driver. **Leading hypothesis, not shown:** the bridge mishandles the broken-up UART stream it receives under the 20 ms load.
+
+### R4: 50 ms reads, 1 s summaries
+
+[`20261106-stress-r4-reads50ms`](../bench/20261106-stress-r4-reads50ms/transitions.txt), 00:47Z to 03:47Z, fresh S2 reset.
+
+**CAN: clean.** 107,990 and 107,989 operations per node, all successful, one per node every 100 ms; TEC and REC 0, largest gap 4.6 ms, no signal change after the first replies.
+
+**Console: 72 losses in 10,799 bursts (0.67%)**, 19, 12, 12, 12, 9 and 8 per half hour. **The schedule held**: 0 slips, and only 39 turns in which an operation waited for its predecessor. So a saturated loop is not needed for the loss; its rate rises with the CAN operation rate. The losses also spread further into a burst than at 20 ms: reported lines began up to 1,455 bytes after the summary line, against at most 602.
+
+**No byte was ever altered.** In R1 to R4, 67.2 MB of console capture, no line holds a byte outside printable ASCII, and every damaged line is a clean splice. Electrical noise on the S2-to-bridge UART would sometimes corrupt bytes; it never did, so the loss is a deletion in the data path, not a corrupted signal.
+
+| Run | Reads | Operations per second | Bursts | Losses | Per burst |
+| --- | --- | --- | --- | --- | --- |
+| R1 | 20 ms | 34 | 10,686 | 182 | 1.7% |
+| R2 | 20 ms | 34 | 10,672 | 212 | 2.0% |
+| R4 | 50 ms | 20 | 10,799 | 72 | 0.67% |
+| R3 | 200 ms | 5 | 10,791 | 0 | 0 |
