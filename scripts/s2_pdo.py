@@ -2,10 +2,11 @@
 """Run one planned PDO stream session on the S2 bench, or analyze a retained one; one lead alone runs this.
 
 run: validates the recorded USB identity, opens only that port (neither EN nor BOOT is driven),
-pings, refuses unless the image speaks the PDO lines (PONG pdo=1) with no soak or trial record
-held, then sends the plan's steps in order and captures every byte to rx.bin. A step sends one
-console command (a single byte, or an N, P, R, W, S line of examples/s2_bench/PdoCommand.h and the
-soak) and waits for its expected reply; a refusal or a missing reply ends the plan. The plan is the
+pings, refuses unless the image speaks the PDO lines the plan uses (PONG pdo=1: N, P, R, W;
+pdo=2 adds E) with no soak or trial record held, then sends the plan's steps in order and captures
+every byte to rx.bin. A step sends one console command (a single byte, or an N, P, R, W, E, S line
+of examples/s2_bench/PdoCommand.h and the soak) and waits for its expected reply; a refusal or a
+missing reply ends the plan. The plan is the
 only source of device commands: nothing is retried, replayed or added, and no NMT, write or stop
 is sent on the plan's behalf. If the plan ends early while a watch runs, only "P0" is sent, which
 ends the local watch and sends nothing on CAN. Whatever state the drives were left in, Operational
@@ -41,18 +42,23 @@ PING_TIMEOUT_S = 3.0
 DEFAULT_TIMEOUT_S = 3.0
 WATCH_STOP_S = 5.0
 # Replies that end a plan: the firmware refused the command, so nothing after it may follow.
-REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDOW refused", "PDOW_STOP refused",
+REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDO_CONFIG refused", "PDOW refused",
+            "PDOW_STOP refused",
             "NMT refused", "NMT release refused", "RELEASE refused", "PDO release refused", "SOAK_REFUSED",
             "TRIAL_REFUSED", "UNKNOWN command", "HEARTBEAT refused", "PDO refused", "IDENTITY refused",
             "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR")
-LINE_COMMANDS = ("N", "P", "R", "W", "S")
+LINE_COMMANDS = ("N", "P", "R", "W", "E", "S")
+# The PDO line letters each image protocol (PONG pdo=) serves. An older image answers an unknown
+# letter as single-byte commands, and E1,100 there would start a node-1 identity read: never sent.
+PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE")}
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
 SINGLE_BYTES = set("cpsrdnhjX34")
 # The admission line and end line of every command whose firmware terminal decides whether later
 # steps may follow, keyed by the command itself, never by the plan's own expect text.
 CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END raw"),
-           "W": ("PDO_WRITE admitted", "END raw"), "h": ("HEARTBEAT experiment admitted", "END raw"),
+           "W": ("PDO_WRITE admitted", "END raw"), "E": ("PDO_CONFIG admitted", "END PDO"),
+           "h": ("HEARTBEAT experiment admitted", "END raw"),
            "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
            "4": ("IDENTITY admitted", "END raw")}
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
@@ -85,7 +91,7 @@ def check_plan(plan):
                 if text not in SINGLE_BYTES:
                     raise SessionError("step %d: %r is not a reviewed single-byte command" % (number, text))
             elif text[0] not in LINE_COMMANDS or any(c in text for c in "\r\n") or not text.isascii():
-                raise SessionError("step %d: %r is not an N, P, R, W or S line" % (number, text))
+                raise SessionError("step %d: %r is not an N, P, R, W, E or S line" % (number, text))
             if not isinstance(step.get("expect"), str) or not step["expect"]:
                 raise SessionError("step %d: a send needs the reply it expects" % number)
         elif "wait_s" not in step:
@@ -216,8 +222,9 @@ def terminal_problem(step, lines):
 
     lines runs from the admission reply to the end marker. A raw record must hold its RAW header with
     failure 0 and no loss, on the step's node, with every RESULT successful and the expected count; an
-    NMT request must carry the sent node and command, outcome 0 and a confirmed TX. Returns None when
-    the work succeeded, otherwise why the plan must stop. An end marker alone never counts.
+    NMT request must carry the sent node and command, outcome 0 and a confirmed TX. An E record must
+    show the confirmed event-timer change itself (config_problem). Returns None when the work
+    succeeded, otherwise why the plan must stop. An end marker alone never counts.
     """
     records = [evidence.parse_line(number, text) for number, text in enumerate(lines, 1)]
     parsed = [r for r in records if r.status == "parsed"]
@@ -246,6 +253,8 @@ def terminal_problem(step, lines):
             if any(r.values.get("object") != wanted for r in results) or \
                     int.from_bytes(bytes.fromhex(last["data"])[:last["size"]], "little") != value:
                 return "write_readback_differs"
+    if command == "E":
+        return config_problem(text, parsed)
     if command == "N":
         nmts = [r for r in parsed if r.kind == "NMT"]
         if len(nmts) != 1:
@@ -256,6 +265,50 @@ def terminal_problem(step, lines):
             return "nmt_wrong_request"
         if v.get("outcome") != 0 or v.get("txConfirmed") != 1:
             return "nmt_not_transmitted"
+    return None
+
+
+CONFIG_FIELDS = ("node", "transition", "raw", "lastStep", "effectStep", "failedStep")
+
+
+def config_problem(text, parsed):
+    """Check one E record: its PDO header, nineteen RESULTs and the one write it put on the wire.
+
+    Success is the firmware's own confirmed readback of the requested change on the sent node:
+    failure 0, nothing lost, transition 2 (event timer), the requested raw literal, map confirmed,
+    no uncertainty, write acknowledged (ackMask 01) and the epoch migrated, steps 1..10 confirmed
+    and none failed; every RESULT successful, the tenth the 1800:05 download, the readback of
+    1800:05 the literal, and exactly one non-upload frame to the node, 2B 00 18 05 then the literal.
+    """
+    headers = [r for r in parsed if r.kind == "PDO"]
+    results = [r for r in parsed if r.kind == "RESULT"]
+    ends = [r for r in parsed if r.kind == "END" and r.raw.startswith("END PDO")]
+    if len(headers) != 1 or len(ends) != 1 or any(key not in headers[0].values for key in CONFIG_FIELDS):
+        return "pdo_terminal_unparsed"  # Includes an image whose record lacks the configuration fields.
+    header = headers[0].values
+    node, raw = (int(field) for field in text[1:].split(","))
+    if header["failure"] != 0 or header["lost"] != 0:
+        return "pdo_failure_%s" % header["failure"]
+    if header["node"] != node:
+        return "pdo_wrong_node"
+    if header["transition"] != 2 or header["raw"] != raw:
+        return "pdo_wrong_request"
+    if (header["confirmed"], header["uncertain"], header["ackMask"], header["migrated"], header["lastStep"],
+            header["effectStep"], header["failedStep"]) != (1, 0, 1, 1, 10, 1, 0):
+        return "pdo_not_confirmed"
+    if len(results) != 19 or header["terminals"] != 19 or any(r.values.get("outcome") != 0 for r in results):
+        return "pdo_results_incomplete"
+    if results[9].values["object"] != [0x1800, 5] or results[9].values.get("dir") != 1 or \
+            any(r.values.get("dir") != 0 for i, r in enumerate(results) if i != 9):
+        return "pdo_write_differs"
+    readbacks = [r.values for r in results[10:] if r.values["object"] == [0x1800, 5]]
+    if len(readbacks) != 1 or readbacks[0]["size"] != 2 or \
+            int.from_bytes(bytes.fromhex(readbacks[0]["data"])[:2], "little") != raw:
+        return "pdo_readback_differs"
+    writes = [r.values["data"] for r in parsed if r.kind == "TRAFFIC" and r.values.get("k") == 1 and
+              r.values.get("id") == 0x600 + node and not r.values["data"].startswith("40")]
+    if writes != ["2b001805" + raw.to_bytes(2, "little").hex() + "0000"]:
+        return "pdo_write_bytes_differ"
     return None
 
 
@@ -341,8 +394,8 @@ def check_identity(port, serial_number, ports):
     return {"port": named[0].device, "serial": named[0].serial_number, "vid": named[0].vid, "pid": named[0].pid}
 
 
-def preflight(capture):
-    """Ping once; refuse unless the image speaks these lines and holds no soak or trial record."""
+def preflight(capture, steps=()):
+    """Ping once; refuse unless the image speaks the plan's lines and holds no soak or trial record."""
     capture.until(0.2, lambda line: False)  # Retain whatever already waits; never flush unseen evidence.
     start = len(capture.lines)
     capture.send(b"p")
@@ -350,8 +403,11 @@ def preflight(capture):
     if found is None:
         return None, "no_ping"
     values = dict(word.split("=", 1) for word in found[1].split()[1:] if "=" in word)
-    if values.get("pdo") != "1":
+    letters = {step["send"][0] for step in steps if len(step.get("send", "")) > 1 and step["send"][0] in "NPRWE"}
+    if values.get("pdo") not in PDO_PROTOCOLS:
         return values, "image_without_pdo_lines"
+    if not letters <= PDO_PROTOCOLS[values["pdo"]]:
+        return values, "image_without_pdo_config"
     if values.get("soak") != "0":
         return values, "soak_running"
     if values.get("trial") != "0":
@@ -407,7 +463,7 @@ def run(args, backend=None, clock=None):
     port = backend.open(usb["port"])
     capture = Capture(port, clock)
     try:
-        pong, refusal = preflight(capture)
+        pong, refusal = preflight(capture, steps)
         session["pong"] = pong
         if refusal:
             session.update(reason=refusal, steps=[])

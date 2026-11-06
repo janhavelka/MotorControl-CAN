@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Bench continuation packet 7: typed TPDO1 event timer (2026-11-06)
+
+- `PdoConfiguration.h`: `Tpdo1Transition` (`NONE`, `MAP3_TO_MAP2`, `EVENT_TIMER`), `Tpdo1EventTimerRaw {RAW_0, RAW_100}` and `Tpdo1ConfigurationRequest`. A request overload of `prepareTpdo1Configuration` adds `EVENT_TIMER`: one `1800:05` write between raw 0 and raw 100 in Pre-operational on CL86-C, with nine exact baseline reads before and nine exact reads after. The value is raw; no unit is established. OL86-C is refused with `UNSUPPORTED` before any work.
+- `getTpdo1Configuration` gains an overload returning the confirmed literal. The context gains `request`, `confirmedStep`, `firstEffectStep` and `failedStep`. The map change is unchanged, and its layout is now validated at prepare.
+- `examples/pdo_configuration_preview`: an offline native caller of `EVENT_TIMER` (raw 0 to 100 on node 2) using retained bench replies, with two refusals before any write. Built and run in the test tree and the relocated-install consumer.
+- Bench firmware: `E<node>,<0|100>`, a `PDO_CONFIG admitted node= raw=` line, new PDO record fields (`node`, `transition`, `raw`, `lastStep`, `effectStep`, `failedStep`), PONG `pdo=2`. `PdoExperiment::beginWithServiceAge` restores the node's age policy when `m` or `E` is refused. Not yet flashed.
+- Fix: after the configuration epoch advances, the harness withdraws the node's own TPDO1 route again (at its installed or an earlier epoch) and reads back strictly later, so a confirmed readback can be installed with `configurePdo`. Before, it never could, for the map experiment too.
+- `s2_pdo.py` checks `E` terminals and refuses `E` on `pdo=1` images. [Packet 7 record](docs/reports/bench_closure_18_33/packet_7.md).
+
 ### Bench continuation packet 3: shared S2 firmware build and startup (2026-11-06)
 
 - **Behavior change, startup:** a configured shared image (S3 and S2) now boots `INACTIVE`. `startProbeFirmware` runs `FirmwareProbe::prepare` (board check, then the configured transceiver silent level) before the console and never starts the controller; it previously called `begin` after the console and reported `RUNNING`. The only caller of the explicit `start` is an optional `FirmwareTurnHook` (`startProbeFirmware(config, hook)`), which no production entry passes.

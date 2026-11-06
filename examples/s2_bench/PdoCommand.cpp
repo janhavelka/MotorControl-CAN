@@ -83,6 +83,14 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
         result.subindex = uint8_t(value);
         result.transmit = true;
         break;
+    case 'E':
+        // Only the two measured literals; 200, 10 and every other value refuse here as syntax.
+        result.kind = PdoCommandKind::CONFIGURE;
+        if (!node(text, end, result.node) || !comma(text, end) || !number(text, end, value) ||
+            (value != 0 && value != 100))
+            return false;
+        result.eventTimer = uint16_t(value);
+        break;
     default:
         return false;
     }

@@ -21,9 +21,11 @@ proof declarations to route intent. Prompt 19 now installs the finite
 getters and SDO/PDO evidence. No CLI route exists yet. The non-consuming probe
 remains Q20 gated; the inventory below retains later operation/CLI owners.
 
-[Prompt 18](reports/prompt_18.md) is Partial: the fixed TPDO1 subset in
-`PdoConfiguration.h` is implemented and specimen-observed. Broader remapping, timers and
-sample qualification stay gated by Q17, and no CLI route is implemented.
+[Prompt 18](reports/prompt_18.md) is Partial: the fixed TPDO1 map subset in
+`PdoConfiguration.h` is implemented and specimen-observed, and the `EVENT_TIMER`
+transition (`1800:05` raw 0 or 100, CL86-C, Pre-operational) is implemented and host-tested,
+with its native caller in `examples/pdo_configuration_preview`. Broader remapping, other
+timer values and sample qualification stay gated by Q17, and no CLI route is implemented.
 `configurePdo` installs host map evidence only; raw SDO access and EDS metadata
 do not substitute for those missing operations.
 

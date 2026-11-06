@@ -325,9 +325,13 @@ GRAMMAR = (
     Row("EVIDENCE", "EVIDENCE ", "header",
         "id:u node:u outcome:u uncertain:b lost:b terminals:u traffic:u gap:u",
         signals=(("health", "outcome"), ("health", "uncertain"), ("health", "lost")), per_node=True),
+    # The TPDO1 configuration record of m and E. From the image with E (PONG pdo=2): the node, the
+    # transition (1 map3-to-map2, 2 event timer), raw: the requested 1800:05 literal, and the core's
+    # confirmed, first-effect and failed step numbers (step 1 the first write, 0 none).
     Row("PDO", "PDO failure", "header",
         "failure:u lost:b terminals:u traffic:u tail:u tailLost:b confirmed:b effects:b uncertain:b "
-        "ackMask:x cfg:u migrated:b gap:u",
+        "ackMask:x cfg:u migrated:b gap:u node:u? transition:u? raw:u? lastStep:u? effectStep:u? "
+        "failedStep:u?",
         signals=_RECORD_HEALTH + (("health", "uncertain"), ("status", "confirmed"), ("status", "cfg"))),
     Row("RESULT", "RESULT ", "terminal", _RESULT, "completed", _result_signals),
     Row("TRAFFIC", "TRAFFIC ", "traffic", _FRAME, "p", _frame_signals),
@@ -364,13 +368,16 @@ GRAMMAR = (
     Row("RELEASE_REFUSED", "PDO release refused", "response"),
     Row("RELEASE_REFUSED", "NMT release refused", "response"),
     Row("DUMP_UNAVAILABLE", "DUMP unavailable", "response"),
-    # PDO stream sessions (examples/s2_bench/PdoCommand.h, PdoWatch.h, scripts/s2_pdo.py): N, P, R
-    # and W lines and the watch's numbered lines. A watched frame is a copy, never a PDO sample.
+    # PDO stream sessions (examples/s2_bench/PdoCommand.h, PdoWatch.h, scripts/s2_pdo.py): N, P, R,
+    # W and E lines and the watch's numbered lines. A watched frame is a copy, never a PDO sample.
     Row("ADMITTED", "NMT admitted", "start", "node:u cmd:u"),
     Row("ADMITTED", "PDO_READ admitted", "start", "node:u dir:s set:u"),
     Row("ADMITTED", "PDO_WRITE admitted", "start", "node:u set:u sub:u baseline:u value:u"),
+    # E lines: the supported TPDO1 event-timer change; its record is the PDO header above.
+    Row("ADMITTED", "PDO_CONFIG admitted", "start", "node:u raw:u"),
     Row("REFUSED", "PDO_READ refused", "refused"),
     Row("REFUSED", "PDO_WRITE refused", "refused"),
+    Row("REFUSED", "PDO_CONFIG refused", "refused"),
     Row("REFUSED", "PDO_LINE refused", "refused", "reason:s"),
     Row("PDOW_ADMITTED", "PDOW admitted", "response", "seconds:u"),
     Row("REFUSED", "PDOW refused", "refused", "reason:s"),

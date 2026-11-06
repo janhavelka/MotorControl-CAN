@@ -79,6 +79,31 @@ void writeLines() {
     refused("W1,1,5,,20");
     refused("W0,1,5,100,20");
 }
+void configureLines() {
+    E::PdoCommand c;
+    CHECK(parse("E1,100", c) && c.kind == E::PdoCommandKind::CONFIGURE && c.node == 1 &&
+          c.eventTimer == 100);
+    CHECK(parse("E2,0", c) && c.kind == E::PdoCommandKind::CONFIGURE && c.node == 2 &&
+          c.eventTimer == 0);
+    // Only fields of the kind are set: a configure line is no record write.
+    CHECK(!c.transmit && !c.set && !c.subindex && !c.baseline && !c.value && !c.nmt);
+    refused("E1,200"); // Measured but not supported.
+    refused("E1,10");
+    refused("E1,1");
+    refused("E1,99");
+    refused("E1,101");
+    refused("E1,65536");
+    refused("E1,4294967296");
+    refused("E3,0");
+    refused("E0,100");
+    refused("E1,");
+    refused("E1");
+    refused("E,100");
+    refused("E1,100,");
+    refused("E1,100 ");
+    refused("E1,-100");
+    refused("E1;100");
+}
 void otherLines() {
     E::PdoCommand c;
     refused("");
@@ -94,6 +119,7 @@ int main() {
     watchLines();
     readLines();
     writeLines();
+    configureLines();
     otherLines();
     std::printf("pdo command: %u checks passed\n", checks);
 }

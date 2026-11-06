@@ -91,6 +91,8 @@ WATCH = (b"PDOW admitted seconds=5; copies received frames, sends nothing\n"
 class PlanTest(unittest.TestCase):
     def test_plan_rules(self):
         self.assertEqual(len(pdo.check_plan(plan({"send": "P5", "expect": "PDOW admitted"}, {"wait_s": 1}))), 2)
+        self.assertEqual(len(pdo.check_plan(plan({"send": "E1,0", "expect": "PDO_CONFIG admitted",
+                                                  "end": "END PDO"}))), 1)
         for bad in ({}, {"purpose": "x", "steps": []},
                     plan({"send": "P5"}),  # no expected reply
                     plan({"send": "x", "expect": "a"}),  # unreviewed byte
@@ -110,6 +112,11 @@ class PlanTest(unittest.TestCase):
                     plan({"send": "q", "expect": "NMT Pre-operational admitted"}),
                     plan({"send": "w", "expect": "NMT Pre-operational admitted"}),
                     plan({"send": "m", "expect": "PDO admitted"}),
+                    # E is checked like W: its own admission and the PDO record's end, nothing looser.
+                    plan({"send": "E2,100", "expect": "PDO_CONFIG admitted"}),
+                    plan({"send": "E2,100", "expect": "PDO_CONFIG", "end": "END PDO"}),
+                    plan({"send": "E2,100", "expect": "PDO_CONFIG admitted", "end": "END raw"}),
+                    plan({"send": "E2,100", "expect": "PDO admitted", "end": "END PDO"}),
                     plan({"wait_s": 1, "require": []}),
                     plan({"wait_s": 1, "require": [{"kind": "NETWORK"}]}),
                     plan({"wait_s": 1, "require": [{"kind": "NETWORK", "match": {"state": 127}, "x": 1}]})):
@@ -174,10 +181,22 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running")):
+                           (Board(watch=1), "watch_running"), (Board(pdo="3"), "image_without_pdo_lines")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
             self.assertEqual(board.writes, [b"p"])
+
+    def test_an_image_without_e_lines_is_never_sent_one(self):
+        # On a pdo=1 image E is unknown and its digits are single-byte commands: refuse unsent.
+        board = Board({b"P5\n": WATCH}, pdo="1")
+        code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}] + CONFIG_STEPS)
+        self.assertEqual((code, meta["reason"]), (1, "image_without_pdo_config"))
+        self.assertEqual(board.writes, [b"p"])
+        # The same image still runs a plan of its own lines, and a pdo=2 image runs both.
+        for version in ("1", "2"):
+            board = Board({b"P5\n": WATCH}, pdo=version)
+            code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
+            self.assertEqual((code, meta["reason"]), (0, "completed"))
 
     def write_reply(self, failure=0, outcome=0, readback="64000000", node=2):
         lines = ["PDO_WRITE admitted node=%d set=0 sub=5 baseline=0 value=100; exact read, one write" % node,
@@ -280,6 +299,58 @@ class RunTest(unittest.TestCase):
             self.assertEqual(meta["reason"], outcome)
             self.assertEqual(board.writes[-1] == b"W1,0,5,0,100\n", outcome == "completed")
 
+    def config_then_nmt(self, reply):
+        board = Board({b"E2,100\n": reply, b"r": b"PDO record released; configuration/uncertainty retained\n",
+                       b"N2,o\n": b"NMT admitted node=2 cmd=1; addressed\n"
+                                  b"NMT request=4 target=2 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=900; x\n"},
+                      pdo="2")
+        return board, self.session(board, CONFIG_STEPS + [
+            {"send": "r", "expect": "PDO record released"},
+            {"send": "N2,o", "expect": "NMT admitted", "end": "NMT request"}])
+
+    def test_a_confirmed_configuration_lets_the_plan_continue(self):
+        board, (code, meta, _) = self.config_then_nmt(config_reply())
+        self.assertEqual((code, meta["reason"]), (0, "completed"), meta["steps"])
+        self.assertEqual(board.writes, [b"p", b"E2,100\n", b"r", b"N2,o\n"])
+        # The reverse change, its own bytes and readback.
+        board = Board({b"E1,0\n": config_reply(node=1, raw=0)}, pdo="2")
+        code, meta, _ = self.session(board, [{"send": "E1,0", "expect": "PDO_CONFIG admitted", "end": "END PDO"}])
+        self.assertEqual((code, meta["reason"]), (0, "completed"), meta["steps"])
+
+    def test_a_failed_or_unconfirmed_configuration_stops_every_later_step(self):
+        cases = ((config_reply(header={"failure": 3}), "pdo_failure_3"),  # SERVICE
+                 (config_reply(header={"failure": 9, "confirmed": 0, "uncertain": 1, "failedStep": 2}),
+                  "pdo_failure_9"),  # READBACK
+                 (config_reply(header={"lost": 1}), "pdo_failure_0"),
+                 (config_reply(header={"node": 1}), "pdo_wrong_node"),
+                 (config_reply(header={"raw": 0}), "pdo_wrong_request"),
+                 (config_reply(header={"transition": 1}), "pdo_wrong_request"),
+                 (config_reply(header={"confirmed": 0}), "pdo_not_confirmed"),
+                 (config_reply(header={"uncertain": 1}), "pdo_not_confirmed"),
+                 (config_reply(header={"ackMask": "00"}), "pdo_not_confirmed"),
+                 (config_reply(header={"migrated": 0}), "pdo_not_confirmed"),
+                 (config_reply(header={"lastStep": 9}), "pdo_not_confirmed"),
+                 (config_reply(header={"failedStep": 10}), "pdo_not_confirmed"),
+                 (config_reply(header={"terminals": 18}), "pdo_results_incomplete"),
+                 (config_reply(drop_result=18), "pdo_results_incomplete"),
+                 (config_reply(outcome_at=14), "pdo_results_incomplete"),
+                 (config_reply(write_object="1800:03"), "pdo_write_differs"),
+                 (config_reply(readback="c8000000"), "pdo_readback_differs"),
+                 (config_reply(tx="2b001805c8000000"), "pdo_write_bytes_differ"),
+                 (config_reply(extra_tx="2300180182010080"), "pdo_write_bytes_differ"),
+                 (config_reply(old_header=True), "pdo_terminal_unparsed"))
+        for reply, problem in cases:
+            board, (code, meta, _) = self.config_then_nmt(reply)
+            self.assertEqual((code, meta["reason"]), (1, "terminal_failed"), problem)
+            self.assertEqual(meta["steps"][0]["problem"], problem)
+            self.assertEqual(board.writes, [b"p", b"E2,100\n"], problem)
+
+    def test_a_refused_configuration_ends_the_plan(self):
+        board = Board({b"E2,100\n": b"PDO_CONFIG refused; no work\n"}, pdo="2")
+        code, meta, _ = self.session(board, CONFIG_STEPS + [{"send": "r", "expect": "PDO record released"}])
+        self.assertEqual((code, meta["reason"]), (1, "refused"))
+        self.assertEqual(board.writes, [b"p", b"E2,100\n"])
+
     def test_session_names_its_tools(self):
         code, meta, _ = self.session(Board(), [{"wait_s": 0.05}])
         self.assertEqual(set(meta["tools"]), {"s2_pdo.py", "s2_evidence.py"})
@@ -313,6 +384,57 @@ def result(step, obj, size, data, outcome=0, abort="00000000", completed=None):
     completed = 1000 + 100 * step if completed is None else completed
     return ("RESULT step=%d object=%s outcome=%d ack=1 possible=1 uncertain=0 abort=%s cleanup=0 size=%d "
             "data=%s admitted=%d completed=%d" % (step, obj, outcome, abort, size, data, completed - 10, completed))
+
+
+CONFIG_STEPS = [{"send": "E2,100", "expect": "PDO_CONFIG admitted", "end": "END PDO"}]
+SNAPSHOT = (("1800:01", 4, "8%d010000"), ("1800:02", 1, "ff000000"), ("1800:03", 2, "64000000"),
+            ("1800:05", 2, None), ("1a00:00", 1, "03000000"), ("1a00:01", 4, "10004160"),
+            ("1a00:02", 4, "08006160"), ("1a00:03", 4, "20006460"), ("1a00:04", 4, "00000000"))
+
+
+def config_reply(node=2, raw=100, header=None, drop_result=None, outcome_at=None, write_object="1800:05",
+                 readback=None, tx=None, extra_tx=None, old_header=False):
+    """One E record in the firmware's format: nine reads, the write, nine reads, the TX frames."""
+    before = (0 if raw else 100).to_bytes(2, "little").hex() + "0000"
+    after = raw.to_bytes(2, "little").hex() + "0000"
+    values = dict(failure=0, lost=0, terminals=19, traffic=19, tail=0, tailLost=0, confirmed=1, effects=1,
+                  uncertain=0, ackMask="01", cfg=2, migrated=1, gap=10, node=node, transition=2, raw=raw,
+                  lastStep=10, effectStep=1, failedStep=0)
+    values.update(header or {})
+    if old_header:
+        for key in ("node", "transition", "raw", "lastStep", "effectStep", "failedStep"):
+            del values[key]
+    lines = ["PDO_CONFIG admitted node=%d raw=%d; TPDO1 1800:05 raw only: nine exact reads, one write, "
+             "nine exact reads; no retry" % (node, raw),
+             "PDO " + " ".join("%s=%s" % item for item in values.items())]
+    results = []
+    for phase in ("before", "after"):
+        for obj, size, data in SNAPSHOT:
+            if data is None:
+                data = before if phase == "before" else (readback or after)
+            results.append((obj, size, data % node if "%d" in data else data, 0))
+        if phase == "before":
+            results.append((write_object, 0, "00000000", 1))
+    for step, (obj, size, data, direction) in enumerate(results, 1):
+        if drop_result == step:
+            continue
+        outcome = 3 if outcome_at == step else 0
+        lines.append("RESULT op=21 req=%d oreq=%d step=%d object=%s dir=%d outcome=%d ack=%d possible=1 "
+                     "uncertain=0 abort=00000000 cleanup=0 size=%d data=%s admitted=%d completed=%d ne=1 reason=0 "
+                     "st=3f" % (step, step + 100, step, obj, direction, outcome, int(outcome == 0), size, data,
+                                1000 + 100 * step, 1050 + 100 * step))
+    frames = []
+    for step, (obj, size, data, direction) in enumerate(results, 1):
+        index, sub = obj.split(":")
+        mux = index[2:] + index[:2] + sub
+        payload = ("40" + mux + "00000000") if not direction else (tx or ("2b" + mux + after))
+        frames.append("TRAFFIC k=1 p=%d id=%x ext=0 rtr=0 dlc=8 data=%s ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 "
+                      "txk=0 txr=%d txf=1" % (1000 + 100 * step, 0x600 + node, payload, step))
+    if extra_tx:
+        frames.append("TRAFFIC k=1 p=9000 id=%x ext=0 rtr=0 dlc=8 data=%s ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 "
+                      "epoch=1 txk=0 txr=99 txf=1" % (0x600 + node, extra_tx))
+    lines += frames + ["END PDO; map readback and sample qualification are separate; r=release"]
+    return ("\n".join(lines) + "\n").encode("ascii")
 
 
 class AnalyzeTest(unittest.TestCase):

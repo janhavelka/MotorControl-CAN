@@ -2,6 +2,8 @@
 
 [Native position parameters](position_parameters.md) document the checked numeric candidate, the remaining finite-motion gates and the [offline example](../examples/position_preview/README.md).
 
+The [TPDO1 configuration preview](../examples/pdo_configuration_preview/README.md) runs the supported `1800:05` event-timer change through its typed lifecycle with retained bench replies; the [service guide](canopen_services.md#lichuan-tpdo1-configuration-subset) gives the contract.
+
 The [fault/reference action guide](fault_reference_actions.md) separates alarm
 clear, native counter zero, host origin and home, including retained failures
 and coordinate-generation handoff.
