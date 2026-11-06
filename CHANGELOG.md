@@ -4,7 +4,7 @@
 
 ### Fix: firmware checker with an SDK inside the checkout (2026-11-06)
 
-- `check_firmware.py`: the exact checkout-input check added in packet 3 counted ESP-IDF's own sources as unexpected checkout inputs when the SDK is installed inside the checkout, as CI does (`.build/esp-idf`); the IDF job failed on `4df97bc` and `f2c90ab`. The SDK and tool roots named by the build environment (`IDF_PATH`, `IDF_TOOLS_PATH`, `PLATFORMIO_CORE_DIR`) are now excluded by location; an extra checkout source still fails beside them (`firmware_build_contract`).
+- `check_firmware.py`: the exact checkout-input check added in packet 3 counted ESP-IDF's own sources as unexpected checkout inputs when the SDK is installed inside the checkout, as CI does (`.build/esp-idf`); the IDF job failed on `4df97bc` and `f2c90ab`. The SDK and tool roots named by the build environment (`IDF_PATH`, `IDF_TOOLS_PATH`, `PLATFORMIO_CORE_DIR`) are now excluded by location; an extra checkout source still fails beside them (`firmware_build_contract`). The first fix (`980982a`) covered the exactness check only; the isolated component gate, which forbids every checkout file, then failed the same way (run 42252710418). `check_inputs` now takes the SDK roots explicitly (`sdk=`), and both its forbidden and its exactness checks exclude them.
 
 ### Bench round on image `f2c90ab` (2026-11-06)
 
