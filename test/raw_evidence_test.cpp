@@ -21,6 +21,8 @@ const uint8_t readinessSubindexes[30] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
                                          0, 0, 1, 2, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0};
 const uint8_t readinessWidths[30] = {1, 2, 2, 1, 2, 2, 4, 4, 4, 4, 4, 4, 2, 4, 2,
                                      2, 2, 4, 4, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4};
+// CiA 301 "not transferable in the present device state"; only its exact retention matters.
+const uint32_t presentStateAbort = 0x08000022u;
 #define CHECK(value)                                                                               \
     do {                                                                                           \
         ++checks;                                                                                  \
@@ -61,6 +63,11 @@ struct Wire {
     bool heartbeat = false;
     bool motionReadiness = false;
     uint16_t heartbeatMs = 0;
+    bool pdoEntry = false; ///< Emulate one PDO communication entry for exact reads and one write.
+    uint16_t pdoIndex = 0;
+    uint8_t pdoSubindex = 0, pdoWidth = 0;
+    uint32_t pdoValue = 0;       ///< Entry bytes; only an acknowledged download changes them.
+    bool pdoIgnoreWrite = false; ///< Acknowledge the download but keep the old bytes.
     void push(const M::Frame& frame) {
         CHECK(rxCount < 32);
         auto& out = rx[(rxHead + rxCount++) % 32];
@@ -83,7 +90,8 @@ struct Wire {
         Wire& w = *static_cast<Wire*>(ptr);
         CHECK(request.id == 0x601 && epoch == 1 && request.payloadLength == 8);
         CHECK(request.data[0] == 0x40 || request.data[0] == 0x80 ||
-              (w.heartbeat && request.data[0] == 0x2b));
+              (w.heartbeat && request.data[0] == 0x2b) ||
+              (w.pdoEntry && request.data[0] == uint8_t(0x23u | ((4u - w.pdoWidth) << 2))));
         CHECK(w.transmitted < 64 && w.reportCount < 4);
         w.sent[w.transmitted++] = request;
         auto& report = w.reports[(w.reportHead + w.reportCount++) % 4];
@@ -137,6 +145,27 @@ struct Wire {
                     reply.data[5] = uint8_t(w.heartbeatMs >> 8);
                 }
                 reply.data[6] = reply.data[7] = 0;
+            }
+            if (w.pdoEntry) {
+                CHECK((unsigned(request.data[1]) | unsigned(request.data[2]) << 8) == w.pdoIndex);
+                CHECK(request.data[3] == w.pdoSubindex);
+                if (request.data[0] == 0x40) {
+                    reply.data[0] = uint8_t(0x43u | ((4u - w.pdoWidth) << 2));
+                    for (unsigned i = 0; i < 4; ++i)
+                        reply.data[4 + i] = i < w.pdoWidth ? uint8_t(w.pdoValue >> (8 * i)) : 0;
+                } else {
+                    uint32_t written = 0;
+                    for (unsigned i = 0; i < w.pdoWidth; ++i)
+                        written |= uint32_t(request.data[4 + i]) << (8 * i);
+                    if (mode != Mode::SERVER_ABORT && !w.pdoIgnoreWrite)
+                        w.pdoValue = written;
+                    reply.data[0] = 0x60;
+                    for (unsigned i = 0; i < 4; ++i)
+                        reply.data[4 + i] = 0;
+                }
+                if (mode == Mode::SERVER_ABORT)
+                    for (unsigned i = 0; i < 4; ++i)
+                        reply.data[4 + i] = uint8_t(presentStateAbort >> (8 * i));
             }
             if (mode == Mode::WRONG_OBJECT)
                 ++reply.data[1];
@@ -222,6 +251,23 @@ struct Rig {
         label(r.reconciliation, "inspect raw bytes");
         p.firstAuthorizationId = 1000;
         p.includeState = state;
+        return p;
+    }
+    /// PDO_COMM_WRITE of 1800+set:subindex; the fake entry starts at baseline with the EDS width.
+    E::RawEvidencePlan pdoWrite(uint8_t set, uint8_t subindex, uint8_t width, uint32_t baseline,
+                                uint32_t value) {
+        wire.pdoEntry = true;
+        wire.pdoIndex = uint16_t(0x1800 + set);
+        wire.pdoSubindex = subindex;
+        wire.pdoWidth = width;
+        wire.pdoValue = baseline;
+        E::RawEvidencePlan p = plan();
+        p.inventory = E::RawEvidenceInventory::PDO_COMM_WRITE;
+        p.firstAuthorizationId = 6000;
+        p.pdo.set = set;
+        p.pdo.subindex = subindex;
+        p.pdo.baseline = baseline;
+        p.pdo.value = value;
         return p;
     }
     void turn(uint64_t time, bool collect = true, uint8_t tx = 2) {
@@ -645,6 +691,8 @@ void networkAndHeartbeat() {
         if (!initial) {
             CHECK(record.terminals[1].service.transfer.direction == C::SdoDirection::DOWNLOAD);
             CHECK(record.terminals[2].service.size == 2 && r.wire.heartbeatMs == 1000);
+            // Only this experiment republishes producer timing, from its exact readback.
+            CHECK(r.services.node(0)->producerKnown && r.services.node(0)->producerTimeMs == 1000);
         }
         const unsigned sent = r.wire.transmitted;
         r.turn(r.now + 10000000);
@@ -738,6 +786,238 @@ void motionReadinessUploadsOnly() {
         CHECK(failed.wire.uploads == at && failed.collector.release());
     }
 }
+void pdoRecordUploads() {
+    for (unsigned transmit = 0; transmit < 2; ++transmit) {
+        Rig r;
+        auto plan = r.plan();
+        plan.inventory = E::RawEvidenceInventory::PDO_RECORD;
+        plan.pdo.transmit = transmit != 0;
+        plan.pdo.set = transmit ? 3 : 1;
+        plan.pdo.subindex = 2; // Ignored: a record read never writes.
+        plan.pdo.baseline = 255;
+        plan.pdo.value = 1;
+        plan.firstAuthorizationId = transmit ? UINT32_MAX - 8 : 5000; // Nine grants fit exactly.
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        CHECK(!r.wire.transmitted && r.collector.record()->intendedCount == 9);
+        r.finish();
+        const auto* record = r.collector.record();
+        CHECK(record->failure == E::RawEvidenceFailure::NONE && record->terminalCount == 9);
+        CHECK(record->attemptedCount == 9 && r.wire.uploads == 9 && r.wire.transmitted == 9);
+        const uint16_t communication = transmit ? 0x1803 : 0x1401;
+        const uint16_t mapping = transmit ? 0x1a03 : 0x1601;
+        const uint8_t subindexes[9] = {1, 2, 3, 5, 0, 1, 2, 3, 4};
+        for (unsigned i = 0; i < 9; ++i) {
+            const uint16_t index = i < 4 ? communication : mapping;
+            const auto& result = record->terminals[i].service;
+            const auto& work = result.transfer;
+            CHECK(work.index == index && work.subindex == subindexes[i]);
+            CHECK(work.direction == C::SdoDirection::UPLOAD && work.size == 4);
+            CHECK(work.uploadSize == C::SdoUploadSize::SERVER_INDICATED &&
+                  work.readEffect == C::SdoReadEffect::UNQUALIFIED);
+            CHECK(result.outcome == C::SdoOutcome::SUCCESS && result.effectPossible);
+            const M::Frame& sent = r.wire.sent[i];
+            CHECK(sent.data[0] == 0x40 &&
+                  (unsigned(sent.data[1]) | unsigned(sent.data[2]) << 8) == index);
+            CHECK(sent.data[3] == subindexes[i]);
+        }
+        r.turn(r.now + 10000000);
+        CHECK(r.wire.transmitted == 9 && r.collector.release());
+    }
+}
+void pdoCommunicationWrite() {
+    struct Case {
+        uint8_t set, subindex, width;
+        uint32_t baseline, value;
+    };
+    // Widths are the EDS 1800..1803 types; values are raw entry bytes, no timer unit.
+    const Case cases[] = {{0, 1, 4, 0x40000181u, 0xc0000181u},
+                          {1, 2, 1, 255, 1},
+                          {2, 3, 2, 0, 100},
+                          {3, 5, 2, 100, 0x01f4}};
+    for (const auto& c : cases) {
+        Rig r;
+        auto plan = r.pdoWrite(c.set, c.subindex, c.width, c.baseline, c.value);
+        if (c.subindex == 1)
+            plan.firstAuthorizationId = UINT32_MAX - 2; // Three grants fit exactly.
+        // A known producer fact the PDO write must leave untouched.
+        CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 100, 0));
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        CHECK(r.collector.record()->intendedCount == 3);
+        r.finish();
+        const auto* record = r.collector.record();
+        CHECK(record->failure == E::RawEvidenceFailure::NONE && record->terminalCount == 3);
+        CHECK(record->attemptedCount == 3 && r.wire.transmitted == 3 && r.wire.pdoValue == c.value);
+        for (unsigned i = 0; i < 3; ++i) {
+            const auto& result = record->terminals[i].service;
+            CHECK(result.outcome == C::SdoOutcome::SUCCESS);
+            CHECK(result.transfer.index == 0x1800 + c.set);
+            CHECK(result.transfer.subindex == c.subindex);
+            CHECK(result.transfer.size == c.width &&
+                  result.transfer.uploadSize == C::SdoUploadSize::EXACT);
+            CHECK(result.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED);
+            CHECK(result.transfer.direction ==
+                  (i == 1 ? C::SdoDirection::DOWNLOAD : C::SdoDirection::UPLOAD));
+        }
+        const auto& before = record->terminals[0].service;
+        const auto& after = record->terminals[2].service;
+        CHECK(before.size == c.width && after.size == c.width);
+        const M::Frame& download = r.wire.sent[1];
+        CHECK(download.data[0] == uint8_t(0x23u | ((4u - c.width) << 2)));
+        CHECK((unsigned(download.data[1]) | unsigned(download.data[2]) << 8) == 0x1800u + c.set);
+        CHECK(download.data[3] == c.subindex);
+        for (unsigned i = 0; i < c.width; ++i) {
+            CHECK(download.data[4 + i] == uint8_t(c.value >> (8 * i)));
+            CHECK(record->terminals[1].service.transfer.data[i] == download.data[4 + i]);
+            CHECK(before.data[i] == uint8_t(c.baseline >> (8 * i)));
+            CHECK(after.data[i] == download.data[4 + i]);
+        }
+        if (c.subindex == 1) // Every COB-ID byte crosses the wire; only bit 31 changed.
+            CHECK(download.data[4] == 0x81 && download.data[5] == 0x01 && download.data[6] == 0 &&
+                  download.data[7] == 0xc0);
+        CHECK(r.services.node(0)->producerKnown && r.services.node(0)->producerTimeMs == 100);
+        r.turn(r.now + 10000000);
+        CHECK(r.wire.transmitted == 3); // No repeated write, rollback or restoration.
+        CHECK(r.collector.release());
+    }
+    // Generic CiA 301 transmission-type boundaries admitted locally; the drive decides.
+    const uint32_t types[][2] = {{255, 0}, {1, 240}, {255, 254}, {254, 255}};
+    for (const auto& type : types) {
+        Rig r;
+        CHECK(r.collector.begin(r.pdoWrite(0, 2, 1, type[0], type[1]), 0) ==
+              E::EvidenceAdmission::ACCEPTED);
+        r.finish();
+        CHECK(r.collector.record()->failure == E::RawEvidenceFailure::NONE);
+        CHECK(r.wire.pdoValue == type[1] && r.collector.release());
+    }
+}
+void pdoWriteReadbackAndAbort() {
+    {
+        Rig r;
+        auto plan = r.pdoWrite(0, 2, 1, 255, 1);
+        r.wire.pdoValue = 254; // The entry differs from the reviewed baseline.
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        r.finish();
+        const auto* record = r.collector.record();
+        CHECK(record->failure == E::RawEvidenceFailure::READBACK);
+        CHECK(record->terminalCount == 1 && record->attemptedCount == 1);
+        CHECK(record->terminals[0].service.outcome == C::SdoOutcome::SUCCESS &&
+              record->terminals[0].service.data[0] == 254);
+        CHECK(r.wire.transmitted == 1 && r.wire.sent[0].data[0] == 0x40 && r.wire.pdoValue == 254);
+        r.turn(r.now + 10000000);
+        CHECK(r.wire.transmitted == 1 && r.collector.release()); // No download was admitted.
+    }
+    {
+        Rig r;
+        auto plan = r.pdoWrite(1, 3, 2, 0, 100);
+        r.wire.pdoIgnoreWrite = true; // Acknowledged download, unchanged entry bytes.
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        r.finish();
+        const auto* record = r.collector.record();
+        CHECK(record->failure == E::RawEvidenceFailure::READBACK && record->terminalCount == 3);
+        CHECK(record->terminals[1].service.outcome == C::SdoOutcome::SUCCESS &&
+              record->terminals[1].service.protocolAcknowledged);
+        const auto& readback = record->terminals[2].service;
+        CHECK(readback.size == 2 && readback.data[0] == 0 && readback.data[1] == 0);
+        r.turn(r.now + 10000000);
+        CHECK(r.wire.transmitted == 3 && r.collector.release()); // No retry or rollback.
+    }
+    {
+        Rig r;
+        auto plan = r.pdoWrite(0, 3, 2, 0, 100);
+        r.wire.mode = Wire::Mode::SERVER_ABORT;
+        r.wire.failureAt = 2; // The drive rejects only the download.
+        CHECK(r.services.setProducerInterval(0, r.services.node(0)->route, 100, 0));
+        CHECK(r.collector.begin(plan, 0) == E::EvidenceAdmission::ACCEPTED);
+        r.finish();
+        const auto* record = r.collector.record();
+        CHECK(record->failure == E::RawEvidenceFailure::SERVICE);
+        CHECK(record->terminalCount == 2 && record->attemptedCount == 2 && r.wire.transmitted == 2);
+        const auto& rejected = record->terminals[1].service;
+        CHECK(rejected.transfer.direction == C::SdoDirection::DOWNLOAD);
+        CHECK(rejected.outcome == C::SdoOutcome::SERVER_ABORT && !rejected.protocolAcknowledged);
+        CHECK(rejected.abortValid && rejected.abortCode == presentStateAbort);
+        CHECK(rejected.effectPossible && rejected.effectUncertain && r.wire.pdoValue == 0);
+        CHECK(r.services.node(0)->producerKnown && r.services.node(0)->producerTimeMs == 100);
+        r.turn(r.now + 10000000);
+        CHECK(r.wire.transmitted == 2 && r.collector.release()); // No readback or retry.
+    }
+}
+void pdoPlanRejections() {
+    const auto RECORD = E::RawEvidenceInventory::PDO_RECORD;
+    const auto WRITE = E::RawEvidenceInventory::PDO_COMM_WRITE;
+    enum : unsigned { STATE = 1, NETWORK = 2, HEARTBEAT = 4 };
+    struct Case {
+        E::RawEvidenceInventory inventory;
+        bool transmit;
+        uint8_t set, subindex;
+        uint32_t baseline, value;
+        unsigned flags;
+        uint32_t firstAuthorizationId;
+    };
+    const Case cases[] = {
+        {RECORD, true, 4, 0, 0, 0, 0, 1000},  // No fifth set.
+        {RECORD, false, 4, 0, 0, 0, 0, 1000},
+        {WRITE, true, 4, 2, 255, 1, 0, 1000},
+        {RECORD, true, 0, 0, 0, 0, STATE, 1000},
+        {RECORD, true, 0, 0, 0, 0, NETWORK, 1000},
+        {RECORD, true, 0, 0, 0, 0, STATE | NETWORK, 1000},
+        {RECORD, true, 0, 0, 0, 0, HEARTBEAT, 1000},
+        {WRITE, true, 0, 2, 255, 1, STATE, 1000},
+        {WRITE, true, 0, 2, 255, 1, NETWORK, 1000},
+        {WRITE, true, 0, 2, 255, 1, HEARTBEAT, 1000},
+        {WRITE, false, 0, 2, 255, 1, 0, 1000}, // Receive PDO entries are never written.
+        {WRITE, true, 0, 0, 2, 1, 0, 1000},    // Subindex outside 1, 2, 3, 5.
+        {WRITE, true, 0, 4, 0, 1, 0, 1000},
+        {WRITE, true, 0, 6, 0, 1, 0, 1000},
+        {WRITE, true, 0, 2, 256, 1, 0, 1000}, // Wider than the U8 entry.
+        {WRITE, true, 0, 2, 255, 0x101, 0, 1000},
+        {WRITE, true, 0, 3, 0, 0x10000, 0, 1000}, // Wider than the U16 entries.
+        {WRITE, true, 0, 5, 0x10000, 100, 0, 1000},
+        {WRITE, true, 0, 3, 100, 100, 0, 1000},                // No change.
+        {WRITE, true, 0, 1, 0x181, 0x182, 0, 1000},             // Identifier.
+        {WRITE, true, 0, 1, 0x40000181u, 0x00000181u, 0, 1000}, // Bit 30 alone.
+        {WRITE, true, 0, 1, 0x40000181u, 0x80000181u, 0, 1000}, // Bits 31 and 30.
+        {WRITE, true, 0, 1, 0x00000181u, 0xa0000181u, 0, 1000}, // Bit 31 and frame kind.
+        {WRITE, true, 0, 1, 0x00000181u, 0x20000181u, 0, 1000}, // Frame kind alone.
+        {WRITE, true, 0, 2, 255, 241, 0, 1000}, // Reserved transmission types.
+        {WRITE, true, 0, 2, 255, 251, 0, 1000},
+        {WRITE, true, 0, 2, 255, 252, 0, 1000}, // RTR-only transmission types.
+        {WRITE, true, 0, 2, 255, 253, 0, 1000},
+        {static_cast<E::RawEvidenceInventory>(4), true, 0, 2, 255, 1, 0, 1000},
+        {RECORD, true, 0, 0, 0, 0, 0, UINT32_MAX - 7}, // Nine grants do not fit.
+        {WRITE, true, 0, 2, 255, 1, 0, UINT32_MAX - 1}, // Three grants do not fit.
+    };
+    for (const auto& c : cases) {
+        Rig r;
+        E::RawEvidencePlan p = r.plan();
+        p.inventory = c.inventory;
+        p.pdo.transmit = c.transmit;
+        p.pdo.set = c.set;
+        p.pdo.subindex = c.subindex;
+        p.pdo.baseline = c.baseline;
+        p.pdo.value = c.value;
+        p.includeState = (c.flags & STATE) != 0;
+        p.includeNetwork = (c.flags & NETWORK) != 0;
+        p.enableHeartbeat = (c.flags & HEARTBEAT) != 0;
+        p.firstAuthorizationId = c.firstAuthorizationId;
+        CHECK(r.collector.begin(p, 0) == E::EvidenceAdmission::INVALID);
+        CHECK(!r.collector.record() && r.owner.resources().reservations == 0);
+        CHECK(r.collector.service(1) && !r.wire.transmitted);
+        // The plan's first grant identity is still unused: begin() granted nothing.
+        C::SdoTransfer probe;
+        probe.channel = *r.services.channel(0);
+        probe.operation = probe.request = probe.step = 1;
+        probe.index = 0x1800;
+        probe.subindex = 1;
+        probe.size = 4;
+        probe.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+        probe.deadlineUs = 5000000;
+        probe.queueTimeoutUs = probe.responseTimeoutUs = 250000;
+        CHECK(r.services.authorizeUploadExperiment(0, probe, r.services.node(0)->route.generation,
+                                                   c.firstAuthorizationId, 1));
+        r.services.clearUploadExperiment(0);
+    }
+}
 } // namespace
 int main() {
     passiveAndSuccess();
@@ -751,6 +1031,10 @@ int main() {
     capacityAndNoRetry();
     networkAndHeartbeat();
     motionReadinessUploadsOnly();
+    pdoRecordUploads();
+    pdoCommunicationWrite();
+    pdoWriteReadbackAndAbort();
+    pdoPlanRejections();
     std::printf("raw evidence: %u checks passed\n", checks);
     return 0;
 }

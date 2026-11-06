@@ -340,7 +340,7 @@ GRAMMAR = (
     Row("END_NETWORK", "END network", "response"),
     Row("PONG", "PONG ", "response",
         "target:s base:s elf:s sdk:s running:b active:b silent:b pinsReady:b soak:b? t:u? routes:u? trial:b? "
-        "motion:u?", "t", _PONG + (("controller", "trial"), ("health", "motion"))),
+        "motion:u? pdo:u? watch:b?", "t", _PONG + (("controller", "trial"), ("health", "motion"))),
     Row("STATS", "STATS ", "response",
         "running:b inhibited:b rx:u tx:u dropped:u errors:u flags:x stackFree:u t:u? txRej:u? rxLost:u? "
         "unmatched:u? traceOver:u? ownerGap:u? conRej:u?", "t", _STATS),
@@ -363,6 +363,28 @@ GRAMMAR = (
     Row("RELEASE_REFUSED", "PDO release refused", "response"),
     Row("RELEASE_REFUSED", "NMT release refused", "response"),
     Row("DUMP_UNAVAILABLE", "DUMP unavailable", "response"),
+    # PDO stream sessions (examples/s2_bench/PdoCommand.h, PdoWatch.h, scripts/s2_pdo.py): N, P, R
+    # and W lines and the watch's numbered lines. A watched frame is a copy, never a PDO sample.
+    Row("ADMITTED", "NMT admitted", "start", "node:u cmd:u"),
+    Row("ADMITTED", "PDO_READ admitted", "start", "node:u dir:s set:u"),
+    Row("ADMITTED", "PDO_WRITE admitted", "start", "node:u set:u sub:u baseline:u value:u"),
+    Row("REFUSED", "PDO_READ refused", "refused"),
+    Row("REFUSED", "PDO_WRITE refused", "refused"),
+    Row("REFUSED", "PDO_LINE refused", "refused", "reason:s"),
+    Row("PDOW_ADMITTED", "PDOW admitted", "response", "seconds:u"),
+    Row("REFUSED", "PDOW refused", "refused", "reason:s"),
+    Row("PDOW_STOPPING", "PDOW_STOPPING", "response"),
+    Row("PDOW_STOP_REFUSED", "PDOW_STOP refused", "response"),
+    Row("PDOW_BEGIN", "PDOW_BEGIN ", "watch", "n:u t:u seconds:u ring:u ids:u", "t"),
+    Row("PDOW_F", "PDOW_F ", "watch",
+        "n:u t:u id:x ext:b rtr:b dlc:u data:s timed:b exact:b lo:u hi:u gap:u", "t"),
+    Row("PDOW_SUM", "PDOW_SUM ", "watch",
+        "n:u t:u frames:u printed:u unprinted:u tapDropped:u untimed:u sdo:u idOverflow:u ids:u", "t"),
+    Row("PDOW_ID", "PDOW_ID ", "watch",
+        "n:u t:u id:x ext:b count:u first:u last:u minGap:u maxGap:u meanGap:u sdGap:u changes:u dlc:u "
+        "data:s", "t"),
+    Row("PDOW_END", "PDOW_END ", "watch",
+        "n:u t:u reason:s frames:u printed:u unprinted:u tapDropped:u untimed:u sdo:u idOverflow:u", "t"),
     Row("UNKNOWN_COMMAND", "UNKNOWN command", "response"),
     Row("FORMAT_ERROR", "OUTPUT_FORMAT_ERROR", "error"),
     Row("BOOT_READY", "S2_BENCH ready", "boot", signals=_boot_signals),

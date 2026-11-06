@@ -50,11 +50,23 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `X` / `soak-stop` | Stop a running soak after any started read settles |
 | `T...` / `scripts/s2_bench.py --command readiness-actions` and the other routes | One named attended route, below |
 | `A` / `trial-abort` | Withdraw the active route locally; sends no stop |
+| `N<node>,<o\|p\|s>` / `scripts/s2_pdo.py` | One addressed NMT Start, Enter Pre-operational or Stop through the owner; resets are not offered |
+| `P<seconds>`, `P0` | Watch received frames for 1..600 s at the driver tap, or end the watch; sends nothing |
+| `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
+| `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
 
-While a soak runs, only `p`, `s` and `X` are served; anything else answers
-`SOAK_REFUSED reason=active`. While a route's record is held, only `p`, `s`, `d`, `r` and `A`
+While a soak runs, only `p`, `s`, `X` and a `P` watch line are served; anything else answers
+`SOAK_REFUSED reason=active` (an `N`, `R` or `W` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
 are served; anything else answers `TRIAL_REFUSED reason=active`. A response that finds the console queue full waits in
 one retained buffer, and no further command is taken until it has gone.
+
+### PDO stream sessions
+
+The `N`, `P`, `R` and `W` lines (`PdoCommand.h`) end with a line feed and use decimal numbers. `scripts/s2_pdo.py run` sends a JSON plan of them, with single-byte commands such as `c`, `h`, `j` and `r`, and keeps one capture for the whole session. Each step waits for its expected reply; a refusal or silence ends the plan, and only a running watch is then ended with `P0`. `scripts/s2_pdo.py analyze DIR` reports each received ID's frames and timing, every NMT request with its TX completion time, the first and last frame of each ID around it, heartbeat states and every PDO record read or write.
+
+- **Watch** (`PdoWatch.h`): the TWAI tap copies every frame the adapter delivers into a 32-frame ring, without taking it from the owner, so the watch runs beside any record, NMT request or soak. SDO frames are only counted. Per ID it keeps count, gaps, mean and deviation, data changes and the last payload, and prints each frame as `PDOW_F` while the console has room. A frame's `hi` is the ISR clock sample at enqueue, an upper bound and never a bus timestamp, so gaps include ISR and service latency. `tapDropped` or `unprinted` above 0 qualifies the output. A watched frame is not a qualified PDO sample.
+- **NMT** (`N`): the owner admits one request at a time, with a 250 ms queue budget and a 5 s deadline; release its `NMT request` result with `r` before the next. TX completion is local evidence; the drive's state comes only from its heartbeat or from frames that follow. NMT Stop is not a motor stop, and in Stopped the owner refuses SDO until Pre-operational or Start.
+- **PDO record and write** (`R`, `W`): raw evidence experiments with one-use grants that follow the fixed experiments' grants on the same slot. Run `h`/`j` and `m` before them in a boot, or they refuse. A write changes only bit 31 of `:01`, or sets `:02` to 0..240, 254 or 255, or `:03`/`:05` to 0..65535. Each needs its PDO record read first, because an exact read of a different width would be aborted by the client and leave the node's route unresolved until an MCU restart. A write qualifies no sample and establishes no unit, persistence or drive effect.
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
 `2000:00`, `2001:00`, `1800:01/:02/:03/:05`, `1A00:00..04`, `6041:00`
