@@ -104,6 +104,30 @@ void configureLines() {
     refused("E1,-100");
     refused("E1;100");
 }
+// The bounded silent capture: identity, seconds 1..600 and a frame capacity; C0 alone stops.
+void captureLines() {
+    E::PdoCommand c;
+    CHECK(parse("C7,10,64", c) && c.kind == E::PdoCommandKind::CAPTURE && c.capture == 7 &&
+          c.seconds == 10 && c.frames == 64);
+    CHECK(parse("C4294967295,600,65535", c) && c.capture == 4294967295u && c.seconds == 600 &&
+          c.frames == 65535);
+    CHECK(parse("C1,1,1", c) && c.seconds == 1 && c.frames == 1);
+    CHECK(parse("C0", c) && c.kind == E::PdoCommandKind::CAPTURE && c.capture == 0 && c.seconds == 0 &&
+          c.frames == 0);
+    refused("C");
+    refused("C0,10,64"); // A stop carries nothing else.
+    refused("C1");
+    refused("C1,10");
+    refused("C1,0,64");
+    refused("C1,601,64");
+    refused("C1,10,0");
+    refused("C1,10,65536");
+    refused("C1,10,64,");
+    refused("C1,10,64 ");
+    refused("C-1,10,64");
+    refused("C4294967296,10,64");
+    refused("c1,10,64");
+}
 void otherLines() {
     E::PdoCommand c;
     refused("");
@@ -120,6 +144,7 @@ int main() {
     readLines();
     writeLines();
     configureLines();
+    captureLines();
     otherLines();
     std::printf("pdo command: %u checks passed\n", checks);
 }

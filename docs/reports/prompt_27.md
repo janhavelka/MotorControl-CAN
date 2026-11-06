@@ -2,6 +2,8 @@
 
 ## Scope and status
 
+**Bench continuation packet 4, 2026-11-06.** [Packet 4](bench_closure_18_33/packet_4.md) reviewed the pinned SDK's listen-only mode. It is fixed at node creation (`esp_twai_onchip.h:36`, `HAL:142-163`), refused by `twai_node_transmit` (`onchip:587`), and in the S2 bench build it lacks the errata workaround that keeps error flags recessive (`Kconfig.twai:52-61`, not compiled because the `driver` component is not in the build). The packet therefore kept the adapter and driver contracts unchanged and added the capture's transmit gate and driver-boundary retirement evidence (`SoakTwaiTap::closeTransmit`, `sdkRetired`) in the bench application only. Physical no-ACK and no-TX, questions 1, 4 and 6 and Q18 stay open for an independent observer. The [SDK evidence](../adapters/twai_sdk.md#listen-only-mode-the-silent-transceiver-input-and-the-bench-capture) records the facts.
+
 **Bench continuation packet 3, 2026-11-06.** [Packet 3](bench_closure_18_33/packet_3.md) moved the transceiver's silent input into application-owned control with explicit polarity, made a configured shared image boot without starting the controller, and routed every closing path through one owner retirement. The adapter's own contract is unchanged; questions 1, 4 and 6 and the physical TX-retirement question (Q18) stay open for the listen-only observer.
 
 **Reopened by audit W3.** [Packet 3](handoff_19_33/packet_3.md) changed the submit contract, the service split and `fail_retry_cnt`, which this report describes at their earlier values. The S2 half stays reopened under G-04 and W9.

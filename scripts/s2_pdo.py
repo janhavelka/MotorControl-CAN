@@ -2,20 +2,20 @@
 """Run one planned PDO stream session on the S2 bench, or analyze a retained one; one lead alone runs this.
 
 run: validates the recorded USB identity, opens only that port (neither EN nor BOOT is driven),
-pings, refuses unless the image speaks the PDO lines the plan uses (PONG pdo=1: N, P, R, W;
-pdo=2 adds E) with no soak or trial record held, then sends the plan's steps in order and captures
-every byte to rx.bin. A step sends one console command (a single byte, or an N, P, R, W, E, S line
-of examples/s2_bench/PdoCommand.h and the soak) and waits for its expected reply; a refusal or a
-missing reply ends the plan. The plan is the
+pings, refuses unless the image speaks the lines the plan uses (PONG pdo=1: N, P, R, W; pdo=2 adds
+E; pdo=3 adds C, the bounded silent capture) with no soak, trial, watch or capture held, then sends
+the plan's steps in order and captures every byte to rx.bin. A step sends one console command (a
+single byte, or an N, P, R, W, E, C, S line of examples/s2_bench/PdoCommand.h and the soak) and
+waits for its expected reply; a refusal or a missing reply ends the plan. The plan is the
 only source of device commands: nothing is retried, replayed or added, and no NMT, write or stop
-is sent on the plan's behalf. If the plan ends early while a watch runs, only "P0" is sent, which
-ends the local watch and sends nothing on CAN. Whatever state the drives were left in, Operational
-included, is recorded and reported, not repaired.
+is sent on the plan's behalf. If the plan ends early while a watch runs, only "P0" is sent, and
+while a capture collects, only "C0"; each ends local work and sends nothing on CAN. Whatever state
+the drives were left in, Operational included, is recorded and reported, not repaired.
 
 analyze: replays rx.bin offline through the s2_evidence grammar and reports, per received ID, the
 watch's frames and on-device statistics, every NMT request with its TX completion time, the first
-and last frame of each ID around each NMT request, heartbeat states, and every PDO record read or
-write with its raw values. Times are the S2's monotonic microseconds: a frame's hi is its ISR clock
+and last frame of each ID around each NMT request, heartbeat states, every PDO record read or
+write with its raw values, and every capture record with its frames per ID. Times are the S2's monotonic microseconds: a frame's hi is its ISR clock
 sample at enqueue, an upper bound, never an exact bus timestamp. A watched frame is not a qualified
 PDO sample.
 
@@ -41,16 +41,19 @@ CAPTURE_LIMIT = 64 << 20
 PING_TIMEOUT_S = 3.0
 DEFAULT_TIMEOUT_S = 3.0
 WATCH_STOP_S = 5.0
+CAPTURE_STOP_S = 30.0  # A stopped capture's record prints after the end: up to 137 lines.
 # Replies that end a plan: the firmware refused the command, so nothing after it may follow.
 REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDO_CONFIG refused", "PDOW refused",
             "PDOW_STOP refused",
             "NMT refused", "NMT release refused", "RELEASE refused", "PDO release refused", "SOAK_REFUSED",
             "TRIAL_REFUSED", "UNKNOWN command", "HEARTBEAT refused", "PDO refused", "IDENTITY refused",
-            "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR")
-LINE_COMMANDS = ("N", "P", "R", "W", "E", "S")
+            "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR", "CAP refused",
+            "CAP_STOP refused", "CAP release refused")
+LINE_COMMANDS = ("N", "P", "R", "W", "E", "C", "S")
 # The PDO line letters each image protocol (PONG pdo=) serves. An older image answers an unknown
-# letter as single-byte commands, and E1,100 there would start a node-1 identity read: never sent.
-PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE")}
+# letter as single-byte commands: E1,100 there would start a node-1 identity read, and C1,10,64 the
+# same through its digits. Neither is ever sent to an image that does not serve it.
+PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC")}
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
 SINGLE_BYTES = set("cpsrdnhjX34")
@@ -60,15 +63,30 @@ CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END
            "W": ("PDO_WRITE admitted", "END raw"), "E": ("PDO_CONFIG admitted", "END PDO"),
            "h": ("HEARTBEAT experiment admitted", "END raw"),
            "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
-           "4": ("IDENTITY admitted", "END raw")}
+           "4": ("IDENTITY admitted", "END raw"), "C": ("CAP admitted", "END capture")}
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
 # The record each command leaves held, and the reply of the r that releases it. The bench firmware
 # admits R, W, E, h, j, 3, 4 and m only with no NMT result and no PDO record held, and N only with
 # no record of any kind held (examples/s2_bench/main/main.cpp, each command's accepted condition).
 # The 2026-11-06 replay plans stopped twice: once expecting the wrong release line after E, once
 # leaving node 2 Operational because an N's result was never released before the next N.
-HOLDS = {"R": "raw", "W": "raw", "h": "raw", "j": "raw", "3": "raw", "4": "raw", "E": "pdo", "N": "nmt"}
-RELEASE_LINES = {"raw": "RELEASED record", "pdo": "PDO record released", "nmt": "NMT result released"}
+HOLDS = {"R": "raw", "W": "raw", "h": "raw", "j": "raw", "3": "raw", "4": "raw", "E": "pdo", "N": "nmt",
+         "C": "capture"}
+RELEASE_LINES = {"raw": "RELEASED record", "pdo": "PDO record released", "nmt": "NMT result released",
+                 "capture": "CAP record released"}
+
+
+def capture_stop(text):
+    """True for the C0 line, which ends a running capture: it holds no record and has no terminal."""
+    return text[:1] == "C" and len(text) > 1 and text[1:].isdigit() and int(text[1:]) == 0
+
+
+def capture_plan(text):
+    """(identity, seconds, frames) of a C start line, or None when it is not one."""
+    fields = text[1:].split(",")
+    if text[:1] != "C" or len(fields) != 3 or not all(f.isdigit() for f in fields):
+        return None
+    return tuple(int(f) for f in fields)
 
 
 class SessionError(RuntimeError):
@@ -110,10 +128,17 @@ def check_plan(plan):
         if "end" in step and "send" not in step:
             raise SessionError("step %d: end needs a send" % number)
         # Work whose terminal decides whether later steps may follow names its exact admission and end.
-        if "send" in step and step["send"][0] in CHECKED:
+        if "send" in step and step["send"][0] in CHECKED and not capture_stop(step["send"]):
             admission, end = CHECKED[step["send"][0]]
             if step["expect"] != admission or step.get("end") != end:
                 raise SessionError("step %d: %r needs expect %r and end %r" % (number, step["send"], admission, end))
+            plan = capture_plan(step["send"]) if step["send"][0] == "C" else ()
+            if plan is None:
+                raise SessionError("step %d: %r is not C<capture>,<seconds>,<frames>" % (number, step["send"]))
+            # The record prints after the capture's own duration: the end must be waited for past it.
+            if plan and step.get("end_timeout_s", DEFAULT_TIMEOUT_S) <= plan[1]:
+                raise SessionError("step %d: a %d s capture needs end_timeout_s above %d" %
+                                   (number, plan[1], plan[1]))
         if "require" in step:
             check_requirements(number, step["require"])
         held = check_release(number, step, held)
@@ -137,7 +162,7 @@ def check_release(number, step, held):
             raise SessionError("step %d: r releases the %s record of step %d; expect %r" %
                                (number, held[0], held[1], wanted))
         return None
-    if text and text[0] in HOLDS and (len(text) == 1) == (text[0] in SINGLE_BYTES):
+    if text and text[0] in HOLDS and (len(text) == 1) == (text[0] in SINGLE_BYTES) and not capture_stop(text):
         if held is not None:
             raise SessionError("step %d: %r while the %s record of step %d is held; release it first" %
                                (number, text, held[0], held[1]))
@@ -288,6 +313,8 @@ def terminal_problem(step, lines):
                 return "write_readback_differs"
     if command == "E":
         return config_problem(text, parsed)
+    if command == "C":
+        return capture_problem(text, parsed)
     if command == "N":
         nmts = [r for r in parsed if r.kind == "NMT"]
         if len(nmts) != 1:
@@ -343,6 +370,49 @@ def config_problem(text, parsed):
     if writes != ["2b001805" + raw.to_bytes(2, "little").hex() + "0000"]:
         return "pdo_write_bytes_differ"
     return None
+
+
+def capture_problem(text, parsed):
+    """Check one capture record: its own identity throughout, an orderly end at its duration, nothing
+    lost, overflowed or refused at the gate, the normal level requested and the gate open again, and
+    exactly the CAP_F lines it says it stored. A record with zero frames passes: a silent S2 beside
+    silent drives can legitimately see nothing, and frames prove neither capture nor silence."""
+    identity, seconds, frames = capture_plan(text)
+    rows = {kind: [r.values for r in parsed if r.kind == kind and r.values.get("cap") == identity]
+            for kind in ("CAP_REC", "CAP_TIME", "CAP_LEVEL", "CAP_CTRL", "CAP_OWNER", "CAP_IMAGE", "CAP_F",
+                         "CAP_END")}
+    if any(len(rows[k]) != 1 for k in ("CAP_REC", "CAP_TIME", "CAP_LEVEL", "CAP_IMAGE", "CAP_END")) or \
+            len(rows["CAP_CTRL"]) != 2 or len(rows["CAP_OWNER"]) != 2:
+        return "capture_record_unparsed"
+    if any(r.kind.startswith("CAP_") and r.values.get("cap") != identity for r in parsed if "cap" in r.values):
+        return "capture_wrong_identity"
+    record, level, timing = rows["CAP_REC"][0], rows["CAP_LEVEL"][0], rows["CAP_TIME"][0]
+    if record["reason"] != "duration":
+        return "capture_ended_%s" % record["reason"]
+    if record["seconds"] != seconds or record["capacity"] != frames or \
+            timing["end"] - timing["begin"] < seconds * 1000000:
+        return "capture_wrong_plan"
+    if record["lost"] or record["tapDropped"] or record["overflow"] or rows["CAP_END"][0]["lost"]:
+        return "capture_incomplete"
+    if record["txRefused"]:
+        return "capture_send_attempted"  # Something was admitted and refused at the closed gate.
+    if (level["begin"], level["exit"], level["reopened"]) != (1, 1, 1):
+        return "capture_exit_not_normal"
+    if len(rows["CAP_F"]) != record["stored"] or rows["CAP_END"][0]["stored"] != record["stored"] or \
+            [f["i"] for f in rows["CAP_F"]] != list(range(record["stored"])):
+        return "capture_frames_differ"
+    return None
+
+
+def capture_running(lines):
+    """True when the last CAP admitted in the capture has no CAP_REC after it: still collecting."""
+    running = False
+    for line in lines:
+        if line.startswith("CAP admitted"):
+            running = True
+        elif line.startswith("CAP_REC "):
+            running = False
+    return running
 
 
 def run_steps(steps, capture, clock):
@@ -402,6 +472,13 @@ def run_steps(steps, capture, clock):
         results.append({"step": "cleanup", "sent": "P0", "tx_hex": b"P0\n".hex(), "utc": clock.utc()})
         end = capture.until(WATCH_STOP_S, lambda line: line.startswith("PDOW_END "), start)
         results[-1]["outcome"] = "watch_ended" if end else "no_watch_end"
+    if reason != "completed" and capture_running(capture.lines):
+        # Only the local capture is ended; it sends nothing on CAN, and its record stays held.
+        start = len(capture.lines)
+        capture.send(b"C0\n")
+        results.append({"step": "cleanup", "sent": "C0", "tx_hex": b"C0\n".hex(), "utc": clock.utc()})
+        end = capture.until(CAPTURE_STOP_S, lambda line: line.startswith("END capture"), start)
+        results[-1]["outcome"] = "capture_ended" if end else "no_capture_end"
     return results, reason
 
 
@@ -436,7 +513,7 @@ def preflight(capture, steps=()):
     if found is None:
         return None, "no_ping"
     values = dict(word.split("=", 1) for word in found[1].split()[1:] if "=" in word)
-    letters = {step["send"][0] for step in steps if len(step.get("send", "")) > 1 and step["send"][0] in "NPRWE"}
+    letters = {step["send"][0] for step in steps if len(step.get("send", "")) > 1 and step["send"][0] in "NPRWEC"}
     if values.get("pdo") not in PDO_PROTOCOLS:
         return values, "image_without_pdo_lines"
     if not letters <= PDO_PROTOCOLS[values["pdo"]]:
@@ -447,6 +524,9 @@ def preflight(capture, steps=()):
         return values, "trial_record_held"
     if values.get("watch") != "0":
         return values, "watch_running"
+    # Images before pdo=3 have no capture and print no field; from pdo=3 on it is always printed.
+    if values.get("capture", "0") != "0":
+        return values, "capture_held"
     return values, None
 
 
@@ -611,6 +691,42 @@ def _stats(times):
             "p50_gap": ordered[len(ordered) // 2], "p99_gap": ordered[min(len(ordered) - 1, len(ordered) * 99 // 100)]}
 
 
+def captures(records):
+    """Each capture record: its header lines, and per received ID the stored frames' count, receive
+    upper bounds and gaps. hi is the ISR clock sample at enqueue, an upper bound, never a bus time;
+    pre and post frames are listed but kept out of the gap statistics."""
+    out, current = [], None
+    for record in records:
+        if record.status != "parsed" or record.role != "capture":
+            continue
+        v = record.values
+        if record.kind == "CAP_REC":
+            current = {"record": v, "ids": {}, "frames": 0, "boundary": 0}
+            out.append(current)
+        elif current is None or v.get("cap") != current["record"]["cap"]:
+            continue
+        elif record.kind == "CAP_F":
+            current["frames"] += 1
+            key = "%s%x" % ("x" if v["ext"] else "", v["id"])
+            entry = current["ids"].setdefault(key, {"count": 0, "hi": [], "dlc": v["dlc"], "data": v["data"]})
+            entry["count"] += 1
+            entry["data"] = v["data"]
+            if v["pre"] or v["post"]:
+                current["boundary"] += 1
+            elif v["bounds"] or v["exact"]:
+                entry["hi"].append(v["hi"])
+        elif record.kind in ("CAP_TIME", "CAP_LEVEL", "CAP_IMAGE"):
+            current[record.kind[4:].lower()] = v
+        elif record.kind in ("CAP_CTRL", "CAP_OWNER"):
+            current.setdefault(record.kind[4:].lower(), {})[v["which"]] = v
+        elif record.kind == "CAP_END":
+            current["end"] = v
+    for item in out:
+        for entry in item["ids"].values():
+            entry["stats"] = _stats(entry.pop("hi"))
+    return out
+
+
 def analyze(directory):
     directory = Path(directory)
     data = (directory / "rx.bin").read_bytes()
@@ -655,6 +771,7 @@ def analyze(directory):
                          "name": NMT_NAMES.get(v["cmd"], "?"), "outcome": v["outcome"],
                          "txConfirmed": v["txConfirmed"], "completed": v["completed"],
                          "admitted": v.get("admitted")})
+    report["captures"] = captures(records)
     groups = _raw_records(records)
     maps = pdo_maps(groups)
     report["pdo_records"] = groups
@@ -745,6 +862,12 @@ def main(argv=None):
                 watch["begin"].get("seconds"), watch["console_gaps"], watch["unprinted"], watch["tap_dropped"]))
             for ident, entry in watch["ids"].items():
                 print("  %s %s" % (ident, json.dumps({k: entry[k] for k in entry if k != "device"})))
+        for item in report["captures"]:
+            r = item["record"]
+            print("capture %s reason=%s stored=%s overflow=%s tapDropped=%s lost=%s txRefused=%s" % (
+                r["cap"], r["reason"], r["stored"], r["overflow"], r["tapDropped"], r["lost"], r["txRefused"]))
+            for ident, entry in sorted(item["ids"].items()):
+                print("  %s %s" % (ident, json.dumps(entry)))
         for nmt in report["nmt"]:
             print("nmt %s" % json.dumps(nmt))
         for group in report["pdo_records"]:

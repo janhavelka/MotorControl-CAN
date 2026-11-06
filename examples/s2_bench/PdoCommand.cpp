@@ -91,6 +91,19 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
             return false;
         result.eventTimer = uint16_t(value);
         break;
+    case 'C':
+        // C0 alone stops; any other line states identity, duration and frame capacity together.
+        result.kind = PdoCommandKind::CAPTURE;
+        if (!number(text, end, result.capture))
+            return false;
+        if (result.capture == 0)
+            break;
+        if (!comma(text, end) || !number(text, end, result.seconds) || result.seconds < 1 ||
+            result.seconds > 600 || !comma(text, end) || !number(text, end, value) || value < 1 ||
+            value > UINT16_MAX)
+            return false;
+        result.frames = uint16_t(value);
+        break;
     default:
         return false;
     }

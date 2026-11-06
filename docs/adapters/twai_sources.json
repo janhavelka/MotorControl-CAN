@@ -172,6 +172,16 @@
       "path": "components/hal/systimer_hal.c",
       "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/hal/systimer_hal.c",
       "sha256": "7b04fc829596c330b729d5a3df1001475ba53865aa5fd9cf807e959de1bcf66f"
+    },
+    {
+      "path": "components/driver/twai/Kconfig.twai",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/driver/twai/Kconfig.twai",
+      "sha256": "f4b3c031baa99745af7098dea877d476465f119882c3c07f544ffad99eddb2f9"
+    },
+    {
+      "path": "components/driver/Kconfig",
+      "url": "https://raw.githubusercontent.com/espressif/esp-idf/b774170ff46c393eeb5e495ea37936038d3f4f4f/components/driver/Kconfig",
+      "sha256": "32859ecaa85a7ba5b4c92f1f641bfd0472785355c2c48d6fd45d37417bdc16d3"
     }
   ],
   "documentation_urls": [
@@ -182,6 +192,7 @@
     "Hashes identify original upstream bytes fetched at the recorded commit. No SDK source copies are included in this repository.",
     "Legacy twai.c and deprecated type definitions are retained as source references for the rejected receive wrapper; the adapter uses only the node API.",
     "Installed paths record this local audit, not a portable build requirement.",
-    "ESP32-S2 target review: docs/adapters/twai_esp32s2.md. Installed SDK C:/pio/packages/framework-espidf matches all retained hashes; the four added S2 files were also compared byte-for-byte with the pinned upstream URLs."
+    "ESP32-S2 target review: docs/adapters/twai_esp32s2.md. Installed SDK C:/pio/packages/framework-espidf matches all retained hashes; the four added S2 files were also compared byte-for-byte with the pinned upstream URLs.",
+    "Packet 4 (2026-11-06): the legacy driver Kconfig files holding CONFIG_TWAI_ERRATA_FIX_LISTEN_ONLY_DOM were compared byte-for-byte with the pinned upstream URLs; the S2 bench build does not include that component, so the option is absent from its sdkconfig (docs/adapters/twai_sdk.md)."
   ]
 }
