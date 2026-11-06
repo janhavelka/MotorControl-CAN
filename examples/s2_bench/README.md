@@ -54,19 +54,33 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `P<seconds>`, `P0` | Watch received frames for 1..600 s at the driver tap, or end the watch; sends nothing |
 | `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
 | `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
+| `E<node>,<0\|100>` | The supported TPDO1 event-timer change on node 1 or 2: `1800:05` from raw 100 to raw 0 or from raw 0 to raw 100, through the profile's typed lifecycle (below) |
 
 While a soak runs, only `p`, `s`, `X` and a `P` watch line are served; anything else answers
-`SOAK_REFUSED reason=active` (an `N`, `R` or `W` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
+`SOAK_REFUSED reason=active` (an `N`, `R`, `W` or `E` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
 are served; anything else answers `TRIAL_REFUSED reason=active`. A response that finds the console queue full waits in
 one retained buffer, and no further command is taken until it has gone.
 
 ### PDO stream sessions
 
-The `N`, `P`, `R` and `W` lines (`PdoCommand.h`) end with a line feed and use decimal numbers. `scripts/s2_pdo.py run` sends a JSON plan of them, with single-byte commands such as `c`, `h`, `j` and `r`, and keeps one capture for the whole session. Each step waits for its expected reply; a refusal or silence ends the plan, and only a running watch is then ended with `P0`. `scripts/s2_pdo.py analyze DIR` reports each received ID's frames and timing, every NMT request with its TX completion time, the first and last frame of each ID around it, heartbeat states and every PDO record read or write.
+The `N`, `P`, `R`, `W` and `E` lines (`PdoCommand.h`) end with a line feed and use decimal numbers. `scripts/s2_pdo.py run` sends a JSON plan of them, with single-byte commands such as `c`, `h`, `j` and `r`, and keeps one capture for the whole session. Each step waits for its expected reply; a refusal or silence ends the plan, and only a running watch is then ended with `P0`. `scripts/s2_pdo.py analyze DIR` reports each received ID's frames and timing, every NMT request with its TX completion time, the first and last frame of each ID around it, heartbeat states and every PDO record read or write.
 
 - **Watch** (`PdoWatch.h`): the TWAI tap copies every frame the adapter delivers into a 32-frame ring, without taking it from the owner, so the watch runs beside any record, NMT request or soak. SDO frames are only counted. Per ID it keeps count, gaps, mean and deviation, data changes and the last payload, and prints each frame as `PDOW_F` while the console has room. A frame's `hi` is the ISR clock sample at enqueue, an upper bound and never a bus timestamp, so gaps include ISR and service latency. `tapDropped` or `unprinted` above 0 qualifies the output. A watched frame is not a qualified PDO sample.
 - **NMT** (`N`): the owner admits one request at a time, with a 250 ms queue budget and a 5 s deadline; release its `NMT request` result with `r` before the next. TX completion is local evidence; the drive's state comes only from its heartbeat or from frames that follow. NMT Stop is not a motor stop, and in Stopped the owner refuses SDO until Pre-operational or Start.
-- **PDO record and write** (`R`, `W`): raw evidence experiments with one-use grants that follow the fixed experiments' grants on the same slot. Run `h`/`j` and `m` before them in a boot, or they refuse. A write changes only bit 31 of `:01`, or sets `:02` to 0..240, 254 or 255, or `:03`/`:05` to 0..65535. Each needs its PDO record read first, because an exact read of a different width would be aborted by the client and leave the node's route unresolved until an MCU restart. A write qualifies no sample and establishes no unit, persistence or drive effect.
+- **PDO record and write** (`R`, `W`): raw evidence experiments with one-use grants that follow the fixed experiments' grants on the same slot. Run `h`/`j` and `m` before them in a boot, or they refuse. `W` stays an isolated raw experiment; the supported event-timer change is `E`. A write changes only bit 31 of `:01`, or sets `:02` to 0..240, 254 or 255, or `:03`/`:05` to 0..65535. Each needs its PDO record read first, because an exact read of a different width would be aborted by the client and leave the node's route unresolved until an MCU restart. A write qualifies no sample and establishes no unit, persistence or drive effect.
+
+- **TPDO1 event timer** (`E`), host-tested; awaiting its first bench replay: the profile's supported production transition, run by `PdoExperiment` through `prepareTpdo1Configuration` with an `EVENT_TIMER` request, `nextPdoConfiguration`, `notePdoConfigurationTransmission`, `advancePdoConfiguration` and `getTpdo1Configuration`. It writes only `1800:05`, from raw 100 to raw 0 or from raw 0 to raw 100, in qualified Pre-operational. It waits for a node heartbeat after its reservation, then makes nine exact baseline reads (`1800:01/02/03/05`, `1A00:00..04`), one acknowledged download (`2B 00 18 05 64 00 00 00` for 100, `2B 00 18 05 00 00 00 00` for 0) and the same nine reads again. The profile refuses before the write unless the drive is a CL86-C and the baseline is COB-ID `0x180+node` valid and standard, type 255, inhibit raw 100, count 3, `60410010 60610008 60640020 0` and the other literal; any other line value (200, 10 and so on) is refused by the parser. Scope is `FIXTURE_QUALIFIED` for these two specimens. Deadline 8 s; an admitted line sets the node's evidence age policy to 3 s for the rest of the boot, as `m` does, and a refused line leaves it as it was. It can repeat after `r`. Its nineteen grants come from the `R`/`W` sequence on that slot (above 10000), and grants on a slot only increase, so after any `R`, `W` or `E` on a node these fixed-grant commands fail at their first grant on that node until the next MCU boot, with nothing sent (an `AUTHORIZATION` record, or an interrupted typed read for `1`/`2`): `1`/`2` (typed identity, grants from 1), `3`/`4` (1000), `h`/`j` (2000), `m` (3000, node 1) and `v`/`b` (4000). Run them first. A failure ends the record with the confirmed, first-effect and failed step and any uncertainty; nothing is rolled back or retried, and a restoration is a separate `E` line after a known outcome. An unresolved route is refused at the next reservation. The node's own TPDO1 route, if one is installed, is withdrawn before the write and again after the epoch advance, and the readback starts after that boundary, so the confirmed readback can be installed later. The values are raw: on these specimens raw 100 gave periods of about 101 ms on the S2's clock while Operational, and raw 0 sent no periodic frame while stationary; no unit, zero meaning or persistence is claimed. A confirmed change qualifies no PDO sample.
+
+  The expected form of the output, not a retained capture:
+
+  ```text
+  E2,100
+  PDO_CONFIG admitted node=2 raw=100; TPDO1 1800:05 raw only: nine exact reads, one write, nine exact reads; no retry
+  PDO failure=0 lost=0 terminals=19 traffic=... confirmed=1 effects=1 uncertain=0 ackMask=01 cfg=2 migrated=1 gap=... node=2 transition=2 raw=100 lastStep=10 effectStep=1 failedStep=0
+  RESULT ... (19 lines, the tenth the 1800:05 download), TRAFFIC ..., END PDO; map readback and sample qualification are separate; r=release
+  ```
+
+  `PDO_CONFIG refused; no work` names no reason: an active record, dump, network listing or NMT result, an exhausted identity or grant, or an invalid plan. The `PDO` header of both `m` and `E` now ends with `node`, `transition` (1 map, 2 event timer), `raw` (the requested `1800:05` literal, no unit) and `lastStep`, `effectStep`, `failedStep` (step 1 is the first write, 0 none). PONG reports `pdo=2` for this line set; `scripts/s2_pdo.py` refuses to send an `E` line to an image that reports `pdo=1`.
 
 The raw inventory is `1000:00`, `1009:00`, `100A:00`, `1018:00..03`,
 `2000:00`, `2001:00`, `1800:01/:02/:03/:05`, `1A00:00..04`, `6041:00`
@@ -172,15 +186,19 @@ confirmation does not confirm the remote transition. Release the result with
 `r` after retaining it, then inspect `n`; a fresh post-handoff heartbeat is
 required. No NMT reset/start/stop is hidden in any command.
 
-The fixed PDO experiment is documented in
+The fixed PDO experiment (`m`) is documented in
 [the reviewed procedure](../../docs/reports/2026-11-02_pdo_motion_plan.md).
-Its scope remains `ISOLATED_EXPERIMENT`. It preserves COB-ID, type255, raw
+Its scope remains `ISOLATED_EXPERIMENT`; only the `E` event-timer change is the
+supported production subset. It preserves COB-ID, type255, raw
 inhibit100, event0 and inactive slots, changes the active map from status/mode/
 position to status/position, and stops at the first failure. Every queued
 service carries a Pre-operational prerequisite rechecked through SDK submission.
 Partial or uncertain changes are retained without rollback. Complete readback
-confirms contents only; samples remain unqualified. No motion is implemented
-by this harness.
+confirms contents only; samples remain unqualified. After the epoch advance
+that precedes the final reads, the harness withdraws the node's TPDO1 route once
+more and reads back strictly after that boundary, so an application can install
+the published readback with `configurePdo`; the bench configures no PDO route.
+No motion is implemented by this harness.
 
 The S2 reports exact capture as unknown and retains separate conservative
 ingress bounds. See [the timing proof](../../docs/adapters/twai_receive_time.md).

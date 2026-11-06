@@ -1,6 +1,10 @@
 # Prompt 18: PDO configuration evidence gate
 
-## Current checkpoint: 2026-11-02 fixed subset implemented and observed
+## Checkpoint 2026-11-06: typed event-timer subset (bench continuation packet 7)
+
+[Packet 7](bench_closure_18_33/packet_7.md) adds `EVENT_TIMER` on the same lifecycle names: one `1800:05` write between raw 0 and raw 100 in Pre-operational on CL86-C, with exact baseline and readback, retained step evidence and no rollback. It has an application caller (bench `E`) and a native one (`examples/pdo_configuration_preview`). Measured inputs are from packet 6; the replay of this procedure is recorded in the packet. Prompt 18 stays Partial: commissioning (38) and the CLI `pdo` route (41) remain owned and pending, as do other values, Operational writes, units, inhibit, other transmission types, the COB-ID valid bit, SYNC, RPDOs, persistence and sample qualification.
+
+## Checkpoint 2026-11-02: fixed subset implemented and observed
 
 **Partial.** The [NMT/TPDO checkpoint](2026-11-02_nmt_pdo_checkpoint.md)
 implements the fixed TPDO1 map3-to-map2 lifecycle and records node1's successful

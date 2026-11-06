@@ -418,13 +418,73 @@ bool startMap(E::FirmwareProbe& firmware, C::SdoClient& services, E::PdoExperime
     plan.configurationReview.firmwareRecord = 2;
     plan.configurationReview.procedureRecord = 18;
     plan.configurationReview.authorizationRecord = 20261102;
+    plan.request.transition = L::Tpdo1Transition::MAP3_TO_MAP2;
+    plan.request.eventTimer = L::Tpdo1EventTimerRaw::RAW_0;
     plan.slot = 0;
     plan.firstAuthorizationId = 3000;
     plan.maximumAgeUs = 3000000;
     // Freeze the same conservative age policy through native handoff and SDK
-    // submission, not just in the collector's pre-admission snapshot check.
-    return firmware.running() && services.setServiceAge(0, plan.maximumAgeUs, now) &&
-           pdo.begin(plan, now) == E::EvidenceAdmission::ACCEPTED;
+    // submission, not just in the collector's pre-admission snapshot check. A refusal restores it.
+    return firmware.running() &&
+           pdo.beginWithServiceAge(plan, now) == E::EvidenceAdmission::ACCEPTED;
+}
+// The supported TPDO1 event-timer change (`E`): the same harness and owner as `m`, on node 1 or 2,
+// through the profile's typed lifecycle, never the raw `W` experiment. Its nineteen grants follow
+// the R and W lines' sequence on that slot, so `m` (grants 3000..3023 on node 1) must come before
+// any of them in a boot. Like `m`, an accepted line sets the node's service evidence age to 3 s
+// for the boot; a refused one leaves it as it was.
+bool startConfig(E::FirmwareProbe& firmware, C::SdoClient& services, E::PdoExperiment& pdo,
+                 bool& configured, unsigned node, uint16_t eventTimer, uint32_t operation,
+                 uint32_t firstGrant, uint64_t now) {
+    const unsigned slot = node - 1;
+    if (!firmware.running() || now > UINT64_MAX - 8000000 || (eventTimer != 0 && eventTimer != 100) ||
+        !ensureRoute(services, node, configured, now))
+        return false;
+    const auto* channel = services.channel(slot);
+    const auto* state = services.node(slot);
+    if (!channel || !state)
+        return false;
+    // Static, set whole on every call: no field of an earlier request survives.
+    static E::PdoExperimentPlan plan;
+    auto& r = plan.review;
+    r.plan.id = operation;
+    r.plan.target.channel = *channel;
+    r.plan.target.nodeGeneration = state->route.generation;
+    r.plan.kind = L::ReadKind::IDENTITY;
+    r.plan.stateMask = 0;
+    r.plan.deadlineUs = now + 8000000;
+    r.plan.options = L::ReadOptions();
+    r.plan.options.queueTimeoutUs = r.plan.options.responseTimeoutUs = 250000;
+    label(r.plan.fixtureId, "OPTAK-S2-20261102-two-CL86");
+    label(r.plan.softwareRevision, MOTORCONTROLCAN_SOURCE_REVISION);
+    label(r.plan.firmware, "CL86-C raw0C/20/0400/0200; packet6 record");
+    label(r.plan.dialect, "raw; status dialect unresolved");
+    label(r.plan.authorization, "user: bench continuation, TPDO1 1800:05 0<->100 only");
+    label(r.plan.observations,
+          "19 exact services, one 1800:05 write; traffic and effects retained; no motion");
+    label(r.sourceReview,
+          "EDS 1800:05 RW U16; packet6 1302Z/1315Z/1316Z/1317Z exact readback; unit open");
+    label(r.independentReview, "packet6 transition record; packet7 core and owner vectors");
+    label(r.fixtureReview, "S2 TX17 RX16 S18; CL86-C nodes1/2 1Mbit; LC60H2127");
+    label(r.independentControl,
+          "User-confirmed independent drive power cutoff; no firmware stop assumption");
+    label(r.failurePlan,
+          "First failure ends sequence; retain write uncertainty; no rollback/replay");
+    label(r.reconciliation,
+          "Read retained exact outcome; a restoration is a separate explicit E line");
+    plan.configurationReview.target = r.plan.target;
+    plan.configurationReview.scope = L::PdoConfigurationScope::FIXTURE_QUALIFIED;
+    plan.configurationReview.fixtureRecord = 20261102;
+    plan.configurationReview.firmwareRecord = 6;
+    plan.configurationReview.procedureRecord = 7;
+    plan.configurationReview.authorizationRecord = 20261106;
+    plan.request.transition = L::Tpdo1Transition::EVENT_TIMER;
+    plan.request.eventTimer =
+        eventTimer ? L::Tpdo1EventTimerRaw::RAW_100 : L::Tpdo1EventTimerRaw::RAW_0;
+    plan.slot = uint8_t(slot);
+    plan.firstAuthorizationId = firstGrant;
+    plan.maximumAgeUs = 3000000;
+    return pdo.beginWithServiceAge(plan, now) == E::EvidenceAdmission::ACCEPTED;
 }
 bool dumpPdo(E::FirmwareProbe& firmware, E::PdoExperiment& pdo, unsigned& cursor) {
     const auto* r = pdo.record();
@@ -432,17 +492,25 @@ bool dumpPdo(E::FirmwareProbe& firmware, E::PdoExperiment& pdo, unsigned& cursor
         return false;
     char out[256] = {};
     if (!cursor) {
+        // transition: 1 map3-to-map2, 2 event timer; raw: the requested 1800:05 literal, no unit.
+        // lastStep, effectStep and failedStep are the core's confirmedStep, firstEffectStep and
+        // failedStep, step 1 being the first write; 0 means none.
+        const auto& c = r->configuration;
         formatLine(
             out, sizeof out,
             "PDO failure=%u lost=%u terminals=%u traffic=%u tail=%u tailLost=%u "
-            "confirmed=%u effects=%u uncertain=%u ackMask=%02x cfg=%lu migrated=%u gap=%llu\n",
+            "confirmed=%u effects=%u uncertain=%u ackMask=%02x cfg=%lu migrated=%u gap=%llu "
+            "node=%lu transition=%u raw=%u lastStep=%u effectStep=%u failedStep=%u\n",
             unsigned(r->failure), unsigned(r->evidenceLost), unsigned(r->terminalCount),
             unsigned(r->trafficCount), unsigned(r->tailCount), unsigned(r->tailOverflow),
-            unsigned(r->configuration.mapConfirmed), unsigned(r->configuration.effectsPossible),
-            unsigned(r->configuration.uncertain), unsigned(r->configuration.acknowledgedMask),
+            unsigned(c.mapConfirmed), unsigned(c.effectsPossible), unsigned(c.uncertain),
+            unsigned(c.acknowledgedMask),
             static_cast<unsigned long>(r->current.configurationGeneration),
             unsigned(r->configurationMigrated),
-            static_cast<unsigned long long>(r->maxServiceGapUs));
+            static_cast<unsigned long long>(r->maxServiceGapUs),
+            static_cast<unsigned long>(r->plan.review.plan.target.channel.binding.endpoint.address),
+            unsigned(r->plan.request.transition), unsigned(r->plan.request.eventTimer),
+            unsigned(c.confirmedStep), unsigned(c.firstEffectStep), unsigned(c.failedStep));
     } else if (cursor <= r->terminalCount) {
         resultLine(out, sizeof out, r->terminals[cursor - 1]);
     } else if (cursor <= unsigned(r->terminalCount) + r->trafficCount + r->tailCount) {
@@ -646,12 +714,12 @@ void ownerTask(void*) {
     unsigned dumpCursor = 0;
     E::Soak* soak = nullptr;
     E::PdoWatch* watch = nullptr;
-    // N, P, R and W lines (PdoCommand.h), collected whole like the soak and trial requests.
+    // N, P, R, W and E lines (PdoCommand.h), collected whole like the soak and trial requests.
     char pdoText[48] = {};
     size_t pdoLength = 0;
     bool pdoCollecting = false;
     uint64_t pdoCollectUs = 0;
-    // PDO record and write grants follow every fixed experiment's grants on the same slot.
+    // PDO record, write and E-line grants follow every fixed experiment's grants on the slot.
     uint32_t pdoGrant[2] = {10000, 10000};
     // The soak request is the one multi-byte command: `S` then text up to a line end.
     char soakText[40] = {};
@@ -865,6 +933,30 @@ void ownerTask(void*) {
                         }
                     } else if (soakActive || trialHeld) {
                         line(firmware, "PDO_LINE refused reason=active; no work\n");
+                    } else if (parsed.kind == E::PdoCommandKind::CONFIGURE) {
+                        // Grant sequencing as R and W: nineteen from this slot's next grant.
+                        const unsigned slot = parsed.node - 1;
+                        const bool accepted =
+                            controllerReady && !pdoRecord && !dumping && !networkDump &&
+                            !nmtRequest.owner && !record && !rawRecord &&
+                            acquisition < UINT32_MAX - 1 && pdoGrant[slot] <= UINT32_MAX - 19 &&
+                            firmware.platform().nowUs(now) &&
+                            startConfig(firmware, services, pdo, configured[slot], parsed.node,
+                                        parsed.eventTimer, acquisition + 1, pdoGrant[slot] + 1,
+                                        now);
+                        if (accepted) {
+                            acquisition += 2;
+                            pdoGrant[slot] += 19;
+                            reported = false;
+                            formatLine(output, sizeof output,
+                                       "PDO_CONFIG admitted node=%u raw=%u; TPDO1 1800:05 raw "
+                                       "only: nine exact reads, one write, nine exact reads; no "
+                                       "retry\n",
+                                       unsigned(parsed.node), unsigned(parsed.eventTimer));
+                        } else {
+                            formatLine(output, sizeof output, "PDO_CONFIG refused; no work\n");
+                        }
+                        line(firmware, output);
                     } else if (parsed.kind == E::PdoCommandKind::NMT) {
                         const bool accepted =
                             acquisition != UINT32_MAX && controllerReady && !dumping &&
@@ -952,7 +1044,8 @@ void ownerTask(void*) {
                 soakCollecting = true;
                 soakLength = 0;
                 soakCollectUs = firmware.platform().nowUs(now) ? now : 0;
-            } else if (command == 'N' || command == 'P' || command == 'R' || command == 'W') {
+            } else if (command == 'N' || command == 'P' || command == 'R' || command == 'W' ||
+                       command == 'E') {
                 // A soak or a trial admits only the watch line; the collector refuses the rest.
                 pdoCollecting = true;
                 pdoText[0] = char(command);
@@ -1118,7 +1211,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u pdo=1 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u pdo=2 "
                            "watch=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

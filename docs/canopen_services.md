@@ -873,39 +873,67 @@ expired. Evidence installation refreshes no sample time. Snapshot copies
 describe validity at their copy time; inspect the current owner record for
 later invalidation. Generations never wrap; maximum map epoch permits no
 replacement. No active SYNC scheduling or codec is needed by the reviewed
-asynchronous fixtures, and no trajectory guarantee is added here. Remapping
-and its explicit mutation/partial-effect sequences remain prompt 18.
+asynchronous fixtures, and no trajectory guarantee is added here. The explicit
+TPDO1 mutation sequences and their partial effects are in the next section.
 
-### Lichuan PDO mutation gate
+### Lichuan TPDO1 configuration subset
 
-[Prompt 18's review](reports/prompt_18.md#fresh-independent-audit) distinguishes
-the documented standard procedure from unresolved Lichuan applicability. The
-typed remap and transmission/event/inhibit setters are not implemented.
-`configurePdo` installs host evidence; it does not configure a drive.
+`profiles/lichuan_c/PdoConfiguration.h` implements two TPDO1 transitions and no
+other PDO edit, through one lifecycle: `prepareTpdo1Configuration`,
+`nextPdoConfiguration`, `notePdoConfigurationTransmission`,
+`advancePdoConfiguration` and `getTpdo1Configuration`. A
+`Tpdo1ConfigurationRequest` names the transition; its default names none and
+refuses. `configurePdo` installs host evidence; it does not configure a drive.
+The [offline caller](../examples/pdo_configuration_preview/README.md) runs the
+event-timer change with retained bench replies and shows two refusals.
 
-[CiA documents the procedure](https://www.can-cia.org/can-knowledge/pdo-protocol/)
-for variable/dynamic mapping: invalidate the PDO through COB-ID bit 31, clear the
-mapping count, write entries, restore the count, then revalidate the PDO.
-Variable mapping permits editing in Pre-operational; dynamic mapping also permits
-Operational. Lichuan's CiA301 claim and RW mapping fields support this conditional
-procedure. They do not settle model-specific edit restrictions or activation.
-Q17 requires evidence of that applicability and the selected subset's flags,
-drive conditions and readback contract, without requiring a verbatim vendor
-restatement of the standard.
+| Transition | Writes, in order | Baseline it requires | Evidence and scope |
+| --- | --- | --- | --- |
+| `MAP3_TO_MAP2` | `1800:01` valid bit set, `1A00:00=0`, `1A00:01=60410010`, `1A00:02=60640020`, `1A00:00=2`, `1800:01` restored | Enabled standard COB-ID, type 255, inhibit raw 100, event raw 0, count 3, `60410010 60610008 60640020 0` | CiA's variable-mapping order and one node-1 run (2026-11-02); `m` keeps it an isolated experiment |
+| `EVENT_TIMER` | `1800:05` only, two bytes: raw 100 to raw 0 or raw 0 to raw 100 | CL86-C only; COB-ID exactly `0x180+node`, the EDS `$NODEID+0x180` rule (valid, standard, bit 30 clear), type 255, inhibit raw 100, count 3, `60410010 60610008 60640020 0`, event the other literal | Exact read, one acknowledged write and exact readback in Pre-operational on both CL86-C specimens ([packet 6](reports/bench_closure_18_33/packet_6.md#transition-record-for-packet-7)); the supported production subset, host-tested and awaiting its first bench replay through the S2 `E` line |
 
-Keep persistence effects explicit; do not assume volatile-only writes. Timing
-and SYNC facts gate only operations that change or consume those settings.
-Post-remap sample qualification is separate from map confirmation. A narrow
-supported remap may leave timing unchanged and samples unqualified. Missing
-physical qualification alone does not block software implementation.
+Both run in qualified Pre-operational under a continuous owner reservation and
+take nine exact baseline uploads (`1800:01/02/03/05`, `1A00:00..04`) after the
+reservation and its Pre-operational observation, then the writes, then the same
+nine uploads. Steps are numbered writes first (1..6 or 1), reads after. Every
+check, request, scope records, reservation, NMT evidence, deadline, budgets,
+provenance, widths, values and the profile's ability to represent the published
+map, precedes the first write; output is unchanged on refusal.
+`Tpdo1EventTimerRaw` has only `RAW_0` and `RAW_100`. They are raw U16 values:
+on the specimens raw 100 gave periods of about 101 ms on the S2's clock while
+Operational and raw 0 sent no periodic frame while stationary. These two
+directions are the only transitions measured on both specimens; 200 to 0 and
+10 to 0 were measured on node 2 only and are not supported. `EVENT_TIMER` on an
+OL86-C reservation refuses with `UNSUPPORTED`: the 1800/1A00 ledger entries bind
+no model and every measurement is CL86-C. No unit, zero meaning, other value,
+Operational write or persistence is claimed.
 
-Raw SDO access does not complete the missing typed operation; separately
-authorized evidence acquisition follows Prompt 29. Once a subset is established, its
-operation must retain confirmed steps and possible partial effects through the
-existing SDO owner, without replay or rollback. Confirmed configuration and sample
-qualification remain separate under the contract above. Device-sequence
-acceptance remains open; protocol-only fake tests cannot close it. This is an
-implementation obligation, not completed support behind a capability flag.
+The context freezes the request, payload, deadline, operation and binding.
+`notePdoConfigurationTransmission` advances the binding's configuration epoch at
+the first possible write and records `firstEffectStep`; the caller withdraws
+dependent maps then. `acknowledgedMask` and `confirmedStep` keep the confirmed
+prefix; a terminal failure records `failedStep`, its retained terminal (with an
+unsigned abort code) and `uncertain` when a write may have taken effect. There
+is no rollback, retry or replay; a restoration is new explicit intent after a
+known outcome. A route left unresolved by an unconfirmed write is not reused:
+the owner refuses to reserve it.
+
+`getTpdo1Configuration` publishes `SDO_READBACK` map evidence only after the
+ninth matched read, and its overload adds the confirmed `1800:05` literal. Map
+confirmation qualifies no sample: delayed same-ID, same-length frames decode
+under the new map but stay unqualified, and a reused route cannot claim a
+distinct-route proof. `SdoClient::advanceConfiguration` revokes the node's routes
+again, which ends their permission to take replacement evidence; a caller that
+will install the readback withdraws the route once more after the advance and
+reads back strictly after that boundary, as the S2 harness does. The harness
+matches the node's own route at its installed or an earlier configuration epoch,
+so two changes without an install between still leave the second readback
+installable; another node's route is never touched.
+
+Missing broader evidence stays in Q17: other maps, timers and types, inhibit,
+the COB-ID valid bit as a separate change, SYNC, RPDO, Operational edits,
+persistence and post-change sample qualification. Device-sequence acceptance is
+specimen evidence, not a firmware qualification.
 
 ## Local settings epoch transition
 

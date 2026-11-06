@@ -42,6 +42,7 @@ if(MOTORCONTROLCAN_BUILD_EXAMPLES)
     add_subdirectory(examples/reads_preview)
     add_subdirectory(examples/driver_settings_preview)
     add_subdirectory(examples/io_settings_preview)
+    add_subdirectory(examples/pdo_configuration_preview)
 endif()
 
 option(MOTORCONTROLCAN_BUILD_CANOPENNODE "Build the optional application-side CANopenNode adapter" OFF)

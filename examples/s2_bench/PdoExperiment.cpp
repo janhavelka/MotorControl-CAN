@@ -30,6 +30,30 @@ bool revision(const char (&s)[41]) {
             return false;
     return true;
 }
+// The two plans this harness runs, each with the provenance its scope names. The map change is
+// the 2026-11-02 node-1 experiment; the event timer is the subset measured on both nodes.
+bool mapPlan(const L::Tpdo1ConfigurationRequest& q) {
+    return q.transition == L::Tpdo1Transition::MAP3_TO_MAP2 &&
+           q.eventTimer == L::Tpdo1EventTimerRaw::RAW_0;
+}
+bool timerPlan(const L::Tpdo1ConfigurationRequest& q) {
+    return q.transition == L::Tpdo1Transition::EVENT_TIMER &&
+           (q.eventTimer == L::Tpdo1EventTimerRaw::RAW_0 ||
+            q.eventTimer == L::Tpdo1EventTimerRaw::RAW_100);
+}
+// The node's own TPDO1 route under this logical binding, at this or an earlier configuration
+// epoch: a route installed before an earlier change of this lifecycle keeps that older epoch
+// until a new map is installed. A route of another node or binding never matches. Withdrawing a
+// match only revokes; any replacement still passes configurePdo's own checks.
+bool ownTpdo1(const C::PdoRecord& pdo, const MotorControlCAN::Binding& target) {
+    MotorControlCAN::Binding route = pdo.map.route.binding;
+    if (route.configurationGeneration > target.configurationGeneration)
+        return false;
+    route.configurationGeneration = target.configurationGeneration;
+    return MotorControlCAN::sameBinding(route, target) &&
+           pdo.map.route.layout.mapping.direction == C::PdoDirection::TPDO &&
+           pdo.map.route.layout.mapping.number == 1;
+}
 bool overlap(const void* a, size_t an, const void* b, size_t bn) {
     const uintptr_t x = reinterpret_cast<uintptr_t>(a), y = reinterpret_cast<uintptr_t>(b);
     return x >= y ? x - y < bn : y - x < an;
@@ -98,18 +122,24 @@ EvidenceAdmission PdoExperiment::begin(const PdoExperimentPlan& p, uint64_t now)
     const auto& q = p.configurationReview;
     const auto* route = services_.channel(p.slot);
     const auto* node = services_.node(p.slot);
+    const bool map = mapPlan(p.request), timer = timerPlan(p.request);
+    const uint32_t address = a.target.channel.binding.endpoint.address;
+    // 9 baseline reads, the writes, 9 final reads: one exact grant each.
+    const uint32_t services = map ? 24 : 19;
     if (overlap(&p, sizeof p, this, sizeof *this) || now < lastUs_ || now < owner_.lastTimeUs() ||
         !a.id || a.id == UINT32_MAX || a.id <= lastOperation_ || a.deadlineUs <= now ||
-        !p.firstAuthorizationId || p.firstAuthorizationId > UINT32_MAX - 23 || !p.maximumAgeUs ||
+        (!map && !timer) || !p.firstAuthorizationId ||
+        p.firstAuthorizationId > UINT32_MAX - (services - 1) || !p.maximumAgeUs ||
         a.options.queueTimeoutUs != 250000 || a.options.responseTimeoutUs != 250000 ||
         a.kind != L::ReadKind::IDENTITY || a.stateMask ||
-        a.target.channel.binding.endpoint.address != 1 ||
+        (map && (address != 1 || q.scope != L::PdoConfigurationScope::ISOLATED_EXPERIMENT)) ||
+        (timer && ((address != 1 && address != 2) ||
+                   q.scope != L::PdoConfigurationScope::FIXTURE_QUALIFIED)) ||
         a.target.channel.binding.configurationGeneration == UINT32_MAX || !text(a.fixtureId) ||
         !revision(a.softwareRevision) || !text(a.firmware) || !text(a.dialect) ||
         !text(a.authorization) || !text(a.observations) || !text(r.sourceReview) ||
         !text(r.independentReview) || !text(r.fixtureReview) || !text(r.independentControl) ||
-        !text(r.failurePlan) || !text(r.reconciliation) ||
-        q.scope != L::PdoConfigurationScope::ISOLATED_EXPERIMENT || !q.fixtureRecord ||
+        !text(r.failurePlan) || !text(r.reconciliation) || !q.fixtureRecord ||
         !q.firmwareRecord || !q.procedureRecord || !q.authorizationRecord ||
         !same(q.target.channel, a.target.channel) ||
         q.target.nodeGeneration != a.target.nodeGeneration || !route || !node || node->exhausted ||
@@ -157,7 +187,8 @@ EvidenceAdmission PdoExperiment::begin(const PdoExperimentPlan& p, uint64_t now)
     overwritten_ = owner_.stats().traceOverwritten;
     rxLost_ = owner_.stats().rxLost;
     occupied_ = true;
-    pendingValid_ = false;
+    pendingValid_ = readbackWait_ = false;
+    readbackAfterUs_ = 0;
     requestedFailure_ = PdoExperimentFailure::NONE;
     lastUs_ = now;
     lastOperation_ = a.id + 1;
@@ -319,10 +350,12 @@ bool PdoExperiment::service(uint64_t now) noexcept {
         return true;
     }
     if (record_.terminalCount == 9 && !record_.configurationPrepared) {
+        // Every value, width and provenance is checked here, before the first write is admitted.
         if (!L::prepareTpdo1Configuration(
                 record_.configuration, record_.reservation, record_.plan.configurationReview,
-                baseline_, 9, C::NmtState::PRE_OPERATIONAL, record_.baselinePreOperational,
-                plan.id + 1, now, plan.deadlineUs, plan.options, record_.plan.maximumAgeUs)) {
+                record_.plan.request, baseline_, 9, C::NmtState::PRE_OPERATIONAL,
+                record_.baselinePreOperational, plan.id + 1, now, plan.deadlineUs, plan.options,
+                record_.plan.maximumAgeUs)) {
             finish(PdoExperimentFailure::CONFIGURATION, now);
             return true;
         }
@@ -340,7 +373,26 @@ bool PdoExperiment::service(uint64_t now) noexcept {
             return true;
         }
         record_.configurationMigrated = true;
+        // The advance revoked this node's routes again, which also ends their permission to take
+        // replacement map evidence. Renew it for the withdrawn TPDO1 route, and admit the first
+        // read only at a later time: the adapter refuses map evidence acquired at or before a
+        // route's latest invalidation, and the read's adapter start, which dates the readback,
+        // could otherwise fall at this boundary's own time if the owner serves again before the
+        // clock advances.
+        for (uint8_t slot = 0; slot < C::SdoClient::PDO_ROUTES; ++slot) {
+            const C::PdoRecord* pdo = services_.pdo(slot);
+            if (pdo && ownTpdo1(*pdo, plan.target.channel.binding)) {
+                if (!services_.invalidatePdo(slot, true, now)) {
+                    finish(PdoExperimentFailure::CONFIGURATION, now);
+                    return true;
+                }
+                readbackWait_ = true;
+                readbackAfterUs_ = now;
+            }
+        }
     }
+    if (readbackWait_ && now <= readbackAfterUs_)
+        return true;
     C::SdoTransfer work;
     if (record_.configurationPrepared) {
         L::PreparedRead prepared;
@@ -386,15 +438,13 @@ bool PdoExperiment::service(uint64_t now) noexcept {
     expected_ = work;
     pendingValid_ = true;
     if (work.direction == C::SdoDirection::DOWNLOAD && !record_.configuration.effectsPossible) {
-        // Withdraw the actual affected receiving route before any possible write;
-        // unrelated PDO layouts remain usable. This harness never reinstalls maps
-        // or produces sample-retirement proof after the experiment.
+        // Withdraw the actual affected receiving route before any possible write, for the timer
+        // change too: its communication facts change. Unrelated PDO layouts, other nodes'
+        // included, remain usable. This harness never reinstalls maps or produces
+        // sample-retirement proof afterwards; publication is the caller's explicit choice.
         for (uint8_t slot = 0; slot < C::SdoClient::PDO_ROUTES; ++slot) {
             const C::PdoRecord* pdo = services_.pdo(slot);
-            if (pdo &&
-                MotorControlCAN::sameBinding(pdo->map.route.binding, plan.target.channel.binding) &&
-                pdo->map.route.layout.mapping.direction == C::PdoDirection::TPDO &&
-                pdo->map.route.layout.mapping.number == 1 &&
+            if (pdo && ownTpdo1(*pdo, plan.target.channel.binding) &&
                 !services_.invalidatePdo(slot, true, now)) {
                 requestedFailure_ = PdoExperimentFailure::CONFIGURATION;
                 owner_.cancel(pending_, now);
@@ -410,6 +460,21 @@ bool PdoExperiment::service(uint64_t now) noexcept {
         owner_.cancel(pending_, now);
     }
     return true;
+}
+EvidenceAdmission PdoExperiment::beginWithServiceAge(const PdoExperimentPlan& p,
+                                                     uint64_t now) noexcept {
+    const C::NodeSnapshot* node = services_.node(p.slot);
+    if (!node || !p.maximumAgeUs || overlap(&p, sizeof p, this, sizeof *this))
+        return EvidenceAdmission::INVALID;
+    const uint64_t previous = node->maximumEvidenceAgeUs;
+    if (!services_.setServiceAge(p.slot, p.maximumAgeUs, now))
+        return EvidenceAdmission::INVALID;
+    const EvidenceAdmission admitted = begin(p, now);
+    // A refusal sends nothing and leaves the node's policy as it was. The same time is valid
+    // again: setServiceAge just accepted it and begin changes no adapter time.
+    if (admitted != EvidenceAdmission::ACCEPTED)
+        services_.setServiceAge(p.slot, previous, now);
+    return admitted;
 }
 bool PdoExperiment::release() noexcept {
     if (!occupied_ || !record_.terminal || !owner_.localTxRetired(record_.plan.slot))

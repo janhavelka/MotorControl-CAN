@@ -114,6 +114,7 @@ REQUIRED = {
     "include/MotorControlCAN/profiles/lichuan_c/Tuning.h",
     "include/MotorControlCAN/profiles/lichuan_c/IoSettings.h", "include/MotorControlCAN/profiles/lichuan_c/Settings.h", "src/profiles/lichuan_c/Settings.cpp",
     "examples/io_settings_preview/main.cpp", "examples/io_settings_preview/CMakeLists.txt", "examples/io_settings_preview/README.md",
+    "examples/pdo_configuration_preview/main.cpp", "examples/pdo_configuration_preview/CMakeLists.txt", "examples/pdo_configuration_preview/README.md",
     "include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h",
     "examples/driver_settings_preview/main.cpp", "examples/driver_settings_preview/CMakeLists.txt", "examples/driver_settings_preview/README.md", "examples/reads_preview/main.cpp", "examples/reads_preview/CMakeLists.txt", "examples/reads_preview/README.md",
     "include/MotorControlCAN/profiles/lichuan_c/Pdo.h", "adapters/canopennode/PdoState.h",
