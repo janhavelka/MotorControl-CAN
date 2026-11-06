@@ -1,6 +1,6 @@
 # Packet 4: bounded silent capture
 
-[Packet 4](../../prompts/bench_closure_18_33/4_passive_capture.md), 2026-11-06. Software, host tests and firmware builds are recorded here. The S2 smoke check of the capture is pending: it needs this commit's bench image. Physical silence, no-ACK and no-TX are not established by this packet and stay open for an independent observer. Back to the [execution index](README.md).
+[Packet 4](../../prompts/bench_closure_18_33/4_passive_capture.md), 2026-11-06. Software, host tests and firmware builds are recorded here. The S2 smoke check ran on this commit's image, below. Physical silence, no-ACK and no-TX are not established by this packet and stay open for an independent observer. Back to the [execution index](README.md).
 
 ## Start state and sibling audit
 
@@ -100,6 +100,24 @@ All runs are on the final tree.
 | Mutants | 16 of 16 killed, each file restored byte for byte |
 | Staged tree alone, in a detached worktree outside `.build` | `verify.py --mode full --compiler gcc` passed every step, documentation included (28 headers); S2 bench firmware gate and strict S2 stack check passed |
 | Remote CI | Recorded with the commit in the [execution index](README.md) |
+
+## S2 smoke check, 2026-11-06 17:48Z
+
+Image `1805a77` flashed with `s2_flash.py` ([upload](../../bench/20261106T174716Z-s2-upload/)); its ping matched (ELF `64fbca23…`, `pdo=3 capture=0`). Both drives were Pre-operational with 1 s heartbeats. The plan was dry-run first; the session is [1748Z](../../bench/20261106T1748Z-p4-capture-smoke/), with `dry_run.txt`.
+
+| Line | Observed | What it shows, and does not |
+| --- | --- | --- |
+| `CAP admitted cap=1 seconds=10 frames=64 gpio=18 silentHigh=1` | Admitted after `c` and the network listing | The entry checks passed and the GPIO call was accepted; not that S18 was high on the pin |
+| `CAP_REC` | `reason=duration stored=20 overflow=0 tapDropped=0 txRefused=0 lost=0` | The receive path and copies worked while silence was requested |
+| `CAP_F` | 20 frames, `701` and `702` `dlc=1 data=7f`, about 1 s apart | Heartbeats received; the two drives acknowledge each other, so this says nothing about the S2's own ACK |
+| `CAP_TIME` | begin 6124495, end 16124969 µs (`esp_timer_us`), nominal end 16124495, largest service gap 1483 µs | The duration bound held |
+| `CAP_LEVEL` | `begin=1 exit=1 reopened=1 latched=0` | The normal level was requested at exit and the gate reopened |
+| `CAP_CTRL` | TEC 0, REC 0 at both ends, no TWAI errors or drops | No S2 error activity was observed; not silence |
+| `CAP_OWNER` | `tx=0` at both ends, `refused=0` | The software submitted nothing during the capture; not that TXD stayed recessive |
+| `CAP_IMAGE` | Matches the upload | |
+| Regression | `3` after release: `RAW ... node=1 failure=0 terminals=26`; final PONG `capture=0 silent=0` | Local TX resumed after the gate reopened |
+
+The owner counted all 24 received frames as `unmatched`: the network listing before the capture showed both nodes `unconfigured` on this fresh boot (`rx.txt` lines 3-4), so no route matched the heartbeats. That is not a capture fault. The console refused 138 submissions since boot (`conRej`), which are retried, not lost: `CAP_F` printed every stored frame.
 
 ## Stays open
 

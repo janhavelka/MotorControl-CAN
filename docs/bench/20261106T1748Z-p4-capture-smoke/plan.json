@@ -1,0 +1,57 @@
+{
+  "purpose": "Packet 4 bench smoke: one bounded silent capture of the Pre-operational heartbeats, then a short read-only regression showing local TX resumed after the gate reopened",
+  "authorization": "Standing bench authorization (docs/prompts/COMMON.md); no write, NMT, PDO or motion; capture sends nothing",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "start the controller, S18 low"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "note": "cached snapshots only; no traffic"
+    },
+    {
+      "wait_s": 1,
+      "note": "let the network listing end; a capture is refused while it prints"
+    },
+    {
+      "send": "C1,10,64",
+      "expect": "CAP admitted",
+      "end": "END capture",
+      "end_timeout_s": 30,
+      "note": "10 s capture, 64 frames; expect about 20 heartbeats 701/702 data 7f"
+    },
+    {
+      "send": "p",
+      "expect": "PONG",
+      "note": "capture=1 while the record is held"
+    },
+    {
+      "send": "r",
+      "expect": "CAP record released"
+    },
+    {
+      "send": "s",
+      "expect": "STATS",
+      "note": "tx unchanged across the capture"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "regression: node 1 raw identity/network inventory, upload only, after the gate reopened"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "p",
+      "expect": "PONG",
+      "note": "capture=0 silent=0"
+    }
+  ]
+}
