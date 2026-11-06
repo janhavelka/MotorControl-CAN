@@ -530,11 +530,29 @@ BenchRoute::BenchRoute(FirmwareProbe& firmware, C::SdoClient& services,
 bool BenchRoute::preflight(void* context, SequenceId sequence, const C::SdoTransfer& transfer,
                            uint64_t now) noexcept {
     BenchRoute& route = *static_cast<BenchRoute*>(context);
-    // A session answers true for every sequence but its own, so asking both is exact.
-    for (AxisSession* session : route.sessions_)
-        if (session && !session->preflight(sequence, transfer, now))
+    // A session answers true for every sequence but its own, so asking both is exact. Each is told
+    // whether its node has an EMCY this route has not yet handled that counts as a fault: the owner
+    // received it earlier in this same turn, and service() handles it only after the turn.
+    for (unsigned slot = 0; slot < 2; ++slot) {
+        AxisSession* session = route.sessions_[slot];
+        if (session && !session->preflight(sequence, transfer, now, route.unhandledFault(slot)))
             return false;
+    }
     return route.noteSettings(sequence, transfer, now);
+}
+// The route's own EMCY policy, as capture() applies it: a nonzero error code is a fault, zero the
+// no-error form. The node keeps only its newest EMCY, so several since the last handled one count
+// as a fault unless that one alone arrived and is the no-error form. Outside a route there is no
+// policy.
+bool BenchRoute::unhandledFault(uint8_t slot) const noexcept {
+    const C::NodeSnapshot* node = active() ? services_.node(slot) : nullptr;
+    return node && node->emcyCount != emcyBaseline_[slot] &&
+           (node->emcyCount != emcyBaseline_[slot] + 1 || node->emcy.errorCode != 0);
+}
+void BenchRoute::noteEmcyHandled() noexcept {
+    for (uint8_t slot = 0; slot < 2; ++slot)
+        if (const C::NodeSnapshot* node = services_.node(slot))
+            emcyBaseline_[slot] = node->emcyCount;
 }
 // The settings transaction's notice, just before its download may leave: the axis binding advances to
 // the next configuration epoch once, so that anything prepared at the old epoch goes stale. The owner
@@ -842,6 +860,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     stepIndex_ = subStep_ = 0;
     pending_ = stepActive_ = readActive_ = actionStarted_ = abortRequested_ = emcyHandled_ = false;
     lossHandled_ = stopAttempted_ = false;
+    noteEmcyHandled(); // An EMCY before this route is not this route's.
     writtenOperation_ = 0;
     writtenUs_ = feedbackUs_ = 0;
     settingsSettled_ = ownerFollowed_ = false;
@@ -1052,6 +1071,7 @@ void BenchRoute::service(uint64_t now) noexcept {
         return;
     if (record_.terminal) {
         capture(true);
+        noteEmcyHandled();
         // Only a firmware failure ends a record with this route's request unsettled.
         C::SdoCompletion late;
         if (pending_ && axis().settle(late))
@@ -1067,6 +1087,8 @@ void BenchRoute::service(uint64_t now) noexcept {
         record_.maxServiceGapUs = now - lastUs_;
     lastUs_ = now;
     capture(false);
+    // Every EMCY received so far has now been copied, or its loss recorded, and is handled below.
+    noteEmcyHandled();
     if (firmware_.progressionFailed()) {
         finish(RouteFailure::INVALIDATED, "firmware", now);
         return;

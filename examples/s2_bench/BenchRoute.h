@@ -94,7 +94,11 @@
  * campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
  * changed epoch, nonzero EMCY from the node, lost evidence or local abort ends the route and keeps
  * its evidence; nothing is retried, enabled, cleared, zeroed, restored or switched to another mode,
- * and an abort sends no stop. A request already on its way always settles first. Lost evidence also
+ * and an abort sends no stop. The owner receives before it transmits, so a nonzero EMCY also holds
+ * back, in the very turn that received it, the node's enable, move or clear download that would
+ * otherwise leave before the route has seen it: the transmit hook refuses it unsent, the action
+ * ends DRIVE_FAULT and its session stays faultBlocked. A request already on its way always settles
+ * first, and a frame already handed over settles as evidence. Lost evidence also
  * withdraws an active enable or move locally, as an abort does, because the lost span may have held
  * an EMCY or a status report: nothing is sent because of the loss, and a route with lost evidence
  * never ends NONE. A POSITION, RELATIVE or MOVE with a planned stop is refused before its first write
@@ -603,9 +607,13 @@ class BenchRoute {
         uint8_t arg;
     };
     // Registered with the firmware's owner transport: each attached session rechecks its own move
-    // downloads when they are handed over, so a reference invalidated after admission still holds.
+    // downloads when they are handed over, so a reference invalidated after admission still holds,
+    // and holds back its enable, move and clear downloads while its node has an EMCY fault this
+    // route has not yet handled.
     static bool preflight(void* context, MotorControlCANOwner::SequenceId sequence,
                           const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept;
+    bool unhandledFault(uint8_t slot) const noexcept;
+    void noteEmcyHandled() noexcept;
     FirmwareProbe& firmware_;
     MotorControlCAN::CANOPEN::SdoClient& services_;
     RouteCallbacks callbacks_;
@@ -663,6 +671,7 @@ class BenchRoute {
     bool stopAttempted_ = false; ///< MOVE: the planned stop was asked for, whatever its path.
     bool modeAdmitted_[2] = {false, false};
     RouteFailure endFailure_ = RouteFailure::NONE; ///< Abort or EMCY, applied once work settles.
+    uint32_t emcyBaseline_[2] = {0, 0}; ///< Each node's emcyCount when this route last handled it.
     const char* endWhy_ = "none";
 
     AxisSession& axis() noexcept { return *sessions_[record_.plan.node - 1]; }

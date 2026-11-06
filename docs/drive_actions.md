@@ -226,7 +226,10 @@ Cancellation, a deadline, a reboot, bus-off, a changed epoch or an independently
 `uncertain` and `commandHistory` keep every prefix word, and nothing follows or is replayed. The
 inclusive overall deadline wins at equality, including for a terminal received on time and processed
 late. The owner gives `AxisSession` no EMCY view, so an application that routes a fault calls
-`cancelEnable` with `DRIVE_FAULT`.
+`cancelEnable` with `DRIVE_FAULT`, and passes its unhandled-fault fact to `preflight` so that an
+enable word queued in the EMCY's own turn is refused unsent. A withdrawn enable's queued word is
+refused at handover. Either way `faultBlocked()` is set: later enables, moves and counter zeros
+are refused for the session object's life, while a stop and an alarm clear stay admissible.
 
 The [stop guide](stop_actions.md) explains why a stop needs the session's own latest word. The
 session records each enable word through its one admission path, so an acknowledged `000F` becomes

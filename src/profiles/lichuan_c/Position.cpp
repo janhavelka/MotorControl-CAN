@@ -847,6 +847,42 @@ Status beginMoveObservation(MoveContext& c, ReadContext& observation, const Axis
     return Ok();
 }
 
+namespace {
+// The recheck itself, for a context already known to be an active parameter or trigger download.
+// What preparation checked must still hold at the move's actual admission, not only when the move
+// was prepared, and again when the frame is handed over.
+Status recheckAdmission(const MoveContext& c, const AxisConfig& axis,
+                        const AxisReference* reference, uint64_t now) {
+    Status s = validatePreparedTarget(c.parameters.target, axis, reference, now);
+    if (!s) {
+        s.detail += int32_t(PositionParameterError::AXIS_ERROR_BASE) +
+                    int32_t(MoveError::PARAMETER_ERROR_BASE);
+        return s;
+    }
+    // validatePreparedTarget has refused a used witness that is missing.
+    if (c.parameters.target.referenceUsed && (!reference->idle || !reference->stationary))
+        return moveError(MoveError::REFERENCE,
+                         "the move's witness is no longer idle and stationary");
+    if (now - c.admission.earliestUs > c.options.maximumAgeUs)
+        return moveError(MoveError::STATE, "the admission state read is older than its age cap");
+    return Ok();
+}
+} // namespace
+
+Status validateMoveAdmission(const MoveContext& c, const AxisConfig& axis,
+                             const AxisReference* reference, uint64_t now) noexcept {
+    if (overlaps(&c, sizeof c, &axis, sizeof axis) ||
+        (reference && overlaps(&c, sizeof c, reference, sizeof *reference)))
+        return moveError(MoveError::OVERLAP, "move admission recheck overlaps input");
+    const Status s = shape(c, now);
+    if (!s)
+        return s;
+    if (c.state != ActionState::ACTIVE ||
+        (c.phase != MovePhase::PARAMETERS && c.phase != MovePhase::TRIGGER))
+        return moveError(MoveError::STATE, "no parameter or trigger download to recheck");
+    return recheckAdmission(c, axis, reference, now);
+}
+
 Status noteMoveTransmission(MoveContext& c, const AxisReservation& live, const ReadTarget& current,
                             const AxisConfig& axis, const AxisReference* reference,
                             DriverContext* const* retained, uint8_t count, uint64_t now) noexcept {
@@ -867,18 +903,11 @@ Status noteMoveTransmission(MoveContext& c, const AxisReservation& live, const R
         now >= c.deadlineUs || now < c.eligibleUs || c.withdrawal != MoveInterruption::NONE)
         return moveError(MoveError::STATE, "no new live move download");
     if (c.phase != MovePhase::REARM) {
-        // The actual admission of a parameter or trigger write: what preparation checked must
-        // still hold now, not only when the move was prepared.
-        s = validatePreparedTarget(c.parameters.target, axis, reference, now);
-        if (!s) {
-            s.detail += int32_t(PositionParameterError::AXIS_ERROR_BASE) +
-                        int32_t(MoveError::PARAMETER_ERROR_BASE);
+        // The actual admission of a parameter or trigger write. The rearm follows an observed
+        // completion and takes no recheck.
+        s = recheckAdmission(c, axis, reference, now);
+        if (!s)
             return s;
-        }
-        if (c.parameters.target.referenceUsed && (!reference->idle || !reference->stationary))
-            return moveError(MoveError::REFERENCE, "the move's witness is no longer idle and stationary");
-        if (now - c.admission.earliestUs > c.options.maximumAgeUs)
-            return moveError(MoveError::STATE, "the admission state read is older than its age cap");
     }
     if (c.phase == MovePhase::PARAMETERS) {
         // The packet 10 hook: an operation's own write never moves the configuration epoch, so the

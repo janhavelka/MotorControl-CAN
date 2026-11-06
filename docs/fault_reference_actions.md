@@ -212,7 +212,12 @@ not, because no alarm has occurred.
 - **EMCY.** The session has no EMCY view. The application copies the incident's
   EMCY before the request, since the owner keeps only the latest. It routes a
   later one with `cancelClear(nowUs, DRIVE_FAULT)`: the request in flight settles
-  as evidence, and the clear ends with that reason.
+  as evidence, and the clear ends with that reason. A clear withdrawn this way, or
+  held back by `preflight`'s `driveFault`, does not set `faultBlocked()`.
+- **Fault fence.** After a move or enable was withdrawn for a drive fault,
+  `faultBlocked()` refuses `requestCounterZero` like every motion request.
+  `requestClearAlarm` stays admissible under it, and a clear's success does not
+  lift it; resuming motion needs a new session object.
 - **Afterwards.** `requestEnable` stays refused because the session has written.
   No save, resume, home or host origin follows either clear.
 

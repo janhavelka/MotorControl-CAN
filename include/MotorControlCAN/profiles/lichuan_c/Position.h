@@ -8,9 +8,13 @@
  * closed gate refuses. A success with those reports unqualified cannot happen.
  * A relative move is gated twice: the manuals give the bit 6 trigger but not what the drive adds
  * the displacement to, so MoveEvidence::relativeBase must name the measured base; UNMEASURED refuses
- * with UNSUPPORTED. On one specimen and firmware (2026-11-04, docs/position_parameters.md) the base
- * measured ACTUAL, and one relative lifecycle with it succeeded; the absolute lifecycle ran on both
- * specimens. That qualifies nothing, and fake-owner tests are the rest of the evidence.
+ * with UNSUPPORTED. The bench records are drive reports only, with no shaft observed, all on one
+ * firmware identity (docs/position_parameters.md): absolute moves 121 and 213 on node 2 and 413,
+ * 705 and 706 on node 1; on node 1 the relative base measured ACTUAL (trial 409), and the relative
+ * moves 411 (+100, 304 to 404) and 708 (+3000 at 120 rpm, -1000 to 2000) ended at their endpoints.
+ * The completion report came while the position was still 0 or 1 pulse short of where it settled:
+ * 706 reported -999, and the next read gave -1000. None of this qualifies a specimen or firmware,
+ * and fake-owner tests are the rest of the evidence.
  *
  * Phase order (D-01): the caller's fresh state read proves mode 1, low bits 111 and released clear
  * after the actual latest acknowledged 000F under this reservation, which no move writes itself.
@@ -117,8 +121,9 @@ enum class MoveSignalSource : uint8_t {
     MONITOR     ///< 2100 of the MONITORS block.
 };
 /** One measured report: present when `(word & mask) == value`. No default mask exists: EN86 bit 12,
- * bit 15 and 2100 bit 0 are documentary candidates. The specimens' bench records measured bit 12 as
- * acceptance and 2100 bit 0 as completion on 001F and 005F; a caller names its own record. */
+ * bit 15 and 2100 bit 0 are documentary candidates. The bench records measured bit 12 as acceptance
+ * and 2100 bit 0 as completion after 001F on both specimens and after 005F on node 1, from drive
+ * reports only; a caller names its own record. */
 struct MoveSignal {
     MoveSignalSource source = MoveSignalSource::NONE; ///< Word the report is read from.
     uint16_t mask = 0;  ///< Nonzero bits examined.
@@ -484,15 +489,37 @@ Status nextMove(const MoveContext& context, const ReadContext& observation,
 Status beginMoveObservation(MoveContext& context, ReadContext& observation,
                             const AxisReservation& live, const ReadTarget& current,
                             uint64_t nowUs) noexcept;
-/** Record that the current download may now be transmitted. Call after owner admission and preflight,
- * before the next owner turn. A parameter or trigger download is the move's actual admission, so it
- * is rechecked here first: validatePreparedTarget against the current axis and witness, which must
- * still be idle and stationary, and the admission state read's age against options.maximumAgeUs.
- * A parameter download then calls retireMotionParameters on each retained context, so that a
- * settings call cannot report an unchanged value with no TX while the drive holds the move's. If any
- * of this refuses, the context does not change and the download must not be transmitted: cancel its
- * admission. Contexts listed before a refused retirement stay retired, which only withdraws trust.
- * The rearm takes no recheck: it follows an observed completion.
+/** Recheck, changing nothing, the actual admission of the move's pending parameter or trigger
+ * download: validatePreparedTarget of the frozen target against the caller's current axis and
+ * witness, a used witness still idle and stationary, and the admission state read no older than
+ * options.maximumAgeUs. noteMoveTransmission runs it when the download is admitted. A transmit
+ * guard runs it again when the owner hands that download to the controller, after the notice, so
+ * that a refusal there still withdraws it unsent. The rearm takes no recheck.
+ * @param[in] context Active move in PARAMETERS or TRIGGER. Its transmission notice may already be
+ * recorded.
+ * @param[in] axis The caller's current coordinate configuration of this axis; must not overlap
+ * context, whose frozen copy would make the recheck vacuous.
+ * @param[in] reference The caller's current witness when the move used one, null otherwise; must
+ * not overlap context.
+ * @param[in] nowUs Processing time, at least context.servicedUs. No deadline is applied here.
+ * @return OK while the admission still holds. Otherwise noteMoveTransmission's recheck refusal: the
+ * AxisError detail plus PARAMETER_ERROR_BASE and PositionParameterError::AXIS_ERROR_BASE for a
+ * changed, aged or invalidated target or witness, REFERENCE for a moving witness, STATE for an
+ * expired admission read. OVERLAP for aliased input, and STATE for an invalid context or another
+ * phase.
+ */
+Status validateMoveAdmission(const MoveContext& context, const AxisConfig& axis,
+                             const AxisReference* reference, uint64_t nowUs) noexcept;
+/** Record that the current download may now be transmitted. Call after owner admission and
+ * preflight, before the next owner turn. A parameter or trigger download is the move's actual
+ * admission, so it is rechecked here first with validateMoveAdmission: validatePreparedTarget
+ * against the current axis and witness, which must still be idle and stationary, and the admission
+ * state read's age against options.maximumAgeUs. A parameter download then calls
+ * retireMotionParameters on each retained context, so that a settings call cannot report an
+ * unchanged value with no TX while the drive holds the move's. If any of this refuses, the context
+ * does not change and the download must not be transmitted: cancel its admission. Contexts listed
+ * before a refused retirement stay retired, which only withdraws trust. The rearm takes no recheck:
+ * it follows an observed completion.
  * @param[in,out] context Active move with a pending download; one notice per download.
  * @param[in] live Actual reservation. @param[in] current Actual target and epochs.
  * @param[in] axis The caller's current coordinate configuration of this axis, so that a later
