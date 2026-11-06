@@ -97,7 +97,10 @@ class PlanTest(unittest.TestCase):
                     plan({"send": "Q1", "expect": "a"}),  # not a line command
                     plan({"send": "N1,o\n", "expect": "a"}),
                     plan({"wait_s": 0}), plan({"wait_s": 901}), plan({"note": "nothing"}),
-                    plan({"send": "P5", "expect": "a", "retry": 1}), plan({"wait_s": 1, "end": "x"})):
+                    plan({"send": "P5", "expect": "a", "retry": 1}), plan({"wait_s": 1, "end": "x"}),
+                    plan({"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted"}),  # no terminal to check
+                    plan({"send": "N1,o", "expect": "NMT admitted", "end": "END raw"}),
+                    plan({"send": "h", "expect": "HEARTBEAT experiment admitted"})):
             with self.assertRaises(pdo.SessionError):
                 pdo.check_plan(bad)
         with self.assertRaises(pdo.SessionError):
@@ -133,8 +136,9 @@ class RunTest(unittest.TestCase):
                        b"P0\n": b"PDOW_STOPPING; final summaries follow\nPDOW_END n=1 t=200 reason=stop frames=0 "
                                 b"printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0\n"})
         code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"},
-                                             {"send": "N1,o", "expect": "NMT admitted"},
-                                             {"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted"}])
+                                             {"send": "N1,o", "expect": "NMT admitted", "end": "NMT request"},
+                                             {"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted",
+                                              "end": "END raw"}])
         self.assertEqual(code, 1)
         self.assertEqual(meta["reason"], "refused")
         # Nothing after the refusal but the local watch stop: no NMT, write or stop on CAN.
@@ -143,7 +147,8 @@ class RunTest(unittest.TestCase):
 
     def test_silence_stops_the_plan_without_cleanup_when_no_watch_runs(self):
         board = Board({})
-        code, meta, _ = self.session(board, [{"send": "R1,t,0", "expect": "PDO_READ admitted", "timeout_s": 0.1},
+        code, meta, _ = self.session(board, [{"send": "R1,t,0", "expect": "PDO_READ admitted", "timeout_s": 0.1,
+                                              "end": "END raw"},
                                              {"send": "r", "expect": "RELEASED"}])
         self.assertEqual((code, meta["reason"]), (1, "no_reply"))
         self.assertEqual(board.writes, [b"p", b"R1,t,0\n"])
@@ -161,6 +166,55 @@ class RunTest(unittest.TestCase):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
             self.assertEqual(board.writes, [b"p"])
+
+    def write_reply(self, failure=0, outcome=0, readback="64000000", node=2):
+        lines = ["PDO_WRITE admitted node=%d set=0 sub=5 baseline=0 value=100; exact read, one write" % node,
+                 "RAW id=9 node=%d failure=%d lost=0 terminals=3 traffic=0 tail=0 tailLost=0 gap=10" % (node, failure),
+                 result(1, "1800:05", 2, "00000000"), result(2, "1800:05", 0, "00000000", outcome=outcome),
+                 result(3, "1800:05", 2, readback), "END raw terminals=3 traffic=0 tail=0 tailLost=0 lost=0; r=release"]
+        return ("\n".join(lines) + "\n").encode("ascii")
+
+    def write_then_nmt(self, reply):
+        board = Board({b"W2,0,5,0,100\n": reply, b"r": b"RELEASED record; channel uncertainty unchanged\n",
+                       b"N2,p\n": b"NMT admitted node=2 cmd=128; addressed\n"
+                                  b"NMT request=4 target=2 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=900; x\n"})
+        return board, self.session(board, [
+            {"send": "W2,0,5,0,100", "expect": "PDO_WRITE admitted", "end": "END raw"},
+            {"send": "r", "expect": "RELEASED record"},
+            {"send": "N2,p", "expect": "NMT admitted", "end": "NMT request"}])
+
+    def test_a_successful_write_lets_the_plan_continue(self):
+        board, (code, meta, _) = self.write_then_nmt(self.write_reply())
+        self.assertEqual((code, meta["reason"]), (0, "completed"))
+        self.assertEqual(board.writes, [b"p", b"W2,0,5,0,100\n", b"r", b"N2,p\n"])
+
+    def test_a_failed_write_terminal_stops_every_later_step(self):
+        # An acknowledged write whose readback mismatched (READBACK, 8), a write the server aborted (SERVICE, 4),
+        # a RESULT failure under a header that claims success, a readback of another value, and a record of
+        # the other node: none may be followed by the release or the NMT step.
+        for reply, problem in ((self.write_reply(failure=8), "raw_failure_8"),
+                               (self.write_reply(failure=4, outcome=3), "raw_failure_4"),
+                               (self.write_reply(outcome=3), "raw_results_incomplete"),
+                               (self.write_reply(readback="c8000000"), "write_readback_differs"),
+                               (self.write_reply(node=1), "raw_wrong_node")):
+            board, (code, meta, _) = self.write_then_nmt(reply)
+            self.assertEqual((code, meta["reason"]), (1, "terminal_failed"), problem)
+            self.assertEqual(meta["steps"][0]["problem"], problem)
+            self.assertEqual(board.writes, [b"p", b"W2,0,5,0,100\n"], problem)
+
+    def test_a_failed_nmt_terminal_stops_the_plan(self):
+        for line, problem in ((b"outcome=3 possible=1 txConfirmed=0", "nmt_not_transmitted"),
+                              (b"outcome=0 possible=1 txConfirmed=0", "nmt_not_transmitted")):
+            board = Board({b"N2,o\n": b"NMT admitted node=2 cmd=1; addressed\nNMT request=4 target=2 cmd=1 " +
+                           line + b" completed=900; x\n"})
+            code, meta, _ = self.session(board, [{"send": "N2,o", "expect": "NMT admitted", "end": "NMT request"},
+                                                 {"send": "r", "expect": "NMT result released"}])
+            self.assertEqual((meta["reason"], meta["steps"][0]["problem"]), ("terminal_failed", problem))
+            self.assertEqual(board.writes, [b"p", b"N2,o\n"])
+        board = Board({b"N2,o\n": b"NMT admitted node=2 cmd=1; addressed\nNMT request=4 target=1 cmd=1 outcome=0 "
+                                    b"possible=1 txConfirmed=1 completed=900; x\n"})
+        code, meta, _ = self.session(board, [{"send": "N2,o", "expect": "NMT admitted", "end": "NMT request"}])
+        self.assertEqual(meta["steps"][0]["problem"], "nmt_wrong_request")
 
     def test_identity_and_existing_output_refuse(self):
         root = Path(tempfile.mkdtemp())
