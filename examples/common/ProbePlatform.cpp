@@ -34,6 +34,7 @@ void ProbePlatform::service() noexcept {
             break;
         outputHead_ = (outputHead_ + 1) % OUTPUT_CAPACITY;
         --stats_.outputUsed;
+        ++stats_.outputWritten; // Wraps by design: unsigned arithmetic, compared as differences.
     }
     if (callbacks_.idle)
         callbacks_.idle(callbacks_.context);

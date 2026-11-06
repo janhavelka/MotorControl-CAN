@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Bench continuation packet 5, part 1: console byte accounting (2026-11-06)
+
+- `ProbeIoStats::outputWritten`: the bytes `writeByte` accepted since construction, modulo 2^32. It wraps by design, unlike the saturating totals beside it.
+- Bench firmware: `SOAK_CON` ends with `uartBytes=` and `queued=`, taken when the line is formatted (optional in the grammar); the soak line buffer grows from 416 to 448 bytes. Not yet flashed.
+- `scripts/s2_console_account.py`: offline comparison, per pair of `SOAK_CON` lines, of the bytes the S2 admitted with the bytes the host received in `rx.bin`. A shortfall places the loss after UART FIFO acceptance without separating the line, bridge, USB and host driver. The native soak transcript must balance in every window (`s2_soak_transcript`); retained captures predate the counters and compare nothing.
+
 ### Bench continuation packet 6: PDO measurement record and runner fixes (2026-11-06)
 
 - `scripts/s2_pdo.py`: the terminal check now follows the command letter, and every checked command (`N`, `R`, `W`, `h`, `j`, `3`, `4`) must name its exact admission and end lines, so a plan's expect text cannot loosen it. `q`, `w` and `m` are no longer offered in plans. A step may carry `require`, fail-closed predicates on the latest parsed record (for example a `NETWORK` state or a `RESULT` value), checked before it is sent. Sessions record the SHA-256 of the runner and parser and a tracked-files-only dirty state.
