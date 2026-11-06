@@ -46,7 +46,7 @@ REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDOW r
             "TRIAL_REFUSED", "UNKNOWN command", "HEARTBEAT refused", "PDO refused", "IDENTITY refused",
             "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR")
 LINE_COMMANDS = ("N", "P", "R", "W", "S")
-SINGLE_BYTES = set("cpsrdnhjmqwX")
+SINGLE_BYTES = set("cpsrdnhjmqwX34")
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
 
 
@@ -87,7 +87,7 @@ def check_plan(plan):
         if "end" in step and "send" not in step:
             raise SessionError("step %d: end needs a send" % number)
         # Work whose terminal decides whether later steps may follow must name its end line.
-        if "send" in step and step["send"][0] in "NRWhj":
+        if "send" in step and step["send"][0] in "NRWhj34":
             wanted = "NMT request" if step["send"][0] == "N" else "END raw"
             if step.get("end") != wanted:
                 raise SessionError("step %d: %r needs end %r" % (number, step["send"], wanted))
@@ -156,7 +156,9 @@ def watch_running(lines):
     return running
 
 
-RAW_ADMISSIONS = {"PDO_READ admitted": 9, "PDO_WRITE admitted": 3, "HEARTBEAT experiment admitted": 3}
+# 3 and 4 are the 26-field identity, TPDO1, state and network uploads of node 1 and 2 (raw1, raw2).
+RAW_ADMISSIONS = {"PDO_READ admitted": 9, "PDO_WRITE admitted": 3, "HEARTBEAT experiment admitted": 3,
+                  "IDENTITY admitted": 26}
 
 
 def terminal_problem(step, lines):
@@ -178,7 +180,7 @@ def terminal_problem(step, lines):
         if len(headers) != 1 or len(ends) != 1:
             return "raw_terminal_unparsed"
         header = headers[0].values
-        node = int(text[1]) if text[0] in "RW" else 1 if text == "h" else 2 if text == "j" else None
+        node = int(text[1]) if text[0] in "RW" else 1 if text in "h3" else 2 if text in "j4" else None
         if header.get("failure") != 0 or header.get("lost") != 0 or ends[0].values.get("lost") != 0:
             return "raw_failure_%s" % header.get("failure")
         if node is not None and header.get("node") != node:

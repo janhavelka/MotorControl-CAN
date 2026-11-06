@@ -1,0 +1,196 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-06T13:02:33.127398+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/plans/03-node2-first.json",
+    "--output",
+    "docs/bench/20261106T1302Z-pdo-node2-first"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/plans/03-node2-first.json",
+  "reset": false,
+  "retry": false,
+  "host_revision": "6a82d39c41664ceaa19ef51215dde74358e7d9a4",
+  "host_dirty": true,
+  "pong": {
+    "target": "esp32s2",
+    "base": "4eb76832e3cf4db727b6f811b3d823840d7731fa",
+    "elf": "f7408e691ebafaff99731f9e9c3da935d1840180087ee29aa52ec52013c32320",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "70784952",
+    "routes": "5",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "1",
+    "watch": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "P180",
+      "tx_hex": "503138300a",
+      "utc": "2026-11-06T13:02:33.523061+00:00",
+      "monotonic": 14517.375,
+      "reply": "PDOW admitted seconds=180; copies received frames, sends nothing",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "Pre-operational baseline",
+      "wait_s": 3,
+      "utc": "2026-11-06T13:02:33.538597+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 3,
+      "note": "first Start of node 2",
+      "sent": "N2,o",
+      "tx_hex": "4e322c6f0a",
+      "utc": "2026-11-06T13:02:36.538376+00:00",
+      "monotonic": 14520.39,
+      "reply": "NMT admitted node=2 cmd=1; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 13,
+      "end": "NMT request=19 target=2 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=73895970; retained; network observation separate",
+      "end_line": 15,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-06T13:02:36.582222+00:00",
+      "monotonic": 14520.437,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 19,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "TPDO1 with event timer 0: change-driven only",
+      "wait_s": 5,
+      "utc": "2026-11-06T13:02:36.609085+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 6,
+      "note": "TPDO1 event timer 0 -> 100 in Operational",
+      "sent": "W2,0,5,0,100",
+      "tx_hex": "57322c302c352c302c3130300a",
+      "utc": "2026-11-06T13:02:41.650696+00:00",
+      "monotonic": 14525.515,
+      "reply": "PDO_WRITE admitted node=2 set=0 sub=5 baseline=0 value=100; exact read, one write, exact readback; no retry",
+      "reply_line": 35,
+      "end": "END raw terminals=3 traffic=10 tail=2 tailLost=0 lost=0; r=release",
+      "end_line": 55,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-06T13:02:41.997594+00:00",
+      "monotonic": 14525.859,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 57,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "wait_s": 5,
+      "utc": "2026-11-06T13:02:42.005115+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 9,
+      "note": "Enter Pre-operational",
+      "sent": "N2,p",
+      "tx_hex": "4e322c700a",
+      "utc": "2026-11-06T13:02:47.013266+00:00",
+      "monotonic": 14530.875,
+      "reply": "NMT admitted node=2 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 128,
+      "end": "NMT request=21 target=2 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=84371968; retained; network observation separate",
+      "end_line": 130,
+      "outcome": "answered"
+    },
+    {
+      "step": 10,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-06T13:02:47.051202+00:00",
+      "monotonic": 14530.906,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 131,
+      "outcome": "answered"
+    },
+    {
+      "step": 11,
+      "note": "does the stream stop",
+      "wait_s": 5,
+      "utc": "2026-11-06T13:02:47.058207+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 12,
+      "note": "restore event timer 0 in Pre-operational",
+      "sent": "W2,0,5,100,0",
+      "tx_hex": "57322c302c352c3130302c300a",
+      "utc": "2026-11-06T13:02:52.093940+00:00",
+      "monotonic": 14535.953,
+      "reply": "PDO_WRITE admitted node=2 set=0 sub=5 baseline=100 value=0; exact read, one write, exact readback; no retry",
+      "reply_line": 148,
+      "end": "END raw terminals=3 traffic=9 tail=0 tailLost=0 lost=0; r=release",
+      "end_line": 162,
+      "outcome": "answered"
+    },
+    {
+      "step": 13,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-06T13:02:52.340481+00:00",
+      "monotonic": 14536.203,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 164,
+      "outcome": "answered"
+    },
+    {
+      "step": 14,
+      "note": "",
+      "sent": "P0",
+      "tx_hex": "50300a",
+      "utc": "2026-11-06T13:02:52.353930+00:00",
+      "monotonic": 14536.218,
+      "reply": "PDOW_STOPPING; final summaries follow",
+      "reply_line": 165,
+      "end": "PDOW_END n=127 t=89772958 reason=stop frames=96 printed=96 unprinted=0 tapDropped=0 untimed=0 sdo=6 idOverflow=0",
+      "end_line": 172,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-06T13:02:53.590417+00:00",
+  "bytes": 20171
+}

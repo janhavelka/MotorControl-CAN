@@ -1,0 +1,27 @@
+{
+  "purpose": "Separate explicit restoration: node 2 TPDO1 event timer 200 -> 0 (its measured baseline) and readback",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "W2,0,5,200,0",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": "restore the measured baseline 0"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    }
+  ]
+}

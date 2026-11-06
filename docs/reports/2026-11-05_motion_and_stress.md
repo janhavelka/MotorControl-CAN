@@ -137,3 +137,24 @@ All five runs used the same image and 1 s summaries, so they differ only in the 
 - **Console: no loss in 105 bursts.** At the A/B's 60 s-summary rate about 1.5 to 2 were expected, so this is not a significant difference.
 
 **The drives kept their power.** After the PC came back, the S2 was reset and pinged, and the first replies of R7 at 09:17Z read both nodes exactly as before the cut: node 1 enabled (`0037`) at 4728 with `2100=0000`, node 2 released (`4050`) at 821 with `2100=0014`. A host or MCU power loss therefore left the drives' state unchanged. The S2 lost its session, as on every MCU restart, and sent no write when it came back.
+
+### R7: closing soak after the outage
+
+[`20261106-stress-r7-after-outage`](../bench/20261106-stress-r7-after-outage/transitions.txt), 20 ms reads and 60 s summaries, 09:17Z to 13:00Z (14:00 local), as planned. The runner process outlived the session that started it and ended at its stated time.
+
+- **CAN: clean.** 230,241 operations and 805,849 steps per node, all successful; TEC and REC 0; largest gap 4.8 ms; no signal changed after the first replies.
+- **Console: 3 losses in 222 bursts (1.4%)**, the A/B's rate at 60 s summaries. The trial replays as `incomplete` only for those lost lines.
+
+### Campaign summary
+
+| Run | Reads | Summaries | Duration | Operations per node, all successful | Console losses per burst |
+| --- | --- | --- | --- | --- | --- |
+| R1 | 20 ms | 1 s | 3 h | 184,761 | 1.7% |
+| R2 | 20 ms | 1 s | 3 h | 184,764 | 2.0% |
+| R3 | 200 ms | 1 s | 3 h | 26,997 | 0 |
+| R4 | 50 ms | 1 s | 3 h | 107,990 | 0.67% |
+| R5 | 100 ms | 1 s | 3 h | 53,995 | 0.07% |
+| R6 | 20 ms | 60 s | 1 h 45 min, cut by the power failure | 108,607 | 0 of 105 |
+| R7 | 20 ms | 60 s | 3 h 43 min | 230,241 | 1.4% |
+
+Over the whole campaign about 897,000 read operations per node, all successful, with no CAN error, no timeout and no drive state change. The only unexpected behavior was on the console path, characterized above, and node 2's shaft turn in R1, the user's hand test.

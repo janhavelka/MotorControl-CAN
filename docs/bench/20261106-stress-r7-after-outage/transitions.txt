@@ -1,0 +1,90 @@
+2026-11-06T09:17:23.587274+00:00 HOST trial_start {"number": 1, "trial": 1793956643, "remaining_s": 13356, "usb": {"port": "COM15", "serial": "94A990398B40", "vid": 12346, "pid": 4098}}
+2026-11-06T09:17:23.864455+00:00 HOST send {"trial": 1793956643, "tx_hex": "70", "text": "p"}
+2026-11-06T09:17:23.918687+00:00 HOST ping {"trial": 1793956643, "base": "2920479b73c7693c908953055cd9e25dcd944f47", "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9", "active": 0, "running": 0, "soak": 0}
+2026-11-06T09:17:23.918687+00:00 HOST send {"trial": 1793956643, "tx_hex": "63", "text": "c"}
+2026-11-06T09:17:23.928661+00:00 HOST send {"trial": 1793956643, "tx_hex": "53313739333935363634332c31333335362c32302c36302c330a", "text": "S1793956643,13356,20,60,3"}
+2026-11-06T09:17:23.997901+00:00 trial=1 SOAK_BEGIN n=0 t=12662483 trial=1793956643 dur=13356 interval=20 summary=60 monitors=1 identity=1 opDeadline=2000000 queue=250000 resp=250000 stack=10000 heap=127876 heapMin=123436 base=2920479b73c7693c908953055cd9e25dcd944f47
+2026-11-06T09:17:24.008170+00:00 trial=1 SOAK_TR n=1 t=12660341 node=0 sig=controller from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.027782+00:00 trial=1 SOAK_TR n=2 t=12660341 node=0 sig=controllerEpoch from=0 to=1 first=1 ne=0 ce=1
+2026-11-06T09:17:24.038297+00:00 trial=1 SOAK_TR n=3 t=12660341 node=0 sig=inhibited from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.048294+00:00 trial=1 SOAK_TR n=4 t=12660341 node=0 sig=recovery from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.068298+00:00 trial=1 SOAK_TR n=5 t=12660341 node=0 sig=firmware from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.078028+00:00 trial=1 SOAK_TR n=6 t=12660341 node=0 sig=busOff from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.088027+00:00 trial=1 SOAK_TR n=7 t=12660341 node=0 sig=recoveries from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.097793+00:00 trial=1 SOAK_TR n=8 t=12660341 node=0 sig=twaiErrors from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.117796+00:00 trial=1 SOAK_TR n=9 t=12660341 node=0 sig=twaiFlags from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.128076+00:00 trial=1 SOAK_TR n=10 t=12660341 node=0 sig=twaiDropped from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.137716+00:00 trial=1 SOAK_TR n=11 t=12660341 node=0 sig=rxDropped from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.158341+00:00 trial=1 SOAK_TR n=12 t=12660341 node=0 sig=rxLost from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.168342+00:00 trial=1 SOAK_TR n=13 t=12660341 node=0 sig=txRejected from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.178341+00:00 trial=1 SOAK_TR n=14 t=12660341 node=0 sig=unmatched from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.197902+00:00 trial=1 SOAK_TR n=15 t=12660341 node=0 sig=queueRejected from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.207901+00:00 trial=1 SOAK_TR n=16 t=12660341 node=0 sig=resultsRejected from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.227949+00:00 trial=1 SOAK_TR n=17 t=12660341 node=0 sig=traceOverwritten from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.237481+00:00 trial=1 SOAK_TR n=18 t=12660341 node=0 sig=networkDropped from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.247484+00:00 trial=1 SOAK_TR n=19 t=12660341 node=0 sig=submitOverwritten from=0 to=0 first=1 ne=0 ce=1
+2026-11-06T09:17:24.268087+00:00 trial=1 SOAK_TR n=20 t=12660341 node=1 sig=nodeEpoch from=0 to=1 first=1 ne=1 ce=1
+2026-11-06T09:17:24.277812+00:00 trial=1 SOAK_TR n=21 t=12660341 node=1 sig=health from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.287816+00:00 trial=1 SOAK_TR n=22 t=12660341 node=1 sig=streak from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.307945+00:00 trial=1 SOAK_TR n=23 t=12660341 node=1 sig=lastError from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.318259+00:00 trial=1 SOAK_TR n=24 t=12660341 node=1 sig=nmt from=0 to=ff first=1 ne=1 ce=1
+2026-11-06T09:17:24.327768+00:00 trial=1 SOAK_TR n=25 t=12660341 node=1 sig=eligibility from=0 to=4 first=1 ne=1 ce=1
+2026-11-06T09:17:24.347969+00:00 trial=1 SOAK_TR n=26 t=12660341 node=1 sig=heartbeat from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.357859+00:00 trial=1 SOAK_TR n=27 t=12660341 node=1 sig=unresolved from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.367415+00:00 trial=1 SOAK_TR n=28 t=12660341 node=1 sig=serverSessions from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.388010+00:00 trial=1 SOAK_TR n=29 t=12660341 node=1 sig=producer from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.397436+00:00 trial=1 SOAK_TR n=30 t=12660341 node=2 sig=nodeEpoch from=0 to=1 first=1 ne=1 ce=1
+2026-11-06T09:17:24.407437+00:00 trial=1 SOAK_TR n=31 t=12660341 node=2 sig=health from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.427440+00:00 trial=1 SOAK_TR n=32 t=12660341 node=2 sig=streak from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.437658+00:00 trial=1 SOAK_TR n=33 t=12660341 node=2 sig=lastError from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.447658+00:00 trial=1 SOAK_TR n=34 t=12660341 node=2 sig=nmt from=0 to=ff first=1 ne=1 ce=1
+2026-11-06T09:17:24.457657+00:00 trial=1 SOAK_TR n=35 t=12660341 node=2 sig=eligibility from=0 to=4 first=1 ne=1 ce=1
+2026-11-06T09:17:24.467586+00:00 trial=1 SOAK_TR n=36 t=12660341 node=2 sig=heartbeat from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.487788+00:00 trial=1 SOAK_TR n=37 t=12660341 node=2 sig=unresolved from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.497911+00:00 trial=1 SOAK_TR n=38 t=12660341 node=2 sig=serverSessions from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.517477+00:00 trial=1 SOAK_TR n=39 t=12660341 node=2 sig=producer from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.527520+00:00 trial=1 SOAK_TR n=40 t=12688614 node=1 sig=health from=0 to=1 first=0 ne=1 ce=1
+2026-11-06T09:17:24.537649+00:00 trial=1 SOAK_TR n=41 t=12688614 node=1 sig=eligibility from=4 to=e first=0 ne=1 ce=1
+2026-11-06T09:17:24.547807+00:00 trial=1 SOAK_TR n=42 t=12752623 node=1 sig=1000 from=0 to=40192 first=1 ne=1 ce=1
+2026-11-06T09:17:24.568220+00:00 trial=1 SOAK_TR n=43 t=12752623 node=1 sig=1009 from=0 to=c first=1 ne=1 ce=1
+2026-11-06T09:17:24.578221+00:00 trial=1 SOAK_TR n=44 t=12752623 node=1 sig=100a from=0 to=20 first=1 ne=1 ce=1
+2026-11-06T09:17:24.588222+00:00 trial=1 SOAK_TR n=45 t=12752623 node=1 sig=1018:00 from=0 to=5 first=1 ne=1 ce=1
+2026-11-06T09:17:24.608221+00:00 trial=1 SOAK_TR n=46 t=12752623 node=1 sig=1018:01 from=0 to=1000 first=1 ne=1 ce=1
+2026-11-06T09:17:24.617441+00:00 trial=1 SOAK_TR n=47 t=12752623 node=1 sig=1018:02 from=0 to=1 first=1 ne=1 ce=1
+2026-11-06T09:17:24.627444+00:00 trial=1 SOAK_TR n=48 t=12752623 node=1 sig=1018:03 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.638111+00:00 trial=1 SOAK_TR n=49 t=12752623 node=1 sig=2000 from=0 to=400 first=1 ne=1 ce=1
+2026-11-06T09:17:24.658115+00:00 trial=1 SOAK_TR n=50 t=12752623 node=1 sig=2001 from=0 to=200 first=1 ne=1 ce=1
+2026-11-06T09:17:24.667126+00:00 trial=1 SOAK_TR n=51 t=12761629 node=2 sig=health from=0 to=1 first=0 ne=1 ce=1
+2026-11-06T09:17:24.678077+00:00 trial=1 SOAK_TR n=52 t=12761629 node=2 sig=eligibility from=4 to=e first=0 ne=1 ce=1
+2026-11-06T09:17:24.698083+00:00 trial=1 SOAK_TR n=53 t=12827623 node=2 sig=1000 from=0 to=40192 first=1 ne=1 ce=1
+2026-11-06T09:17:24.707570+00:00 trial=1 SOAK_TR n=54 t=12827623 node=2 sig=1009 from=0 to=c first=1 ne=1 ce=1
+2026-11-06T09:17:24.717569+00:00 trial=1 SOAK_TR n=55 t=12827623 node=2 sig=100a from=0 to=20 first=1 ne=1 ce=1
+2026-11-06T09:17:24.727581+00:00 trial=1 SOAK_TR n=56 t=12827623 node=2 sig=1018:00 from=0 to=5 first=1 ne=1 ce=1
+2026-11-06T09:17:24.748102+00:00 trial=1 SOAK_TR n=57 t=12827623 node=2 sig=1018:01 from=0 to=1000 first=1 ne=1 ce=1
+2026-11-06T09:17:24.758102+00:00 trial=1 SOAK_TR n=58 t=12827623 node=2 sig=1018:02 from=0 to=1 first=1 ne=1 ce=1
+2026-11-06T09:17:24.768102+00:00 trial=1 SOAK_TR n=59 t=12827623 node=2 sig=1018:03 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.778103+00:00 trial=1 SOAK_TR n=60 t=12827623 node=2 sig=2000 from=0 to=400 first=1 ne=1 ce=1
+2026-11-06T09:17:24.797936+00:00 trial=1 SOAK_TR n=61 t=12827623 node=2 sig=2001 from=0 to=200 first=1 ne=1 ce=1
+2026-11-06T09:17:24.807940+00:00 trial=1 SOAK_TR n=62 t=12861635 node=1 sig=6041 from=0 to=37 first=1 ne=1 ce=1
+2026-11-06T09:17:24.817656+00:00 trial=1 SOAK_TR n=63 t=12861635 node=1 sig=6061 from=0 to=1 first=1 ne=1 ce=1
+2026-11-06T09:17:24.838166+00:00 trial=1 SOAK_TR n=64 t=12861635 node=1 sig=6064 from=0 to=1278 first=1 ne=1 ce=1
+2026-11-06T09:17:24.848167+00:00 trial=1 SOAK_TR n=65 t=12861635 node=1 sig=606c from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.858167+00:00 trial=1 SOAK_TR n=66 t=12896625 node=2 sig=6041 from=0 to=4050 first=1 ne=1 ce=1
+2026-11-06T09:17:24.868168+00:00 trial=1 SOAK_TR n=67 t=12896625 node=2 sig=6061 from=0 to=1 first=1 ne=1 ce=1
+2026-11-06T09:17:24.887756+00:00 trial=1 SOAK_TR n=68 t=12896625 node=2 sig=6064 from=0 to=335 first=1 ne=1 ce=1
+2026-11-06T09:17:24.897760+00:00 trial=1 SOAK_TR n=69 t=12896625 node=2 sig=606c from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.907846+00:00 trial=1 SOAK_TR n=70 t=12921623 node=1 sig=2100 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.917606+00:00 trial=1 SOAK_TR n=71 t=12921623 node=1 sig=2101 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.938284+00:00 trial=1 SOAK_TR n=72 t=12921623 node=1 sig=2102 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.946790+00:00 trial=1 SOAK_TR n=73 t=12946623 node=2 sig=2100 from=0 to=14 first=1 ne=1 ce=1
+2026-11-06T09:17:24.957965+00:00 trial=1 SOAK_TR n=74 t=12946623 node=2 sig=2101 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T09:17:24.967766+00:00 trial=1 SOAK_TR n=75 t=12946623 node=2 sig=2102 from=0 to=0 first=1 ne=1 ce=1
+2026-11-06T10:08:24.191665+00:00 trial=1 PARSE malformed line=629 SOAK_SUM n=626 t=3072737988 trial=1793956643 up=3060077647 rx=36ull=0 timeouts=0 cancelled=0 busOff=0 recov=0 twaiErr=0 twaiFlags=0 twaiDrop=0
+2026-11-06T10:08:24.191665+00:00 trial=1 CHECK soak_line_gap line=630 expected 626 found 627
+2026-11-06T11:33:24.470212+00:00 trial=1 PARSE malformed line=1565 SOAK_GAP n=1562 t=8172863994 gapMax=4800 gapWin=4637 ownerGap=5216 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 netDrop1563 t=8172867631 lines=1563 blocked=7654 conRej
+2026-11-06T11:33:24.499214+00:00 trial=1 CHECK soak_line_gap line=1566 expected 1562 found 1564
+2026-11-06T12:14:24.592910+00:00 trial=1 PARSE malformed line=2015 SOAK_GAP n=2013 t=10632925000 gapMax=4803 gapWin=4637 ownerGap=5216 qHw=1 actHw=1 retHw=1 trHw=3 trOver=0 neON n=2014 t=10632928637 lines=2014 blocked=9960 conR
+2026-11-06T12:14:24.622750+00:00 trial=1 CHECK soak_line_gap line=2016 expected 2013 found 2015
+2026-11-06T13:00:00.485708+00:00 trial=1 SOAK_END n=2529 t=13368813656 trial=1793956643 reason=duration up=13356153315 lines=2529 settled=1
+2026-11-06T13:00:00.490708+00:00 HOST trial_end {"trial": 1793956643, "reason": "end:duration", "bytes": 351549}
+2026-11-06T13:00:00.529709+00:00 HOST verdict {"trial": 1793956643, "verdict": "incomplete", "errors": 6, "soak": {"trial": 1793956643, "end": "duration", "lines": {"SOAK_BEGIN": 1, "SOAK_TR": 75, "SOAK_SUM": 222, "SOAK_GAP": 221, "SOAK_CON": 221, "SOAK_NODE": 446, "SOAK_HIST": 446, "SOAK_OUT": 446, "SOAK_ABORT": 446, "SOAK_END": 1}, "anomalies": {}, "nodes_stopped": {}, "lost_lines": 5, "signals": 71, "note_counts": {"soak_line_gap": 3}}, "sha256": "42639d62194423efe6b19b3435a91d97bb445702b92c09d1243d5f4fe575c3a4"}

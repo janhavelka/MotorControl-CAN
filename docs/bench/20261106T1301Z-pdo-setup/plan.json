@@ -1,0 +1,203 @@
+{
+  "purpose": "Setup after the flash: controller, heartbeats on both nodes, all TPDO and RPDO records of both nodes",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "start the controller after the flash"
+    },
+    {
+      "send": "h",
+      "expect": "HEARTBEAT experiment admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "node 1: 1017 exact 0 -> 1000 -> 1000"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "j",
+      "expect": "HEARTBEAT experiment admitted",
+      "end": "END raw",
+      "end_timeout_s": 10,
+      "note": "node 2: 1017 exact 0 -> 1000 -> 1000"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3,
+      "note": "let both heartbeats arrive"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "R1,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,t,1",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,t,2",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,t,3",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,r,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,r,1",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,r,2",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,r,3",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,t,1",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,t,2",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,t,3",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,r,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,r,1",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,r,2",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,r,3",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    }
+  ]
+}

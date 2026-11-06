@@ -1,0 +1,73 @@
+{
+  "purpose": "Node 1 (enabled, holding) in Operational: Start, event timer 100, Pre-operational; restored separately",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "R1,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "exact TPDO1 baseline of node 1"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P120",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 5
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start node 1, enabled and holding, RPDO1 event timer 1000, no RPDO sent"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 10,
+      "note": "a statusword change would send a change-driven TPDO1"
+    },
+    {
+      "send": "W1,0,5,0,100",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": "event timer raw 100 on node 1"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 10
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "final intended network state: Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "P0",
+      "expect": "PDOW_STOPPING",
+      "end": "PDOW_END",
+      "end_timeout_s": 20
+    }
+  ]
+}
