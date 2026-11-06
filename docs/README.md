@@ -1,6 +1,6 @@
 # MotorControl-CAN documentation
 
-[Native position parameters](position_parameters.md) document the checked numeric candidate, the remaining finite-motion gates and the [offline example](../examples/position_preview/README.md).
+[Native position parameters](position_parameters.md) document checked numeric candidates, finite absolute/relative/wrapped-angle integration and remaining motion gates. Native callers include the [position example](../examples/position_preview/README.md) and [offline angle preview](../examples/angle_preview/README.md).
 
 The [TPDO1 configuration preview](../examples/pdo_configuration_preview/README.md) runs the supported `1800:05` event-timer change through its typed lifecycle with retained bench replies; the [service guide](canopen_services.md#lichuan-tpdo1-configuration-subset) gives the contract.
 

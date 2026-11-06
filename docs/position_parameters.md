@@ -234,6 +234,65 @@ observation:
    acceptance or completion.
 7. The DEC-8 stop rows from `001F` belong to packet 16.
 
+## Wrapped-angle moves
+
+`prepareMoveAngle` / `validateMoveAngle` compose `preparePosition` with the
+existing finite position lifecycle. `AxisSession::requestMoveAngle` uses the same
+owner, reservation, `nextMove` / `advanceMove`, stop and uncertainty path as
+`requestMove`. The resolved endpoint is written to `607A` and triggered by
+`001F`, so no relative `005F` wire-base claim is needed.
+
+Supply `position.wrapped=true`, `relative=false`, an angular unit, a MOTOR or
+LOAD frame, path, half-turn tie, rounding and error allowance. Supply the
+mechanical origin, command increments per motor turn and, for LOAD, gear ratio.
+The fresh multi-turn witness must be ACTUAL, idle, stationary, age-bounded and
+observed after the actual latest acknowledged `000F`. Explicitly admit that
+host basis with `axis.supportedRelativeBases = 1`; its default zero refuses.
+Neither encoder lines nor `2201`'s EDS default establishes a command scale.
+
+| Path | Selection |
+| --- | --- |
+| `POSITIVE` | Increasing physical orientation, with command polarity applied |
+| `NEGATIVE` | Decreasing physical orientation, with command polarity applied |
+| `SHORTEST` | The shorter displacement; exact half turns use `REJECT`, `POSITIVE` or `NEGATIVE` tie policy |
+
+The selected turn must satisfy requested and quantized limits. A limit failure
+does not choose another turn. The absolute native endpoint must also fit the
+86C `607A` interval, even when a small wrapped displacement would fit. For an
+illustrative 51200 increments/turn, the interval is only about +/-19.5 turns.
+`BINARY32` common targets cannot enter this I32 move path. A request that rounds
+to zero displacement rejects without work; it establishes no standstill.
+
+`context.parameters.target` retains the original requested angle and policies,
+exact endpoint, selected multi-turn reference and quantization allowance/error.
+`context.displacementNative` is effective endpoint minus that witness. Exact
+path/turn selection is recoverable from this evidence; there is no duplicate
+turn counter. For explicitly approximated nonzero radians,
+`nativeDirectionPositive` preserves the resolved native sign, which differs
+from physical positive direction under polarity -1 and is meaningless at zero.
+
+The caller retains the typed `DRIVER` observation, including raw `2200`
+`directionRaw`, `2201` `subdivisionRaw` and its configuration-generation
+provenance, as the baseline for the axis interpretation. The documented `2200`
+choices do not establish shaft direction. If either raw value changes, withdraw
+coordinates with `invalidateAxisReference(..., COORDINATES)` even when the host
+`commandPolarity` value was not changed; rebuild the measured relation before
+another angle. No automatic read or detection is implied. Binding, mode, scale
+and reference changes must similarly invalidate their dependent epoch/evidence.
+
+`validateMoveAdmission` rechecks the frozen target, original reference, state
+age and processing cutoff before parameter/trigger admission and again at
+controller handoff. `now >= deadlineUs` is expired. Own move parameter writes
+retire retained `MOTION_PARAMETERS` observations through
+`retireMotionParameters`, without advancing the configuration epoch and making
+their own target stale. They never run through `prepareDriverSettings`.
+
+See [angle_preview](../examples/angle_preview/README.md) for an offline caller
+that displays effective target and exact error before admission. N5 3600/turn
+at 1:1 and abstract independent-scale servo vectors exercise common production
+arithmetic in C1; they add no installed driver. Physical angle qualification and
+unestablished specimen scales remain separate evidence gates.
+
 ## Finite relative move (gated twice)
 
 `prepareMoveRelative` and `validateMoveRelative` run a relative move through the

@@ -161,6 +161,7 @@ def check_package(args, work, summary):
         "evidence": ("examples/device_evidence", ["main.cpp"]),
         "units": ("examples/units_preview", ["main.cpp"]),
         "position": ("examples/position_preview", ["main.cpp"]),
+        "angle": ("examples/angle_preview", ["main.cpp"]),
         "reads": ("examples/reads_preview", ["main.cpp"]),
         "pdo": ("examples/pdo_configuration_preview", ["main.cpp"]),
         "action": ("examples/action_preview", ["main.cpp"]),
@@ -196,6 +197,8 @@ add_executable(units_preview units/main.cpp)
 target_link_libraries(units_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(position_preview position/main.cpp)
 target_link_libraries(position_preview PRIVATE MotorControlCAN::MotorControlCAN)
+add_executable(angle_preview angle/main.cpp)
+target_link_libraries(angle_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(reads_preview reads/main.cpp)
 target_link_libraries(reads_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(pdo_configuration_preview pdo/main.cpp)
@@ -207,7 +210,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePla
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview reads_preview
+foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview angle_preview reads_preview
         pdo_configuration_preview action_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
@@ -221,10 +224,11 @@ add_test(NAME native_probe COMMAND native_probe --fake)
 add_test(NAME device_evidence COMMAND device_evidence --fake-only)
 add_test(NAME units_preview COMMAND units_preview)
 add_test(NAME position_preview COMMAND position_preview)
+add_test(NAME angle_preview COMMAND angle_preview)
 add_test(NAME reads_preview COMMAND reads_preview)
 add_test(NAME pdo_configuration_preview COMMAND pdo_configuration_preview)
 add_test(NAME action_preview COMMAND action_preview)
-set_tests_properties(native_probe device_evidence units_preview position_preview reads_preview
+set_tests_properties(native_probe device_evidence units_preview position_preview angle_preview reads_preview
     pdo_configuration_preview action_preview PROPERTIES TIMEOUT 10)
 ''', encoding="utf-8")
     probe_build = work / "native probe build"

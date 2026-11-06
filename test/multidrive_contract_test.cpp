@@ -9,6 +9,7 @@
  * SPDX-License-Identifier: MIT
  */
 #include "Operations.h"
+#include <MotorControlCAN/Axis.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -99,12 +100,11 @@ M::ServiceEvidence acknowledgement(const M::Binding& route, M::OperationToken to
 void motorKindsAndOptionalGeometry() {
     // N5 manual v3.3.0 pp38,64: 3202=0x08 stepper / 0x40 BLDC;
     // configured 60A8=0xFF410000 means tenths of a degree, 3600 per turn.
+    // This vector is 1:1 only: degree units include 6091 gearing (p62).
     // See docs/reference/multidrive/vendor/nanotec_n5_canopen_v3.3.0.pdf.
     const M::MotorKind kinds[] = {M::MotorKind::STEPPER, M::MotorKind::BLDC};
-    const uint32_t documentedMotorCodes[] = {0x08, 0x40};
     for (unsigned i = 0; i < 2; ++i) {
         M::ProofAxisConfig configuration = axis(kinds[i]);
-        configuration.binding.endpoint.profile = documentedMotorCodes[i];
         CHECK(configuration.units.fullStepsPerMotorTurn.numerator == 0);
         const Saved<M::ProofAxisConfig> original(configuration);
         P::MoveContext context;
@@ -116,6 +116,60 @@ void motorKindsAndOptionalGeometry() {
         CHECK(context.execution == M::ActionExecution::NOT_TRANSMITTED);
         CHECK(context.completion == M::ActionCompletion::NOT_OBSERVED);
         CHECK(original.unchanged(configuration));
+
+        // C1 uses the production coordinate API, with application-supplied
+        // origin/reference facts. No N5 profile or native sequence is implied.
+        M::AxisConfig angular;
+        angular.binding = configuration.binding;
+        angular.units = configuration.units;
+        angular.supportedRelativeBases = 1; // Explicit ACTUAL-basis policy.
+        angular.originKnown = true;
+        angular.originNative = 17;
+        angular.originSource = M::ScaleSource::ASSUMED;
+        M::AxisReference reference;
+        reference.binding = angular.binding;
+        reference.referenceGeneration = angular.referenceGeneration;
+        reference.nativeKnown = true;
+        reference.nativePosition = 3517; // 350 degrees beyond the host origin.
+        reference.source = M::ScaleSource::ASSUMED;
+        reference.observedUs = 100;
+        reference.nowUs = 110;
+        reference.maximumAgeUs = 20;
+        M::PositionRequest angle;
+        angle.value = M::Rational(10);
+        angle.unit = M::PositionUnit::DEGREES;
+        angle.frame = M::CoordinateFrame::LOAD;
+        angle.wrapped = true;
+        angle.path = M::AnglePath::SHORTEST;
+        angle.tie = M::HalfTurnTie::REJECT;
+        angle.configurationGeneration = angular.binding.configurationGeneration;
+        const Saved<M::AxisConfig> originalAngular(angular);
+        const Saved<M::AxisReference> originalReference(reference);
+        M::PreparedTarget prepared;
+        CHECK(M::preparePosition(angle, angular, &reference, prepared));
+        CHECK(prepared.endpointNative == 3717); // Positive wrap: +20 degrees.
+        CHECK(prepared.requestedNative.integral == 3717 && prepared.requestedNative.numerator == 0);
+        CHECK(prepared.requested.path == M::AnglePath::SHORTEST);
+        CHECK(prepared.requested.frame == M::CoordinateFrame::LOAD);
+        CHECK(prepared.referenceUsed && prepared.retainedReference.nativePosition == 3517);
+        CHECK(prepared.quantization.errorNumerator == 0 && prepared.exactArithmetic);
+        CHECK(M::validatePreparedTarget(prepared, angular, &reference, 115));
+        angle.frame = M::CoordinateFrame::MOTOR;
+        CHECK(M::preparePosition(angle, angular, &reference, prepared));
+        CHECK(prepared.endpointNative == 3717); // Frames coincide only at 1:1.
+        CHECK(originalAngular.unchanged(angular));
+        CHECK(originalReference.unchanged(reference));
+
+        angular.softLimitsKnown = true;
+        angular.softMinimum = 17;
+        angular.softMaximum = 3617;
+        angle.path = M::AnglePath::POSITIVE;
+        const Saved<M::PreparedTarget> selectedPath(prepared);
+        CHECK(!M::preparePosition(angle, angular, &reference, prepared));
+        CHECK(selectedPath.unchanged(prepared));
+        angle.path = M::AnglePath::NEGATIVE;
+        CHECK(M::preparePosition(angle, angular, &reference, prepared));
+        CHECK(prepared.endpointNative == 117); // Explicit -340-degree path.
     }
 
     // EPOS4 Firmware Specification rel13740 pp221,234: command and sensor
@@ -129,6 +183,62 @@ void motorKindsAndOptionalGeometry() {
     CHECK(context.nativeTarget == 12288);
     CHECK(context.configuration.units.fullStepsPerMotorTurn.numerator == 0);
     CHECK(!context.configuration.capabilities.torque && !context.configuration.capabilities.brake);
+
+    // Abstract servo C1: independent feedback, gearing and reversed command
+    // polarity do not create full-step geometry or change angular intent.
+    M::AxisConfig angular;
+    angular.binding = servo.binding;
+    angular.units = servo.units;
+    angular.units.motorTurnsPerLoadTurn = scale(3, 2);
+    angular.units.encoder.countsPerUnit = scale(2048);
+    angular.units.encoder.countsPerUnit.source = M::ScaleSource::READBACK;
+    angular.units.encoder.sourceId = 1;
+    angular.units.commandPolarity = -1;
+    angular.supportedRelativeBases = 1;
+    angular.originKnown = true;
+    angular.originNative = 17;
+    angular.originSource = M::ScaleSource::ASSUMED;
+    M::AxisReference reference;
+    reference.binding = angular.binding;
+    reference.referenceGeneration = angular.referenceGeneration;
+    reference.nativeKnown = true;
+    reference.nativePosition = 17;
+    reference.source = M::ScaleSource::ASSUMED;
+    reference.observedUs = 100;
+    reference.nowUs = 110;
+    reference.maximumAgeUs = 20;
+    M::PositionRequest angle;
+    angle.value = M::Rational(1, 10);
+    angle.unit = M::PositionUnit::TURNS;
+    angle.frame = M::CoordinateFrame::MOTOR;
+    angle.wrapped = true;
+    angle.path = M::AnglePath::POSITIVE;
+    angle.tie = M::HalfTurnTie::REJECT;
+    angle.rounding = M::Rounding::NEAREST;
+    angle.maximumQuantizationError = M::Rational(1, 5);
+    angle.configurationGeneration = angular.binding.configurationGeneration;
+    M::PreparedTarget prepared;
+    CHECK(M::preparePosition(angle, angular, &reference, prepared));
+    CHECK(prepared.endpointNative == -802); // 17 - 819.2, rounded once.
+    CHECK(prepared.requestedNative.integral == -802 && prepared.requestedNative.numerator == 1 &&
+          prepared.requestedNative.denominator == 5 && prepared.requestedNative.negative);
+    CHECK(prepared.quantization.errorNumerator == 1 &&
+          prepared.quantization.errorDenominator == 5 && !prepared.quantization.errorNegative);
+    CHECK(prepared.requested.path == M::AnglePath::POSITIVE && prepared.exactArithmetic);
+    CHECK(angular.units.fullStepsPerMotorTurn.numerator == 0);
+    CHECK(angular.units.encoder.countsPerUnit.numerator == 2048);
+    angular.units.encoder.countsPerUnit = M::UnitScale();
+    CHECK(M::preparePosition(angle, angular, &reference, prepared));
+    CHECK(prepared.endpointNative == -802); // Command conversion needs no feedback scale.
+    angle.frame = M::CoordinateFrame::LOAD;
+    CHECK(M::preparePosition(angle, angular, &reference, prepared));
+    CHECK(prepared.endpointNative == -1212); // 17 - (819.2 * 3/2).
+    CHECK(prepared.quantization.errorNumerator == 1 &&
+          prepared.quantization.errorDenominator == 5 && prepared.quantization.errorNegative);
+    angle.maximumQuantizationError = M::Rational(1, 6);
+    const Saved<M::PreparedTarget> quantized(prepared);
+    CHECK(!M::preparePosition(angle, angular, &reference, prepared));
+    CHECK(quantized.unchanged(prepared));
 }
 
 void independentScalesAndWideIntent() {

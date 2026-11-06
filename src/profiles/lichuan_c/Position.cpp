@@ -75,9 +75,9 @@ Status preparePositionParameters(PreparedPositionParameters& output, SettingsMod
         return error(PositionParameterError::OVERLAP, "position parameters overlap input");
     if (model != SettingsModel::CL86_C && model != SettingsModel::OL86_C)
         return error(PositionParameterError::MODEL, "explicit documented 86C model required");
-    if (request.wrapped || nowUs > uint64_t(INT64_MAX))
+    if (nowUs > uint64_t(INT64_MAX))
         return error(PositionParameterError::ARGUMENT,
-                     "position parameters require unwrapped intent and a valid current time");
+                     "position parameters require a valid current time");
     if (axis.positionRepresentation != NativeRepresentation::INTEGER)
         return error(PositionParameterError::REPRESENTATION,
                      "86C position target requires integer native representation",
@@ -319,14 +319,17 @@ Status checkWitness(const AxisReference* reference, bool relative, RelativeBasis
                          "with an age cap");
     return Ok();
 }
-// Every refusal of both move preparations, in one place, writing only the caller's local result.
+enum class MoveForm { ABSOLUTE, RELATIVE, ANGLE };
+// Every refusal of the move preparations, writing only the caller's local result.
 Status checkMove(const MoveContext& output, const AxisReservation& r, const ReadTarget& current,
                  const ReadContext& state, const CANOPEN::SdoCompletion& control,
                  const IdentityObservation& identity, const MoveEvidence& e,
                  const MoveRequest& request, const MoveProfile& profile,
                  const DriverContext* stored, const AxisConfig& axis,
-                 const AxisReference* reference, bool relative, uint32_t operation, uint64_t now,
+                 const AxisReference* reference, MoveForm form, uint32_t operation, uint64_t now,
                  uint64_t deadline, const MoveOptions& options, Checked& result) {
+    const bool relative = form == MoveForm::RELATIVE;
+    const bool angle = form == MoveForm::ANGLE;
     const void* inputs[] = {&r, &current, &state, &control, &identity, &e, &request,
                             &profile, &axis, &options, &result};
     const size_t sizes[] = {sizeof r, sizeof current, sizeof state, sizeof control,
@@ -346,12 +349,18 @@ Status checkMove(const MoveContext& output, const AxisReservation& r, const Read
         !signalValid(e.completion) || e.rule == CompletionRule::NONE ||
         e.rule > CompletionRule::AFTER_ACCEPTANCE || profile.setup > MoveSetup::REUSE_STORED)
         return moveError(MoveError::ARGUMENT, "invalid move evidence record, signals or setup");
-    // Each preparation takes only its own form: a relative intent is never run as an absolute one.
-    if (request.position.relative != relative || request.position.wrapped ||
+    // A wrapped angle resolves to an absolute endpoint; it never uses the relative wire trigger.
+    if (request.position.relative != relative || request.position.wrapped != angle ||
         request.position.basis > RelativeBasis::QUEUED)
         return moveError(MoveError::ARGUMENT,
-                         relative ? "relative move needs an unwrapped relative target"
-                                  : "absolute move needs an unwrapped absolute target");
+                         angle      ? "angle move needs a wrapped absolute target"
+                         : relative ? "relative move needs an unwrapped relative target"
+                                    : "absolute move needs an unwrapped absolute target");
+    if (angle && (!reference || !reference->idle || !reference->stationary ||
+                  reference->basis != RelativeBasis::ACTUAL || !reference->maximumAgeUs))
+        return moveError(
+            MoveError::REFERENCE,
+            "angle move needs fresh idle stationary actual coordinates with an age cap");
     if (profile.immediateUpdate)
         return moveError(MoveError::CAPABILITY,
                          "immediate update (003F, 007F) puts a new edge in a curve: unsupported",
@@ -707,8 +716,8 @@ Status validateMoveAbsolute(const MoveContext& output, const AxisReservation& re
                             uint64_t deadlineUs, const MoveOptions& options) noexcept {
     Checked result;
     return checkMove(output, reservation, current, state, control, identity, evidence, request,
-                     profile, stored, axis, reference, false, operation, nowUs, deadlineUs, options,
-                     result);
+                     profile, stored, axis, reference, MoveForm::ABSOLUTE, operation, nowUs,
+                     deadlineUs, options, result);
 }
 
 Status prepareMoveAbsolute(MoveContext& output, const AxisReservation& reservation,
@@ -721,8 +730,8 @@ Status prepareMoveAbsolute(MoveContext& output, const AxisReservation& reservati
                            const MoveOptions& options) noexcept {
     Checked result;
     const Status s = checkMove(output, reservation, current, state, control, identity, evidence,
-                               request, profile, stored, axis, reference, false, operation, nowUs,
-                               deadlineUs, options, result);
+                               request, profile, stored, axis, reference, MoveForm::ABSOLUTE,
+                               operation, nowUs, deadlineUs, options, result);
     if (s)
         publishMove(output, result, reservation, control, evidence, profile, operation, nowUs,
                     deadlineUs, options);
@@ -739,8 +748,8 @@ Status validateMoveRelative(const MoveContext& output, const AxisReservation& re
                             uint64_t deadlineUs, const MoveOptions& options) noexcept {
     Checked result;
     return checkMove(output, reservation, current, state, control, identity, evidence, request,
-                     profile, stored, axis, &reference, true, operation, nowUs, deadlineUs, options,
-                     result);
+                     profile, stored, axis, &reference, MoveForm::RELATIVE, operation, nowUs,
+                     deadlineUs, options, result);
 }
 
 Status prepareMoveRelative(MoveContext& output, const AxisReservation& reservation,
@@ -753,8 +762,38 @@ Status prepareMoveRelative(MoveContext& output, const AxisReservation& reservati
                            const MoveOptions& options) noexcept {
     Checked result;
     const Status s = checkMove(output, reservation, current, state, control, identity, evidence,
-                               request, profile, stored, axis, &reference, true, operation, nowUs,
-                               deadlineUs, options, result);
+                               request, profile, stored, axis, &reference, MoveForm::RELATIVE,
+                               operation, nowUs, deadlineUs, options, result);
+    if (s)
+        publishMove(output, result, reservation, control, evidence, profile, operation, nowUs,
+                    deadlineUs, options);
+    return s;
+}
+
+Status validateMoveAngle(const MoveContext& output, const AxisReservation& reservation,
+                         const ReadTarget& current, const ReadContext& state,
+                         const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                         const MoveEvidence& evidence, const MoveRequest& request,
+                         const MoveProfile& profile, const DriverContext* stored,
+                         const AxisConfig& axis, const AxisReference& reference, uint32_t operation,
+                         uint64_t nowUs, uint64_t deadlineUs, const MoveOptions& options) noexcept {
+    Checked result;
+    return checkMove(output, reservation, current, state, control, identity, evidence, request,
+                     profile, stored, axis, &reference, MoveForm::ANGLE, operation, nowUs,
+                     deadlineUs, options, result);
+}
+
+Status prepareMoveAngle(MoveContext& output, const AxisReservation& reservation,
+                        const ReadTarget& current, const ReadContext& state,
+                        const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                        const MoveEvidence& evidence, const MoveRequest& request,
+                        const MoveProfile& profile, const DriverContext* stored,
+                        const AxisConfig& axis, const AxisReference& reference, uint32_t operation,
+                        uint64_t nowUs, uint64_t deadlineUs, const MoveOptions& options) noexcept {
+    Checked result;
+    const Status s = checkMove(output, reservation, current, state, control, identity, evidence,
+                               request, profile, stored, axis, &reference, MoveForm::ANGLE,
+                               operation, nowUs, deadlineUs, options, result);
     if (s)
         publishMove(output, result, reservation, control, evidence, profile, operation, nowUs,
                     deadlineUs, options);
@@ -877,6 +916,8 @@ Status validateMoveAdmission(const MoveContext& c, const AxisConfig& axis,
     const Status s = shape(c, now);
     if (!s)
         return s;
+    if (now >= c.deadlineUs)
+        return moveError(MoveError::TIME, "move admission reached its processing deadline");
     if (c.state != ActionState::ACTIVE ||
         (c.phase != MovePhase::PARAMETERS && c.phase != MovePhase::TRIGGER))
         return moveError(MoveError::STATE, "no parameter or trigger download to recheck");

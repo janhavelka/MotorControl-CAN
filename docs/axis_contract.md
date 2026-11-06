@@ -7,6 +7,13 @@ The caller owns configuration, qualified evidence, time and serialization.
 [Units](units_status.md) owns reusable arithmetic; [architecture](architecture.md)
 and the [owner contract](can_owner.md) own integration boundaries.
 
+Wrapped intent can enter the [finite angle API](position_parameters.md#wrapped-angle-moves)
+through `prepareMoveAngle`. Pure `preparePosition` remains the single owner of
+path, tie, origin, exact conversion and quantization. Exact wrapped endpoints
+retain integer precision above `2^53`; nonzero radians are explicitly approximate.
+`PreparedTarget::nativeDirectionPositive` records the selected native sign for
+wrapped requests, including approximate radians; it is meaningless at zero.
+
 ## Identity, scales and origins
 
 `Binding.logicalAxisId` is independent of protocol, bus, profile, address,

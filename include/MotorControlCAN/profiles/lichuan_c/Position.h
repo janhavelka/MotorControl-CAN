@@ -1,9 +1,9 @@
 /** @file Position.h
- * @brief 86C position parameters and the finite absolute and relative move lifecycle.
+ * @brief 86C position parameters and the finite absolute, relative and wrapped-angle lifecycle.
  * Functions perform bounded C++11 work without I/O, allocation, clock access, retries or replay.
  * SPDX-License-Identifier: MIT
  *
- * preparePositionParameters is pure arithmetic. Both moves are GATED: no source establishes the
+ * preparePositionParameters is pure arithmetic. Finite moves are GATED: no manual establishes the
  * acceptance and completion reports, so MoveEvidence carries the caller's reviewed measurement and a
  * closed gate refuses. A success with those reports unqualified cannot happen.
  * A relative move is gated twice: the manuals give the bit 6 trigger but not what the drive adds
@@ -38,7 +38,7 @@ namespace LICHUAN_C {
 /** Function-specific Status::detail for pure parameter preparation. */
 enum class PositionParameterError : int32_t {
     NONE,           ///< No parameter error.
-    ARGUMENT,       ///< Wrapped request or supplied time outside its monotonic domain.
+    ARGUMENT,       ///< Invalid intent or supplied time outside its monotonic domain.
     MODEL,          ///< No explicit CL86_C or OL86_C documentary applicability.
     REPRESENTATION, ///< Integer native representation is required; binary32 is unsupported.
     RANGE,          ///< Requested/effective target, profile rpm or ramp time exceeds its range.
@@ -73,6 +73,8 @@ struct PreparedPositionParameters {
  * checks requested/effective absolute endpoints against the supplied axis limits.
  * All three relative bases describe host arithmetic only when the supplied axis
  * policy and matching witness allow them; no drive FIFO or wire basis is inferred.
+ * Wrapped MOTOR/LOAD angles use preparePosition's explicit path/tie/origin/basis policy and keep
+ * the exact multi-turn endpoint. This arithmetic does not authorize a move or infer a live scale.
  * Absolute targets without a witness retain unknown displacement. Zero is valid
  * parameter arithmetic and never yields a completed-move result.
  *
@@ -455,6 +457,62 @@ Status prepareMoveRelative(MoveContext& output, const AxisReservation& reservati
                            const AxisConfig& axis, const AxisReference& reference,
                            uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
                            const MoveOptions& options) noexcept;
+/** Prepare a wrapped MOTOR/LOAD angle as an absolute 001F move through the same nextMove/advanceMove
+ * lifecycle. preparePosition resolves the chosen POSITIVE/NEGATIVE/SHORTEST path and half-turn tie
+ * against the supplied multi-turn witness and mechanical origin. A chosen path outside limits
+ * rejects instead of selecting another turn. The frozen target retains the original angle, exact
+ * endpoint, quantization/error allowance, configuration and reference epochs. Approximate radians
+ * also retain nativeDirectionPositive; physical direction and native sign differ under polarity -1.
+ *
+ * @param[out] output Context published only on complete success; unchanged on failure.
+ * @param[in] reservation As prepareMoveAbsolute.
+ * @param[in] current As prepareMoveAbsolute.
+ * @param[in] state As prepareMoveAbsolute; includes the current observed mode.
+ * @param[in] control As prepareMoveAbsolute: the actual latest acknowledged 000F.
+ * @param[in] identity As prepareMoveAbsolute.
+ * @param[in] evidence Absolute acceptance/completion evidence; no 005F relative wire-base claim needed.
+ * @param[in] request Wrapped=true, relative=false, explicit MOTOR/LOAD angular frame, path, tie,
+ * rounding and error allowance. BINARY32 native representation rejects before admission.
+ * @param[in] profile As prepareMoveAbsolute.
+ * @param[in] stored As prepareMoveAbsolute.
+ * @param[in] axis Confirmed command scale, origin, limits and generations; supportedRelativeBases
+ * must explicitly admit ACTUAL. Encoder lines or an EDS subdivision default establish no scale.
+ * @param[in] reference Required idle, stationary ACTUAL command-coordinate witness, fresh with a
+ * nonzero age cap and observed at/after control. Frozen and rechecked at every parameter/trigger
+ * admission; later observations cannot renew it.
+ * @param[in] operation As prepareMoveAbsolute.
+ * @param[in] nowUs As prepareMoveAbsolute.
+ * @param[in] deadlineUs As prepareMoveAbsolute; processing now >= deadlineUs expires.
+ * @param[in] options As prepareMoveAbsolute.
+ * @return Local validation only. Zero effective displacement rejects with ZERO_DISPLACEMENT and
+ * emits no work. This establishes neither standstill nor physical qualification.
+ */
+Status prepareMoveAngle(MoveContext& output, const AxisReservation& reservation,
+                        const ReadTarget& current, const ReadContext& state,
+                        const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                        const MoveEvidence& evidence, const MoveRequest& request,
+                        const MoveProfile& profile, const DriverContext* stored,
+                        const AxisConfig& axis, const AxisReference& reference, uint32_t operation,
+                        uint64_t nowUs, uint64_t deadlineUs, const MoveOptions& options) noexcept;
+/** Check the exact prepareMoveAngle inputs without changing anything, before an owner operation
+ * is reserved. @param[in] output The destination, borrowed only for overlap checks.
+ * @param[in] reservation As prepareMoveAngle. @param[in] current As prepareMoveAngle.
+ * @param[in] state As prepareMoveAngle. @param[in] control As prepareMoveAngle.
+ * @param[in] identity As prepareMoveAngle. @param[in] evidence As prepareMoveAngle.
+ * @param[in] request As prepareMoveAngle. @param[in] profile As prepareMoveAngle.
+ * @param[in] stored As prepareMoveAngle. @param[in] axis As prepareMoveAngle.
+ * @param[in] reference As prepareMoveAngle. @param[in] operation As prepareMoveAngle.
+ * @param[in] nowUs As prepareMoveAngle. @param[in] deadlineUs As prepareMoveAngle.
+ * @param[in] options As prepareMoveAngle.
+ * @return The same validation status prepareMoveAngle would give for these values.
+ */
+Status validateMoveAngle(const MoveContext& output, const AxisReservation& reservation,
+                         const ReadTarget& current, const ReadContext& state,
+                         const CANOPEN::SdoCompletion& control, const IdentityObservation& identity,
+                         const MoveEvidence& evidence, const MoveRequest& request,
+                         const MoveProfile& profile, const DriverContext* stored,
+                         const AxisConfig& axis, const AxisReference& reference, uint32_t operation,
+                         uint64_t nowUs, uint64_t deadlineUs, const MoveOptions& options) noexcept;
 /** Return a context to EMPTY in place, without a stack temporary.
  * @param[out] context Context to reset; its retained history is gone.
  */

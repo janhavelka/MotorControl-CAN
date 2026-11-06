@@ -237,6 +237,8 @@ Status wrapped(const PositionRequest& r, const AxisConfig& c, const AxisReferenc
 // limits and confirm that rounding kept the selected wrapped direction.
 Status finishPrepared(const PositionRequest& r, const AxisConfig& c, const AxisReference* ref,
     bool nativePositive, PreparedTarget& next) {
+    if (r.wrapped)
+        next.nativeDirectionPositive = nativePositive;
     Status s;
     if (c.positionRepresentation == NativeRepresentation::INTEGER) {
         NativeQuantity effective; effective.integral = next.effectiveNative;

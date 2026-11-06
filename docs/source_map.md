@@ -14,7 +14,7 @@
 | --- | --- | --- | --- |
 | Shared private evidence | [SdoEvidence.h](../src/canopen/SdoEvidence.h), [ProfileEvidence.h](../src/profiles/lichuan_c/ProfileEvidence.h) | Reads, settings, actions, PDO configuration; [tests](../test/sdo_evidence_test.cpp) | Free functions only; not installed, so adapters and examples keep their own copies. Not admission or completion evidence |
 | Read group plans | [ReadPlan.h](../src/profiles/lichuan_c/ReadPlan.h), [DriverReads.cpp](../src/profiles/lichuan_c/DriverReads.cpp), [Tuning.cpp](../src/profiles/lichuan_c/Tuning.cpp) | Settings shape checks, `reads`, `driver_settings`, `io_settings` and `tuning` suites | One table row per group; each getter keeps its own field mapping and native unknowns |
-| Native position parameters | `include/MotorControlCAN/profiles/lichuan_c/Position.h`; `src/profiles/lichuan_c/Position.cpp` | `examples/position_preview/main.cpp`; `test/position_parameters_test.cpp`; installed consumer | Reuses common exact axis math; native limits only, no service/lifecycle/firmware permission |
+| Native position and angle preparation | `include/MotorControlCAN/profiles/lichuan_c/Position.h`; `src/profiles/lichuan_c/Position.cpp`; `Axis.h` / `Axis.cpp` | `examples/position_preview/main.cpp`, `examples/angle_preview/main.cpp`; `test/position_parameters_test.cpp`, `test/move_angle_test.cpp`, C1 `multidrive_contract_test.cpp`; installed consumer | Common exact path/tie/frame conversion feeds the same finite setup/trigger/completion context; no alternate engine or inferred scale/firmware permission |
 
 ## Fault and counter actions (prompt 32)
 

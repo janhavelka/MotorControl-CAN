@@ -163,6 +163,10 @@ struct PreparedTarget {
     IntegerQuantization quantization; ///< Exact integer error for INTEGER exact arithmetic.
     double absoluteErrorBound = 0; ///< Upward total quantization/approximation bound in command increments.
     bool exactArithmetic = true; ///< False only for explicitly approximated nonzero radians.
+    /** Native sign of the selected wrapped path after command polarity. Meaningless at
+     * zero distance and for unwrapped requests. Exact paths can also be recovered from
+     * requestedNative and retainedReference; approximated radians retain this decision explicitly. */
+    bool nativeDirectionPositive = true;
     double approximateRequestedNative = 0; ///< Approximate endpoint when exactArithmetic is false.
     double approximationErrorBound = 0; ///< Conservative endpoint conversion error bound.
     bool referenceUsed = false; ///< True makes retainedReference an active dependency.

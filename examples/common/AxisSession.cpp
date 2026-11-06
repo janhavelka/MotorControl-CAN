@@ -324,8 +324,8 @@ M::Status AxisSession::requestMove(const L::ReadContext& state, const L::Identit
                                    const M::AxisConfig& axis, const M::AxisReference* reference,
                                    const L::MoveOptions& options, uint64_t deadline,
                                    uint64_t now) noexcept {
-    return startMove(false, state, identity, evidence, request, profile, stored, axis, reference,
-                     options, deadline, now);
+    return startMove(MoveForm::ABSOLUTE, state, identity, evidence, request, profile, stored, axis,
+                     reference, options, deadline, now);
 }
 M::Status AxisSession::requestMoveRelative(const L::ReadContext& state,
                                            const L::IdentityObservation& identity,
@@ -336,12 +336,19 @@ M::Status AxisSession::requestMoveRelative(const L::ReadContext& state,
                                            const M::AxisReference& reference,
                                            const L::MoveOptions& options, uint64_t deadline,
                                            uint64_t now) noexcept {
-    return startMove(true, state, identity, evidence, request, profile, stored, axis, &reference,
-                     options, deadline, now);
+    return startMove(MoveForm::RELATIVE, state, identity, evidence, request, profile, stored, axis,
+                     &reference, options, deadline, now);
 }
-// One request path for both moves; only the library call differs, and a relative witness is never
-// null here.
-M::Status AxisSession::startMove(bool relative, const L::ReadContext& state,
+M::Status AxisSession::requestMoveAngle(
+    const L::ReadContext& state, const L::IdentityObservation& identity,
+    const L::MoveEvidence& evidence, const M::MoveRequest& request, const L::MoveProfile& profile,
+    const L::DriverContext* stored, const M::AxisConfig& axis, const M::AxisReference& reference,
+    const L::MoveOptions& options, uint64_t deadline, uint64_t now) noexcept {
+    return startMove(MoveForm::ANGLE, state, identity, evidence, request, profile, stored, axis,
+                     &reference, options, deadline, now);
+}
+// One owner request path for all three forms. Relative and wrapped witnesses are never null here.
+M::Status AxisSession::startMove(MoveForm form, const L::ReadContext& state,
                                  const L::IdentityObservation& identity,
                                  const L::MoveEvidence& evidence, const M::MoveRequest& request,
                                  const L::MoveProfile& profile, const L::DriverContext* stored,
@@ -380,18 +387,27 @@ M::Status AxisSession::startMove(bool relative, const L::ReadContext& state,
         return M::Status(M::Err::INVALID_CONFIG, stateError, "operation identities exhausted");
     // Check everything before the owner moves; the context is written only once that succeeded.
     const M::Status checked =
-        relative ? L::validateMoveRelative(move_, reservation_, target_, state, control_, identity,
-                                           evidence, request, profile, stored, axis, *reference, next,
-                                           now, deadline, options)
-                 : L::validateMoveAbsolute(move_, reservation_, target_, state, control_, identity,
-                                           evidence, request, profile, stored, axis, reference, next,
-                                           now, deadline, options);
+        form == MoveForm::ANGLE
+            ? L::validateMoveAngle(move_, reservation_, target_, state, control_, identity,
+                                   evidence, request, profile, stored, axis, *reference, next, now,
+                                   deadline, options)
+        : form == MoveForm::RELATIVE
+            ? L::validateMoveRelative(move_, reservation_, target_, state, control_, identity,
+                                      evidence, request, profile, stored, axis, *reference, next,
+                                      now, deadline, options)
+            : L::validateMoveAbsolute(move_, reservation_, target_, state, control_, identity,
+                                      evidence, request, profile, stored, axis, reference, next,
+                                      now, deadline, options);
     if (!checked)
         return checked;
     if (!owner_.beginOperation(sequence_, next, deadline, now))
         return M::Status(M::Err::INVALID_CONFIG, stateError, "owner refused a new operation");
     // Same values as the check above, and only the owner moved, so this cannot refuse.
-    if (relative)
+    if (form == MoveForm::ANGLE)
+        L::prepareMoveAngle(move_, reservation_, target_, state, control_, identity, evidence,
+                            request, profile, stored, axis, *reference, next, now, deadline,
+                            options);
+    else if (form == MoveForm::RELATIVE)
         L::prepareMoveRelative(move_, reservation_, target_, state, control_, identity, evidence,
                                request, profile, stored, axis, *reference, next, now, deadline,
                                options);

@@ -104,13 +104,16 @@ Reuse these exact RS operation families where their meanings apply:
 | Explicit save and factory restore | `prepareSave`, `prepareFactoryRestore`, `nextPersistence`, `advancePersistence`, `verifyPersistence` | Concrete `PersistenceContext` members; verification never replaces the write outcome. RS has no reset API, and RS multi-write restoration is the application `motion-profile restore` |
 
 These names are observed in RS. In CAN, the read, native settings, unit and axis
-families exist, and `prepareStop` and `prepareClearAlarm` exist with conditional
-scope; [PROGRESS.md](PROGRESS.md) gives what remains in each. `prepareEnable`,
-`prepareRelease` and the move, velocity, homing, communication and persistence
-families are pending, and their CAN signatures are fixed when they are implemented.
+families exist, as do evidence-gated finite absolute/relative/angle preparations
+and conditional enable/stop/clear actions; [PROGRESS.md](PROGRESS.md) gives their
+actual scope and remaining gates. Release, velocity, homing, communication and
+persistence families remain pending; their CAN signatures are fixed when implemented.
 Retain `state`, `outcome`, `status`, `execution`, `completion`,
 `uncertain` and operation-specific evidence in the concrete contexts where
-applicable. Do not invent `getMoveResult`, `getActionResult`, `getResult`,
+applicable. Wrapped angles now compose `preparePosition` with the same finite
+position lifecycle through `prepareMoveAngle`, retaining path/tie/frame and
+reference/error evidence; they do not add an executor or implicit live scale.
+Do not invent `getMoveResult`, `getActionResult`, `getResult`,
 `advanceOperation` or a universal `OperationContext`. Checked read getters reject
 incomplete/wrong-kind/stale provenance without changing output. A snapshot with
 an unknown raw value can remain a successful read; validity flags determine
