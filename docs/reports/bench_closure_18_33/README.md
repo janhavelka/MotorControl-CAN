@@ -15,6 +15,19 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | [7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md) Typed PDO subset | [packet_7](packet_7.md) | Complete (`f2c90ab`; replay record in the next commit) | 18 stays Partial | Replayed once on node 2 in both directions on `f2c90ab` |
 | [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | - | Pending, after 1 and 2 | 29, 31-33 | Needs a drive power cycle before any enable |
 
+## Remote CI
+
+| Commit | Content | Result |
+| --- | --- | --- |
+| `eccba4b` | Packet 1 | Passed |
+| `311b682` | Packet 6 | Passed |
+| `e8b449d` | Packet 5, part 1 | Passed |
+| `5a664f1` | Packet 2 | Passed |
+| `27903cb` | Packet 5, part 2 | Passed |
+| `4df97bc`, `f2c90ab`, `5690ecf` | Packets 3 and 7, bench round record | **Failed**, ESP-IDF job only: packet 3's exact checkout-input check counted the SDK, which CI installs inside the checkout (`.build/esp-idf`); local gates, with the SDK outside, passed |
+| `980982a` | First checker fix | **Failed**: the shared images passed; the isolated component gate's forbidden-input check still counted the SDK |
+| `f28035b` | Second checker fix | Passed, every job |
+
 ## Originals: what exists and what is missing
 
 Each row names existing public behavior, then what is missing by kind and who owns it. Prompts 23-26 are delivered and are exercised only as dependencies. A "Partial" status is not itself a missing implementation.
