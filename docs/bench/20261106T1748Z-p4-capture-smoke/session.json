@@ -1,0 +1,163 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-06T17:48:24.985622+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/p4_smoke_plan.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261106T1748Z-p4-capture-smoke"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/p4_smoke_plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "8ea72ba802f34479571b1b35f1bf138d35d6eb7efc230763ed3b91fa8010f121",
+    "s2_evidence.py": "8345ebde378b9677268f214b50ca93b5025c0c9ba2be98c55f1797664c13f39a"
+  },
+  "host_revision": "1805a779ab3ddb3fdfc13c974963f8a155c2cf8c",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "1805a779ab3ddb3fdfc13c974963f8a155c2cf8c",
+    "elf": "64fbca23d0295fbd3068ee871ee30f43f80d2ffa395c08284550d721d4b2c9a9",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "5",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "3",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "start the controller, S18 low",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-06T17:48:25.368187+00:00",
+      "monotonic": 31673.828,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "cached snapshots only; no traffic",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-06T17:48:25.377187+00:00",
+      "monotonic": 31673.843,
+      "reply": "NETWORK node=1 unconfigured",
+      "reply_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "let the network listing end; a capture is refused while it prints",
+      "wait_s": 1,
+      "utc": "2026-11-06T17:48:25.391692+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 4,
+      "note": "10 s capture, 64 frames; expect about 20 heartbeats 701/702 data 7f",
+      "sent": "C1,10,64",
+      "tx_hex": "43312c31302c36340a",
+      "utc": "2026-11-06T17:48:26.404280+00:00",
+      "monotonic": 31674.859,
+      "reply": "CAP admitted cap=1 seconds=10 frames=64 gpio=18 silentHigh=1; TX gate closed, silent level requested, nothing sent",
+      "reply_line": 6,
+      "end": "END capture cap=1 stored=20 overflow=0 lost=0; r=release",
+      "end_line": 35,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "capture=1 while the record is held",
+      "sent": "p",
+      "tx_hex": "70",
+      "utc": "2026-11-06T17:48:36.761586+00:00",
+      "monotonic": 31685.218,
+      "reply": "PONG target=esp32s2 base=1805a779ab3ddb3fdfc13c974963f8a155c2cf8c elf=64fbca23d0295fbd3068ee871ee30f43f80d2ffa395c08284550d721d4b2c9a9 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=16479977 routes=5 trial=0 motion=0 pdo=3 watch=0 capture=1",
+      "reply_line": 36,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-06T17:48:36.788587+00:00",
+      "monotonic": 31685.25,
+      "reply": "CAP record released; level, gate and SDO state unchanged",
+      "reply_line": 37,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "tx unchanged across the capture",
+      "sent": "s",
+      "tx_hex": "73",
+      "utc": "2026-11-06T17:48:36.797619+00:00",
+      "monotonic": 31685.265,
+      "reply": "STATS running=1 inhibited=0 rx=24 tx=0 dropped=0 errors=0 flags=00000000 stackFree=9136 t=16516018 txRej=0 rxLost=0 unmatched=24 traceOver=0 ownerGap=2014 conRej=138",
+      "reply_line": 38,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "regression: node 1 raw identity/network inventory, upload only, after the gate reopened",
+      "sent": "3",
+      "tx_hex": "33",
+      "utc": "2026-11-06T17:48:36.817313+00:00",
+      "monotonic": 31685.281,
+      "reply": "IDENTITY admitted; finite experimental uploads; no retry",
+      "reply_line": 39,
+      "end": "END raw terminals=26 traffic=78 tail=4 tailLost=0 lost=0; r=release",
+      "end_line": 149,
+      "outcome": "answered"
+    },
+    {
+      "step": 9,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-06T17:48:38.958801+00:00",
+      "monotonic": 31687.421,
+      "reply": "RELEASED record; channel uncertainty unchanged",
+      "reply_line": 150,
+      "outcome": "answered"
+    },
+    {
+      "step": 10,
+      "note": "capture=0 silent=0",
+      "sent": "p",
+      "tx_hex": "70",
+      "utc": "2026-11-06T17:48:38.967801+00:00",
+      "monotonic": 31687.421,
+      "reply": "PONG target=esp32s2 base=1805a779ab3ddb3fdfc13c974963f8a155c2cf8c elf=64fbca23d0295fbd3068ee871ee30f43f80d2ffa395c08284550d721d4b2c9a9 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=18685974 routes=5 trial=0 motion=0 pdo=3 watch=0 capture=0",
+      "reply_line": 151,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-06T17:48:40.119463+00:00",
+  "bytes": 20494
+}

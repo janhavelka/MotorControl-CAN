@@ -1,0 +1,12 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/p4_smoke_plan.json: 10 steps; Packet 4 bench smoke: one bounded silent capture of the Pre-operational heartbeats, then a short read-only regression showing local TX resumed after the gate reopened
+   1 {"send": "c", "expect": "CAN ready", "note": "start the controller, S18 low"}
+   2 {"send": "n", "expect": "NETWORK", "note": "cached snapshots only; no traffic"}
+   3 {"wait_s": 1, "note": "let the network listing end; a capture is refused while it prints"}
+   4 {"send": "C1,10,64", "expect": "CAP admitted", "end": "END capture", "end_timeout_s": 30, "note": "10 s capture, 64 frames; expect about 20 heartbeats 701/702 data 7f"}
+   5 {"send": "p", "expect": "PONG", "note": "capture=1 while the record is held"}
+   6 {"send": "r", "expect": "CAP record released"}
+   7 {"send": "s", "expect": "STATS", "note": "tx unchanged across the capture"}
+   8 {"send": "3", "expect": "IDENTITY admitted", "end": "END raw", "end_timeout_s": 10, "note": "regression: node 1 raw identity/network inventory, upload only, after the gate reopened"}
+   9 {"send": "r", "expect": "RELEASED record"}
+  10 {"send": "p", "expect": "PONG", "note": "capture=0 silent=0"}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\p4-dry; touches nothing now
