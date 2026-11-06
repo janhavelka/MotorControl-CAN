@@ -276,6 +276,14 @@ SoakAdmission Soak::begin(const SoakPlan& plan, uint64_t now) noexcept {
     s_.beginPending = true;
     for (SoakNodeStats& node : s_.nodes)
         node.latencyMinUs = UINT32_MAX;
+    // Nothing drains the owner's observation copies between soaks, so the ring can still hold
+    // heartbeats, boot-ups or EMCYs from before this begin. They belong to no soak: counted here,
+    // never measured as a heartbeat gap or reported as an event of this one (2026-11-06: the first
+    // gap of a soak started 40 s after the last one read 38 to 39 s).
+    for (unsigned i = 0; i < C::SdoClient::NETWORK_HISTORY &&
+                         services_.takeNetworkObservation(observation_);
+         ++i)
+        ++s_.staleObservations;
     lastTrial_ = plan.trial;
     if (callbacks_.sample)
         callbacks_.sample(callbacks_.context, s_.resources);
@@ -1134,7 +1142,7 @@ bool Soak::formatNext(uint64_t now) noexcept {
     if (s_.beginPending) {
         s_.beginPending = false;
         return put("SOAK_BEGIN n=%lu t=%llu trial=%lu dur=%lu interval=%lu summary=%lu monitors=%u identity=%u "
-                   "opDeadline=%lu queue=%lu resp=%lu stack=%lu heap=%lu heapMin=%lu base=%s\n",
+                   "opDeadline=%lu queue=%lu resp=%lu stack=%lu heap=%lu heapMin=%lu stale=%lu base=%s\n",
                    n, t, static_cast<unsigned long>(s_.plan.trial),
                    static_cast<unsigned long>(s_.plan.durationS),
                    static_cast<unsigned long>(s_.plan.intervalMs),
@@ -1144,7 +1152,8 @@ bool Soak::formatNext(uint64_t now) noexcept {
                    static_cast<unsigned long>(RESPONSE_TIMEOUT_US),
                    static_cast<unsigned long>(s_.resources.stackFree),
                    static_cast<unsigned long>(s_.resources.heapFree),
-                   static_cast<unsigned long>(s_.resources.heapMinimum), revision_);
+                   static_cast<unsigned long>(s_.resources.heapMinimum),
+                   static_cast<unsigned long>(s_.staleObservations), revision_);
     }
     if (s_.eventCount) {
         const Event event = s_.events[s_.eventHead];

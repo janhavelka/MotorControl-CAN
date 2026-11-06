@@ -435,6 +435,7 @@ add_test(NAME s2_evidence_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SO
 add_test(NAME s2_flash_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_flash_test.py")
 add_test(NAME s2_soak_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_soak_test.py")
 add_test(NAME s2_pdo_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_pdo_test.py")
+add_test(NAME s2_uart_compare_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_uart_compare_test.py")
 add_test(NAME s2_console_account_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_console_account_test.py")
 # The parser must read every record the firmware really prints, not a hand-written copy of them.
 add_test(NAME s2_soak_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_soak_transcript.py"

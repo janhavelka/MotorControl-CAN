@@ -7,10 +7,10 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | Packet | Report | Packet status | Original prompts | Hardware |
 | --- | --- | --- | --- | --- |
 | [1](../../prompts/bench_closure_18_33/1_evidence_contracts.md) Evidence contracts | [packet_1](packet_1.md) | Complete (`eccba4b`) | 19-22, 29-33 stay Partial | None: host work |
-| [2](../../prompts/bench_closure_18_33/2_position_regressions.md) Position regressions | [packet_2](packet_2.md) | Complete | 31, 33 stay Partial | None: host work |
+| [2](../../prompts/bench_closure_18_33/2_position_regressions.md) Position regressions | [packet_2](packet_2.md) | Complete (`5a664f1`) | 31, 33 stay Partial | None: host work |
 | [3](../../prompts/bench_closure_18_33/3_s2_shared_firmware.md) Shared S2 firmware | - | In progress (host) | 27, 28 | S2 smoke test pending |
 | [4](../../prompts/bench_closure_18_33/4_passive_capture.md) Passive capture | - | Pending, after 3 | 27-29 | Passivity smoke pending; physical silence needs an independent observer |
-| [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | - | In progress (host) | 28, 29 | Short 200 ms and 20 ms runs pending; attribution needs a GPIO43 capture |
+| [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | [packet_5](packet_5.md) | Complete (`e8b449d`, record in the next commit); the soak fix needs a short regression on the next image | 28, 29 | Ran 2026-11-06: loss reproduced at 20 ms and placed after UART FIFO acceptance; attribution needs a GPIO43 capture |
 | [6](../../prompts/bench_closure_18_33/6_pdo_measurement.md) PDO measurement | [packet_6](packet_6.md) | Complete, with recorded deviations; runner fixes P1-P5 | 18, 29 | Ran 2026-11-06, both specimens ([report](../2026-11-06_pdo_stream.md)); NMT boundary rerun on the next image |
 | [7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md) Typed PDO subset | - | Pending, after 6 | 18 | Replay pending |
 | [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | - | Pending, after 1 and 2 | 29, 31-33 | Needs a drive power cycle before any enable |

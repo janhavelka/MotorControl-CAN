@@ -503,6 +503,32 @@ void testHeartbeatGapsAndNmt() {
     CHECK(rig->has("node=1 sig=nmt from=ff to=7f first=0"));
     rig->linesContiguous();
 }
+// 2026-11-06: a soak begun 40 s after the previous one reported its first heartbeat gap as 38 to
+// 39 s, because the owner's observation copies from between the soaks were still queued.
+void testObservationsBeforeBeginBelongToNoSoak() {
+    std::unique_ptr<Rig> rig(new Rig);
+    rig->turns(2000); // Past the route boundary, so the heartbeat below is accepted, as on the bench.
+    M::Frame beat = frame(0x701, 1);
+    beat.data[0] = 0x7f;
+    rig->driver.push(beat);
+    rig->turns(100);
+    M::Frame emcy = frame(0x81, 8); // An EMCY before the soak is not one of its events.
+    emcy.data[0] = 0x10;
+    rig->driver.push(emcy);
+    rig->turns(5000);
+    CHECK(rig->soak.begin(plan(), rig->console.now) == E::SoakAdmission::ACCEPTED);
+    rig->turns(100);
+    for (unsigned i = 0; i < 2; ++i) {
+        rig->driver.push(beat);
+        rig->turns(300);
+    }
+    rig->turns(3000);
+    CHECK(rig->soak.nodeStats(1).heartbeats == 2);
+    CHECK(rig->soak.nodeStats(1).heartbeatGapMaxUs >= 300000 && rig->soak.nodeStats(1).heartbeatGapMaxUs < 320000);
+    CHECK(!rig->has("SOAK_EMCY") && !rig->has("kind=emcy"));
+    CHECK(rig->has(" stale=2 "));
+    rig->linesContiguous();
+}
 void testUnmatchedFrame() {
     std::unique_ptr<Rig> rig(new Rig);
     CHECK(rig->soak.begin(plan(), rig->console.now) == E::SoakAdmission::ACCEPTED);
@@ -748,6 +774,7 @@ int main(int argc, char** argv) {
     testTimeoutStopsOnlyThatNode();
     testBootAndEmcy();
     testHeartbeatGapsAndNmt();
+    testObservationsBeforeBeginBelongToNoSoak();
     testUnmatchedFrame();
     testDumpBudget();
     testConsoleBackpressure();
