@@ -637,6 +637,35 @@ class FirmwareBuildTests(unittest.TestCase):
             checker.check_inputs(self.database, self.expected(), owned=self.root)
         checker.check_inputs(self.database, self.expected(), owned=self.root, outside=[inside.parent])
 
+    def test_an_sdk_installed_inside_the_checkout_is_not_a_checkout_input(self):
+        # CI installs ESP-IDF at .build/esp-idf; run 42249057257 counted its sources as unexpected
+        # checkout inputs. The SDK roots come from the build environment, wherever they lie.
+        sdk = self.root / ".build/esp-idf"
+        tools = self.root / ".build/idf-tools"
+        sources = [sdk / "components/driver/twai/twai.c", tools / "tools/xtensa/lib/crt.c"]
+        for path in sources:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("// SDK\n", encoding="utf-8")
+        self.write_database([{"file": str(path)} for path in self.expected() + sources])
+        with self.assertRaisesRegex(ValueError, "unexpected checkout inputs:.*twai.c"):
+            checker.check_inputs(self.database, self.expected(), owned=self.root)
+        roots = checker.sdk_roots({"IDF_PATH": str(sdk), "IDF_TOOLS_PATH": str(tools), "PATH": "x"})
+        self.assertEqual(roots, [sdk.resolve(), tools.resolve()])
+        checker.check_inputs(self.database, self.expected(), owned=self.root, outside=roots)
+        # A real extra checkout source still fails beside an SDK inside the checkout.
+        extra = self.root / "examples/common/CommandParser.cpp"
+        extra.parent.mkdir(parents=True, exist_ok=True)
+        extra.write_text("// extra\n", encoding="utf-8")
+        self.write_database([{"file": str(path)} for path in self.expected() + sources + [extra]])
+        with self.assertRaisesRegex(ValueError, "unexpected checkout inputs:.*CommandParser.cpp"):
+            checker.check_inputs(self.database, self.expected(), owned=self.root, outside=roots)
+
+    def test_every_checkout_gate_excludes_the_sdk_roots(self):
+        text = (ROOT / "scripts/check_firmware.py").read_text(encoding="utf-8")
+        calls = text.count("owned=ROOT")
+        self.assertGreaterEqual(calls, 3)
+        self.assertEqual(text.count("+ sdk_roots(env)"), calls)
+
     def test_compiler_must_be_the_selected_targets_cross_compiler(self):
         s2 = r"C:\pio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32s2-elf-g++.exe"
         self.write_database(self.compiler_rows(s2))

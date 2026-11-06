@@ -81,6 +81,18 @@ def within(path, directories):
     return any(path == item or item in path.parents for item in directories)
 
 
+def sdk_roots(env):
+    """The SDK and tool directories a build reads from, wherever they are installed. CI installs
+    ESP-IDF inside the checkout (.build/esp-idf), so these must be excluded from the exact
+    checkout-input check by location, not assumed to lie outside it."""
+    roots = []
+    for name in ("IDF_PATH", "IDF_TOOLS_PATH", "PLATFORMIO_CORE_DIR"):
+        value = env.get(name)
+        if value:
+            roots.append(Path(value).resolve())
+    return roots
+
+
 def check_inputs(database, expected, forbidden=(), owned=None, outside=()):
     """Inspect actual compiler inputs, independently of build-list success messages.
 
@@ -321,7 +333,7 @@ def arduino_build(runner, pio, name, expected):
     # Exact checkout inputs: the shared inventory, the core and the thin Arduino entry.
     runner.summary[name.replace("-", "_") + "_compile_entries"] = check_inputs(
         database, list(expected) + [ROOT / ARDUINO_ENTRY], [ROOT / BENCH_PROJECT, ROOT / SMOKE_SOURCE],
-        owned=ROOT, outside=[pio_build])
+        owned=ROOT, outside=[pio_build] + sdk_roots(env))
     check_compiler(database, target)
     if not any(path.as_posix().endswith("cores/esp32/main.cpp") for path, _ in compiled_inputs(database)):
         raise VerificationFailure(name + " did not compile the Arduino core entry")
@@ -348,7 +360,8 @@ def shared_idf_build(runner, command, env, name, temporary_root, expected):
         database = build / "compile_commands.json"
         runner.summary[name.replace("-", "_") + "_compile_entries"] = check_inputs(
             database, expected + [project / "main/main.cpp"] + [ROOT / item for item in spec["extra"]],
-            [ROOT / BENCH_PROJECT] + [ROOT / item for item in spec["forbidden"]], owned=ROOT, outside=[build])
+            [ROOT / BENCH_PROJECT] + [ROOT / item for item in spec["forbidden"]], owned=ROOT,
+            outside=[build] + sdk_roots(env))
         check_compiler(database, spec["target"])
         check_sdkconfig(build / "sdkconfig", spec["sdkconfig"])
         runner.summary.setdefault("firmware_targets", {})[name] = check_description(build, spec["target"])
@@ -405,7 +418,7 @@ def main():
                     # Exact outside the bench project, whose own source list it owns.
                     runner.summary["s2_compile_entries"] = check_inputs(
                         database, common + core + [project / "main/main.cpp", project / "RawEvidence.cpp"],
-                        owned=ROOT, outside=[build, project])
+                        owned=ROOT, outside=[build, project] + sdk_roots(env))
                     check_compiler(database, "esp32s2")
                     check_sdkconfig(build / "sdkconfig", BENCH_SDKCONFIG)
                     runner.summary["s2_target"] = check_description(build, "esp32s2")
