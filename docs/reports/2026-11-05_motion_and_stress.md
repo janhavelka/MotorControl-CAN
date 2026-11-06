@@ -126,3 +126,14 @@ All five runs used the same image and 1 s summaries, so they differ only in the 
 | R3 | 200 ms | 5 | 0 | 10,791 | 0 | 0 |
 
 **The loss rises much faster than the read rate.** Doubling it from 10 to 20 operations per second multiplied the loss by about 9. That fits a loss that needs several CAN service events to coincide within one stretch of console output, more than one proportional to the frames sent, but it is a shape, not a mechanism. **Practical rule from these runs:** at up to 5 read operations per second the console stayed lossless for 3 h; above that, expect detected losses and keep relying on the line numbering. The CAN side never lost a read in any run, so none of this affects the library's evidence.
+
+### R6: closing endurance soak, cut by a power failure
+
+[`20261106-stress-r6-endurance`](../bench/20261106-stress-r6-endurance/transitions.txt), 20 ms reads and 60 s summaries from 06:49Z, planned until 13:00Z.
+
+**The host PC lost mains power at about 08:34Z**, 1 h 45 min in. The S2 and the ESP-Prog-2, powered from its USB, went down with it, so the runner wrote no `run.json` and the trial replays as `incomplete` (`capture_failed`, `soak_no_end`). Up to the cut, the last summary at 08:34:03Z:
+
+- **CAN: clean.** 108,607 and 108,608 operations per node, all successful except one per node still in flight when that summary was printed; 760,253 frames each way with no TX rejection, drop, timeout or bus error; TEC and REC 0; largest gap 4.8 ms; no signal change after the first replies.
+- **Console: no loss in 105 bursts.** At the A/B's 60 s-summary rate about 1.5 to 2 were expected, so this is not a significant difference.
+
+**The drives kept their power.** After the PC came back, the S2 was reset and pinged, and the first replies of R7 at 09:17Z read both nodes exactly as before the cut: node 1 enabled (`0037`) at 4728 with `2100=0000`, node 2 released (`4050`) at 821 with `2100=0014`. A host or MCU power loss therefore left the drives' state unchanged. The S2 lost its session, as on every MCU restart, and sent no write when it came back.
