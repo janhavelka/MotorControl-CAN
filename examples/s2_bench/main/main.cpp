@@ -523,7 +523,7 @@ E::PdoWatch* watchStorage(E::FirmwareProbe& firmware, E::SoakTwaiTap& tap) {
 }
 // One addressed NMT request: q and w send Pre-operational, an N line any of its three commands.
 bool admitNmt(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned slot,
-              C::NmtCommand command, uint32_t id, C::NmtRequestId& output) {
+              C::NmtCommand command, uint32_t id, C::NmtRequestId& output, uint64_t& admittedUs) {
     const auto* node = services.node(slot);
     if (!node)
         return false;
@@ -537,7 +537,10 @@ bool admitNmt(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned slot,
     if (!firmware.platform().nowUs(now) || now >= UINT64_MAX - 5000000)
         return false;
     work.deadlineUs = now + 5000000;
-    return firmware.owner().admitNmt(work, now, output);
+    if (!firmware.owner().admitNmt(work, now, output))
+        return false;
+    admittedUs = now;
+    return true;
 }
 // Route resources, sampled at admission and at the terminal: the high-water mark is the least
 // stack ever free, so a lower value at the terminal was reached during that route.
@@ -632,6 +635,9 @@ void ownerTask(void*) {
     bool attempted = false, configured[2] = {}, used[2] = {}, heartbeatUsed[2] = {},
          readinessUsed[2] = {}, dumping = false, reported = false;
     C::NmtRequestId nmtRequest;
+    // Admission time of the retained NMT request. A frame received between it and the TX completion
+    // may precede or follow the NMT frame on the wire; the result line prints both.
+    uint64_t nmtAdmittedUs = 0;
     bool nmtReported = false, networkDump = false;
     bool pdoUsed = false;
     unsigned networkCursor = 0;
@@ -722,12 +728,13 @@ void ownerTask(void*) {
                 formatLine(
                     out, sizeof out,
                     "NMT request=%lu target=%lu cmd=%u outcome=%u possible=%u txConfirmed=%u "
-                    "completed=%llu; retained; network observation separate\n",
+                    "completed=%llu admitted=%llu; retained; network observation separate\n",
                     static_cast<unsigned long>(result->transfer.request),
                     static_cast<unsigned long>(result->transfer.target.binding.endpoint.address),
                     unsigned(result->transfer.command), unsigned(result->outcome),
                     unsigned(result->transmissionPossible), unsigned(result->transmissionConfirmed),
-                    static_cast<unsigned long long>(result->completedUs));
+                    static_cast<unsigned long long>(result->completedUs),
+                    static_cast<unsigned long long>(nmtAdmittedUs));
                 nmtReported = firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out),
                                                               std::strlen(out));
             }
@@ -864,7 +871,8 @@ void ownerTask(void*) {
                             !networkDump && !rawRecord && !record && !pdoRecord &&
                             !nmtRequest.owner &&
                             admitNmt(firmware, services, parsed.node - 1,
-                                     C::NmtCommand(parsed.nmt), acquisition + 1, nmtRequest);
+                                     C::NmtCommand(parsed.nmt), acquisition + 1, nmtRequest,
+                                     nmtAdmittedUs);
                         if (accepted) {
                             ++acquisition;
                             nmtReported = false;
@@ -1023,7 +1031,7 @@ void ownerTask(void*) {
                                       !nmtRequest.owner &&
                                       admitNmt(firmware, services, slot,
                                                C::NmtCommand::PRE_OPERATIONAL, acquisition + 1,
-                                               nmtRequest);
+                                               nmtRequest, nmtAdmittedUs);
                 if (accepted) {
                     ++acquisition;
                     nmtReported = false;

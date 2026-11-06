@@ -46,7 +46,15 @@ REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDOW r
             "TRIAL_REFUSED", "UNKNOWN command", "HEARTBEAT refused", "PDO refused", "IDENTITY refused",
             "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR")
 LINE_COMMANDS = ("N", "P", "R", "W", "S")
-SINGLE_BYTES = set("cpsrdnhjmqwX34")
+# q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
+# are not checked here. NMT goes through N lines.
+SINGLE_BYTES = set("cpsrdnhjX34")
+# The admission line and end line of every command whose firmware terminal decides whether later
+# steps may follow, keyed by the command itself, never by the plan's own expect text.
+CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END raw"),
+           "W": ("PDO_WRITE admitted", "END raw"), "h": ("HEARTBEAT experiment admitted", "END raw"),
+           "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
+           "4": ("IDENTITY admitted", "END raw")}
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
 
 
@@ -65,7 +73,8 @@ def check_plan(plan):
     for number, step in enumerate(plan["steps"], 1):
         if not isinstance(step, dict):
             raise SessionError("step %d is not an object" % number)
-        unknown = set(step) - {"send", "expect", "end", "timeout_s", "end_timeout_s", "wait_s", "note"}
+        unknown = set(step) - {"send", "expect", "end", "timeout_s", "end_timeout_s", "wait_s", "note",
+                               "require"}
         if unknown:
             raise SessionError("step %d has unknown keys %s" % (number, sorted(unknown)))
         if "send" in step:
@@ -86,13 +95,59 @@ def check_plan(plan):
                 raise SessionError("step %d: %s must be 0..900 s" % (number, key))
         if "end" in step and "send" not in step:
             raise SessionError("step %d: end needs a send" % number)
-        # Work whose terminal decides whether later steps may follow must name its end line.
-        if "send" in step and step["send"][0] in "NRWhj34":
-            wanted = "NMT request" if step["send"][0] == "N" else "END raw"
-            if step.get("end") != wanted:
-                raise SessionError("step %d: %r needs end %r" % (number, step["send"], wanted))
+        # Work whose terminal decides whether later steps may follow names its exact admission and end.
+        if "send" in step and step["send"][0] in CHECKED:
+            admission, end = CHECKED[step["send"][0]]
+            if step["expect"] != admission or step.get("end") != end:
+                raise SessionError("step %d: %r needs expect %r and end %r" % (number, step["send"], admission, end))
+        if "require" in step:
+            check_requirements(number, step["require"])
         steps.append(step)
     return steps
+
+
+def check_requirements(number, require):
+    """A requirement names a record kind, optional fields selecting the latest such record, and the
+    fields it must hold; RESULT objects are written "1800:05". Checked before the step is sent."""
+    if not isinstance(require, list) or not require:
+        raise SessionError("step %d: require is a non-empty list" % number)
+    for item in require:
+        if not isinstance(item, dict) or set(item) - {"kind", "where", "match"} or \
+                not isinstance(item.get("kind"), str) or not isinstance(item.get("match"), dict) or \
+                not item["match"] or not isinstance(item.get("where", {}), dict):
+            raise SessionError("step %d: each requirement has kind, optional where, and match" % number)
+
+
+def _field(name, value):
+    if name == "object" and isinstance(value, str):
+        index, _, sub = value.partition(":")
+        return [int(index, 16), int(sub, 16)]
+    return value
+
+
+def requirement_problem(require, lines):
+    """None when every requirement holds on the latest matching parsed record, else why not."""
+    records = [evidence.parse_line(number, text) for number, text in enumerate(lines, 1)]
+    parsed = [r for r in records if r.status == "parsed"]
+    for item in require:
+        where = {k: _field(k, v) for k, v in item.get("where", {}).items()}
+        candidates = [r for r in parsed if r.kind == item["kind"] and
+                      all(r.values.get(k) == v for k, v in where.items())]
+        if not candidates:
+            return "no %s record%s" % (item["kind"], " with %s" % item["where"] if where else "")
+        latest = candidates[-1].values
+        for key, wanted in item["match"].items():
+            if latest.get(key) != _field(key, wanted):
+                return "%s %s=%r, required %r" % (item["kind"], key, latest.get(key), wanted)
+    return None
+
+
+def tool_digests():
+    """SHA-256 of the runner and parser that ran, so a session names its exact tools."""
+    import hashlib
+    here = Path(__file__).resolve().parent
+    return {name: hashlib.sha256((here / name).read_bytes()).hexdigest()
+            for name in ("s2_pdo.py", "s2_evidence.py")}
 
 
 def encode(text):
@@ -156,11 +211,6 @@ def watch_running(lines):
     return running
 
 
-# 3 and 4 are the 26-field identity, TPDO1, state and network uploads of node 1 and 2 (raw1, raw2).
-RAW_ADMISSIONS = {"PDO_READ admitted": 9, "PDO_WRITE admitted": 3, "HEARTBEAT experiment admitted": 3,
-                  "IDENTITY admitted": 26}
-
-
 def terminal_problem(step, lines):
     """Check the firmware's own terminal for a step's work, parsed through the s2_evidence grammar.
 
@@ -172,7 +222,8 @@ def terminal_problem(step, lines):
     records = [evidence.parse_line(number, text) for number, text in enumerate(lines, 1)]
     parsed = [r for r in records if r.status == "parsed"]
     text = step["send"]
-    count = next((n for prefix, n in RAW_ADMISSIONS.items() if step["expect"].startswith(prefix)), None)
+    command = text[0]
+    count = {"R": 9, "W": 3, "h": 3, "j": 3, "3": 26, "4": 26}.get(command)
     if count is not None:
         headers = [r for r in parsed if r.kind == "RAW"]
         results = [r for r in parsed if r.kind == "RESULT"]
@@ -185,15 +236,17 @@ def terminal_problem(step, lines):
             return "raw_failure_%s" % header.get("failure")
         if node is not None and header.get("node") != node:
             return "raw_wrong_node"
-        if len(results) != count or header.get("terminals") != count or                 any(r.values.get("outcome") != 0 for r in results):
+        if len(results) != count or header.get("terminals") != count or \
+                any(r.values.get("outcome") != 0 for r in results):
             return "raw_results_incomplete"
-        if text[0] == "W":
+        if command == "W":
             _, pdo_set, subindex, _, value = (int(field) for field in text[1:].split(","))
             wanted = [0x1800 + pdo_set, subindex]
             last = results[-1].values
-            if any(r.values.get("object") != wanted for r in results) or                     int.from_bytes(bytes.fromhex(last["data"])[:last["size"]], "little") != value:
+            if any(r.values.get("object") != wanted for r in results) or \
+                    int.from_bytes(bytes.fromhex(last["data"])[:last["size"]], "little") != value:
                 return "write_readback_differs"
-    if step["expect"].startswith("NMT admitted"):
+    if command == "N":
         nmts = [r for r in parsed if r.kind == "NMT"]
         if len(nmts) != 1:
             return "nmt_result_unparsed"
@@ -213,6 +266,13 @@ def run_steps(steps, capture, clock):
     for number, step in enumerate(steps, 1):
         entry = {"step": number, "note": step.get("note", "")}
         results.append(entry)
+        if "require" in step:
+            # Fail closed: a prerequisite that the capture does not show stops the plan unsent.
+            problem = requirement_problem(step["require"], capture.lines)
+            if problem:
+                entry.update(outcome="requirement_failed", problem=problem)
+                reason = "requirement_failed"
+                break
         if "send" in step:
             text = step["send"]
             start = len(capture.lines)
@@ -263,8 +323,9 @@ def repository_state():
     try:
         revision = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture_output=True, text=True,
                                   timeout=30, check=False).stdout.strip()
-        status = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain"], capture_output=True, text=True,
-                                timeout=30, check=False).stdout
+        # Tracked files only: untracked editor or evidence files do not change the code that ran.
+        status = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--untracked-files=no"],
+                                capture_output=True, text=True, timeout=30, check=False).stdout
         return {"host_revision": revision, "host_dirty": bool(status.strip())}
     except OSError:
         return {"host_revision": None, "host_dirty": None}
@@ -341,7 +402,8 @@ def run(args, backend=None, clock=None):
     output.mkdir(parents=True)
     (output / "plan.json").write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
     session = {"command": "pdo-session", "started_utc": clock.utc(), "usb": usb, "argv": sys.argv[1:],
-               "plan_file": str(args.plan), "reset": False, "retry": False, **repository_state()}
+               "plan_file": str(args.plan), "reset": False, "retry": False, "tools": tool_digests(),
+               **repository_state()}
     port = backend.open(usb["port"])
     capture = Capture(port, clock)
     try:
@@ -502,7 +564,8 @@ def analyze(directory):
             v = record.values
             nmts.append({"line": record.number, "target": v["target"], "cmd": v["cmd"],
                          "name": NMT_NAMES.get(v["cmd"], "?"), "outcome": v["outcome"],
-                         "txConfirmed": v["txConfirmed"], "completed": v["completed"]})
+                         "txConfirmed": v["txConfirmed"], "completed": v["completed"],
+                         "admitted": v.get("admitted")})
     groups = _raw_records(records)
     maps = pdo_maps(groups)
     report["pdo_records"] = groups
@@ -541,10 +604,17 @@ def analyze(directory):
             for nmt in nmts:
                 if nmt["target"] != node or not nmt["txConfirmed"]:
                     continue
+                # A frame whose receive sample lies between the request's admission and its TX
+                # completion may precede or follow the NMT frame on the wire: it is ambiguous, never
+                # counted on either side. Older records carry no admission time.
+                admitted = nmt.get("admitted")
+                lower = admitted if admitted is not None else nmt["completed"]
                 after = [t for t in timed if t > nmt["completed"]]
-                before = [t for t in timed if t <= nmt["completed"]]
-                around.append({"nmt": nmt["name"], "completed": nmt["completed"],
+                before = [t for t in timed if t <= lower]
+                ambiguous = [t for t in timed if lower < t <= nmt["completed"]]
+                around.append({"nmt": nmt["name"], "completed": nmt["completed"], "admitted": admitted,
                                "last_before": before[-1] if before else None,
+                               "ambiguous": len(ambiguous),
                                "first_after": after[0] if after else None,
                                "first_after_delay_us": after[0] - nmt["completed"] if after else None,
                                "frames_after": len(after)})

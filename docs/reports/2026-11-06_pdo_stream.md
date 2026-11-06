@@ -2,6 +2,8 @@
 
 The user asked for all relevant PDO testing on the two CL86-C drives: start the actual PDO stream, check that the setup works and whether it can be stopped, and document the timings and whatever else matters for later use of these drives. **One firmware identity, two specimens; nothing here qualifies a firmware, a production PDO capability or a sample.** It follows the [motion and stress report](2026-11-05_motion_and_stress.md).
 
+**Narrowed the same day** after the independent review of bench continuation [packet 6](bench_closure_18_33/packet_6.md): timing, stop and state claims below now state their bounds, and the deviations from the packet's limits are listed there. The earlier wording is in this file's Git history.
+
 ## Fixture and software
 
 | Item | Value |
@@ -28,11 +30,11 @@ Each directory holds `plan.json`, `session.json`, `rx.bin` and `rx.txt`; `python
 | [`1316Z-pdo-both-streams-soak`](../bench/20261106T1316Z-pdo-both-streams-soak/rx.txt) | `56e12ae` | Both nodes timer 100, both Started, a 60 s read soak at 20 ms, both Pre-operational | Completed |
 | [`1317Z-pdo-both-restore`](../bench/20261106T1317Z-pdo-both-restore/rx.txt) | `56e12ae` | Separate restoration: both timers 100 → 0, both records read back | Completed |
 
-**Final state:** both nodes Pre-operational, every TPDO1 entry back on its measured baseline (read back), node 1 still enabled and holding at 4728, node 2 released at 821. **One change remains:** the heartbeat producer `1017` is 1000 on both nodes, not the 0 they started with. No route writes it back to 0; on 2026-11-02 it reverted at the next power-up.
+**Final state:** both nodes Pre-operational, every TPDO1 entry back on its measured baseline (read back). Node 1 was last observed enabled at 4728 before its final Pre-operational and has not been read since; node 2 released at 821. **One change remains:** the heartbeat producer `1017` is 1000 on both nodes, not the 0 they started with. No route writes it back to 0; on 2026-11-02 it reverted at the next power-up.
 
 ## The live PDO configuration
 
-Read on both nodes on 2026-11-06, identical apart from the node ID in each COB-ID. Every entry answered at its EDS width (`:01` four bytes, `:02` one, `:03` and `:05` two, map count one, map words four), so the exact reads of the write experiment cannot hit a width abort.
+Read on both nodes on 2026-11-06, identical apart from the node ID in each COB-ID. Every entry answered at its EDS width (`:01` four bytes, `:02` one, `:03` and `:05` two, map count one, map words four), so the exact reads of the write experiment did not hit a width abort.
 
 | Set | COB-ID (node 1/2) | Type | Inhibit raw | Event raw | Map, as read | EDS default |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -50,11 +52,11 @@ Read on both nodes on 2026-11-06, identical apart from the node ID in each COB-I
 
 **Boot state.** Both nodes' heartbeats read `7F`, Pre-operational, before any NMT command, confirmed once a second.
 
-**Start.** On each addressed Start, Start from Stopped included, the node sent one frame on every TPDO within about 0.1 ms: TPDO1 with its 7 bytes, TPDO2..4 with no data (DLC 0). The heartbeat reported `05` at its next scheduled beat, 0.07 to 1.0 s later. The heartbeat keeps its own schedule and is not sent on a transition.
+**Start.** On each addressed Start, Start from Stopped included, the node sent one frame on every TPDO in one burst: TPDO1 with its 7 bytes, TPDO2..4 with no data (DLC 0). The receive samples span about 0.1 ms, which understates the at least 0.26 ms of bus time the four frames need; the delay from the NMT frame was not measured, because the S2 records only the request's TX completion. The heartbeat reported `05` at its next scheduled beat, 0.07 to 1.0 s later. The heartbeat keeps its own schedule and is not sent on a transition.
 
 **Event timer 0 with type 255.** After the Start frame nothing more came while the drive stood still: 10 s on each node. Whether a change of a mapped value sends a frame was not tested; that needs motion or a hand turn.
 
-**Event timer writes.** Every write of `1800:05` was accepted in Operational and in Pre-operational, without an abort. In Operational the drive sent one TPDO1 frame immediately, about 0.6 ms before the S2 had processed its SDO download response, and the new period ran from that frame.
+**Event timer writes.** Every write of `1800:05` was accepted in Operational and in Pre-operational, without an abort. In all five Operational writes one TPDO1 frame arrived between the download request and its response (receive bounds 0.27 to 2.35 ms after the request was submitted), off the old period's grid. The next interval was 0.16 to 0.85 ms shorter than the steady period, so the new period's phase is referenced to that frame only within about 1 ms; the cause is not established.
 
 **Periods.** Measured on the S2's clock, from the watch's per-frame times; the heartbeat gives a fourth point:
 
@@ -65,13 +67,13 @@ Read on both nodes on 2026-11-06, identical apart from the node ID in each COB-I
 | `1800:05` = 200 | 49 + 23 + 23 | 200.955 ms | sd 0.009..0.011 ms | `1311Z-pdo-node2-event-timer` |
 | `1017` = 1000 | 58 per node | 1000.795 ms | sd 0.02 ms | heartbeats, both nodes |
 
-All four fit one model within 0.03 ms: **period = (raw value + 1) × 1 ms on a drive clock 0.018% fast against the S2's** (10 → 10.998, 100 → 100.98, 200 → 200.96, 1000 → 1000.82 ms). So the event timer counts milliseconds, and each period is one millisecond longer than the raw value. This is a fit to four values on one firmware, not a documented rule. The 0.018% is relative to the S2's crystal, which was not calibrated.
+For raw 10, 100 and 200 the periods are consistent with **period = (raw value + 1) × 1 ms on a drive clock 0.018% fast against the S2's** (a fit to 100 and 200 gives slope 0.99982 and intercept 0.99 ms; raw 10 agrees within 0.03 ms). The heartbeat, a different object, also agrees (residual -25 µs). Other values, the zero value, the origin of the extra millisecond and a calibrated unit are not established; two drives may also mean two clocks. The 0.018% is relative to the S2's crystal, which was not calibrated. An 11 ms period with inhibit raw 100, and a write-triggered frame 52.9 ms after its predecessor, rule out a 100 ms hold-off on those transmissions; they do not establish the inhibit unit.
 
-**Pre-operational and Stop.** Both ended the stream at once: the last frame was the last one scheduled before the request (3 to 95 ms before its TX was confirmed, depending on the phase), and none followed. In Stopped the heartbeat continued, reporting `04`, and the S2 sent no SDO, as the owner refuses SDO to a Stopped node. Start from Stopped resumed the stream with the timer as configured, its first period counted from the Start frame.
+**Pre-operational and Stop.** After each, no frame arrived at the next scheduled slot or later; the tightest bound is 18.9 ms after the TX confirmation (node 1, `1314Z`), the loosest about 122 ms. In `1302Z` the last frame's order against the Pre-operational request is unknown: its receive bounds lie between the admission and the TX confirmation. In Stopped the heartbeat continued, reporting `04`; no SDO was attempted, so the owner's refusal to a Stopped node was not exercised. Start from Stopped resumed the stream with the timer as configured; its first interval after the Start was 0.6 to 1.0 ms short.
 
-**Drive state through every transition.** Neither drive's state changed. Node 1's TPDO1 read `6041=0037`, `6061=1`, `6064=4728` in every frame: enabled and holding, through about 20 s in Operational with RPDO1's 1000 ms event timer running and no RPDO received. Node 2 read `4050`, `1`, `821` in every frame. No EMCY appeared in any session. **Start and Pre-operational on node 1 (enabled), and Start, Pre-operational and Stop on node 2 (released), changed neither drive's CiA402 state or position,** and the receive PDO timer raised nothing without any RPDO. Stop was not sent to the enabled node. These are observations, not a host-loss or watchdog behavior: none was tested.
+**Drive state through every transition.** Neither drive's reported state changed. In `1314Z`, node 1 sent its Start frame, nothing for 10.1 s, then 103 frames, all `6041=0037`, `6061=1`, `6064=4728`; the frames are copies, not qualified samples, and the first 10 s hold no evidence. The SDO evidence is the `1316Z` soak's typed reads of node 1, every 20 ms for 60 s while it was Operational. No RPDO was ever received, so a generic CiA 301 deadline monitor would not have been armed. Node 2 read `4050`, `1`, `821` in every frame. No EMCY appeared in the watched intervals; `1014` was not read. **Start and Pre-operational on node 1 (enabled), and Start, Pre-operational and Stop on node 2 (released), changed neither drive's CiA402 state or position,** and the receive PDO timer raised nothing without any RPDO. Stop was not sent to the enabled node. These are observations, not a host-loss or watchdog behavior: none was tested.
 
-**Content.** Every TPDO1 payload decoded exactly by the map read in the same session, and matched the SDO reads of `6041`, `6061` and `6064`.
+**Content.** In `1311Z` and `1314Z`, which read the map, every TPDO1 payload decoded by it and matched the SDO reads of `6041`, `6061` and `6064`. The payloads were constant, so they cannot show freshness.
 
 ## Both streams during a read soak
 
@@ -84,13 +86,13 @@ Node 1 and node 2 at timer 100 in Operational, while a 60 s soak read both nodes
 ## Defects found and fixed
 
 - **The watch starved record dumps** (`1303Z`). At 10 ms one stream fills the S2's 11.5 kB/s console on its own. The watch printed one frame line per turn whenever there was room, so a write record's dump took 15 s and the runner gave up on a write that had succeeded, leaving node 2 Operational at 10 ms and the record held. Fixed in `56e12ae`: the watch holds its lines while a dump, a network listing or an NMT result waits; held frames still count. Retested in every later session: no step waited on output.
-- **The runner did not check terminals.** Packet 6 of the [bench continuation](../prompts/bench_closure_18_33/6_pdo_measurement.md) found that `run_steps` treated a step as answered on its end line, so a failed write or an untransmitted NMT request would not have stopped the plan. Fixed in `05fd03e`, before the `56e12ae` sessions: each terminal is parsed and must show success on the right node and command, or the plan ends. No failed terminal occurred in any session, before or after.
+- **The runner did not check terminals.** Packet 6 of the [bench continuation](../prompts/bench_closure_18_33/6_pdo_measurement.md) found that `run_steps` treated a step as answered on its end line, so a failed write or an untransmitted NMT request would not have stopped the plan. Fixed in `05fd03e`, before the `56e12ae` sessions: each terminal is parsed and must show success on the right node and command, or the plan ends. The packet 6 review then found that the check still keyed on the plan's own expect text, that `q`, `w` and `m` had no checked terminal, and that `1311Z` ran its identity steps on an uncommitted runner; those are fixed with packet 6 (see its record). No failed terminal occurred in any session, before or after.
 - **Planning error:** the first recovery try (`1304Z`) was refused because the held write record blocks NMT, correctly; the second released it first.
 
 ## For later use of these drives
 
-- **To get a periodic stream:** set `1800:05` (TPDO1 event timer) in Pre-operational or Operational, then Start. Expect one frame on every TPDO at Start, then TPDO1 every raw + 1 ms. TPDO2..4 carry nothing until remapped, and every Start still sends them as empty frames.
-- **To stop it:** Enter Pre-operational (SDO stays available) or Stop (SDO refused until Pre-operational or Start). Both act at once, and neither changes the drive's CiA402 state. Neither is a motor stop.
+- **To get a periodic stream:** set `1800:05` (TPDO1 event timer) in Pre-operational or Operational, then Start. Expect one frame on every TPDO at Start, then TPDO1 at a period consistent with raw + 1 ms for the measured values 10, 100 and 200; other values are not measured. TPDO2..4 carry nothing until remapped, and every Start still sends them as empty frames.
+- **To stop it:** Enter Pre-operational (SDO stays available) or Stop. After either, no frame came at the next scheduled slot, and neither changed the drive's reported CiA402 state. Neither is a motor stop. In Stopped a CiA 301 server does not serve SDO; that was not exercised here.
 - **Watch the heartbeat, not the frames, for the NMT state,** and allow up to one heartbeat period for it to report a transition.
 - **Budget:** a 10 ms TPDO is 100 frames per second per node; the S2 handles it, but its console cannot print every frame. The device statistics stay complete.
 - **Do not assume the EDS defaults.** Read the live records first; on these specimens they differ in maps and timers.
@@ -110,4 +112,4 @@ Node 1 and node 2 at timer 100 in Operational, while a 60 s soak read both nodes
 
 ## Relation to the bench continuation, packet 6
 
-The user's [bench continuation](../prompts/bench_closure_18_33/README.md) appeared at 12:48Z, during this work, and was not assigned to this session. Its packet 6 covers the same measurement, so its stricter rules were adopted from the `56e12ae` sessions on: the terminal check above, one node and TPDO1 first, an unchanged baseline in Operational, timer candidates 100 and 200 with 10 s watches, no transmission-type sweep, no SYNC or RPDO, and restoration as a separate explicit action. Before it was seen, timer 10 had been measured, which exceeds its two-candidate bound; node 1 and the combined soak followed it as further single-node cycles. Not done here: packet 1, packet 6's prerequisite; the ledger's Q17 update; and the `packet_6.md` record and transition record for packet 7. This report and its sessions are the input for them.
+The user's [bench continuation](../prompts/bench_closure_18_33/README.md) appeared at 12:48Z, during this work, and was assigned later the same day. Its packet 6 covers the same measurement, so its stricter rules were adopted from the `56e12ae` sessions on: the terminal check above, one node and TPDO1 first, an unchanged baseline in Operational, timer candidates 100 and 200 with 10 s watches, no transmission-type sweep, no SYNC or RPDO, and restoration as a separate explicit action. Before it was seen, timer 10 had been measured, which exceeds its two-candidate bound, and the `1303Z` plan went further: it also held timer values 1000 and 1, inhibit 100 to 0 while the PDO was valid, the COB-ID valid bit and transmission types 254 and 1. Only the watch starvation stopped it after its first write. Node 1 and the combined soak followed as further single-node cycles. The [packet 6 record](bench_closure_18_33/packet_6.md) lists every deviation and holds the transition record for packet 7.

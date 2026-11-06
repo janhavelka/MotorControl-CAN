@@ -354,7 +354,7 @@ GRAMMAR = (
         "id:x dlc:u data:h disposition:u decoded:b kind:u p:u exact:b bounds:b lo:u hi:u", "p",
         _event_signals),
     Row("NMT", "NMT request", "response",
-        "request:u target:u cmd:u outcome:u possible:b txConfirmed:b completed:u", "completed",
+        "request:u target:u cmd:u outcome:u possible:b txConfirmed:b completed:u admitted:u?", "completed",
         (("nmt", "cmd"), ("nmt", "outcome"), ("nmt", "txConfirmed"))),
     Row("RELEASED", "RELEASED record", "response"),
     Row("RELEASED", "PDO record released", "response"),
