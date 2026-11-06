@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Bench continuation packet 5, part 2: comparison tool, reproduction and soak fix (2026-11-06)
+
+- `scripts/s2_uart_compare.py`: offline comparison of an independent capture of the S2's UART TX (GPIO43) with the host's `rx.bin`, in one documented raw format with optional times CSV. It reports the first defensible divergence, deletions, insertions, replacements, reorders, missing tails and corrupt lines, and returns ambiguity or `unalignable` rather than a fabricated location. Input size, line count and time rows are bounded. Registered as `s2_uart_compare_contract`.
+- Reproduction on image `e8b449d`, 20 min each, nothing changed but the read interval: at 200 ms no line was lost and every window balanced; at 20 ms 31 lines were lost and 23 windows came up 16 to 64 bytes short (1312 bytes), none long. Every missing byte had been accepted by the UART FIFO, so the loss is after `uart_tx_chars`: line, bridge, USB or host driver, not yet separated. Every CAN read succeeded in both runs.
+- Bench soak fix: observation copies queued before `Soak::begin` (heartbeats, boot-ups, EMCYs from between soaks) are drained and counted as `SOAK_BEGIN stale=` (optional in the grammar), never measured as a heartbeat gap or reported as an event of the new soak. Found when a soak begun 40 s after the last one reported 38 to 39 s first heartbeat gaps. Not yet flashed.
+- [Packet 5 record](docs/reports/bench_closure_18_33/packet_5.md); backlog H04 and a correction table in the 2026-11-05 stress report.
+
 ### Bench continuation packet 2: position admission and regression gaps (2026-11-06)
 
 - `validateMoveAdmission(context, axis, reference, nowUs)` (`Position.h`): the move's nonmutating admission recheck. `noteMoveTransmission` and `AxisSession::preflight` both call it, with unchanged status and detail; `AxisSession::recheckMove` is removed.

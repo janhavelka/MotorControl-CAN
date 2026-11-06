@@ -288,7 +288,7 @@ GRAMMAR = (
     Row("SOAK_STOP_REFUSED", "SOAK_STOP refused", "response"),
     Row("SOAK_BEGIN", "SOAK_BEGIN ", "soak",
         "n:u t:u trial:u dur:u interval:u summary:u monitors:b identity:b opDeadline:u queue:u resp:u "
-        "stack:u heap:u heapMin:u base:s", "t"),
+        "stack:u heap:u heapMin:u stale:u? base:s", "t"),
     Row("SOAK_TR", "SOAK_TR ", "soak", "n:u t:u node:u sig:s from:x to:x first:b ne:u ce:u", "t",
         _soak_transition),
     Row("SOAK_ANOM", "SOAK_ANOM ", "soak", "n:u t:u id:u kind:s node:u dump:b a:x b:x", "t"),

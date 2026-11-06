@@ -393,6 +393,11 @@ one operation, both grow every minute by design: the run is bound by the drives'
 the soak takes it, so each single-frame request by an earlier command on the same boot replaces
 an untaken one. A constant value through a soak is that history, not loss during it.
 
+`stale` in `SOAK_BEGIN` counts the owner's network-observation copies still queued from before
+the soak (heartbeats, boot-ups, EMCYs between soaks). They are discarded at begin, so they never
+become a heartbeat gap or an event of this soak. Images before 2026-11-06's fix lack the field,
+and there the first heartbeat gap of a soak can span the time since the previous one.
+
 `uartBytes` and `queued` (images from 2026-11-06 on; optional in the grammar) are taken when
 `SOAK_CON` is formatted: the bytes the UART FIFO accepted since boot, modulo 2^32, and the bytes
 still in the console queue. Their sum is the line's position in the S2's output stream, so

@@ -271,6 +271,7 @@ class Soak {
         uint64_t dumpStartUs, dumpPostUs, tokenUs;
         uint32_t tokens, line, operation, anomalyId, dumpId, dumpFirst, dumpLast, traceNext;
         uint32_t lastRejectedId;
+        uint32_t staleObservations; // Network observations copied before this soak began.
         uint32_t last[SOAK_NODES + 1][SIGNAL_SLOTS];
         uint64_t known[SOAK_NODES + 1];
         uint64_t raised[SOAK_NODES + 1]; // Limited signals with an anomaly in this summary window.
