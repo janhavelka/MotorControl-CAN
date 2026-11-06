@@ -1,0 +1,1 @@
+Node 2's position change at 2026-11-05 16:42:01Z (896 to 654 to 821, 606C down to -45) was the user turning the released shaft by hand: their statement on 2026-11-06 09:56Z, 'it was me trying if anything is happening - nice catch'. Added by bench continuation packet 1 on 2026-11-06. The run's retained files are unchanged.

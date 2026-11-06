@@ -44,7 +44,9 @@ logical monitor bits; no terminal was wired or measured.
   identifies no function. Only `2401` equals the manuals' 2, and no filter word
   equals its EDS default.
 - **`60FE:00` answered in two bytes** against its EDS U8, so the strict typed read
-  aborted it and `60FE:01/:02` were not read ([backlog D16](backlog.md)).
+  aborted it and `60FE:01/:02` were not read then ([backlog D16](backlog.md)).
+  Under `CountWidths::MEASURED_U16` the group completed on both nodes later that
+  day: `60FE:00`, `:01` and `:02` read 0, 0 and 0 (trials 608, 609).
 - **DI writes accepted, node 1:** `2400:05` (DI3) 0 → 7 (USER0), then 7 → 0, each
   acknowledged and read back, with `2101=0` and `60FD=0` after each. Then polarity
   bit 3: read back `2400:01=0008`, and `2101` bit 3 went to 1 on the open terminal

@@ -8,8 +8,8 @@ The core performs no I/O and owns copies of the evidence it consumes.
 
 Evidence classes below: **source** means the original vendor page or EDS says it;
 **inference** is our reading of a source; **policy** is a project decision;
-**host** is fake-owner test evidence; **physical** is a drive's own report on a
-named specimen. The counter zero ran once, on node 2 on 2026-11-04 (below); no
+**host** is fake-owner test evidence; **device-reported** is a drive's own report on a
+named specimen, not an independent physical observation. The counter zero ran once, on node 2 on 2026-11-04 (below); no
 specimen has had an alarm, so the alarm clear has not run (packets 17 and 18).
 
 ## Supported transition tables

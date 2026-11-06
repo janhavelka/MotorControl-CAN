@@ -17,12 +17,13 @@
  * 000B, a prior 010F for HALT, any other word and a released state are rejected.
  * After ACK, fresh five-field MONITORS+STATUS SDO cycles require mode 1 and no
  * alarm/release; monitor running clear establishes OBSERVED controller-not-running
- * during that sequential read window. The one exception is QUICK_STOP's measured
+ * during that sequential read window. The one exception is QUICK_STOP's drive-reported
  * terminal: on both specimens and one firmware, 000B from 000F and from 010F left 2100
  * released with 6041 low bits 000 (docs/stop_actions.md), so that report completes a
- * QUICK_STOP, and monitorObservation keeps the release: the motor holds no torque. During a
- * move the same release kept 2100 running set (2026-11-04), so a QUICK_STOP then completes on
- * standstill instead (ActionContext::standstillObserving). Other
+ * QUICK_STOP, and monitorObservation keeps the release: the drive reports itself released,
+ * and no torque was observed. During a move the same release kept 2100 running set
+ * (2026-11-04), so a QUICK_STOP then completes on standstill instead
+ * (ActionContext::standstillObserving). Other
  * mode/alarm/release is outside the observation scope, not proof that physical stopping
  * failed. Other statusword dialect bits never decide completion. No observation read starts once
  * one exchange's queue and response budgets no longer fit before the deadline: the action then
@@ -35,16 +36,17 @@
  * read never overrides a newer routed fault. While admitted work is still in flight, deliver it
  * with noteActionWithdrawal instead: that work's terminal is then consumed as evidence, it cannot
  * complete or advance the action, and the outcome is the withdrawal's reason.
- * Enable transition contract: GATED. Two specimens ran prepareEnable, attended, on one firmware,
- * five times in all by 2026-11-04 (docs/drive_actions.md); that qualifies nothing, and every other claim about it below is
- * fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15 about 10 ms
- * apart in position mode. No source says what the drive does with an earlier target when it
+ * Enable transition contract: GATED. Two specimens ran prepareEnable on one firmware, seven times
+ * in all by 2026-11-05 (docs/drive_actions.md); that qualifies nothing, and every other claim
+ * about it below is fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15
+ * about 10 ms apart in position mode. No source says what the drive does with an earlier target when it
  * enables, so EnableEvidence must carry the caller's explicit statements and a closed gate refuses.
  * Mode 1 is mandatory: ZH86 p13 and OP86 p11 start the motor at the end of 6, 7, 15 in mode 3, and
  * a mode 3 enable has no approved path. Release has no API: no source pairs a command with an
  * effect. Both specimens read 6041 low bits 111 and 2100 released clear at power-up, the pattern
- * the manual pairs with an enabled drive, and both hold torque then: word 6 releases it (measured
- * 2026-11-03), and word 7 energizes again, pulling a displaced shaft back (2026-11-04).
+ * the manual pairs with an enabled drive, and both held torque then by hand checks: word 6 releases
+ * it (2026-11-03). At word 7 the drive reports itself energized again, and its position report
+ * returned to its last commanded value (trial 308, 2026-11-04; the shaft was not observed).
  * Read docs/drive_actions.md for the full table.
  * Preparation and advancement validate first, then write the caller's context in place,
  * so no call copies a context onto the stack and a refused call changes nothing. Keep

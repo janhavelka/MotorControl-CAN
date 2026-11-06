@@ -319,6 +319,7 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     // A quick stop's standstill compares this cycle's FEEDBACK with the one before it.
     const bool previousFeedback = c.standstillObserving && c.extraObservation.fieldCount != 0;
     const int32_t previousPosition = c.extraObservation.actualPosition;
+    const int32_t previousVelocity = c.extraObservation.actualVelocity;
     if (!cycleBlock(c, StateBlock::STATUS, target, now, lastCommandUs) ||
         !cycleBlock(c, StateBlock::MONITORS, target, now, lastCommandUs) ||
         (feedback && !cycleBlock(c, StateBlock::FEEDBACK, target, now, lastCommandUs))) {
@@ -346,9 +347,10 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         const bool released = (monitor & MONITOR_RELEASED) != 0;
         const bool lowZero = (c.statusObservation.statusword & STATUS_LOW_BITS) == 0;
         outsideScope |= alarm || (released && (c.kind != StopKind::QUICK_STOP || !lowZero));
-        // After 000B during a move the same release kept running set (standstillObserving).
+        // After 000B during a move the same release kept running set (standstillObserving). Two
+        // cycles in a row must each read 606C zero, with 6064 unchanged between them.
         const bool latched = c.kind == StopKind::QUICK_STOP && running && released && lowZero;
-        done = !running || (latched && feedback && previousFeedback &&
+        done = !running || (latched && feedback && previousFeedback && previousVelocity == 0 &&
                             c.extraObservation.actualVelocity == 0 &&
                             c.extraObservation.actualPosition == previousPosition);
         wantStandstill = latched && !c.standstillObserving && ageCoversCycle(c.options, 7);

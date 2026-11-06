@@ -595,9 +595,19 @@ def before_send(args, fields, ask, operator):
                      "visible: type %s to confirm: " % (node, wanted),
                      lambda text: text if text == wanted else None)
     if args.command == "enable":
-        shaft = ask_operator(ask, operator, "power_up_shaft",
-                             "Attendant: turn the node %d shaft by hand now. Type FREE or HOLDING: " % node,
-                             lambda text: SHAFT.get(text))
+        # The answer is what a person felt. A start report from the drive is never a substitute: on
+        # 2026-11-05 (trials 704, 712) HOLDING was typed from 8437/0001 with nobody at the shaft, and
+        # that passed the library guard which exists for exactly this observation.
+        try:
+            shaft = ask_operator(ask, operator, "power_up_shaft",
+                                 "Attendant: turn the node %d shaft by hand now. Type FREE or HOLDING as felt, "
+                                 "or UNOBSERVED if nobody felt it (the enable is then refused): " % node,
+                                 lambda text: SHAFT.get(text))
+        except Refused:
+            if operator["power_up_shaft"]["typed"] == "UNOBSERVED":
+                raise Refused("power_up_shaft: not observed; an enable needs the attendant's own shaft "
+                              "observation, never a value inferred from the drive's start report")
+            raise
         fields[4] = shaft
     if args.command in FAULT_LED_ROUTES and args.fault_led == "prompt":
         ask_operator(ask, operator, "fault_led_before",

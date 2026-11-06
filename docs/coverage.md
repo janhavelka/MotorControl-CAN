@@ -1,6 +1,6 @@
 # Requirement coverage after pure CAN/SDO checks
 
-The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) adds fixed
+**As of the 2026-11-02 checkpoint.** The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) adds fixed
 TPDO1 configuration and addressed owner NMT to R11/R12/R13/R17/R20. Native
 adversarial checks cover per-step failures and interval freshness; one node1
 specimen completed the exact24-service experiment. Broader PDO/timers/SYNC,
@@ -9,13 +9,15 @@ A user power cycle supplied both boot-up frames and subsequent26-field readback;
 node1 reverted to producer0/map3 in that one cycle. Each node also completed a
 30-field read-only readiness inventory; nonzero `607A`/`60FF` reads equal to EDS
 defaults and mode0 do not close motion-admission or completion requirements.
+The 2026-11-06 [PDO sessions](reports/2026-11-06_pdo_stream.md) later measured
+the TPDO1 event timer and NMT transitions with bench tools only; the other open
+items above are unchanged.
 
 [Prompt 33](reports/prompt_33.md) adds checked native position-parameter arithmetic and owned target/axis/settings snapshots to R06/R13/R20. Packets 20 and 21 add the gated move lifecycles on one path: `prepareMoveAbsolute`, `prepareMoveRelative`, `nextMove`, `advanceMove` and `AxisSession::requestMove`/`requestMoveRelative`, with interruption tests through the real fake owner. The absolute move needs caller-supplied acceptance and completion evidence and refuses by default; every relative request is refused until a wire base is evidenced. The
 application-local `position` experiment measured node 1's acceptance and completion signals for
 the absolute move ([packet 19](reports/handoff_19_33/packet_19.md)). With them, the absolute
-lifecycle ran once, unattended, on node 2 through the bench `move` route and succeeded with the same
-bits ([unattended report](reports/2026-11-03_unattended_bench.md)): one specimen and firmware, no
-qualification. On 2026-11-04 node 1 measured the relative base `ACTUAL` (+200 from 104 with last target 600 ended at 304) and then ran the library's relative lifecycle to `SUCCEEDED` ([bench report](reports/2026-11-04_bench.md)). One specimen and firmware; the remaining gates are in the [guide](position_parameters.md).
+lifecycle first ran unattended on node 2 through the bench `move` route and succeeded with the same
+bits (trial 121, [unattended report](reports/2026-11-03_unattended_bench.md)). It has since run on both nodes: 213 on node 2 and 413 on node 1, each ended by a planned quick stop at 30 rpm, and 705 and 706 on node 1 at 10 and 60 rpm. On 2026-11-04 node 1 measured the relative base `ACTUAL` (+200 from 104 with last target 600 ended at 304) and then ran the library's relative lifecycle to `SUCCEEDED` (411; again at 120 rpm in 708) ([2026-11-04](reports/2026-11-04_bench.md), [2026-11-05](reports/2026-11-05_motion_and_stress.md)). One firmware, judged from drive reports, no qualification; the remaining gates are in the [guide](position_parameters.md).
 
 [Prompt 32](reports/prompt_32.md) adds conditional fault-clear and zero-only
 device-position actions to R06/R13/R20. Ordered command terminals, original
@@ -25,8 +27,9 @@ inferred. The [guide](fault_reference_actions.md) keeps other reset routes,
 fault classes and physical/internal-counter qualification explicitly open.
 Packets 17 and 18 add `AlarmIncident::codeLink`, always `UNRESOLVED`, and
 `valueOneMayRemain` (Q13), and the FEEDBACK and `606C=0` admission with
-`CounterBaseline` (Q14). Neither action has an application caller or a
-physical run yet (backlog S12).
+`CounterBaseline` (Q14). Both have an application caller,
+`AxisSession::requestClearAlarm` and `requestCounterZero` (backlog S12). The
+counter zero ran on node 2 (trial 323); no alarm clear has run.
 
 [Prompt 31](reports/prompt_31.md) adds conditional native halt/quick-stop coverage
 to R06/R12/R13/R20: exact single writes, fresh typed not-running observations and
@@ -34,15 +37,18 @@ real-owner urgent/interruption tests. It does not qualify other predecessor
 states, velocity/homing stopping, target disposal, braking, torque or reference
 effects. [Stop scope and gates](stop_actions.md) remain separate from host tests.
 Packets 7 and 16 add the DEC-8 predecessors, session history and the best-effort
-`000B`, which never succeeds. One HALT from `001F` ran on node 1 during a 2 rpm move and was
-observed to stop and hold ([attended report](reports/2026-11-03_attended_bench.md)). The bench
+`000B`, which never succeeds. One HALT from `001F` ran on node 1 during a 2 rpm move: the drive
+reported a stop and `6064` stayed 316 for 26 s (trial 113; the attendant was not sure about the shaft,
+[attended report](reports/2026-11-03_attended_bench.md)). The bench
 `stop` route then sent a stationary `000B` on each node, unattended: from `000F` and from that halted
-`010F`, each drive left operation for low bits `000` and released the motor. A `QUICK_STOP` now
+`010F`, each drive reported low bits `000` and released (`2100` bit 4). A `QUICK_STOP` now
 completes on that report and keeps the release, host-tested by `quickStopReleaseIsTheMeasuredTerminal`
 ([unattended report](reports/2026-11-03_unattended_bench.md)), retested on hardware on 2026-11-04 (trial 208).
-That day also ran a stationary `010F` (holds), `000B` with no known predecessor on a released and on a
+That day also ran a stationary `010F` (reported enabled and unchanged, 207), `000B` with no known predecessor on a released and on a
 never-enabled drive, and `000B` during a move, which completes on standstill after the
-`standstillObserving` fix (trial 413; [bench report](reports/2026-11-04_bench.md)).
+`standstillObserving` fix (trial 413; [bench report](reports/2026-11-04_bench.md)). On 2026-11-05 a HALT at
+300 rpm (709) and a quick stop at about 100 rpm while accelerating (713) completed `OBSERVED`
+([report](reports/2026-11-05_motion_and_stress.md)). All of these are drive reports on one firmware.
 
 [Prompt 30](reports/prompt_30.md) adds checked documentary state interpretation
 to R08/R10/R20: explicit layouts, raw values and acquisition provenance, unknown
@@ -96,7 +102,7 @@ an actual owner/read/write proof and core-only drive contrasts. Production
 controller and vendor drive support remain pending. [Prompt 7](reports/prompt_7.md)
 adds the [minimal package](getting_started.md), version freshness and source/install/export
 tests. Status, endpoint identity, Classical frame validation and prompt 9's
-[exact units/quantization](units_status.md) and prompt 10's [pure axis/reference API](axis_contract.md) and prompt 11's [pure SDO checks](canopen_services.md) are installed; no motion profile is installed.
+[exact units/quantization](units_status.md) and prompt 10's [pure axis/reference API](axis_contract.md) and prompt 11's [pure SDO checks](canopen_services.md) are installed. Later, prompt 33 installed the Lichuan profile's gated, unqualified position moves.
 [Prompt 8](reports/prompt_8.md) adds real quick/full verification, strict public
 documentation and passing Windows quick and Linux GCC/Clang sanitizer CI.
 
@@ -119,8 +125,8 @@ dependencies; it grants no new runtime capability or hardware qualification.
 
 **Pending** means no CAN implementation, corresponding CAN host test, firmware
 build or hardware qualification has been delivered for that requirement. Finite raw Lichuan reads are implemented under 19; no operational drive
-profile or hardware qualification is claimed. The small installed API does not implement motion; prototype evidence below does not change
-that support claim. Reference/data verification is not driver testing.
+profile or hardware qualification is claimed. The installed API implements gated, unqualified position moves in the Lichuan profile (prompt 33);
+no motion is qualified, and prototype evidence below does not change that support claim. Reference/data verification is not driver testing.
 
 | Requirement | Prompt owners | Evidence now / remaining scope |
 | --- | --- | --- |
@@ -129,7 +135,7 @@ that support claim. Reference/data verification is not driver testing.
 | R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; 19 adds installed typed raw read contexts/getters; typed identity is host-tested: it works under the explicit `MEASURED_U8` option and fails by default (`DECLARED_U16`) on the measured specimens at `1009`, where raw acquisition succeeds; motion operations/CLI remain pending. |
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | C++11 api_contract and fixtures build without stack/SDK/Python/siblings; optional owner uses the selected C99 client. Prompt 7 source/install/export consumers pass; the core excludes the optional owner/stack. |
 | R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table, lifetimes and per-call RX/TX/event budgets including zero-budget behavior. Native tests cover copied payload, single RX, reservations, immutable operation deadlines and retained terminals; urgent capacity now has real application-owner tests in 24. Prompt 13 promotes the selected-stack SDO lifecycle with persistent channel quarantine; 15 adds passive node facts and synchronous invalidation to that table; 23 adds the real ordinary application scheduler, two-channel fairness, copied admission/retention, passive dispatch and actual typed read/loop-setting paths; 24 adds reserved urgent/results, cancellation, local controller epochs and finite retained recovery without remote requalification. |
-| R06 | 2-4, 19-22, 29-36, 47-50 | Conditional halt/quick-stop in 31, fault-clear/zero-only reference actions in 32, and the gated absolute and relative moves in 33 have real-owner tests. The moves refuse by default: absolute without caller-supplied acceptance and completion evidence, relative without an evidenced wire base. Fault clear and counter zero have no application caller (backlog S12). Broader transitions and other motion operations remain pending. No physical qualification. |
+| R06 | 2-4, 19-22, 29-36, 47-50 | Conditional halt/quick-stop in 31, fault-clear/zero-only reference actions in 32, and the gated absolute and relative moves in 33 have real-owner tests. The moves refuse by default: absolute without caller-supplied acceptance and completion evidence, relative without an evidenced wire base. Fault clear and counter zero have an application caller, `AxisSession` (backlog S12); the counter zero ran on node 2 (trial 323), and no alarm clear has run. Broader transitions and other motion operations remain pending. No physical qualification. |
 | R07 | 1-4 | Original bytes verified; every EDS entry and all 53 manual functions reviewed with exact sources. Four Lichuan model scopes and N5/EPOS4 documentary contrasts complete. |
 | R08 | 2-4, 19-22, 29-36, 47-48 | All 24 conflicting claim sets retain original alternatives and reviewed dispositions; 21 bounded feature gates remain open. Prompt 29 rechecked original pages/EDS and supplies a [measurement table](device_conflicts.md) separating documentary, host and physical evidence. No firmware winner invented. |
 | R09 | 9-10, 21-22, 32-36 | Production exact rational parsing/conversion, independent scales, integer rounding and bounded radians/binary32 quantization are host tested. Pure axis/reference mutation, exact endpoints, freshness/epoch checks and offline preview are host tested under 10; native scaling and drive actions retain later owners. |
@@ -158,7 +164,7 @@ that support claim. Reference/data verification is not driver testing.
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 Complete, 18-33 Partial and 34-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
+| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 and 23-26 Complete, 18-22 and 27-33 Partial, and 34-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified
@@ -173,7 +179,7 @@ ranges (including zero) with concrete pre-trigger evidence, write/readback and
 partial-effect tests. Packet 12 adds a typed `2202` selector, register-level only, and
 real-owner integration; `2200`, `2201`, `607D` and `6060` keep exact gates in the
 [driver guide](driver_settings.md). Packet 13 proves the DI group through the real owner and
-keeps per-field DO, filter and `60FE` gates in the [I/O guide](io_settings.md). Remaining source-gated groups retain their original owners.
+keeps per-field DO, filter and `60FE` write gates in the [I/O guide](io_settings.md); the `60FE` read is not gated, and it completed on both specimens under the measured count width (trials 608, 609). Remaining source-gated groups retain their original owners.
 
 [Prompt 28](reports/prompt_28.md) adds firmware-built evidence to R04/R17/R20/R25:
 Arduino and native-IDF ELF/BIN builds consume the same application/owner sources;

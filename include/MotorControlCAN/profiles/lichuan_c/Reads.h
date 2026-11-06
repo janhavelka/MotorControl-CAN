@@ -71,8 +71,9 @@ enum class IdentityWidths : uint8_t {
  * each with a two-byte expedited upload of 0 (`4B 7D 60 00 00 00 00 00`, `4B FE 60 00 00 00 00 00`).
  * Nothing detects this: an application selects it once it has established its fixture, and no other
  * object's width changes. Unknown: whether the firmware holds a U16 or pads a U8, what a count of 0
- * means while 607D:01/:02 still answer as I32 (60FE:01/:02 are not yet read on these specimens), and
- * every other firmware. The count stays a raw observation, never a discovery bound.
+ * means while 607D:01/:02 still answer as I32 (60FE:01/:02, read on both specimens under this
+ * option, answer as U32), and every other firmware. The count stays a raw observation, never a
+ * discovery bound.
  */
 enum class CountWidths : uint8_t {
     DECLARED_U8, ///< EDS U8. A two-byte reply fails as a wrong width.

@@ -436,6 +436,15 @@ class BenchTest(unittest.TestCase):
             status, _, err = self.run_main(ENABLE, Backend(board), Operator("ATTENDED 12", typed))
             self.assertEqual(status, 2, err)
             self.assertEqual(board.writes, [])
+        # Nobody felt the shaft: the truthful answer is offered, named in the refusal, and sends nothing.
+        board = Board()
+        operator = Operator("ATTENDED 12", "UNOBSERVED")
+        status, _, err = self.run_main(ENABLE, Backend(board), operator)
+        self.assertEqual(status, 2, err)
+        self.assertIn("not observed", err)
+        self.assertIn("UNOBSERVED", operator.questions[-1])
+        self.assertEqual(board.writes, [])
+        self.assertFalse(self.output.exists())
 
     def test_unattended_waiver_replaces_the_attendant_questions_only(self):
         waiver = "I will not be present; I take the responsibility"

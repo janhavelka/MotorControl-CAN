@@ -415,6 +415,72 @@ void latchedRunningQuickStopCompletesOnStandstill() {
     CHECK(halt.state == M::ActionState::FAILED &&
           halt.outcome == M::ActionOutcome::OBSERVATION_SCOPE && !halt.standstillObserving);
 }
+// Captured quick stops during moves, image 2920479 and e7f28ac. The predecessor is the move's
+// acknowledged 001F; the last move cycle read 2100=0004, 2101=0, 2102=0, 6041=5037, mode 1. After
+// 000B every cycle read 2100=0014, 2101=0, 2102=0, 6041=4050, mode 1, and the seven-field cycles
+// read 6064 still with 606C 0, so each stop completed OBSERVED at its third cycle:
+// trial 713 (node 2, 2026-11-05, 606C 101 at the 000B) at 896, trial 413 (node 1, 2026-11-04,
+// 30 rpm) at 1569. Velocity {5, 0} at an unchanged 6064 is not a standstill: both cycles need 0.
+void capturedQuickStopsDuringMoves() {
+    struct Case {
+        int32_t position;
+        int32_t velocity[3]; // 606C of seven-field cycles 2, 3 and 4.
+        unsigned completesAt;
+    };
+    const Case cases[] = {{896, {0, 0, 0}, 3}, {1569, {0, 0, 0}, 3}, {896, {5, 0, 0}, 4}};
+    for (const Case& c : cases) {
+        Rig r;
+        r.begin();
+        C::SdoTransfer move = r.transfer(0x6040, 1, true);
+        move.data[0] = 0x1f; // The move's trigger word, acknowledged before the stop.
+        r.control = r.exchange(move);
+        CHECK(r.control.protocolAcknowledged && r.control.transmissionConfirmed);
+        r.begin();
+        CHECK(L::prepareState(r.state, r.selectedTarget(), r.operation, r.now, r.deadline,
+                              options(), blocks()));
+        const uint16_t indices[] = {0x2100, 0x2101, 0x2102, 0x6041, 0x6061};
+        const uint32_t moving[] = {0x0004, 0, 0, 0x5037, 1};
+        for (unsigned i = 0; i < 5; ++i) {
+            L::PreparedRead work;
+            CHECK(L::nextRead(r.state, r.now, work) && work.ready &&
+                  work.transfer.index == indices[i]);
+            // exchange() advances r.now, so it must run before advanceRead reads the time.
+            const C::SdoCompletion got = r.exchange(work.transfer, moving[i]);
+            CHECK(L::advanceRead(r.state, got, r.now));
+        }
+        L::ActionContext action;
+        r.begin();
+        L::ActionOptions policy = r.actionOptions();
+        policy.maximumAgeUs = 1400; // Seven fields at 100 + 100 us.
+        CHECK(L::prepareStop(action, r.reservation, r.state, r.control, L::StopKind::QUICK_STOP,
+                             r.operation, r.now, r.deadline, policy));
+        CHECK(action.predecessorWord == 0x001f &&
+              action.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+        r.wire.action = &action;
+        r.wire.reservation = &r.reservation;
+        r.wire.latestControl = &r.control;
+        r.field(action, 0x6040);
+        const uint32_t released[] = {0x0014, 0, 0, 0x4050, 1};
+        for (unsigned i = 0; i < 5; ++i)
+            r.field(action, indices[i], released[i]);
+        CHECK(action.state == M::ActionState::ACTIVE && action.standstillObserving);
+        for (unsigned k = 0; k < 3 && action.state == M::ActionState::ACTIVE; ++k) {
+            r.turn(action.eligibleUs, O::ServiceBudget());
+            for (unsigned i = 0; i < 5; ++i)
+                r.field(action, indices[i], released[i]);
+            r.field(action, 0x6064, uint32_t(c.position));
+            r.field(action, 0x606c, uint32_t(c.velocity[k]));
+        }
+        CHECK(action.state == M::ActionState::SUCCEEDED &&
+              action.outcome == M::ActionOutcome::OBSERVED &&
+              action.completion == M::ActionCompletion::OBSERVED &&
+              action.observations == c.completesAt);
+        CHECK(action.extraObservation.actualPosition == c.position &&
+              action.extraObservation.actualVelocity == 0 &&
+              action.monitorObservation.monitor == 0x0014 &&
+              action.statusObservation.statusword == 0x4050);
+    }
+}
 void unsupportedPrerequisitesAreAtomic() {
     for (unsigned scenario = 0; scenario < 12; ++scenario) {
         Rig r;
@@ -1383,6 +1449,7 @@ int main() {
     runningPollingAndDeadline();
     lateObservationIsHeldBack();
     latchedRunningQuickStopCompletesOnStandstill();
+    capturedQuickStopsDuringMoves();
     unsupportedPrerequisitesAreAtomic();
     contradictoryObservationsAndAbort();
     quickStopReleaseIsTheMeasuredTerminal();

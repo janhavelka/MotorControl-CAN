@@ -2,7 +2,7 @@
 
 Navigation for the [22 packets](../../prompts/archive/handoff_19_33/README.md), not a transcript. Each packet updates its own row when it closes, and its report holds the detail. The baseline column facts were read at `16a706e` and are not claims about later commits.
 
-**Status terms.** *Host-complete*: declaration, real caller and observable host test exist. *Conditionally usable*: usable only inside a named gate. *Physically observed*: a retained device record exists for named specimens, with no qualification. *Unqualified*: no such record, or the record does not settle the behavior. *Not started*: the packet has not run, whatever the baseline already contains.
+**Status terms.** *Host-complete*: declaration, real caller and observable host test exist. *Conditionally usable*: usable only inside a named gate. *Physically observed*: a retained device record exists for named specimens, with no qualification. *Unqualified*: no such record, or the record does not settle the behavior. *Not started*: the packet has not run, whatever the baseline already contains. A *Physically observed* entry means only that a retained device record exists; that record may be a drive's own report or an unattended run, not an independent physical observation (clarified on 2026-11-06 by bench continuation packet 1).
 
 **CI.** Remote CI runs on each pushed head, so a commit pushed with later ones has no run of its own. The Commit column names the run that contains it. Runs passed at `68aa8f1`, `ba989db`, `73f029b`, `25a332f`, `5306eaf`, `99ff2b0`, `3b0ce14` and `f1116b1`, and failed at `9685200` (gcc and clang), `988e655`, `d6b64e0`, `b0b5417` and `fcea8b4` (clang only) and `01190cf` (test registration).
 

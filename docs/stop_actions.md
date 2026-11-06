@@ -18,24 +18,31 @@ applicability conflict. No manual defines bit 2 or bit 8, or says what a falling
 So every row below the first is a **project decision, not vendor evidence** (DEC-8):
 a running move with no stop is worse, and clearing bit 4 while stopping cannot be the
 wrong direction. `ActionContext::predecessorDocumented` is false for those rows, and
-`predecessorWord` records the word. One has been measured: on 2026-11-03, `010F` from `001F`
-stopped a 2 rpm move on node 1 within its 500 ms ramp, and the shaft held for 26 s; afterwards
-`6041=0437` and `2100=0000`, so the halted move reads neither completion signal. That is one
-specimen, firmware and speed. `000B` was then measured stationary, unattended, on both
-specimens: from `000F` on node 2 (`8050`, `2100=0011`) and from that halted `010F` on node 1
-(`0050`, `2100=0010`). Both drives left operation for low bits `000` and **released the motor**,
-and neither moved: node 1 stayed at 316 with its target 750 still retained. On 2026-11-04 a
-stationary `010F` from `000F` held torque with `6041=8437` and `2100=0001` unchanged, and `000B`
-from it released the motor again (`8050`, `2100=0011`), now completing as `OBSERVED`. `000B`
-during a 30 rpm move on node 2, about 1,180 pulses into a 2,000-pulse move, released the motor at
-once and it stopped within about 10 pulses, but `2100` then kept running set (`0x0014`) with
-`6041=4050`, minutes later too: see the standstill rule below; with that rule a second moving
-`000B`, on node 1, completed as `OBSERVED` (trial 413). Clearing a moving `010F` with `000F` did not
-resume the halted target (trial 408). `000B` with no known predecessor was also measured once each:
-on a released drive it changed nothing (trial 307), and on node 2's never-enabled power-up state in
-mode 1 it released the drive with no motion reported (trial 503). On 2026-11-04 no shaft was observed:
-each result is the drive's report ([unattended session](reports/2026-11-03_unattended_bench.md),
-[2026-11-04 session](reports/2026-11-04_bench.md), [packet 16](reports/handoff_19_33/packet_16.md)).
+`predecessorWord` records the word. Every result below is the drive's own report on one
+firmware; no shaft or torque was observed. On 2026-11-03, `010F` from `001F`
+stopped a 2 rpm move on node 1 within its 500 ms ramp, and `6064` stayed 316 for 26 s (trial 113;
+the attendant was not sure about the shaft); afterwards `6041=0437` and `2100=0000`, so the halted
+move reads neither completion signal. `000B` was then sent stationary, unattended, on both
+specimens: from `000F` on node 2 (`8050`, `2100=0011`, trial 124) and from that halted `010F` on
+node 1 (`0050`, `2100=0010`, trial 126). Both drives reported low bits `000` and **released**
+(`2100` bit 4), and neither moved: node 1 stayed at 316 with its target 750 still retained. On
+2026-11-04 a stationary `010F` from `000F` left `6041=8437` and `2100=0001` unchanged (trial 207),
+and `000B` from it was reported released again (`8050`, `2100=0011`), now completing as `OBSERVED`
+(208). `000B` during a 30 rpm move on node 2, about 1,180 pulses into a 2,000-pulse move, was
+reported released at once and the position stopped within about 10 pulses, but `2100` then kept
+running set (`0x0014`) with `6041=4050`, minutes later too (213): see the standstill rule below;
+with that rule a second moving `000B`, on node 1, completed as `OBSERVED` (trial 413). A HALT from
+`001F` at 6 rpm stopped node 1 at 104 (406), and clearing it with `000F` did not resume the halted
+target within 8 s (trial 408). `000B` with no known predecessor was also sent once each: on a
+released drive it changed nothing (trial 307), and on node 2's never-enabled power-up state in
+mode 1 it was reported released with no motion reported (trial 503). On 2026-11-05 a HALT from
+`001F` at 300 rpm on node 1 (709, `010F` at `6064=3336`, 500 ms ramps) completed `OBSERVED` and
+stopped at 4728, 1,392 pulses after the command, and `000F` did not resume it within 2 s (710).
+`000B` from `001F` on node 2 at about 100 rpm while still accelerating (713, at `6064=854`) was
+reported released with running latched, settled at 896 and completed on standstill
+([unattended session](reports/2026-11-03_unattended_bench.md),
+[2026-11-04 session](reports/2026-11-04_bench.md),
+[2026-11-05 session](reports/2026-11-05_motion_and_stress.md), [packet 16](reports/handoff_19_33/packet_16.md)).
 
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
@@ -116,16 +123,16 @@ stopped/completion bit cannot satisfy it. The existing typed reader acquires
 MONITORS before STATUS; the five fields are not an atomic snapshot. New mode 1,
 alarm clear and released clear are the supported observation policy. A released
 report fails that policy; it does not prove that stopping physically failed or
-that the command should have retained torque. **One exception, measured:** a
+that the command should have retained torque. **One exception, from drive reports:** a
 `QUICK_STOP` whose cycle reads released with `6041` low bits `000`, not running and
-no alarm, is `OBSERVED`, because that is what `000B` did on both specimens.
-`monitorObservation` keeps the released bit: **after a quick stop this drive holds no
-torque**, so a load the motor held is no longer held. A `HALT` held torque when
-measured, so a release still ends it outside the scope, as does a release with any low
-bit set.
+no alarm, is `OBSERVED`, because that is what both specimens reported after `000B`.
+`monitorObservation` keeps the released bit: **after a quick stop this drive reports itself
+released**. Torque was not observed, so treat a load the motor held as no longer held. Every
+`HALT` tried left the drive reporting enabled, not released (207, 406, 709), so a release still
+ends it outside the scope, as does a release with any low bit set.
 
-**Standstill after a moving quick stop, measured.** After `000B` during a move the drive released
-the motor but kept `2100` bit 2 set while its target stayed unreached, so "not running" never came.
+**Standstill after a moving quick stop, from drive reports.** After `000B` during a move the drive
+reported release but kept `2100` bit 2 set while its target stayed unreached, so "not running" never came.
 When a `QUICK_STOP` cycle reads released, low bits `000` and running, and
 `options.maximumAgeUs` covers a seven-field cycle (seven times queue plus response), the stop sets
 `standstillObserving` and every later cycle also reads `6064` and `606C`. Two such cycles in a row
@@ -133,7 +140,8 @@ with `606C` zero and `6064` unchanged then complete it as `OBSERVED`. With a fiv
 the rule is not offered and the stop ends at its deadline as before. The latched bit is the drive's
 report, not motion. Retested on node 1 (trial 413): `000B` at `6064=1558` during a 30 rpm move, then
 `6064=1569` twice with `606C=0`, `OBSERVED` about 0.6 s after the command. The latch appeared on
-both specimens; the rule has completed once, on node 1, at one speed and on one firmware.
+both specimens. The rule has completed twice, once on each node, on one firmware: at about 30 rpm
+(413, node 1) and at about 100 rpm while accelerating (713, node 2).
 
 **No observation at the deadline.** An action yields no new observation read once one exchange's
 queue and response budgets no longer fit before its deadline. On 2026-11-04 a stop's last read
@@ -201,8 +209,8 @@ reservation. It uses `CanBusOwner::admitBestEffortStop`, and `000B` is never rep
 
 **An independent physical stop stays mandatory.** Nothing here is a safety function, and a best-effort stop may not reach or affect the drive.
 
-**It is not a confirmed stop and it never reaches `SUCCEEDED`.** The sequenced `000B`
-from `000F` and `010F` released both specimens without enabling them. This path sends it with no
+**It is not a confirmed stop and it never reaches `SUCCEEDED`.** After the sequenced `000B`
+from `000F` and `010F` both specimens reported release, without being enabled first. This path sends it with no
 known predecessor, measured twice on one firmware: from node 2's never-enabled power-up state it
 released the drive (trial 503, through this path), and on an already released node 1 the same word,
 sent by an application-local route, changed nothing (trial 307). Neither is a guarantee for another
@@ -240,9 +248,11 @@ policy across recovery where this always re-issues `000B`.
 Host tests cover these paths through the real owner and selected SDO engine, with words
 manufactured by a fake. They do not establish firmware applicability, motor standstill,
 stop latency, braking curve, torque, device-target retirement or reference validity.
-On one firmware, judged from drive reports: `000B` from `000F`, `010F` and `001F`, `010F` from
-`000F` and from `001F`, and `000B` with no known predecessor on two states, each measured once or
-twice on one or two specimens. A stop from `005F`, any other state, and velocity and homing modes
-need their own fixture evidence. See the
+On one firmware, judged from drive reports: `000B` from `000F` (124) and from `010F` (126, 208);
+`010F` from `000F` (207); `010F` from `001F` three times on node 1 (113 at 2 rpm, 406 at 6 rpm,
+709 at 300 rpm); `000B` from `001F` three times (213 on node 2 and 413 on node 1 at 30 rpm, 713 on
+node 2 at about 100 rpm); and `000B` with no known predecessor on two states (307, 503). Stops from
+`005F`, `003F` and `007F`, any other state, a moving `010F` to `000B` escalation, and velocity and
+homing modes need their own fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.

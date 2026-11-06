@@ -89,3 +89,7 @@ From each route's `TRIAL_RES`, on the 12,288-byte owner task:
 - **Next campaign:** these need a new ledger and record, and a reflash: the counter fix above is not on the board.
 
 **Drive state at the end:** node 1 energized at `6064=316` with latest word `010F`, node 2 enabled at 0 with `000F`. Both hold torque until powered off.
+
+## Correction, 2026-11-06 (bench continuation packet 1)
+
+Trial 108's power-up shaft answer `HOLDING` was relayed by the lead with no fresh question: the user had power-cycled node 1 at 11:14:51Z, after being asked not to turn either shaft unless asked, and the last node 1 answer (11:06Z) was given after trial 105's enable, before that power cycle. The record therefore holds no observation of that power-up ([note](../bench/20261103T1018Z-p3-node1/NOTE.txt)). Trials 103 and 118 relay the user's own answers at 08:30Z and 12:20Z ([103](../bench/20261103T0833Z-p3-node1/NOTE.txt), [118](../bench/20261103T1043Z-p3-node2/NOTE.txt)). The original text above is unchanged.

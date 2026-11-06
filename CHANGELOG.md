@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Bench continuation packet 1: measured contracts reconciled (2026-11-06)
+
+- **Behavior fix, `QUICK_STOP` standstill rule:** the rule completed on one cycle with `606C` zero after any cycle with `6064` unchanged, whatever that earlier cycle's `606C` was, although `Actions.h`, the stop guide and the 2026-11-04 entry below say two cycles in a row with `606C` zero. Both cycles must now read zero. Test `capturedQuickStopsDuringMoves` replays trials 713 (node 2, `2920479`) and 413 (node 1, `e7f28ac`) from their captures, which complete at their third cycle either way, and a `606C` pair {5, 0} at an unchanged `6064`, which completed early without the fix.
+- **Bench runner:** the enable's power-up shaft question now offers `UNOBSERVED`, which refuses the enable before anything is sent. On 2026-11-05 (trials 704, 712) `HOLDING` was typed into that field from the drives' start reports with nobody at the shaft, and on 2026-11-03 (trial 108) it was relayed with no observation of that power-up; each passed the library guard that exists for that observation, and a `NOTE.txt` beside each trial records it. Retained records are unchanged.
+- Correction to the 2026-11-03 entry below: "after this quick stop the drive holds no torque" rests on drive reports (`2100` released, `6041` low bits `000`); torque was not observed in those unattended trials.
+- Maintained summaries, guides and Doxygen comments now match the retained records of 2026-11-03 to 2026-11-05: the `2202` writes, the `60FE` readback, the enables and moves that ran, and stop claims narrowed to the tested modes, predecessors, rates and specimens. Historical reports carry dated corrections ([packet 1](docs/reports/bench_closure_18_33/packet_1.md)).
+
 ### Bench continuation prompts for remaining 18-33 scope (2026-11-06)
 
 - Add eight execution packets under `docs/prompts/bench_closure_18_33/` for measured-contract reconciliation, position regressions, shared S2 builds, passive capture, console-loss diagnostics, PDO measurement/typed integration and finite motion/stop cases. Each names existing code, evidence, checks, delegation and commit/sync requirements.

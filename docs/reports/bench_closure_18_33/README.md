@@ -1,0 +1,39 @@
+# Bench continuation 18-33: execution index
+
+Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.md) on branch `promptset/motorcontrol-can`, assigned on 2026-11-06 by the user pasting packets 1 to 8. Starting revision `89a7eea`; the untracked `.vscode/` editor files belong to the user and stay untouched. Packet completion, original-prompt completion and hardware qualification are separate columns: a finished packet completes only its own scope.
+
+## Packets
+
+| Packet | Report | Packet status | Original prompts | Hardware |
+| --- | --- | --- | --- | --- |
+| [1](../../prompts/bench_closure_18_33/1_evidence_contracts.md) Evidence contracts | [packet_1](packet_1.md) | In progress | 19-22, 29-33 stay Partial | None: host work |
+| [2](../../prompts/bench_closure_18_33/2_position_regressions.md) Position regressions | - | Pending | 31, 33 | None: host work |
+| [3](../../prompts/bench_closure_18_33/3_s2_shared_firmware.md) Shared S2 firmware | - | In progress (host) | 27, 28 | S2 smoke test pending |
+| [4](../../prompts/bench_closure_18_33/4_passive_capture.md) Passive capture | - | Pending, after 3 | 27-29 | Passivity smoke pending; physical silence needs an independent observer |
+| [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | - | In progress (host) | 28, 29 | Short 200 ms and 20 ms runs pending; attribution needs a GPIO43 capture |
+| [6](../../prompts/bench_closure_18_33/6_pdo_measurement.md) PDO measurement | - | Measurement run on 2026-11-06 ([report](../2026-11-06_pdo_stream.md)); record pending | 18, 29 | Ran, both specimens |
+| [7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md) Typed PDO subset | - | Pending, after 6 | 18 | Replay pending |
+| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | - | Pending, after 1 and 2 | 29, 31-33 | Needs a drive power cycle before any enable |
+
+## Originals: what exists and what is missing
+
+Each row names existing public behavior, then what is missing by kind and who owns it. Prompts 23-26 are delivered and are exercised only as dependencies. A "Partial" status is not itself a missing implementation.
+
+| Original | Existing public behavior | Missing software | Missing device fact | Missing instrument or observation | Owner |
+| --- | --- | --- | --- | --- | --- |
+| 18 PDO remapping | Fixed TPDO1 map 3 to map 2 lifecycle (`prepareTpdo1Configuration`, `nextPdoConfiguration`, `notePdoConfigurationTransmission`, `advancePdoConfiguration`, `getTpdo1Configuration`); prompt 17's map validation and decoding; bench PDO tools (`N`, `P`, `R`, `W`) | Typed support for any measured timing alternative; broader remapping; commissioning and CLI integration | Inhibit semantics, types other than 255, change-driven sending, valid-bit and persistence behavior, RPDO effects | Hardware-timestamping listen-only observer for exact periods and retirement; a moving source for change-driven tests | Packets 6, 7; prompts 38, 41 |
+| 19 Typed reads | Typed read groups, `IdentityWidths::MEASURED_U8`, `CountWidths::MEASURED_U16` for `607D:00`/`60FE:00` | None found (packet 1 verifies) | Q20 read effects for rows outside the DEC-1 accepted list | Manufacturer statement or an observed-effect experiment | Q20 gate; packet 1 |
+| 20 Driver settings | Typed reads; `2202` codes 0 and 1 with readback, run on both specimens (trials 604-607) | `2200`, `2201`, `607D`, `6060` setters, deliberately gated | `2202` enforcement, `2201` range and effect, `2200` meaning, `607D` domain and basis | Independent shaft observation; travel protection for a limit test | Later prompts or manufacturer evidence |
+| 21 I/O settings | Typed I/O reads; DI function and polarity writes, run on node 1 (trial 403); full `60FE` readback (608, 609) | DO and filter setters, deliberately gated | DO address and function conflict, output truth table, filter domain | Meters on DO0..2 with DOCOM at 0 V; a filter stimulus | Handoff packet 13 P4 (operator) |
+| 22 Tuning | 33 typed reads (2502..2520 read on both specimens); `2500` setter, host-tested | Setters for the other 32 rows, deliberately gated | Domains and effects of every tuning row | Phase-current probe and motor rating for `2500` | Handoff packet 14 T1/T2 |
+| 27 TWAI adapter | Adapter, SDK evidence, bounded receive times | Explicit passive capture mode | TWAI questions 1, 4, 6; physical TX retirement (Q18) | Verified independent listen-only observer | Packets 3, 4; prompt 47 |
+| 28 Firmware examples | S3 firmware; S2 special bench application | Target-specific board validation, application-owned silent control, shared S2 Arduino and IDF builds | None | None beyond the S2 smoke test | Packet 3 |
+| 29 Device evidence | Typed and raw collectors, bench routes, soaks, PDO sessions, console-loss characterization | Independent console capture comparison; passive capture | Where console bytes are lost | Independent UART capture at GPIO43 | Packets 4, 5, 6, 8 |
+| 30 Enable and release | Gated enable, run on both specimens; documentary decoder | Release API: no reviewed transition | Release transition and its consequences | Independent shaft or torque observation | Outside this continuation |
+| 31 Stop operations | HALT and quick stop operations; quick-stop standstill rule; run from `000F`, `010F`, `001F`, moving and no-predecessor states | None found | Stops from an acknowledged `005F`; velocity and homing stops | None for drive-report cases | Packet 8 (005F); prompts 35, 36 |
+| 32 Fault and reference | Alarm clear and counter zero through `AxisSession`; counter zero ran once on node 2 | None found | An alarm clear on a naturally present alarm | A naturally present alarm | Waits for a natural alarm; packet 8 for counter cases only if justified |
+| 33 Finite position | Absolute and relative lifecycles; node 1 relative base `ACTUAL`; moves run on both nodes | Packet 2's test gaps, admission duplication, reproducible RS vectors | Node 2's relative base; a negative relative move; stops from `005F` | None for drive-report cases | Packets 2, 8 |
+
+## Sibling audit
+
+Recorded by the continuation's authoring pass and unchanged at execution start (HEAD and clean state checked 2026-11-06): MotorControl-RS `cd27b12`, FieldCore-node `5ad9292d`, ADS1115 `d613a13`, INA228 `73f9548`, BME280 `48b8214`, MB85RC `1a45e88`; RV3032-C7 `1b74184`, all clean. Each packet report names the seams it read and the behavior it adopted or rejected.

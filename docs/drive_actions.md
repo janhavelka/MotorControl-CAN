@@ -61,7 +61,10 @@ CL57-C/OL57-C header; retain that applicability uncertainty.
 ordinary `nextAction` and `advanceAction` lifecycle, and `AxisSession::requestEnable` runs it
 through the sole owner. **It succeeded on both bench specimens on 2026-11-03**, after a fix that
 session found (bit 10, below), on one firmware, and again on 2026-11-04 with the same reports, twice
-on node 1 and once on node 2 ([report](reports/2026-11-04_bench.md)). That is not a qualification: the
+on node 1 and once on node 2 ([report](reports/2026-11-04_bench.md)), and on 2026-11-05 once on each
+node (trials 704 and 712, [report](reports/2026-11-05_motion_and_stress.md)), seven times in all. The
+power-up shaft entries of 704 and 712 were the lead's reading of the drive's start report, not an
+observation (see the NOTE.txt in each trial directory). That is not a qualification: the
 measured paragraphs after the transition table and the
 [attended report](reports/2026-11-03_attended_bench.md) say what was and was not observed.
 `EnableEvidence::gate` defaults to `CLOSED`, which returns `UNSUPPORTED`. Opening it to
@@ -204,13 +207,15 @@ now ignores bit 10 there (`STATUS_EN86_ZERO_SPEED`), because `606C` already deci
 `606C` reads rpm on this configuration: 30 during moves at 30 rpm and 1 at 2 rpm, on both nodes
 (2026-11-04).
 
-**Word 7 pulls a displaced shaft back, measured on node 2, 2026-11-04** (trial 308, the bench
-`word67` route, not this action). Released after a quick stop during a move had let it coast, the
-drive read `6064=1187`. Word 6 gave `6041=4031`, still released, at 1187. Word 7 gave `6041=0033` and
+**Word 7 returns a displaced position report, drive-reported on node 2, 2026-11-04** (trial 308, the
+bench `word67` route, not this action). Reported released after a quick stop during a move, the
+drive read `6064=1187`, about 10 pulses past the stop's last move sample. Word 6 gave `6041=4031`, still released, at 1187. Word 7 gave `6041=0033` and
 `2100=0000`: energized, and `6064` read 1194 twice, then 1180 for six cycles, near where the
-trajectory was when `000B` arrived. So word 7 restores the drive's last commanded position: it
-neither resets the counter nor adopts the actual position. That also explains trial 105 of
-2026-11-03, `6064` from −545 to 0 at word 7 after a hand check, a pull-back of about half a turn.
+trajectory was when `000B` arrived. The hypothesis that word 7 restores the drive's last commanded
+position, neither resetting the counter nor adopting the actual position, is consistent with this
+(settled at 1180) and with node 1's trial 603 (settled at 1560 after a quick stop at 1558); it is not
+shown. It would also explain trial 105 of 2026-11-03, `6064` from −545 to 0 at word 7 after a hand
+check, a pull-back of about half a turn.
 **Never move a released shaft by hand before an enable, and expect motion at word 7 whenever the
 shaft was displaced.** One specimen, a 7-pulse displacement, judged from drive reports; the shaft
 was not observed ([report](reports/2026-11-04_bench.md)). The enable's position rule, `6064` unchanged

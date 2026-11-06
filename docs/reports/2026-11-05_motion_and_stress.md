@@ -158,3 +158,20 @@ All five runs used the same image and 1 s summaries, so they differ only in the 
 | R7 | 20 ms | 60 s | 3 h 43 min | 230,241 | 1.4% |
 
 Over the whole campaign about 897,000 read operations per node, all successful, with no CAN error, no timeout and no drive state change. The only unexpected behavior was on the console path, characterized above, and node 2's shaft turn in R1, the user's hand test.
+
+## Correction, 2026-11-06 (bench continuation packet 1)
+
+A later review compared this report's prose with its retained trial records. The sections above are unchanged; this addendum narrows them. The motion campaign's results are drive reports: nobody observed a shaft, and the user's only physical statement about one is the R1 hand turn below.
+
+| Original sentence | Provenance and correction |
+| --- | --- |
+| Power-up: "the enable's power-up observation was taken from the drives' own reports" | Trials 704 and 712 nonetheless store HOLDING in `operator.power_up_shaft`, entered by the lead from the start report, and a typed ATTENDED confirmation also entered by the lead. Neither is an observation; see their NOTE.txt ([704](../bench/20261105T1537Z-p3-node1-704/NOTE.txt), [712](../bench/20261105T1541Z-p3-node2-712/NOTE.txt)) |
+| Trial 713: "coasted to **896**" | The position report advanced to 896 after the release; no shaft was observed |
+| "`6064` followed the commanded rate at 10, 60, 120, 200 and 300 rpm" | Not at 200: trial 713 was stopped while accelerating and never reached it (`606C` 0, 101, 0). The other four rates stand as drive reports |
+| "So `2100` bit 0 comes on within one pulse of the target" | Observed offsets were 0 or 1 pulse (121 and 706: 1; 211, 411, 705 and 708: 0). The window's size is not measured |
+| "Deceleration follows the ramp setting" | One HALT (709), one ramp setting |
+| "A fast stop releases the motor at any speed", "the free shaft coasted 42 pulses" | Drive-reported release (`2100` bit 4 set, `6041` low bits 000) at standstill (124 on node 2 from `000F`; 126 and 208 on node 1 from `010F`), during moves from `001F` in mode 1 at 30 rpm (213 on node 2, 413 on node 1) and at about 100 rpm while accelerating (713 on node 2), and at power-up (503). The 42 pulses are position reports. Torque was not observed in any of these trials |
+| "Clearing a halt never resumes it" | It did not resume within 2 to 8 s on node 1 in two trials (408 after 406 at 6 rpm; 710 after 709 at 300 rpm), with the target retained (`607A=12000` in 714) |
+| Overnight stress: "Node 1 stayed enabled and holding at 4728"; R1: "node 1, enabled and holding, did not move" | Drive reports (`6041=0037`, `2100=0000`, `6064` unchanged); node 1's shaft was not observed |
+| R1: "A drive in that state applies no torque, so an outside force turned the shaft" | The cause is the user's own statement of 2026-11-06 09:56Z that they turned node 2's released shaft by hand ([NOTE](../bench/20261105-stress-r1-summary1s/NOTE.txt)); "applies no torque" is an inference from the drive's report, consistent with that hand turn |
+| R6: "A host or MCU power loss therefore left the drives' state unchanged" | This one outage: the drives kept their own supply, and the reports before and after the cut matched. No other host or MCU power loss is covered |
