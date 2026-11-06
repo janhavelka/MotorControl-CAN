@@ -291,6 +291,30 @@ class AxisSession {
                                                 const MotorControlCAN::AxisReference& reference,
                                                 const MotorControlCAN::LICHUAN_C::MoveOptions& options,
                                                 uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Request a wrapped angle through prepareMoveAngle and the ordinary finite move/owner path.
+     * Conversion and validation precede owner admission; a refusal preserves queued work and the
+     * retained move. The axis and reference are borrowed until terminal, as for requestMoveRelative.
+     * @param[in] state As requestMove. @param[in] identity As requestMove.
+     * @param[in] evidence As requestMove, using absolute-trigger evidence.
+     * @param[in] request Wrapped absolute MOTOR/LOAD angle with explicit path/tie/error policy.
+     * @param[in] profile As requestMove. @param[in] stored As requestMove.
+     * @param[in] axis Current command scale, origin, limits and explicit ACTUAL basis policy.
+     * @param[in] reference Fresh idle stationary ACTUAL multi-turn command witness with age cap.
+     * @param[in] options As requestMove. @param[in] deadlineUs As requestMove.
+     * @param[in] nowUs As requestMove.
+     * @return prepareMoveAngle's status, or the same local owner refusals as requestMove.
+     */
+    MotorControlCAN::Status
+    requestMoveAngle(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                     const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                     const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+                     const MotorControlCAN::MoveRequest& request,
+                     const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+                     const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+                     const MotorControlCAN::AxisConfig& axis,
+                     const MotorControlCAN::AxisReference& reference,
+                     const MotorControlCAN::LICHUAN_C::MoveOptions& options, uint64_t deadlineUs,
+                     uint64_t nowUs) noexcept;
     /** Withdraw an active move locally: no further download or read is admitted, and one the owner has
      * not yet handed to the controller is cancelled. It sends no stop, rearm or replay, so the drive
      * may still be moving. A request in flight, or one whose cancel the owner did not report as won,
@@ -551,16 +575,18 @@ class AxisSession {
     bool takeTerminal(MotorControlCAN::CANOPEN::SdoCompletion& output) noexcept;
     void withdrawEnable(MotorControlCAN::ActionOutcome reason, uint64_t nowUs) noexcept;
     void serviceEnable(uint64_t nowUs) noexcept;
-    MotorControlCAN::Status startMove(bool relative, const MotorControlCAN::LICHUAN_C::ReadContext& state,
-                                      const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
-                                      const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
-                                      const MotorControlCAN::MoveRequest& request,
-                                      const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
-                                      const MotorControlCAN::LICHUAN_C::DriverContext* stored,
-                                      const MotorControlCAN::AxisConfig& axis,
-                                      const MotorControlCAN::AxisReference* reference,
-                                      const MotorControlCAN::LICHUAN_C::MoveOptions& options,
-                                      uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    enum class MoveForm { ABSOLUTE, RELATIVE, ANGLE };
+    MotorControlCAN::Status
+    startMove(MoveForm form, const MotorControlCAN::LICHUAN_C::ReadContext& state,
+              const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+              const MotorControlCAN::LICHUAN_C::MoveEvidence& evidence,
+              const MotorControlCAN::MoveRequest& request,
+              const MotorControlCAN::LICHUAN_C::MoveProfile& profile,
+              const MotorControlCAN::LICHUAN_C::DriverContext* stored,
+              const MotorControlCAN::AxisConfig& axis,
+              const MotorControlCAN::AxisReference* reference,
+              const MotorControlCAN::LICHUAN_C::MoveOptions& options, uint64_t deadlineUs,
+              uint64_t nowUs) noexcept;
     void withdrawMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
     bool holdForFault(const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
                       uint64_t nowUs) noexcept;

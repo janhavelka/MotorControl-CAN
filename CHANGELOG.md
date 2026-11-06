@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Wrapped-angle integration
+
+- Added `prepareMoveAngle`, `validateMoveAngle` and `AxisSession::requestMoveAngle`
+  through the existing finite position/owner lifecycle. Wrapped path/tie/frame,
+  exact endpoint, quantization and frozen reference evidence remain inspectable.
+- Added the offline `angle_preview`, installed-consumer coverage and N5/abstract
+  servo contract vectors. These fixtures establish no additional driver support
+  or physical angle qualification.
+- Fixed `validateMoveAdmission` accepting an otherwise fresh target at its
+  processing deadline; admission now refuses `now >= deadlineUs`.
+
 ### Bench continuation packet 4: bounded silent capture (2026-11-06)
 
 - Bench firmware: `C<capture>,<seconds>,<frames>` starts one bounded receive capture (`SilentCapture`, 1..600 s, 1..128 stored frames); `C0` ends it early. Entry is refused unless the controller runs, nothing ordinary, urgent or NMT is queued or active, and every configured slot, the NMT handoff and the tap prove local TX retirement; unknown retirement refuses. The tap's new transmit gate (`SoakTwaiTap::closeTransmit`) then refuses every submission before the SDK as proved unsent, and only then is GPIO18 requested high. At the end the copies stop, S18 is requested low, and the gate opens only once the owner is idle and retired again; a controller fault or a refused GPIO request keeps it closed for the boot. Records `CAP_REC`, `CAP_TIME`, `CAP_LEVEL`, `CAP_CTRL`, `CAP_OWNER`, `CAP_IMAGE`, `CAP_F`, `END capture`, released with `r`. PONG reports `pdo=3` and `capture`; response buffers are 320 bytes; every GPIO18 request goes through `espSilentPin`.

@@ -36,6 +36,12 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Wrapped angles now have a public core/owner path: `prepareMoveAngle`,
+`validateMoveAngle`, shared `nextMove` / `advanceMove` and
+`AxisSession::requestMoveAngle`. [Angle policy](position_parameters.md#wrapped-angle-moves)
+and the [offline consumer](../examples/angle_preview/README.md) are implemented;
+the `move angle` CLI route remains owned by prompt 42.
+
 Prompt 32 adds conditional `prepareClearAlarm` and zero-only
 `prepareSetDevicePosition`, using the installed `nextAction/advanceAction`.
 The [fault/reference guide](fault_reference_actions.md) defines literal writes,

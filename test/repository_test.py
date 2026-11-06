@@ -95,6 +95,8 @@ FILES = {
     "test/position_parameters_test.cpp", "docs/position_parameters.md",
     "include/MotorControlCAN/MoveOperation.h", "test/move_absolute_test.cpp",
     "test/move_relative_test.cpp", "test/move_common_test.cpp", "test/support/MoveRig.h",
+    "test/move_angle_test.cpp", "examples/angle_preview/main.cpp",
+    "examples/angle_preview/CMakeLists.txt", "examples/angle_preview/README.md",
     "examples/position_preview/main.cpp", "examples/position_preview/CMakeLists.txt", "examples/position_preview/README.md",
     "adapters/owner/CanBusTypes.h", "adapters/owner/CanBusOwner.h", "adapters/owner/CanBusOwner.cpp", "adapters/owner/CMakeLists.txt", "adapters/owner/README.md", "examples/common/CMakeLists.txt",
     "adapters/owner/CanBusDiagnostics.cpp", "adapters/owner/OwnerCounters.h", "test/can_bus_health_test.cpp",
@@ -157,7 +159,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

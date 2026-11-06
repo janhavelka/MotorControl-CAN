@@ -1,5 +1,13 @@
 # Requirement coverage after pure CAN/SDO checks
 
+Prompt 34 adds `prepareMoveAngle`, `validateMoveAngle` and
+`AxisSession::requestMoveAngle` to the implemented host motion scope. It uses
+the same `MoveContext`, exact `preparePosition` and ordinary finite owner path;
+`move_angle` checks wraps/ties/polarity, limits/quantization, exact large angles,
+epoch/reference invalidation, stops and unknown trigger effects. The installed
+`angle_preview` and C1 N5/abstract servo consumers are checked. This adds no
+qualified physical angle, automatic scale, CLI route or second production profile.
+
 **As of the 2026-11-02 checkpoint.** The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) adds fixed
 TPDO1 configuration and addressed owner NMT to R11/R12/R13/R17/R20. Native
 adversarial checks cover per-step failures and interval freshness; one node1
@@ -164,7 +172,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
-| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17 and 23-26 Complete, 18-22 and 27-33 Partial, and 34-50 Pending. The [29/30 audit](reports/prompts_29_30_audit.md) preserves the distinction between implemented readiness/decoder software and unimplemented firmware-dependent actions. |
+| R35 | 1-50 | Current owners and delivered subsets are tracked in [PROGRESS](prompts/PROGRESS.md): prompts 1-17, 23-26 and 34 Complete, 18-22 and 27-33 Partial, and 35-50 Pending. Prompt 34 closes angle software integration, retaining inherited physical/firmware gates. The [29/30 audit](reports/prompts_29_30_audit.md) preserves readiness/decoder versus dependent firmware actions. |
 
 Later stages replace Pending with links to real APIs, tests and evidence, keeping
 documented, implemented, host-tested, firmware-built and hardware-qualified
