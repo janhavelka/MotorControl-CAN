@@ -47,9 +47,19 @@ struct SoakSubmission {
     uint32_t serial = 0;          ///< Adapter handoff serial.
     TwaiSubmit result = TwaiSubmit::DEFERRED; ///< SDK boundary result.
 };
-/** Copies each submission result between the TWAI adapter and its driver.
- * The adapter has no public view of this boundary, and owner diagnostics stop at its queue.
- * A forwarding shim: it adds no retry, no delay and no second receive path.
+/** Caller storage for copies of received frames, borrowed by SoakTwaiTap while it copies. */
+struct ReceiveRing {
+    enum {
+        CAPACITY = 32 ///< Copies held between drains; a full ring drops the newest copy.
+    };
+    MotorControlCANOwner::ReceivedFrame frames[CAPACITY]; ///< Copies, oldest at head.
+    uint8_t head = 0;     ///< Index of the oldest copy.
+    uint8_t count = 0;    ///< Copies not yet taken.
+    uint32_t dropped = 0; ///< Saturating copies refused while full; the owner still had each frame.
+};
+/** Copies each submission result, and optionally each received frame, between the TWAI adapter
+ * and its driver. The adapter has no public view of this boundary, and owner diagnostics stop at
+ * its queue. A forwarding shim: it adds no retry, no delay and no second receive path.
  * Stationary, and it outlives the adapter that borrows its callbacks.
  */
 class SoakTwaiTap {
@@ -69,10 +79,23 @@ class SoakTwaiTap {
     uint32_t deferred() const noexcept { return deferred_; }
     /** @return Saturating count of records replaced before they were taken. */
     uint32_t overwritten() const noexcept { return overwritten_; }
+    /** Start or stop copying received frames. Off by default.
+     * A copy is made only when the inner receive returned a frame, after it returned, and the
+     * owner still gets that frame unchanged. Copying never consumes, delays or repeats a receive.
+     * @param ring Borrowed until the next call; emptied and its dropped count zeroed here.
+     * nullptr stops copying and leaves the previous ring as it was.
+     */
+    void copyReceives(ReceiveRing* ring) noexcept;
+    /** Take the oldest copy.
+     * @param output Published only on true.
+     * @return False when no copy is waiting or copying is off.
+     */
+    bool takeReceived(MotorControlCANOwner::ReceivedFrame& output) noexcept;
 
   private:
     TwaiDriver inner_;
     SoakSubmission latest_;
+    ReceiveRing* ring_ = nullptr;
     uint32_t deferred_ = 0, overwritten_ = 0;
     bool present_ = false;
 };

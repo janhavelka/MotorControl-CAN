@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "RawEvidence.h"
+#include <cstring>
 
 namespace MotorControlCANExample {
 using MotorControlCANOwner::BusRequest;
@@ -27,6 +28,52 @@ const RawEvidenceField motionReadiness[] = {
     {0x2400, 4, 2}, {0x2400, 5, 2}, {0x2400, 6, 2}, {0x2400, 7, 2}, {0x2400, 8, 2}, {0x60fd, 0, 4}};
 static_assert(sizeof(motionReadiness) / sizeof(motionReadiness[0]) == RAW_EVIDENCE_FIELDS,
               "Motion readiness is exactly thirty uploads");
+// LC_StepDriverCAN_V1.1.eds lists these subindexes in 1400..1403, 1800..1803
+// (communication) and 1600..1603, 1A00..1A03 (mapping). Actual widths stay raw.
+const uint8_t pdoRecordSubindexes[] = {1, 2, 3, 5, 0, 1, 2, 3, 4};
+static_assert(sizeof(pdoRecordSubindexes) == 9, "PDO record is exactly nine uploads");
+// The same EDS gives 1800..1803 sub1 U32, sub2 U8, sub3 and sub5 U16, all RW.
+// Zero means the subindex is not an admitted PDO_COMM_WRITE entry.
+unsigned pdoEntryWidth(uint8_t subindex) {
+    return subindex == 1 ? 4 : subindex == 2 ? 1 : subindex == 3 || subindex == 5 ? 2 : 0;
+}
+// The bit and type ranges are generic CiA 301 values, not Lichuan-documented:
+// a COB-ID change toggles only bit 31 (PDO not valid), never the identifier,
+// bit 30 (RTR) or bit 29 (frame kind); a transmission type excludes reserved
+// 241..251 and RTR-only 252/253. Whether the drive accepts it is what the
+// experiment observes.
+bool validPdoChange(const RawPdoSelection& s) {
+    const unsigned width = pdoEntryWidth(s.subindex);
+    if (!s.transmit || !width || s.value == s.baseline ||
+        (width < 4 && (s.baseline | s.value) >> (8 * width)))
+        return false;
+    if (s.subindex == 1)
+        return (s.baseline ^ s.value) == 0x80000000u;
+    return s.subindex != 2 || s.value <= 240 || s.value >= 254;
+}
+// One exact read, write, read entry; values are unsigned little-endian bytes.
+struct ExactEntry {
+    uint16_t index;
+    uint8_t subindex, width;
+    uint32_t baseline, value;
+};
+bool exactEntry(const RawEvidencePlan& p, ExactEntry& out) {
+    if (p.enableHeartbeat) {
+        out = ExactEntry{0x1017, 0, 2, 0, 1000};
+        return true;
+    }
+    if (p.inventory != RawEvidenceInventory::PDO_COMM_WRITE)
+        return false;
+    out = ExactEntry{uint16_t(0x1800 + p.pdo.set), p.pdo.subindex,
+                     uint8_t(pdoEntryWidth(p.pdo.subindex)), p.pdo.baseline, p.pdo.value};
+    return true;
+}
+uint32_t littleEndian(const uint8_t* bytes, unsigned width) {
+    uint32_t value = 0;
+    for (unsigned i = 0; i < width; ++i)
+        value |= uint32_t(bytes[i]) << (8 * i);
+    return value;
+}
 template <size_t N> bool text(const char (&s)[N]) {
     if (!s[0])
         return false;
@@ -90,15 +137,21 @@ EvidenceAdmission RawEvidence::begin(const RawEvidencePlan& p, uint64_t now) noe
     const auto& r = p.review;
     const auto& a = r.plan;
     const bool motion = p.inventory == RawEvidenceInventory::MOTION_READINESS;
+    const bool pdoRecord = p.inventory == RawEvidenceInventory::PDO_RECORD;
+    const bool pdoWrite = p.inventory == RawEvidenceInventory::PDO_COMM_WRITE;
     const unsigned count = motion              ? 30
+                           : pdoRecord         ? 9
+                           : pdoWrite          ? 3
                            : p.enableHeartbeat ? 3
                            : p.includeNetwork  ? 26
                            : p.includeState    ? 20
                                                : 18;
     const auto* route = services_.channel(p.slot);
     const auto* node = services_.node(p.slot);
-    if (p.inventory > RawEvidenceInventory::MOTION_READINESS ||
-        (motion && (p.includeState || p.includeNetwork || p.enableHeartbeat)) ||
+    if (p.inventory > RawEvidenceInventory::PDO_COMM_WRITE ||
+        ((motion || pdoRecord || pdoWrite) &&
+         (p.includeState || p.includeNetwork || p.enableHeartbeat)) ||
+        ((pdoRecord || pdoWrite) && p.pdo.set > 3) || (pdoWrite && !validPdoChange(p.pdo)) ||
         (p.includeNetwork && !p.includeState) ||
         (p.enableHeartbeat && (p.includeNetwork || p.includeState)) ||
         overlap(&p, sizeof p, this, sizeof *this) || now < lastUs_ || now < owner_.lastTimeUs() ||
@@ -203,6 +256,8 @@ bool RawEvidence::service(uint64_t now) noexcept {
     if (now - lastUs_ > record_.maxServiceGapUs)
         record_.maxServiceGapUs = now - lastUs_;
     lastUs_ = now;
+    ExactEntry exact{};
+    const bool exactPlan = exactEntry(record_.plan, exact);
     capture(false);
     // A frame already on its way settles: cancelling it would quarantine the route.
     if (record_.evidenceLost && pendingValid_ && !owner_.mayHaveTransmitted(pending_))
@@ -221,7 +276,7 @@ bool RawEvidence::service(uint64_t now) noexcept {
             t.direction == expected_.direction && t.size == expected_.size &&
             t.uploadSize == expected_.uploadSize &&
             (t.direction != C::SdoDirection::DOWNLOAD ||
-             (t.data[0] == expected_.data[0] && t.data[1] == expected_.data[1])) &&
+             std::memcmp(t.data, expected_.data, expected_.size) == 0) &&
             t.readEffect == C::SdoReadEffect::UNQUALIFIED &&
             done->service.nodeGeneration == record_.plan.review.plan.target.nodeGeneration;
         record_.terminals[record_.terminalCount++] = *done;
@@ -235,19 +290,17 @@ bool RawEvidence::service(uint64_t now) noexcept {
         if (!owner_.release(pending_))
             return false;
         pendingValid_ = false;
-        if (record_.plan.enableHeartbeat &&
-            record_.terminals[record_.terminalCount - 1].service.transfer.direction ==
-                C::SdoDirection::UPLOAD) {
+        if (exactPlan && record_.terminals[record_.terminalCount - 1].service.transfer.direction ==
+                             C::SdoDirection::UPLOAD) {
             // Readback confirms only the object bytes. Never infer motor state,
-            // remote persistence or a host-loss response from this register.
+            // remote persistence, a host-loss response or a PDO sample from them.
             const C::SdoCompletion& result = record_.terminals[record_.terminalCount - 1].service;
-            const unsigned wanted = record_.terminalCount == 1 ? 0 : 1000;
-            if (result.size != 2 ||
-                unsigned(result.data[0] | unsigned(result.data[1]) << 8) != wanted) {
+            const uint32_t wanted = record_.terminalCount == 1 ? exact.baseline : exact.value;
+            if (result.size != exact.width || littleEndian(result.data, exact.width) != wanted) {
                 finish(RawEvidenceFailure::READBACK, now);
                 return true;
             }
-            if (record_.terminalCount == 3) {
+            if (record_.plan.enableHeartbeat && record_.terminalCount == 3) {
                 const auto* node = services_.node(record_.plan.slot);
                 if (!current() || !node ||
                     !services_.setProducerInterval(record_.plan.slot, node->route, 1000, now)) {
@@ -284,20 +337,31 @@ bool RawEvidence::service(uint64_t now) noexcept {
     work.channel = plan.target.channel;
     work.operation = plan.id;
     work.request = work.step = uint32_t(field + 1);
-    const bool motion = record_.plan.inventory == RawEvidenceInventory::MOTION_READINESS;
-    work.index = record_.plan.enableHeartbeat ? 0x1017
-                 : motion                     ? motionReadiness[field].index
-                                              : fields[field].index;
-    work.subindex = record_.plan.enableHeartbeat ? 0
-                    : motion                     ? motionReadiness[field].subindex
-                                                 : fields[field].subindex;
-    work.size = record_.plan.enableHeartbeat ? 2 : 4;
-    work.uploadSize =
-        record_.plan.enableHeartbeat ? C::SdoUploadSize::EXACT : C::SdoUploadSize::SERVER_INDICATED;
-    if (record_.plan.enableHeartbeat && field == 1) {
-        work.direction = C::SdoDirection::DOWNLOAD;
-        work.data[0] = 0xe8;
-        work.data[1] = 0x03;
+    work.size = 4;
+    work.uploadSize = C::SdoUploadSize::SERVER_INDICATED;
+    if (exactPlan) {
+        work.index = exact.index;
+        work.subindex = exact.subindex;
+        work.size = exact.width;
+        work.uploadSize = C::SdoUploadSize::EXACT;
+        if (field == 1) {
+            work.direction = C::SdoDirection::DOWNLOAD;
+            for (unsigned i = 0; i < exact.width; ++i)
+                work.data[i] = uint8_t(exact.value >> (8 * i));
+        }
+    } else if (record_.plan.inventory == RawEvidenceInventory::MOTION_READINESS) {
+        work.index = motionReadiness[field].index;
+        work.subindex = motionReadiness[field].subindex;
+    } else if (record_.plan.inventory == RawEvidenceInventory::PDO_RECORD) {
+        const RawPdoSelection& pdo = record_.plan.pdo;
+        const bool communication = field < 4;
+        work.index = uint16_t((pdo.transmit ? (communication ? 0x1800 : 0x1a00)
+                                            : (communication ? 0x1400 : 0x1600)) +
+                              pdo.set);
+        work.subindex = pdoRecordSubindexes[field];
+    } else {
+        work.index = fields[field].index;
+        work.subindex = fields[field].subindex;
     }
     work.readEffect = C::SdoReadEffect::UNQUALIFIED;
     work.deadlineUs = plan.deadlineUs;
@@ -324,7 +388,8 @@ bool RawEvidence::service(uint64_t now) noexcept {
     }
     expected_ = work;
     pendingValid_ = true;
-    if (work.direction == C::SdoDirection::DOWNLOAD) {
+    // A PDO entry download is not 1017 and leaves the adapter's producer facts alone.
+    if (record_.plan.enableHeartbeat && work.direction == C::SdoDirection::DOWNLOAD) {
         const auto* node = services_.node(record_.plan.slot);
         // Conservative first-possible boundary: accepted local work may leave at
         // the next owner turn. No existing producer fact may survive uncertainty.

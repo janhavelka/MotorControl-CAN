@@ -5,7 +5,9 @@
 #include "EspProbePlatform.h"
 #include "FirmwareProbe.h"
 #include "IdfTwaiDriver.h"
+#include "PdoCommand.h"
 #include "PdoExperiment.h"
+#include "PdoWatch.h"
 #include "RawEvidence.h"
 #include "Soak.h"
 #include "driver/gpio.h"
@@ -103,7 +105,8 @@ bool ensureRoute(C::SdoClient& services, unsigned node, bool& configured, uint64
 }
 bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence& raw, bool rawPlan,
               unsigned node, bool& configured, uint32_t id, uint64_t now, bool heartbeat = false,
-              bool motionReadiness = false) {
+              bool motionReadiness = false, const E::PdoCommand* pdoCommand = nullptr,
+              uint32_t pdoGrant = 0) {
     if (!firmware.running() || firmware.evidence().record() || raw.record())
         return false;
     L::ReadTarget selected = target(node);
@@ -149,6 +152,7 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
               "User confirms drive power cutoff and bolted free shafts; no motion writes");
         plan.review = review;
         plan.slot = node - 1;
+        plan.pdo = decltype(plan.pdo)(); // The plan is static: no earlier selection may survive.
         plan.inventory = motionReadiness ? E::RawEvidenceInventory::MOTION_READINESS
                                          : E::RawEvidenceInventory::IDENTITY_NETWORK;
         plan.firstAuthorizationId = motionReadiness ? 4000 : heartbeat ? 2000 : 1000;
@@ -168,6 +172,33 @@ bool identity(E::FirmwareProbe& firmware, C::SdoClient& services, E::RawEvidence
                   "user: NMT, heartbeat evidence and limited TPDO experiment");
             label(review.sourceReview,
                   "EDS1017 U16 RW; CANopen heartbeat ms; exact0->1000 experiment");
+            plan.review = review;
+        } else if (pdoCommand) {
+            // Grants share one increasing per-slot sequence with the fixed experiments above, so
+            // these start above theirs: heartbeat and TPDO1 come first in a boot, or this refuses.
+            const bool write = pdoCommand->kind == E::PdoCommandKind::WRITE;
+            plan.inventory =
+                write ? E::RawEvidenceInventory::PDO_COMM_WRITE : E::RawEvidenceInventory::PDO_RECORD;
+            plan.firstAuthorizationId = pdoGrant;
+            plan.includeState = plan.includeNetwork = false;
+            plan.pdo.transmit = pdoCommand->transmit;
+            plan.pdo.set = pdoCommand->set;
+            plan.pdo.subindex = pdoCommand->subindex;
+            plan.pdo.baseline = pdoCommand->baseline;
+            plan.pdo.value = pdoCommand->value;
+            label(review.plan.authorization, "user 2026-11-06: PDO stream tests, start/stop, timings");
+            if (write) {
+                label(review.sourceReview,
+                      "EDS1800..1803 RW; exact read, one write, readback; units/effects measured");
+                label(review.plan.observations,
+                      "Exact baseline, one write, exact readback; abort kept; no sample, unit or "
+                      "effect claim");
+            } else {
+                label(review.sourceReview,
+                      "EDS1400..1403/1600..1603/1800..1803/1A00..1A03; raw widths; Q17 open");
+                label(review.plan.observations,
+                      "Nine raw uploads of one PDO set; map and timing as read, unqualified");
+            }
             plan.review = review;
         }
         return raw.begin(plan, now) == E::EvidenceAdmission::ACCEPTED;
@@ -471,6 +502,43 @@ const char* startSoak(E::FirmwareProbe& firmware, C::SdoClient& services, E::Soa
         return "invalid";
     }
 }
+// The watch copies frames at the driver tap, so it can run beside any record, NMT request or soak.
+bool watchWrite(void* context, const char* text, size_t size) {
+    return static_cast<E::FirmwareProbe*>(context)->platform().writeOutput(
+        reinterpret_cast<const uint8_t*>(text), size);
+}
+E::PdoWatch* watchStorage(E::FirmwareProbe& firmware, E::SoakTwaiTap& tap) {
+    static E::PdoWatch* watch = nullptr;
+    if (watch)
+        return watch;
+    void* memory = heap_caps_aligned_alloc(alignof(E::PdoWatch), sizeof(E::PdoWatch),
+                                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    if (!memory)
+        return nullptr;
+    E::PdoWatchOutput output;
+    output.context = &firmware;
+    output.write = watchWrite;
+    watch = new (memory) E::PdoWatch(tap, output);
+    return watch;
+}
+// One addressed NMT request: q and w send Pre-operational, an N line any of its three commands.
+bool admitNmt(E::FirmwareProbe& firmware, C::SdoClient& services, unsigned slot,
+              C::NmtCommand command, uint32_t id, C::NmtRequestId& output) {
+    const auto* node = services.node(slot);
+    if (!node)
+        return false;
+    C::NmtTransfer work;
+    work.target = node->route;
+    work.command = command;
+    work.bus = work.target.binding.endpoint.bus;
+    work.request = id;
+    work.queueTimeoutUs = 250000;
+    uint64_t now = 0;
+    if (!firmware.platform().nowUs(now) || now >= UINT64_MAX - 5000000)
+        return false;
+    work.deadlineUs = now + 5000000;
+    return firmware.owner().admitNmt(work, now, output);
+}
 // Route resources, sampled at admission and at the terminal: the high-water mark is the least
 // stack ever free, so a lower value at the terminal was reached during that route.
 void routeSample(void* context, E::RouteResources& output) {
@@ -571,6 +639,14 @@ void ownerTask(void*) {
     uint32_t acquisition = 0, grants[2] = {}, grantedOperation[2] = {}, grantedStep[2] = {};
     unsigned dumpCursor = 0;
     E::Soak* soak = nullptr;
+    E::PdoWatch* watch = nullptr;
+    // N, P, R and W lines (PdoCommand.h), collected whole like the soak and trial requests.
+    char pdoText[48] = {};
+    size_t pdoLength = 0;
+    bool pdoCollecting = false;
+    uint64_t pdoCollectUs = 0;
+    // PDO record and write grants follow every fixed experiment's grants on the same slot.
+    uint32_t pdoGrant[2] = {10000, 10000};
     // The soak request is the one multi-byte command: `S` then text up to a line end.
     char soakText[40] = {};
     size_t soakLength = 0;
@@ -625,6 +701,9 @@ void ownerTask(void*) {
         }
         if (route)
             route->service(firmware.owner().lastTimeUs());
+        // Like the soak, the watch holds its lines while a one-shot response waits for room.
+        if (watch)
+            watch->service(firmware.owner().lastTimeUs(), retainedSize != 0);
         if (firmware.progressionFailed() && !silent)
             silent = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK;
         const E::AcquisitionRecord* record = firmware.evidence().record();
@@ -675,6 +754,10 @@ void ownerTask(void*) {
             trialCollecting = false;
             line(firmware, "TRIAL_REFUSED reason=incomplete; no work\n");
         }
+        if (pdoCollecting && firmware.platform().nowUs(now) && now - pdoCollectUs > 2000000) {
+            pdoCollecting = false;
+            line(firmware, "PDO_LINE refused reason=incomplete; no work\n");
+        }
         // A trial record, active or retained, admits nothing else but inspection and release.
         const bool trialHeld = trialRecord != nullptr;
         if (!retainedSize && firmware.platform().takeInput(command)) {
@@ -718,6 +801,114 @@ void ownerTask(void*) {
                     }
                     line(firmware, output);
                 }
+            } else if (pdoCollecting) {
+                bool ended = false;
+                uint8_t byte = command;
+                do {
+                    if (byte == '\r' || byte == '\n') {
+                        ended = true;
+                        break;
+                    }
+                    if (pdoLength < sizeof pdoText)
+                        pdoText[pdoLength] = char(byte);
+                    if (pdoLength <= sizeof pdoText)
+                        ++pdoLength;
+                } while (firmware.platform().takeInput(byte));
+                if (ended) {
+                    pdoCollecting = false;
+                    E::PdoCommand parsed;
+                    if (pdoLength > sizeof pdoText ||
+                        !E::parsePdoCommand(pdoText, pdoLength, parsed)) {
+                        line(firmware, "PDO_LINE refused reason=syntax; no work\n");
+                    } else if (parsed.kind == E::PdoCommandKind::WATCH) {
+                        if (!parsed.seconds) {
+                            line(firmware, watch && watch->requestStop()
+                                               ? "PDOW_STOPPING; final summaries follow\n"
+                                               : "PDOW_STOP refused; none running\n");
+                        } else {
+                            if (!watch)
+                                watch = watchStorage(firmware, tap);
+                            const char* refusal = "memory";
+                            if (watch && firmware.platform().nowUs(now)) {
+                                switch (watch->begin(parsed.seconds, now)) {
+                                case E::PdoWatchAdmission::ACCEPTED:
+                                    refusal = nullptr;
+                                    break;
+                                case E::PdoWatchAdmission::BUSY:
+                                    refusal = "busy";
+                                    break;
+                                default:
+                                    refusal = "invalid";
+                                }
+                            }
+                            if (refusal)
+                                formatLine(output, sizeof output,
+                                           "PDOW refused reason=%s; no work\n", refusal);
+                            else
+                                formatLine(output, sizeof output,
+                                           "PDOW admitted seconds=%lu; copies received frames, "
+                                           "sends nothing\n",
+                                           static_cast<unsigned long>(parsed.seconds));
+                            line(firmware, output);
+                        }
+                    } else if (soakActive || trialHeld) {
+                        line(firmware, "PDO_LINE refused reason=active; no work\n");
+                    } else if (parsed.kind == E::PdoCommandKind::NMT) {
+                        const bool accepted =
+                            acquisition != UINT32_MAX && controllerReady && !dumping &&
+                            !networkDump && !rawRecord && !record && !pdoRecord &&
+                            !nmtRequest.owner &&
+                            admitNmt(firmware, services, parsed.node - 1,
+                                     C::NmtCommand(parsed.nmt), acquisition + 1, nmtRequest);
+                        if (accepted) {
+                            ++acquisition;
+                            nmtReported = false;
+                            formatLine(output, sizeof output,
+                                       "NMT admitted node=%u cmd=%u; addressed, no drive-stop "
+                                       "claim; network observation separate\n",
+                                       unsigned(parsed.node), unsigned(parsed.nmt));
+                            line(firmware, output);
+                        } else {
+                            line(firmware, "NMT refused; no work\n");
+                        }
+                    } else {
+                        const bool write = parsed.kind == E::PdoCommandKind::WRITE;
+                        const unsigned slot = parsed.node - 1;
+                        const uint32_t fields = write ? 3 : 9;
+                        const bool accepted =
+                            controllerReady && !pdoRecord && !dumping && !networkDump &&
+                            !nmtRequest.owner && acquisition != UINT32_MAX &&
+                            pdoGrant[slot] <= UINT32_MAX - fields &&
+                            firmware.platform().nowUs(now) &&
+                            identity(firmware, services, raw, true, parsed.node,
+                                     configured[slot], acquisition + 1, now, false, false,
+                                     &parsed, pdoGrant[slot] + 1);
+                        if (accepted) {
+                            ++acquisition;
+                            pdoGrant[slot] += fields;
+                            reported = false;
+                        }
+                        if (!accepted)
+                            formatLine(output, sizeof output, "%s refused; no work\n",
+                                       write ? "PDO_WRITE" : "PDO_READ");
+                        else if (write)
+                            formatLine(output, sizeof output,
+                                       "PDO_WRITE admitted node=%u set=%u sub=%u baseline=%lu "
+                                       "value=%lu; exact read, one write, exact readback; no "
+                                       "retry\n",
+                                       unsigned(parsed.node), unsigned(parsed.set),
+                                       unsigned(parsed.subindex),
+                                       static_cast<unsigned long>(parsed.baseline),
+                                       static_cast<unsigned long>(parsed.value));
+                        else
+                            formatLine(output, sizeof output,
+                                       "PDO_READ admitted node=%u dir=%c set=%u; nine uploads, "
+                                       "no write\n",
+                                       unsigned(parsed.node), parsed.transmit ? 't' : 'r',
+                                       unsigned(parsed.set));
+                        line(firmware, output);
+                    }
+                }
             } else if (soakCollecting) {
                 if (command != '\r' && command != '\n') {
                     if (soakLength < sizeof soakText)
@@ -748,6 +939,12 @@ void ownerTask(void*) {
                 soakCollecting = true;
                 soakLength = 0;
                 soakCollectUs = firmware.platform().nowUs(now) ? now : 0;
+            } else if (command == 'N' || command == 'P' || command == 'R' || command == 'W') {
+                // A soak or a trial admits only the watch line; the collector refuses the rest.
+                pdoCollecting = true;
+                pdoText[0] = char(command);
+                pdoLength = 1;
+                pdoCollectUs = firmware.platform().nowUs(now) ? now : 0;
             } else if (soakActive && command != 'p' && command != 's' && command != '\r' &&
                        command != '\n') {
                 line(firmware, "SOAK_REFUSED reason=active; no work\n");
@@ -816,21 +1013,12 @@ void ownerTask(void*) {
                                         : "HEARTBEAT refused; no work\n");
             } else if (command == 'q' || command == 'w') {
                 const unsigned slot = command == 'q' ? 0 : 1;
-                const auto* node = services.node(slot);
-                C::NmtTransfer work;
-                if (node)
-                    work.target = node->route;
-                work.command = C::NmtCommand::PRE_OPERATIONAL;
-                work.bus = work.target.binding.endpoint.bus;
-                work.request = acquisition + 1;
-                work.queueTimeoutUs = 250000;
-                const bool timed = firmware.platform().nowUs(now) && now < UINT64_MAX - 5000000;
-                if (timed)
-                    work.deadlineUs = now + 5000000;
-                const bool accepted = timed && acquisition != UINT32_MAX && controllerReady &&
-                                      node && !dumping && !networkDump && !rawRecord && !record &&
-                                      !pdoRecord && !nmtRequest.owner &&
-                                      firmware.owner().admitNmt(work, now, nmtRequest);
+                const bool accepted = acquisition != UINT32_MAX && controllerReady && !dumping &&
+                                      !networkDump && !rawRecord && !record && !pdoRecord &&
+                                      !nmtRequest.owner &&
+                                      admitNmt(firmware, services, slot,
+                                               C::NmtCommand::PRE_OPERATIONAL, acquisition + 1,
+                                               nmtRequest);
                 if (accepted) {
                     ++acquisition;
                     nmtReported = false;
@@ -917,12 +1105,14 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u\n",
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=5 trial=%u motion=%u pdo=1 "
+                           "watch=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),
                            unsigned(silent), unsigned(silentReady), unsigned(soakActive),
                            static_cast<unsigned long long>(firmware.owner().lastTimeUs()),
-                           unsigned(trialHeld), unsigned(route ? route->motionAdmissions() : 0));
+                           unsigned(trialHeld), unsigned(route ? route->motionAdmissions() : 0),
+                           unsigned(watch && watch->active()));
                 line(firmware, output);
             } else if (command == 'c') {
                 bool ready = false;

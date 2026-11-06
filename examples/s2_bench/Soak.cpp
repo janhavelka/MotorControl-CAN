@@ -197,9 +197,22 @@ TwaiDriver SoakTwaiTap::driver() noexcept {
         const SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
         return self.inner_.events(self.inner_.context);
     };
+    // Runs on the owner task, never in an ISR: CanBusOwner::service calls Transport::receive,
+    // TwaiAdapter forwards it here with its turn time as the cutoff, and IdfTwaiDriver::receive
+    // refuses any other task. Its ISR fills only the driver's own FIFO, so the copy needs no lock.
     result.receive = [](void* p, MotorControlCANOwner::ReceivedFrame& frame, uint64_t cutoff) {
-        const SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
-        return self.inner_.receive(self.inner_.context, frame, cutoff);
+        SoakTwaiTap& self = *static_cast<SoakTwaiTap*>(p);
+        const bool received = self.inner_.receive(self.inner_.context, frame, cutoff);
+        if (received && self.ring_) {
+            ReceiveRing& ring = *self.ring_;
+            if (ring.count == ReceiveRing::CAPACITY)
+                add(ring.dropped);
+            else {
+                ring.frames[(ring.head + ring.count) % ReceiveRing::CAPACITY] = frame;
+                ++ring.count;
+            }
+        }
+        return received;
     };
     return result;
 }
@@ -208,6 +221,21 @@ bool SoakTwaiTap::take(SoakSubmission& output) noexcept {
         return false;
     output = latest_;
     present_ = false;
+    return true;
+}
+void SoakTwaiTap::copyReceives(ReceiveRing* ring) noexcept {
+    if (ring) {
+        ring->head = ring->count = 0;
+        ring->dropped = 0;
+    }
+    ring_ = ring;
+}
+bool SoakTwaiTap::takeReceived(MotorControlCANOwner::ReceivedFrame& output) noexcept {
+    if (!ring_ || !ring_->count)
+        return false;
+    output = ring_->frames[ring_->head];
+    ring_->head = uint8_t((ring_->head + 1) % ReceiveRing::CAPACITY);
+    --ring_->count;
     return true;
 }
 
