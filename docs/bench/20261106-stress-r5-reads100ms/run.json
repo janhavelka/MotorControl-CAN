@@ -1,0 +1,123 @@
+{
+  "status": "captured",
+  "reason": "end:duration",
+  "ended_utc": "2026-11-06T06:48:15.239964+00:00",
+  "trials": [
+    {
+      "trial": 1793936894,
+      "directory": "trial-01",
+      "verdict": "incomplete",
+      "errors": [
+        {
+          "code": "malformed_line",
+          "line": 461,
+          "detail": "duplicate field n"
+        },
+        {
+          "code": "malformed_line",
+          "line": 13336,
+          "detail": "bad value hb=pped=0"
+        },
+        {
+          "code": "malformed_line",
+          "line": 51279,
+          "detail": "duplicate field n"
+        },
+        {
+          "code": "malformed_line",
+          "line": 75886,
+          "detail": "duplicate field t"
+        },
+        {
+          "code": "malformed_line",
+          "line": 84932,
+          "detail": "missing trLost,dumpUs,defDump"
+        },
+        {
+          "code": "malformed_line",
+          "line": 92825,
+          "detail": "duplicate field t"
+        },
+        {
+          "code": "malformed_line",
+          "line": 101887,
+          "detail": "duplicate field n"
+        },
+        {
+          "code": "malformed_line",
+          "line": 118848,
+          "detail": "missing hbGapMax,stopped"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 462,
+          "detail": "expected 458 found 460"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 13337,
+          "detail": "expected 13334 found 13335"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 51280,
+          "detail": "expected 51277 found 51279"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 75887,
+          "detail": "expected 75885 found 75887"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 84933,
+          "detail": "expected 84932 found 84933"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 92826,
+          "detail": "expected 92825 found 92827"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 101888,
+          "detail": "expected 101888 found 101890"
+        },
+        {
+          "code": "soak_line_gap",
+          "line": 118849,
+          "detail": "expected 118850 found 118851"
+        }
+      ],
+      "error_count": 16,
+      "warning_count": 0,
+      "soak": {
+        "trial": 1793936894,
+        "end": "duration",
+        "lines": {
+          "SOAK_BEGIN": 1,
+          "SOAK_TR": 75,
+          "SOAK_SUM": 10799,
+          "SOAK_GAP": 10799,
+          "SOAK_CON": 10798,
+          "SOAK_NODE": 21594,
+          "SOAK_HIST": 21593,
+          "SOAK_OUT": 21595,
+          "SOAK_ABORT": 21598,
+          "SOAK_END": 1
+        },
+        "anomalies": {},
+        "nodes_stopped": {},
+        "lost_lines": 13,
+        "signals": 71,
+        "note_counts": {
+          "soak_line_gap": 8
+        }
+      },
+      "unknown": 0,
+      "malformed": 8,
+      "bytes": 16724707,
+      "sha256": "cbac610202e08b7d391c8bb0df8449fee07509cb64c7cdefc7c0966b23041a5c"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{"number": 1, "trial": 1793936894, "remaining_s": 10799, "usb": {"port": "COM15", "serial": "94A990398B40", "vid": 12346, "pid": 4098}, "event": "trial_start", "utc": "2026-11-06T03:48:14.107774+00:00"}
+{"trial": 1793936894, "tx_hex": "70", "text": "p", "event": "send", "utc": "2026-11-06T03:48:14.390514+00:00"}
+{"trial": 1793936894, "base": "2920479b73c7693c908953055cd9e25dcd944f47", "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9", "active": 0, "running": 0, "soak": 0, "event": "ping", "utc": "2026-11-06T03:48:14.413314+00:00"}
+{"trial": 1793936894, "tx_hex": "63", "text": "c", "event": "send", "utc": "2026-11-06T03:48:14.413314+00:00"}
+{"trial": 1793936894, "tx_hex": "53313739333933363839342c31303739392c3130302c312c330a", "text": "S1793936894,10799,100,1,3", "event": "send", "utc": "2026-11-06T03:48:14.424915+00:00"}
+{"trial": 1793936894, "reason": "end:duration", "bytes": 16724707, "event": "trial_end", "utc": "2026-11-06T06:48:13.712495+00:00"}
+{"trial": 1793936894, "verdict": "incomplete", "errors": 16, "soak": {"trial": 1793936894, "end": "duration", "lines": {"SOAK_BEGIN": 1, "SOAK_TR": 75, "SOAK_SUM": 10799, "SOAK_GAP": 10799, "SOAK_CON": 10798, "SOAK_NODE": 21594, "SOAK_HIST": 21593, "SOAK_OUT": 21595, "SOAK_ABORT": 21598, "SOAK_END": 1}, "anomalies": {}, "nodes_stopped": {}, "lost_lines": 13, "signals": 71, "note_counts": {"soak_line_gap": 8}}, "sha256": "cbac610202e08b7d391c8bb0df8449fee07509cb64c7cdefc7c0966b23041a5c", "event": "verdict", "utc": "2026-11-06T06:48:15.240964+00:00"}

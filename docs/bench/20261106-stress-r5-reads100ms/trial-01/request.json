@@ -1,0 +1,30 @@
+{
+  "command": "soak",
+  "trial": 1793936894,
+  "trial_number": 1,
+  "started_utc": "2026-11-06T03:48:14.107774+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "baud": 115200,
+  "reset": false,
+  "retry": false,
+  "status": "captured",
+  "prefix_bytes": 0,
+  "image": {
+    "base": "2920479b73c7693c908953055cd9e25dcd944f47",
+    "elf": "217e873bb9d554b7a6f4df8f10a8cd318f769e13cbc536e43c2b898a552e58b9",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "tx_hex": "53313739333933363839342c31303739392c3130302c312c330a",
+  "duration_s": 10799,
+  "interval_ms": 100,
+  "summary_s": 1,
+  "reads": "full",
+  "began_utc": "2026-11-06T03:48:14.488949+00:00",
+  "ended_utc": "2026-11-06T06:48:13.708482+00:00",
+  "reason": "end:duration",
+  "bytes": 16724707,
+  "host_waiting_high_water": 239,
+  "host_keepalives": 0
+}

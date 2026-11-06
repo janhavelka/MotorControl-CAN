@@ -105,9 +105,24 @@ The runner refuses read intervals under 20 ms (`--interval-ms must be 20..60000`
 
 **No byte was ever altered.** In R1 to R4, 67.2 MB of console capture, no line holds a byte outside printable ASCII, and every damaged line is a clean splice. Electrical noise on the S2-to-bridge UART would sometimes corrupt bytes; it never did, so the loss is a deletion in the data path, not a corrupted signal.
 
-| Run | Reads | Operations per second | Bursts | Losses | Per burst |
-| --- | --- | --- | --- | --- | --- |
-| R1 | 20 ms | 34 | 10,686 | 182 | 1.7% |
-| R2 | 20 ms | 34 | 10,672 | 212 | 2.0% |
-| R4 | 50 ms | 20 | 10,799 | 72 | 0.67% |
-| R3 | 200 ms | 5 | 10,791 | 0 | 0 |
+### R5: 100 ms reads, 1 s summaries
+
+[`20261106-stress-r5-reads100ms`](../bench/20261106-stress-r5-reads100ms/transitions.txt), 03:48Z to 06:48Z, fresh S2 reset.
+
+**CAN: clean.** 53,995 and 53,994 operations per node, all successful; TEC and REC 0, largest gap 4.2 ms, 0 slips, no signal change after the first replies.
+
+**Console: 8 losses in 10,799 bursts (0.07%)**, between 375 and 1,421 bytes into a burst; no byte outside printable ASCII.
+
+### The loss against the read rate
+
+All five runs used the same image and 1 s summaries, so they differ only in the read interval:
+
+| Run | Reads | Operations per second | Slips | Bursts | Losses | Per burst |
+| --- | --- | --- | --- | --- | --- | --- |
+| R1 | 20 ms | 34 | 140,119 | 10,686 | 182 | 1.7% |
+| R2 | 20 ms | 34 | 140,026 | 10,672 | 212 | 2.0% |
+| R4 | 50 ms | 20 | 0 | 10,799 | 72 | 0.67% |
+| R5 | 100 ms | 10 | 0 | 10,799 | 8 | 0.07% |
+| R3 | 200 ms | 5 | 0 | 10,791 | 0 | 0 |
+
+**The loss rises much faster than the read rate.** Doubling it from 10 to 20 operations per second multiplied the loss by about 9. That fits a loss that needs several CAN service events to coincide within one stretch of console output, more than one proportional to the frames sent, but it is a shape, not a mechanism. **Practical rule from these runs:** at up to 5 read operations per second the console stayed lossless for 3 h; above that, expect detected losses and keep relying on the line numbering. The CAN side never lost a read in any run, so none of this affects the library's evidence.
