@@ -378,7 +378,7 @@ changes show only in its rate-limited `SOAK_TR` chain and in the summary's cumul
 Before this, a lasting fault kept the queue full: after the drives stopped acknowledging on
 2026-11-03, `twaiErrors` raised one anomaly per pass, about a million lines, and no summary
 printed for 3 h. The first two anomalies of each kind get a dump, sixteen in a soak; the rest are
-one line each and counted (`dumpSkip`). Every line fits the 416-byte line buffer with each field at
+one line each and counted (`dumpSkip`). Every line fits the 448-byte line buffer with each field at
 its type's maximum, and the console queue takes 512 bytes.
 
 In `SOAK_CON`, `blocked` counts turns a formatted line waited for room. `conRej` is the console's
@@ -393,9 +393,22 @@ one operation, both grow every minute by design: the run is bound by the drives'
 the soak takes it, so each single-frame request by an earlier command on the same boot replaces
 an untaken one. A constant value through a soak is that history, not loss during it.
 
+`uartBytes` and `queued` (images from 2026-11-06 on; optional in the grammar) are taken when
+`SOAK_CON` is formatted: the bytes the UART FIFO accepted since boot, modulo 2^32, and the bytes
+still in the console queue. Their sum is the line's position in the S2's output stream, so
+`scripts/s2_console_account.py rx.bin` compares, between consecutive `SOAK_CON` lines, the
+bytes the S2 admitted with the bytes the host received. A shortfall is bytes the UART FIFO had
+accepted that never reached the host: lost on the UART line, in the bridge, in USB or in the
+host driver, which these counters cannot tell apart. FIFO acceptance is not host receipt. The
+position is exact unless another writer's output (a `PONG`, a watch line) was admitted while
+the formatted line waited for room; such windows are marked. Overhead: one 32-bit increment per
+accepted byte, at most 39 more bytes per summary (0.3% of the 115200-baud line at 1 s summaries)
+and 32 bytes of line buffer; the service budgets are unchanged.
+
 The host checks every line's `n`. A gap or a malformed line in the digest, while the firmware's
-`lines` stays contiguous, is loss between the S2's UART and pyserial. These losses, each a whole
-transfer of up to 64 bytes, are analysed in the [soak report](reports/2026-11-03_overnight_soak.md).
+`lines` stays contiguous, is loss between the S2's UART and pyserial. These losses, each a deletion of at most 64 bytes
+in the host bytes, are analysed in the [soak report](reports/2026-11-03_overnight_soak.md) and
+the [stress report](reports/2026-11-05_motion_and_stress.md#overnight-communication-stress).
 An `OUTPUT_FORMAT_ERROR` line is different: the firmware itself could not format that line.
 
 Timing effects, all in the summary so they can be accounted for: formatting costs a share of a

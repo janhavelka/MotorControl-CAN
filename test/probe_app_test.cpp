@@ -232,6 +232,8 @@ void pressureAndBytes() {
     CHECK(rig.platform.stats().outputUsed == E::ProbePlatform::OUTPUT_CAPACITY &&
           rig.platform.stats().outputRejected == 1);
     CHECK(rig.bytes.outputCount == 0 && rig.bytes.idleCalls > 0);
+    // A byte the platform refused is not written; admission alone counts nothing.
+    CHECK(rig.platform.stats().outputWritten == 0);
     // Full input drops newest; embedded zero and FIFO byte ownership survive.
     for (unsigned i = 0; i < 64; ++i) {
         uint8_t value = 255;
@@ -243,12 +245,16 @@ void pressureAndBytes() {
     rig.turn(rig.now + 1);
     CHECK(rig.bytes.outputCount == E::ProbePlatform::OUTPUT_BUDGET &&
           rig.platform.stats().outputUsed == E::ProbePlatform::OUTPUT_CAPACITY - E::ProbePlatform::OUTPUT_BUDGET);
+    CHECK(rig.platform.stats().outputWritten == E::ProbePlatform::OUTPUT_BUDGET);
     // Original copied submission cannot change when its input is overwritten.
     std::memset(output, 0xee, sizeof output);
     while (rig.platform.stats().outputUsed)
         rig.turn(rig.now + 1);
     for (unsigned i = 0; i < sizeof output; ++i)
         CHECK(rig.bytes.output[i] == static_cast<uint8_t>(i));
+    // Written plus queued is every admitted byte: the position of the next submission.
+    CHECK(rig.platform.stats().outputWritten == rig.bytes.outputCount &&
+          rig.platform.stats().outputWritten == E::ProbePlatform::OUTPUT_CAPACITY);
     CHECK(rig.fake.transmitted() == 9 && rig.app.releaseRead());
 }
 void timeAndCallbacks() {

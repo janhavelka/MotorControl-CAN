@@ -310,7 +310,8 @@ GRAMMAR = (
         "heap:u heapMin:u tec:u? rec:u?", "t"),
     Row("SOAK_CON", "SOAK_CON ", "soak",
         "n:u t:u lines:u blocked:u conRej:u conHw:u evFull:u evLimit:u evHw:u anomalies:u dumps:u dumpSkip:u "
-        "dumpAb:u trLost:u dumpUs:u defDump:u defBusy:u defTx:u defInh:u slips:u sdkDefer:u", "t"),
+        "dumpAb:u trLost:u dumpUs:u defDump:u defBusy:u defTx:u defInh:u slips:u sdkDefer:u uartBytes:u? "
+        "queued:u?", "t"),
     Row("SOAK_NODE", "SOAK_NODE ", "soak",
         "n:u t:u node:u ops:u opsOk:u opsFail:u refused:u steps:u stepsOk:u min:u mean:u max:u retireMax:u "
         "earlyReply:u hb:u hbGapMax:u stopped:b", "t"),

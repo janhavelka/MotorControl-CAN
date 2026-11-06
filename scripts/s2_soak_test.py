@@ -725,6 +725,15 @@ def check_transcript(path):
     categories = {entry["category"] for entry in transitions.entries}
     if categories != {"health", "nmt", "status", "controller"}:
         problems.append("transition categories %s" % sorted(categories))
+    # The transcript is every byte the fake UART accepted, including a blocked spell, so the
+    # firmware's own counters must account for it exactly in every window.
+    import io
+    import s2_console_account
+    # The fake UART has no line rate, so the wire-capacity plausibility bound is set out of reach.
+    summary = s2_console_account.account(io.BytesIO(data), baud=10 ** 12)
+    if summary["compared"] < 2 or summary["balanced"] != summary["windows"] or summary["without_counters"]:
+        problems.append("console accounting %s" % {key: summary[key] for key in (
+            "soak_con", "without_counters", "compared", "balanced", "reported")})
     return problems
 
 

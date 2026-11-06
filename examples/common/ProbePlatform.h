@@ -22,10 +22,15 @@ struct ProbeCallbacks {
     void (*idle)(void*) =
         nullptr; ///< Optional one bounded idle/diagnostic opportunity; never waits for I/O.
 };
-/** Cached platform pressure; each total saturates at UINT32_MAX. */
+/** Cached platform pressure. Each total saturates at UINT32_MAX, except outputWritten, which
+ * wraps so that a receiver can compare differences over any duration.
+ */
 struct ProbeIoStats {
     uint32_t inputDropped = 0;   ///< Newest consumed input bytes dropped at full input capacity.
     uint32_t outputRejected = 0; ///< Whole output submissions refused for insufficient capacity.
+    /** Queued bytes that writeByte accepted since construction, modulo 2^32. Acceptance by the
+     * platform (for example a UART FIFO) is not receipt by the far end. */
+    uint32_t outputWritten = 0;
     uint8_t inputUsed = 0;       ///< Current buffered bytes, including embedded zero.
     uint16_t outputUsed = 0;     ///< Current queued bytes; partial platform writes preserve suffix.
 };

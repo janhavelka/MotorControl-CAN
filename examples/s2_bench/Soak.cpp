@@ -1054,7 +1054,8 @@ bool Soak::formatSummary(uint64_t now) noexcept {
         const ProbeIoStats io = firmware_.platform().stats();
         return put("SOAK_CON n=%lu t=%llu lines=%lu blocked=%lu conRej=%lu conHw=%u evFull=%lu evLimit=%lu "
                    "evHw=%u anomalies=%lu dumps=%lu dumpSkip=%lu dumpAb=%lu trLost=%lu dumpUs=%llu "
-                   "defDump=%lu defBusy=%lu defTx=%lu defInh=%lu slips=%lu sdkDefer=%lu\n",
+                   "defDump=%lu defBusy=%lu defTx=%lu defInh=%lu slips=%lu sdkDefer=%lu uartBytes=%lu "
+                   "queued=%u\n",
                    n, t, static_cast<unsigned long>(p.lines), static_cast<unsigned long>(p.blockedTurns),
                    static_cast<unsigned long>(io.outputRejected), unsigned(p.consoleHighWater),
                    static_cast<unsigned long>(p.eventsFull), static_cast<unsigned long>(p.eventsLimited),
@@ -1064,7 +1065,8 @@ bool Soak::formatSummary(uint64_t now) noexcept {
                    static_cast<unsigned long long>(p.dumpUs), static_cast<unsigned long>(p.deferDump),
                    static_cast<unsigned long>(p.deferBusy), static_cast<unsigned long>(p.deferTx),
                    static_cast<unsigned long>(p.deferInhibited), static_cast<unsigned long>(p.slips),
-                   static_cast<unsigned long>(tap_.deferred()));
+                   static_cast<unsigned long>(tap_.deferred()), static_cast<unsigned long>(io.outputWritten),
+                   unsigned(io.outputUsed));
     }
     const unsigned part = (cursor - 3) % 4, slot = (cursor - 3) / 4;
     const SoakNodeStats& node = s_.nodes[slot];
