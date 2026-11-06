@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Bench continuation packet 6: PDO measurement record and runner fixes (2026-11-06)
+
+- `scripts/s2_pdo.py`: the terminal check now follows the command letter, and every checked command (`N`, `R`, `W`, `h`, `j`, `3`, `4`) must name its exact admission and end lines, so a plan's expect text cannot loosen it. `q`, `w` and `m` are no longer offered in plans. A step may carry `require`, fail-closed predicates on the latest parsed record (for example a `NETWORK` state or a `RESULT` value), checked before it is sent. Sessions record the SHA-256 of the runner and parser and a tracked-files-only dirty state.
+- Bench firmware: the NMT result line prints its admission time (`admitted=`, optional in the grammar), and `s2_pdo.py analyze` counts frames received between admission and TX completion as ambiguous. Not yet flashed.
+- The [PDO stream report](docs/reports/2026-11-06_pdo_stream.md), device conflicts Q17/Q18 and backlog D15 are narrowed to the measured bounds after an independent review; the ledger's Q17 records the 2026-11-06 observations, regenerated; the [packet 6 record](docs/reports/bench_closure_18_33/packet_6.md) lists the deviations and holds the transition record for packet 7.
+
 ### Bench continuation packet 1: measured contracts reconciled (2026-11-06)
 
 - **Behavior fix, `QUICK_STOP` standstill rule:** the rule completed on one cycle with `606C` zero after any cycle with `6064` unchanged, whatever that earlier cycle's `606C` was, although `Actions.h`, the stop guide and the 2026-11-04 entry below say two cycles in a row with `606C` zero. Both cycles must now read zero. Test `capturedQuickStopsDuringMoves` replays trials 713 (node 2, `2920479`) and 413 (node 1, `e7f28ac`) from their captures, which complete at their third cycle either way, and a `606C` pair {5, 0} at an unchanged `6064`, which completed early without the fix.

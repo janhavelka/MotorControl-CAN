@@ -101,7 +101,18 @@ class PlanTest(unittest.TestCase):
                     plan({"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted"}),  # no terminal to check
                     plan({"send": "N1,o", "expect": "NMT admitted", "end": "END raw"}),
                     plan({"send": "h", "expect": "HEARTBEAT experiment admitted"}),
-                    plan({"send": "4", "expect": "IDENTITY admitted"})):
+                    plan({"send": "4", "expect": "IDENTITY admitted"}),
+                    # The terminal check follows the command, so its expect text cannot loosen it.
+                    plan({"send": "N1,o", "expect": "NMT", "end": "NMT request"}),
+                    plan({"send": "W1,0,5,0,100", "expect": "PDO_WRITE", "end": "END raw"}),
+                    plan({"send": "R1,t,0", "expect": "PDO_READ", "end": "END raw"}),
+                    # q, w and m change drive or network state with no checked terminal here.
+                    plan({"send": "q", "expect": "NMT Pre-operational admitted"}),
+                    plan({"send": "w", "expect": "NMT Pre-operational admitted"}),
+                    plan({"send": "m", "expect": "PDO admitted"}),
+                    plan({"wait_s": 1, "require": []}),
+                    plan({"wait_s": 1, "require": [{"kind": "NETWORK"}]}),
+                    plan({"wait_s": 1, "require": [{"kind": "NETWORK", "match": {"state": 127}, "x": 1}]})):
             with self.assertRaises(pdo.SessionError):
                 pdo.check_plan(bad)
         with self.assertRaises(pdo.SessionError):
@@ -217,6 +228,63 @@ class RunTest(unittest.TestCase):
         code, meta, _ = self.session(board, [{"send": "N2,o", "expect": "NMT admitted", "end": "NMT request"}])
         self.assertEqual(meta["steps"][0]["problem"], "nmt_wrong_request")
 
+    def test_requirements_gate_a_step_before_it_is_sent(self):
+        network = (b"NETWORK node=2 epoch=1 state=127 qualified=1 producerKnown=1 ms=1000 pending=0 observed=0 "
+                   b"expired=0 exact=0 bounds=1 lo=1 hi=2 p=3 dropped=0\n"
+                   b"END network; boot-up requires an actual observed00 frame; no inferred reset\n")
+        start = (b"NMT admitted node=2 cmd=1; addressed\n"
+                 b"NMT request=4 target=2 cmd=1 outcome=0 possible=1 txConfirmed=1 completed=900; x\n")
+        steps = lambda state: [{"send": "n", "expect": "NETWORK", "end": "END network"},
+                               {"send": "N2,o", "expect": "NMT admitted", "end": "NMT request",
+                                "require": [{"kind": "NETWORK", "where": {"node": 2},
+                                             "match": {"state": state, "qualified": 1}}]}]
+        board = Board({b"n": network, b"N2,o\n": start})
+        code, meta, _ = self.session(board, steps(127))
+        self.assertEqual((code, meta["reason"]), (0, "completed"))
+        self.assertEqual(board.writes, [b"p", b"n", b"N2,o\n"])
+        # The required Pre-operational state is not what the capture shows: the Start is never sent.
+        board = Board({b"n": network.replace(b"state=127", b"state=5"), b"N2,o\n": start})
+        code, meta, _ = self.session(board, steps(127))
+        self.assertEqual((code, meta["reason"]), (1, "requirement_failed"))
+        self.assertIn("state=5", meta["steps"][1]["problem"])
+        self.assertEqual(board.writes, [b"p", b"n"])
+        # No such record at all also fails closed.
+        board = Board({b"N2,o\n": start})
+        code, meta, _ = self.session(board, steps(127)[1:])
+        self.assertEqual(meta["reason"], "requirement_failed")
+        self.assertEqual(board.writes, [b"p"])
+        # A baseline value read earlier can be required too; RESULT objects are named as in the grammar.
+        reading = ("\n".join(["PDO_READ admitted node=1 dir=t set=0; nine uploads, no write",
+                              "RAW id=9 node=1 failure=0 lost=0 terminals=9 traffic=0 tail=0 tailLost=0 gap=10"] +
+                             [result(i + 1, o, s, d) for i, (o, s, d) in enumerate(
+                                 [("1800:01", 4, "81010000"), ("1800:02", 1, "ff000000"),
+                                  ("1800:03", 2, "64000000"), ("1800:05", 2, "00000000"),
+                                  ("1a00:00", 1, "03000000"), ("1a00:01", 4, "10004160"),
+                                  ("1a00:02", 4, "08006160"), ("1a00:03", 4, "20006460"),
+                                  ("1a00:04", 4, "00000000")])] +
+                             ["END raw terminals=9 traffic=0 tail=0 tailLost=0 lost=0; r=release"]) + "\n").encode()
+        write = ("\n".join(["PDO_WRITE admitted node=1 set=0 sub=5 baseline=0 value=100; exact read, one write",
+                            "RAW id=10 node=1 failure=0 lost=0 terminals=3 traffic=0 tail=0 tailLost=0 gap=10",
+                            result(1, "1800:05", 2, "00000000"), result(2, "1800:05", 0, "00000000"),
+                            result(3, "1800:05", 2, "64000000"),
+                            "END raw terminals=3 traffic=0 tail=0 tailLost=0 lost=0; r=release"]) + "\n").encode()
+        for wanted, outcome in (("00000000", "completed"), ("64000000", "requirement_failed")):
+            board = Board({b"R1,t,0\n": reading, b"r": b"RELEASED record; channel uncertainty unchanged\n",
+                           b"W1,0,5,0,100\n": write})
+            code, meta, _ = self.session(board, [
+                {"send": "R1,t,0", "expect": "PDO_READ admitted", "end": "END raw"},
+                {"send": "r", "expect": "RELEASED record"},
+                {"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted", "end": "END raw",
+                 "require": [{"kind": "RESULT", "where": {"object": "1800:05"}, "match": {"data": wanted}},
+                             {"kind": "RESULT", "where": {"object": "1800:02"}, "match": {"data": "ff000000"}}]}])
+            self.assertEqual(meta["reason"], outcome)
+            self.assertEqual(board.writes[-1] == b"W1,0,5,0,100\n", outcome == "completed")
+
+    def test_session_names_its_tools(self):
+        code, meta, _ = self.session(Board(), [{"wait_s": 0.05}])
+        self.assertEqual(set(meta["tools"]), {"s2_pdo.py", "s2_evidence.py"})
+        self.assertTrue(all(len(digest) == 64 for digest in meta["tools"].values()))
+
     def test_identity_and_existing_output_refuse(self):
         root = Path(tempfile.mkdtemp())
         path = root / "plan.json"
@@ -299,6 +367,24 @@ class AnalyzeTest(unittest.TestCase):
         self.assertEqual((preop["nmt"], preop["last_before"], preop["frames_after"]), ("pre-operational", 210050, 1))
         self.assertEqual(watch["ids"]["701"]["heartbeat_states"], [(399000, "05")])
         self.assertEqual(report["pdo_records"][0]["results"][5]["data"], "20006460")
+
+    def test_frames_between_admission_and_tx_completion_are_ambiguous(self):
+        frame = ("PDOW_F n=%d t=%d id=182 ext=0 rtr=0 dlc=7 data=50400135030000 timed=1 exact=0 "
+                 "lo=%d hi=%d gap=0")
+        lines = ["PDOW_BEGIN n=0 t=1 seconds=5 ring=32 ids=16",
+                 frame % (1, 1000, 990, 1000),     # before the admission: before the request
+                 frame % (2, 2600, 2400, 2500),    # inside [admitted, completed]: order unknown
+                 "NMT request=4 target=2 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=3000 "
+                 "admitted=2000; retained",
+                 frame % (3, 3600, 3400, 3500)]    # after the TX completion
+        watch = self.capture(lines)["watches"][0]
+        around = watch["ids"]["182"]["around_nmt"][0]
+        self.assertEqual((around["admitted"], around["last_before"], around["ambiguous"], around["first_after"],
+                          around["frames_after"]), (2000, 1000, 1, 3500, 1))
+        # A record without an admission time keeps the old split at the TX completion.
+        legacy = self.capture([line.replace(" admitted=2000", "") for line in lines])["watches"][0]
+        old = legacy["ids"]["182"]["around_nmt"][0]
+        self.assertEqual((old["admitted"], old["last_before"], old["ambiguous"]), (None, 2500, 0))
 
     def test_console_gap_and_abort_are_reported(self):
         lines = ["PDOW_BEGIN n=0 t=1 seconds=5 ring=32 ids=16",
