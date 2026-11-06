@@ -23,7 +23,8 @@ remains Q20 gated; the inventory below retains later operation/CLI owners.
 
 [Prompt 18](reports/prompt_18.md) is Partial: the fixed TPDO1 map subset in
 `PdoConfiguration.h` is implemented and specimen-observed, and the `EVENT_TIMER`
-transition (`1800:05` raw 0 or 100, CL86-C, Pre-operational) is implemented and host-tested,
+transition (`1800:05` raw 0 or 100, CL86-C, Pre-operational) is implemented, host-tested and
+replayed once on node 2 in both directions,
 with its native caller in `examples/pdo_configuration_preview`. Broader remapping, other
 timer values and sample qualification stay gated by Q17, and no CLI route is implemented.
 `configurePdo` installs host map evidence only; raw SDO access and EDS metadata

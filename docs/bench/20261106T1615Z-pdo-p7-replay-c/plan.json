@@ -1,0 +1,138 @@
+{
+  "purpose": "Bench continuation packet 7 replay, continued from 1614Z-pdo-p7-replay-b, which completed E2,100 (node 2 1800:05 raw 0 to 100, confirmed) and then stopped because the plan expected the wrong release line after a PDO record. Here: independent readback of node 2's TPDO1; packet 6's NMT boundary rerun with the admission time (stream at raw 100 in Operational, then Enter Pre-operational); the separate restoration E2,0; final readback and a node 1 regression. Final intended state: both nodes Pre-operational, 1800:05 raw 0 on both.",
+  "authorization": "user 2026-11-06: bench continuation packets 1-8 assigned (standing bench authorization, docs/prompts/COMMON.md); packet 7 requires one replay of the supported transition with readback and a short regression; packet 6 lists the NMT boundary rerun on the next image",
+  "steps": [
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "require": [
+        {
+          "kind": "NETWORK",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "state": 127,
+            "qualified": 1
+          }
+        }
+      ],
+      "note": "independent readback after E2,100: expect event 100, other fields unchanged"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P60",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 2,
+      "note": "Pre-operational with raw 100 configured: no periodic TPDO1 expected"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "require": [
+        {
+          "kind": "NETWORK",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "state": 127
+          }
+        }
+      ],
+      "note": "Start node 2: TPDO1 periodic at about 101 ms expected"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "packet 6 boundary rerun: frames between admission and TX completion are ambiguous"
+    },
+    {
+      "wait_s": 3,
+      "note": "no TPDO1 frame expected after the boundary"
+    },
+    {
+      "send": "P0",
+      "expect": "PDOW_STOPPING",
+      "end": "PDOW_END",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "E2,0",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 20,
+      "require": [
+        {
+          "kind": "NETWORK",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "state": 127,
+            "qualified": 1
+          }
+        }
+      ],
+      "note": "separate restoration to raw 0 in Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "final readback of node 2: expect event 0"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "regression: node 1 TPDO1 unchanged (event 0)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    }
+  ]
+}

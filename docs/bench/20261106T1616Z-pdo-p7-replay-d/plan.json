@@ -1,0 +1,102 @@
+{
+  "purpose": "Recovery and completion after 1615Z-pdo-p7-replay-c: node 2 was started (Operational, TPDO1 periodic at raw 100) and the following Enter Pre-operational was refused because the Start's NMT result was still retained (the plan omitted its release). Here: release the NMT result, watch the running stream, Enter Pre-operational (packet 6's boundary rerun with the admission time), restore 1800:05 raw 0 with E2,0, final readbacks of both nodes. Final intended state: both nodes Pre-operational, 1800:05 raw 0 on both.",
+  "authorization": "user 2026-11-06: bench continuation packets 1-8 assigned (standing bench authorization, docs/prompts/COMMON.md); returning node 2 to its documented Pre-operational state and restoring the raw 0 baseline",
+  "steps": [
+    {
+      "send": "r",
+      "expect": "NMT result released",
+      "note": "release the retained Start result"
+    },
+    {
+      "send": "P60",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 2,
+      "note": "node 2 Operational: TPDO1 periodic at about 101 ms"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "packet 6 boundary rerun: frames between admission and TX completion are ambiguous"
+    },
+    {
+      "wait_s": 3,
+      "note": "no TPDO1 frame expected after the boundary"
+    },
+    {
+      "send": "P0",
+      "expect": "PDOW_STOPPING",
+      "end": "PDOW_END",
+      "end_timeout_s": 20
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2,
+      "note": "a heartbeat 7F from node 2 after Pre-operational"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "E2,0",
+      "expect": "PDO_CONFIG admitted",
+      "end": "END PDO",
+      "end_timeout_s": 20,
+      "require": [
+        {
+          "kind": "NETWORK",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "state": 127,
+            "qualified": 1
+          }
+        }
+      ],
+      "note": "separate restoration to raw 0 in Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "PDO record released"
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "final readback of node 2: expect event 0"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "regression: node 1 TPDO1 unchanged (event 0)"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5,
+      "note": "final network state"
+    }
+  ]
+}

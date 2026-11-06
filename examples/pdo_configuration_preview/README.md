@@ -36,7 +36,7 @@ returns zero only when all of that holds.
 bench specimens raw 100 gave periods of about 101 ms on the S2's clock while
 Operational, and raw 0 sent no periodic frame while stationary; neither fact is
 claimed here. The transition is CL86-C only (an OL86-C reservation is refused)
-and is host-tested, awaiting its first bench replay. A confirmed map qualifies no PDO sample. A real application
+and is host-tested; the bench `E` line replayed it once on node 2 in both directions on 2026-11-06. A confirmed map qualifies no PDO sample. A real application
 obtains each terminal from its sole service owner, withdraws dependent maps when
 `notePdoConfigurationTransmission` succeeds, and never retries or rolls back. The
 [service guide](../../docs/canopen_services.md#lichuan-tpdo1-configuration-subset)

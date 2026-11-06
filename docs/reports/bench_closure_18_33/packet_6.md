@@ -61,9 +61,12 @@ Tests: `s2_pdo_contract` (17 tests, each fix with its regression; the requiremen
 
 Q17 in the ledger now carries these facts as observations; its gate stays open.
 
+## NMT boundary rerun, 2026-11-06 16:16Z
+
+On image `f2c90ab`, whose NMT line prints its admission time, in the packet 7 session [1616Z-d](../../bench/20261106T1616Z-pdo-p7-replay-d/). Node 2 was Operational with TPDO1 at raw 100. The watch was running and `N2,p` was admitted at 344172616 µs, TX completed at 344177947 µs (5.3 ms later). The last TPDO1 frame arrived at 344126913 µs, 45.7 ms before admission. No frame fell between admission and completion, and none followed in 3 s. The next periodic slot, about 344227890 µs, lay after completion. Node 2's heartbeat changed from `05` to `7f` 236 ms after completion. At the Start in [1615Z-c](../../bench/20261106T1615Z-pdo-p7-replay-c/), the frames each TPDO sends at Start fell between admission and completion and are counted as ambiguous. The first periodic TPDO1 frame came 100.1 ms after completion. One boundary on one node, on the S2's receive clock; it narrows packet 6's split and establishes no general rule.
+
 ## Next measurements
 
-- The NMT boundary with the new admission time, on the next image.
 - A change-driven frame through one finite move, with the watch running.
 - Inhibit through a faster evidenced event source.
 - Persistence: one power cycle after a change, then a read.

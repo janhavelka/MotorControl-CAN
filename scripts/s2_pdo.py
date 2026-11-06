@@ -62,6 +62,13 @@ CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END
            "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
            "4": ("IDENTITY admitted", "END raw")}
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
+# The record each command leaves held, and the reply of the r that releases it. The bench firmware
+# admits R, W, E, h, j, 3, 4 and m only with no NMT result and no PDO record held, and N only with
+# no record of any kind held (examples/s2_bench/main/main.cpp, each command's accepted condition).
+# The 2026-11-06 replay plans stopped twice: once expecting the wrong release line after E, once
+# leaving node 2 Operational because an N's result was never released before the next N.
+HOLDS = {"R": "raw", "W": "raw", "h": "raw", "j": "raw", "3": "raw", "4": "raw", "E": "pdo", "N": "nmt"}
+RELEASE_LINES = {"raw": "RELEASED record", "pdo": "PDO record released", "nmt": "NMT result released"}
 
 
 class SessionError(RuntimeError):
@@ -76,6 +83,7 @@ def check_plan(plan):
         if not isinstance(plan.get(key), str) or not plan[key].strip():
             raise SessionError("the plan must state its %s" % key)
     steps = []
+    held = None  # (kind, step number) of the record the plan has not released yet.
     for number, step in enumerate(plan["steps"], 1):
         if not isinstance(step, dict):
             raise SessionError("step %d is not an object" % number)
@@ -108,8 +116,33 @@ def check_plan(plan):
                 raise SessionError("step %d: %r needs expect %r and end %r" % (number, step["send"], admission, end))
         if "require" in step:
             check_requirements(number, step["require"])
+        held = check_release(number, step, held)
         steps.append(step)
     return steps
+
+
+def check_release(number, step, held):
+    """One held record at a time, released by an r that expects that record's own release line.
+    An r before any record of this plan may release one left by an earlier session. Returns the
+    record held after this step. A plan may end with a record held."""
+    text = step.get("send")
+    if text == "r":
+        if held is None:
+            # A record left by an earlier session: the plan cannot know which, the firmware does.
+            if not any(line.startswith(step["expect"]) for line in RELEASE_LINES.values()):
+                raise SessionError("step %d: r expects %r, which is no release line" % (number, step["expect"]))
+            return None
+        wanted = RELEASE_LINES[held[0]]
+        if not wanted.startswith(step["expect"]):  # The runner matches a reply by prefix.
+            raise SessionError("step %d: r releases the %s record of step %d; expect %r" %
+                               (number, held[0], held[1], wanted))
+        return None
+    if text and text[0] in HOLDS and (len(text) == 1) == (text[0] in SINGLE_BYTES):
+        if held is not None:
+            raise SessionError("step %d: %r while the %s record of step %d is held; release it first" %
+                               (number, text, held[0], held[1]))
+        return (HOLDS[text[0]], number)
+    return held
 
 
 def check_requirements(number, require):

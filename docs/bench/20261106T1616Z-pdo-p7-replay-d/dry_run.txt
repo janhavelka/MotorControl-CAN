@@ -1,0 +1,18 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/plan_p7_replay_d.json: 16 steps; Recovery and completion after 1615Z-pdo-p7-replay-c: node 2 was started (Operational, TPDO1 periodic at raw 100) and the following Enter Pre-operational was refused because the Start's NMT result was still retained (the plan omitted its release). Here: release the NMT result, watch the running stream, Enter Pre-operational (packet 6's boundary rerun with the admission time), restore 1800:05 raw 0 with E2,0, final readbacks of both nodes. Final intended state: both nodes Pre-operational, 1800:05 raw 0 on both.
+   1 {"send": "r", "expect": "NMT result released", "note": "release the retained Start result"}
+   2 {"send": "P60", "expect": "PDOW admitted"}
+   3 {"wait_s": 2, "note": "node 2 Operational: TPDO1 periodic at about 101 ms"}
+   4 {"send": "N2,p", "expect": "NMT admitted", "end": "NMT request", "end_timeout_s": 6, "note": "packet 6 boundary rerun: frames between admission and TX completion are ambiguous"}
+   5 {"wait_s": 3, "note": "no TPDO1 frame expected after the boundary"}
+   6 {"send": "P0", "expect": "PDOW_STOPPING", "end": "PDOW_END", "end_timeout_s": 20}
+   7 {"send": "r", "expect": "NMT result released"}
+   8 {"wait_s": 2, "note": "a heartbeat 7F from node 2 after Pre-operational"}
+   9 {"send": "n", "expect": "NETWORK", "end": "END network", "end_timeout_s": 5}
+  10 {"send": "E2,0", "expect": "PDO_CONFIG admitted", "end": "END PDO", "end_timeout_s": 20, "require": [{"kind": "NETWORK", "where": {"node": 2}, "match": {"state": 127, "qualified": 1}}], "note": "separate restoration to raw 0 in Pre-operational"}
+  11 {"send": "r", "expect": "PDO record released"}
+  12 {"send": "R2,t,0", "expect": "PDO_READ admitted", "end": "END raw", "end_timeout_s": 15, "note": "final readback of node 2: expect event 0"}
+  13 {"send": "r", "expect": "RELEASED record"}
+  14 {"send": "R1,t,0", "expect": "PDO_READ admitted", "end": "END raw", "end_timeout_s": 15, "note": "regression: node 1 TPDO1 unchanged (event 0)"}
+  15 {"send": "r", "expect": "RELEASED record"}
+  16 {"send": "n", "expect": "NETWORK", "end": "END network", "end_timeout_s": 5, "note": "final network state"}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\p7-dry-d; touches nothing now

@@ -1,6 +1,6 @@
 # Packet 7: typed TPDO1 event-timer subset
 
-[Packet 7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md), 2026-11-06. Input: the [packet 6 transition record](packet_6.md#transition-record-for-packet-7). Host work and its review are complete; the bench replay is recorded below once it runs. Back to the [execution index](README.md).
+[Packet 7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md), 2026-11-06. Input: the [packet 6 transition record](packet_6.md#transition-record-for-packet-7). Host work, its review and one bench replay on node 2 in both directions are complete. Back to the [execution index](README.md).
 
 ## Start state and sibling audit
 
@@ -51,6 +51,21 @@ An independent read-only reviewer traced every failure vector, checked each lite
 | Strict Doxygen; S2 bench firmware | 0 warnings; built, 0 compiler warnings |
 | Staged tree alone, in a detached worktree outside `.build` | `verify.py --mode full --compiler gcc` passed every step, documentation included; S2 bench firmware gate and strict S2 stack check passed |
 | Remote CI | Recorded with the commit in the [execution index](README.md) |
-| Bench replay | Pending: flash the image with `E`, then replay once from a fresh baseline with readback and a short regression |
+| Bench replay | Done on image `f2c90ab`, below |
+
+## Bench replay, 2026-11-06
+
+Image `f2c90ab` flashed with `s2_flash.py` ([upload](../../bench/20261106T160926Z-s2-upload/)), ping matched (ELF `855c0b9b…`, `pdo=2`). Both nodes Pre-operational with heartbeats (`7f`), drive states unchanged (`6041=4050` on node 2 throughout). Each plan was dry-run first; its output is kept as `dry_run.txt` in the session directory.
+
+| Session | Plan | Result |
+| --- | --- | --- |
+| [1613Z](../../bench/20261106T1613Z-pdo-p7-replay/) | Full replay | Stopped at its first step: `c` was refused because the controller was already running from the packet 5 soaks. Nothing reached CAN. A ping afterwards showed the controller still running, so the refused second start retired nothing |
+| [1614Z-b](../../bench/20261106T1614Z-pdo-p7-replay-b/) | The same without `c` | Fresh identities of both nodes; node 2 baseline `R2,t,0`: COB-ID `0x182`, type 255, inhibit raw 100, event raw 0, map `60410010 60610008 60640020 0`. **`E2,100` succeeded:** 19 terminals, the tenth the download `2B 00 18 05 64 00 00 00` acknowledged `60 00 18 05`, readback raw 100; record `failure=0 confirmed=1 uncertain=0 ackMask=01 migrated=1 lastStep=10 effectStep=1 failedStep=0`. The plan then stopped: it expected `RELEASED record` after `E`, and the reply is `PDO record released` |
+| [1615Z-c](../../bench/20261106T1615Z-pdo-p7-replay-c/) | Readback, NMT boundary, restoration | Independent readback raw 100. `N2,o` started node 2: TPDO1 every 100.974 ms (31 frames, 100.820 to 100.998 ms), payload `50 40 01 35 03 00 00` (`6041=4050`, `6061=1`, `6064=821`), heartbeat `05`. `N2,p` was refused (`NMT refused; no work`) because the plan never released the Start's NMT result, so node 2 stayed Operational and streaming for about 80 s longer than planned. Nothing else was sent |
+| [1616Z-d](../../bench/20261106T1616Z-pdo-p7-replay-d/) | Recovery and completion | NMT result released; `N2,p` (packet 6's boundary rerun, below); **`E2,0` succeeded** with the same record shape, `raw=0`, readback raw 0; final `R2,t,0` raw 0 and `R1,t,0` raw 0 (node 1 unchanged); both nodes `state=127` |
+
+Both plan stops were my plan errors, and both failed closed: a refused or unmatched reply ends a plan, and only a running watch is then stopped. `s2_pdo.py` now refuses such plans before anything is sent. It allows one held record at a time, and each `r` must expect the release line of the record it frees (`RELEASED record`, `PDO record released`, `NMT result released`), as the firmware's admission conditions require. The two stopped plans are refused by the new check (`s2_pdo_contract`); a mutant without it fails four tests.
+
+Device claims for this replay. Source-confirmed: EDS `1800:05` RW U16, not mappable. Measured again here, node 2 only, one firmware: raw 0 to 100 and back accepted with exact readback in Pre-operational, and about 101 ms periods at raw 100 in Operational. Inferred, not measured: that node 1 behaves the same under `E` (packet 6 measured its `W` writes). The unit is still not established.
 
 Original prompt 18 stays Partial: commissioning (prompt 38), the CLI `pdo` route (prompt 41), other values, Operational writes, units, inhibit, other transmission types, the COB-ID valid bit, SYNC, RPDOs, persistence and sample qualification remain open under Q17.

@@ -9,6 +9,8 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import s2_pdo as pdo  # noqa: E402
 
+REPOSITORY = Path(__file__).resolve().parent.parent
+
 PONG = ("PONG target=esp32s2 base=%s elf=%s sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=%d t=5 "
         "routes=5 trial=0 motion=0%s\n")
 
@@ -73,6 +75,60 @@ class Backend:
     def open(self, device):
         return self.board
 
+
+class ReleaseDisciplineTest(unittest.TestCase):
+    """2026-11-06: one replay plan expected the wrong release line after E, another sent N2,p while
+    the N2,o result was held and left node 2 Operational. Both are refused before anything is sent."""
+
+    N = {"send": "N2,p", "expect": "NMT admitted", "end": "NMT request"}
+    E = {"send": "E2,0", "expect": "PDO_CONFIG admitted", "end": "END PDO"}
+    R = {"send": "R2,t,0", "expect": "PDO_READ admitted", "end": "END raw"}
+
+    def refused(self, *steps):
+        with self.assertRaises(pdo.SessionError):
+            pdo.check_plan(plan(*steps))
+
+    def test_each_record_needs_its_own_release_line(self):
+        release = {"raw": "RELEASED record", "pdo": "PDO record released", "nmt": "NMT result released"}
+        for step, kind in ((self.N, "nmt"), (self.E, "pdo"), (self.R, "raw")):
+            self.assertEqual(len(pdo.check_plan(plan(step, {"send": "r", "expect": release[kind]}))), 2)
+            for other in set(release.values()) - {release[kind]}:
+                self.refused(step, {"send": "r", "expect": other})
+
+    def test_new_work_while_a_record_is_held_is_refused(self):
+        self.refused({"send": "N2,o", "expect": "NMT admitted", "end": "NMT request"}, {"wait_s": 3}, self.N)
+        self.refused(self.E, self.R)
+        self.refused(self.R, {"send": "4", "expect": "IDENTITY admitted", "end": "END raw"})
+
+    def test_a_release_without_a_record_of_this_plan_must_name_a_release_line(self):
+        # A leading r may release a record an earlier session left (1305Zb, 1616Z-d).
+        for line in ("RELEASED record", "PDO record released", "NMT result released"):
+            self.assertEqual(len(pdo.check_plan(plan({"send": "r", "expect": line}))), 1)
+        self.refused({"send": "r", "expect": "released"})
+        self.refused(self.R, {"send": "r", "expect": "RELEASED record"}, {"send": "r", "expect": "CAN ready"})
+
+    def test_watch_lines_and_waits_do_not_hold_records(self):
+        steps = (self.N, {"send": "P60", "expect": "PDOW admitted"}, {"wait_s": 2},
+                 {"send": "r", "expect": "NMT result released"}, self.E)
+        self.assertEqual(len(pdo.check_plan(plan(*steps))), 5)
+
+    def test_retained_plans_follow_the_discipline(self):
+        # The two plans that stopped on 2026-11-06 are refused now; the replay that completed and the
+        # packet 6 sessions pass, apart from commands no longer offered (q, w, m), refused separately.
+        stopped = {"20261106T1613Z-pdo-p7-replay", "20261106T1614Z-pdo-p7-replay-b",
+                   "20261106T1615Z-pdo-p7-replay-c"}
+        paths = sorted((REPOSITORY / "docs/bench").glob("20261106T1*-pdo-*/plan.json"))
+        self.assertIn("20261106T1616Z-pdo-p7-replay-d", {path.parent.name for path in paths})
+        for path in paths:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            try:
+                pdo.check_plan(data)
+                problem = None
+            except pdo.SessionError as error:
+                problem = str(error)
+            release = problem is not None and ("is held" in problem or "releases the" in problem or
+                                                "no release line" in problem)
+            self.assertEqual(release, path.parent.name in stopped, (path.parent.name, problem))
 
 def plan(*steps):
     return {"purpose": "test", "authorization": "test", "steps": list(steps)}
@@ -156,6 +212,7 @@ class RunTest(unittest.TestCase):
                                 b"printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0\n"})
         code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"},
                                              {"send": "N1,o", "expect": "NMT admitted", "end": "NMT request"},
+                                             {"send": "r", "expect": "NMT result released"},
                                              {"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted",
                                               "end": "END raw"}])
         self.assertEqual(code, 1)
