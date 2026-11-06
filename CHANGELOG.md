@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Bench round on image `f2c90ab` (2026-11-06)
+
+- Packet 7 replay: `E2,100` and `E2,0` on node 2 succeeded with exact readback (19 terminals each, confirmed, no uncertainty); about 101 ms TPDO1 periods at raw 100 in Operational; node 1 unchanged.
+- Packet 6 NMT boundary rerun with the admission time: the last TPDO1 frame 45.7 ms before Enter Pre-operational was admitted, none between admission and completion or after.
+- Packet 5 regression: a soak begun 20 s after another drained `stale=4` observations and measured heartbeat gaps of at most 1.002 s.
+- `s2_pdo.py`: plans are refused before anything is sent unless they hold one record at a time and each `r` expects the release line of the record it frees, as the firmware's admission conditions require. Two replay plans had stopped on exactly these errors.
+
 ### Bench continuation packet 7: typed TPDO1 event timer (2026-11-06)
 
 - `PdoConfiguration.h`: `Tpdo1Transition` (`NONE`, `MAP3_TO_MAP2`, `EVENT_TIMER`), `Tpdo1EventTimerRaw {RAW_0, RAW_100}` and `Tpdo1ConfigurationRequest`. A request overload of `prepareTpdo1Configuration` adds `EVENT_TIMER`: one `1800:05` write between raw 0 and raw 100 in Pre-operational on CL86-C, with nine exact baseline reads before and nine exact reads after. The value is raw; no unit is established. OL86-C is refused with `UNSUPPORTED` before any work.

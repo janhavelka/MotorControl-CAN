@@ -32,7 +32,7 @@ Run A's verdict was `failed-evidence` because of two status anomalies. These wer
 
 ## Defect found in the soak record
 
-Run B's first summary showed heartbeat gaps of 38 s (node 1) and 39 s (node 2). The drives' heartbeats were steady. Cause: `Soak::begin` cleared the soak's state, but the owner's network-observation copies from between the two runs were still queued, so the new soak measured its first gap from a heartbeat received before it began. A stale boot-up or EMCY would likewise have been reported as an event of the new soak. Earlier soaks ran with no heartbeat producer configured, so no retained heartbeat figure is affected. `Soak::begin` now drains those copies, counts them as `stale=` in `SOAK_BEGIN` (optional in the grammar), and never measures or reports them. Test: `testObservationsBeforeBeginBelongToNoSoak` (an accepted heartbeat and an EMCY before begin). It fails without the drain (3 heartbeats, the stale gap) and without the count. The fix is in the next bench image and needs a short soak regression there.
+Run B's first summary showed heartbeat gaps of 38 s (node 1) and 39 s (node 2). The drives' heartbeats were steady. Cause: `Soak::begin` cleared the soak's state, but the owner's network-observation copies from between the two runs were still queued, so the new soak measured its first gap from a heartbeat received before it began. A stale boot-up or EMCY would likewise have been reported as an event of the new soak. Earlier soaks ran with no heartbeat producer configured, so no retained heartbeat figure is affected. `Soak::begin` now drains those copies, counts them as `stale=` in `SOAK_BEGIN` (optional in the grammar), and never measures or reports them. Test: `testObservationsBeforeBeginBelongToNoSoak` (an accepted heartbeat and an EMCY before begin). It fails without the drain (3 heartbeats, the stale gap) and without the count. Regression on image `f2c90ab`: two 60 s soaks at 200 ms reads with 20 s idle between them ([1](../../bench/20261106-p5-c-regression-1/), [2](../../bench/20261106-p5-c-regression-2/)). The first after boot had `stale=0` and the two first-heartbeat status anomalies; the second had `stale=4`, the ring's whole capacity, and heartbeat gaps of at most 1.002 s on both nodes. Every read succeeded, no line was lost, and every window balanced in both.
 
 ## Requirements
 
@@ -41,7 +41,7 @@ Run B's first summary showed heartbeat gaps of 38 s (node 1) and 39 s (node 2). 
 | 1, 2, 4 | Met, with the independent review above |
 | 3 | Met: FIFO acceptance is now observable separately from admission and host receipt |
 | 5 | Met: one 200 ms baseline and one bounded 20 ms reproduction on the same image |
-| Verify | Offline tests registered; the diagnostic was built and flashed, and the runs above are its read regression. The stale-observation fix is built and host-tested, not yet flashed |
+| Verify | Offline tests registered; the diagnostic was built and flashed, and the runs above are its read regression. The stale-observation fix was flashed on `f2c90ab` and regression-tested as above |
 | Attribution | Unresolved: no independent receiver at GPIO43 was available |
 
 ## Next measurement
