@@ -701,9 +701,14 @@ void ownerTask(void*) {
         }
         if (route)
             route->service(firmware.owner().lastTimeUs());
-        // Like the soak, the watch holds its lines while a one-shot response waits for room.
+        // The watch holds its lines while a one-shot response, a record dump, a network listing or
+        // an NMT result waits for room: a stream can fill the console alone (2026-11-06, a 10 ms
+        // TPDO starved a write record's dump for 15 s). Held frames still count; the flags are the
+        // previous turn's, which only delays the hold by one turn.
         if (watch)
-            watch->service(firmware.owner().lastTimeUs(), retainedSize != 0);
+            watch->service(firmware.owner().lastTimeUs(),
+                           retainedSize != 0 || dumping || networkDump ||
+                               (nmtRequest.owner && !nmtReported));
         if (firmware.progressionFailed() && !silent)
             silent = gpio_set_level(GPIO_NUM_18, 1) == ESP_OK;
         const E::AcquisitionRecord* record = firmware.evidence().record();
