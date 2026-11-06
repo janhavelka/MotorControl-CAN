@@ -21,4 +21,39 @@ config MOTORCONTROLCAN_CAN_RX_DEPTH
     int "Copied controller RX capacity"
     default 16
     range 1 16
+config MOTORCONTROLCAN_CAN_SILENT_PIN
+    int "Transceiver silent-input GPIO (-1 none)"
+    default -1
+    range -1 48
+    help
+        Application-owned GPIO wired to the transceiver's silent/standby input.
+        Startup requests the silent level before anything else; only an explicit
+        start requests the normal level.
+config MOTORCONTROLCAN_CAN_SILENT_LEVEL
+    int "Level that makes the transceiver silent (-1 unknown/none)"
+    default -1
+    range -1 1
+    help
+        Board fact from the transceiver datasheet and schematic, never a default.
+        A silent pin with level -1 fails compilation.
+config MOTORCONTROLCAN_SMOKE_HOOK
+    bool "Test-only finite smoke check on the owner task"
+    default n
+    help
+        Builds FirmwareSmoke: one 'G' byte on the console arms one explicit start
+        and one identity read on each of two nodes. Not a console or CLI.
+config MOTORCONTROLCAN_SMOKE_NODE_A
+    int "Smoke check first CANopen node (0 unknown)"
+    depends on MOTORCONTROLCAN_SMOKE_HOOK
+    default 0
+    range 0 127
+config MOTORCONTROLCAN_SMOKE_NODE_B
+    int "Smoke check second CANopen node (0 unknown)"
+    depends on MOTORCONTROLCAN_SMOKE_HOOK
+    default 0
+    range 0 127
+config MOTORCONTROLCAN_SMOKE_IDENTITY_U8
+    bool "Fixture answers 1009/100A in one byte (measured, not EDS)"
+    depends on MOTORCONTROLCAN_SMOKE_HOOK
+    default n
 endmenu

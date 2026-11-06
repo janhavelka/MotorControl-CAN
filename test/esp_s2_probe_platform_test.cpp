@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Exercise the actual S2 branch; these are SDK fakes, not hardware evidence.
 #include "EspProbePlatform.h"
+#include "EspTransceiverPin.h"
+#include "driver/gpio.h"
 #include "driver/uart.h"
 #include <cstdio>
 #include <cstdlib>
@@ -23,6 +25,12 @@ struct FakeSdk {
     bool installed = false, input = false, full = false;
     uint8_t inputByte = 0, outputByte = 0;
     int64_t time = 0;
+    // GPIO: each call appends one step, so tests see the level/direction order.
+    char gpioSteps[8] = {};
+    unsigned gpioCalls = 0, levelError = 0, directionError = 0;
+    int gpio = -1;
+    unsigned level = 9;
+    bool output = false;
 } sdk;
 void reset() {
     sdk = FakeSdk();
@@ -130,7 +138,49 @@ void negativeClock() {
     CHECK(!cb.nowUs(cb.context, output) && output == 72);
     CHECK(platform.stop());
 }
+// Application-owned silent input: latch the level, then enable the output; refuse
+// non-output GPIOs before the SDK's shift macro; report every refused SDK call.
+void silentPin() {
+    const E::SilentPin pin = E::espSilentPin();
+    CHECK(pin.drive && !pin.context);
+    const int invalidPins[] = {-1, 22, 25, 46, 47, 1000};
+    for (int invalid : invalidPins) {
+        reset();
+        CHECK(!pin.drive(pin.context, invalid, true) && !sdk.gpioCalls);
+    }
+    reset();
+    CHECK(pin.drive(pin.context, 18, true));
+    CHECK(sdk.gpioCalls == 2 && sdk.gpioSteps[0] == 'L' && sdk.gpioSteps[1] == 'D');
+    CHECK(sdk.gpio == 18 && sdk.level == 1 && sdk.output);
+    CHECK(pin.drive(pin.context, 18, false) && sdk.level == 0 && sdk.gpioCalls == 4);
+    reset();
+    sdk.levelError = 1;
+    CHECK(!pin.drive(pin.context, 18, true) && sdk.gpioCalls == 1 && !sdk.output);
+    reset();
+    sdk.directionError = 1;
+    CHECK(!pin.drive(pin.context, 18, true) && sdk.gpioCalls == 2 && sdk.level == 1);
+    // GPIO19/20 are ordinary outputs on S2: this platform's console is UART0.
+    reset();
+    CHECK(pin.drive(pin.context, 19, true) && pin.drive(pin.context, 45, false));
+}
 } // namespace
+esp_err_t gpio_set_level(gpio_num_t gpio, unsigned level) {
+    CHECK(sdk.gpioCalls < sizeof sdk.gpioSteps);
+    sdk.gpioSteps[sdk.gpioCalls++] = 'L';
+    if (sdk.levelError)
+        return 0x102;
+    sdk.gpio = gpio;
+    sdk.level = level;
+    return ESP_OK;
+}
+esp_err_t gpio_set_direction(gpio_num_t gpio, gpio_mode_t mode) {
+    CHECK(sdk.gpioCalls < sizeof sdk.gpioSteps && gpio == sdk.gpio && mode == GPIO_MODE_OUTPUT);
+    sdk.gpioSteps[sdk.gpioCalls++] = 'D';
+    if (sdk.directionError)
+        return 0x102;
+    sdk.output = true;
+    return ESP_OK;
+}
 TaskHandle_t xTaskGetCurrentTaskHandle() {
     return sdk.task;
 }
@@ -200,5 +250,6 @@ int main() {
     bytesTimeAndOwner();
     invalidTask();
     negativeClock();
+    silentPin();
     std::printf("S2 platform: %u checks; SDK fake only\n", checks);
 }

@@ -24,7 +24,21 @@ The platform attempts initialization once and rejects an already installed
 UART0 driver. `CONFIG_ESP_CONSOLE_NONE` is required at compile time on S2.
 Applications must not install GDB, VFS, logging or another UART0 user, or call
 UART SDK operations outside this owner. The check cannot authenticate external
-code's ownership promises.
+code's ownership promises. The shared firmware also refuses GPIO43/44 as CAN or
+transceiver pins on S2 (`firmwareConsolePin`), and the flash bus GPIO26..32
+(`firmwareSystemPin`); GPIO19/20 are not reserved there. The S2 ROM prints its boot
+messages on UART0 unless eFuse `UART_PRINT_CHANNEL` selects UART1 (pinned
+`esp_efuse_table.csv`; U1TXD is GPIO17 in `soc/uart_pins.h`, the OPTAK CAN TX) or
+`UART_PRINT_CONTROL` disables them. Both default to UART0 printing; the bench chip's
+values were not read, so the firmware reserves no UART1 pin.
+
+With `CONFIG_ESP_CONSOLE_UART`, `esp_vfs_console` registers UART0 as stdout at
+startup and `uart_vfs.c` `uart_tx_char` writes the FIFO directly, busy-waiting
+without bound for space and bypassing the driver's TX mutex. A console-enabled
+SDK therefore breaks both exclusive ownership and the bounded-call argument
+below. The pinned Arduino S2 libraries are built that way, so the guard blocks
+the Arduino S2 build; the [firmware guide](../firmware_examples.md) records the
+evidence. The guard is deliberately not relaxed.
 
 `uart_driver_install(UART_NUM_0, 256, 0, 0, nullptr, 0)` installs a 256-byte RX
 ring, no TX ring and no event queue. The UART SDK allocates driver storage and
@@ -64,7 +78,10 @@ overflow and completion records and account for host capture loss separately.
 The source-compiled S2 fake test verifies the exact pins/format/buffer arguments,
 one-byte zero-tick reads, FIFO refusal, unchanged failed outputs, task/core
 rejection, one-shot initialization, partial setup failures, explicit teardown
-failure, equal/negative/backward clock handling and idle ownership. Existing S3
-platform tests continue to exercise the original USB path. Fake tests establish
-host contracts only. Real target build/link, reset/console observation and CAN
-acquisition remain separately reported checks.
+failure, equal/negative/backward clock handling and idle ownership. The same
+test drives `espSilentPin()` against a GPIO fake: level before output enable,
+SDK capability refusal of absent and input-only pins, and each refused SDK call.
+Existing S3 platform tests continue to exercise the original USB path. Fake tests establish
+host contracts only. The shared S2 image (`check_firmware.py --target idf-s2` and
+`idf-s2-optak`) compiles and links this platform for esp32s2; reset/console
+observation and CAN acquisition with that image remain separately reported checks.

@@ -5,6 +5,13 @@ USB platform as the [native ESP-IDF example](../probe_idf/README.md).
 It has no command parser yet; command/schema parity belongs to prompt 42.
 The thin Arduino entry creates the shared static owner task and idles.
 
+**ESP32-S2 under Arduino is blocked** with the pinned package: its prebuilt
+`esp32s2` SDK libraries enable the UART0 console, which conflicts with the shared
+platform's exclusive UART0 ownership. `pio run -e probe_cli_s2_compile` reproduces
+the single guard error; it is not a passing build and no S2 parity is claimed.
+The [shared contract](../../docs/firmware_examples.md) records the evidence and
+what would resolve it. Build the shared S2 image with ESP-IDF instead.
+
 Use PlatformIO Core **6.1.19**, pioarduino **55.03.311**, Arduino **3.3.11** and
 its ESP-IDF **5.5.5** libraries. The extra script rejects different resolved
 framework versions and verifies the retained CANopenNode source hashes.
@@ -49,15 +56,21 @@ including if this fixture binary is flashed. USB initialization is local and
 does not issue CAN/NMT, enable, movement, parameter or recovery requests.
 Expected local startup status is `CONFIGURATION_REQUIRED`; diagnostics are
 bounded best-effort USB bytes, without a host-delivery guarantee.
+A configured build boots `INACTIVE`: startup never starts the controller.
 
 For an actual application use `probe_cli` with explicit build definitions
 `MOTORCONTROLCAN_CAN_TX_PIN`, `MOTORCONTROLCAN_CAN_RX_PIN`,
 `MOTORCONTROLCAN_CAN_BITRATE` and `MOTORCONTROLCAN_CAN_RX_DEPTH` (1..16), alongside
-`MOTORCONTROLCAN_COMPILE_FIXTURE=0`. Supply them in that environment's
-`build_flags`, retaining `${env.build_flags}`. No working pin/bitrate defaults
-exist. GPIO19/20 belong to the USB Serial/JTAG console; automatic Arduino CDC
-startup is disabled. A valid local configuration initializes the controller
-without selecting or commanding a drive.
+`MOTORCONTROLCAN_COMPILE_FIXTURE=0`. A transceiver silent input adds
+`MOTORCONTROLCAN_CAN_SILENT_PIN` and its `MOTORCONTROLCAN_CAN_SILENT_LEVEL` (0 or 1).
+Supply them in that environment's `build_flags`, retaining `${env.build_flags}`.
+No working pin/bitrate defaults exist. Pins are checked against the SDK capability
+masks of the target. GPIO19/20 belong to the S3 USB Serial/JTAG console; automatic
+Arduino CDC startup is disabled. GPIO43 (the ROM's boot-message output, U0TXD) and
+GPIO26..32 (the flash bus) are refused as well, at compile time. A valid local
+configuration boots `INACTIVE`: startup checks the board and requests a configured
+transceiver silent level, and the controller opens only on an explicit
+`FirmwareProbe::start`. Nothing selects or commands a drive.
 
 Before physical use establish the actual board/flash layout, external CAN
 transceiver and its enable/standby requirements, TX/RX wiring, bus termination,

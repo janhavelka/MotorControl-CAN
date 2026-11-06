@@ -1,0 +1,6 @@
+# Test-only finite smoke check for the OPTAK S2 fixture: two CL86-C nodes 1 and 2, whose
+# 1009/100A answers were measured as one byte (docs/reports/2026-11-02_s2_live_connection.md).
+CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y
+CONFIG_MOTORCONTROLCAN_SMOKE_NODE_A=1
+CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B=2
+CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8=y

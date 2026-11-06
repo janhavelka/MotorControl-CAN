@@ -9,6 +9,7 @@
     "examples/common/FirmwareProbe.cpp",
     "examples/common/EspProbePlatform.cpp",
     "examples/common/EspProbeMain.cpp",
+    "examples/common/EspTransceiverPin.cpp",
     "adapters/twai/TwaiAdapter.cpp",
     "adapters/twai/IdfTwaiDriver.cpp",
     "adapters/canopennode/SdoClient.cpp",

@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import stat
 import subprocess
 import sys
@@ -58,36 +59,82 @@ def make_tools(base):
     return idf, python, tools_path
 
 
-def write_build(build, *, target="esp32s2", chip=2, sdkconfig=None, flash_args=None, encrypted="false",
-                revision=REVISION):
-    """Generated outputs in the exact shape of a real build directory."""
+SMOKE = "probe-idf-optak-smoke"
+SMOKE_NAME = "motorcontrol_can_probe"
+GOOD_ARGS = ("--flash_mode dio --flash_freq 80m --flash_size 4MB\n0x1000 bootloader/bootloader.bin\n"
+             "0x10000 %s.bin\n0x8000 partition_table/partition-table.bin\n")
+
+
+def resolved_sdkconfig(app):
+    """A resolved sdkconfig as kconfgen writes it from the app's defaults, later files winning."""
+    values = {}
+    for path in flash.defaults_in_order(app):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("# CONFIG_") and line.endswith(" is not set"):
+                values[line[2:-len(" is not set")]] = None
+            elif line.startswith("CONFIG_") and "=" in line:
+                name, value = line.split("=", 1)
+                values[name] = value
+    values.update(CONFIG_IDF_TARGET='"esp32s2"', CONFIG_ESPTOOLPY_FLASHSIZE='"4MB"')
+    return "".join("# %s is not set\n" % name if value is None else "%s=%s\n" % (name, value)
+                   for name, value in values.items())
+
+
+def flasher_args(app, target="esp32s2", encrypted="false", **changes):
+    """flasher_args.json in IDF 5.5.5's shape (see the retained upload's copy)."""
+    layout = flash.flash_layout(app)
+    data = {"write_flash_args": ["--flash_mode", "dio", "--flash_size", "4MB", "--flash_freq", "80m"],
+            "flash_settings": {"flash_mode": "dio", "flash_size": "4MB", "flash_freq": "80m"},
+            "flash_files": {"0x%x" % offset: name for offset, name in layout.items()},
+            "extra_esptool_args": {"after": "hard_reset", "before": "default_reset", "stub": True, "chip": target}}
+    for part, offset in flash.FLASHER_PARTS.items():
+        data[part] = {"offset": "0x%x" % offset, "file": layout[offset], "encrypted": encrypted}
+    data.update(changes)
+    return data
+
+
+def write_build(build, *, app="s2-bench", target="esp32s2", chip=2, sdkconfig=None, flash_args=None,
+                encrypted="false", revision=REVISION, description=None, flasher=None, inputs=None,
+                compiler="C:/pio/xtensa-esp32s2-elf-g++.exe", version=None):
+    """Generated outputs in the exact shape of a real build directory of the selected app."""
     build = Path(build)
+    name = flash.APPS[app]["name"]
     (build / "bootloader").mkdir(parents=True, exist_ok=True)
     (build / "partition_table").mkdir(exist_ok=True)
-    elf = build / (flash.APP + ".elf")
-    elf.write_bytes(b"\x7fELF fake")
+    elf = build / (name + ".elf")
+    elf.write_bytes(b"\x7fELF fake " + name.encode("ascii"))
     header = bytes([0xE9, 6, 2, 0x2F]) + bytes(8) + chip.to_bytes(2, "little") + bytes(2)
     application = bytearray(header + bytes(0x200))
     application[flash.ELF_HASH_OFFSET:flash.ELF_HASH_OFFSET + 32] = hashlib.sha256(elf.read_bytes()).digest()
-    (build / (flash.APP + ".bin")).write_bytes(application)
+    (build / (name + ".bin")).write_bytes(application)
     (build / "bootloader/bootloader.bin").write_bytes(header + bytes(32))
     (build / "partition_table/partition-table.bin").write_bytes(bytes.fromhex("aa500102") + bytes(3068))
-    (build / "flash_args").write_text(flash_args if flash_args is not None else (
-        "--flash_mode dio --flash_freq 80m --flash_size 4MB\n0x1000 bootloader/bootloader.bin\n"
-        "0x10000 %s.bin\n0x8000 partition_table/partition-table.bin\n" % flash.APP), encoding="utf-8")
-    (build / "flasher_args.json").write_text(json.dumps({
-        "extra_esptool_args": {"after": "hard_reset", "before": "default_reset", "stub": True, "chip": target},
-        "bootloader": {"encrypted": encrypted}, "app": {"encrypted": encrypted},
-        "partition-table": {"encrypted": encrypted}}), encoding="utf-8")
-    (build / "project_description.json").write_text(json.dumps({
-        "target": target, "git_revision": "5.5.5", "project_version": "fake", "c_compiler": "fake"}), encoding="utf-8")
-    defaults = (flash.PROJECT / "sdkconfig.defaults").read_text(encoding="utf-8")
-    text = sdkconfig if sdkconfig is not None else (
-        "\n".join(line for line in defaults.splitlines() if line.startswith("CONFIG_")) + "\n")
-    (build / "sdkconfig").write_text(text, encoding="utf-8")
-    (build / "compile_commands.json").write_text(json.dumps([{
-        "file": "C:/x/examples/s2_bench/main/main.cpp",
-        "command": 'g++ -DMOTORCONTROLCAN_SOURCE_REVISION=\\"%s\\" -c main.cpp' % revision}]), encoding="utf-8")
+    (build / "flash_args").write_text(flash_args if flash_args is not None else GOOD_ARGS % name, encoding="utf-8")
+    (build / "flasher_args.json").write_text(json.dumps(flasher if flasher is not None else flasher_args(
+        app, target, encrypted)), encoding="utf-8")
+    project = flash.project_dir(app)
+    smoke = bool(flash.APPS[app]["gate"])
+    (build / "project_description.json").write_text(json.dumps(dict({
+        "target": target, "git_revision": "5.5.5", "c_compiler": "fake",
+        "project_version": version if version is not None else revision[:7] + "-dirty" if smoke else "fake",
+        "project_name": name, "project_path": project.as_posix(), "app_elf": name + ".elf", "app_bin": name + ".bin",
+        "config_defaults": ";".join(path.as_posix() for path in flash.applied_defaults(app))},
+        **(description or {}))), encoding="utf-8")
+    if sdkconfig is None and smoke:
+        sdkconfig = resolved_sdkconfig(app)
+    elif sdkconfig is None:
+        defaults = (flash.PROJECT / "sdkconfig.defaults").read_text(encoding="utf-8")
+        sdkconfig = "\n".join(line for line in defaults.splitlines() if line.startswith("CONFIG_")) + "\n"
+    (build / "sdkconfig").write_text(sdkconfig, encoding="utf-8")
+    if smoke:
+        files = inputs if inputs is not None else flash.smoke_inputs(app)[0]
+        rows = [{"directory": build.as_posix(), "file": Path(path).as_posix(),
+                 "command": "%s -c %s" % (compiler, Path(path).as_posix())} for path in files]
+    else:
+        rows = [{"file": "C:/x/examples/s2_bench/main/main.cpp",
+                 "command": 'g++ -DMOTORCONTROLCAN_SOURCE_REVISION=\\"%s\\" -c main.cpp' % revision}]
+    (build / "compile_commands.json").write_text(json.dumps(rows), encoding="utf-8")
 
 
 IDENTITY = {"base_commit": REVISION, "working_tree": " M src/x.cpp\n", "dirty_sha256": {"src/x.cpp": "1" * 64},
@@ -561,6 +608,352 @@ class PingCheck(Fixture):
         code, result = self.check(self.capture(""))
         self.assertEqual(code, 1)
         self.assertFalse(result["matches"])
+
+
+TOOLS = {"paths": {"idf_python": "python", "idf": "idf"}}
+
+
+class Selection(unittest.TestCase):
+    """--app names one reviewed application; the default is the bench exactly as before."""
+
+    def test_default_is_the_bench_with_the_reviewed_command(self):
+        for argv in (["--build-only"], ["--build-only", "--app", "s2-bench"]):
+            args = flash.parse_args(argv)
+            self.assertEqual(args.app, "s2-bench")
+            self.assertEqual(args.build_dir, ROOT / ".build/s2-bench-live")
+        # The command this tool ran before --app existed, word for word.
+        self.assertEqual(flash.build_command(TOOLS, "b"), [
+            "python", str(Path("idf") / "tools/idf.py"), "-C", str(ROOT / "examples/s2_bench"), "-B", "b",
+            "-DIDF_TARGET=esp32s2", "-DSDKCONFIG=b/sdkconfig", "reconfigure", "build"])
+        self.assertEqual(flash.build_command(TOOLS, "b", "s2-bench"), flash.build_command(TOOLS, "b"))
+        self.assertEqual((flash.APP, flash.PROJECT), ("motorcontrol_can_s2_bench", ROOT / "examples/s2_bench"))
+        self.assertEqual(flash.FLASH_LAYOUT, {0x1000: "bootloader/bootloader.bin",
+                                              0x8000: "partition_table/partition-table.bin",
+                                              0x10000: "motorcontrol_can_s2_bench.bin"})
+        self.assertEqual(flash.default_artifact("flash").name[-10:], "-s2-upload")
+        self.assertEqual(flash.default_artifact("build").name[-9:], "-s2-build")
+
+    def test_smoke_command_is_the_gate_configuration(self):
+        args = flash.parse_args(["--build-only", "--app", SMOKE])
+        self.assertEqual(args.build_dir, ROOT / ".build/s2-smoke-live", "never the bench's build directory")
+        command = flash.build_command(TOOLS, "b", SMOKE)
+        project = ROOT / "examples/probe_idf"
+        self.assertEqual(command[2:4], ["-C", str(project)])
+        # The value check_firmware.shared_idf_build passes for idf-s2-optak.
+        gate = flash.SHARED_IDF_BUILDS["idf-s2-optak"]
+        self.assertIn("-DSDKCONFIG_DEFAULTS=" + ";".join((project / item).as_posix() for item in gate["defaults"]),
+                      command)
+        self.assertEqual(gate["defaults"], ("sdkconfig.defaults", "sdkconfig.optak_s2", "sdkconfig.optak_s2_smoke"))
+        self.assertEqual(command[-2:], ["reconfigure", "build"])
+        self.assertTrue(any(word == "-DIDF_TARGET=esp32s2" for word in command))
+        self.assertNotIn("s2_bench", " ".join(command))
+        self.assertEqual(flash.flash_layout(SMOKE), {0x1000: "bootloader/bootloader.bin",
+                                                     0x8000: "partition_table/partition-table.bin",
+                                                     0x10000: "motorcontrol_can_probe.bin"})
+        self.assertEqual([path.name for path in flash.defaults_in_order(SMOKE)], [
+            "sdkconfig.defaults", "sdkconfig.defaults.esp32s2", "sdkconfig.optak_s2", "sdkconfig.optak_s2_smoke"])
+        self.assertEqual([path.name for path in flash.defaults_in_order("s2-bench")], ["sdkconfig.defaults"])
+        self.assertTrue(flash.default_artifact("flash", SMOKE).name.endswith("-s2-smoke-upload"))
+
+    def test_unknown_app_and_ping_of_the_smoke_image_are_refused(self):
+        with mock.patch("sys.stderr", new_callable=io.StringIO):
+            for argv in (["--build-only", "--app", "s2"], ["--build-only", "--app", "probe-idf"],
+                         ["--check-ping", "x", "--artifact", "y", "--app", SMOKE]):
+                with self.assertRaises(SystemExit, msg=str(argv)):
+                    flash.parse_args(argv)
+
+    def test_later_defaults_win_as_in_idf(self):
+        sdkconfig = 'CONFIG_IDF_TARGET="esp32s2"\n'
+        self.assertEqual(flash.check_sdkconfig("CONFIG_A=y\n# CONFIG_A is not set\n", sdkconfig), [])
+        self.assertEqual(flash.check_sdkconfig("# CONFIG_A is not set\nCONFIG_A=y\n", sdkconfig), ["CONFIG_A=None, defaults y"])
+        self.assertEqual(flash.check_sdkconfig("CONFIG_A=1\nCONFIG_A=2\n", sdkconfig + "CONFIG_A=2\n"), [])
+
+    def test_version_revision(self):
+        self.assertEqual(flash.version_revision("311b682-dirty"), "311b682")
+        self.assertEqual(flash.version_revision("56e12ae"), "56e12ae")
+        self.assertEqual(flash.version_revision("v1.0-3-g311b682-dirty"), "311b682")
+        for text in ("1", "v1.0", "", None, "HEAD-HASH-NOTFOUND", "311b6"):
+            self.assertIsNone(flash.version_revision(text), text)
+
+    def test_real_retained_flasher_args_agree_with_flash_args(self):
+        retained = ROOT / "docs/bench/20261106T1309Z-s2-upload"
+        options, images = flash.parse_flash_args((retained / "flash_args").read_text(encoding="utf-8"))
+        flash.check_flasher_args(json.loads((retained / "flasher_args.json").read_text(encoding="utf-8")),
+                                 options, images)
+
+
+class SmokeValidation(Fixture):
+    """The selected smoke image, and refusal of every artifact that is not exactly it."""
+
+    def refused(self, pattern=None, app=SMOKE, **options):
+        if self.build.exists():
+            shutil.rmtree(self.build)
+        write_build(self.build, app=SMOKE, **options)
+        with self.assertRaises(flash.FlashError, msg=str(options)) as caught:
+            flash.validate_build(self.build, app)
+        if pattern:
+            self.assertRegex(str(caught.exception), pattern)
+        # parse_flash_args keeps its original "refused" status; every other check is build_invalid.
+        self.assertIn(caught.exception.status, ("build_invalid", "refused"))
+
+    def test_valid_smoke_build(self):
+        write_build(self.build, app=SMOKE)
+        facts = flash.validate_build(self.build, SMOKE)
+        self.assertEqual((facts["project_name"], facts["app_elf"], facts["app_bin"]),
+                         (SMOKE_NAME, SMOKE_NAME + ".elf", SMOKE_NAME + ".bin"))
+        self.assertEqual(facts["project_path"], "examples/probe_idf")
+        self.assertEqual(facts["config_defaults"], ["examples/probe_idf/sdkconfig.defaults",
+                                                    "examples/probe_idf/sdkconfig.optak_s2",
+                                                    "examples/probe_idf/sdkconfig.optak_s2_smoke"])
+        self.assertEqual(set(facts["image_sha256"]), {
+            "bootloader/bootloader.bin", "partition_table/partition-table.bin", SMOKE_NAME + ".bin",
+            SMOKE_NAME + ".elf", "sdkconfig"})
+        for check in ("project", "config_defaults", "flash_args", "flasher_args", "single_elf", "elf_hash_embedded",
+                      "sdkconfig_defaults", "gate_sdkconfig", "compiler_inputs", "compiler"):
+            self.assertIn(check, facts["app_checks"])
+        self.assertEqual(facts["compile_entries"], len(flash.smoke_inputs(SMOKE)[0]))
+        values = facts["gate_sdkconfig"]
+        for name, value in (("CONFIG_IDF_TARGET", '"esp32s2"'), ("CONFIG_MOTORCONTROLCAN_CAN_TX_PIN", "17"),
+                            ("CONFIG_MOTORCONTROLCAN_CAN_RX_PIN", "16"), ("CONFIG_MOTORCONTROLCAN_CAN_SILENT_PIN", "18"),
+                            ("CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL", "1"), ("CONFIG_MOTORCONTROLCAN_SMOKE_HOOK", "y"),
+                            ("CONFIG_ESP_CONSOLE_NONE", "y"), ("CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE", None)):
+            self.assertEqual(values[name], value, name)
+
+    def test_wrong_project(self):
+        self.refused("project", description={"project_name": flash.APP})
+        self.refused("path", description={"project_path": (ROOT / "examples/s2_bench").as_posix()})
+        self.refused("images", description={"app_bin": flash.APP + ".bin"})
+        # The bench's real outputs are not this app, nor the smoke outputs the bench.
+        shutil.rmtree(self.build)
+        write_build(self.build)
+        with self.assertRaisesRegex(flash.FlashError, "project"):
+            flash.validate_build(self.build, SMOKE)
+        shutil.rmtree(self.build)
+        write_build(self.build, app=SMOKE)
+        with self.assertRaisesRegex(flash.FlashError, "project"):
+            flash.validate_build(self.build)
+
+    def test_other_defaults_applied(self):
+        project = ROOT / "examples/probe_idf"
+        self.refused("defaults", description={"config_defaults": (project / "sdkconfig.defaults").as_posix()})
+        self.refused("defaults", description={"config_defaults": ";".join(
+            (project / name).as_posix() for name in ("sdkconfig.defaults", "sdkconfig.optak_s2"))})
+        self.refused("defaults", description={"config_defaults": ""})
+
+    def test_wrong_target(self):
+        self.refused("target", target="esp32s3")
+        self.refused(None, chip=9)
+        self.refused("CONFIG_IDF_TARGET", sdkconfig=resolved_sdkconfig(SMOKE).replace('"esp32s2"', '"esp32s3"'))
+
+    def test_missing_or_changed_board_and_smoke_values(self):
+        good = resolved_sdkconfig(SMOKE)
+        for old, new in (("CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y\n", ""),
+                         ("CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y\n", "# CONFIG_MOTORCONTROLCAN_SMOKE_HOOK is not set\n"),
+                         ("CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B=2\n", "CONFIG_MOTORCONTROLCAN_SMOKE_NODE_B=3\n"),
+                         ("CONFIG_MOTORCONTROLCAN_SMOKE_IDENTITY_U8=y\n", ""),
+                         ("CONFIG_MOTORCONTROLCAN_CAN_TX_PIN=17\n", "CONFIG_MOTORCONTROLCAN_CAN_TX_PIN=16\n"),
+                         ("CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL=1\n", "CONFIG_MOTORCONTROLCAN_CAN_SILENT_LEVEL=0\n"),
+                         ("CONFIG_ESP_CONSOLE_NONE=y\n", "CONFIG_ESP_CONSOLE_UART_DEFAULT=y\n"),
+                         ("# CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE is not set\n",
+                          "CONFIG_MOTORCONTROLCAN_COMPILE_FIXTURE=y\n")):
+            self.assertIn(old, good)
+            self.refused("sdkconfig|smoke", sdkconfig=good.replace(old, new))
+        # The gate's resolved values are required even where the defaults files say nothing.
+        self.refused("CONFIG_ESPTOOLPY_FLASHSIZE", sdkconfig=good.replace('CONFIG_ESPTOOLPY_FLASHSIZE="4MB"\n', ""))
+
+    def test_smoke_source_must_be_compiled_and_bench_sources_must_not(self):
+        expected = flash.smoke_inputs(SMOKE)[0]
+        smoke = ROOT / "examples/common/FirmwareSmoke.cpp"
+        self.assertIn(smoke, expected)
+        self.refused("omitted", inputs=[path for path in expected if path != smoke])
+        self.refused("omitted", inputs=[path for path in expected if path.name != "main.cpp"])
+        for bench in (ROOT / "examples/s2_bench/main/main.cpp", ROOT / "examples/s2_bench/RawEvidence.cpp"):
+            self.refused("forbidden", inputs=expected + [bench])
+        self.refused("compiled by", compiler="C:/pio/xtensa-esp32s3-elf-g++.exe")
+        self.refused("compiled by", compiler="g++")
+
+    def test_wrong_offsets_or_flash_settings(self):
+        args = GOOD_ARGS % SMOKE_NAME
+        self.refused("layout", flash_args=args.replace("0x10000", "0x20000"))
+        self.refused("layout", flash_args=args.replace("0x8000", "0x9000"))
+        self.refused("layout", flash_args=args.replace(SMOKE_NAME + ".bin", flash.APP + ".bin"))
+        self.refused(None, flash_args=args.replace("dio", "qio"))
+        # flasher_args.json is the project's own statement: it must agree with flash_args.
+        files = {"0x1000": "bootloader/bootloader.bin", "0x8000": "partition_table/partition-table.bin",
+                 "0x20000": SMOKE_NAME + ".bin"}
+        self.refused("flash_files", flasher=flasher_args(SMOKE, flash_files=files))
+        self.refused("flash_settings", flasher=flasher_args(
+            SMOKE, flash_settings={"flash_mode": "qio", "flash_size": "4MB", "flash_freq": "80m"}))
+        self.refused("write_flash_args", flasher=flasher_args(
+            SMOKE, write_flash_args=["--flash_mode", "dio", "--flash_size", "8MB", "--flash_freq", "80m"]))
+        self.refused("app is", flasher=dict(flasher_args(SMOKE), app={
+            "offset": "0x20000", "file": SMOKE_NAME + ".bin", "encrypted": "false"}))
+        self.refused("partition-table", flasher=dict(flasher_args(SMOKE), **{"partition-table": {"encrypted": "false"}}))
+        self.refused("encryption", encrypted="true")
+
+    def test_another_elf_in_the_build_directory(self):
+        write_build(self.build, app=SMOKE)
+        (self.build / (flash.APP + ".elf")).write_bytes(b"\x7fELF bench")
+        with self.assertRaisesRegex(flash.FlashError, "ELF files"):
+            flash.validate_build(self.build, SMOKE)
+
+    def test_image_must_embed_this_elf(self):
+        write_build(self.build, app=SMOKE)
+        (self.build / (SMOKE_NAME + ".elf")).write_bytes(b"different")
+        with self.assertRaisesRegex(flash.FlashError, "embed"):
+            flash.validate_build(self.build, SMOKE)
+
+
+class SmokeUpload(Fixture):
+    def smoke(self, bench, *mode, **options):
+        return self.run_mode(bench, *mode, "--app", SMOKE, **options)
+
+    def test_full_sequence_and_retained_record(self):
+        bench = Bench(self.build, app=SMOKE)
+        code, output, _ = self.smoke(bench, "--flash", "--port", PORT, "--serial", SERIAL)
+        self.assertEqual(code, 0, output)
+        names = bench.names()
+        self.assertEqual(names[names.index("build"):], ["build", "read_mac", "write_flash"])
+        self.assertEqual(names.count("write_flash"), 1)
+        build = dict(bench.commands)["build"]
+        self.assertEqual(build[build.index("-C") + 1], str(ROOT / "examples/probe_idf"))
+        self.assertTrue(any(word.startswith("-DSDKCONFIG_DEFAULTS=") for word in build))
+        write = dict(bench.commands)["write_flash"]
+        self.assertEqual(write[-2:], ["write_flash", "@flash_args"])
+        self.assertEqual(write[write.index("--chip") + 1], "esp32s2")
+        record = self.record()
+        self.assertEqual(record["status"], "flashed")
+        self.assertEqual(record["app"]["name"], SMOKE)
+        self.assertEqual(record["app"]["gate"], "idf-s2-optak")
+        self.assertEqual(record["app"]["flash_layout"], {"0x1000": "bootloader/bootloader.bin",
+                                                         "0x8000": "partition_table/partition-table.bin",
+                                                         "0x10000": SMOKE_NAME + ".bin"})
+        self.assertEqual(record["app_elf"], SMOKE_NAME + ".elf")
+        elf = hashlib.sha256((self.build / (SMOKE_NAME + ".elf")).read_bytes()).hexdigest()
+        self.assertEqual(record["image_sha256"][SMOKE_NAME + ".elf"], elf)
+        self.assertIn("compiler_inputs", record["app_checks"])
+        self.assertEqual(record["revision_check"]["embedded"], REVISION[:7] + "-dirty")
+        self.assertNotIn("compiled_revision", record, "no 40-digit revision is compiled into this image")
+        self.assertEqual(record["flash"]["verified_images"], 3)
+        self.assertEqual((record["erase_all"], record["efuse"], record["retry"]), (False, False, False))
+        self.assertEqual(record["usb"]["usb_serial"], SERIAL)
+        self.assertEqual(record["target_identity"]["mac"], flash.FIXTURE["mac"])
+        for name in ("sdkconfig", "flash_args", "flasher_args.json", "project_description.json", "flash.log"):
+            self.assertTrue((self.output / name).is_file(), name)
+        self.assertIn("s2_smoke.py", output)
+        self.assertNotIn("--check-ping", output)
+
+    def test_stale_project_version_gets_no_write(self):
+        for version in ("bbbbbbb-dirty", "1", "v1.0"):
+            if self.output.exists():
+                shutil.rmtree(self.output)
+            bench = Bench(self.build, app=SMOKE, version=version)
+            code, _, _ = self.smoke(bench, "--flash", "--port", PORT, "--serial", SERIAL)
+            self.assertEqual(code, 1, version)
+            self.assertNotIn("write_flash", bench.names())
+            self.assertEqual(self.record()["status"], "build_invalid")
+
+    def test_invalid_outputs_get_no_write(self):
+        cases = ({"inputs": flash.smoke_inputs(SMOKE)[0] + [ROOT / "examples/s2_bench/main/main.cpp"]},
+                 {"sdkconfig": resolved_sdkconfig(SMOKE).replace("CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y\n", "")},
+                 {"description": {"project_name": flash.APP}})
+        for options in cases:
+            for path in (self.output, self.build):
+                if path.exists():
+                    shutil.rmtree(path)
+            bench = Bench(self.build, app=SMOKE, **options)
+            code, _, _ = self.smoke(bench, "--flash", "--port", PORT, "--serial", SERIAL)
+            self.assertEqual(code, 1, options)
+            self.assertNotIn("read_mac", bench.names())
+            self.assertNotIn("write_flash", bench.names())
+            self.assertEqual(self.record()["status"], "build_invalid")
+
+    def test_bench_build_directory_is_refused_before_anything(self):
+        write_build(self.build)  # A configured bench directory: reusing it would build the bench.
+        bench = Bench(self.build, app=SMOKE)
+        code, output, usb = self.smoke(bench, "--flash", "--port", PORT, "--serial", SERIAL)
+        self.assertEqual(code, 2)
+        self.assertEqual(bench.commands, [])
+        self.assertFalse(self.output.exists())
+        usb.assert_not_called()
+        self.assertIn("another --build-dir", output)
+        # And the reverse: the bench is never built in the smoke image's directory.
+        shutil.rmtree(self.build)
+        write_build(self.build, app=SMOKE)
+        bench = Bench(self.build)
+        code, _, _ = self.run_mode(bench, "--build-only")
+        self.assertEqual(code, 2)
+        self.assertEqual(bench.commands, [])
+
+    def test_build_only_touches_no_port(self):
+        bench = Bench(self.build, app=SMOKE)
+        code, output, usb = self.smoke(bench, "--build-only")
+        self.assertEqual(code, 0, output)
+        usb.assert_not_called()
+        self.assertEqual([name for name in bench.names() if name != "version"], ["build"])
+        self.assertEqual(self.record()["status"], "built")
+        self.assertEqual(self.record()["app"]["name"], SMOKE)
+
+    def test_bench_record_names_its_selection(self):
+        bench = Bench(self.build)
+        code, output, _ = self.flash(bench)
+        self.assertEqual(code, 0, output)
+        record = self.record()
+        self.assertEqual(record["app"]["name"], "s2-bench")
+        self.assertEqual(record["compiled_revision"], REVISION)
+        self.assertEqual(record["revision_check"]["source"], "MOTORCONTROLCAN_SOURCE_REVISION")
+        build = dict(bench.commands)["build"]
+        self.assertFalse(any(word.startswith("-DSDKCONFIG_DEFAULTS=") for word in build))
+        self.assertNotIn("s2_smoke.py", output)
+
+    def test_ping_check_refuses_a_smoke_record(self):
+        self.output.mkdir()
+        (self.output / "build.json").write_text(json.dumps({"app": {"name": SMOKE}}), encoding="utf-8")
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            code = flash.main(["--check-ping", str(self.base / "absent"), "--artifact", str(self.output)])
+        self.assertEqual(code, 1)
+        self.assertIn("s2_smoke.py", json.loads(out.getvalue())["problems"][0])
+
+
+class SmokeDryRun(DryRun):
+    def dry(self):
+        blocked = mock.Mock(side_effect=AssertionError("dry run touched hardware or a process"))
+        with mock.patch.object(subprocess, "run", blocked), mock.patch.object(subprocess, "Popen", blocked), \
+                mock.patch.object(flash, "execute", blocked), mock.patch.object(flash, "comports", blocked), \
+                mock.patch.object(flash, "sdk_environment", blocked), mock.patch.object(flash, "Runner", blocked), \
+                mock.patch.object(flash, "source_identity", blocked), \
+                mock.patch.dict(sys.modules, {"serial": None, "serial.tools": None}), \
+                mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            code = flash.main(self.arguments("--dry-run", "--app", SMOKE))
+        return code, out.getvalue()
+
+    def test_prints_the_plan_and_touches_nothing(self):
+        code, output = self.dry()
+        self.assertEqual(code, 0)
+        self.assertFalse(self.output.exists())
+        self.assertFalse(self.build.exists())
+        for text in ("probe-idf-optak-smoke", "examples/probe_idf", "motorcontrol_can_probe", "idf-s2-optak",
+                     "-DSDKCONFIG_DEFAULTS=", "sdkconfig.optak_s2_smoke", "sdkconfig.defaults.esp32s2",
+                     "0x1000 bootloader/bootloader.bin", "0x8000 partition_table/partition-table.bin",
+                     "0x10000 motorcontrol_can_probe.bin", "CONFIG_MOTORCONTROLCAN_SMOKE_HOOK=y",
+                     "write_flash @flash_args", "read_mac", "s2_smoke.py", "VERDICT: INCOMPLETE"):
+            self.assertIn(text, output)
+        for text in ("erase_flash", "burn_efuse", "espefuse", "PASS", "--check-ping", "s2_bench.py"):
+            self.assertNotIn(text, output)
+
+    def test_validates_an_existing_build_without_touching_it(self):
+        write_build(self.build, app=SMOKE)
+        _, output = self.dry()
+        self.assertIn("is valid for this plan", output)
+        write_build(self.build, app=SMOKE, chip=9)
+        _, output = self.dry()
+        self.assertIn("would be refused", output)
+
+    def test_reports_another_projects_directory(self):
+        write_build(self.build)
+        _, output = self.dry()
+        self.assertIn("Refused before building", output)
+        self.assertIn("would be refused", output)
 
 
 class ToolDiscovery(Fixture):

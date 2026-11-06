@@ -2,6 +2,8 @@
 
 ## Scope and status
 
+**Bench continuation packet 3, 2026-11-06.** [Packet 3](bench_closure_18_33/packet_3.md) moved the transceiver's silent input into application-owned control with explicit polarity, made a configured shared image boot without starting the controller, and routed every closing path through one owner retirement. The adapter's own contract is unchanged; questions 1, 4 and 6 and the physical TX-retirement question (Q18) stay open for the listen-only observer.
+
 **Reopened by audit W3.** [Packet 3](handoff_19_33/packet_3.md) changed the submit contract, the service split and `fail_retry_cnt`, which this report describes at their earlier values. The S2 half stays reopened under G-04 and W9.
 
 Owned transport software is implemented. Stage status is **Partial only on the

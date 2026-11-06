@@ -202,6 +202,13 @@ python scripts/s2_flash.py --build-only --build-dir .build/s2-bench-live
 python scripts/s2_flash.py --flash --port COM15 --serial 94A990398B40
 ```
 
+- `--app` selects the image: `s2-bench` (the default, `examples/s2_bench`) or
+  `probe-idf-optak-smoke`, the shared `examples/probe_idf` image with this fixture's
+  board values and the one-`G` smoke hook. Each is checked before any write against
+  its own project, defaults, target, compiler inputs and flash layout, and one is
+  refused as the other. The smoke image is then checked with
+  `scripts/s2_smoke.py --artifact <upload record>`
+  ([firmware examples](firmware_examples.md)); `--check-ping` is for the bench image only.
 - `--dry-run` prints the plan from files only. It runs no process, enumerates no
   USB device and creates nothing, and its verdict is `INCOMPLETE`.
 - `--build-only` never touches a port. Tool paths come from arguments or
