@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Bench continuation prompts for remaining 18-33 scope (2026-11-06)
+
+- Add eight execution packets under `docs/prompts/bench_closure_18_33/` for measured-contract reconciliation, position regressions, shared S2 builds, passive capture, console-loss diagnostics, PDO measurement/typed integration and finite motion/stop cases. Each names existing code, evidence, checks, delegation and commit/sync requirements.
+- Separate already implemented typed reads/settings from remaining device facts, phase-current/output measurements, independent UART/CAN capture and release/alarm prerequisites. Reuse the new PDO tooling and keep current specimen observations distinct from general firmware qualification. These are unexecuted assignments, not newly implemented or qualified library features.
+
 ### Bench PDO stream sessions: NMT, watch, PDO records and TPDO timing writes (2026-11-06)
 
 - The S2 bench firmware takes four console lines (`examples/s2_bench/PdoCommand.h`): `N<node>,<o|p|s>` sends one addressed NMT Start, Enter Pre-operational or Stop through `CanBusOwner::admitNmt`; `P<seconds>` watches received frames for up to 600 s and `P0` ends the watch; `R<node>,<t|r>,<set>` reads one PDO set's communication and mapping records; `W<node>,<set>,<sub>,<baseline>,<value>` changes one TPDO communication entry after an exact read equal to the baseline, then reads it back. `q` and `w` share the NMT path, unchanged. `PONG` gains `pdo=1 watch=`; the route protocol stays 5.

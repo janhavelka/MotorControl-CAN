@@ -8,6 +8,12 @@ Create one new branch at the start of a new execution and retain it across all 5
 
 ## Shared contracts
 
+The [bench continuation for prompts 18-33](bench_closure_18_33/README.md) contains
+eight new, unexecuted packets for concrete remaining host work and bounded tests
+on the current S2/two-drive fixture. It distinguishes implementable gaps from
+instrument, firmware and operator-observation requirements. Continue the same
+execution branch; this supplement does not renumber or replace prompts 1-50.
+
 The [external coder handoff](archive/handoff_19_33/README.md) for prompts 19–22 and
 29–33 has run all 22 packets and is archived for traceability; do not execute it again.
 Its [execution table](../reports/handoff_19_33/README.md) records what each packet
