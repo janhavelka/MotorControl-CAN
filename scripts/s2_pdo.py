@@ -86,6 +86,11 @@ def check_plan(plan):
                 raise SessionError("step %d: %s must be 0..900 s" % (number, key))
         if "end" in step and "send" not in step:
             raise SessionError("step %d: end needs a send" % number)
+        # Work whose terminal decides whether later steps may follow must name its end line.
+        if "send" in step and step["send"][0] in "NRWhj":
+            wanted = "NMT request" if step["send"][0] == "N" else "END raw"
+            if step.get("end") != wanted:
+                raise SessionError("step %d: %r needs end %r" % (number, step["send"], wanted))
         steps.append(step)
     return steps
 
@@ -151,6 +156,54 @@ def watch_running(lines):
     return running
 
 
+RAW_ADMISSIONS = {"PDO_READ admitted": 9, "PDO_WRITE admitted": 3, "HEARTBEAT experiment admitted": 3}
+
+
+def terminal_problem(step, lines):
+    """Check the firmware's own terminal for a step's work, parsed through the s2_evidence grammar.
+
+    lines runs from the admission reply to the end marker. A raw record must hold its RAW header with
+    failure 0 and no loss, on the step's node, with every RESULT successful and the expected count; an
+    NMT request must carry the sent node and command, outcome 0 and a confirmed TX. Returns None when
+    the work succeeded, otherwise why the plan must stop. An end marker alone never counts.
+    """
+    records = [evidence.parse_line(number, text) for number, text in enumerate(lines, 1)]
+    parsed = [r for r in records if r.status == "parsed"]
+    text = step["send"]
+    count = next((n for prefix, n in RAW_ADMISSIONS.items() if step["expect"].startswith(prefix)), None)
+    if count is not None:
+        headers = [r for r in parsed if r.kind == "RAW"]
+        results = [r for r in parsed if r.kind == "RESULT"]
+        ends = [r for r in parsed if r.kind == "END" and r.raw.startswith("END raw")]
+        if len(headers) != 1 or len(ends) != 1:
+            return "raw_terminal_unparsed"
+        header = headers[0].values
+        node = int(text[1]) if text[0] in "RW" else 1 if text == "h" else 2 if text == "j" else None
+        if header.get("failure") != 0 or header.get("lost") != 0 or ends[0].values.get("lost") != 0:
+            return "raw_failure_%s" % header.get("failure")
+        if node is not None and header.get("node") != node:
+            return "raw_wrong_node"
+        if len(results) != count or header.get("terminals") != count or                 any(r.values.get("outcome") != 0 for r in results):
+            return "raw_results_incomplete"
+        if text[0] == "W":
+            _, pdo_set, subindex, _, value = (int(field) for field in text[1:].split(","))
+            wanted = [0x1800 + pdo_set, subindex]
+            last = results[-1].values
+            if any(r.values.get("object") != wanted for r in results) or                     int.from_bytes(bytes.fromhex(last["data"])[:last["size"]], "little") != value:
+                return "write_readback_differs"
+    if step["expect"].startswith("NMT admitted"):
+        nmts = [r for r in parsed if r.kind == "NMT"]
+        if len(nmts) != 1:
+            return "nmt_result_unparsed"
+        v = nmts[0].values
+        wanted = {"o": 1, "s": 2, "p": 0x80}[text.split(",")[1]]
+        if v.get("target") != int(text[1]) or v.get("cmd") != wanted:
+            return "nmt_wrong_request"
+        if v.get("outcome") != 0 or v.get("txConfirmed") != 1:
+            return "nmt_not_transmitted"
+    return None
+
+
 def run_steps(steps, capture, clock):
     """Send the plan; returns (step results, stop reason). Stops at the first refusal or silence."""
     results = []
@@ -182,6 +235,13 @@ def run_steps(steps, capture, clock):
                     reason = "no_end"
                     break
                 entry.update(end=end[1], end_line=end[0] + 1)
+                problem = terminal_problem(step, capture.lines[index:end[0] + 1])
+                if problem:
+                    # The work ended without its stated success: nothing that depends on it is sent.
+                    entry["outcome"] = "terminal_failed"
+                    entry["problem"] = problem
+                    reason = "terminal_failed"
+                    break
             entry["outcome"] = "answered"
         else:
             entry.update(wait_s=step["wait_s"], utc=clock.utc())
