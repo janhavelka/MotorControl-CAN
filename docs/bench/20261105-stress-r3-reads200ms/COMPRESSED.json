@@ -1,0 +1,31 @@
+{
+  "why": "A run with 1 s summaries writes about 65 MB of console capture in 3 h, too much to keep uncompressed in the repository. Files over 4 MiB are stored losslessly as xz; decompressing reproduces the original bytes, whose SHA-256 is recorded here.",
+  "method": "Python lzma, FORMAT_XZ, CHECK_SHA256, preset 6; round trip verified before the original was removed",
+  "restore": "xz -dk <stored_as>, or Python lzma.decompress",
+  "files": [
+    {
+      "file": "summary.txt",
+      "bytes": 22928234,
+      "sha256": "185a8ff169ed23f281394bf3b40fca4ae783a15f77af9579d692486b436c4fa9",
+      "stored_as": "summary.txt.xz",
+      "stored_bytes": 1472056,
+      "stored_sha256": "4296838adeb8599aad9887d46d4ad1409e00ca9f27f2a6a3a72379c76c489e9e"
+    },
+    {
+      "file": "trial-01/rx.bin",
+      "bytes": 16633032,
+      "sha256": "b41e039aea1ff882edea5bcb123924c422caf088668380572ef8aaa853264aeb",
+      "stored_as": "trial-01/rx.bin.xz",
+      "stored_bytes": 837640,
+      "stored_sha256": "e2b707d20c6820f9a945e69101645a8418710f80d0a1bfaace3851bc3d1621fb"
+    },
+    {
+      "file": "trial-01/rx.times.csv",
+      "bytes": 24618516,
+      "sha256": "94b99c8120f0279e8fdb91a8863f34d19a1db52a45d7c783296c6d439ab59254",
+      "stored_as": "trial-01/rx.times.csv.xz",
+      "stored_bytes": 2085536,
+      "stored_sha256": "03664fd041288cc81d78c37203faea0b37548a0235e94478a55545bc4cc06a8e"
+    }
+  ]
+}
