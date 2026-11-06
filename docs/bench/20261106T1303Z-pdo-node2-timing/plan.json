@@ -1,0 +1,230 @@
+{
+  "purpose": "Node 2 TPDO1 timing and stop methods: event timer 10/1000/1, inhibit, valid bit, types 254 and 1, NMT Stop and Start from Stopped, restore",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "P300",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "W2,0,5,0,10",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "event timer 10"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 5
+    },
+    {
+      "send": "W2,0,5,10,1000",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "event timer 1000"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 6
+    },
+    {
+      "send": "W2,0,5,1000,1",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "event timer 1 with inhibit 100"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 4
+    },
+    {
+      "send": "W2,0,3,100,0",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "inhibit 100 -> 0 while the PDO is valid and Operational"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 4
+    },
+    {
+      "send": "W2,0,1,386,2147484034",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "COB-ID valid bit off: PDO not valid"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "W2,0,1,2147484034,386",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "COB-ID valid bit back on"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "W2,0,2,255,254",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "transmission type 254"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "W2,0,2,254,1",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "transmission type 1: synchronous, no SYNC producer on this bus"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "W2,0,2,1,255",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "transmission type back to 255"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "N2,s",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Stop"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 4,
+      "note": "Stopped: does the stream stop"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start from Stopped"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "W2,0,5,1,0",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "restore event timer 0"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "W2,0,3,0,100",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "restore inhibit 100"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 1
+    },
+    {
+      "send": "P0",
+      "expect": "PDOW_STOPPING",
+      "end": "PDOW_END",
+      "end_timeout_s": 30
+    }
+  ]
+}

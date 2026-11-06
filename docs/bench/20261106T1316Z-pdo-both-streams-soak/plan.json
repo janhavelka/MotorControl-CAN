@@ -1,0 +1,101 @@
+{
+  "purpose": "Both nodes TPDO1 at event timer 100 in Operational during a 60 s 20 ms read soak; final state Pre-operational, timers restored separately",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "W1,0,5,0,100",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": "node 1 event timer 100 in Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "W2,0,5,0,100",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": "node 2 the same"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P300",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "N1,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start node 1"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start node 2"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "S1793990001,60,20,10,3",
+      "expect": "SOAK_BEGIN",
+      "end": "SOAK_END",
+      "end_timeout_s": 100,
+      "note": "60 s read soak at 20 ms with both TPDO1 streams running"
+    },
+    {
+      "wait_s": 2
+    },
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Pre-operational node 1"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Pre-operational node 2"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "P0",
+      "expect": "PDOW_STOPPING",
+      "end": "PDOW_END",
+      "end_timeout_s": 30
+    }
+  ]
+}

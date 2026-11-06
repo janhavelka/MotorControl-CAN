@@ -1,0 +1,180 @@
+{
+  "purpose": "Node 2 TPDO1 event timer 100 and 200 (packet 6 candidates), NMT Start/Pre-operational/Stop/Start-from-Stopped; final state Pre-operational with event timer 200, restored separately",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "c",
+      "expect": "CAN ready",
+      "note": "controller after the 56e12ae flash"
+    },
+    {
+      "send": "4",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "node 2 fresh identity, TPDO1, 6041/6061/1017/2100/603F/6064/2201/606C"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "3",
+      "expect": "IDENTITY admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "node 1 the same"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15,
+      "note": "exact TPDO1 baseline: expect type 255, inhibit 100, event 0, map 6041/6061/6064"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "P180",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 5,
+      "note": "Pre-operational baseline traffic"
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start; prior state Pre-operational from heartbeat 7F"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 10,
+      "note": "unchanged baseline in Operational: event timer 0"
+    },
+    {
+      "send": "W2,0,5,0,100",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": "packet 6 candidate 1: event timer raw 100"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 10
+    },
+    {
+      "send": "W2,0,5,100,200",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": "packet 6 candidate 2: event timer raw 200"
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "wait_s": 10
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Enter Pre-operational: stream stops?"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 5
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start again with event timer 200 configured"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 5
+    },
+    {
+      "send": "N2,s",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Stop: stream stops? heartbeat 04?"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 5
+    },
+    {
+      "send": "N2,o",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Start from Stopped"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 5
+    },
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "final intended network state: Pre-operational"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 3
+    },
+    {
+      "send": "P0",
+      "expect": "PDOW_STOPPING",
+      "end": "PDOW_END",
+      "end_timeout_s": 20
+    }
+  ]
+}

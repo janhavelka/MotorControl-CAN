@@ -40,6 +40,9 @@ DI3's function and polarity writes were accepted, and a counter zero zeroed `606
 specimen has cleared an alarm; both accepted `2202` codes 1 and 0 once a measured count width let `607D:00` through. The open
 physical gates are listed in the [backlog](backlog.md).
 
+On 2026-11-06 the bench's first [PDO stream sessions](reports/2026-11-06_pdo_stream.md) read every PDO record of
+both nodes, started and stopped the TPDO stream with addressed NMT, and measured the TPDO1 event timer.
+
 The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) retains
 26 uploads per node, node1 heartbeat1000, fresh addressed Pre-operational and
 complete fixed-map readback. No motor action, start/reset, save or restore was
@@ -69,7 +72,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 15 | Passive network events and invalidation | Complete: pure codecs, shared node anchors, captured-time/epoch facts, four copied diagnostics and synchronous cache invalidation; checks in [report](reports/prompt_15.md) |
 | 16 | Explicit NMT requests and service eligibility | Complete: native producer, intent/TX/observations, domain effects and heartbeat-disabled service evidence; [report](reports/prompt_16.md) |
 | 17 | Observed PDO maps and decoding | Complete: checked layouts, explicit actual-map acquisition, independent sample qualification and atomic passive routing; [report](reports/prompt_17.md) |
-| 18 | Explicit PDO remapping | Partial: fixed TPDO1 map3-to-map2 implemented and specimen-observed; [checkpoint and remaining Q17 gates](reports/2026-11-02_nmt_pdo_checkpoint.md). Broader settings/timers/SYNC, persistence and sample qualification remain. |
+| 18 | Explicit PDO remapping | Partial: fixed TPDO1 map3-to-map2 implemented and specimen-observed; [checkpoint and remaining Q17 gates](reports/2026-11-02_nmt_pdo_checkpoint.md). First TPDO stream observed on 2026-11-06 with bench tools: NMT transitions and the `1800:05` event timer measured on both specimens ([report](reports/2026-11-06_pdo_stream.md)); no production setter. Broader settings/timers/SYNC, persistence and sample qualification remain. |
 | 19 | Typed raw identity/state/configuration reads | Partial: 30 rows, checked SDO/PDO evidence and getters implemented. Packet 4 admits the DEC-1 list and `prepareProbe`; packet 11 read the list live on two specimens. Q20 read effects stay open for every row. |
 | 20 | Native driver, limit and motion-parameter groups | Partial: nine typed raw read rows, position-parameter settings and the `2202` selector (packet 12); the `2200`, `2201`, `607D` and `6060` gates remain [owned here](reports/prompt_20.md). Both answer `607D:00` with two bytes against the EDS U8; with the explicit measured count width both accepted `2202` codes 1 and 0 with readback (2026-11-04). Current/holding remains solely 22. |
 | 21 | I/O settings and output actions | Partial: all 23 I/O reads and explicit DI settings implemented, the DI writes verified through the real owner (packet 13); DO, filter and output actions retain the precise [evidence gates](io_settings.md). Those remaining mutations retain their own partial-effect/invalidation obligations. On node 1, DI3's function 0 → 7 → 0 and polarity bit 3 were accepted and read back, and the polarity write did not survive a power cycle (2026-11-04). |

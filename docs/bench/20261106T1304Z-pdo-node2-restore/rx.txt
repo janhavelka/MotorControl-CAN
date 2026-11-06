@@ -1,0 +1,2 @@
+PONG target=esp32s2 base=4eb76832e3cf4db727b6f811b3d823840d7731fa elf=f7408e691ebafaff99731f9e9c3da935d1840180087ee29aa52ec52013c32320 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=210284956 routes=5 trial=0 motion=0 pdo=1 watch=0
+NMT refused; no work

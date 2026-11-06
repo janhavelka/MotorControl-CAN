@@ -1,0 +1,48 @@
+{
+  "purpose": "Separate explicit restoration: both nodes TPDO1 event timer 100 -> 0, with readback",
+  "authorization": "user 2026-11-06: do all relevant PDO testing, start the actual PDO stream, check the setup works and whether it can be stopped; document all timings",
+  "steps": [
+    {
+      "send": "W1,0,5,100,0",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": ""
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "W2,0,5,100,0",
+      "expect": "PDO_WRITE admitted",
+      "end": "END raw",
+      "end_timeout_s": 20,
+      "note": ""
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R1,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    },
+    {
+      "send": "R2,t,0",
+      "expect": "PDO_READ admitted",
+      "end": "END raw",
+      "end_timeout_s": 15
+    },
+    {
+      "send": "r",
+      "expect": "RELEASED record"
+    }
+  ]
+}

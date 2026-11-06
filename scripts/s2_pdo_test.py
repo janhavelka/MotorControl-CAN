@@ -100,7 +100,8 @@ class PlanTest(unittest.TestCase):
                     plan({"send": "P5", "expect": "a", "retry": 1}), plan({"wait_s": 1, "end": "x"}),
                     plan({"send": "W1,0,5,0,100", "expect": "PDO_WRITE admitted"}),  # no terminal to check
                     plan({"send": "N1,o", "expect": "NMT admitted", "end": "END raw"}),
-                    plan({"send": "h", "expect": "HEARTBEAT experiment admitted"})):
+                    plan({"send": "h", "expect": "HEARTBEAT experiment admitted"}),
+                    plan({"send": "4", "expect": "IDENTITY admitted"})):
             with self.assertRaises(pdo.SessionError):
                 pdo.check_plan(bad)
         with self.assertRaises(pdo.SessionError):
@@ -314,6 +315,20 @@ class AnalyzeTest(unittest.TestCase):
         write = report["pdo_records"][0]
         self.assertEqual(write["header"]["failure"], 4)
         self.assertEqual(write["results"][1]["abort"], "06090030")
+
+
+class RetainedTest(unittest.TestCase):
+    def test_every_retained_session_fits_the_grammar(self):
+        """Every retained session's real firmware output parses: the grammar rows follow the firmware."""
+        bench = Path(__file__).resolve().parents[1] / "docs" / "bench"
+        sessions = sorted(path.parent for path in bench.glob("*/session.json"))
+        self.assertGreaterEqual(len(sessions), 11)
+        for directory in sessions:
+            report = pdo.analyze(directory)
+            self.assertEqual((report["unknown"], report["malformed"]), ([], []), directory.name)
+            for watch in report["watches"]:
+                self.assertEqual(watch["console_gaps"], [], directory.name)
+                self.assertEqual(watch["tap_dropped"], 0, directory.name)
 
 
 if __name__ == "__main__":
