@@ -69,7 +69,7 @@ Read-only soaks on `2920479`, motion waived off: no enable, mode change, write o
 | 16:42:01 | 896 → 895 → 850 → 814 → 741 → 690 → 654 | 0, −45, 0, −45, −22, −5, 0 rpm |
 | 16:42:03 | 654 → 658 → 721 → 781 → 821 | 9, 35, 1, 0 rpm |
 
-**The released, free shaft of node 2 turned by 242 pulses one way and 167 back within 2 s, while the S2 sent nothing but reads.** Node 2's statusword stayed `4050` (switch on disabled) and `2100` stayed `0014`; node 1, enabled and holding, did not move. A drive in that state applies no torque, so an outside force turned the shaft: most likely a hand or a knock on the table, which nobody observed. It is recorded as unexplained, not as a drive behavior.
+**The released, free shaft of node 2 turned by 242 pulses one way and 167 back within 2 s, while the S2 sent nothing but reads.** Node 2's statusword stayed `4050` (switch on disabled) and `2100` stayed `0014`; node 1, enabled and holding, did not move. A drive in that state applies no torque, so an outside force turned the shaft. **Explained on 2026-11-06:** the user reported turning it by hand to see whether anything happened. The read soak recorded the hand turn in position and signed speed (`606C` down to −45 rpm), with no change of state or fault, as expected for a released drive.
 
 **Console: 182 losses in 10,686 bursts (1.7%), against 2 to 3 in 180 (1.1 to 1.7%) at 60 s summaries.** Every loss again fell in the first 600 bytes of a burst, which began after under a second of quiet. The rate per burst did not change with the quiet spell, from 0.8 s to 60 s, so **the idle-link explanation is refuted**: neither the host's transmit direction (the A/B) nor the S2's is the trigger. Per half hour R1 lost 20, 25, 28, 32, 42 and 35.
 
