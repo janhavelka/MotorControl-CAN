@@ -651,20 +651,29 @@ class FirmwareBuildTests(unittest.TestCase):
             checker.check_inputs(self.database, self.expected(), owned=self.root)
         roots = checker.sdk_roots({"IDF_PATH": str(sdk), "IDF_TOOLS_PATH": str(tools), "PATH": "x"})
         self.assertEqual(roots, [sdk.resolve(), tools.resolve()])
-        checker.check_inputs(self.database, self.expected(), owned=self.root, outside=roots)
+        checker.check_inputs(self.database, self.expected(), owned=self.root, sdk=roots)
+        # The component gate forbids the whole checkout; the SDK inside it is still not forbidden
+        # (run 42252710418, 980982a), while a checkout source still is.
+        self.write_database([{"file": str(path)} for path in sources])
+        with self.assertRaisesRegex(ValueError, "forbidden inputs:.*twai.c"):
+            checker.check_inputs(self.database, [], [self.root])
+        checker.check_inputs(self.database, [], [self.root], sdk=roots)
         # A real extra checkout source still fails beside an SDK inside the checkout.
         extra = self.root / "examples/common/CommandParser.cpp"
         extra.parent.mkdir(parents=True, exist_ok=True)
         extra.write_text("// extra\n", encoding="utf-8")
         self.write_database([{"file": str(path)} for path in self.expected() + sources + [extra]])
         with self.assertRaisesRegex(ValueError, "unexpected checkout inputs:.*CommandParser.cpp"):
-            checker.check_inputs(self.database, self.expected(), owned=self.root, outside=roots)
+            checker.check_inputs(self.database, self.expected(), owned=self.root, sdk=roots)
+        self.write_database([{"file": str(path)} for path in sources + [extra]])
+        with self.assertRaisesRegex(ValueError, "forbidden inputs:.*CommandParser.cpp"):
+            checker.check_inputs(self.database, [], [self.root], sdk=roots)
 
-    def test_every_checkout_gate_excludes_the_sdk_roots(self):
+    def test_every_input_check_names_the_sdk_roots(self):
         text = (ROOT / "scripts/check_firmware.py").read_text(encoding="utf-8")
-        calls = text.count("owned=ROOT")
-        self.assertGreaterEqual(calls, 3)
-        self.assertEqual(text.count("+ sdk_roots(env)"), calls)
+        calls = text.count("= check_inputs(")
+        self.assertGreaterEqual(calls, 4)
+        self.assertEqual(text.count("sdk=sdk_roots(env)"), calls)
 
     def test_compiler_must_be_the_selected_targets_cross_compiler(self):
         s2 = r"C:\pio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32s2-elf-g++.exe"

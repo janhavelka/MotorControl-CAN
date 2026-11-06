@@ -93,7 +93,7 @@ def sdk_roots(env):
     return roots
 
 
-def check_inputs(database, expected, forbidden=(), owned=None, outside=()):
+def check_inputs(database, expected, forbidden=(), owned=None, outside=(), sdk=()):
     """Inspect actual compiler inputs, independently of build-list success messages.
 
     forbidden names files or directories that must not be compiled into this image,
@@ -102,7 +102,9 @@ def check_inputs(database, expected, forbidden=(), owned=None, outside=()):
     SDK, toolchain and package files lie outside it and are not checked. outside lists
     directories within owned that the exactness check skips: the build directory, whose
     generated sources belong to the SDK, or a project whose own sources a gate names
-    only in part. Without owned only the presence of expected inputs is checked."""
+    only in part. Without owned only the presence of expected inputs is checked. sdk names the
+    SDK and tool directories (sdk_roots): their files are neither forbidden nor checkout inputs,
+    even when installed inside a forbidden or owned directory, as CI installs ESP-IDF."""
     rows = compiled_inputs(database)
     actual = {path for path, _ in rows}
     wanted = {Path(p).resolve() for p in expected}
@@ -110,12 +112,13 @@ def check_inputs(database, expected, forbidden=(), owned=None, outside=()):
     if missing:
         raise ValueError("Actual build omitted required inputs: " + ", ".join(str(p) for p in sorted(missing)))
     blocked = [Path(p).resolve() for p in forbidden]
-    extra = sorted(path for path in actual if within(path, blocked))
+    tools = [Path(p).resolve() for p in sdk]
+    extra = sorted(path for path in actual if within(path, blocked) and not within(path, tools))
     if extra:
         raise ValueError("Actual build compiled forbidden inputs: " + ", ".join(str(p) for p in extra))
     if owned is not None:
         root = Path(owned).resolve()
-        skipped = [Path(p).resolve() for p in outside]
+        skipped = [Path(p).resolve() for p in outside] + tools
         unexpected = sorted(path for path in actual - wanted if root in path.parents and not within(path, skipped))
         if unexpected:
             raise ValueError("Actual build compiled unexpected checkout inputs: "
@@ -333,7 +336,7 @@ def arduino_build(runner, pio, name, expected):
     # Exact checkout inputs: the shared inventory, the core and the thin Arduino entry.
     runner.summary[name.replace("-", "_") + "_compile_entries"] = check_inputs(
         database, list(expected) + [ROOT / ARDUINO_ENTRY], [ROOT / BENCH_PROJECT, ROOT / SMOKE_SOURCE],
-        owned=ROOT, outside=[pio_build] + sdk_roots(env))
+        owned=ROOT, outside=[pio_build], sdk=sdk_roots(env))
     check_compiler(database, target)
     if not any(path.as_posix().endswith("cores/esp32/main.cpp") for path, _ in compiled_inputs(database)):
         raise VerificationFailure(name + " did not compile the Arduino core entry")
@@ -361,7 +364,7 @@ def shared_idf_build(runner, command, env, name, temporary_root, expected):
         runner.summary[name.replace("-", "_") + "_compile_entries"] = check_inputs(
             database, expected + [project / "main/main.cpp"] + [ROOT / item for item in spec["extra"]],
             [ROOT / BENCH_PROJECT] + [ROOT / item for item in spec["forbidden"]], owned=ROOT,
-            outside=[build] + sdk_roots(env))
+            outside=[build], sdk=sdk_roots(env))
         check_compiler(database, spec["target"])
         check_sdkconfig(build / "sdkconfig", spec["sdkconfig"])
         runner.summary.setdefault("firmware_targets", {})[name] = check_description(build, spec["target"])
@@ -418,7 +421,7 @@ def main():
                     # Exact outside the bench project, whose own source list it owns.
                     runner.summary["s2_compile_entries"] = check_inputs(
                         database, common + core + [project / "main/main.cpp", project / "RawEvidence.cpp"],
-                        owned=ROOT, outside=[build, project] + sdk_roots(env))
+                        owned=ROOT, outside=[build, project], sdk=sdk_roots(env))
                     check_compiler(database, "esp32s2")
                     check_sdkconfig(build / "sdkconfig", BENCH_SDKCONFIG)
                     runner.summary["s2_target"] = check_description(build, "esp32s2")
@@ -445,7 +448,7 @@ def main():
                     # (skipped only if the caller placed the temporary root inside it).
                     runner.summary["component_compile_entries"] = check_inputs(
                         database, expected, [] if ROOT in isolated.resolve().parents else [ROOT],
-                        owned=isolated, outside=[build])
+                        owned=isolated, outside=[build], sdk=sdk_roots(env))
                     runner.summary["component_inputs"] = [str(path.relative_to(isolated)) for path in expected]
                     check_compiler(database, "esp32s3")
                     check_sdkconfig(build / "sdkconfig", COMPONENT_SDKCONFIG)
