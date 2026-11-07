@@ -175,3 +175,9 @@ deferred. Original physical/firmware gates stay with their assigned owners.
 Next numbered scope is prompt35; independent CLI/offline work remains as
 recorded in PROGRESS. Only prompt34 is assigned here. Final commit/sync and exact
 CI receipt will be recorded in the user handoff and ignored `.build/p34-ci/`.
+
+## Independent follow-up audit
+
+The [fresh prompts 34/35 audit](prompts_34_35_audit.md) rechecks the original
+requirements against code and tests, records the velocity poll-budget correction
+and final verification, and keeps firmware/physical gates separate.

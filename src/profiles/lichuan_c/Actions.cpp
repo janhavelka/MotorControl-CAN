@@ -141,10 +141,10 @@ bool controlEvidence(const CANOPEN::SdoCompletion& e, const AxisReservation& r, 
                      uint64_t now) {
     return acknowledgedControlWrite(e, r, now) && stopPredecessorAllowed(controlWord(e.transfer), kind);
 }
-// 607A and 60FF are single uploads of this action, with no read plan row: neither has a typed read
-// owner yet. The ledger accepts them as this action's bounded prerequisite, never as a poll, and
-// their effects stay unknown. A ledger change that withdraws it for 607A stops this compiling. 60FF
-// has no generated declaration, as its I32 and U32 claims conflict, so the enable test pins it.
+// 607A and 60FF are single uploads accepted only as this action's bounded prerequisite, never
+// as a poll; their effects stay unknown. The separate typed 60FF read stays Q20-unqualified.
+// A ledger change that withdraws acceptance for 607A stops this compiling. 60FF has no generated
+// descriptor because its I32/U32 claims conflict, so the enable test pins its wire width.
 static_assert(OBJECT_607A_00.readEffect == ReadEffect::ACCEPTED_UNQUALIFIED,
               "enable target reads need the ledger's accepted action prerequisite");
 CANOPEN::SdoTransfer targetUpload(const ActionContext& c) {

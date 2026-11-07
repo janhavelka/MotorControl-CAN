@@ -6,6 +6,8 @@ and a distinct urgent stop through the existing owner. The original stage remain
 Partial: Q03/Q11 startup and reverse facts, mode3 stop qualification and general
 60FF Q20 read effects have no new device evidence. No velocity was run on the bench.
 Prompt 34's wrapped-angle software remains complete with its inherited gates.
+The [independent 34/35 audit](../reports/prompts_34_35_audit.md) fixes premature
+velocity poll-budget exhaustion and preserves those qualification limits.
 
 **Execution identity.** Promptset version 2 on branch `promptset/motorcontrol-can`, base `7878f7c` from `origin/main`, upstream `origin/promptset/motorcontrol-can`. Reuse this branch across every prompt and resumed session. The [source map](../source_map.md) and [prompt 1 inputs](../reports/prompt_1_inputs.json) record the starting point. Earlier narrative is in the [progress history](../reports/progress_history.md).
 

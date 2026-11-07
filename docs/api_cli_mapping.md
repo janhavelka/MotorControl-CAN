@@ -127,7 +127,7 @@ Output actions and unresolved DO reassignment remain explicitly gated; future CL
 not supply missing firmware/terminal semantics.
 
 Prompt 20 implements `prepareDriverRead/nextDriver/advanceDriver/getDriver` for
-the [three native read groups](driver_settings.md). Confirmed settings progression is implemented; future CLI routes and unresolved
+the [native read groups](driver_settings.md); prompt 35 adds the fourth group, raw `VELOCITY_TARGET` (`60FF`), with its Q20 acquisition gate. Confirmed settings progression is implemented; future CLI routes and unresolved
 setting groups retain their assigned owners.
 
 Use free `camelCase` functions/fields, `PascalCase` types, `CAPS_CASE` constants and enum values, namespace `MotorControlCAN`, and profile namespace `MotorControlCAN::LICHUAN_C`. Keep `Status { Err code; int32_t detail; const char* msg; }`, free `Ok()`, `Status::isOk()`, explicit bool and free `errToString()` returning static-lifetime labels. Preserve `OK`, `INVALID_CONFIG`, `ILLEGAL_VALUE`, `UNSUPPORTED` and `FRAME_ERROR`; select `PROTOCOL_ERROR` for a checked native service rejection. Do not retain `CRC_ERROR` or RTU `EXCEPTION`. A raw SDO abort needs a separate `uint32_t abortCode` with validity in protocol evidence; never truncate or silently sign-convert it into generic detail.

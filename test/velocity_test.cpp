@@ -524,8 +524,70 @@ void bestEffortSettlementRequiresQuickStopPolicy() {
         }
     }
 }
+void exactPollCoverageIncludesTheWholeDuration() {
+    for (uint8_t startMode : {uint8_t(3), uint8_t(1)}) {
+        Rig r;
+        r.options.maxPolls = uint32_t(DURATION / r.options.pollIntervalUs);
+        r.mode = startMode;
+        r.acquireInitial();
+        if (startMode != 3) {
+            r.evidence.modeChangeQualified = true;
+            r.evidence.modeChangeFromRaw = startMode;
+        }
+        CHECK(r.prepare());
+        bool stopDue = false;
+        // Zero-latency completions are valid supplied evidence. Slow fake replies must not hide
+        // an observation-budget failure that would stop an otherwise successful run early.
+        for (unsigned step = 0; step < 2000 && !stopDue; ++step) {
+            CHECK(r.context.firstFailure == M::ActionOutcome::NONE);
+            CHECK(L::serviceVelocity(r.context, r.live, r.target, r.now, false, stopDue));
+            if (stopDue)
+                break;
+            const L::PreparedVelocity work = r.next(r.now);
+            if (work.observe) {
+                CHECK(
+                    L::beginVelocityObservation(r.context, r.observation, r.live, r.target, r.now));
+                continue;
+            }
+            if (!work.ready) {
+                r.now = work.eligibleUs > r.now ? work.eligibleUs : r.context.stopDueUs;
+                continue;
+            }
+            if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
+                CHECK(L::noteVelocityTransmission(r.context, r.live, r.target, r.axis, nullptr, 0,
+                                                  r.now));
+                if (work.transfer.index == 0x6040)
+                    r.control =
+                        uint16_t(work.transfer.data[0] | (uint16_t(work.transfer.data[1]) << 8));
+                else if (work.transfer.index == 0x6060)
+                    r.mode = work.transfer.data[0];
+            }
+            CHECK(L::advanceVelocity(
+                r.context, r.observation, r.live, r.target,
+                reply(work.transfer, r.now, r.now, r.value(work.transfer.index)), r.now));
+        }
+        CHECK(stopDue && r.now == START + DURATION);
+        CHECK(r.context.firstFailure == M::ActionOutcome::NONE &&
+              r.context.state == M::ActionState::ACTIVE && r.context.runningObserved &&
+              r.context.phase == L::VelocityPhase::STOPPING && r.context.needsStop);
+        CHECK(r.context.startedUs == START && r.context.stopDueUs == START + DURATION &&
+              r.context.deadlineUs == DEADLINE);
+        CHECK(r.context.modeEvidencePresent == (startMode != 3));
+    }
+    Rig zero;
+    zero.options.maxPolls = 0;
+    zero.reject(); // Reject before dividing the duration coverage bound by maxPolls.
+    Rig wide;
+    wide.options.maxPolls = UINT32_MAX;
+    CHECK(wide.prepare()); // The maximum running budget must remain valid without arithmetic wrap.
+    Rig overflow;
+    overflow.options.maxPolls = UINT32_MAX;
+    overflow.options.pollIntervalUs = uint64_t(INT64_MAX) / UINT32_MAX + 1;
+    overflow.reject();
+}
 } // namespace
 int main() {
+    exactPollCoverageIncludesTheWholeDuration();
     bestEffortSettlementRequiresQuickStopPolicy();
     preparationBoundaries();
     timingAndRetainedFailure();

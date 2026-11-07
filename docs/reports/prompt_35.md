@@ -112,3 +112,9 @@ firmware tuples and the other stop kind require their own evidence. General
 60FF acquisitions retain Q20. The prompt29 conditional route may resume these
 measurements without waiting for prompt47; software tests do not substitute for
 them. No serial port, controller or drive was opened by this implementation.
+
+## Independent follow-up audit
+
+The [fresh prompts 34/35 audit](prompts_34_35_audit.md) rechecks the original
+requirements against code and tests, records the velocity poll-budget correction
+and final verification, and keeps firmware/physical gates separate.
