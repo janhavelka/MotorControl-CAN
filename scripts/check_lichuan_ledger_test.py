@@ -120,6 +120,18 @@ class LedgerTests(unittest.TestCase):
                 row["subindex"] = 3
             self.reject(data, "read owner outside the reviewed Prompt 20")
 
+    def test_velocity_read_scope_does_not_close_sign_or_effect_gates(self):
+        row = entry(LEDGER, "0x60FF:00")
+        self.assertEqual(row["read_coverage"], dict(documented=True, implemented=True,
+                                                    host_tested=True, hardware_qualified=False))
+        self.assertEqual(row["review"]["generation_type"], "withheld")
+        self.assertEqual(row["review"]["read_effect"], "not_established")
+        self.assertFalse(row["coverage"]["implemented"])
+        for key in ("0x607A:00", "0x606C:00", "0x6099:01"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 35
+            self.reject(data, "outside the reviewed Prompt 35 target-velocity read scope")
+
     def test_read_coverage_cannot_widen_scope_or_claim_hardware(self):
         coverage = dict(documented=True, implemented=True, host_tested=True,
                         hardware_qualified=False)
@@ -388,7 +400,12 @@ class LedgerTests(unittest.TestCase):
             row = entry(LEDGER, key)
             self.assertEqual(row["review"]["read_effect"], "not_established", key)
             self.assertIn("Q20", row["review"]["gate_ids"], key)
-            self.assertNotIn("read_coverage", row, key)
+            if key == "0x607A:00":
+                self.assertNotIn("read_coverage", row, key)
+            else:
+                # Prompt 35 adds a standalone raw read, whose descriptor does not inherit
+                # the separate one-upload-per-enable action acceptance.
+                self.assertFalse(row["read_coverage"]["hardware_qualified"], key)
         action = LEDGER["semantic_review"]["action_read_acceptance"]
         self.assertEqual(action["rows"], ["0x607A:00", "0x60FF:00"])
         self.assertIn("Not a poll", action["meaning"])

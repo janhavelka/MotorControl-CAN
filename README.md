@@ -1,5 +1,11 @@
 # MotorControl-CAN
 
+The [finite velocity API](docs/velocity.md) and owner path are implemented behind
+explicit firmware gates. The connected CL86-C specimens have no retained mode3
+startup/stop trial; the default gate remains closed. See the
+[offline example](examples/velocity_preview/README.md) and [stage report](docs/reports/prompt_35.md).
+
+
 A framework-independent C++11 library for **CAN-controlled stepper and servo drives from multiple manufacturers**. Common motion is motor- and protocol-neutral. CANopen/CiA402 is the first protocol backend and the Lichuan CL86-C the first target; CL/OL 86C and 57C models keep separate applicability and firmware evidence. Nanotec N5 and maxon EPOS4 are design contrasts and future profile candidates, not supported drives. Read [the stepper and servo scope decision](docs/multidrive_decision.md).
 
 The design follows `../MotorControl-RS`: the same motion vocabulary, exact units, caller-owned operation contexts, application-owned transport, a shared example CLI and native/Python verification. FieldCore-node is a reference consumer, not a dependency.

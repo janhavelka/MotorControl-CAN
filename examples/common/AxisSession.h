@@ -6,6 +6,7 @@
 #include "CanBusOwner.h"
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
 #include <MotorControlCAN/profiles/lichuan_c/Position.h>
+#include <MotorControlCAN/profiles/lichuan_c/Velocity.h>
 
 namespace MotorControlCANExample {
 /** Where a requested stop stands. Never a claim about the drive. */
@@ -136,12 +137,16 @@ class AxisSession {
     }
     /** @return True while a move is neither finished nor failed. */
     bool moveActive() const noexcept { return move_.state == MotorControlCAN::ActionState::ACTIVE; }
+    /** @return True while the finite velocity run or its requested stop is unsettled. */
+    bool velocityActive() const noexcept {
+        return velocity_.state == MotorControlCAN::ActionState::ACTIVE;
+    }
     /** @return True while an alarm clear or counter clear is neither finished nor failed. */
     bool clearActive() const noexcept { return clear_.state == MotorControlCAN::ActionState::ACTIVE; }
     /** @return True with a stop, enable, move or clear in progress or a request unsettled, which excludes
      * new operations and reads: starting one would orphan that terminal's history. */
     bool busy() const noexcept {
-        return stopActive() || enableActive() || moveActive() || clearActive() || pending_.owner ||
+        return stopActive() || enableActive() || moveActive() || velocityActive() || clearActive() || pending_.owner ||
                urgent_.owner || superseded_.owner;
     }
     /** Start a new operation for the next commands on this reservation.
@@ -328,6 +333,51 @@ class AxisSession {
      */
     bool cancelMove(uint64_t nowUs, MotorControlCAN::MoveInterruption reason =
                                         MotorControlCAN::MoveInterruption::CANCELLED) noexcept;
+    /** Request a finite velocity run, initially released and stationary under explicit firmware
+     * evidence. No traffic occurs until service(). Preparation time anchors the duration; admission
+     * and setup consume it. The original deadline also bounds the internally requested urgent stop.
+     * @param[in] state Fresh MONITORS/STATUS/FEEDBACK cycle, borrowed during this call only.
+     * @param[in] identity Current raw identity on this binding and node epoch.
+     * @param[in] evidence Explicit startup, direction and stop qualification; closed by default.
+     * @param[in] request Signed engineering rate and nonzero finite duration in microseconds.
+     * @param[in] profile Reviewed native ramp times in milliseconds.
+     * @param[in] axis Borrowed stationary configuration through terminal settlement. Its generation
+     * and native rate destination are rechecked at admission and by preflight at controller handover.
+     * @param[in] options Fixed polling, service and stop settlement budgets.
+     * @param[in] deadlineUs Exclusive immutable processing-time cutoff in microseconds.
+     * @param[in] nowUs Nondecreasing preparation time in microseconds.
+     * @return Preparation status; refusal publishes nothing and admits no work.
+     */
+    MotorControlCAN::Status requestVelocity(
+        const MotorControlCAN::LICHUAN_C::ReadContext& state,
+        const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+        const MotorControlCAN::LICHUAN_C::VelocityEvidence& evidence,
+        const MotorControlCAN::FiniteVelocityRequest& request,
+        const MotorControlCAN::LICHUAN_C::VelocityProfile& profile,
+        const MotorControlCAN::AxisConfig& axis,
+        const MotorControlCAN::LICHUAN_C::VelocityOptions& options,
+        uint64_t deadlineUs, uint64_t nowUs) noexcept;
+    /** Withdraw finite velocity locally, without a stop or replay. Queued unsent work is cancelled;
+     * an accepted transfer retains its own terminal evidence. A checked fault fences later motion.
+     * @param[in] nowUs Nondecreasing processing time in microseconds.
+     * @param[in] reason CANCELLED or DRIVE_FAULT.
+     * @return False unchanged for no active run, invalid reason or backward time.
+     */
+    bool cancelVelocity(uint64_t nowUs,
+                        MotorControlCAN::VelocityInterruption reason =
+                            MotorControlCAN::VelocityInterruption::CANCELLED) noexcept;
+    /** @return Concrete retained velocity context; a later separately requested stop never rewrites it. */
+    const MotorControlCAN::LICHUAN_C::VelocityContext& velocityAction() const noexcept { return velocity_; }
+    /** @return Last complete velocity observation, never the read in progress. The two read buffers
+     * are shared with moves; starting either operation invalidates this view's former contents. */
+    const MotorControlCAN::LICHUAN_C::ReadContext& velocityObservation() const noexcept {
+        return moveReads_[moveComplete_];
+    }
+    /** @return True after a possibly starting velocity write without checked stop observation.
+     * Recovery, reopen and best-effort transmission cannot clear it. */
+    bool velocityNeedsStop() const noexcept { return velocityNeedsStop_; }
+    /** @return Retained reason an admission or handover recheck refused the latest velocity write. */
+    const MotorControlCAN::Status& velocityRefusal() const noexcept { return velocityRefusal_; }
     /** Request one explicit alarm clear on this axis through prepareClearAlarm: 2301 U16 1, then 0
      * after the 1's acknowledgement. No specimen has run it. Starts a new owner operation, then prepares
      * clearAction() in place. Yields no traffic here: service() admits each write and read on this
@@ -541,6 +591,14 @@ class AxisSession {
     uint32_t lastTrial_ = 0;
     MotorControlCAN::ActionOutcome enableWithdrawn_ = MotorControlCAN::ActionOutcome::NONE;
     MotorControlCAN::LICHUAN_C::MoveContext move_;
+    MotorControlCAN::LICHUAN_C::VelocityContext velocity_;
+    const MotorControlCAN::AxisConfig* velocityAxis_ = nullptr;
+    MotorControlCAN::VelocityInterruption velocityWithdrawn_ = MotorControlCAN::VelocityInterruption::NONE;
+    MotorControlCAN::Status velocityRefusal_;
+    bool velocityNeedsStop_ = false, scheduledVelocityStop_ = false;
+    bool requestingVelocityStop_ = false;
+    uint64_t velocityCommandAfterUs_ = 0;
+    uint64_t lastWriteUs_ = 0; // New velocity state must postdate this session's writes.
     // Observation cycles alternate between these, so the last complete one survives the next.
     MotorControlCAN::LICHUAN_C::ReadContext moveReads_[2];
     uint8_t moveRead_ = 0, moveComplete_ = 1;
@@ -593,6 +651,11 @@ class AxisSession {
     void endMove(MotorControlCAN::MoveInterruption reason, uint64_t nowUs) noexcept;
     void afterMove() noexcept;
     void serviceMove(uint64_t nowUs) noexcept;
+    void serviceVelocity(uint64_t nowUs) noexcept;
+    void withdrawVelocity(MotorControlCAN::VelocityInterruption reason, uint64_t nowUs) noexcept;
+    void endVelocity(MotorControlCAN::VelocityInterruption reason, uint64_t nowUs) noexcept;
+    void afterVelocity() noexcept;
+    void settleVelocityStop(uint64_t nowUs) noexcept;
     MotorControlCAN::Status startClear(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                        int64_t nativePosition, MotorControlCAN::AxisConfig* axis,
                                        MotorControlCAN::AxisReference* reference,

@@ -193,7 +193,7 @@ enum class ReadRepresentation : uint8_t {
 };
 
 /** @brief Bounded read shape, independent of live binding, interpretation and effects.
- * Returned by readDescriptor for the reviewed Prompt 19/20/21/22 assignments only.
+ * Returned by readDescriptor for the reviewed Prompt 19/20/21/22/35 assignments only.
  * Does not establish a non-changing probe or grant polling qualification.
  */
 struct ReadDescriptor {
@@ -281,11 +281,11 @@ def read_effect(row):
 
 def read_descriptor_function(rows):
     """Generate one bounded lookup from explicit read ownership, never EDS flags alone."""
-    selected = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22)]
-    if len(selected) > 95:
-        raise ValueError("Implemented read descriptor capacity exceeds 95")
+    selected = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35)]
+    if len(selected) > 96:
+        raise ValueError("Implemented read descriptor capacity exceeds 96")
     lines = [r'''/** @brief Copy the reviewed shape of one implemented native read.
- * Contains only explicitly assigned readable source rows. Raw mode bytes retain
+ * Contains only explicitly assigned readable source rows. Raw mode/velocity words retain
  * disputed signedness; a match does not qualify read effects, polling, physical
  * units, interpretation, firmware identity or a non-changing probe.
  * Performs no I/O, time acquisition or allocation. Independent calls are reentrant;
@@ -301,10 +301,13 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
     if selected:
         lines.append("    static const ReadDescriptor rows[] = {\n")
         for row in selected:
+            # An action's one-time prerequisite acceptance does not authorize a standalone read.
+            effect = ("ACCEPTED_UNQUALIFIED" if row.get("read_disposition") ==
+                      "accepted_not_qualified" else "UNQUALIFIED")
             lines.append("        {{0x{:04X}, 0x{:02X}, {}, ReadRepresentation::{}, "
                          "ReadEffect::{}, SourceScope::EDS_FAMILY_UNBOUND}},\n".format(
                              row["index"], row["subindex"], row["type"]["width_bytes"],
-                             read_descriptor_representation(row), read_effect(row)))
+                             read_descriptor_representation(row), effect))
         lines += ["    };\n", "    for (uint8_t i = 0; i < {}; ++i) {{\n".format(len(selected)),
                   "        if (rows[i].index == index && rows[i].subindex == subindex) {\n",
                   "            output = rows[i];\n            return true;\n        }\n    }\n"]
@@ -462,7 +465,7 @@ def coverage_text(coverage):
 
 def coverage_document(data, rows):
     counts = Counter(row["review"]["generation_type"] for row in rows)
-    read_rows = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22)]
+    read_rows = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35)]
     implemented_reads = sum(row.get("read_coverage", {}).get("implemented", False) for row in rows)
     lines = ["# Generated Lichuan native declarations and semantic coverage\n\n",
              "Generated from `" + LEDGER_PATH + "` by `" + COMMAND + "`. Do not edit.\n\n",
@@ -483,7 +486,7 @@ def coverage_document(data, rows):
              "| Withheld declarations | {} | Unresolved complete signed type, raw claims retained |\n".format(counts["withheld"]),
              "| Excluded reserved entries | {} | No descriptor or operation route |\n".format(counts["excluded"]),
              "| Manual-only semantic items | {} | Reviewed evidence, semantic functions pending |\n".format(len(data["manual_only"])),
-             "| Read shape descriptors | {} | Prompt 19/20/21/22 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
+             "| Read shape descriptors | {} | Prompt 19/20/21/22/35 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
              "| Typed reads | {} | Implemented scalar read rows; see separate read coverage, not whole-object support |\n".format(implemented_reads),
              "| Typed settings | {} | Conditional scalar setting rows, not complete object permission; model/state scope below |\n".format(
                  sum(row.get("setting_coverage", {}).get("implemented", False) for row in rows)),
@@ -535,7 +538,7 @@ def coverage_document(data, rows):
               "not write permission, live configuration, sample provenance, physical units or motion "
               "completion. Mode bytes and target velocity retain raw representation while signedness "
               "conflicts remain unresolved; every live qualification gate stays open.\n\n",
-              "Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22 read rows "
+              "Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/35 read rows "
               "generate ReadDescriptor lookup entries; 6061 is a raw byte without an ObjectDescriptor. "
               "Read coverage does not qualify non-changing effects or close the pending Q20 probe.\n\n",
               "| Entry | Role | Native type / bytes / signed | EDS / reviewed SDO access | EDS / reviewed PDO | Declaration | Owner | Read owner | D/I/H/Q | Read D/I/H/Q |\n",
@@ -563,7 +566,7 @@ def coverage_document(data, rows):
                   ("Edge behavior", row["edge_behavior"]), ("Documentary review", row["review"]),
                   ("Conflicts", row["conflict_ids"]), ("Owner prompt", row["owner_prompt"]),
                   ("Read owner prompt", row.get("read_owner_prompt")),
-                  ("Read representation", read_descriptor_representation(row) if row.get("read_owner_prompt") in (19, 20, 21, 22) else None),
+                  ("Read representation", read_descriptor_representation(row) if row.get("read_owner_prompt") in (19, 20, 21, 22, 35) else None),
                   ("Read coverage D/I/H/Q", coverage_text(row["read_coverage"]) if "read_coverage" in row else "not reported"),
                   ("Typed setting scope", row.get("setting_scope")),
                   ("Setting coverage D/I/H/Q", coverage_text(row["setting_coverage"]) if "setting_coverage" in row else "not reported"),

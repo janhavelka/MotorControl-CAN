@@ -133,8 +133,13 @@ transmission. This includes a finished settings context's `readback`. Do not
 transmit if it refuses. After that, `getDriver` and `prepareDriverSettings` refuse
 the context until a fresh read replaces it; its raw values stay as history. A
 copy the owner did not pass is unreachable, so keep one retained context per
-axis. It has no caller until the move lifecycle arrives in packet 20, and it does
-not prove that the write happened. `607C` has no ruling yet and is refused.
+axis. The position lifecycle calls it before admitted parameter work may transmit;
+velocity setup does the same for `60FF`, `6083` and `6084`. `60FF` now retires the
+snapshot conservatively, and either mode's shared ramp writes retire the other
+mode's retained parameters. This does not advance the configuration generation
+or prove that the write happened. `607A` alone changes no field in this group.
+Homing rows are accepted conservatively at their declared widths; prompt 36
+still owns their actual operation and the ruling on `607C`.
 
 The exclusive transaction alone may finish its copied old-epoch downloads.
 After releasing all old results, the application explicitly calls

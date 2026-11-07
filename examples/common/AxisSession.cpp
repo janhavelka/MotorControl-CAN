@@ -99,6 +99,12 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     enableWithdrawn_ = M::ActionOutcome::NONE;
     // moveFenced_ stays: reopening cannot show that an earlier move's motion ended.
     L::resetMove(move_);
+    L::resetVelocity(velocity_);
+    velocityAxis_ = nullptr;
+    velocityWithdrawn_ = M::VelocityInterruption::NONE;
+    velocityRefusal_ = M::Status();
+    scheduledVelocityStop_ = false;
+    // velocityNeedsStop_ survives reopen: no new wire observation has settled it.
     L::resetRead(moveReads_[0]);
     L::resetRead(moveReads_[1]);
     moveRead_ = 0;
@@ -166,6 +172,7 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
         pending_ = id;
         lastUs_ = now;
         if (transfer.direction == C::SdoDirection::DOWNLOAD) {
+            lastWriteUs_ = now;
             const bool present = controlPresent_;
             dropControl();
             if (present)
@@ -176,7 +183,7 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
     return admission;
 }
 bool AxisSession::settle(C::SdoCompletion& output) noexcept {
-    return !enableActive() && !moveActive() && !clearActive() && takeTerminal(output);
+    return !enableActive() && !moveActive() && !velocityActive() && !clearActive() && takeTerminal(output);
 }
 bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     const Completion* terminal = owner_.result(pending_);
@@ -187,6 +194,8 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
         return false;
     keepUnsentControl(copy);
     pending_ = RequestId();
+    if (copy.transfer.direction == C::SdoDirection::DOWNLOAD && copy.completedUs > lastWriteUs_)
+        lastWriteUs_ = copy.completedUs;
     const Sequence* s = owner_.sequence(sequence_);
     // A write settling after a stop was admitted is older intent, not the latest word.
     if (copy.outcome == C::SdoOutcome::SUCCESS && isControlWrite(copy.transfer) && s &&
@@ -218,6 +227,8 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
     if (faultBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
+    if (velocityNeedsStop_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier velocity run needs a checked stop");
     if (motionWritten_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "this session wrote to the drive; no fresh enable history remains");
@@ -366,6 +377,8 @@ M::Status AxisSession::startMove(MoveForm form, const L::ReadContext& state,
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (faultBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
+    if (velocityNeedsStop_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier velocity run needs a checked stop");
     if (moveFenced_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "an earlier trigger may still be moving the drive: new moves stay fenced");
@@ -575,6 +588,206 @@ void AxisSession::serviceMove(uint64_t now) noexcept {
         withdrawMove(M::MoveInterruption::INVALIDATED, now);
     }
 }
+M::Status AxisSession::requestVelocity(const L::ReadContext& state,
+                                      const L::IdentityObservation& identity,
+                                      const L::VelocityEvidence& evidence,
+                                      const M::FiniteVelocityRequest& request,
+                                      const L::VelocityProfile& profile, const M::AxisConfig& axis,
+                                      const L::VelocityOptions& options, uint64_t deadline,
+                                      uint64_t now) noexcept {
+    const int32_t error = static_cast<int32_t>(M::VelocityError::STATE);
+    if (now < latestUs())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::VelocityError::TIME),
+                         "time is behind this session or owner");
+    if (!open_ || !usable() || busy())
+        return M::Status(M::Err::INVALID_CONFIG, error, "no idle usable axis reservation");
+    if (state.startedUs < lastWriteUs_)
+        return M::Status(M::Err::INVALID_CONFIG, error, "velocity state predates this session's latest write");
+    if (clearBlocked_ || faultBlocked_ || moveFenced_ || velocityNeedsStop_)
+        return M::Status(M::Err::INVALID_CONFIG, error, "earlier uncertain work fences this axis");
+    const uint32_t next = nextOperation();
+    if (!next)
+        return M::Status(M::Err::INVALID_CONFIG, error, "operation identities exhausted");
+    const M::Status checked = L::validateVelocity(velocity_, reservation_, target_, state, identity,
+                                                evidence, request, profile, axis, next, now, deadline,
+                                                options);
+    if (!checked)
+        return checked;
+    if (!owner_.beginOperation(sequence_, next, deadline, now))
+        return M::Status(M::Err::INVALID_CONFIG, error, "owner refused a new velocity operation");
+    L::prepareVelocity(velocity_, reservation_, target_, state, identity, evidence, request, profile,
+                       axis, next, now, deadline, options);
+    L::resetRead(moveReads_[0]);
+    L::resetRead(moveReads_[1]);
+    moveRead_ = 0;
+    moveComplete_ = 1;
+    velocityAxis_ = &axis;
+    velocityWithdrawn_ = M::VelocityInterruption::NONE;
+    velocityRefusal_ = M::Status();
+    scheduledVelocityStop_ = false;
+    operation_ = next;
+    lastUs_ = now;
+    return M::Ok();
+}
+bool AxisSession::cancelVelocity(uint64_t now, M::VelocityInterruption reason) noexcept {
+    if (now < latestUs() || !velocityActive() ||
+        (reason != M::VelocityInterruption::CANCELLED && reason != M::VelocityInterruption::DRIVE_FAULT))
+        return false;
+    lastUs_ = now;
+    faultBlocked_ |= reason == M::VelocityInterruption::DRIVE_FAULT;
+    withdrawVelocity(reason, now);
+    return true;
+}
+void AxisSession::afterVelocity() noexcept {
+    // A new run was admitted only with no older fence. Its actual terminals can refine a
+    // provisional notice when the controller proves the first enabling word never left.
+    velocityNeedsStop_ = velocity_.needsStop;
+    velocityAxis_ = nullptr;
+    scheduledVelocityStop_ = false;
+}
+void AxisSession::endVelocity(M::VelocityInterruption reason, uint64_t now) noexcept {
+    if (!L::advanceVelocity(velocity_, moveReads_[moveRead_], reservation_, reservation_.target,
+                            reason, now).isOk())
+        L::advanceVelocity(velocity_, moveReads_[moveRead_], reservation_, reservation_.target,
+                            M::VelocityInterruption::INVALIDATED, now);
+    afterVelocity();
+}
+void AxisSession::withdrawVelocity(M::VelocityInterruption reason, uint64_t now) noexcept {
+    if (!velocityActive() || velocityWithdrawn_ != M::VelocityInterruption::NONE)
+        return;
+    velocityWithdrawn_ = reason;
+    if (pending_.owner && !owner_.result(pending_) && !owner_.mayHaveTransmitted(pending_))
+        owner_.cancel(pending_, now);
+    if (const Completion* closed = pending_.owner ? owner_.result(pending_) : nullptr)
+        keepUnsentControl(closed->service);
+    if (!pending_.owner)
+        endVelocity(reason, now);
+    else
+        L::noteVelocityWithdrawal(velocity_, reservation_, reservation_.target, reason, now);
+}
+void AxisSession::settleVelocityStop(uint64_t now) noexcept {
+    if (!velocityActive() || !scheduledVelocityStop_ || stopActive())
+        return;
+    M::Status settled;
+    if (bestEffort_.operation > velocity_.operation &&
+        bestEffort_.state != M::ActionState::EMPTY)
+        settled = L::advanceVelocityStop(velocity_, bestEffort_, now);
+    else
+        settled = L::advanceVelocityStop(velocity_, stops_[static_cast<unsigned>(activeKind_)], now);
+    if (!settled.isOk())
+        endVelocity(now >= velocity_.deadlineUs ? M::VelocityInterruption::DEADLINE
+                                               : M::VelocityInterruption::INVALIDATED, now);
+    else if (!velocityActive())
+        afterVelocity();
+}
+void AxisSession::serviceVelocity(uint64_t now) noexcept {
+    if (!velocityActive())
+        return;
+    const L::ReadTarget& frozen = reservation_.target;
+    if (pending_.owner) {
+        const Completion* closed = owner_.result(pending_);
+        const bool guarded = closed && closed->reason == CompletionReason::PREFLIGHT_REJECTED;
+        C::SdoCompletion terminal;
+        if (!takeTerminal(terminal))
+            return;
+        if ((guarded || terminal.outcome == C::SdoOutcome::CANCELLED) &&
+            velocityWithdrawn_ == M::VelocityInterruption::NONE) {
+            velocityWithdrawn_ = M::VelocityInterruption::INVALIDATED;
+            L::noteVelocityWithdrawal(velocity_, reservation_, frozen, velocityWithdrawn_, now);
+        }
+        L::ReadContext& read = moveReads_[moveRead_];
+        if (isControlWrite(terminal.transfer))
+            velocityCommandAfterUs_ = terminal.completedUs;
+        if (!L::advanceVelocity(velocity_, read, reservation_, frozen, terminal, now).isOk())
+            L::advanceVelocity(velocity_, read, reservation_, frozen,
+                                velocityWithdrawn_ == M::VelocityInterruption::NONE
+                                    ? M::VelocityInterruption::INVALIDATED : velocityWithdrawn_, now);
+        if (read.state == M::ReadState::SUCCEEDED && read.operation == velocity_.operation &&
+            read.startedUs == velocity_.observationStartedUs)
+            moveComplete_ = moveRead_;
+        if (!velocityActive()) {
+            afterVelocity();
+            return;
+        }
+    }
+    if (scheduledVelocityStop_) {
+        settleVelocityStop(now);
+        return; // The stop service owns its urgent request and its original cutoff.
+    }
+    if (velocityWithdrawn_ != M::VelocityInterruption::NONE || now >= velocity_.deadlineUs ||
+        (!usable() && velocity_.phase != L::VelocityPhase::STOPPING)) {
+        endVelocity(now >= velocity_.deadlineUs ? M::VelocityInterruption::DEADLINE
+                    : velocityWithdrawn_ != M::VelocityInterruption::NONE ? velocityWithdrawn_
+                                                                         : M::VelocityInterruption::INVALIDATED,
+                    now);
+        return;
+    }
+    bool due = false;
+    if (!L::serviceVelocity(velocity_, reservation_, frozen, now, false, due).isOk()) {
+        if (!velocityActive())
+            afterVelocity();
+        else
+            endVelocity(M::VelocityInterruption::INVALIDATED, now);
+        return;
+    }
+    if (!velocityActive()) {
+        afterVelocity();
+        return;
+    }
+    if (due) {
+        StopPolicy policy;
+        policy.options.service = velocity_.options.service;
+        policy.options.observationIntervalUs = velocity_.options.pollIntervalUs;
+        policy.options.maximumAgeUs = velocity_.options.maximumAgeUs;
+        policy.deadlineUs = velocity_.deadlineUs;
+        // A requested HALT is not permission to substitute 000B on an unresolved route.
+        policy.bestEffortDeadlineUs = velocity_.options.stopKind == L::StopKind::QUICK_STOP
+                                          ? velocity_.deadlineUs : 0;
+        scheduledVelocityStop_ = true; // This requested stop belongs to the finite run's policy.
+        requestingVelocityStop_ = true;
+        const StopPath path = requestStop(velocity_.options.stopKind, velocityObservation(), policy, now);
+        requestingVelocityStop_ = false;
+        if (path == StopPath::NONE) {
+            scheduledVelocityStop_ = false;
+            endVelocity(M::VelocityInterruption::INVALIDATED, now);
+        }
+        return;
+    }
+    L::PreparedVelocity work;
+    if (!L::nextVelocity(velocity_, moveReads_[moveRead_], reservation_, frozen, now, work).isOk()) {
+        endVelocity(M::VelocityInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.observe) {
+        const uint8_t slot = uint8_t(1u - moveComplete_);
+        if (!L::beginVelocityObservation(velocity_, moveReads_[slot], reservation_, frozen, now).isOk() ||
+            !L::nextVelocity(velocity_, moveReads_[slot], reservation_, frozen, now, work).isOk()) {
+            endVelocity(M::VelocityInterruption::INVALIDATED, now);
+            return;
+        }
+        moveRead_ = slot;
+    }
+    if (!work.ready)
+        return;
+    const BusAdmission admitted = admitWork(work.transfer, now);
+    if (admitted == BusAdmission::RESULTS_FULL)
+        return;
+    if (admitted != BusAdmission::ACCEPTED) {
+        endVelocity(M::VelocityInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
+        const M::Status noted = L::noteVelocityTransmission(velocity_, reservation_, frozen,
+                                                          *velocityAxis_, retained_, retainedCount_, now);
+        velocityNeedsStop_ |= velocity_.needsStop;
+        if (isControlWrite(work.transfer) && noted.isOk())
+            velocityCommandAfterUs_ = now;
+        if (!noted.isOk()) {
+            velocityRefusal_ = noted;
+            withdrawVelocity(M::VelocityInterruption::INVALIDATED, now);
+        }
+    }
+}
 M::Status AxisSession::requestClearAlarm(const L::ReadContext& state, const L::ActionOptions& options,
                                          uint64_t deadline, uint64_t now) noexcept {
     return startClear(state, 0, nullptr, nullptr, options, deadline, now);
@@ -600,6 +813,8 @@ M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePos
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (clearBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
+    if (velocityNeedsStop_ && axis)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier velocity run needs a checked stop");
     if (faultBlocked_ && axis)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
     const uint32_t next = nextOperation();
@@ -783,6 +998,15 @@ bool AxisSession::holdForFault(const C::SdoTransfer& transfer, uint64_t now) noe
         }
         return true;
     }
+    if (velocityActive() && transfer.operation == velocity_.operation) {
+        faultBlocked_ = true;
+        if (velocityWithdrawn_ == M::VelocityInterruption::NONE) {
+            velocityWithdrawn_ = M::VelocityInterruption::DRIVE_FAULT;
+            L::noteVelocityWithdrawal(velocity_, reservation_, reservation_.target,
+                                      velocityWithdrawn_, now);
+        }
+        return true;
+    }
     if (clearActive() && transfer.operation == clear_.operation) {
         if (clearWithdrawn_ == M::ActionOutcome::NONE) {
             clearWithdrawn_ = fault;
@@ -807,6 +1031,16 @@ bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
         return enableWithdrawn_ == M::ActionOutcome::NONE;
     if (clearActive() && transfer.operation == clear_.operation)
         return clearWithdrawn_ == M::ActionOutcome::NONE; // Withdrawn while it waited; its cancel lost.
+    if (velocityActive() && transfer.operation == velocity_.operation) {
+        if (velocityWithdrawn_ != M::VelocityInterruption::NONE)
+            return false;
+        const M::Status checked = L::validateVelocityAdmission(
+            velocity_, reservation_, reservation_.target, *velocityAxis_, at);
+        if (checked.isOk())
+            return true;
+        velocityRefusal_ = checked;
+        return false;
+    }
     if (!moveActive() || transfer.operation != move_.operation)
         return true;
     if (moveWithdrawn_ != M::MoveInterruption::NONE)
@@ -827,7 +1061,8 @@ bool AxisSession::freshlyIdle(const L::ReadContext& state, const StopPolicy& pol
     L::StateObservation monitors;
     return L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, policy.options.maximumAgeUs,
                             monitors) &&
-           !(monitors.monitor & L::MONITOR_RUNNING);
+           !(monitors.monitor & L::MONITOR_RUNNING) &&
+           (!velocityNeedsStop_ || monitors.window.earliestUs >= velocityCommandAfterUs_);
 }
 // Fresh evidence that this drive is idle and outside the stop's states refuses both paths:
 // nothing establishes what 000B does in those states. A running report keeps the stop.
@@ -836,7 +1071,8 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
     L::StateObservation monitors, status;
     const uint64_t age = policy.options.maximumAgeUs;
     if (!L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, age, monitors) ||
-        (monitors.monitor & L::MONITOR_RUNNING))
+        (monitors.monitor & L::MONITOR_RUNNING) ||
+        (velocityNeedsStop_ && monitors.window.earliestUs < velocityCommandAfterUs_))
         return false;
     return (monitors.monitor & (L::MONITOR_ALARM | L::MONITOR_RELEASED)) ||
            (L::getStateBlock(state, L::StateBlock::STATUS, target_, now, age, status) &&
@@ -851,9 +1087,13 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     const uint64_t at = now < latest ? latest : now;
     if (open_ && ((enableActive() && enableWithdrawn_ == M::ActionOutcome::NONE) ||
                   (moveActive() && moveWithdrawn_ == M::MoveInterruption::NONE) ||
+                  (velocityActive() && !requestingVelocityStop_ &&
+                   velocityWithdrawn_ == M::VelocityInterruption::NONE) ||
                   (clearActive() && clearWithdrawn_ == M::ActionOutcome::NONE))) {
         withdrawEnable(M::ActionOutcome::CANCELLED, at);
         withdrawMove(M::MoveInterruption::STOP, at);
+        if (!requestingVelocityStop_)
+            withdrawVelocity(M::VelocityInterruption::STOP, at);
         withdrawClear(M::ActionOutcome::CANCELLED, at);
         lastUs_ = at;
     }
@@ -929,6 +1169,7 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     operation_ = next;
     suspended_ = RequestId(); // From here the stop decides the latest word.
     motionWritten_ = true; // Whichever path this takes, a stop frame may reach the drive.
+    lastWriteUs_ = now;
     recoveryUsed_ = false;
     const uint32_t epoch = owner_.controllerEpoch();
     epochLimit_ = owner_.recoveryActive() ? epoch : epoch + 1; // A running recovery is the one.
@@ -952,6 +1193,7 @@ void AxisSession::service(uint64_t now) noexcept {
     settleSuperseded(now);
     serviceEnable(now);
     serviceMove(now);
+    serviceVelocity(now);
     serviceClear(now);
     switch (path_) {
     case StopPath::CONFIRMED:
@@ -966,6 +1208,7 @@ void AxisSession::service(uint64_t now) noexcept {
     default:
         break;
     }
+    settleVelocityStop(now);
     // A counter clear that ended before the owner could follow it, as behind a stop.
     if (!clearActive())
         syncCounter(now);
@@ -1002,6 +1245,8 @@ void AxisSession::serviceConfirmed(uint64_t now) noexcept {
             return;
         const bool wasCommand = a.phase == L::ActionPhase::COMMAND;
         const C::SdoCompletion evidence = terminal->service;
+        if (wasCommand && evidence.completedUs > lastWriteUs_)
+            lastWriteUs_ = evidence.completedUs;
         if (!L::advanceAction(a, reservation_, frozen, evidence, now).isOk())
             L::advanceAction(a, reservation_, frozen, M::ActionOutcome::INVALIDATED, now);
         owner_.release(urgent_);
@@ -1055,6 +1300,10 @@ void AxisSession::serviceConfirmed(uint64_t now) noexcept {
 void AxisSession::afterConfirmedEnd(uint64_t now) noexcept {
     const L::ActionContext& a = stops_[static_cast<unsigned>(activeKind_)];
     path_ = StopPath::FINISHED;
+    // This later stop may clear the admission fence, never the old velocity terminal.
+    if (a.state == M::ActionState::SUCCEEDED && a.completion == M::ActionCompletion::OBSERVED &&
+        a.startedUs >= velocity_.startedUs)
+        velocityNeedsStop_ = false;
     if (a.phase != L::ActionPhase::COMMAND || a.execution != M::ActionExecution::NOT_TRANSMITTED ||
         a.effectsPossible)
         return; // A write that may have left is never sent again.

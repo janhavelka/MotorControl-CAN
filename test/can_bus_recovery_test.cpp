@@ -2764,8 +2764,15 @@ void beginUrgentOperationRetiresOnlyUnsentWork() {
         // The old deadline being past does not hold back the new operation.
         O::BusRequest work = r.request(sequence, 1, true);
         O::RequestId refused;
-        work.transfer.deadlineUs = 199;
+        work.transfer.deadlineUs = 201; // A service cannot extend its operation's cutoff.
         CHECK(r.owner.admitUrgent(work, r.now, refused) == O::BusAdmission::INVALID);
+        work.transfer.deadlineUs = 199; // A shorter service cutoff preserves the operation bound.
+        O::RequestId shorter;
+        CHECK(r.owner.admitUrgent(work, r.now, shorter) == O::BusAdmission::ACCEPTED);
+        r.turn(199);
+        expectNeverSent(r.done(shorter), O::CompletionReason::DEADLINE, C::SdoOutcome::TIMEOUT);
+        CHECK(r.owner.sequence(sequence)->deadlineUs == 200 && r.fake.sentCount == 0);
+        work.transfer.step = 2;
         work.transfer.deadlineUs = 200;
         CHECK(r.owner.admitUrgent(work, 200, refused) == O::BusAdmission::EXPIRED);
     }

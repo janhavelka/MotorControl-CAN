@@ -36,7 +36,8 @@ enum class ReadKind : uint8_t {
     TUNING_CURRENT_HOLDING,   ///< 2502..2507 current/holding words, no inferred ranges.
     TUNING_FILTER_POSITION,   ///< 2508..250D filter/position words, partly unknown units.
     TUNING_LOOP_GAINS,        ///< 250E..2519 documented native loop words.
-    TUNING_EDS_GAINS          ///< 251A..2520 opaque EDS words, no semantic write permission.
+    TUNING_EDS_GAINS,         ///< 251A..2520 opaque EDS words, no semantic write permission.
+    VELOCITY_TARGET          ///< One raw 60FF word; EDS I32 is not reverse-motion qualification.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {

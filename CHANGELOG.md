@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Finite velocity (prompt 35)
+
+- Added the conditional Lichuan finite velocity lifecycle, exact signed rpm
+  preparation, fixed preparation-time duration, bounded polling and independent
+  urgent-stop settlement through `AxisSession`. Closed firmware gates preserve
+  unresolved startup, reverse and mode3 stop evidence.
+- Added the mode3 DEC-8 `000F` running stop row without an enabling preamble;
+  position-mode released/latched-running observations remain mode1-only.
+- Added typed raw `60FF` readback with its general Q20 gate, and invalidation of
+  retained motion-parameter observations after velocity/ramp writes.
+- Added direct/real-owner native tests and an installed offline rate preview.
+  No physical velocity trial or new firmware qualification is claimed.
+
 ### Wrapped-angle integration
 
 - Added `prepareMoveAngle`, `validateMoveAngle` and `AxisSession::requestMoveAngle`

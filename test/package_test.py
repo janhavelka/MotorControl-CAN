@@ -19,8 +19,8 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
-           "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
-           "MotorControlCAN/profiles/lichuan_c/Position.h",
+           "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/VelocityOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
+           "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN/profiles/lichuan_c/Velocity.h",
            "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h",
            "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN/canopen/Network.h", "MotorControlCAN/Version.h",
@@ -98,7 +98,7 @@ def check_package(args, work, summary):
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
         "src/ExactArithmetic.h", "src/canopen/PdoState.cpp",
-        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "CMakeLists.txt", "library.json",
+        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
         "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
     with zipfile.ZipFile(archive) as package:
@@ -162,6 +162,7 @@ def check_package(args, work, summary):
         "units": ("examples/units_preview", ["main.cpp"]),
         "position": ("examples/position_preview", ["main.cpp"]),
         "angle": ("examples/angle_preview", ["main.cpp"]),
+        "velocity": ("examples/velocity_preview", ["main.cpp"]),
         "reads": ("examples/reads_preview", ["main.cpp"]),
         "pdo": ("examples/pdo_configuration_preview", ["main.cpp"]),
         "action": ("examples/action_preview", ["main.cpp"]),
@@ -199,6 +200,8 @@ add_executable(position_preview position/main.cpp)
 target_link_libraries(position_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(angle_preview angle/main.cpp)
 target_link_libraries(angle_preview PRIVATE MotorControlCAN::MotorControlCAN)
+add_executable(velocity_preview velocity/main.cpp)
+target_link_libraries(velocity_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(reads_preview reads/main.cpp)
 target_link_libraries(reads_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(pdo_configuration_preview pdo/main.cpp)
@@ -210,7 +213,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePla
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview angle_preview reads_preview
+foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview angle_preview velocity_preview reads_preview
         pdo_configuration_preview action_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
@@ -225,10 +228,11 @@ add_test(NAME device_evidence COMMAND device_evidence --fake-only)
 add_test(NAME units_preview COMMAND units_preview)
 add_test(NAME position_preview COMMAND position_preview)
 add_test(NAME angle_preview COMMAND angle_preview)
+add_test(NAME velocity_preview COMMAND velocity_preview)
 add_test(NAME reads_preview COMMAND reads_preview)
 add_test(NAME pdo_configuration_preview COMMAND pdo_configuration_preview)
 add_test(NAME action_preview COMMAND action_preview)
-set_tests_properties(native_probe device_evidence units_preview position_preview angle_preview reads_preview
+set_tests_properties(native_probe device_evidence units_preview position_preview angle_preview velocity_preview reads_preview
     pdo_configuration_preview action_preview PROPERTIES TIMEOUT 10)
 ''', encoding="utf-8")
     probe_build = work / "native probe build"

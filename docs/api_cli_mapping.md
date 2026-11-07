@@ -36,6 +36,14 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt35 implements `prepareVelocity`, `nextVelocity`, `advanceVelocity`,
+`serviceVelocity`, concrete `VelocityContext`, and `AxisSession::requestVelocity`.
+`DriverGroup::VELOCITY_TARGET` uses the existing checked driver read/getter path.
+The [velocity guide](velocity.md) records timing, exact rpm, firmware gates and
+separate stop evidence. No `getVelocityResult` or velocity CLI route is added;
+prompt42 owns a future route calling these APIs. Physical mode3 qualification
+and general 60FF Q20 acquisition remain pending.
+
 Wrapped angles now have a public core/owner path: `prepareMoveAngle`,
 `validateMoveAngle`, shared `nextMove` / `advanceMove` and
 `AxisSession::requestMoveAngle`. [Angle policy](position_parameters.md#wrapped-angle-moves)

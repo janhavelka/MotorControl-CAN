@@ -91,6 +91,15 @@ installed supported model or firmware.
 | State: feedback (2) | `6064`, `606C` | Exact I32 native position/velocity. Physical coordinate scale remains unknown. |
 | State: inputs (1) | `60FD` | U32 raw inputs; no assumed equivalence to `2101` bit layout. |
 | Configuration (6) | `1005`, `1014`, `1017`, `1200:00..02` | U32 SYNC/EMCY routes, U16 producer interval, U8 record count, U32 client/server SDO routes. Observations do not reconfigure routes. |
+| Velocity target (1) | `60FF:00` | Four raw bytes; `DriverObservation::velocityTargetRpm` gives the EDS I32 view in rpm. U32 manual claims remain conflicting, and negative raw values do not qualify reverse motion. |
+
+The velocity target uses `DriverSettings.h`: call `prepareDriverRead` with
+`DriverGroup::VELOCITY_TARGET`, then `nextDriver`, `advanceDriver` and `getDriver`.
+It is one explicit acquisition with currentness/age checks, not speed feedback
+or a polling permission. Its descriptor stays `RAW` and its work stays
+`UNQUALIFIED` under Q20. The narrowly accepted one-time `60FF` upload in an
+enable action does not transfer that acceptance to this standalone read. No
+write, start ordering, zero-speed stop or reverse capability follows from it.
 
 `ReadOptions::identityWidths` selects the `1009`/`100A` reply width. The EDS
 declares U16; two specimens measured U8 (`1009=0x0C`, `100A=0x20`). The default

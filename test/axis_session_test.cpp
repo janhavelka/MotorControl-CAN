@@ -2572,14 +2572,16 @@ void sessionLifecycle() {
 }
 void onlyFreshCurrentStateQualifies() {
     // Another axis's state, a missing read or a running drive out of the sequenced scope is
-    // 000B-only. These are this session's policy: nothing shows what the drive does.
-    for (unsigned variant = 0; variant < 6; ++variant)
+    // 000B-only. Mode 3 running after latest 000F has its own DEC-8 project-policy stop row.
+    for (unsigned variant = 0; variant < 7; ++variant)
         for (unsigned allowed = 0; allowed < 2; ++allowed) {
             Rig r;
             openAxis(r, r.a, 1);
             openAxis(r, r.b, 2);
             L::ReadContext state;
             if (variant == 1)
+                r.drive[0].mode = 6;
+            if (variant == 6)
                 r.drive[0].mode = 3;
             if (variant == 2)
                 r.drive[0].status = 3;
@@ -2596,6 +2598,18 @@ void onlyFreshCurrentStateQualifies() {
             const Saved<O::OwnerResources> resources(r.owner.resources());
             const E::StopPath path =
                 r.a.requestStop(L::StopKind::HALT, state, stopPolicy(r.now, 5000, allowed ? 6000 : 0), r.now);
+            if (variant == 6) {
+                CHECK(path == E::StopPath::CONFIRMED);
+                const L::ActionContext& stop = r.a.stopAction(L::StopKind::HALT);
+                CHECK(stop.stopModeRaw == 3 && stop.predecessorWord == 0x000f &&
+                      !stop.predecessorDocumented &&
+                      stop.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+                r.drive[0].monitor = 0; // A new manufactured mode 3 not-running report after the ACK.
+                finish(r, r.a);
+                CHECK(stop.state == M::ActionState::SUCCEEDED &&
+                      r.wire.sentCount == from + 6 && isWord(r, from, WORD_HALT));
+                continue;
+            }
             if (!allowed) {
                 CHECK(path == E::StopPath::NONE);
                 resources.unchanged(r.owner.resources());

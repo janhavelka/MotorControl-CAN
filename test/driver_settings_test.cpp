@@ -38,10 +38,11 @@ const Field limits[] = {{0x2202, 0, 2, 10},
                         {0x607d, 2, 4, 0x80000000}};
 const Field motion[] = {
     {0x6081, 0, 4, 0xffffffff}, {0x6083, 0, 4, 2001}, {0x6084, 0, 4, 0xffffffff}};
-const Field* const rows[] = {driver, limits, motion};
-const unsigned counts[] = {2, 4, 3};
+const Field velocity[] = {{0x60ff, 0, 4, 0xfffffff4}};
+const Field* const rows[] = {driver, limits, motion, velocity};
+const unsigned counts[] = {2, 4, 3, 1};
 const L::DriverGroup groups[] = {L::DriverGroup::DRIVER, L::DriverGroup::SOFT_LIMITS,
-                                 L::DriverGroup::MOTION_PARAMETERS};
+                                 L::DriverGroup::MOTION_PARAMETERS, L::DriverGroup::VELOCITY_TARGET};
 L::ReadTarget target() {
     L::ReadTarget t;
     t.channel.binding.logicalAxisId = 17;
@@ -135,7 +136,7 @@ C::SdoRequestId transmit(C::SdoClient& owner, const L::DriverContext& c, const F
 }
 void realOwnerGroups() {
     unsigned seen = 0;
-    for (unsigned g = 0; g < 3; ++g) {
+    for (unsigned g = 0; g < 4; ++g) {
         C::SdoClient owner;
         configure(owner);
         L::DriverContext c = prepared(g);
@@ -182,15 +183,91 @@ void realOwnerGroups() {
         else if (g == 1)
             CHECK(o.softLimitSelectorRaw == 10 && o.softLimitEntries == 255 &&
                   o.minimumNative == INT32_MAX && o.maximumNative == INT32_MIN);
-        else
+        else if (g == 2)
             CHECK(o.positionSpeedRpm == UINT32_MAX && o.rampUpTimeMs == 2001 &&
                   o.rampDownTimeMs == UINT32_MAX);
+        else
+            CHECK(o.velocityTargetRpm == -12 && !o.interpreted &&
+                  c.read.values[0].object.representation == L::ReadRepresentation::RAW);
         L::PreparedRead done;
         done.ready = true;
         done.transfer.index = 0xbeef;
         CHECK(L::nextDriver(c, 10, done) && !done.ready && done.transfer.index == 0xbeef);
     }
-    CHECK(seen == 9);
+    CHECK(seen == 10);
+}
+void velocityTargetRead() {
+    // The raw four-byte shape does not close signedness or read-effect gates.
+    for (uint32_t raw : {0u, 120u, 3001u, 0x7fffffffu, 0x80000000u, 0xffffffffu}) {
+        L::DriverContext c = prepared(3);
+        CHECK(c.read.kind == L::ReadKind::VELOCITY_TARGET && c.read.count == 1);
+        CHECK(c.read.values[0].object.representation == L::ReadRepresentation::RAW);
+        CHECK(next(c, 0).transfer.readEffect == C::SdoReadEffect::UNQUALIFIED);
+        accept(c, raw, 0);
+        L::DriverObservation o;
+        CHECK(L::getDriver(c, target(), 0, 1, o));
+        const int64_t expected = raw <= INT32_MAX ? int64_t(raw) : int64_t(raw) - INT64_C(4294967296);
+        CHECK(o.group == L::DriverGroup::VELOCITY_TARGET && o.fieldCount == 1 &&
+              o.velocityTargetRpm == expected && !o.interpreted);
+        const Saved<L::DriverObservation> history(o);
+        L::ReadTarget changed = target();
+        ++changed.channel.binding.configurationGeneration;
+        CHECK(!L::getDriver(c, changed, 0, 1, o));
+        history.unchanged(o);
+        CHECK(!L::getDriver(c, target(), 2, 1, o));
+        history.unchanged(o);
+    }
+    {
+        L::DriverContext c = prepared(3);
+        L::ReadOptions wrong = options();
+        wrong.countWidths = L::CountWidths::MEASURED_U16;
+        const Saved<L::DriverContext> before(c);
+        CHECK(!L::prepareDriverRead(c, target(), 19, 0, 1000, wrong,
+                                   L::DriverGroup::VELOCITY_TARGET));
+        before.unchanged(c);
+        C::SdoCompletion wrongWidth = success(c, 120, 0, 1);
+        wrongWidth.size = 2;
+        CHECK(!L::advanceDriver(c, wrongWidth, 1));
+        before.unchanged(c);
+    }
+    // Action-prerequisite acceptance cannot make this general read bootstrap an unknown channel.
+    {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, target().channel, false, true));
+        L::DriverContext c = prepared(3);
+        C::SdoRequestId id;
+        CHECK(!owner.admit(0, next(c, 0).transfer, 0, id));
+    }
+    for (unsigned failure = 0; failure < 3; ++failure) {
+        C::SdoClient owner;
+        configure(owner);
+        L::DriverContext c = prepared(3, 0, 100);
+        const C::SdoRequestId id = transmit(owner, c, velocity[0], 0);
+        if (failure == 0) {
+            M::Frame reply = response(velocity[0]);
+            reply.data[0] = 0x80;
+            reply.data[4] = reply.data[5] = 0;
+            reply.data[6] = 2;
+            reply.data[7] = 6; // 06020000: object does not exist.
+            CHECK(owner.receive(reply, 1, 1));
+        } else if (failure == 1) {
+            CHECK(owner.service(100));
+        } else {
+            CHECK(owner.receive(response(velocity[0]), 99, 99));
+        }
+        const C::SdoCompletion* e = owner.result(id);
+        CHECK(e);
+        CHECK(L::advanceDriver(c, *e, failure ? 100 : 1));
+        CHECK(c.read.state == M::ReadState::FAILED && !c.read.values[0].valid &&
+              c.read.evidencePresent);
+        CHECK(c.read.outcome == (failure ? M::ReadOutcome::DEADLINE : M::ReadOutcome::PROTOCOL_REJECTED));
+        CHECK(owner.release(id));
+        L::DriverObservation out;
+        out.velocityTargetRpm = 777;
+        const Saved<L::DriverObservation> before(out);
+        CHECK(!L::getDriver(c, target(), 100, 1000, out));
+        before.unchanged(out);
+    }
 }
 void admissionAndPublication() {
     for (unsigned g = 0; g < 3; ++g) {
@@ -525,6 +602,7 @@ void rawDomainsAndTime() {
 } // namespace
 int main() {
     realOwnerGroups();
+    velocityTargetRead();
     admissionAndPublication();
     terminalCorrelation();
     partialFailures();
