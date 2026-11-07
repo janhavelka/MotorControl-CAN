@@ -261,9 +261,10 @@ Status getIo(const DriverSettingsContext& context, const AxisReservation& live,
  * @param[in,out] retained Context to withdraw, on this axis at any generation. EMPTY and other
  * kinds are unchanged, so a caller can pass each of its contexts. Another axis is refused.
  * @param[in] current Actual current route and epochs.
- * @param[in] work Exact admitted download on `current`, at its EDS width: 6081, 6083, 6084, 6098,
- * 6099:01, 6099:02, 609A or 607C, which retire, or 607A or 60FF, which are accepted and retire
- * nothing. Prompt 36 still owes its own ruling on 607C. Anything else is refused.
+ * @param[in] work Exact admitted download on `current`, at its EDS width: 60FF, 6081, 6083,
+ * 6084, 6098, 6099:01, 6099:02, 609A or 607C, which retire, or 607A, which is accepted and
+ * retires nothing. Shared ramp writes invalidate the other mode's retained snapshot too.
+ * Prompt 36 still owes its own ruling on 607C. Anything else is refused.
  * @return OK, or INVALID_CONFIG with ReadError TARGET, ARGUMENT or OVERLAP and nothing changed.
  * Performs no I/O and does not prove the write happened.
  */

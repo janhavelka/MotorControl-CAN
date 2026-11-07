@@ -871,7 +871,7 @@ C::PdoMapEvidence mapEvidence() {
     return e;
 }
 // Every readable descriptor is swept, so an extra accepted row cannot go unnoticed. The generator
-// test pins the table at 95 rows; finding all 95 proves no row lies outside this finite range.
+// test pins the table at 96 rows; finding all 96 proves no row lies outside this finite range.
 void acceptedListIsExact() {
     unsigned readable = 0, effective = 0;
     for (uint32_t index = 0x1000; index <= 0x6fff; ++index)
@@ -885,7 +885,7 @@ void acceptedListIsExact() {
                                           : L::ReadEffect::UNQUALIFIED));
             effective += d.readEffect == L::ReadEffect::ACCEPTED_UNQUALIFIED;
         }
-    CHECK(readable == 95 && effective == 16);
+    CHECK(readable == 96 && effective == 16);
     for (const Address& address : acceptedReads) {
         L::ReadDescriptor d = {};
         CHECK(L::readDescriptor(address.index, address.subindex, d));

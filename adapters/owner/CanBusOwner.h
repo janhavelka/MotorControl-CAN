@@ -75,7 +75,9 @@ class CanBusOwner {
      */
     bool releaseSequence(SequenceId id) noexcept;
     /** Copy one yielded native request and reserve its immutable terminal slot.
-     * @param[in] request Complete input; matching operation/deadline and increasing step.
+     * @param[in] request Complete input; matching operation and increasing step. Its immutable
+     * service deadline may be earlier than, but never later than, the operation deadline. A
+     * finite run can thus retire start work at stop due while retaining its stop-settlement budget.
      * @param[in] nowUs Same nondecreasing clock; queue/overall age begins here.
      * @param[out] output Unchanged on rejection; no overlap with owner or request.
      * @return ACCEPTED is local only. Rejection changes neither queue nor reservation.

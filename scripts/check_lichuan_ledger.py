@@ -66,6 +66,16 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 35:
+        if (entry.get("key") != "0x60FF:00" or entry.get("index") != 0x60FF or
+                entry.get("subindex") != 0 or entry.get("owner_prompt") != 35 or
+                entry.get("role") != "value"):
+            return [label + "outside the reviewed Prompt 35 target-velocity read scope"]
+        if (generation_disposition(entry) != "withheld" or
+                entry.get("type") != {"eds_code": "0x0004", "name": "I32",
+                                      "width_bytes": 4, "signed": True}):
+            return [label + "requires the raw Prompt 35 EDS I32 claim without resolving signedness"]
+        return []
     if owner == 22:
         index, subindex = entry.get("index"), entry.get("subindex")
         if (type(index) is not int or type(subindex) is not int or
@@ -133,7 +143,7 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") not in (19, 20, 21, 22) or read_owner_errors(entry):
+    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35) or read_owner_errors(entry):
         errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")

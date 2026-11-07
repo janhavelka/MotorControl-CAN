@@ -3,8 +3,24 @@
 The finite stop path uses `prepareStop`, `nextAction` and `advanceAction` in
 `MotorControlCAN/profiles/lichuan_c/Actions.h`. The caller owns the context,
 continuous sequence reservation, time and ordinary CAN owner. This is a narrow
-CL86-C/OL86-C position-mode contract. It does not implement a safety stop,
-generic CiA402 stopping, velocity-mode stopping or a torque/brake policy.
+CL86-C/OL86-C contract, with position-mode transitions and the explicitly gated
+mode-3 addition below. It does not implement a safety stop, generic CiA402
+stopping or a torque/brake policy.
+
+## Mode-3 addition (prompt 35)
+
+A fresh running mode3 state with low status bits7, alarm/released clear and the
+actual latest acknowledged word `000F` admits one `010F` or `000B`. The context
+freezes `stopModeRaw=3`; later observations of another mode cannot complete it.
+`predecessorDocumented=false`: the arrow is a DEC-8 project decision because the
+manual gives it in its position section. Explicit running HALT-to-QUICK
+escalation retains that mode. Direct mode3 admission from other words is refused.
+
+The position-mode released/latched-running feedback fallback remains mode1-only.
+The finite [velocity operation](velocity.md) requires its own stop qualification,
+closed by default; no connected specimen has supplied it yet. Controller-reported
+completion is not independent shaft standstill. When a velocity write could have
+started motion, an older idle cycle cannot establish that no stop is needed.
 
 ## Reviewed transitions
 
@@ -68,8 +84,7 @@ The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS report
 **idle** drive that is alarmed, released, in another mode or not enabled refuse the request
 on both paths, with no traffic, because nothing establishes what `000B` does in those
 states. A running report keeps the stop available on the best-effort path, as this project's
-decision that a running motor should get the attempt. Modes 3 and 6 get their own
-sequenced stops in prompts 35 and 36.
+decision that a running motor should get the attempt. Prompt 35 adds the mode-3 row below; mode6 remains prompt36.
 
 The word must be the application's actual latest acknowledged controlword, under a
 reservation acquired before that command. Fresh low bits 7 cannot reconstruct it. An

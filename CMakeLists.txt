@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/canopen/PdoState.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/DriverReads.cpp src/profiles/lichuan_c/Tuning.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
+set(MOTORCONTROLCAN_SOURCES src/Endpoint.cpp src/can/Frame.cpp src/Units.cpp src/Axis.cpp src/canopen/Sdo.cpp src/canopen/Network.cpp src/canopen/Pdo.cpp src/canopen/PdoState.cpp src/profiles/lichuan_c/Reads.cpp src/profiles/lichuan_c/DriverReads.cpp src/profiles/lichuan_c/Tuning.cpp src/profiles/lichuan_c/Settings.cpp src/profiles/lichuan_c/State.cpp src/profiles/lichuan_c/Actions.cpp src/profiles/lichuan_c/Position.cpp src/profiles/lichuan_c/Velocity.cpp src/profiles/lichuan_c/PdoConfiguration.cpp)
 
 # ESP-IDF supplies this command; ordinary native builds never load an SDK.
 if(COMMAND idf_component_register)
@@ -40,6 +40,7 @@ if(MOTORCONTROLCAN_BUILD_EXAMPLES)
     add_subdirectory(examples/units_preview)
     add_subdirectory(examples/position_preview)
     add_subdirectory(examples/angle_preview)
+    add_subdirectory(examples/velocity_preview)
     add_subdirectory(examples/reads_preview)
     add_subdirectory(examples/driver_settings_preview)
     add_subdirectory(examples/io_settings_preview)
@@ -76,7 +77,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/MotorControlCANCon
 install(TARGETS MotorControlCAN EXPORT MotorControlCANTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(FILES include/MotorControlCAN/MotorControlCAN.h include/MotorControlCAN/Status.h include/MotorControlCAN/ReadOperation.h
-    include/MotorControlCAN/ActionOperation.h include/MotorControlCAN/MoveOperation.h
+    include/MotorControlCAN/ActionOperation.h include/MotorControlCAN/MoveOperation.h include/MotorControlCAN/VelocityOperation.h
     include/MotorControlCAN/Units.h include/MotorControlCAN/Axis.h
     include/MotorControlCAN/Endpoint.h include/MotorControlCAN/Version.h
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/MotorControlCAN")
@@ -95,6 +96,7 @@ install(FILES include/MotorControlCAN/profiles/lichuan_c/Types.h
     include/MotorControlCAN/profiles/lichuan_c/State.h
     include/MotorControlCAN/profiles/lichuan_c/Actions.h
     include/MotorControlCAN/profiles/lichuan_c/Position.h
+    include/MotorControlCAN/profiles/lichuan_c/Velocity.h
     include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h
     include/MotorControlCAN/profiles/lichuan_c/DriverSettings.h
     include/MotorControlCAN/profiles/lichuan_c/IoSettings.h

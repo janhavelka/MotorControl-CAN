@@ -23,7 +23,8 @@ enum class DriverGroup : uint8_t {
     TUNING_CURRENT_HOLDING,  ///< 2502..2507; use Tuning.h and getTuning.
     TUNING_FILTER_POSITION,  ///< 2508..250D; use Tuning.h and getTuning.
     TUNING_LOOP_GAINS,       ///< 250E..2519; use Tuning.h and getTuning.
-    TUNING_EDS_GAINS         ///< 251A..2520 raw words; no interpreted gain contract.
+    TUNING_EDS_GAINS,        ///< 251A..2520 raw words; no interpreted gain contract.
+    VELOCITY_TARGET         ///< 60FF raw target word; EDS I32 rpm view, not qualified signed motion.
 };
 /** Concrete caller-owned group lifecycle; terminal history survives until reuse. */
 struct DriverContext {
@@ -46,8 +47,12 @@ struct DriverObservation {
     uint32_t positionSpeedRpm = 0; ///< MOTION_PARAMETERS: 6081 native U32 rpm.
     uint32_t rampUpTimeMs = 0;     ///< MOTION_PARAMETERS: 6083 ms, not acceleration rate.
     uint32_t rampDownTimeMs = 0;   ///< MOTION_PARAMETERS: 6084 ms, not stop evidence.
+    /** VELOCITY_TARGET: 60FF bits viewed as EDS I32 rpm. Manuals also claim U32;
+     * this does not resolve Q03, permit reverse/zero commands or prove current speed.
+     */
+    int32_t velocityTargetRpm = 0;
     bool interpreted = false;      ///< Remains false; no scale/state/enforcement qualification.
-    uint8_t fieldCount = 0;        ///< 2, 4 or 3 fields in source order for the group.
+    uint8_t fieldCount = 0;        ///< 1..4 fields in source order for the selected driver group.
     ReadProvenance fields[4];      ///< Owned per-object provenance, not an atomic snapshot.
     ReadWindow window;             ///< Conservative acquisition interval/skew of the group.
 };
@@ -60,6 +65,8 @@ struct DriverObservation {
  * @param[in] options Nonzero queue/response budgets, clamped by the owner. identityWidths stays
  * DECLARED_U16; countWidths may be MEASURED_U16 for SOFT_LIMITS and IO_OUTPUT_COMMAND only.
  * @param[in] group One declared finite native group; no 6060 upload or catalogue sweep.
+ * VELOCITY_TARGET is outside DEC-1 and remains UNQUALIFIED/Q20: request it only as an
+ * explicitly reviewed acquisition, not ordinary polling or an enable-prerequisite exemption.
  * @return OK prepares owned work only; errors preserve output with ReadError detail.
  */
 Status prepareDriverRead(DriverContext& output, const ReadTarget& target, uint32_t operation,

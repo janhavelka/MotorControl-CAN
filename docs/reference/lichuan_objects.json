@@ -19006,7 +19006,13 @@
             }
           },
           "read_owner_prompt": 35,
-          "read_disposition": "accepted_action_prerequisite"
+          "read_disposition": "accepted_action_prerequisite",
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     }

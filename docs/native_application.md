@@ -7,6 +7,11 @@ The [finite evidence procedure](../examples/device_evidence/README.md) adds the
 same application's bounded acquisition collector. These examples run without a framework, CLI, physical controller or sibling repositories.
 They do not qualify hardware or create motion APIs.
 
+The [finite velocity preview](../examples/velocity_preview/README.md) adds exact
+rate conversion and a closed firmware gate. `AxisSession::requestVelocity` uses
+the same owner and urgent-stop path, with its [fixed timing contract](velocity.md).
+It does not auto-run at firmware startup.
+
 ## Responsibilities and explicit read flow
 
 | Component | Responsibility |

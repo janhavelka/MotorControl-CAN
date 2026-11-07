@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  * Stop transition contract: CL86-C/OL86-C only, one continuous actual owner reservation
  * acquired before the last positively acknowledged 6040:00 U16 word. Fresh SDO
- * STATUS (mode 1, low bits 7) and MONITORS (alarm/released clear, running either)
+ * STATUS (mode 1 or 3, low bits 7) and MONITORS (alarm/released clear)
  * must follow that acknowledgement. The application proves no intervening
  * control/mode/target/RPDO/configuration write, uncertain work or lifecycle change.
  * A copied or reacquired reservation cannot establish this continuous history. The
@@ -13,9 +13,13 @@
  * Allowed predecessors (DEC-8): 000F documented, EN86/ZH86 p12 and OP86 p10 for 000B,
  * ZH86 p12 and OP86 p10 only for 010F. 001F/005F/003F/007F, and 010F to 000B only, are
  * project decisions with no documented arrow, so predecessorDocumented is false.
+ * Those arrows appear in the position section. Mode 3 admission accepts only latest acknowledged
+ * 000F with running set, as DEC-8 project policy; predecessorDocumented stays false. Mode 1 permits
+ * running either set or clear. An explicit mode 3 HALT-to-QUICK_STOP escalation requires its own
+ * acknowledged 010F and a later mode 3 running observation.
  * HALT emits only 010F; QUICK_STOP emits only 000B. Neither enables first. A prior
  * 000B, a prior 010F for HALT, any other word and a released state are rejected.
- * After ACK, fresh five-field MONITORS+STATUS SDO cycles require mode 1 and no
+ * After ACK, fresh five-field MONITORS+STATUS SDO cycles require the admitted mode and no
  * alarm/release; monitor running clear establishes OBSERVED controller-not-running
  * during that sequential read window. The one exception is QUICK_STOP's drive-reported
  * terminal: on both specimens and one firmware, 000B from 000F and from 010F left 2100
@@ -23,7 +27,8 @@
  * QUICK_STOP, and monitorObservation keeps the release: the drive reports itself released,
  * and no torque was observed. During a move the same release kept 2100 running set
  * (2026-11-04), so a QUICK_STOP then completes on standstill instead
- * (ActionContext::standstillObserving). Other
+ * (ActionContext::standstillObserving). Those release/feedback exceptions apply only in mode 1.
+ * Mode 3 requires running, alarm and release clear by project policy, not firmware evidence. Other
  * mode/alarm/release is outside the observation scope, not proof that physical stopping
  * failed. Other statusword dialect bits never decide completion. No observation read starts once
  * one exchange's queue and response budgets no longer fit before the deadline: the action then
@@ -96,7 +101,7 @@ enum class PredecessorBasis : uint8_t {
     NONE,             ///< Not a stop context.
     EN86_ZH86_OP86,   ///< 000F to 000B: EN86 and ZH86 p12, OP86 p10.
     ZH86_OP86,        ///< 000F to 010F: ZH86 p12 and OP86 p10; EN86 omits the row.
-    PROJECT_DECISION  ///< DEC-8: derived word with no documented arrow.
+    PROJECT_DECISION  ///< DEC-8: word or mode without a documented arrow.
 };
 /** Owned yielded service, not admission or transmission permission after epochs change. */
 struct PreparedAction {
@@ -228,11 +233,14 @@ struct ActionContext {
     ActionOptions options;                  ///< Immutable caller budgets.
     ActionState state = ActionState::EMPTY; ///< Overall phase, distinct from drive state.
     ActionPhase phase = ActionPhase::COMMAND; ///< Current concrete work phase.
+    /** STOP only: frozen raw 6061 mode, 1 or 3; every complete result cycle and escalation must
+     * match it. Mode 3 is DEC-8 project policy, not a documented stop arrow or qualification. */
+    uint8_t stopModeRaw = 1;
     uint16_t predecessorWord = 0; ///< STOP only: acknowledged 6040 word this stop follows.
     bool predecessorDocumented = false; ///< STOP only: false for DEC-8 project-decision arrows.
     PredecessorBasis predecessorBasis = PredecessorBasis::NONE; ///< STOP only: which sources show it.
     bool finalErrorRead = false; ///< CLEAR_ALARM only: alarm reported clear; read ERRORS once.
-    /** QUICK_STOP only. Set when a cycle after the command reported 2100 released and 6041 low
+    /** Mode 1 QUICK_STOP only. Set when a cycle after the command reported 2100 released and 6041 low
      * bits 000 with 2100 running still set, and options.maximumAgeUs covers a seven-field cycle.
      * Measured on 2026-11-04 (trial 213): after 000B during a 30 rpm move the drive released the
      * motor, which stopped within about 10 pulses, but kept running set while its target stayed
@@ -361,7 +369,8 @@ Status validateEscalation(const ActionContext& output, const ActionContext& runn
 /** Prepare only the DEC-8 stop transitions; all failures leave output unchanged.
  * @param[out] output Owned context; must not overlap any input.
  * @param[in] reservation Actual continuous exclusive owner reservation, not a fresh replacement.
- * @param[in] state Fresh complete SDO STATUS/MONITORS after control; mode 1/low7, alarm/release clear.
+ * @param[in] state Fresh complete SDO STATUS/MONITORS after control; mode 1 or 3, low7,
+ * alarm/release clear. Mode 3 also needs running set and predecessor 000F; it is project policy.
  * @param[in] control Actual last acknowledged 6040:00 U16 under the same reservation/history, of
  * any age. Only the read blocks expire. The word must be an allowed predecessor of kind.
  * @param[in] kind Native HALT or QUICK_STOP; no option-code interpretation.
@@ -379,7 +388,8 @@ Status prepareStop(ActionContext& output, const AxisReservation& reservation,
                    const ActionOptions& options) noexcept;
 /** Prepare QUICK_STOP from a running HALT, using its own acknowledgement and latest cycle.
  * No separate read can run during a stop, so this is that path's fresh state. The
- * word is 010F, a project decision, so predecessorDocumented is false.
+ * word is 010F, a project decision, so predecessorDocumented is false. The observed mode must
+ * still match the HALT's frozen mode; mode 3 additionally requires running set.
  * @param[out] output Owned context; must not overlap any input.
  * @param[in] running The running or just finished HALT.
  * @param[in] operation Nonzero identity. @param[in] nowUs Monotonic microseconds.

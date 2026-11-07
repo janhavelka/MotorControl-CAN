@@ -310,7 +310,7 @@ BusAdmission CanBusOwner::admit(const BusRequest& request, uint64_t now, Request
         return BusAdmission::INHIBITED;
     if (c < 0 || !MotorControlCAN::sameBinding(s->binding, request.transfer.channel.binding) ||
         request.transfer.operation != s->operation ||
-        request.transfer.deadlineUs != s->deadlineUs ||
+        request.transfer.deadlineUs > s->deadlineUs ||
         request.transfer.step <= sequences_[request.sequence.slot].lastStep ||
         !services_.checkAdmission(uint8_t(c), request.transfer, now))
         return BusAdmission::INVALID;

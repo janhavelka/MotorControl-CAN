@@ -1295,7 +1295,7 @@ void moveParameterRetirement() {
         CHECK(!overlapRoute && overlapRoute.detail == int32_t(M::ReadError::OVERLAP));
 
         // Prompts 35 and 36 own these writes too, so they retire instead of being refused as they
-        // were when only a move's own writes were listed. 6098 is its EDS byte; 60FF is a target.
+        // were when only a move's own writes were listed. 6098 is its EDS byte; 60FF retires too.
         struct Row {
             uint16_t index;
             uint8_t subindex, size;
@@ -1310,7 +1310,7 @@ void moveParameterRetirement() {
         }
         {
             L::DriverContext copy = f.prior;
-            CHECK(L::retireMotionParameters(copy, route, moveWrite(route, 0x60ff, 1)) && !copy.read.invalidated);
+            CHECK(L::retireMotionParameters(copy, route, moveWrite(route, 0x60ff, 1)) && copy.read.invalidated);
         }
         // An earlier generation of the same axis is retired, since its values are just as old.
         L::ReadTarget later = route;

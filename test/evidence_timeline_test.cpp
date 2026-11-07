@@ -920,14 +920,14 @@ C::SdoTransfer moveWork(const L::ReadTarget& route, uint16_t index, uint8_t subi
     return t;
 }
 // The operation-owned writes at their EDS widths, as Settings.h states them for prompts 35 and 36.
-// 607A and 60FF are targets outside the group and retire nothing.
+// 607A alone changes no field in this group. Velocity setup conservatively retires it at 60FF.
 struct MoveRow {
     uint16_t index;
     uint8_t subindex, size;
 };
-const MoveRow retiringWrites[] = {{0x6081, 0, 4}, {0x6083, 0, 4}, {0x6084, 0, 4}, {0x6098, 0, 1},
+const MoveRow retiringWrites[] = {{0x60ff, 0, 4}, {0x6081, 0, 4}, {0x6083, 0, 4}, {0x6084, 0, 4}, {0x6098, 0, 1},
                                   {0x6099, 1, 4}, {0x6099, 2, 4}, {0x609a, 0, 4}, {0x607c, 0, 4}};
-const MoveRow targetWrites[] = {{0x607a, 0, 4}, {0x60ff, 0, 4}};
+const MoveRow targetWrites[] = {{0x607a, 0, 4}};
 C::SdoTransfer moveWork(const L::ReadTarget& route, const MoveRow& row) {
     return moveWork(route, row.index, row.subindex, row.size);
 }
@@ -1637,7 +1637,9 @@ void predicatesStaySeparate() {
                         L::ActionContext stop;
                         const Saved<L::ActionContext> blankStop(stop);
                         const bool allowed = haltAllowed(word) || (kind == L::StopKind::QUICK_STOP && word == 0x010f);
-                        const bool stopOk = allowed && operating && !badForAny;
+                        const bool velocityOperating = mode == 3 && word == 0x000f &&
+                                                       (statusword & 7) == 7 && running;
+                        const bool stopOk = allowed && (operating || velocityOperating) && !badForAny;
                         CHECK(L::stopPredecessorAllowed(word, kind) == allowed);
                         const M::Status validated = L::validateStop(stop, p.live, p.state, p.control, kind, 41, p.now,
                                                                     p.now + 100000, actionOptions());
@@ -1648,9 +1650,9 @@ void predicatesStaySeparate() {
                             CHECK(refused(t) && blankStop.same(stop));
                         else {
                             CHECK(stop.predecessorWord == word);
-                            CHECK(stop.predecessorDocumented == (word == 0x000f));
+                            CHECK(stop.predecessorDocumented == (word == 0x000f && mode == 1));
                             CHECK(stop.predecessorBasis ==
-                                  (word != 0x000f                   ? L::PredecessorBasis::PROJECT_DECISION
+                                  (word != 0x000f || mode == 3      ? L::PredecessorBasis::PROJECT_DECISION
                                    : kind == L::StopKind::QUICK_STOP ? L::PredecessorBasis::EN86_ZH86_OP86
                                                                      : L::PredecessorBasis::ZH86_OP86));
                         }

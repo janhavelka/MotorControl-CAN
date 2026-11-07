@@ -299,6 +299,127 @@ void exactCommandsAndObservedReport() {
             terminal.unchanged(action);
         }
 }
+void velocityModeStopContract() {
+    for (unsigned kind = 0; kind < 2; ++kind) {
+        Rig r;
+        r.prerequisites(7, 4, 3);
+        L::ActionContext action;
+        const unsigned before = r.wire.sentCount;
+        r.prepare(action, kind ? L::StopKind::QUICK_STOP : L::StopKind::HALT);
+        CHECK(action.stopModeRaw == 3 && action.predecessorWord == 0x000f &&
+              !action.predecessorDocumented &&
+              action.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+        CHECK(r.wire.sentCount == before);
+        r.field(action, 0x6040); // One exact stop word, with no enabling preamble.
+        r.cycle(action, 0, 7, 3);
+        CHECK(action.state == M::ActionState::SUCCEEDED &&
+              action.completion == M::ActionCompletion::OBSERVED &&
+              action.statusObservation.modeRaw == 3 && r.wire.sentCount == before + 6);
+    }
+    // The broader mode 1 predecessor table must not silently apply to mode 3.
+    const uint16_t words[] = {0x000f, 0x001f, 0x005f, 0x003f, 0x007f, 0x010f, 0x000b,
+                             0x0007, 0x0006};
+    for (uint16_t word : words)
+        for (unsigned moving = 0; moving < 2; ++moving)
+            for (unsigned kind = 0; kind < 2; ++kind) {
+                Rig r;
+                r.prerequisites(7, moving ? 4 : 0, 3);
+                r.begin();
+                C::SdoCompletion control = r.control;
+                control.transfer.data[0] = uint8_t(word);
+                control.transfer.data[1] = uint8_t(word >> 8);
+                L::ActionContext action;
+                const Saved<L::ActionContext> before(action);
+                const unsigned sent = r.wire.sentCount;
+                const bool allowed = word == 0x000f && moving;
+                const L::StopKind selected = kind ? L::StopKind::QUICK_STOP : L::StopKind::HALT;
+                CHECK(bool(L::validateStop(action, r.reservation, r.state, control, selected,
+                                          r.operation, r.now, r.deadline, r.actionOptions())) == allowed);
+                before.unchanged(action);
+                CHECK(bool(L::prepareStop(action, r.reservation, r.state, control, selected,
+                                         r.operation, r.now, r.deadline, r.actionOptions())) == allowed);
+                if (!allowed)
+                    before.unchanged(action);
+                CHECK(r.wire.sentCount == sent);
+            }
+    // A new observation in the other accepted mode is still outside this operation's scope.
+    const uint8_t modes[] = {1, 3};
+    for (uint8_t mode : modes) {
+        Rig r;
+        r.prerequisites(7, 4, mode);
+        L::ActionContext action;
+        r.prepare(action);
+        r.field(action, 0x6040);
+        r.cycle(action, 0, 7, mode == 1 ? 3 : 1);
+        CHECK(action.state == M::ActionState::FAILED &&
+              action.outcome == M::ActionOutcome::OBSERVATION_SCOPE && action.uncertain &&
+              action.execution == M::ActionExecution::ACKNOWLEDGED &&
+              action.completion == M::ActionCompletion::NOT_OBSERVED);
+    }
+    // Mode 1's measured release and latched-running fallbacks do not qualify mode 3.
+    const uint16_t released[] = {0x10, 0x14};
+    for (uint16_t monitor : released) {
+        Rig r;
+        r.prerequisites(7, 4, 3);
+        L::ActionContext action;
+        r.prepare(action, L::StopKind::QUICK_STOP);
+        r.field(action, 0x6040);
+        r.cycle(action, monitor, 0x4050, 3);
+        CHECK(action.state == M::ActionState::FAILED &&
+              action.outcome == M::ActionOutcome::OBSERVATION_SCOPE && action.uncertain &&
+              !action.standstillObserving &&
+              action.completion == M::ActionCompletion::NOT_OBSERVED);
+    }
+}
+void velocityStopEscalationKeepsMode() {
+    for (unsigned scenario = 0; scenario < 3; ++scenario) {
+        Rig r;
+        r.prerequisites(7, 4, 3);
+        L::ActionContext halt;
+        r.prepare(halt);
+        r.field(halt, 0x6040);
+        // A changed mode or a not-running report cannot admit a mode 3 escalation.
+        r.cycle(halt, scenario == 2 ? 0 : 4, 7, scenario == 1 ? 1 : 3);
+        L::ActionContext quick;
+        const Saved<L::ActionContext> before(quick);
+        r.begin();
+        const bool allowed = scenario == 0;
+        CHECK(bool(L::validateEscalation(quick, halt, r.operation, r.now, r.deadline,
+                                        r.actionOptions())) == allowed);
+        before.unchanged(quick);
+        CHECK(bool(L::prepareEscalation(quick, halt, r.operation, r.now, r.deadline,
+                                       r.actionOptions())) == allowed);
+        if (!allowed) {
+            before.unchanged(quick);
+            continue;
+        }
+        CHECK(quick.stopModeRaw == 3 && quick.predecessorWord == 0x010f &&
+              !quick.predecessorDocumented &&
+              quick.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+        r.wire.action = &quick;
+        r.field(quick, 0x6040);
+        r.cycle(quick, 0, 7, 3);
+        CHECK(quick.state == M::ActionState::SUCCEEDED && quick.stopModeRaw == 3);
+    }
+}
+void velocityStopDeadlinePreservesAcknowledgement() {
+    Rig r;
+    r.prerequisites(7, 4, 3);
+    r.deadline = r.now + 230;
+    L::ActionContext action;
+    r.prepare(action);
+    r.field(action, 0x6040);
+    r.cycle(action, 4, 0x8007, 3);
+    const Saved<C::SdoCompletion> command(action.commandHistory[0]);
+    const unsigned sent = r.wire.sentCount;
+    r.turn(r.deadline, O::ServiceBudget());
+    CHECK(L::advanceAction(action, r.reservation, target(), M::ActionOutcome::CANCELLED, r.now));
+    CHECK(action.outcome == M::ActionOutcome::DEADLINE && action.uncertain &&
+          action.execution == M::ActionExecution::ACKNOWLEDGED && action.stopModeRaw == 3 &&
+          action.completion == M::ActionCompletion::NOT_OBSERVED);
+    command.unchanged(action.commandHistory[0]);
+    CHECK(!r.next(action).ready && r.wire.sentCount == sent);
+}
 void runningPollingAndDeadline() {
     Rig r;
     r.prerequisites();
@@ -488,7 +609,7 @@ void unsupportedPrerequisitesAreAtomic() {
                         scenario == 1   ? 8
                         : scenario == 2 ? 16
                                         : 4,
-                        scenario == 3 ? 3 : 1);
+                        scenario == 3 ? 6 : 1);
         r.begin();
         L::AxisReservation reservation = r.reservation;
         C::SdoCompletion control = r.control;
@@ -626,10 +747,10 @@ void quickStopReleaseIsTheMeasuredTerminal() {
     }
 }
 
-void cancellationAndLostReplies() {
+void cancellationAndLostReplies(uint8_t mode) {
     for (unsigned phase = 0; phase < 4; ++phase) {
         Rig r;
-        r.prerequisites();
+        r.prerequisites(7, 4, mode);
         L::ActionContext action;
         r.prepare(action);
         const L::PreparedAction work = r.next(action);
@@ -1446,6 +1567,9 @@ void commandServiceTimeoutIsNotTheDeadline() {
 int main() {
     commandServiceTimeoutIsNotTheDeadline();
     exactCommandsAndObservedReport();
+    velocityModeStopContract();
+    velocityStopEscalationKeepsMode();
+    velocityStopDeadlinePreservesAcknowledgement();
     runningPollingAndDeadline();
     lateObservationIsHeldBack();
     latchedRunningQuickStopCompletesOnStandstill();
@@ -1453,7 +1577,8 @@ int main() {
     unsupportedPrerequisitesAreAtomic();
     contradictoryObservationsAndAbort();
     quickStopReleaseIsTheMeasuredTerminal();
-    cancellationAndLostReplies();
+    cancellationAndLostReplies(1);
+    cancellationAndLostReplies(3);
     interruptQueuedWorkPreservesResultsAndFencesOldOperations();
     reservedUrgentCapacity();
     quarantineAndOtherNodeProgress();

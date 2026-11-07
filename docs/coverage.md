@@ -1,5 +1,12 @@
 # Requirement coverage after pure CAN/SDO checks
 
+Prompt 35 adds the conditional [finite velocity lifecycle](velocity.md), typed
+raw `60FF` readback and mode3 DEC-8 owner stop integration. Host software and
+firmware evidence remain separate: no new startup, reverse, zero-rate, mode-change
+or physical-stop fact is established. [Prompt35 report](reports/prompt_35.md)
+records executable software and the smallest remaining evidence obligations.
+
+
 Prompt 34 adds `prepareMoveAngle`, `validateMoveAngle` and
 `AxisSession::requestMoveAngle` to the implemented host motion scope. It uses
 the same `MoveContext`, exact `preparePosition` and ordinary finite owner path;

@@ -67,6 +67,7 @@ CONTEXT_TYPES = (
     ("ReadContext", "MotorControlCAN/profiles/lichuan_c/Reads.h", "MotorControlCAN::LICHUAN_C::ReadContext"),
     ("BestEffortStop", "MotorControlCAN/profiles/lichuan_c/Actions.h", "MotorControlCAN::LICHUAN_C::BestEffortStop"),
     ("MoveContext", "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN::LICHUAN_C::MoveContext"),
+    ("VelocityContext", "MotorControlCAN/profiles/lichuan_c/Velocity.h", "MotorControlCAN::LICHUAN_C::VelocityContext"),
     ("SdoCompletion", "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN::CANOPEN::SdoCompletion"),
     ("AxisSession", "AxisSession.h", "MotorControlCANExample::AxisSession"),
     ("ProbeApp", "ProbeApp.h", "MotorControlCANExample::ProbeApp"),

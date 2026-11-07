@@ -58,6 +58,7 @@ uint8_t observationMask(const ActionContext& c) {
 Status shape(const ActionContext& c, uint64_t now) {
     if (!validReservation(c.reservation) || c.kind > StopKind::QUICK_STOP ||
         c.actionKind > ActionKind::ENABLE || !c.operation || !c.step ||
+        (c.actionKind == ActionKind::STOP && c.stopModeRaw != 1 && c.stopModeRaw != 3) ||
         c.state == ActionState::EMPTY || c.state > ActionState::FAILED ||
         c.phase > ActionPhase::TARGETS || c.execution > ActionExecution::UNKNOWN ||
         c.completion > ActionCompletion::OBSERVED ||
@@ -83,7 +84,7 @@ Status shape(const ActionContext& c, uint64_t now) {
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
         (c.standstillObserving &&
-         (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP)) ||
+         (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP || c.stopModeRaw != 1)) ||
         c.valueOneMayRemain != (c.state == ActionState::FAILED && oneMayRemain(c)))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND && c.phase != ActionPhase::TARGETS &&
@@ -336,7 +337,8 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const uint16_t monitor = c.monitorObservation.monitor;
     const bool running = (monitor & MONITOR_RUNNING) != 0;
     const bool alarm = (monitor & MONITOR_ALARM) != 0;
-    bool outsideScope = c.statusObservation.modeRaw != 1;
+    const uint8_t expectedMode = c.actionKind == ActionKind::STOP ? c.stopModeRaw : 1;
+    bool outsideScope = c.statusObservation.modeRaw != expectedMode;
     bool done = false;
     bool wantStandstill = false;
     switch (c.actionKind) {
@@ -346,10 +348,12 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         // outside its scope. The release itself stays in monitorObservation for the caller.
         const bool released = (monitor & MONITOR_RELEASED) != 0;
         const bool lowZero = (c.statusObservation.statusword & STATUS_LOW_BITS) == 0;
-        outsideScope |= alarm || (released && (c.kind != StopKind::QUICK_STOP || !lowZero));
+        outsideScope |= alarm ||
+                        (released && (c.stopModeRaw != 1 || c.kind != StopKind::QUICK_STOP || !lowZero));
         // After 000B during a move the same release kept running set (standstillObserving). Two
         // cycles in a row must each read 606C zero, with 6064 unchanged between them.
-        const bool latched = c.kind == StopKind::QUICK_STOP && running && released && lowZero;
+        const bool latched = c.stopModeRaw == 1 && c.kind == StopKind::QUICK_STOP && running &&
+                             released && lowZero;
         done = !running || (latched && feedback && previousFeedback && previousVelocity == 0 &&
                             c.extraObservation.actualVelocity == 0 &&
                             c.extraObservation.actualPosition == previousPosition);
@@ -414,13 +418,14 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
 }
 // Every caller has validated; output is disjoint from inputs, and nothing here can fail.
 void publishStop(ActionContext& output, const AxisReservation& r,
-                 const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                 const CANOPEN::SdoCompletion& control, StopKind kind, uint8_t mode, uint32_t operation,
                  uint64_t now, uint64_t deadline, const ActionOptions& options) {
     new (static_cast<void*>(&output)) ActionContext();
     output.reservation = r;
     output.kind = kind;
+    output.stopModeRaw = mode;
     output.predecessorWord = controlWord(control.transfer);
-    output.predecessorDocumented = output.predecessorWord == 0x000f;
+    output.predecessorDocumented = mode == 1 && output.predecessorWord == 0x000f;
     output.predecessorBasis = !output.predecessorDocumented ? PredecessorBasis::PROJECT_DECISION
                               : kind == StopKind::QUICK_STOP ? PredecessorBasis::EN86_ZH86_OP86
                                                              : PredecessorBasis::ZH86_OP86;
@@ -570,12 +575,17 @@ Status validateStop(const ActionContext& output, const AxisReservation& r, const
         state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
         !validateStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, status) ||
         !validateStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs, monitors) ||
-        uint8_t(raw(state, StateBlock::STATUS, 1)) != 1 ||
         (raw(state, StateBlock::STATUS, 0) & 7u) != 7 ||
         (raw(state, StateBlock::MONITORS, 0) & (MONITOR_ALARM | MONITOR_RELEASED)) ||
         status.earliestUs < control.completedUs || monitors.earliestUs < control.completedUs)
         return error(ActionError::STATE,
-                     "allowed acknowledged predecessor and fresh mode 1 state required");
+                     "allowed acknowledged predecessor and fresh drive state required");
+    const uint8_t mode = uint8_t(raw(state, StateBlock::STATUS, 1));
+    if (mode != 1 &&
+        (mode != 3 || controlWord(control.transfer) != 0x000f ||
+         !(raw(state, StateBlock::MONITORS, 0) & MONITOR_RUNNING)))
+        return error(ActionError::STATE,
+                     "stop needs mode 1, or mode 3 running after acknowledged 000F");
     return Ok();
 }
 
@@ -585,7 +595,8 @@ Status prepareStop(ActionContext& output, const AxisReservation& r, const ReadCo
     const Status s = validateStop(output, r, state, control, kind, operation, now, deadline, options);
     if (!s)
         return s;
-    publishStop(output, r, control, kind, operation, now, deadline, options);
+    publishStop(output, r, control, kind, uint8_t(raw(state, StateBlock::STATUS, 1)),
+                operation, now, deadline, options);
     getStateBlock(state, StateBlock::STATUS, r.target, now, options.maximumAgeUs, output.statusObservation);
     getStateBlock(state, StateBlock::MONITORS, r.target, now, options.maximumAgeUs, output.monitorObservation);
     return Ok();
@@ -604,11 +615,13 @@ Status validateEscalation(const ActionContext& output, const ActionContext& runn
     const StateObservation& monitors = running.monitorObservation;
     // A withdrawn read also withdraws the cycle before it, which came down the same route.
     if (running.actionKind != ActionKind::STOP || running.kind != StopKind::HALT ||
+        (running.stopModeRaw != 1 && running.stopModeRaw != 3) ||
         running.read.invalidated || !(running.commandEvidenceMask & 1u) || running.execution != ActionExecution::ACKNOWLEDGED ||
         !running.observationKnown || !controlEvidence(control, running.reservation, StopKind::QUICK_STOP, now) ||
         controlWord(control.transfer) != 0x010f || !fresh(status, now, options.maximumAgeUs) ||
         !fresh(monitors, now, options.maximumAgeUs) || !after(status, control.completedUs) ||
-        !after(monitors, control.completedUs) || status.modeRaw != 1 ||
+        !after(monitors, control.completedUs) || status.modeRaw != running.stopModeRaw ||
+        (running.stopModeRaw == 3 && !(monitors.monitor & MONITOR_RUNNING)) ||
         (status.statusword & 7u) != 7 || (monitors.monitor & (MONITOR_ALARM | MONITOR_RELEASED)))
         return error(ActionError::STATE, "acknowledged HALT and a fresh later cycle required");
     return Ok();
@@ -620,7 +633,7 @@ Status prepareEscalation(ActionContext& output, const ActionContext& running, ui
     if (!s)
         return s;
     publishStop(output, running.reservation, running.commandHistory[0], StopKind::QUICK_STOP,
-                operation, now, deadline, options);
+                running.stopModeRaw, operation, now, deadline, options);
     output.statusObservation = running.statusObservation;
     output.monitorObservation = running.monitorObservation;
     return Ok();

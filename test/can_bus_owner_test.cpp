@@ -390,6 +390,30 @@ void finiteUploadExperimentBootstrap() {
     CHECK(!expired.services.authorizeUploadExperiment(0, upload.transfer, 11, 2, 1));
 }
 
+void serviceCutoffCannotExtendOperation() {
+    Rig r;
+    const auto sequence = r.sequence(); // The operation retains its original 1000-us deadline.
+    auto work = r.request(sequence, 1, 0x6040, true);
+    work.transfer.deadlineUs = 50;
+    const auto id = r.admit(work);
+    CHECK(r.owner.sequence(sequence)->deadlineUs == 1000);
+    r.turn(50); // Exact service cutoff wins before any controller handover.
+    CHECK(r.fake.sentCount == 0);
+    const auto& terminal = r.done(id);
+    CHECK(terminal.service.transfer.deadlineUs == 50 && !terminal.service.transmissionPossible);
+    CHECK(terminal.reason == O::CompletionReason::DEADLINE);
+    CHECK(r.owner.release(id));
+    auto tooLong = r.request(sequence, 2);
+    tooLong.transfer.deadlineUs = 1001;
+    O::RequestId refused;
+    CHECK(r.owner.admit(tooLong, r.now, refused) == O::BusAdmission::INVALID);
+    // Later explicit work keeps its own deadline within the same operation bound.
+    const auto later = r.admit(r.request(sequence, 2));
+    r.turn(51);
+    r.respond(later, 1, 0x6041, 7);
+    CHECK(r.owner.release(later));
+}
+
 void copiedAdmissionAndRetainedPressure() {
     Rig r;
     const auto sequence = r.sequence();
@@ -1280,6 +1304,7 @@ void actualControlUncertainDownloadAndFailedReadback() {
 }
 } // namespace
 int main() {
+    serviceCutoffCannotExtendOperation();
     finiteUploadExperimentBootstrap();
     copiedAdmissionAndRetainedPressure();
     fairProducersAndBusyChannel();

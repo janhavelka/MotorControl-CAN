@@ -14,7 +14,12 @@ admission, explicit cancellation/invalidation and bounded host/controller
 recovery. It is application code, excluded from the installed/exported core.
 Cached communication health, statistics and bounded diagnostic copies are
 implemented in [CanBusDiagnostics.cpp](../adapters/owner/CanBusDiagnostics.cpp).
-Actual drive stop operations remain prompt 31 work; no motion context is imported.
+The owner imports no motion context. `AxisSession` composes actual profile stop
+and finite motion work above it. A service cutoff may be earlier than its
+operation cutoff, never later: prompt35 bounds mode/parameter/enable work by
+stop due while reserving the unchanged operation deadline for stop settlement.
+At the earlier cutoff the same retirement/uncertainty rules apply; no queued
+start is granted the remaining stop budget. See the [velocity contract](velocity.md).
 
 The [offline consumer](../examples/owner_preview/README.md) needs no controller
 or SDK. The [independent tests](../test/can_bus_owner_test.cpp) exercise two nodes,

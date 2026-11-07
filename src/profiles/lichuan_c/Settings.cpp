@@ -535,15 +535,14 @@ Status retireMotionParameters(DriverContext& retained, const ReadTarget& current
     if (!current.nodeGeneration || !CANOPEN::validateSdoChannel(current.channel) ||
         !CANOPEN::sameSdoChannel(work.channel, current.channel))
         return error(ReadError::TARGET, "move write is not on the current route");
-    // EDS widths. 607A and 60FF are targets outside this group, so they retire nothing. Homing's
-    // writes are outside it too, and retire because prompt 36 requires it: their effect on the
-    // group is unestablished.
+    // EDS widths. 607A changes no field in this group. Velocity and homing setup retire it:
+    // their operation-owned parameters cannot leave a reusable position-settings snapshot.
     struct MoveWrite {
         uint16_t index;
         uint8_t subindex, size;
         bool retires;
     };
-    static const MoveWrite writes[] = {{0x607a, 0, 4, false}, {0x60ff, 0, 4, false},
+    static const MoveWrite writes[] = {{0x607a, 0, 4, false}, {0x60ff, 0, 4, true},
                                        {0x6081, 0, 4, true},  {0x6083, 0, 4, true},
                                        {0x6084, 0, 4, true},  {0x6098, 0, 1, true},
                                        {0x6099, 1, 4, true},  {0x6099, 2, 4, true},

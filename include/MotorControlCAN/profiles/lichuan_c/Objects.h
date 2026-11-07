@@ -1565,7 +1565,7 @@ constexpr ObjectDescriptor OBJECT_60FE_02 = {
 };
 
 /** @brief Copy the reviewed shape of one implemented native read.
- * Contains only explicitly assigned readable source rows. Raw mode bytes retain
+ * Contains only explicitly assigned readable source rows. Raw mode/velocity words retain
  * disputed signedness; a match does not qualify read effects, polling, physical
  * units, interpretation, firmware identity or a non-changing probe.
  * Performs no I/O, time acquisition or allocation. Independent calls are reentrant;
@@ -1673,8 +1673,9 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x60FE, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FE, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FE, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x60FF, 0x00, 4, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
     };
-    for (uint8_t i = 0; i < 95; ++i) {
+    for (uint8_t i = 0; i < 96; ++i) {
         if (rows[i].index == index && rows[i].subindex == subindex) {
             output = rows[i];
             return true;
