@@ -260,6 +260,31 @@ class ProjectionTests(unittest.TestCase):
         entry["type"] = dict(eds_code="0x0007", name="U32", width_bytes=4, signed=False)
         self.reject(entry, "raw Prompt 35 EDS I32 claim")
 
+    def test_homing_projection_preserves_raw_method_and_exact_native_shapes(self):
+        shapes = ((0x607C, 0, "0x0004", "I32", 4, True, "SIGNED"),
+                  (0x6098, 0, "0x0005", "U8", 1, False, "RAW"),
+                  (0x6099, 0, "0x0005", "U8", 1, False, "UNSIGNED"),
+                  (0x6099, 1, "0x0007", "U32", 4, False, "UNSIGNED"),
+                  (0x6099, 2, "0x0007", "U32", 4, False, "UNSIGNED"),
+                  (0x609A, 0, "0x0007", "U32", 4, False, "UNSIGNED"))
+        for index, subindex, code, name, width, signed, representation in shapes:
+            row = fixture_entry(index, subindex)
+            row.update(owner_prompt=36, read_owner_prompt=36)
+            row["type"] = dict(eds_code=code, name=name, width_bytes=width, signed=signed)
+            if index == 0x6098:
+                row["review"]["generation_type"] = "withheld"
+            if index == 0x6099 and subindex == 0:
+                row.update(role="count", access_eds="RO", access_reviewed="RO")
+                row["review"]["write_policy"] = "not_writable"
+            header = objects_header(projected_rows(fixture_objects(row)))
+            self.assertIn("{{0x{:04X}, 0x{:02X}, {}, ReadRepresentation::{}, ReadEffect::UNQUALIFIED".format(
+                index, subindex, width, representation), header)
+            self.assertNotIn("ACCEPTED_UNQUALIFIED", header)
+            if index == 0x6098:
+                self.assertNotIn("OBJECT_6098_00", header)
+            row["type"] = dict(eds_code="0x0006", name="U16", width_bytes=2, signed=False)
+            self.reject(row, "Prompt 36 EDS native read shape")
+
     def test_tuning_projection_rejects_owner_and_consistent_wrong_native_types(self):
         entry = fixture_entry(0x2500)
         entry.update(owner_prompt=22, read_owner_prompt=22)
@@ -290,12 +315,12 @@ class ProjectionTests(unittest.TestCase):
         entry["review"]["write_policy"] = "allowed"
         self.reject(entry, "unqualified write policy")
 
-    def test_read_descriptor_capacity_rejects_a_97th_row(self):
+    def test_read_descriptor_capacity_rejects_a_103rd_row(self):
         # Exercise the independent renderer bound; projection rejects duplicate addresses earlier.
         row = fixture_entry(0x2500)
         row.update(owner_prompt=22, read_owner_prompt=22)
-        with self.assertRaisesRegex(ValueError, "capacity exceeds 96"):
-            read_descriptor_function([row] * 97)
+        with self.assertRaisesRegex(ValueError, "capacity exceeds 102"):
+            read_descriptor_function([row] * 103)
 
 
 class GenerationTests(unittest.TestCase):
@@ -424,12 +449,18 @@ class GenerationTests(unittest.TestCase):
 6061:00 1 RAW
 6064:00 4 SIGNED
 606C:00 4 SIGNED
+607C:00 4 SIGNED
 607D:00 1 UNSIGNED
 607D:01 4 SIGNED
 607D:02 4 SIGNED
 6081:00 4 UNSIGNED
 6083:00 4 UNSIGNED
 6084:00 4 UNSIGNED
+6098:00 1 RAW
+6099:00 1 UNSIGNED
+6099:01 4 UNSIGNED
+6099:02 4 UNSIGNED
+609A:00 4 UNSIGNED
 60FD:00 4 UNSIGNED
 60FE:00 1 UNSIGNED
 60FE:01 4 UNSIGNED
@@ -442,8 +473,8 @@ class GenerationTests(unittest.TestCase):
                 address, width, representation = line.split()
                 index, sub = address.split(":")
                 expected[(int(index, 16), int(sub, 16))] = (int(width), representation)
-        self.assertEqual(len(expected), 96)
-        self.assertEqual(len(actual), 96)
+        self.assertEqual(len(expected), 102)
+        self.assertEqual(len(actual), 102)
         self.assertEqual({(int(index, 16), int(sub, 16)): (int(width), sign)
                           for index, sub, width, sign, _ in actual}, expected)
         # DEC-1, transcribed from the repair audit. Every other row in this table stays unqualified.
@@ -453,7 +484,7 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual({(int(index, 16), int(sub, 16)) for index, sub, _, _, effect in actual
                           if effect == "ACCEPTED_UNQUALIFIED"}, accepted)
         self.assertNotIn("REVIEWED_NON_CHANGING", header)
-        self.assertIn("i < 96", header)
+        self.assertIn("i < 102", header)
         self.assertNotIn("Catalogue.h", header)
         self.assertNotIn("OBJECT_6061_00", header)
 
@@ -467,7 +498,7 @@ class GenerationTests(unittest.TestCase):
             row["read_coverage"] = dict(documented=True, implemented=True,
                                         host_tested=True, hardware_qualified=False)
         document = coverage_document(data, projected_rows(data["objects"]))
-        self.assertIn("| Read shape descriptors | 96 |", document)
+        self.assertIn("| Read shape descriptors | 102 |", document)
         self.assertIn("| Typed settings | 13 |", document)
         self.assertIn("position_parameters_86c", document)
         self.assertIn("explicit_di_configuration_86c", document)

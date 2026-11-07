@@ -66,6 +66,22 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 36:
+        shapes = {"0x607C:00": (0x607C, 0, "0x0004", "I32", 4, True, "value"),
+                  "0x6098:00": (0x6098, 0, "0x0005", "U8", 1, False, "value"),
+                  "0x6099:00": (0x6099, 0, "0x0005", "U8", 1, False, "count"),
+                  "0x6099:01": (0x6099, 1, "0x0007", "U32", 4, False, "value"),
+                  "0x6099:02": (0x6099, 2, "0x0007", "U32", 4, False, "value"),
+                  "0x609A:00": (0x609A, 0, "0x0007", "U32", 4, False, "value")}
+        shape = shapes.get(entry.get("key"))
+        if (shape is None or entry.get("owner_prompt") != 36 or
+                (entry.get("index"), entry.get("subindex"), entry.get("role")) !=
+                (shape[0], shape[1], shape[6])):
+            return [label + "outside the reviewed Prompt 36 homing read scope"]
+        if entry.get("type") != dict(eds_code=shape[2], name=shape[3],
+                                     width_bytes=shape[4], signed=shape[5]):
+            return [label + "requires the reviewed Prompt 36 EDS native read shape"]
+        return []
     if owner == 35:
         if (entry.get("key") != "0x60FF:00" or entry.get("index") != 0x60FF or
                 entry.get("subindex") != 0 or entry.get("owner_prompt") != 35 or
@@ -143,7 +159,7 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35) or read_owner_errors(entry):
+    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35, 36) or read_owner_errors(entry):
         errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")

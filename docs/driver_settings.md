@@ -138,8 +138,11 @@ velocity setup does the same for `60FF`, `6083` and `6084`. `60FF` now retires t
 snapshot conservatively, and either mode's shared ramp writes retire the other
 mode's retained parameters. This does not advance the configuration generation
 or prove that the write happened. `607A` alone changes no field in this group.
-Homing rows are accepted conservatively at their declared widths; prompt 36
-still owns their actual operation and the ruling on `607C`.
+Homing rows are accepted conservatively at their declared widths. Prompt 36
+adds the [conditional home lifecycle](homing.md) and raw `DriverGroup::HOMING`
+readback; `607C` write order, units, sign and final-coordinate effect remain
+exact-firmware evidence gates. These operation writes retire retained motion
+parameters, without routing through a general driver-settings setter.
 
 The exclusive transaction alone may finish its copied old-epoch downloads.
 After releasing all old results, the application explicitly calls

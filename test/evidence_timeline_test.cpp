@@ -1639,7 +1639,10 @@ void predicatesStaySeparate() {
                         const bool allowed = haltAllowed(word) || (kind == L::StopKind::QUICK_STOP && word == 0x010f);
                         const bool velocityOperating = mode == 3 && word == 0x000f &&
                                                        (statusword & 7) == 7 && running;
-                        const bool stopOk = allowed && (operating || velocityOperating) && !badForAny;
+                        // Mode 6 has only the bit-4 falling edge from the real held start word.
+                        const bool homingOperating = mode == 6 && word == 0x001f &&
+                                                     kind == L::StopKind::HALT && (statusword & 7) == 7;
+                        const bool stopOk = allowed && (operating || velocityOperating || homingOperating) && !badForAny;
                         CHECK(L::stopPredecessorAllowed(word, kind) == allowed);
                         const M::Status validated = L::validateStop(stop, p.live, p.state, p.control, kind, 41, p.now,
                                                                     p.now + 100000, actionOptions());

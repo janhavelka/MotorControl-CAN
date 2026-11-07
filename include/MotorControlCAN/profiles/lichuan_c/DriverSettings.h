@@ -24,7 +24,8 @@ enum class DriverGroup : uint8_t {
     TUNING_FILTER_POSITION,  ///< 2508..250D; use Tuning.h and getTuning.
     TUNING_LOOP_GAINS,       ///< 250E..2519; use Tuning.h and getTuning.
     TUNING_EDS_GAINS,        ///< 251A..2520 raw words; no interpreted gain contract.
-    VELOCITY_TARGET         ///< 60FF raw target word; EDS I32 rpm view, not qualified signed motion.
+    VELOCITY_TARGET, ///< 60FF raw target word; EDS I32 rpm view, not qualified signed motion.
+    HOMING           ///< 607C,6098,6099:00..02,609A raw readback; no home/reference evidence.
 };
 /** Concrete caller-owned group lifecycle; terminal history survives until reuse. */
 struct DriverContext {
@@ -41,7 +42,8 @@ struct DriverObservation {
     uint16_t subdivisionRaw = 0;             ///< DRIVER: 2201, no counts/turn inference.
     uint16_t softLimitSelectorRaw = 0;       ///< SOFT_LIMITS: 2202, including unknown 10.
     uint16_t softLimitEntries = 0; ///< SOFT_LIMITS: 607D:00 raw highest subindex, no discovery.
-    uint8_t softLimitEntriesWidth = 0; ///< SOFT_LIMITS: actual 607D:00 reply bytes, see CountWidths.
+    uint8_t softLimitEntriesWidth =
+        0;                         ///< SOFT_LIMITS: actual 607D:00 reply bytes, see CountWidths.
     int32_t minimumNative = 0;     ///< SOFT_LIMITS: 607D:01 coordinate, basis unknown.
     int32_t maximumNative = 0;     ///< SOFT_LIMITS: 607D:02 coordinate, basis unknown.
     uint32_t positionSpeedRpm = 0; ///< MOTION_PARAMETERS: 6081 native U32 rpm.
@@ -51,10 +53,16 @@ struct DriverObservation {
      * this does not resolve Q03, permit reverse/zero commands or prove current speed.
      */
     int32_t velocityTargetRpm = 0;
-    bool interpreted = false;      ///< Remains false; no scale/state/enforcement qualification.
-    uint8_t fieldCount = 0;        ///< 1..4 fields in source order for the selected driver group.
-    ReadProvenance fields[4];      ///< Owned per-object provenance, not an atomic snapshot.
-    ReadWindow window;             ///< Conservative acquisition interval/skew of the group.
+    int32_t homeOffsetRaw = 0; ///< HOMING: 607C I32; units/sign/application point unqualified.
+    uint8_t homeMethodRaw = 0; ///< HOMING: 6098 byte; U8/I8 conflict, no high-bit interpretation.
+    uint8_t homeSpeedEntries = 0;    ///< HOMING: 6099:00 U8, never a discovery/iteration bound.
+    uint32_t homeSearchSpeedRpm = 0; ///< HOMING: 6099:01 native U32 rpm, not permission to move.
+    uint32_t homeCreepSpeedRpm = 0;  ///< HOMING: 6099:02 U32 rpm; table's "time" is editorial.
+    uint32_t homeRampTimeMs = 0;     ///< HOMING: 609A U32 ms, zero/effect unqualified.
+    bool interpreted = false;        ///< Remains false; no scale/state/enforcement qualification.
+    uint8_t fieldCount = 0;          ///< 1..6 fields in source order for the selected driver group.
+    ReadProvenance fields[6];        ///< Owned per-object provenance, not an atomic snapshot.
+    ReadWindow window;               ///< Conservative acquisition interval/skew of the group.
 };
 /** Prepare a complete group read atomically, without writing settings.
  * @param[out] output Replaced on success only; no overlap with inputs.
@@ -65,7 +73,7 @@ struct DriverObservation {
  * @param[in] options Nonzero queue/response budgets, clamped by the owner. identityWidths stays
  * DECLARED_U16; countWidths may be MEASURED_U16 for SOFT_LIMITS and IO_OUTPUT_COMMAND only.
  * @param[in] group One declared finite native group; no 6060 upload or catalogue sweep.
- * VELOCITY_TARGET is outside DEC-1 and remains UNQUALIFIED/Q20: request it only as an
+ * VELOCITY_TARGET and HOMING are outside DEC-1 and remain UNQUALIFIED/Q20: request only as an
  * explicitly reviewed acquisition, not ordinary polling or an enable-prerequisite exemption.
  * @return OK prepares owned work only; errors preserve output with ReadError detail.
  */

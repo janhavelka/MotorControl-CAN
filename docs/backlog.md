@@ -1,5 +1,13 @@
 # Executable backlog
 
+Prompt 36's conditional homing software and six typed reads are tracked in
+[its report](reports/prompt_36.md). Q04 direction, actual input wiring/polarity,
+Q11 mode-6 enabling, Q14 offset/reference and Q21 method completion remain open;
+see the precise [next measurements](homing.md). The manual
+[coverage reconciliation](reports/prompt_36_coverage.md) also identifies missing
+standalone reads `605D` (31), `2301/2302` (32), and `607A` (33). Those software
+omissions remain with their original Partial prompts.
+
 Prompt 35 adds the conditional [finite velocity lifecycle](velocity.md), typed
 raw `60FF` readback and mode3 DEC-8 owner stop integration. Host software and
 firmware evidence remain separate: no new startup, reverse, zero-rate, mode-change

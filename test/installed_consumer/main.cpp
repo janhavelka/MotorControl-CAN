@@ -5,6 +5,7 @@
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Homing.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h>
@@ -512,5 +513,17 @@ int main() {
     freshness = CANOPEN::PdoFreshness::FRESH;
     if (CANOPEN::pdoFreshness(pdoRecord, 1, 0, freshness) || freshness != CANOPEN::PdoFreshness::FRESH)
         return 88;
+    // The exported pure library contains homing symbols and keeps the physical gate closed.
+    static LICHUAN_C::HomeContext home;
+    LICHUAN_C::resetHome(home);
+    AxisReference homeReference;
+    homeReference.nativePosition = 321;
+    if (LICHUAN_C::getHomeReference(home, readTarget, config, 90, 20, homeReference) ||
+        homeReference.nativePosition != 321 || home.state != ActionState::EMPTY)
+        return 89;
+    const LICHUAN_C::HomeEvidence homeGate;
+    if (homeGate.gate != LICHUAN_C::HomeGate::CLOSED ||
+        static_cast<unsigned>(LICHUAN_C::HomingMethod::NEGATIVE_ORIGIN) != 29)
+        return 90;
     return 0;
 }

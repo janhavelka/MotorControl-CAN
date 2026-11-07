@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  * Stop transition contract: CL86-C/OL86-C only, one continuous actual owner reservation
  * acquired before the last positively acknowledged 6040:00 U16 word. Fresh SDO
- * STATUS (mode 1 or 3, low bits 7) and MONITORS (alarm/released clear)
+ * STATUS (mode 1, 3 or 6, low bits 7) and MONITORS (alarm/released clear)
  * must follow that acknowledgement. The application proves no intervening
  * control/mode/target/RPDO/configuration write, uncertain work or lifecycle change.
  * A copied or reacquired reservation cannot establish this continuous history. The
@@ -17,9 +17,12 @@
  * 000F with running set, as DEC-8 project policy; predecessorDocumented stays false. Mode 1 permits
  * running either set or clear. An explicit mode 3 HALT-to-QUICK_STOP escalation requires its own
  * acknowledged 010F and a later mode 3 running observation.
- * HALT emits only 010F; QUICK_STOP emits only 000B. Neither enables first. A prior
+ * Mode 6 HALT accepts only acknowledged 001F and emits 000F (bit4 falling), with
+ * predecessorDocumented=false. Fresh mode 6 monitor-not-running plus zero 606C settles
+ * its controller observation; it proves no physical reference or standstill.
+ * Other modes: HALT emits only 010F; QUICK_STOP emits only 000B. Neither enables first. A prior
  * 000B, a prior 010F for HALT, any other word and a released state are rejected.
- * After ACK, fresh five-field MONITORS+STATUS SDO cycles require the admitted mode and no
+ * After ACK, fresh MONITORS+STATUS cycles (plus FEEDBACK in mode 6) require the admitted mode and no
  * alarm/release; monitor running clear establishes OBSERVED controller-not-running
  * during that sequential read window. The one exception is QUICK_STOP's drive-reported
  * terminal: on both specimens and one firmware, 000B from 000F and from 010F left 2100
@@ -46,8 +49,9 @@
  * about it below is fake-owner evidence. EN86/ZH86 p12 and OP86 p9 document 6040 words 6, 7, 15
  * about 10 ms apart in position mode. No source says what the drive does with an earlier target when it
  * enables, so EnableEvidence must carry the caller's explicit statements and a closed gate refuses.
- * Mode 1 is mandatory: ZH86 p13 and OP86 p11 start the motor at the end of 6, 7, 15 in mode 3, and
- * a mode 3 enable has no approved path. Release has no API: no source pairs a command with an
+ * Mode 1 remains the default. Mode 6 requires an explicit separate evidence gate and
+ * non-enabled released start; it sends no homing trigger. Mode 3 startup belongs to
+ * the separately gated finite velocity operation. Release has no API: no source pairs a command with an
  * effect. Both specimens read 6041 low bits 111 and 2100 released clear at power-up, the pattern
  * the manual pairs with an enabled drive, and both held torque then by hand checks: word 6 releases
  * it (2026-11-03). At word 7 the drive reports itself energized again, and its position report
@@ -74,7 +78,7 @@ constexpr uint64_t ENABLE_WORD_INTERVAL_US = 10000;
 constexpr uint64_t ENABLE_SERVICE_STEPS = 26;
 /** Exact documentary native command selection, without generic deceleration promises. */
 enum class StopKind : uint8_t {
-    HALT,      ///< ZH86 p12/OP86 p10 000F to 010F normal-stop example; EN86 omits the row.
+    HALT, ///< Modes 1/3: 010F; mode 6: 000F bit4 falling from acknowledged 001F (derived word).
     QUICK_STOP ///< EN86/ZH86 p12 and OP86 p10 000F to 000B example, no certified safety claim.
 };
 /** Caller policy, not manufacturer response/stop timing. Defaults intentionally reject. */
@@ -162,7 +166,7 @@ enum class EnableGate : uint8_t {
 enum class EnableStart : uint8_t {
     UNKNOWN, ///< Default: refused. Fresh flags cannot tell idle from an interrupted curve.
     /** No 6040, target, ramp or other mode write reached this drive since its last power-up, as far
-     * as this application's retained record can show, apart from one acknowledged 6060=1. A
+     * as this application's retained record can show, apart from one acknowledged 6060 selecting this explicitly reviewed mode. A
      * statement the library cannot check, and not proof that the drive holds no pending curve. */
     NO_MOTION_WRITE_RECORDED
 };
@@ -180,6 +184,10 @@ enum class ShaftObservation : uint8_t {
  * no-motion claim, and 60FF=0 has no documented meaning.
  */
 struct EnableEvidence {
+    uint8_t modeRaw = 1; ///< Explicit reviewed mode 1 or 6; no mode write is emitted by enable.
+    bool homingEnableQualified =
+        false; ///< Mode 6 only: retained trial evidence establishes no start
+               ///< before a separate bit-4 edge on this firmware/binding.
     EnableGate gate = EnableGate::CLOSED;     ///< Must be explicitly opened for an attended trial.
     /** Nonzero identity of the attended trial record. AxisSession consumes each once, in rising order,
      * for the life of the session object. */

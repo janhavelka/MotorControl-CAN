@@ -132,6 +132,23 @@ class LedgerTests(unittest.TestCase):
             entry(data, key)["read_owner_prompt"] = 35
             self.reject(data, "outside the reviewed Prompt 35 target-velocity read scope")
 
+    def test_homing_read_scope_preserves_native_widths_and_uncertainty(self):
+        for key in ("0x607C:00", "0x6098:00", "0x6099:00", "0x6099:01", "0x6099:02", "0x609A:00"):
+            row = entry(LEDGER, key)
+            self.assertEqual(row["read_coverage"], dict(documented=True, implemented=True,
+                                                        host_tested=True, hardware_qualified=False))
+            self.assertFalse(row["coverage"]["implemented"])
+            self.assertEqual(row["review"]["read_effect"], "not_established")
+            self.assertIn("Q20", row["review"]["gate_ids"])
+            self.assertNotIn("read_disposition", row)
+            data = self.changed()
+            entry(data, key)["type"] = dict(eds_code="0x0006", name="U16", width_bytes=2, signed=False)
+            self.reject(data, "Prompt 36 EDS native read shape")
+        for key in ("0x607A:00", "0x606C:00", "0x60FF:00"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 36
+            self.reject(data, "outside the reviewed Prompt 36 homing read scope")
+
     def test_read_coverage_cannot_widen_scope_or_claim_hardware(self):
         coverage = dict(documented=True, implemented=True, host_tested=True,
                         hardware_qualified=False)

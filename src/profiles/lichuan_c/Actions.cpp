@@ -51,14 +51,16 @@ uint8_t observationMask(const ActionContext& c) {
         return uint8_t(1u << static_cast<unsigned>(StateBlock::ERRORS));
     uint8_t mask = uint8_t((1u << static_cast<unsigned>(StateBlock::MONITORS)) |
                            (1u << static_cast<unsigned>(StateBlock::STATUS)));
-    if (c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) || c.standstillObserving)
+    if (c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) || c.standstillObserving ||
+        (c.actionKind == ActionKind::STOP && c.stopModeRaw == 6))
         mask |= uint8_t(1u << static_cast<unsigned>(StateBlock::FEEDBACK));
     return mask;
 }
 Status shape(const ActionContext& c, uint64_t now) {
     if (!validReservation(c.reservation) || c.kind > StopKind::QUICK_STOP ||
         c.actionKind > ActionKind::ENABLE || !c.operation || !c.step ||
-        (c.actionKind == ActionKind::STOP && c.stopModeRaw != 1 && c.stopModeRaw != 3) ||
+        (c.actionKind == ActionKind::STOP && c.stopModeRaw != 1 && c.stopModeRaw != 3 &&
+         c.stopModeRaw != 6) ||
         c.state == ActionState::EMPTY || c.state > ActionState::FAILED ||
         c.phase > ActionPhase::TARGETS || c.execution > ActionExecution::UNKNOWN ||
         c.completion > ActionCompletion::OBSERVED ||
@@ -67,10 +69,10 @@ Status shape(const ActionContext& c, uint64_t now) {
         (c.withdrawal != ActionOutcome::NONE && c.withdrawal != ActionOutcome::CANCELLED &&
          c.withdrawal != ActionOutcome::DEADLINE && c.withdrawal != ActionOutcome::INVALIDATED &&
          c.withdrawal != ActionOutcome::DRIVE_FAULT) ||
-        !c.options.service.queueTimeoutUs ||
-        !c.options.service.responseTimeoutUs || !c.options.observationIntervalUs ||
-        !c.options.maximumAgeUs || c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs ||
-        now < c.servicedUs || c.commandCursor >= commandCount(c) ||
+        !c.options.service.queueTimeoutUs || !c.options.service.responseTimeoutUs ||
+        !c.options.observationIntervalUs || !c.options.maximumAgeUs ||
+        c.deadlineUs <= c.startedUs || c.servicedUs < c.startedUs || now < c.servicedUs ||
+        c.commandCursor >= commandCount(c) ||
         (c.commandEvidenceMask & ~uint8_t((1u << commandCount(c)) - 1u)) ||
         (c.phase == ActionPhase::COMMAND && !enabling(c) &&
          c.step != uint32_t(c.commandCursor) + 1) ||
@@ -83,8 +85,8 @@ Status shape(const ActionContext& c, uint64_t now) {
           (c.commandCursor == 2 && !c.coordinatesInvalidated))) ||
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
-        (c.standstillObserving &&
-         (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP || c.stopModeRaw != 1)) ||
+        (c.standstillObserving && (c.actionKind != ActionKind::STOP ||
+                                   c.kind != StopKind::QUICK_STOP || c.stopModeRaw != 1)) ||
         c.valueOneMayRemain != (c.state == ActionState::FAILED && oneMayRemain(c)))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND && c.phase != ActionPhase::TARGETS &&
@@ -95,7 +97,8 @@ Status shape(const ActionContext& c, uint64_t now) {
          c.read.kind != ReadKind::STATE || c.read.source != ReadSource::SDO ||
          c.read.count != (c.finalErrorRead ? 2
                           : c.actionKind == ActionKind::SET_DEVICE_POSITION || enabling(c) ||
-                                  c.standstillObserving
+                                  c.standstillObserving ||
+                                  (c.actionKind == ActionKind::STOP && c.stopModeRaw == 6)
                               ? 7
                               : 5) ||
          c.read.blockMask != observationMask(c) || c.read.deadlineUs != c.deadlineUs ||
@@ -173,7 +176,7 @@ CANOPEN::SdoTransfer command(const ActionContext& c) {
     t.size = 2;
     if (c.actionKind == ActionKind::STOP) {
         t.data[0] = c.kind == StopKind::HALT ? 0x0f : 0x0b;
-        t.data[1] = c.kind == StopKind::HALT ? 1 : 0;
+        t.data[1] = c.kind == StopKind::HALT && c.stopModeRaw != 6 ? 1 : 0;
     } else if (enabling(c))
         t.data[0] = uint8_t(ENABLE_WORDS[c.commandCursor]);
     else
@@ -263,7 +266,7 @@ bool enableScopeHolds(const ActionContext& c) {
     constexpr uint16_t released = MONITOR_RELEASED;
     const StateObservation& status = c.statusObservation;
     const StateObservation& monitors = c.monitorObservation;
-    return status.modeRaw == 1 &&
+    return status.modeRaw == c.enable.evidence.modeRaw &&
            ((status.statusword ^ c.enable.startStatusword) & uint16_t(~lowBits)) == 0 &&
            ((monitors.monitor ^ c.enable.startMonitor) & uint16_t(~released)) == 0 &&
            c.extraObservation.actualPosition == c.enable.startPosition &&
@@ -337,7 +340,9 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const uint16_t monitor = c.monitorObservation.monitor;
     const bool running = (monitor & MONITOR_RUNNING) != 0;
     const bool alarm = (monitor & MONITOR_ALARM) != 0;
-    const uint8_t expectedMode = c.actionKind == ActionKind::STOP ? c.stopModeRaw : 1;
+    const uint8_t expectedMode = c.actionKind == ActionKind::STOP ? c.stopModeRaw
+                                 : enabling(c)                    ? c.enable.evidence.modeRaw
+                                                                  : 1;
     bool outsideScope = c.statusObservation.modeRaw != expectedMode;
     bool done = false;
     bool wantStandstill = false;
@@ -357,6 +362,8 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         done = !running || (latched && feedback && previousFeedback && previousVelocity == 0 &&
                             c.extraObservation.actualVelocity == 0 &&
                             c.extraObservation.actualPosition == previousPosition);
+        if (c.stopModeRaw == 6)
+            done = !running && feedback && c.extraObservation.actualVelocity == 0;
         wantStandstill = latched && !c.standstillObserving && ageCoversCycle(c.options, 7);
         break;
     }
@@ -581,11 +588,15 @@ Status validateStop(const ActionContext& output, const AxisReservation& r, const
         return error(ActionError::STATE,
                      "allowed acknowledged predecessor and fresh drive state required");
     const uint8_t mode = uint8_t(raw(state, StateBlock::STATUS, 1));
-    if (mode != 1 &&
-        (mode != 3 || controlWord(control.transfer) != 0x000f ||
-         !(raw(state, StateBlock::MONITORS, 0) & MONITOR_RUNNING)))
+    const bool velocity = mode == 3 && controlWord(control.transfer) == 0x000f &&
+                          (raw(state, StateBlock::MONITORS, 0) & MONITOR_RUNNING);
+    // EN86/ZH86 p15 document the homing bit4 falling edge. 001F -> 000F is a
+    // derived whole-word transition, not the position section's normal-stop arrow.
+    const bool home = mode == 6 && kind == StopKind::HALT &&
+                      controlWord(control.transfer) == 0x001f && ageCoversCycle(options, 7);
+    if (mode != 1 && !velocity && !home)
         return error(ActionError::STATE,
-                     "stop needs mode 1, or mode 3 running after acknowledged 000F");
+                     "no reviewed stop transition for this mode and predecessor");
     return Ok();
 }
 
@@ -657,8 +668,9 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
     if (evidence.gate > EnableGate::ATTENDED_EXPERIMENT ||
         evidence.start > EnableStart::NO_MOTION_WRITE_RECORDED ||
         evidence.powerUpShaft > ShaftObservation::HOLDING || !evidence.trial ||
-        !validReservation(r) || !operation || deadline <= now || r.acquiredUs > now ||
-        !stopOptionsValid(options) || !ageCoversCycle(options, 9))
+        (evidence.modeRaw != 1 && evidence.modeRaw != 6) || !validReservation(r) || !operation ||
+        deadline <= now || r.acquiredUs > now || !stopOptionsValid(options) ||
+        !ageCoversCycle(options, 9))
         return error(ActionError::ARGUMENT, "invalid enable trial, reservation or budgets");
     // Room for three intervals and every scheduled service at full budget. Each term is bounded
     // first, so nothing here can wrap.
@@ -691,14 +703,19 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
             return error(ActionError::STATE, "enable needs fresh ERRORS, MONITORS, STATUS and FEEDBACK");
     }
     const uint8_t mode = uint8_t(raw(state, StateBlock::STATUS, 1));
-    if (mode != 1)
-        return error(ActionError::STATE, mode == 3 ? "mode 3 starts the motor when enabled (ZH86 p13): refused"
-                                                   : "enable needs reported mode 1");
+    if (mode != evidence.modeRaw)
+        return error(ActionError::STATE, "enable mode differs from the explicitly reviewed mode");
+    if (mode == 6 && !evidence.homingEnableQualified)
+        return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::STATE),
+                      "mode6 enable needs its own selected-firmware evidence");
     const uint16_t monitor = uint16_t(raw(state, StateBlock::MONITORS, 0));
     constexpr uint16_t ignored = MONITOR_RELEASED | MONITOR_HOMING_COMPLETE;
-    if ((monitor & uint16_t(~ignored)) != MONITOR_POSITION_COMPLETE)
-        return error(ActionError::STATE,
-                     "enable needs 2100 in place with no running, alarm, limit or unknown bit");
+    const uint16_t allowed = mode == 6 ? uint16_t(ignored | MONITOR_POSITION_COMPLETE) : ignored;
+    if ((monitor & uint16_t(~allowed)) != (mode == 6 ? 0 : MONITOR_POSITION_COMPLETE))
+        return error(ActionError::STATE, "enable monitor is outside the reviewed stationary scope");
+    if (mode == 6 && (!(monitor & MONITOR_RELEASED) ||
+                      (raw(state, StateBlock::STATUS, 0) & STATUS_LOW_BITS) == STATUS_LOW_BITS))
+        return error(ActionError::STATE, "mode6 enable requires a non-enabled released start");
     const uint16_t statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
     if (statusword != evidence.reviewedStatusword)
         return error(ActionError::STATE, "6041 differs from the reviewed word");

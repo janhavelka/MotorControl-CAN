@@ -36,6 +36,11 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 
 ## Style and status
 
+Prompt36 implements `prepareHome`, `nextHome`, `advanceHome` and checked
+`getHomeReference`, with the [homing contract](homing.md) and six typed native
+reads. Concrete terminal contexts retain outcomes; no `getHomeResult` is added.
+CLI42 routes remain planned and are not implemented by these APIs.
+
 Prompt35 implements `prepareVelocity`, `nextVelocity`, `advanceVelocity`,
 `serviceVelocity`, concrete `VelocityContext`, and `AxisSession::requestVelocity`.
 `DriverGroup::VELOCITY_TARGET` uses the existing checked driver read/getter path.
@@ -202,7 +207,7 @@ The RS audit baseline predates these additions; see the [dated delta](audit/MOTO
 | RS addition | Disposition | CAN mapping and reason |
 | --- | --- | --- |
 | `velocity read`, `prepareVelocityParameters` | Adopt | Typed read of the reviewed velocity rows (the ledger owns the exact set; `60FF` is owned by prompt 35). Read API in prompt 35, route in P42 |
-| `home read`, `prepareHomingParameters` | Adopt | Typed read of the reviewed homing rows (`6098`, `6099:00..02`, `609A`). Read API in prompt 36, route in P42 |
+| `home read`, `prepareHomingParameters` | Adopt | Typed read of the reviewed homing rows (`607C`, `6098`, `6099:00..02`, `609A`). Read API implemented in prompt 36, route in P42 |
 | `home auxiliary` | Not applicable | ESS auxiliary configuration 0..11 is an ESS function number set; ESS function numbers do not transfer and no CL86-C equivalent is documented |
 | `home qualification` install and revoke, `checkHomeQualification`, `revokeHome` | Adopt (shape) | Operator states each commissioning fact by name, live checks decide admission, and no all-true switch exists. The facts are Lichuan-specific and owned by prompt 36; revoke invalidates the reference. Route in P42 |
 | `velocity qualification install` | Adopt (shape) | Same named-fact install for velocity prerequisites, owned by prompt 35. The facts themselves are not copied from RS |

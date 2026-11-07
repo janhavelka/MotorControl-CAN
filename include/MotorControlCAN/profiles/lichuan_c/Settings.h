@@ -264,7 +264,8 @@ Status getIo(const DriverSettingsContext& context, const AxisReservation& live,
  * @param[in] work Exact admitted download on `current`, at its EDS width: 60FF, 6081, 6083,
  * 6084, 6098, 6099:01, 6099:02, 609A or 607C, which retire, or 607A, which is accepted and
  * retires nothing. Shared ramp writes invalidate the other mode's retained snapshot too.
- * Prompt 36 still owes its own ruling on 607C. Anything else is refused.
+ * 607C is admitted only by the exact-evidence homing operation; its effect is not
+ * inferred here. Anything else is refused.
  * @return OK, or INVALID_CONFIG with ReadError TARGET, ARGUMENT or OVERLAP and nothing changed.
  * Performs no I/O and does not prove the write happened.
  */

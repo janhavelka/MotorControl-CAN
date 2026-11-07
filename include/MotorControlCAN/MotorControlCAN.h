@@ -15,6 +15,7 @@
 #include <MotorControlCAN/ActionOperation.h>
 #include <MotorControlCAN/MoveOperation.h>
 #include <MotorControlCAN/VelocityOperation.h>
+#include <MotorControlCAN/HomeOperation.h>
 #include <MotorControlCAN/can/Frame.h>
 #include <MotorControlCAN/canopen/Sdo.h>
 #include <MotorControlCAN/canopen/SdoTransfer.h>

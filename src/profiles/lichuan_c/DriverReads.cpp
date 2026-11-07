@@ -10,6 +10,8 @@ const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
 const Address softLimits[] = {{0x2202, 0}, {0x607d, 0}, {0x607d, 1}, {0x607d, 2}};
 const Address motionParameters[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
 const Address velocityTarget[] = {{0x60ff, 0}};
+const Address homing[] = {{0x607c, 0}, {0x6098, 0}, {0x6099, 0},
+                          {0x6099, 1}, {0x6099, 2}, {0x609a, 0}};
 const Address ioInputs[] = {{0x2400, 0}, {0x2400, 1}, {0x2400, 2}, {0x2400, 3}, {0x2400, 4},
                             {0x2400, 5}, {0x2400, 6}, {0x2400, 7}, {0x2400, 8}};
 const Address ioOutputs[] = {{0x2400, 0x0c}, {0x2400, 0x0d}, {0x2400, 0x0e}, {0x2400, 0x0f}};
@@ -36,8 +38,9 @@ const GroupPlan groups[] = {
      softLimits, length(softLimits)},
     {DriverGroup::MOTION_PARAMETERS, ReadKind::DRIVER_MOTION_PARAMETERS, GroupFamily::DRIVER,
      noTuning, motionParameters, length(motionParameters)},
-    {DriverGroup::VELOCITY_TARGET, ReadKind::VELOCITY_TARGET, GroupFamily::DRIVER,
-     noTuning, velocityTarget, length(velocityTarget)},
+    {DriverGroup::VELOCITY_TARGET, ReadKind::VELOCITY_TARGET, GroupFamily::DRIVER, noTuning,
+     velocityTarget, length(velocityTarget)},
+    {DriverGroup::HOMING, ReadKind::HOMING, GroupFamily::DRIVER, noTuning, homing, length(homing)},
     {DriverGroup::IO_INPUT_CONFIGURATION, ReadKind::IO_INPUT_CONFIGURATION, GroupFamily::IO,
      noTuning, ioInputs, length(ioInputs)},
     {DriverGroup::IO_OUTPUT_CONFIGURATION, ReadKind::IO_OUTPUT_CONFIGURATION, GroupFamily::IO,
@@ -128,6 +131,14 @@ Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now,
         break;
     case DriverGroup::VELOCITY_TARGET:
         candidate.velocityTargetRpm = signed32(v[0].raw);
+        break;
+    case DriverGroup::HOMING:
+        candidate.homeOffsetRaw = signed32(v[0].raw);
+        candidate.homeMethodRaw = uint8_t(v[1].raw);
+        candidate.homeSpeedEntries = uint8_t(v[2].raw);
+        candidate.homeSearchSpeedRpm = v[3].raw;
+        candidate.homeCreepSpeedRpm = v[4].raw;
+        candidate.homeRampTimeMs = v[5].raw;
         break;
     default:
         return readInvalid(ReadError::STATE, "unknown driver observation");

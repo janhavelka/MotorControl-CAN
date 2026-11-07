@@ -17197,7 +17197,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 36
+          "read_owner_prompt": 36,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -18017,7 +18023,13 @@
             ],
             "generation_type": "withheld"
           },
-          "read_owner_prompt": 36
+          "read_owner_prompt": 36,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -18107,7 +18119,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 36
+          "read_owner_prompt": 36,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x6099:01",
@@ -18201,7 +18219,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 36
+          "read_owner_prompt": 36,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x6099:02",
@@ -18297,7 +18321,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 36
+          "read_owner_prompt": 36,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -18416,7 +18446,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 36
+          "read_owner_prompt": 36,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },

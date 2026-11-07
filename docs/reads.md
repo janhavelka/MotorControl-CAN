@@ -93,6 +93,12 @@ installed supported model or firmware.
 | Configuration (6) | `1005`, `1014`, `1017`, `1200:00..02` | U32 SYNC/EMCY routes, U16 producer interval, U8 record count, U32 client/server SDO routes. Observations do not reconfigure routes. |
 | Velocity target (1) | `60FF:00` | Four raw bytes; `DriverObservation::velocityTargetRpm` gives the EDS I32 view in rpm. U32 manual claims remain conflicting, and negative raw values do not qualify reverse motion. |
 
+The `HOMING` driver group adds `607C:00`, `6098:00`, `6099:00..02`, and
+`609A:00`, in that fixed order. Checked `getDriver` exposes six raw fields;
+unknown method bytes, counts and out-of-admission-range values remain readable.
+No read proves offset effect, safe motion parameters or non-consuming access.
+These rows need the explicit reviewed Q20 acquisition described in [homing](homing.md).
+
 The velocity target uses `DriverSettings.h`: call `prepareDriverRead` with
 `DriverGroup::VELOCITY_TARGET`, then `nextDriver`, `advanceDriver` and `getDriver`.
 It is one explicit acquisition with currentness/age checks, not speed feedback

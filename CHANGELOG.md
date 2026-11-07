@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Conditional homing (prompt 36)
+
+- Added method-specific `prepareHome`, `nextHome`, `advanceHome` and checked
+  `getHomeReference`, explicit mode-6 enable/interrupt, retained uncertain effects
+  and reference withdrawal through the existing owner. Physical capability gates
+  remain closed until the exact firmware/method/fixture evidence exists.
+- Added six typed raw homing reads, with source conflicts and Q20 acquisition
+  gates retained, and reconciled earlier native coverage without hiding omissions.
+- Added direct and owner tests; no physical homing qualification is claimed.
+
 ### Prompt 34/35 independent audit
 
 - Finite velocity now keeps setup confirmations separate from its running-poll
