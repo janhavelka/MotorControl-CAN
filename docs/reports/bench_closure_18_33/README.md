@@ -13,7 +13,7 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | [packet_5](packet_5.md) | Complete (`e8b449d`, `27903cb`; soak fix regression-tested on `f2c90ab`) | 28, 29 | Ran 2026-11-06: loss reproduced at 20 ms and placed after UART FIFO acceptance; attribution needs a GPIO43 capture |
 | [6](../../prompts/bench_closure_18_33/6_pdo_measurement.md) PDO measurement | [packet_6](packet_6.md) | Complete, with recorded deviations; runner fixes P1-P5 | 18, 29 | Ran 2026-11-06, both specimens ([report](../2026-11-06_pdo_stream.md)); NMT boundary rerun on `f2c90ab` ([record](packet_6.md#nmt-boundary-rerun-2026-11-06-1616z)) |
 | [7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md) Typed PDO subset | [packet_7](packet_7.md) | Complete (`f2c90ab`; replay record in the next commit) | 18 stays Partial | Replayed once on node 2 in both directions on `f2c90ab` |
-| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | - | Pending, after 1 and 2 | 29, 31-33 | Needs a drive power cycle before any enable |
+| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | [packet_8](packet_8.md) | Host part done (tests 28-30, `testPacket8Plan`, runner deadline check, [procedure](packet_8_procedure.md)); bench items 2-4 pending | 29, 31-33 stay Partial | Start baseline read 2026-11-07; motion needs a drive power cycle and an attendant's shaft observation |
 
 ## Remote CI
 

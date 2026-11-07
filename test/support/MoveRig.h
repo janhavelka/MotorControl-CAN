@@ -131,6 +131,10 @@ struct FakeDrive {
     bool alarmDisables = false;
     uint16_t errorCode = 0;      // 603F raw, manufactured.
     bool clearOne = false;       // A 2301 = 1 was acknowledged; a following 0 clears the alarm.
+    // A 2302 = 0 was acknowledged; a following 1 zeroes 6064. Manufactured from one drive report
+    // (trial 323, node 2: 0, 1, 0 left 6064 = 0); what the drive does with its commanded position or
+    // its last 607A is unmeasured, so the fake leaves both alone.
+    bool counterArmed = false;
     unsigned travelReads = 1; // 6041 reads reporting motion after a trigger, before arrival.
     unsigned remaining = 0, statusReads = 0, words = 0, alarmAtRead = 0, edges = 0;
     bool moving = false;
@@ -244,6 +248,10 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
             if (value == 0 && drive.clearOne)
                 drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_ALARM);
             drive.clearOne = value == 1;
+        } else if (index == 0x2302) {
+            if (value == 1 && drive.counterArmed)
+                drive.position = 0;
+            drive.counterArmed = value == 0;
         }
         out.data[0] = 0x60;
         return true;

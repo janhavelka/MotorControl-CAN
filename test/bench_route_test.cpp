@@ -3449,6 +3449,112 @@ void writeTranscript(const char* path) {
 }
 } // namespace
 
+// Packet 8's planned boot, replayed in order through the real routes on this fake, with the procedure's
+// motion values (docs/reports/bench_closure_18_33/packet_8_procedure.md) and this fake's identity and
+// signals. It shows that the existing routes admit every planned line in that order within one boot's
+// twelve motion admissions, with no new route: node 1's negative relative move, node 2's halted position
+// move, its rearm and the relative experiment that tells the two candidate bases apart, a HALT from a
+// held 005F with node 2 observing, and a quick stop from node 2's acknowledged 005F. Nothing here is a
+// drive measurement: this fake chooses every report, and its ACTUAL base is its own choice.
+void testPacket8Plan() {
+    scenario = "packet-8-plan";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& one = r->driver.drives[0];
+    Drive& two = r->driver.drives[1];
+    one.statusBits = true;
+    two.releaseWords = true;
+    uint32_t trial = 0;
+    enabled(*r, trial, 1);
+    // Item 2: -100 native pulses at 6 rpm, ramps 200/200 ms, 30 s deadline polled every 3 s, ACTUAL.
+    MoveSpec negative;
+    negative.rel = 1;
+    negative.target = -100;
+    negative.rpm = 6;
+    negative.up = negative.down = 200;
+    negative.deadline = 30000;
+    negative.interval = 3000;
+    MoveSpec tighter = negative;
+    tighter.interval = 2500; // One cycle more than the record holds: the runner refuses it first too.
+    CHECK(std::strcmp(r->start(move(1, trial, tighter)), "capacity") == 0);
+    const E::RouteRecord& g = r->run(move(1, trial, negative));
+    CHECK(g.failure == E::RouteFailure::NONE && g.moveRequested && g.witnessBasis == 1 && g.witnessPosition == 0);
+    const L::MoveContext& c = r->one.moveAction();
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.rearm == M::ActionExecution::ACKNOWLEDGED &&
+          c.parameters.targetNative == -100 && c.parameters.target.endpointNative == -100 && one.position == -100);
+    CHECK(has(r->dump(), " sp=0 target=-100 rpm=6 up=200 down=200 deadline=30000 interval=3000 kind=0 "));
+    r->release();
+    enabled(*r, trial, 2);
+    // Item 3: a halted absolute move on node 2, its rearm, then the relative experiment from the halt.
+    two.travelReads = 1000; // Still running at the planned HALT.
+    const size_t halted = r->driver.requests.size();
+    const E::RouteRecord& p = r->run("P2," + id(trial) + ",1,0,600,6,500,500,4,1000,1,2,2000,0,250");
+    CHECK(p.failure == E::RouteFailure::NONE && p.stopRequested && wordsFrom(*r, halted, 2, 0x010f) == 1);
+    const uint32_t positionTrial = p.plan.trial;
+    r->release();
+    CHECK(r->run("R2," + id(trial) + ",1,2,8,1000").failure == E::RouteFailure::NONE);
+    r->release();
+    two.travelReads = 3;
+    const E::RouteRecord& v = r->run("L2," + id(trial) + ",1,0,200,6,500,500,10,1000,0,0,0,0,0");
+    CHECK(v.failure == E::RouteFailure::NONE && v.checkPassed && v.targetReadPresent && v.targetRead == 600);
+    CHECK(v.commandedKnown && v.commanded == 600 && v.commandedTrial == positionTrial && !v.commandedRelative);
+    CHECK(has(r->dump(), ("TRIAL_BASE read=1 target=600 known=1 prev=600 prevTrial=" + std::to_string(positionTrial) +
+                          " prevRelative=0 ").c_str()));
+    CHECK(two.position == 200); // This fake's ACTUAL choice; COMMANDED would have reached 800.
+    r->release();
+    // Item 4: a HALT from node 1's held 005F with node 2 observing, then a quick stop from node 2's
+    // acknowledged 005F as its own request.
+    one.travelReads = 1000;
+    MoveSpec halt;
+    halt.rel = 1;
+    halt.sp = halt.base = -100;
+    halt.target = 600;
+    halt.rpm = 6;
+    halt.up = halt.down = 200;
+    halt.interval = 2500;
+    halt.obs = 2;
+    halt.stop = "1,2,1500,0,750";
+    halt.deadline = 5000; // Beyond the library's 13 services at the routes' 100 + 250 ms, as below.
+    const size_t observed = r->driver.requests.size();
+    const E::RouteRecord& h = r->run(move(1, trial, halt));
+    CHECK(h.failure == E::RouteFailure::NONE && h.moveRequested && h.stopRequested && h.observerPassed);
+    CHECK(h.stopPathRequested == uint8_t(E::StopPath::CONFIRMED) && h.terminalCount <= E::ROUTE_TERMINALS);
+    const L::ActionContext& hs = r->one.stopAction(L::StopKind::HALT);
+    CHECK(hs.state == M::ActionState::SUCCEEDED && hs.predecessorWord == 0x005f && !hs.predecessorDocumented);
+    CHECK(r->one.moveAction().interruption == M::MoveInterruption::STOP && r->one.moveFenced());
+    CHECK(wordsFrom(*r, observed, 1, 0x005f) == 1 && wordsFrom(*r, observed, 1, 0x010f) == 1 &&
+          wordsFrom(*r, observed, 1, 0x000f) == 0 && toNode(*r, observed, 2, true) == 0);
+    CHECK(has(r->dump(), " kind=1 after=2 sd=1500 be=0 si=750 rel=1 base=-100 obs=2\n"));
+    r->release();
+    const size_t quick = r->driver.requests.size();
+    const E::RouteRecord& q = r->run("S2," + id(trial) + ",1,2,2000,0,250");
+    CHECK(q.failure == E::RouteFailure::NONE && q.stopPathRequested == uint8_t(E::StopPath::CONFIRMED));
+    const L::ActionContext& qs = r->two.stopAction(L::StopKind::QUICK_STOP);
+    CHECK(qs.state == M::ActionState::SUCCEEDED && qs.predecessorWord == 0x005f && !qs.predecessorDocumented);
+    CHECK(wordsFrom(*r, quick, 2, 0x000b) == 1 && r->downloadsFrom(quick) == 1 && q.motionTotal == 12);
+    r->release();
+    // Twelve motion admissions: nothing further moves in this boot, and neither stop is a rearm's predecessor.
+    CHECK(std::strcmp(r->start(rearm(2, trial, 3, 100, 1, 3)), "budget") == 0);
+    CHECK(std::strcmp(r->start(move(1, trial, negative)), "budget") == 0);
+
+    // A move deadline at or under 13 services at the routes' 100 + 250 ms budgets (4550 ms) is refused by
+    // the library before any write, but only after the firmware counted the line and its planned stop;
+    // scripts/s2_bench.py therefore refuses such a line before it is sent or counted.
+    scenario = "packet-8-short-move-deadline";
+    std::unique_ptr<Rig> s(new Rig);
+    s->driver.drives[0].statusBits = true;
+    trial = 0;
+    enabled(*s, trial, 1);
+    MoveSpec early = halt;
+    early.sp = early.base = 0;
+    early.obs = 0;
+    early.deadline = 4550;
+    const size_t mark = s->driver.requests.size();
+    const E::RouteRecord& x = s->run(move(1, trial, early));
+    CHECK(x.failure == E::RouteFailure::REFUSED && std::strcmp(x.why, "move") == 0 && !x.moveRequested);
+    CHECK(x.statusPresent && std::strstr(x.statusMessage, "does not cover every scheduled service"));
+    CHECK(x.motionTotal == 4 && s->downloadsFrom(mark) == 0); // M, E, and this move with its planned stop.
+}
+
 int main(int argc, char** argv) {
     if (argc == 3 && std::strcmp(argv[1], "--transcript") == 0) {
         writeTranscript(argv[2]);
@@ -3501,6 +3607,7 @@ int main(int argc, char** argv) {
     testMoveObserver();
     testCounterZero();
     testClearAlarm();
+    testPacket8Plan();
     std::printf("bench_route: %u checks\n", checks);
     return 0;
 }

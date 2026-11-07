@@ -7,9 +7,9 @@ route parameter explicitly, require the operator to type the attended confirmati
 enable, the attendant's own shaft observation, then ping, refuse unless the image speaks this
 runner's route protocol and nothing else is running, send one T line and capture until the record's
 END. Each T line ends in ",K" and the CRC-32 (zlib.crc32) of every byte before it, which the firmware
-checks before parsing. A plan that could exceed the firmware's record capacity or route cutoff is
-refused here, before anything is sent, because the firmware would refuse it only after the campaign
-counted it. Ctrl-C sends one local abort ('A'), which sends no stop. Nothing is retried, and
+checks before parsing. A plan that could exceed the firmware's record capacity or route cutoff, or a
+move deadline the library refuses (4550 ms or less), is refused here, before anything is sent, because
+the firmware would refuse it only after the campaign counted it. Ctrl-C sends one local abort ('A'), which sends no stop. Nothing is retried, and
 --dry-run prints the plan without enumerating, prompting, opening or creating anything.
 
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
@@ -103,6 +103,11 @@ DI3_CHANGES = {"function-user0": 1, "function-undefined": 2, "polarity-set": 3, 
 ROUTE_TERMINALS = 128
 ROUTE_DURATION_MS = 55000
 ROUTE_OPERATION_MS = 5000
+# The library's move admission (Position.h MOVE_SERVICE_STEPS) needs a deadline beyond 13 services at the
+# routes' queue and response budgets (BenchRoute.h ROUTE_QUEUE_US, ROUTE_RESPONSE_US): over 4550 ms.
+MOVE_SERVICE_STEPS = 13
+ROUTE_QUEUE_MS = 100
+ROUTE_RESPONSE_MS = 250
 # Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
@@ -380,7 +385,8 @@ def plan_bounds(command, fields):
 
 
 def check_bounds(command, fields):
-    """Refuse a plan the firmware would refuse as capacity or duration; it would still count it."""
+    """Refuse a plan the firmware would refuse as capacity or duration, or a move deadline the library would
+    refuse before its first write; the firmware would still count each of them, planned stop included."""
     terminals, duration = plan_bounds(command, fields)
     if terminals > ROUTE_TERMINALS:
         raise Refused("capacity: this plan can produce %d terminals, over the record's %d" %
@@ -388,6 +394,10 @@ def check_bounds(command, fields):
     if duration > ROUTE_DURATION_MS:
         raise Refused("duration: this plan can need %d ms, over %d inside the route cutoff" %
                       (duration, ROUTE_DURATION_MS))
+    services = MOVE_SERVICE_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS)
+    if command == "move" and fields[8] <= services:
+        raise Refused("move deadline: %d ms does not cover the library's %d services at %d + %d ms; it needs over "
+                      "%d ms" % (fields[8], MOVE_SERVICE_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, services))
 
 
 def _integer(value, low, high):
