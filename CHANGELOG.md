@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Packet 8 host part (2026-11-07)
+
+- `scripts/s2_bench.py` refuses a `move` line whose `--deadline-ms` is 4550 or less before anything is sent or counted, and `--dry-run` prints it. The library refuses such a deadline (13 services at the routes' 100 + 250 ms budgets) only after the firmware has counted the line and its planned stop.
+- New host regressions, no library change: a relative trigger whose reply is lost, then a stop; HALT and quick stop from an acknowledged `005F` beside a node that is only read; a counter zero after a completed relative move (`move_relative_test`); packet 8's planned boot replayed through the real routes (`bench_route_test` `testPacket8Plan`). The move rig's fake now zeroes `6064` on `2302` `0`, `1`, as trial 323 reported once.
+- Runnable, dry-run-checked procedure for the attended motion cases: [packet 8 procedure](docs/reports/bench_closure_18_33/packet_8_procedure.md). Nothing was run on the bench.
+
 ### Packet 3 smoke check passed (2026-11-07)
 
 - The shared OPTAK image at `3353ed2` passed `s2_smoke.py --reset-en`: passive line, ready line matching the upload record, one `G`, `start=ok`, `identity=ok` on nodes 1 and 2, `SMOKE done ... ignored=0`. The bench image was reflashed afterwards.

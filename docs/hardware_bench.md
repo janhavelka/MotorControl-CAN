@@ -653,7 +653,10 @@ have left without an observed completion still fences later moves.
 **Record capacity.** The firmware refuses a route as `capacity` when its polls could exceed 128
 terminals, and as `duration` when its steps could need more than 55 s; it does so after the host has
 counted the send, so the runner computes the same bounds (`plan_bounds`) and refuses such a plan
-first, sending and counting nothing, and `--dry-run` prints them. A stop's cycles are bounded at seven
+first, sending and counting nothing, and `--dry-run` prints them. For the same reason it refuses a
+`move` whose `--deadline-ms` is 4550 or less: the library refuses a move deadline that does not
+exceed 13 services at the routes' 100 ms queue and 250 ms response budgets, before any write but after
+the firmware counted the line and its planned stop. A stop's cycles are bounded at seven
 fields, because a QUICK_STOP that observes standstill also reads `6064` and `606C`: a stop takes 3 plus
 7 per cycle, one at once and one per interval to its deadline. So `stop` with a 2000 ms deadline needs
 an interval of at least 200 ms (85 terminals; 100 ms would be 155). `position` and `relative` take 18

@@ -1830,6 +1830,362 @@ void faultFence() {
     }
 }
 
+// Packet 8 item 5, host timelines only: what a lost trigger reply, a stop from an acknowledged 005F
+// beside an observed node, and a counter zero after a move leave for later work. Every report is the
+// fake's; none of this is a drive measurement.
+
+// 28. A 005F whose reply is lost: the drive either never acted on it (silent) or acted and only its
+// reply was lost (acted). The move ends UNKNOWN and fences new moves, whatever is supplied. A stop is
+// still admissible from the retained admission read or the move's last complete cycle, but with no
+// latest word only the best-effort 000B exists, whatever kind was asked for; with a zero best-effort
+// deadline it is refused with nothing sent. Nothing is replayed: one 005F, no 000F, no 010F.
+void lostTriggerCase(bool acted, L::StopKind kind, bool admissionRead) {
+    static char name[96];
+    std::snprintf(name, sizeof name, "lost 005F reply, %s, %s from %s", acted ? "acted" : "silent",
+                  kind == L::StopKind::HALT ? "halt" : "quick stop",
+                  admissionRead ? "the admission read" : "the move's last cycle");
+    scenario = name;
+    Rig r;
+    r.drive.travelReads = 1000000;
+    if (!acted) {
+        r.drive.silentIndex = 0x6040;
+        r.drive.silentWord = 0x005f;
+    }
+    r.ready();
+    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(-900)).isOk());
+    const unsigned start = r.startFrame;
+    if (acted) {
+        toNotedTrigger(r);
+        r.drive.mute = true;
+        r.steps(2); // The owner hands the trigger over, then the fake acts on it; its reply is lost.
+        r.drive.mute = false;
+        CHECK(wordsFrom(r, start, 0x005f) == 1 && r.drive.edges == 1 && r.drive.moving);
+    }
+    r.finishMove();
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::SERVICE_TIMEOUT);
+    CHECK(c.execution == M::ActionExecution::UNKNOWN && c.trigger.transmissionPossible && c.uncertain);
+    CHECK(c.completion == M::ActionCompletion::NOT_OBSERVED && !c.observations);
+    CHECK(r.a.moveFenced() && !r.a.latestControl() && r.drive.edges == (acted ? 1u : 0u));
+    // The next move admission is refused, with nothing sent, by two independent facts: the lost reply
+    // left the route unresolved, so the session has no usable reservation, which it reports first; and
+    // the fence stays for this session object's life, should the route ever resolve. A witness of the
+    // drive's present position changes neither.
+    const unsigned before = r.wire.sentCount;
+    const M::Status again = r.relative(witness(r, r.drive.position), relEvidence(), relRequest(-900));
+    CHECK(!again && again.code == M::Err::INVALID_CONFIG && again.detail == int32_t(M::MoveError::TARGET));
+    CHECK(again.msg && std::strstr(again.msg, "no usable reservation"));
+    CHECK(r.services.unresolved(0) && r.a.moveFenced());
+    CHECK(!r.a.moveActive() && !r.a.busy() && r.wire.sentCount == before);
+    const Saved<L::MoveContext> ended(c);
+    const L::ReadContext& source = admissionRead ? r.state : r.a.moveObservation();
+    // An application that allows no best-effort branch gets no stop at all here.
+    E::StopPolicy strict = stopPolicy(r);
+    strict.bestEffortDeadlineUs = 0;
+    CHECK(r.a.requestStop(kind, source, strict, r.now) == E::StopPath::NONE);
+    quiet(r, 4);
+    const E::StopPath path = r.a.requestStop(kind, source, stopPolicy(r), r.now);
+    CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
+    finishAll(r);
+    const L::BestEffortStop& stop = r.a.bestEffort();
+    CHECK(stop.outcome == M::ActionOutcome::STOP_SENT_UNCONFIRMED && stop.execution == M::ActionExecution::UNKNOWN);
+    CHECK(stop.operation > c.operation);
+    // Exactly one frame after the lost trigger: the 000B, never a 010F, a 000F or a second 005F.
+    CHECK(r.wire.sentCount == before + 1 && wordAt(r, before, 0x000b));
+    CHECK(wordsFrom(r, start, 0x005f) == 1 && !wordsFrom(r, start, 0x010f) && !wordsFrom(r, start, 0x000f));
+    CHECK(r.drive.edges == (acted ? 1u : 0u));
+    if (acted) // The fake took the word: running latched and released, as the drives reported after 000B.
+        CHECK(!r.drive.moving && (r.drive.monitor & L::MONITOR_RELEASED));
+    onlyRelativeWords(r, start);
+    ended.unchanged(c); // The stop is its own operation; the move's record is not rewritten.
+    // Still fenced afterwards, and nothing follows.
+    CHECK(r.a.moveFenced() && !r.relative(witness(r, r.drive.position), relEvidence(), relRequest(-900)));
+    quiet(r);
+    ended.unchanged(c);
+}
+void lostTriggerThenStop() {
+    const L::StopKind kinds[] = {L::StopKind::HALT, L::StopKind::QUICK_STOP};
+    for (unsigned acted = 0; acted < 2; ++acted)
+        for (L::StopKind kind : kinds)
+            for (unsigned admissionRead = 0; admissionRead < 2; ++admissionRead)
+                lostTriggerCase(acted != 0, kind, admissionRead != 0);
+}
+
+// 29. HALT and quick stop from an acknowledged 005F, each as its own finite request on node 1, while
+// node 2 only receives passive state reads through its own session, as the bench observer does: one
+// upload of node 2 is queued in the owner when the stop is requested, and node 2 keeps reading through
+// the stop. The stop is sequenced from the held 005F with no 000F before it; the interrupted relative
+// move and the stop keep separate records that later observer traffic does not change; node 2 receives
+// no download, keeps its own latest word and reads stationary throughout.
+const uint8_t OBSERVE = uint8_t(STATE_MASK | bit(L::StateBlock::FEEDBACK));
+void stopBesideObserver(L::StopKind kind) {
+    scenario = kind == L::StopKind::HALT ? "halt from 005F beside an observer" : "quick stop from 005F beside an observer";
+    Rig r(true);
+    r.one.drive.travelReads = 1000000;
+    r.ready(1);
+    r.ready(2);
+    r.two.drive.position = 821; // Manufactured: a stationary observer away from zero.
+    const unsigned observerStart = r.wire.sentCount;
+    const unsigned observerWords = r.two.drive.words;
+    const C::SdoCompletion observerControl = *r.two.a.latestControl();
+    CHECK(r.relative(witness(r, 0, M::RelativeBasis::ACTUAL, 1), relEvidence(), relRequest(-4000), 1).isOk());
+    const unsigned start = r.startFrame;
+    // The observer reads while the move runs, until the move has a complete cycle after its 005F.
+    unsigned observed = 0;
+    for (unsigned k = 0; k < 40 && moveOf(r, 1).observations < 1; ++k, ++observed)
+        r.readState(r.two.state, OBSERVE, 2);
+    CHECK(moveOf(r, 1).observations >= 1 && observed >= 1);
+    // One observer upload admitted and still queued in the owner when the stop is requested.
+    L::ReadContext& watch = r.two.state;
+    const uint64_t watchDeadline = r.now + LEAD;
+    const uint32_t watchOperation = r.two.a.beginOperation(watchDeadline, r.now);
+    CHECK(watchOperation);
+    CHECK(L::prepareState(watch, r.current(2), watchOperation, r.now, watchDeadline, reads(), OBSERVE));
+    L::PreparedRead work;
+    CHECK(L::nextRead(watch, r.now, work) && work.ready);
+    CHECK(r.two.a.admitPrepared(work.transfer, r.now) == O::BusAdmission::ACCEPTED);
+    const unsigned at = r.wire.sentCount;
+    const uint32_t moveOperation = moveOf(r, 1).operation;
+    const E::StopPolicy policy = stopPolicy(r);
+    CHECK(r.one.a.requestStop(kind, r.one.a.moveObservation(), policy, r.now) == E::StopPath::CONFIRMED);
+    CHECK(r.wire.sentCount == at); // The observer's upload was still queued, unsent, at the request.
+    // The stop retired nothing of node 2: its queued upload completes, and so does the rest of that read.
+    while (watch.state == M::ReadState::ACTIVE) {
+        C::SdoCompletion terminal;
+        for (unsigned k = 0; k < 40 && !r.two.a.settle(terminal); ++k)
+            r.step();
+        CHECK(terminal.outcome == C::SdoOutcome::SUCCESS && terminal.transfer.operation == watchOperation);
+        CHECK(L::advanceRead(watch, terminal, r.now));
+        if (watch.state != M::ReadState::ACTIVE)
+            break;
+        CHECK(L::nextRead(watch, r.now, work) && work.ready);
+        CHECK(r.two.a.admitPrepared(work.transfer, r.now) == O::BusAdmission::ACCEPTED);
+    }
+    CHECK(watch.state == M::ReadState::SUCCEEDED);
+    // Node 2 keeps reading while the stop runs, then the stop and both sessions finish.
+    for (unsigned k = 0; k < 40 && r.one.a.stopActive(); ++k)
+        r.readState(watch, OBSERVE, 2);
+    finishAll(r);
+
+    const uint16_t stopWord = kind == L::StopKind::HALT ? 0x010f : 0x000b;
+    const L::ActionContext& stop = r.one.a.stopAction(kind);
+    CHECK(stop.operation > moveOperation && stop.deadlineUs == policy.deadlineUs);
+    CHECK(stop.predecessorWord == 0x005f && !stop.predecessorDocumented &&
+          stop.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+    if (kind == L::StopKind::HALT)
+        CHECK(stop.state == M::ActionState::SUCCEEDED && !(stop.monitorObservation.monitor & L::MONITOR_RUNNING));
+    else
+        quickStopStandstill(stop, r.one.drive);
+    const L::MoveContext& move = moveOf(r, 1);
+    CHECK(move.state == M::ActionState::FAILED && move.outcome == M::ActionOutcome::CANCELLED);
+    CHECK(move.interruption == M::MoveInterruption::STOP && move.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(move.uncertain && r.one.a.moveFenced() && move.operation == moveOperation);
+    // Node 1's words: one 005F, then the one stop word, with nothing of the move after it and no 000F.
+    CHECK(wordsFrom(r, start, 0x005f, 1) == 1 && r.one.drive.edges == 1 && !wordsFrom(r, start, 0x000f, 1));
+    CHECK(wordsFrom(r, at, stopWord, 1) == 1 && wordsFrom(r, start, 0x010f, 1) + wordsFrom(r, start, 0x000b, 1) == 1);
+    unsigned stopFrame = r.wire.sentCount, lastStop = 0;
+    for (unsigned i = at; i < r.wire.sentCount; ++i) {
+        if (r.wire.sent[i].id != 0x601)
+            continue;
+        if (isDownloadFrame(r, i, 1))
+            CHECK(wordAt(r, i, stopWord, 1));
+        if (stopFrame == r.wire.sentCount && wordAt(r, i, stopWord, 1))
+            stopFrame = i;
+        lastStop = i;
+    }
+    onlyRelativeWords(r, start, 1);
+    // Node 2's uploads shared the bus with the stop: one lies between its word and its last read.
+    unsigned between = 0;
+    for (unsigned i = stopFrame + 1; i < lastStop; ++i)
+        between += r.wire.sent[i].id == 0x602;
+    CHECK(stopFrame < lastStop && between >= 1);
+    // Node 2: no download since its readiness, its own latest word, no move, and stationary reads.
+    for (unsigned i = observerStart; i < r.wire.sentCount; ++i)
+        CHECK(!isDownloadFrame(r, i, 2));
+    CHECK(r.two.drive.words == observerWords && !r.two.drive.edges);
+    CHECK(!r.two.a.moveActive() && !r.two.a.moveFenced() && !r.two.a.busy() && !r.two.a.stopActive());
+    const C::SdoCompletion* control = r.two.a.latestControl();
+    CHECK(control && control->transfer.operation == observerControl.transfer.operation &&
+          control->completedUs == observerControl.completedUs && control->transfer.data[0] == 0x0f);
+    L::StateObservation feedback;
+    CHECK(L::getStateBlock(watch, L::StateBlock::FEEDBACK, r.current(2), r.now, UINT64_MAX, feedback));
+    CHECK(feedback.actualPosition == 821 && !feedback.actualVelocity);
+    if (asyncTraffic)
+        for (unsigned node = 0; node < 2; ++node)
+            CHECK(r.services.node(uint8_t(node))->heartbeat.present &&
+                  r.services.node(uint8_t(node))->heartbeat.processedUs == r.now);
+    CHECK(!r.owner.stats().rxDropped && !r.owner.stats().unmatchedFrames);
+    // The move and the stop are retained independently: more observer traffic changes neither.
+    const Saved<L::MoveContext> keptMove(move);
+    const Saved<L::ActionContext> keptStop(stop);
+    r.readState(watch, OBSERVE, 2);
+    r.readState(watch, OBSERVE, 2);
+    quiet(r, 20);
+    keptMove.unchanged(move);
+    keptStop.unchanged(stop);
+}
+void stopsBesideObserver() {
+    stopBesideObserver(L::StopKind::HALT);
+    stopBesideObserver(L::StopKind::QUICK_STOP);
+}
+
+// 30. A counter zero after a completed relative move, through AxisSession (the S2 counter-zero route's
+// path). Before it, an alarm clear on the healthy drive is refused unsent even though 603F still holds
+// a historic FF05. The zero writes exactly 2302 0, 1, 0, each acknowledged and kept in its own slot;
+// it withdraws the axis and the borrowed witness once, publishes no origin, home or witness, rewrites
+// nothing in the completed move, and leaves no latest word. Later, on the new epoch and after an
+// explicit 000F, a relative move from the old witness, even re-dated, is refused; only a witness of
+// the new epoch admits one, as a new explicit edge.
+L::ReadTarget onSession(Rig& r) {
+    L::ReadTarget value = r.current();
+    value.channel.binding = r.a.binding();
+    return value;
+}
+void readOnSession(Rig& r, L::ReadContext& into, uint8_t mask) {
+    const L::ReadTarget here = onSession(r);
+    const uint64_t deadline = r.now + LEAD;
+    const uint32_t operation = r.a.beginOperation(deadline, r.now);
+    CHECK(operation);
+    CHECK(L::prepareState(into, here, operation, r.now, deadline, reads(), mask));
+    while (into.state == M::ReadState::ACTIVE) {
+        L::PreparedRead work;
+        CHECK(L::nextRead(into, r.now, work) && work.ready);
+        CHECK(r.a.admitPrepared(work.transfer, r.now) == O::BusAdmission::ACCEPTED);
+        r.steps(2);
+        CHECK(L::advanceRead(into, r.settled(), r.now));
+    }
+    CHECK(into.state == M::ReadState::SUCCEEDED);
+}
+void counterZeroAfterMove() {
+    scenario = "counter zero after a relative move";
+    Rig r;
+    r.ready();
+    r.drive.position = 1000;
+    CHECK(r.relative(witness(r, 1000), relEvidence(), relRequest(2500)).isOk());
+    r.finishMove();
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.rearm == M::ActionExecution::ACKNOWLEDGED && !r.a.moveFenced());
+    CHECK(r.drive.position == 3500 && c.completed.position == 3500 && c.parameters.target.endpointNative == 3500);
+    const Saved<L::MoveContext> moved(c);
+    L::ActionOptions budgets;
+    budgets.service = reads();
+    budgets.observationIntervalUs = 1000;
+    budgets.maximumAgeUs = uint64_t(QUEUE + uint64_t(RESPONSE)) * 9;
+    // A healthy drive whose 603F still holds a historic FF05: no alarm is reported, so no clear is tried.
+    r.drive.errorCode = 0xff05;
+    L::ReadContext health;
+    r.readState(health, uint8_t(bit(L::StateBlock::ERRORS) | bit(L::StateBlock::ERROR_HISTORY) |
+                                bit(L::StateBlock::MONITORS) | bit(L::StateBlock::STATUS)));
+    {
+        const unsigned before = r.wire.sentCount;
+        const Saved<E::AxisSession> session(r.a);
+        const M::Status clear = r.a.requestClearAlarm(health, budgets, r.now + LEAD, r.now);
+        CHECK(!clear && clear.detail == int32_t(M::ActionError::STATE));
+        session.unchanged(r.a);
+        quiet(r, 4);
+        CHECK(r.wire.sentCount == before && !r.a.clearActive());
+    }
+    // The application's witness of the stationary endpoint after the rearm, and a second copy it kept.
+    L::ReadContext feedback;
+    r.readState(feedback, OBSERVE);
+    r.one.witness = witness(r, 3500);
+    const M::AxisReference old = r.one.witness;
+    const uint32_t referenceBefore = r.one.coordinates.referenceGeneration;
+    const M::Generation configurationBefore = r.one.coordinates.binding.configurationGeneration;
+    const unsigned from = r.wire.sentCount;
+    CHECK(r.a.requestCounterZero(feedback, 0, r.one.coordinates, r.one.witness, budgets, r.now + LEAD, r.now).isOk());
+    for (unsigned k = 0; k < 600 && (r.a.clearActive() || r.a.busy()); ++k)
+        r.step();
+    const L::ActionContext& zero = r.a.clearAction();
+    CHECK(zero.actionKind == M::ActionKind::SET_DEVICE_POSITION && zero.state == M::ActionState::SUCCEEDED);
+    CHECK(zero.outcome == M::ActionOutcome::OBSERVED && zero.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(zero.coordinatesInvalidated && !zero.valueOneMayRemain && !r.a.clearBlocked());
+    CHECK(zero.baseline.present && zero.baseline.startPosition == 3500 && zero.extraObservation.actualPosition == 0);
+    // The 2302 edge history: 0, 1, 0, each acknowledged and kept in its own slot, and nothing else written.
+    CHECK(zero.commandEvidenceMask == 7);
+    for (unsigned k = 0; k < 3; ++k)
+        CHECK(zero.commandHistory[k].outcome == C::SdoOutcome::SUCCESS && zero.commandHistory[k].protocolAcknowledged &&
+              zero.commandHistory[k].transfer.index == 0x2302 && zero.commandHistory[k].transfer.data[0] == (k == 1 ? 1 : 0));
+    unsigned downloads = 0;
+    for (unsigned i = from; i < r.wire.sentCount; ++i)
+        if (isDownloadFrame(r, i, 1)) {
+            CHECK(downloads < 3 && downloadAt(r, i, 0x2302, 2, downloads == 1 ? 1u : 0u));
+            ++downloads;
+        }
+    CHECK(downloads == 3 && !downloadsFrom(r, from, 0x2301) && !downloadsFrom(r, from, 0x6040));
+    // Withdrawn once, with no origin, home, witness or rebase in its place.
+    CHECK(r.one.coordinates.referenceGeneration == referenceBefore + 1 &&
+          r.one.coordinates.binding.configurationGeneration == configurationBefore + 1);
+    CHECK(!r.one.coordinates.originKnown && !r.one.coordinates.encoderOriginKnown && !r.one.coordinates.softLimitsKnown);
+    CHECK(!r.one.witness.nativeKnown && !r.one.witness.idle && !r.one.witness.stationary);
+    CHECK(r.a.binding().configurationGeneration == configurationBefore + 1 && !r.a.latestControl());
+    moved.unchanged(c);
+    CHECK(r.drive.position == 0 && r.drive.edges == 1);
+    const Saved<L::ActionContext> edges(zero);
+    // The new epoch, after an explicit 000F: fresh identity and state, as any later move needs.
+    {
+        const uint64_t deadline = r.now + LEAD;
+        const uint32_t operation = r.a.beginOperation(deadline, r.now);
+        CHECK(operation);
+        C::SdoTransfer t;
+        t.channel = onSession(r).channel;
+        t.operation = t.request = operation;
+        t.step = 1;
+        t.index = 0x6040;
+        t.size = 2;
+        t.direction = C::SdoDirection::DOWNLOAD;
+        t.data[0] = 0x0f;
+        t.deadlineUs = deadline;
+        t.queueTimeoutUs = QUEUE;
+        t.responseTimeoutUs = RESPONSE;
+        CHECK(r.a.admitPrepared(t, r.now) == O::BusAdmission::ACCEPTED);
+        r.steps(2);
+        CHECK(r.settled().outcome == C::SdoOutcome::SUCCESS && r.a.latestControl());
+    }
+    {
+        static L::ReadContext read;
+        const uint64_t deadline = r.now + LEAD;
+        const uint32_t operation = r.a.beginOperation(deadline, r.now);
+        CHECK(operation);
+        CHECK(L::prepareIdentity(read, onSession(r), operation, r.now, deadline, reads()));
+        while (read.state == M::ReadState::ACTIVE) {
+            L::PreparedRead work;
+            CHECK(L::nextRead(read, r.now, work) && work.ready);
+            CHECK(r.a.admitPrepared(work.transfer, r.now) == O::BusAdmission::ACCEPTED);
+            r.steps(2);
+            CHECK(L::advanceRead(read, r.settled(), r.now));
+        }
+        CHECK(L::getIdentity(read, onSession(r), r.now, LEAD, r.identity));
+    }
+    readOnSession(r, r.state, STATE_MASK);
+    M::MoveRequest request = relRequest(400);
+    request.position.configurationGeneration = request.speed.configurationGeneration = r.a.binding().configurationGeneration;
+    // The old witness as kept, and re-dated as if observed now: both describe withdrawn coordinates.
+    M::AxisReference redated = old;
+    redated.observedUs = redated.nowUs = r.now;
+    const M::AxisReference* stale[] = {&old, &redated};
+    for (const M::AxisReference* w : stale) {
+        const unsigned before = r.wire.sentCount;
+        const M::Status refused = r.relative(*w, relEvidence(), request);
+        CHECK(!refused && refused.code == M::Err::INVALID_CONFIG && !r.a.moveActive() && !r.a.busy());
+        CHECK(w == &old || refused.detail == AXIS + int32_t(M::AxisError::STALE_GENERATION));
+        quiet(r, 4);
+        CHECK(r.wire.sentCount == before);
+    }
+    // Only a witness of the new epoch admits a new move; it is ended here before any of it leaves.
+    M::AxisReference fresh = redated;
+    fresh.binding = r.one.coordinates.binding;
+    fresh.referenceGeneration = r.one.coordinates.referenceGeneration;
+    fresh.nativePosition = 0;
+    const unsigned before = r.wire.sentCount;
+    CHECK(r.relative(fresh, relEvidence(), request).isOk());
+    CHECK(r.a.cancelMove(r.now));
+    finishAll(r);
+    CHECK(r.wire.sentCount == before && r.drive.edges == 1 && r.drive.position == 0);
+    CHECK(moveOf(r).execution == M::ActionExecution::NOT_TRANSMITTED && !r.a.moveFenced());
+    edges.unchanged(zero);
+}
+
 void runAll() {
     golden();
     gates();
@@ -1859,6 +2215,9 @@ void runAll() {
     cycleFaults();
     emcyDuringMove();
     faultFence();
+    lostTriggerThenStop();
+    stopsBesideObserver();
+    counterZeroAfterMove();
 }
 } // namespace
 

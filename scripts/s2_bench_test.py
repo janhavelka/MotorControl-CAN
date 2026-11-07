@@ -1003,6 +1003,42 @@ class BenchTest(unittest.TestCase):
                        Operator())
         self.assertIn("would refuse before sending: capacity", out.getvalue())
 
+    def test_short_move_deadline_refuses_before_sending(self):
+        # The library refuses a move whose deadline does not exceed 13 services at the routes' 100 + 250 ms,
+        # after the firmware counted the line (test/bench_route_test.cpp testPacket8Plan): 4550 ms is refused
+        # here, unsent and uncounted, with its planned stop; 4551 ms passes this check.
+        def move_with(deadline, stop):
+            argv = list(MOVE) + ["--move-base", "actual"]
+            argv[argv.index("--deadline-ms") + 1] = str(deadline)
+            argv[argv.index("--interval-ms") + 1] = "2500"
+            if stop:
+                argv[argv.index("--stop-kind") + 1] = "halt"
+                argv += ["--stop-after", "2", "--stop-deadline-ms", "1500", "--stop-best-effort-ms", "0",
+                         "--stop-interval-ms", "750"]
+            return argv
+        for stop in (False, True):
+            self.clear_output()
+            board = Board()
+            operator = Operator("ATTENDED 20", "none")
+            status, _, err = self.run_main(move_with(4550, stop), Backend(board), operator)
+            self.assertEqual(status, 2, err)
+            self.assertIn("REFUSED: move deadline: 4550 ms does not cover the library's 13 services", err)
+            self.assertEqual((board.writes, operator.questions), ([], []))
+            self.assertFalse(self.output.exists())
+            self.assertEqual(self.ledger.read_bytes(), b"")
+        args, fields = bench.arguments(BASE + move_with(4551, True) + LEDGER + ["--output", "x"])
+        bench.check_bounds(args.command, fields)  # No refusal.
+        for command, argv in (("position", position(1, 5, "halt")),
+                              ("stop", ["--command", "stop", "--node", "1", "--trial", "5", "--kind", "quick",
+                                        "--deadline-ms", "2000", "--best-effort-ms", "0", "--interval-ms", "250"])):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            bench.check_bounds(command, fields)  # Short deadlines of other routes are not this rule.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + move_with(3000, True) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(),
+                       Clock(), Operator())
+        self.assertIn("would refuse before sending: move deadline: 3000 ms", out.getvalue())
+
     def test_new_motion_routes_are_attended_and_counted(self):
         quick = ["--command", "released-quick", "--node", "2", "--trial", "5", "--cycles", "3", "--interval-ms", "100"]
         board = Board()
