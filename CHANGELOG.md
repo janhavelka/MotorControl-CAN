@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Smoke runner: EN reset through the ESP-Prog-2 (2026-11-07)
+
+- `scripts/s2_smoke.py --reset-en`: one EN pulse through RTS after the port is open, DTR held deasserted so the chip boots its application, then the usual wait for the passive and ready lines. Recorded in `request.json` (`reset: en_pulse`, `en_pulse`). Without the option the runner never moves DTR or RTS. Requested by the user so that the shared-image smoke check needs nobody at the EN button.
+
 ### Finite velocity (prompt 35)
 
 - Added the conditional Lichuan finite velocity lifecycle, exact signed rpm
