@@ -2,7 +2,7 @@
 
 ## Scope, status and execution
 
-**Bench continuation packet 3, 2026-11-06.** [Packet 3](bench_closure_18_33/packet_3.md) added the shared S2 standalone IDF builds (`idf-s2`, `idf-s2-optak`), target-specific pin policy, application-owned silent control and exact-input build checks. Configured images now boot `INACTIVE`. The Arduino S2 build is blocked by the pinned package's UART0 console (`arduino-s2` reports `blocked`), so no Arduino S2 parity is claimed. The S2 smoke check of the shared image is recorded in the packet report. Prompt 28 stays Partial.
+**Bench continuation packet 3, 2026-11-06.** [Packet 3](bench_closure_18_33/packet_3.md) added the shared S2 standalone IDF builds (`idf-s2`, `idf-s2-optak`), target-specific pin policy, application-owned silent control and exact-input build checks. Configured images now boot `INACTIVE`. The Arduino S2 build is blocked by the pinned package's UART0 console (`arduino-s2` reports `blocked`), so no Arduino S2 parity is claimed. The S2 smoke check of the shared image passed on 2026-11-07 (identity, passive start, explicit start, one typed read per node), recorded in the packet report. Prompt 28 stays Partial.
 
 Owned firmware/platform software is implemented. Stage status is **Partial only
 on inherited 27/24/26/19 Q20 non-consuming-probe evidence**. The already verified

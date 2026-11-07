@@ -606,6 +606,32 @@ class SmokeTest(unittest.TestCase):
         self.assertIn("--reset-en", output)
 
 
+class Retained(unittest.TestCase):
+    """Every retained smoke capture, replayed through the runner's own line patterns."""
+
+    def test_retained_smoke_captures_match_their_records(self):
+        bench = Path(smoke.__file__).resolve().parent.parent / "docs/bench"
+        found = 0
+        for request in sorted(bench.glob("*/request.json")):
+            meta = json.loads(request.read_text(encoding="utf-8"))
+            if meta.get("tool") != "s2_smoke":
+                continue
+            found += 1
+            lines = (request.parent / "rx.bin").read_bytes().decode("utf-8", errors="replace").splitlines()
+            expected = meta["expected"]
+            self.assertIn(smoke.PASSIVE, lines, request.parent.name)
+            ready = [smoke.READY.fullmatch(line) for line in lines if line.startswith("SMOKE ready")]
+            self.assertEqual(len(ready), 1, request.parent.name)
+            self.assertEqual(smoke.identity_problems(ready[0].groupdict(), expected), [], request.parent.name)
+            nodes = [smoke.NODE.fullmatch(line) for line in lines if line.startswith("SMOKE node=")]
+            self.assertTrue(nodes and all(nodes), request.parent.name)
+            if meta["result"]["verdict"] == "passed":
+                self.assertTrue(all(smoke.IDENTITY_OK.match(n.group("rest")) for n in nodes), request.parent.name)
+                self.assertEqual([smoke.DONE.fullmatch(line) is not None for line in lines].count(True), 1)
+                self.assertEqual(meta["sent"], [smoke.TRIGGER.hex()])  # Exactly one G was sent.
+        self.assertGreaterEqual(found, 1)
+
+
 class Formats(unittest.TestCase):
     """The patterns against the exact printf formats of examples/common/FirmwareSmoke.cpp."""
 

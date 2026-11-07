@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Packet 3 smoke check passed (2026-11-07)
+
+- The shared OPTAK image at `3353ed2` passed `s2_smoke.py --reset-en`: passive line, ready line matching the upload record, one `G`, `start=ok`, `identity=ok` on nodes 1 and 2, `SMOKE done ... ignored=0`. The bench image was reflashed afterwards.
+
 ### Smoke runner: EN reset through the ESP-Prog-2 (2026-11-07)
 
 - `scripts/s2_smoke.py --reset-en`: one EN pulse through RTS after the port is open, DTR held deasserted so the chip boots its application, then the usual wait for the passive and ready lines. Recorded in `request.json` (`reset: en_pulse`, `en_pulse`). Without the option the runner never moves DTR or RTS. Requested by the user so that the shared-image smoke check needs nobody at the EN button.

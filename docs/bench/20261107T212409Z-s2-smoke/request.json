@@ -1,0 +1,130 @@
+{
+  "tool": "s2_smoke",
+  "started_utc": "2026-11-07T21:24:09.171551+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "artifact": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261107T212300Z-s2-smoke-upload",
+  "expected": {
+    "record": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261107T212300Z-s2-smoke-upload\\build.json",
+    "elf": "807fd4681ece2fe6ff23cdb0e6121fc598063bc698f33a68722ec2884f6034e1",
+    "app_elf": "motorcontrol_can_probe.elf",
+    "project": "motorcontrol_can_probe",
+    "sdk": "5.5.5",
+    "base_commit": "3353ed2964a0a822ca91a5718ed8638c4040bd80",
+    "nodes": [
+      1,
+      2
+    ]
+  },
+  "boot_seconds": 30.0,
+  "seconds": 30.0,
+  "settle_seconds": 0.5,
+  "tail_seconds": 0.5,
+  "dtr_rts": "deasserted before open",
+  "reset": "en_pulse",
+  "retry": false,
+  "sent": [
+    "47"
+  ],
+  "times": {
+    "boot_line_s": 0.21899999999732245,
+    "ready_line_s": 0.21899999999732245,
+    "trigger_s": 0.7659999999887077,
+    "terminal_s": 0.9219999999913853
+  },
+  "host_revision": "3353ed2964a0a822ca91a5718ed8638c4040bd80",
+  "host_dirty": false,
+  "en_pulse": {
+    "via": "RTS, DTR deasserted",
+    "low_s": 0.1,
+    "released_s": 0.10900000001129229
+  },
+  "boot_lines": [
+    "ESP-ROM:esp32s2-rc4-20191025",
+    "Build:Oct 25 2019",
+    "rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)",
+    "SPIWP:0xee",
+    "mode:DIO, clock div:1",
+    "load:0x3ffe5110,len:0x4f8",
+    "load:0x4004a000,len:0x8a4",
+    "load:0x4004e000,len:0x2b08",
+    "entry 0x4004a11c"
+  ],
+  "reset_reason": "rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)",
+  "boot_line": "MotorControl-CAN: board accepted; CAN inactive until explicit start.",
+  "ready_line": "SMOKE ready elf=807fd4681ece2fe6ff23cdb0e6121fc598063bc698f33a68722ec2884f6034e1 idf=5.5.5 project=motorcontrol_can_probe",
+  "ready": {
+    "elf": "807fd4681ece2fe6ff23cdb0e6121fc598063bc698f33a68722ec2884f6034e1",
+    "idf": "5.5.5",
+    "project": "motorcontrol_can_probe"
+  },
+  "ready_problems": [],
+  "trigger_offset": 425,
+  "trigger_write": "complete",
+  "lines_after_trigger": [
+    "SMOKE image elf=807fd4681ece2fe6ff23cdb0e6121fc598063bc698f33a68722ec2884f6034e1 idf=5.5.5 project=motorcontrol_can_probe start=ok running=1 transceiver=normal-requested check=0",
+    "SMOKE node=1 identity=ok device=00040192 hw=000c/1 sw=0020/1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200 skew=51002",
+    "SMOKE node=2 identity=ok device=00040192 hw=000c/1 sw=0020/1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200 skew=49014",
+    "SMOKE done; no further requests; ignored=0"
+  ],
+  "reason": "terminal",
+  "status": "captured",
+  "ended_utc": "2026-11-07T21:24:10.832866+00:00",
+  "result": {
+    "image": {
+      "elf": "807fd4681ece2fe6ff23cdb0e6121fc598063bc698f33a68722ec2884f6034e1",
+      "idf": "5.5.5",
+      "project": "motorcontrol_can_probe",
+      "start": "ok",
+      "running": "1",
+      "transceiver": "normal-requested",
+      "check": "0",
+      "line": "SMOKE image elf=807fd4681ece2fe6ff23cdb0e6121fc598063bc698f33a68722ec2884f6034e1 idf=5.5.5 project=motorcontrol_can_probe start=ok running=1 transceiver=normal-requested check=0"
+    },
+    "nodes": {
+      "1": {
+        "line": "SMOKE node=1 identity=ok device=00040192 hw=000c/1 sw=0020/1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200 skew=51002",
+        "device": "00040192",
+        "hw": "000c",
+        "hw_width": "1",
+        "sw": "0020",
+        "sw_width": "1",
+        "entries": "5",
+        "vendor": "00001000",
+        "product": "00000001",
+        "revision": "00000000",
+        "model": "0400",
+        "firmware": "0200",
+        "skew": "51002",
+        "result": "ok"
+      },
+      "2": {
+        "line": "SMOKE node=2 identity=ok device=00040192 hw=000c/1 sw=0020/1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200 skew=49014",
+        "device": "00040192",
+        "hw": "000c",
+        "hw_width": "1",
+        "sw": "0020",
+        "sw_width": "1",
+        "entries": "5",
+        "vendor": "00001000",
+        "product": "00000001",
+        "revision": "00000000",
+        "model": "0400",
+        "firmware": "0200",
+        "skew": "49014",
+        "result": "ok"
+      }
+    },
+    "done": true,
+    "ignored": 0,
+    "problems": [],
+    "verdict": "passed"
+  }
+}

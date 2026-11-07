@@ -128,7 +128,11 @@ class RetainedCaptures(unittest.TestCase):
         # 20261104T1407Z-p1-node2-318: one 64-byte console chunk was lost between the S2 and pyserial
         # inside its TRIAL_LAST line, the UART loss of the soaks, so that one line is malformed.
         console_loss = {"20261104T1407Z-p1-node2-318": 1}
-        for directory in directories:
+        # The shared smoke image's console is not the bench image's: s2_smoke_test.py checks those
+        # retained captures against the smoke runner's own line patterns.
+        smoke = {d for d in directories
+                 if json.loads((d / "request.json").read_text(encoding="utf-8")).get("tool") == "s2_smoke"}
+        for directory in sorted(set(directories) - smoke):
             report = evidence.replay_capture(directory)
             self.assertEqual(len(report.unknown), unexplained.get(directory.name, 0), directory.name)
             self.assertEqual(len(report.malformed), console_loss.get(directory.name, 0), directory.name)
