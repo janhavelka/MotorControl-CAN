@@ -211,8 +211,10 @@ Status check(const HomeContext& output, const AxisReservation& live, const ReadT
         sample(state, current, now, options.maximumAgeUs, control.completedUs, checked.admission);
     if (!s)
         return s;
-    if (!clean(checked.admission, e.layout) || (checked.admission.monitor & MONITOR_RUNNING) ||
-        checked.admission.velocity)
+    StatusIndications admissionStatus;
+    interpretStatusword(checked.admission.statusword, e.layout, admissionStatus);
+    if (!clean(checked.admission, e.layout) || admissionStatus.running != StateIndication::NO ||
+        (checked.admission.monitor & MONITOR_RUNNING) || checked.admission.velocity)
         return error(HomeError::STATE,
                      "home requires enabled stationary mode6; no implicit enable/mode change");
     IoObservation io;
@@ -402,7 +404,8 @@ void finishCycle(HomeContext& c, const ReadContext& read, uint64_t now) {
                                 : activeInput;
     if ((s.statusword & HOME_COMPLETE) && c.absence.present && c.absence.cycle < s.cycle &&
         c.activity.present && c.activity.cycle < s.cycle && finalInput &&
-        (s.monitor & MONITOR_HOMING_COMPLETE) && !(s.monitor & MONITOR_RUNNING) && !s.velocity) {
+        (s.monitor & MONITOR_HOMING_COMPLETE) && !(s.monitor & MONITOR_RUNNING) && !s.velocity &&
+        interpreted.running == StateIndication::NO) {
         c.completed = s;
         c.completion = ActionCompletion::OBSERVED;
         c.state = ActionState::SUCCEEDED;
@@ -855,10 +858,16 @@ Status advanceHomeStop(HomeContext& c, const BestEffortStop& stop, uint64_t now)
     const Status s = stopShape(c, now);
     if (!s)
         return s;
-    if (!sameTarget(stop.target, expectedTarget(c)) || stop.operation <= c.operation ||
+    // A controller loss can advance the node epoch before a later explicit best-effort stop.
+    // Retain that failed attempt on the same binding/route without qualifying channel reuse,
+    // stopped state or the earlier home. A different binding or an older epoch is unrelated.
+    const ReadTarget expected = expectedTarget(c);
+    if (!CANOPEN::sameSdoChannel(stop.target.channel, expected.channel) ||
+        stop.target.nodeGeneration < expected.nodeGeneration || stop.operation <= c.operation ||
         stop.startedUs < (c.withdrawal != HomeInterruption::NONE ? c.withdrawalUs : c.startedUs) ||
         stop.servicedUs < stop.startedUs || stop.servicedUs > now ||
-        stop.state != ActionState::FAILED)
+        stop.state != ActionState::FAILED || stop.outcome == ActionOutcome::OBSERVED ||
+        stop.execution == ActionExecution::ACKNOWLEDGED)
         return error(HomeError::CORRELATION, "urgent stop does not belong to interrupted home");
     retainStop(c, stop.operation, stop.outcome, stop.execution, stop.status, stop.commandEvidence,
                now);

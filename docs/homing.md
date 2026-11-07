@@ -66,9 +66,10 @@ not an alternate supported sequence. `6040` itself remains two bytes.
 
 Enabling in mode 6 is an explicit, separately gated action. Homing preparation
 never enables implicitly. It requires fresh enabled mode-6 state and the latest
-acknowledged `6040=000F`. A different observed mode while enabled is refused
-before transmission. The p15 recipe requests mode 6, observes mode 6, enables
-with `6,7,15` at approximately 10 ms spacing, writes `6098`, `6099:01/:02` and
+acknowledged `6040=000F`. Admission also requires stationary reports from the
+selected statusword dialect, `2100` and `606C`. A different observed mode while
+enabled is refused before transmission. The p15 recipe requests mode 6, observes
+mode 6, enables with `6,7,15` at approximately 10 ms spacing, writes `6098`, `6099:01/:02` and
 `609A`, then raises bit 4. It establishes no path for changing mode while enabled.
 In particular, "home, then move" still needs Q11 transition evidence.
 
@@ -102,7 +103,12 @@ transition, an observed `2100` running report and the selected method's switch
 sequence are conservative host qualification requirements; the manuals do not
 specify bit-reset timing or promise that polling observes every transition.
 The completion cycle must also report `2100` homing complete, running clear and
-zero raw `606C`; disagreeing completion reports do not publish a reference.
+zero raw `606C`, with the selected statusword dialect reporting stationary:
+EN86 bit 10 set, or ZH86/OP86 bit 14 clear. A contradictory running report cannot
+qualify completion or publish a reference; polling continues within its original
+bound. Intermediate running cycles may contain disagreement from sequential
+sampling and are not rejected for that alone. Disagreeing completion reports
+do not publish a reference.
 Method 29 needs an observed active-to-inactive origin transition. That
 observation alone cannot prove the
 documented positive creep direction. Previously latched completion, an ACK,
@@ -125,6 +131,12 @@ be repaired by a later stale completion. Processing at `now >= deadlineUs`
 expires even if a response arrived earlier. A lost start/stop reply preserves
 possible execution. Local cancellation is not a motor stop; recovery never
 replays or resumes home and cannot erase retained uncertainty.
+
+After controller loss advances the node epoch, a later failed best-effort stop
+on the same binding and SDO route remains a separate retained failure. An older
+epoch or a changed binding or route is rejected. Recording the newer failure
+does not qualify channel reuse or a stopped state, clear `needsStop`, or repair
+the home outcome.
 
 ## Remaining specimen evidence
 

@@ -5,6 +5,9 @@ with explicit mode-6 enable/interrupt integration and checked reference publicat
 It remains Partial while method, input, direction, offset and completion facts
 are unqualified. No homing was run on the bench. The [coverage reconciliation](../reports/prompt_36_coverage.md)
 keeps earlier owned software omissions and device gates visible.
+The independent prompt-36 audit corrected contradictory stationary evidence and
+retention of a later stop failure after controller loss; its checks are recorded
+in the same report. Those fixes do not open physical capability gates.
 Prompt 35 remains Partial for its documented velocity gates; prompt 34's wrapped-angle
 software remains Complete. The [34/35 audit](../reports/prompts_34_35_audit.md) records their latest checks.
 

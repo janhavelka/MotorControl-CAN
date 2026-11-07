@@ -583,6 +583,119 @@ void observationPolicy() {
     CHECK(overflow.home.outcome == M::ActionOutcome::ITERATION_EXHAUSTED &&
           overflow.home.needsStop);
 }
+void stationaryStatus() {
+    for (L::StatusLayout layout :
+         {L::StatusLayout::ZH86, L::StatusLayout::OP86, L::StatusLayout::EN86}) {
+        const uint16_t stationary = layout == L::StatusLayout::EN86 ? 0x0407 : 0x0007;
+        const uint16_t running = layout == L::StatusLayout::EN86 ? 0x0007 : 0x4007;
+        Rig admission;
+        admission.evidence.layout = layout;
+        admission.status = running;
+        admission.acquire();
+        admission.reject(); // Other reports are stationary; preparation remains atomic.
+        for (unsigned completion = 0; completion < 3; ++completion) {
+            const bool contradict = completion != 0;
+            Rig r;
+            r.evidence.layout = layout;
+            r.options.maxPolls = completion == 2 ? 3 : 2;
+            r.status = stationary;
+            r.acquire();
+            r.start();
+            r.monitor = L::MONITOR_RUNNING;
+            r.velocity = 30;
+            r.logical = 1;
+            // Sequential running samples may disagree without terminating the operation.
+            r.status = stationary;
+            r.cycle();
+            CHECK(r.home.state == M::ActionState::ACTIVE);
+            r.status = uint16_t((contradict ? running : stationary) | 0x0100);
+            r.monitor = L::MONITOR_HOMING_COMPLETE;
+            r.velocity = 0;
+            r.position = r.evidence.finalFeedbackNative;
+            r.cycle();
+            M::AxisReference ref;
+            ref.nativePosition = 456;
+            if (completion == 2) {
+                CHECK(r.home.state == M::ActionState::ACTIVE && r.home.needsStop &&
+                      r.home.completion == M::ActionCompletion::NOT_OBSERVED);
+                const Saved<M::AxisReference> saved(ref);
+                CHECK(!L::getHomeReference(r.home, r.target, r.axis, r.now, 1000, ref));
+                saved.unchanged(ref);
+                r.status = uint16_t(stationary | 0x0100);
+                r.cycle();
+                CHECK(r.home.observations == 3);
+            }
+            if (completion == 1) {
+                CHECK(r.home.state == M::ActionState::FAILED &&
+                      r.home.outcome == M::ActionOutcome::OBSERVATION_SCOPE && r.home.needsStop &&
+                      r.home.completion == M::ActionCompletion::NOT_OBSERVED);
+                const Saved<M::AxisReference> saved(ref);
+                CHECK(!L::getHomeReference(r.home, r.target, r.axis, r.now, 1000, ref));
+                saved.unchanged(ref);
+            } else {
+                CHECK(r.home.state == M::ActionState::SUCCEEDED);
+                CHECK(L::getHomeReference(r.home, r.target, r.axis, r.now, 1000, ref));
+                CHECK(ref.nativeKnown && ref.stationary && ref.nativePosition == 20);
+            }
+        }
+    }
+}
+void bestEffortStopEpochs() {
+    for (unsigned scenario = 0; scenario < 10; ++scenario) {
+        Rig r;
+        r.start();
+        CHECK(L::advanceHome(r.home, r.observation, r.live, r.target,
+                             M::HomeInterruption::INVALIDATED, r.now));
+        CHECK(r.home.needsStop && r.home.uncertain);
+        L::ReadTarget stopTarget = r.target;
+        if (scenario == 1 || scenario >= 8)
+            ++stopTarget.nodeGeneration;
+        if (scenario == 2)
+            --stopTarget.nodeGeneration;
+        if (scenario == 3)
+            ++stopTarget.channel.binding.bindingGeneration;
+        if (scenario == 4)
+            ++stopTarget.channel.binding.configurationGeneration;
+        if (scenario == 5)
+            ++stopTarget.channel.clientToServerId;
+        if (scenario == 6)
+            ++stopTarget.channel.serverToClientId;
+        if (scenario == 7)
+            ++stopTarget.channel.binding.logicalAxisId;
+        L::BestEffortStop stop;
+        CHECK(L::prepareBestEffortStop(stop, stopTarget, 43, r.now, DEADLINE, r.options.service));
+        L::PreparedAction work;
+        CHECK(L::nextBestEffortStop(stop, stopTarget, r.now, work) && work.ready);
+        CHECK(L::noteBestEffortAdmission(stop, r.now));
+        C::SdoCompletion terminal;
+        terminal.transfer = work.transfer;
+        terminal.nodeGeneration = stopTarget.nodeGeneration;
+        terminal.admittedUs = r.now;
+        terminal.completedUs = r.now + 1;
+        terminal.outcome = C::SdoOutcome::BUS_OFF;
+        CHECK(L::advanceBestEffortStop(stop, terminal, r.now + 1));
+        CHECK(stop.state == M::ActionState::FAILED);
+        // A malformed public context must not turn failed-attempt retention into a qualified stop.
+        if (scenario == 8)
+            stop.outcome = M::ActionOutcome::OBSERVED;
+        if (scenario == 9)
+            stop.execution = M::ActionExecution::ACKNOWLEDGED;
+        const Saved<L::HomeContext> saved(r.home);
+        const M::Status first = r.home.status;
+        const M::Status retained = L::advanceHomeStop(r.home, stop, r.now + 1);
+        if (scenario <= 1) {
+            CHECK(retained && r.home.state == M::ActionState::FAILED && r.home.needsStop &&
+                  r.home.uncertain && r.home.stopOperation == stop.operation &&
+                  r.home.stopOutcome == stop.outcome && r.home.stopStatus.code == stop.status.code &&
+                  r.home.stopStatus.detail == stop.status.detail &&
+                  r.home.stopEvidence.nodeGeneration == stopTarget.nodeGeneration &&
+                  r.home.status.code == first.code && r.home.status.detail == first.detail);
+        } else {
+            CHECK(!retained);
+            saved.unchanged(r.home);
+        }
+    }
+}
 void retirementAndAtomicity() {
     Rig r;
     L::DriverContext retained;
@@ -632,6 +745,8 @@ int main() {
     validation();
     failuresAndCorrelation();
     observationPolicy();
+    stationaryStatus();
+    bestEffortStopEpochs();
     retirementAndAtomicity();
     std::printf("homing_test: %u checks\n", checks);
 }

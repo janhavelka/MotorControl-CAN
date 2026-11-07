@@ -108,8 +108,10 @@ families exist, as do evidence-gated finite absolute/relative/angle preparations
 and conditional enable/stop/clear actions; [PROGRESS.md](PROGRESS.md) gives their
 actual scope and remaining gates. Finite velocity has a conditional lifecycle
 and owner stop integration; selected-firmware startup, reverse and stop evidence
-remain gated. Release, homing, communication and persistence families remain
-pending; their CAN signatures are fixed when implemented.
+remain gated. Homing has a conditional method-specific lifecycle, explicit mode-6
+enable/interrupt integration and checked reference publication; input, direction,
+offset and completion qualification remain gated. Release, communication and
+persistence families remain pending; their CAN signatures are fixed when implemented.
 Retain `state`, `outcome`, `status`, `execution`, `completion`,
 `uncertain` and operation-specific evidence in the concrete contexts where
 applicable. Wrapped angles now compose `preparePosition` with the same finite

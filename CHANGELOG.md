@@ -11,6 +11,10 @@
 - Added six typed raw homing reads, with source conflicts and Q20 acquisition
   gates retained, and reconciled earlier native coverage without hiding omissions.
 - Added direct and owner tests; no physical homing qualification is claimed.
+- Independent audit: homing admission and completion now require the selected
+  status dialect to report not running as well as the monitor and velocity reads.
+  Failed explicit best-effort stops remain recorded after a controller loss
+  advances the node epoch, without clearing the interrupted home's uncertainty.
 
 ### Prompt 34/35 independent audit
 

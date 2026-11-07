@@ -489,6 +489,35 @@ void bootUpRevokesTheRunningHome() {
     M::AxisReference reference;
     CHECK(!L::getHomeReference(c, r.current(), r.axis, r.now, DEADLINE, reference));
 }
+void controllerLossRetainsTheLaterStopFailure() {
+    scenario = "bus-off home failure and later held-stop failure remain separate";
+    Rig r;
+    r.drive.complete = false;
+    r.ready();
+    CHECK(r.start());
+    r.running();
+    CHECK(r.owner.reportController(C::ControllerState::BUS_OFF, r.now));
+    r.session.service(r.now);
+    r.finish();
+    const M::ActionOutcome homeOutcome = r.session.homeAction().outcome;
+    const M::HomeInterruption homeInterruption = r.session.homeAction().interruption;
+    CHECK(r.session.homeAction().state == M::ActionState::FAILED && r.session.homeNeedsStop());
+    CHECK(r.session.requestStop(L::StopKind::QUICK_STOP, r.session.homeObservation(),
+                                r.stopPolicy(true), r.now) == E::StopPath::HELD);
+    r.finish();
+    const L::BestEffortStop& stop = r.session.bestEffort();
+    const L::HomeContext& home = r.session.homeAction();
+    CHECK(stop.state == M::ActionState::FAILED && stop.outcome == M::ActionOutcome::DEADLINE &&
+          stop.execution == M::ActionExecution::NOT_TRANSMITTED);
+    CHECK(stop.target.nodeGeneration > home.reservation.target.nodeGeneration &&
+          M::sameBinding(stop.target.channel.binding, r.session.binding()));
+    CHECK(home.stopOperation == stop.operation && home.stopOutcome == stop.outcome &&
+          home.stopExecution == stop.execution && home.stopStatus.code == stop.status.code &&
+          home.stopStatus.detail == stop.status.detail);
+    CHECK(home.outcome == homeOutcome && home.interruption == homeInterruption &&
+          home.state == M::ActionState::FAILED && r.session.homeNeedsStop());
+    CHECK(r.writes(0x6040, 31) == 1 && !r.writes(0x6040, 15) && !r.writes(0x6040, 11));
+}
 void routedFaultAndPreflightNeverResumeHome() {
     scenario = "routed home fault and guard withdrawal";
     for (unsigned late = 0; late < 2; ++late) {
@@ -541,6 +570,7 @@ int main() {
     staleReferenceRefusesBeforeAnySetup();
     lostStopReplyKeepsIndependentFailure();
     bootUpRevokesTheRunningHome();
+    controllerLossRetainsTheLaterStopFailure();
     routedFaultAndPreflightNeverResumeHome();
     deadlineAfterStartCannotPublishReference();
     std::printf("homing owner: %u checks passed\n", checks);
