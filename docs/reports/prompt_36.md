@@ -107,3 +107,60 @@ method-specific completion/reference sequence. These are specific prerequisites
 for a finite prompt-29 experiment, not permission to run an input-free search.
 The [homing guide](../homing.md) lists the measurements. General homing uploads
 remain Q20-gated; no successful SDO is used to claim motion or reference semantics.
+
+## Independent audit, 8 November 2026
+
+Re-read original prompt 36 and inspected the actual implementation diff at
+`60ec85672ace29d213cc6964ad2c1ffa2af62fa7`, the same execution branch and fresh
+upstream state. Three parallel reviewers inspected lifecycle/reference logic,
+the actual owner/action path, and original sources/coverage/package registration.
+Lifecycle and owner reviews used `gpt-6-astra` high; source review used
+`gpt-6.1-sol` high. The lead reproduced the defects against the original build,
+reviewed the corrections and owns combined verification and synchronization.
+
+Two defects were reproduced and fixed:
+
+- ZH86 `6041=4007` could pass stationary admission, and a fresh `4107` completion
+  could publish `stationary=true`, despite the selected dialect's running bit.
+  Original ZH86 homing page 15 explicitly labels bit14 running; EN86 uses its
+  distinct inverted bit10. Admission and completion now require the selected
+  dialect's not-running indication together with `2100` and zero `606C`.
+  A conflicting sequential sample cannot publish a reference; a later complete,
+  consistent cycle may qualify within the unchanged deadline/poll budget.
+  No generic CiA402 mask or change to the separate stop policy was introduced.
+- After bus-off advanced the node epoch, a separately requested best-effort stop
+  could fail while the home context still showed no stop result. The actual
+  owner regression reproduced that loss. Failed best-effort stop retention now
+  permits a newer node epoch on the exact same binding and SDO route. It retains
+  the actual evidence and first stop failure, never qualifies a successful stop,
+  and leaves the original home outcome and motion uncertainty intact. Different
+  bindings/routes and older epochs remain rejected.
+
+The audit also corrected CONVENTIONS' stale statement that homing was wholly
+pending. No object constant or source artifact changed. Original EN86/ZH86
+pages 13-15, the six EDS entries and EPOS4 page 232 were rechecked. The three
+named sibling revisions, clean state and source seams are **unchanged since
+prompt 36**, with the adopted/rejected behaviors in the source table above.
+The four earlier typed-read omissions remain explicitly assigned to 31-33.
+
+The fixes add no storage, public API, executor, retry or physical traffic.
+Focused regressions cover each admitted dialect, atomic admission rejection,
+conflicting completion, later consistent completion and actual owner bus-off
+followed by a failed stop. Exact integrated verification is recorded below.
+
+Verification after the fixes:
+
+- `python scripts/verify.py --mode full --compiler gcc --build-dir .build/p36-audit-final`
+  passed a fresh build, all 107 registered tests, isolated package consumers,
+  generated-file/registration checks and strict Doxygen 1.13.2. Retained summary:
+  `.build/p36-audit-final/summary.json`.
+- The focused C++11 homing executable passed 7,418 checks. Fresh independent
+  owner/action/homing builds and the ledger's 83 tests, generator's 46 tests and
+  generated freshness checks passed. Original failing reproducers were retained
+  locally under `.build/audit36` before the fixes.
+- Promptset integrity, all 140 immutable hashes and `git diff --check` passed.
+  Exact-commit CI and synchronization are checked after the final push and
+  reported at handoff; earlier CI success is not substituted for that result.
+
+No physical test, upload or CAN traffic occurred during this audit. The status
+remains Partial for the specific fixture/firmware evidence listed above.

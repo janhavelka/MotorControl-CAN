@@ -50,7 +50,7 @@ struct HomeEvidence {
     HomeFirmware firmware;                        ///< Must match the acquired tuple.
     ReadTarget specimen; ///< Exact specimen binding/node/configuration for this qualification.
     HomingMethod method = HomingMethod::NEGATIVE_LIMIT; ///< One qualified method.
-    StatusLayout layout = StatusLayout::UNSPECIFIED;    ///< Selected documentary alarm dialect.
+    StatusLayout layout = StatusLayout::UNSPECIFIED;    ///< Selected alarm and running dialect.
     uint32_t searchSpeedRpm = 0;     ///< Exact qualified positive 6099:01, at most 3000.
     uint32_t creepSpeedRpm = 0;      ///< Exact qualified positive 6099:02, at most 3000.
     uint32_t rampTimeMs = 0;         ///< Exact qualified positive 609A, at most 2000.
@@ -123,7 +123,9 @@ struct PreparedHome {
 };
 /** Concrete caller-owned operation; inputs are borrowed only during calls. Keep storage outside
  * small task stacks. One expected coordinate/configuration advance occurs before a possible
- * trigger, even if later transmission fails. No later stop, recovery or stale completion can turn
+ * trigger, even if later transmission fails. Admission and completion require the selected
+ * statusword dialect, 2100 and 606C to agree on stationary state; intermediate running reports
+ * need not agree within a sequential cycle. No later stop, recovery or stale completion can turn
  * a failed home into a successful one. The reference getter never sets a host origin.
  */
 struct HomeContext {
@@ -281,6 +283,8 @@ Status noteHomeWithdrawal(HomeContext& context, const AxisReservation& live,
  * @param[in] nowUs Time. @return Local status; first stop terminal is immutable. */
 Status advanceHomeStop(HomeContext& context, const ActionContext& stop, uint64_t nowUs) noexcept;
 /** Retain unconfirmed urgent DEC-2 stop without clearing needsStop or reference uncertainty.
+ * A failed attempt may use the same or a newer node epoch on the same binding and SDO route.
+ * Retaining that failure does not qualify channel reuse, a stopped state or the earlier home.
  * @param[in,out] context Failed/interrupted home. @param[in] stop Distinct explicit stop.
  * @param[in] nowUs Time. @return Local status; first stop terminal is immutable. */
 Status advanceHomeStop(HomeContext& context, const BestEffortStop& stop, uint64_t nowUs) noexcept;
