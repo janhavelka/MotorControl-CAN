@@ -95,6 +95,39 @@ void unsupportedStartsPublishNothing() {
         CHECK(r.wire.sentCount == sent);
     }
 }
+void exactPollBudgetCoversSetupAndTheWholeDuration() {
+    scenario = "setup confirmations do not consume the exact running poll budget";
+    for (unsigned variant = 0; variant < 8; ++variant) {
+        const unsigned modeChange = (variant >> 2) & 1u;
+        const unsigned quick = (variant >> 1) & 1u;
+        Rig r;
+        if (modeChange)
+            r.drive.mode = 1;
+        r.ready();
+        const L::StopKind kind = quick ? L::StopKind::QUICK_STOP : L::StopKind::HALT;
+        L::VelocityOptions policy = options(kind);
+        policy.maxPolls = (variant & 1u) ? 4u : 1u;
+        policy.pollIntervalUs = DURATION / policy.maxPolls;
+        CHECK(r.start(evidence(false, kind), request(), policy));
+        const uint64_t due = r.session.velocityAction().stopDueUs;
+        for (unsigned i = 0; i < 1000 && r.session.busy(); ++i) {
+            r.step();
+            const L::VelocityContext& c = r.session.velocityAction();
+            CHECK(c.firstFailure == M::ActionOutcome::NONE);
+            if (r.now < due)
+                CHECK(r.session.velocityActive() && !c.stopRequested && !r.writes(0x6040, 0x010f) &&
+                      !r.writes(0x6040, 0x000b));
+        }
+        const L::VelocityContext& c = r.session.velocityAction();
+        CHECK(!r.session.busy() && c.state == M::ActionState::SUCCEEDED &&
+              c.outcome == M::ActionOutcome::OBSERVED);
+        CHECK(c.stopRequestedUs >= due && c.stopRequestedUs <= due + policy.pollIntervalUs);
+        CHECK(c.observations == c.runningPolls + (modeChange ? 4u : 3u) &&
+              c.runningPolls <= policy.maxPolls);
+        CHECK(c.latest.cycle == c.observations && c.runningObserved && !c.needsStop);
+        CHECK(r.writes(0x6040, quick ? 0x000b : 0x010f) == 1 && r.writes(0x6060, 3) == modeChange);
+    }
+}
 void releasedModeChangeAndQualifiedReverse() {
     scenario = "explicit mode write and separately qualified reverse";
     Rig r;
@@ -566,6 +599,7 @@ void settingsSnapshotRetiresWithoutChangingGeneration() {
 } // namespace
 int main() {
     completeRunsKeepPreparationAnchor();
+    exactPollBudgetCoversSetupAndTheWholeDuration();
     unsupportedStartsPublishNothing();
     releasedModeChangeAndQualifiedReverse();
     completedStopCannotReuseOldReleasedAdmission();

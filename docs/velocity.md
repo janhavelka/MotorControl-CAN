@@ -57,6 +57,11 @@ parameters and enable consume this interval. Neither admission nor an ACK
 restarts it. The supplied `deadlineUs` remains fixed and must leave the checked
 caller stop reserve after due. Duration must be covered by `maxPolls *
 pollIntervalUs`, and all time arithmetic is checked within `0..INT64_MAX`.
+`maxPolls` bounds running observation cycles. The three enable confirmation
+cycles and optional mode confirmation have their own fixed bound and do not
+consume that allowance. `observations` retains the total cycle count;
+`runningPolls` records the running subset. An accepted duration at the exact
+coverage limit must not stop early merely because setup required observations.
 
 Call `serviceVelocity` only after consuming and releasing any admitted service
 terminal. At due it requests stop settlement; strictly later than

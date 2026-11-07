@@ -106,8 +106,10 @@ Reuse these exact RS operation families where their meanings apply:
 These names are observed in RS. In CAN, the read, native settings, unit and axis
 families exist, as do evidence-gated finite absolute/relative/angle preparations
 and conditional enable/stop/clear actions; [PROGRESS.md](PROGRESS.md) gives their
-actual scope and remaining gates. Release, velocity, homing, communication and
-persistence families remain pending; their CAN signatures are fixed when implemented.
+actual scope and remaining gates. Finite velocity has a conditional lifecycle
+and owner stop integration; selected-firmware startup, reverse and stop evidence
+remain gated. Release, homing, communication and persistence families remain
+pending; their CAN signatures are fixed when implemented.
 Retain `state`, `outcome`, `status`, `execution`, `completion`,
 `uncertain` and operation-specific evidence in the concrete contexts where
 applicable. Wrapped angles now compose `preparePosition` with the same finite

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Prompt 34/35 independent audit
+
+- Finite velocity now keeps setup confirmations separate from its running-poll
+  allowance. A valid duration at `maxPolls * pollIntervalUs` no longer stops
+  early because enable/mode observations exhausted the budget.
+- Added direct and real-owner regressions at the exact duration limit and
+  corrected stale velocity support/read-coverage documentation. Firmware
+  qualification gates remain unchanged.
+
 ### Packet 8 host part (2026-11-07)
 
 - `scripts/s2_bench.py` refuses a `move` line whose `--deadline-ms` is 4550 or less before anything is sent or counted, and `--dry-run` prints it. The library refuses such a deadline (13 services at the routes' 100 + 250 ms budgets) only after the firmware has counted the line and its planned stop.

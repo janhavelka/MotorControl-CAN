@@ -59,7 +59,7 @@ struct VelocityOptions {
     ReadOptions service; ///< Positive queue/response budgets for every transfer.
     uint64_t pollIntervalUs =
         0;                 ///< Maximum lateness after stop due; also delay between running cycles.
-    uint32_t maxPolls = 0; ///< Bound on complete cycles, including mode/enable observations.
+    uint32_t maxPolls = 0; ///< Positive bound on interval-spaced running cycles; setup adds at most four.
     uint64_t maximumAgeUs = 0; ///< Inclusive earliest-bound age cap for a seven-field cycle.
     uint64_t requiredStopBudgetUs =
         0; ///< Positive caller reserve after due, at least eight services.
@@ -130,7 +130,8 @@ struct VelocityContext {
     Status status;                      ///< Local terminal or first-failure status.
     uint32_t operation = 0;             ///< Nonzero original operation identity.
     uint32_t step = 1;                  ///< Nonwrapping service identity.
-    uint32_t observations = 0;          ///< Complete cycles, bounded by maxPolls.
+    uint32_t observations = 0;          ///< All complete cycles; never wraps, including setup.
+    uint32_t runningPolls = 0;          ///< Complete RUNNING cycles, bounded by maxPolls.
     uint8_t setupCursor = 0;            ///< 60FF/6083/6084 index, 0..2.
     uint8_t commandCursor = 0;          ///< 6/7/15 index, 0..2.
     uint8_t setupEvidenceMask = 0;      ///< Retained setupHistory slots.

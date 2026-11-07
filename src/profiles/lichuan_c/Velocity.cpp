@@ -31,7 +31,7 @@ bool optionsValid(const VelocityOptions& o) {
     return o.service.queueTimeoutUs && o.service.responseTimeoutUs &&
            o.service.identityWidths <= IdentityWidths::MEASURED_U8 &&
            o.service.countWidths <= CountWidths::MEASURED_U16 && o.pollIntervalUs &&
-           o.maxPolls >= 4 && o.pollIntervalUs <= uint64_t(INT64_MAX) / o.maxPolls &&
+           o.maxPolls && o.pollIntervalUs <= uint64_t(INT64_MAX) / o.maxPolls &&
            o.maximumAgeUs >= budget(o, CYCLE_FIELDS) && o.maximumAgeUs <= uint64_t(INT64_MAX) &&
            o.requiredStopBudgetUs >= budget(o, CYCLE_FIELDS + 1) &&
            o.requiredStopBudgetUs <= uint64_t(INT64_MAX) &&
@@ -204,7 +204,8 @@ Status shape(const VelocityContext& c, uint64_t now) {
         c.evidence.gate != VelocityGate::MEASURED || c.stopDueUs <= c.startedUs ||
         c.stopDueUs >= c.deadlineUs || c.deadlineUs > uint64_t(INT64_MAX) ||
         now > uint64_t(INT64_MAX) || c.servicedUs < c.startedUs || now < c.servicedUs ||
-        c.observations > c.options.maxPolls)
+        c.runningPolls > c.options.maxPolls || c.runningPolls > c.observations ||
+        c.observations - c.runningPolls > (c.admission.modeRaw == 3 ? 3u : 4u))
         return error(VelocityError::STATE, "invalid velocity context or processing time");
     return Ok();
 }
@@ -346,7 +347,16 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
                 true);
         return;
     }
+    if (c.observations == UINT32_MAX) {
+        failure(c, ActionOutcome::ITERATION_EXHAUSTED, now,
+                "velocity observation identity exhausted", true);
+        return;
+    }
     s.cycle = ++c.observations;
+    // Mode and enable confirmations are immediate setup work. Only the cycles delayed by
+    // pollIntervalUs consume the running budget used to validate duration coverage.
+    if (c.observation == VelocityObservation::RUNNING)
+        ++c.runningPolls;
     c.latest = s;
     StatusIndications interpreted;
     interpretStatusword(s.statusword, c.evidence.layout, interpreted);
@@ -413,7 +423,7 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     }
     if (now >= c.stopDueUs)
         return;
-    if (c.observations >= c.options.maxPolls) {
+    if (c.runningPolls >= c.options.maxPolls) {
         failure(c, ActionOutcome::ITERATION_EXHAUSTED, now, "velocity observation bound reached",
                 true);
         return;
@@ -526,7 +536,7 @@ Status beginVelocityObservation(VelocityContext& c, ReadContext& read, const Axi
         return s;
     if (c.state != ActionState::ACTIVE || c.phase != VelocityPhase::WAITING ||
         c.withdrawal != VelocityInterruption::NONE || now < c.eligibleUs || now >= c.stopDueUs ||
-        c.observations >= c.options.maxPolls)
+        (c.observation == VelocityObservation::RUNNING && c.runningPolls >= c.options.maxPolls))
         return error(VelocityError::STATE, "no eligible velocity observation");
     // Identity/count width selections apply to neither object in this state cycle. The read
     // preparation deliberately refuses those overrides for unrelated kinds, so pass its defaults.
