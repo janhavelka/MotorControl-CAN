@@ -39,10 +39,14 @@ const Field limits[] = {{0x2202, 0, 2, 10},
 const Field motion[] = {
     {0x6081, 0, 4, 0xffffffff}, {0x6083, 0, 4, 2001}, {0x6084, 0, 4, 0xffffffff}};
 const Field velocity[] = {{0x60ff, 0, 4, 0xfffffff4}};
-const Field* const rows[] = {driver, limits, motion, velocity};
-const unsigned counts[] = {2, 4, 3, 1};
+const Field homing[] = {{0x607c, 0, 4, 0x80000000}, {0x6098, 0, 1, 0xff},
+                        {0x6099, 0, 1, 0},          {0x6099, 1, 4, 3001},
+                        {0x6099, 2, 4, 0xffffffff}, {0x609a, 0, 4, 2001}};
+const Field* const rows[] = {driver, limits, motion, velocity, homing};
+const unsigned counts[] = {2, 4, 3, 1, 6};
 const L::DriverGroup groups[] = {L::DriverGroup::DRIVER, L::DriverGroup::SOFT_LIMITS,
-                                 L::DriverGroup::MOTION_PARAMETERS, L::DriverGroup::VELOCITY_TARGET};
+                                 L::DriverGroup::MOTION_PARAMETERS, L::DriverGroup::VELOCITY_TARGET,
+                                 L::DriverGroup::HOMING};
 L::ReadTarget target() {
     L::ReadTarget t;
     t.channel.binding.logicalAxisId = 17;
@@ -136,7 +140,7 @@ C::SdoRequestId transmit(C::SdoClient& owner, const L::DriverContext& c, const F
 }
 void realOwnerGroups() {
     unsigned seen = 0;
-    for (unsigned g = 0; g < 4; ++g) {
+    for (unsigned g = 0; g < 5; ++g) {
         C::SdoClient owner;
         configure(owner);
         L::DriverContext c = prepared(g);
@@ -168,7 +172,7 @@ void realOwnerGroups() {
         }
         CHECK(c.read.state == M::ReadState::SUCCEEDED && !c.read.uncertain);
         L::DriverObservation o;
-        CHECK(L::getDriver(c, target(), 10, 20, o));
+        CHECK(L::getDriver(c, target(), 12, 20, o));
         CHECK(o.group == groups[g] && o.fieldCount == counts[g] && !o.interpreted);
         CHECK(o.window.earliestUs == 0 && o.window.latestUs == counts[g] * 2 - 1 &&
               o.window.skewUs == counts[g] * 2 - 1);
@@ -186,15 +190,19 @@ void realOwnerGroups() {
         else if (g == 2)
             CHECK(o.positionSpeedRpm == UINT32_MAX && o.rampUpTimeMs == 2001 &&
                   o.rampDownTimeMs == UINT32_MAX);
-        else
+        else if (g == 3)
             CHECK(o.velocityTargetRpm == -12 && !o.interpreted &&
                   c.read.values[0].object.representation == L::ReadRepresentation::RAW);
+        else
+            CHECK(o.homeOffsetRaw == INT32_MIN && o.homeMethodRaw == 255 &&
+                  o.homeSpeedEntries == 0 && o.homeSearchSpeedRpm == 3001 &&
+                  o.homeCreepSpeedRpm == UINT32_MAX && o.homeRampTimeMs == 2001 && !o.interpreted);
         L::PreparedRead done;
         done.ready = true;
         done.transfer.index = 0xbeef;
-        CHECK(L::nextDriver(c, 10, done) && !done.ready && done.transfer.index == 0xbeef);
+        CHECK(L::nextDriver(c, 12, done) && !done.ready && done.transfer.index == 0xbeef);
     }
-    CHECK(seen == 10);
+    CHECK(seen == 16);
 }
 void velocityTargetRead() {
     // The raw four-byte shape does not close signedness or read-effect gates.
@@ -206,7 +214,8 @@ void velocityTargetRead() {
         accept(c, raw, 0);
         L::DriverObservation o;
         CHECK(L::getDriver(c, target(), 0, 1, o));
-        const int64_t expected = raw <= INT32_MAX ? int64_t(raw) : int64_t(raw) - INT64_C(4294967296);
+        const int64_t expected =
+            raw <= INT32_MAX ? int64_t(raw) : int64_t(raw) - INT64_C(4294967296);
         CHECK(o.group == L::DriverGroup::VELOCITY_TARGET && o.fieldCount == 1 &&
               o.velocityTargetRpm == expected && !o.interpreted);
         const Saved<L::DriverObservation> history(o);
@@ -223,7 +232,7 @@ void velocityTargetRead() {
         wrong.countWidths = L::CountWidths::MEASURED_U16;
         const Saved<L::DriverContext> before(c);
         CHECK(!L::prepareDriverRead(c, target(), 19, 0, 1000, wrong,
-                                   L::DriverGroup::VELOCITY_TARGET));
+                                    L::DriverGroup::VELOCITY_TARGET));
         before.unchanged(c);
         C::SdoCompletion wrongWidth = success(c, 120, 0, 1);
         wrongWidth.size = 2;
@@ -260,7 +269,8 @@ void velocityTargetRead() {
         CHECK(L::advanceDriver(c, *e, failure ? 100 : 1));
         CHECK(c.read.state == M::ReadState::FAILED && !c.read.values[0].valid &&
               c.read.evidencePresent);
-        CHECK(c.read.outcome == (failure ? M::ReadOutcome::DEADLINE : M::ReadOutcome::PROTOCOL_REJECTED));
+        CHECK(c.read.outcome ==
+              (failure ? M::ReadOutcome::DEADLINE : M::ReadOutcome::PROTOCOL_REJECTED));
         CHECK(owner.release(id));
         L::DriverObservation out;
         out.velocityTargetRpm = 777;
@@ -269,8 +279,44 @@ void velocityTargetRead() {
         before.unchanged(out);
     }
 }
+void homingRead() {
+    // Acquisition preserves unknown/out-of-range values; it does not validate motion inputs.
+    for (uint32_t raw :
+         {0u, 17u, 18u, 24u, 29u, 127u, 128u, 255u, 3001u, 0x7fffffffu, 0x80000000u, 0xffffffffu}) {
+        L::DriverContext c = prepared(4);
+        CHECK(c.read.kind == L::ReadKind::HOMING && c.read.count == 6);
+        for (unsigned i = 0; i < 6; ++i) {
+            CHECK(next(c, 0).transfer.readEffect == C::SdoReadEffect::UNQUALIFIED);
+            CHECK(c.read.values[i].object.widthBytes == homing[i].width);
+            CHECK(c.read.values[i].object.representation ==
+                  (i == 0   ? L::ReadRepresentation::SIGNED
+                   : i == 1 ? L::ReadRepresentation::RAW
+                            : L::ReadRepresentation::UNSIGNED));
+            accept(c, raw, 0);
+        }
+        L::DriverObservation o;
+        CHECK(L::getDriver(c, target(), 0, 1, o));
+        const int64_t signedRaw =
+            raw <= INT32_MAX ? int64_t(raw) : int64_t(raw) - INT64_C(4294967296);
+        CHECK(o.group == L::DriverGroup::HOMING && o.fieldCount == 6 && !o.interpreted);
+        CHECK(o.homeOffsetRaw == signedRaw && o.homeMethodRaw == uint8_t(raw) &&
+              o.homeSpeedEntries == uint8_t(raw) && o.homeSearchSpeedRpm == raw &&
+              o.homeCreepSpeedRpm == raw && o.homeRampTimeMs == raw);
+    }
+    // The observed count never suppresses uploads of the two declared speed fields.
+    L::DriverContext c = prepared(4);
+    L::ReadOptions wrong = options();
+    wrong.countWidths = L::CountWidths::MEASURED_U16;
+    const Saved<L::DriverContext> before(c);
+    CHECK(!L::prepareDriverRead(c, target(), 19, 0, 1000, wrong, L::DriverGroup::HOMING));
+    before.unchanged(c);
+    C::SdoClient owner;
+    CHECK(owner.configure(0, target().channel, false, true));
+    C::SdoRequestId id;
+    CHECK(!owner.admit(0, next(c, 0).transfer, 0, id));
+}
 void admissionAndPublication() {
-    for (unsigned g = 0; g < 3; ++g) {
+    for (unsigned g : {0u, 1u, 2u, 4u}) {
         L::DriverContext c = prepared(g);
         const Saved<L::DriverContext> initial(c);
         for (unsigned bad = 0; bad < 8; ++bad) {
@@ -392,7 +438,7 @@ void admissionAndPublication() {
     prior.unchanged(o);
 }
 void terminalCorrelation() {
-    for (unsigned g = 0; g < 3; ++g) {
+    for (unsigned g : {0u, 1u, 2u, 4u}) {
         L::DriverContext c = prepared(g);
         const C::SdoCompletion good = success(c, rows[g][0].raw, 0, 1);
         for (unsigned bad = 0; bad < 18; ++bad) {
@@ -474,7 +520,7 @@ void partialFailures() {
         C::SdoOutcome::SERVER_ABORT, C::SdoOutcome::TIMEOUT, C::SdoOutcome::TRANSPORT_ERROR,
         C::SdoOutcome::REBOOT,       C::SdoOutcome::BUS_OFF, C::SdoOutcome::BINDING_INVALIDATED,
         C::SdoOutcome::CANCELLED};
-    for (unsigned g = 0; g < 3; ++g)
+    for (unsigned g : {0u, 1u, 2u, 4u})
         for (unsigned fail = 0; fail < counts[g]; ++fail)
             for (C::SdoOutcome failure : failures) {
                 L::DriverContext c = prepared(g);
@@ -506,7 +552,7 @@ void partialFailures() {
                 CHECK(!L::getDriver(c, target(), 20, 100, o));
                 prior.unchanged(o);
             }
-    for (unsigned g = 0; g < 3; ++g)
+    for (unsigned g : {0u, 1u, 2u, 4u})
         for (unsigned fail = 0; fail < counts[g]; ++fail) {
             C::SdoClient owner;
             configure(owner);
@@ -556,7 +602,7 @@ void rawDomainsAndTime() {
         CHECK(o.softLimitEntries == count && o.fieldCount == 4 && o.minimumNative == -1 &&
               o.maximumNative == INT32_MIN);
     }
-    for (unsigned g = 0; g < 3; ++g)
+    for (unsigned g : {0u, 1u, 2u, 4u})
         for (unsigned late = 0; late < 2; ++late) {
             L::DriverContext c = prepared(g, 0, 100);
             for (unsigned i = 0; i + 1 < counts[g]; ++i)
@@ -603,6 +649,7 @@ void rawDomainsAndTime() {
 int main() {
     realOwnerGroups();
     velocityTargetRead();
+    homingRead();
     admissionAndPublication();
     terminalCorrelation();
     partialFailures();

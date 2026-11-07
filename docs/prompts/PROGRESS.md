@@ -1,13 +1,12 @@
 # Prompt execution progress
 
-Prompt 35 delivers the [finite velocity software](../reports/prompt_35.md):
-preparation-time duration, exact motor-rpm validation, bounded state progression,
-and a distinct urgent stop through the existing owner. The original stage remains
-Partial: Q03/Q11 startup and reverse facts, mode3 stop qualification and general
-60FF Q20 read effects have no new device evidence. No velocity was run on the bench.
-Prompt 34's wrapped-angle software remains complete with its inherited gates.
-The [independent 34/35 audit](../reports/prompts_34_35_audit.md) fixes premature
-velocity poll-budget exhaustion and preserves those qualification limits.
+Prompt 36 adds the conditional [homing lifecycle and six typed reads](../reports/prompt_36.md),
+with explicit mode-6 enable/interrupt integration and checked reference publication.
+It remains Partial while method, input, direction, offset and completion facts
+are unqualified. No homing was run on the bench. The [coverage reconciliation](../reports/prompt_36_coverage.md)
+keeps earlier owned software omissions and device gates visible.
+Prompt 35 remains Partial for its documented velocity gates; prompt 34's wrapped-angle
+software remains Complete. The [34/35 audit](../reports/prompts_34_35_audit.md) records their latest checks.
 
 **Execution identity.** Promptset version 2 on branch `promptset/motorcontrol-can`, base `7878f7c` from `origin/main`, upstream `origin/promptset/motorcontrol-can`. Reuse this branch across every prompt and resumed session. The [source map](../source_map.md) and [prompt 1 inputs](../reports/prompt_1_inputs.json) record the starting point. Earlier narrative is in the [progress history](../reports/progress_history.md).
 
@@ -54,7 +53,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 33 | [Finite position operations](33_position_moves.md) | Partial | Q02, Q04, Q05, Q10, Q11, Q12. Packet 20 added a gated absolute lifecycle, closed by default; packet 19 measured node 1's acceptance and completion signals, and with them the absolute lifecycle has run on both nodes: 121 (unattended, the first) and 213 on node 2, 413, 705 and 706 on node 1, with 213 and 413 ended by planned quick stops. Packet 21 added the relative lifecycle on the same path, refused unless the caller's evidence names a measured base; on 2026-11-04 node 1's base measured `ACTUAL`, and relative moves succeeded with it (411, 708). Bench continuation packet 2 (2026-11-06) shared the admission recheck as `validateMoveAdmission`, made `preflight` refuse a queued download in an unhandled EMCY's own turn, added the `faultBlocked` fence and the missing two-node, fault-cycle and COMMANDED tests, and retained the RS vectors with their source. Still owed: node 2's relative base, a negative relative move and stops from `005F` (packet 8). One firmware, judged from drive reports, not qualified | [Pure native parameters implemented; finite lifecycle and firmware gates remain](../reports/prompt_33.md); packets [19](../reports/handoff_19_33/packet_19.md), [20](../reports/handoff_19_33/packet_20.md) and [21](../reports/handoff_19_33/packet_21.md) |
 | 34 | [Wrapped-angle motion integration](34_angle_moves.md) | Complete | 33; Q04, Q14 and applicable motion evidence; no physical angle qualification | [Exact conversion, existing lifecycle, offline example and checks](../reports/prompt_34.md) |
 | 35 | [Finite velocity operations](35_velocity.md) | Partial | Q03/Q11 startup, reverse and mode changes; Q12 mode3 stop and Q20 general 60FF read effects. Conditional lifecycle and owner path implemented; no specimen velocity qualification | [Software and precise remaining gates](../reports/prompt_35.md) |
-| 36 | [Homing and native coverage reconciliation](36_homing.md) | Pending | 33, 35; Q21, Q02, Q04, Q05, Q10, Q11, Q14 | - |
+| 36 | [Homing and native coverage reconciliation](36_homing.md) | Partial | Q02/Q04/Q10/Q11/Q14/Q20/Q21: exact firmware, inputs, direction, offset, enable/completion and reference qualification | [Conditional software and remaining evidence](../reports/prompt_36.md); [native reconciliation](../reports/prompt_36_coverage.md) |
 | 37 | [Explicit discovery and binding](37_discovery.md) | Pending | Q01; an SDO scan needs G-06's slot and timeout design, and Q18 before a marker can free a slot | - |
 | 38 | [Explicit communication commissioning](38_communication_commissioning.md) | Pending | Node and heartbeat read rows first; Q16, Q17, Q18 for writes and PDO rows | - |
 | 39 | [Persistence reset and reconciliation](39_persistence.md) | Pending | Q15 | - |

@@ -37,7 +37,8 @@ enum class ReadKind : uint8_t {
     TUNING_FILTER_POSITION,   ///< 2508..250D filter/position words, partly unknown units.
     TUNING_LOOP_GAINS,        ///< 250E..2519 documented native loop words.
     TUNING_EDS_GAINS,         ///< 251A..2520 opaque EDS words, no semantic write permission.
-    VELOCITY_TARGET          ///< One raw 60FF word; EDS I32 is not reverse-motion qualification.
+    VELOCITY_TARGET,          ///< One raw 60FF word; EDS I32 is not reverse-motion qualification.
+    HOMING                    ///< Six raw homing fields, not motion completion or a home reference.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {
@@ -126,14 +127,15 @@ struct ReadContext {
     ReadSource source = ReadSource::SDO;     ///< Explicit active service or passive source.
     ReadState state = ReadState::EMPTY;      ///< Current finite phase.
     ReadOutcome outcome = ReadOutcome::NONE; ///< Retained terminal result.
-    Status status;           ///< Last operation/step result, distinct from advance call status.
-    uint64_t startedUs = 0;  ///< Supplied preparation microseconds, zero valid.
-    uint64_t deadlineUs = 0; ///< Immutable overall processing-time cutoff; `now >= deadlineUs` expires.
-    uint64_t servicedUs = 0; ///< Last mutation/step preparation time.
-    ReadOptions options;     ///< Copied service budgets.
-    uint8_t count = 0;       ///< Selected bounded field slots, at most READ_FIELDS.
-    uint8_t cursor = 0;      ///< Current slot; equals count at success.
-    uint8_t blockMask = 0;   ///< STATE selection bits, all other kinds zero.
+    Status status;          ///< Last operation/step result, distinct from advance call status.
+    uint64_t startedUs = 0; ///< Supplied preparation microseconds, zero valid.
+    uint64_t deadlineUs =
+        0; ///< Immutable overall processing-time cutoff; `now >= deadlineUs` expires.
+    uint64_t servicedUs = 0;               ///< Last mutation/step preparation time.
+    ReadOptions options;                   ///< Copied service budgets.
+    uint8_t count = 0;                     ///< Selected bounded field slots, at most READ_FIELDS.
+    uint8_t cursor = 0;                    ///< Current slot; equals count at success.
+    uint8_t blockMask = 0;                 ///< STATE selection bits, all other kinds zero.
     uint8_t blockStart[STATE_BLOCKS] = {}; ///< First slot per selected block.
     uint8_t blockLength[STATE_BLOCKS] =
         {};                        ///< Source slots; history count determines active subset.
@@ -159,17 +161,17 @@ struct IdentityObservation {
     uint32_t deviceType = 0;      ///< 1000 raw U32.
     uint16_t hardwareVersion = 0; ///< 1009 raw value, not a string or a version.
     uint8_t hardwareVersionWidth = 0; ///< Actual 1009 reply bytes under the selected widths.
-    uint16_t softwareVersion = 0; ///< 100A raw value, not a string or a version.
+    uint16_t softwareVersion = 0;     ///< 100A raw value, not a string or a version.
     uint8_t softwareVersionWidth = 0; ///< Actual 100A reply bytes under the selected widths.
-    uint8_t identityEntries = 0;  ///< 1018:00 raw count; never implies absent :04.
-    uint32_t vendorId = 0;        ///< 1018:01 raw vendor code.
-    uint32_t productCode = 0;     ///< 1018:02 raw product code.
-    uint32_t revision = 0;        ///< 1018:03 raw revision.
-    uint16_t modelCode = 0;       ///< 2000 raw code, no model-number guessing.
-    uint16_t firmwareCode = 0;    ///< 2001 raw code, no firmware applicability inference.
-    bool modelMatched = false;    ///< Remains false; Q01 identification evidence is unresolved.
-    ReadWindow window;            ///< Aggregate acquisition/skew, not atomic snapshot.
-    ReadProvenance fields[9];     ///< Source evidence in the order of fields above.
+    uint8_t identityEntries = 0;      ///< 1018:00 raw count; never implies absent :04.
+    uint32_t vendorId = 0;            ///< 1018:01 raw vendor code.
+    uint32_t productCode = 0;         ///< 1018:02 raw product code.
+    uint32_t revision = 0;            ///< 1018:03 raw revision.
+    uint16_t modelCode = 0;           ///< 2000 raw code, no model-number guessing.
+    uint16_t firmwareCode = 0;        ///< 2001 raw code, no firmware applicability inference.
+    bool modelMatched = false;        ///< Remains false; Q01 identification evidence is unresolved.
+    ReadWindow window;                ///< Aggregate acquisition/skew, not atomic snapshot.
+    ReadProvenance fields[9];         ///< Source evidence in the order of fields above.
 };
 /** One complete state block, independently available after a later block fails.
  * Only fields selected by block are meaningful; raw success does not interpret
@@ -274,7 +276,8 @@ Status prepareConfig(ReadContext& output, const ReadTarget& target, uint32_t ope
  * call with these same unchanged SDO values cannot refuse. TPDO routes are not checked here.
  */
 Status validateRead(ReadKind kind, const ReadTarget& target, uint32_t operation, uint64_t nowUs,
-                    uint64_t deadlineUs, const ReadOptions& options, uint8_t blockMask = 0) noexcept;
+                    uint64_t deadlineUs, const ReadOptions& options,
+                    uint8_t blockMask = 0) noexcept;
 /** Return a context to EMPTY in place. `context = ReadContext()` builds a stack temporary.
  * @param[out] context Context to reset; its retained history is gone.
  */

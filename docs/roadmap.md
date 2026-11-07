@@ -1,5 +1,12 @@
 # Implementation roadmap
 
+[Prompt 36](reports/prompt_36.md) provides the conditional homing software,
+six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
+It remains Partial for the exact mode-6, switch, direction, offset and reference
+evidence listed in [homing](homing.md). Next work is an individually reviewed
+finite acquisition once those physical prerequisites exist, or independent
+prompt 37/38 software. Do not run an input-free search to bypass missing wiring.
+
 Execution identity: version 2, started 2026-10-28 on
 `promptset/motorcontrol-can`, base `7878f7c`. Keep this branch for the complete
 promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
@@ -93,7 +100,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 33 | Finite position | Partial: [pure native parameters](position_parameters.md) and a gated absolute lifecycle (packet 20), closed by default. Packet 19 measured node 1's acceptance and completion signals, and with them the absolute lifecycle has run on both nodes (121 and 213 on node 2; 413, 705 and 706 on node 1). Stops during moves have run (213, 413, 709, 713), and packet 21's relative lifecycle succeeded on node 1 (411, 708). One firmware, judged from drive reports, not qualified; [remaining gates](position_parameters.md). |
 | 34 | Wrapped-angle integration | Complete: common exact path/tie/frame conversion through the finite position lifecycle, retained reference/error evidence, owner failure/stop tests and offline example. [Report](reports/prompt_34.md); inherited physical scale/reference gates remain. |
 | 35 | Finite velocity | Conditional lifecycle and owner stop implemented; original stage Partial until Q03/Q11/Q12 firmware facts. Fixed preparation-time duration, exact signed rpm and retained uncertainty; [report](reports/prompt_35.md) |
-| 36 | Homing | Pending; consumes only qualified velocity/stop contracts. Homing evidence and reference publication remain separate |
+| 36 | Homing | Partial: conditional methods 17/18/24/29, explicit mode6 enable/interrupt, six typed reads and checked reference publication. Firmware, switch, direction, offset and completion facts still need the [listed measurements](homing.md). |
 | 37-39 | Discovery, communication changes, save/reset | Pending; no writes in discovery or hidden persistence; retain uncertain route/partial effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |
 | 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |

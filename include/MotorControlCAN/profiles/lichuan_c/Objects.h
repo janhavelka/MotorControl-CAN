@@ -1663,19 +1663,25 @@ inline bool readDescriptor(uint16_t index, uint8_t subindex, ReadDescriptor& out
         {0x6061, 0x00, 1, ReadRepresentation::RAW, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6064, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x606C, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::ACCEPTED_UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x607C, 0x00, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x607D, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x607D, 0x01, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x607D, 0x02, 4, ReadRepresentation::SIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6081, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6083, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x6084, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6098, 0x00, 1, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6099, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6099, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x6099, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
+        {0x609A, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FD, 0x00, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FE, 0x00, 1, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FE, 0x01, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FE, 0x02, 4, ReadRepresentation::UNSIGNED, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
         {0x60FF, 0x00, 4, ReadRepresentation::RAW, ReadEffect::UNQUALIFIED, SourceScope::EDS_FAMILY_UNBOUND},
     };
-    for (uint8_t i = 0; i < 96; ++i) {
+    for (uint8_t i = 0; i < 102; ++i) {
         if (rows[i].index == index && rows[i].subindex == subindex) {
             output = rows[i];
             return true;

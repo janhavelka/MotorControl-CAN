@@ -5,6 +5,7 @@
 #pragma once
 #include "CanBusOwner.h"
 #include <MotorControlCAN/profiles/lichuan_c/Actions.h>
+#include <MotorControlCAN/profiles/lichuan_c/Homing.h>
 #include <MotorControlCAN/profiles/lichuan_c/Position.h>
 #include <MotorControlCAN/profiles/lichuan_c/Velocity.h>
 
@@ -50,7 +51,7 @@ struct StopPolicy {
  * same path as every other command, so an acknowledged 000F becomes the latest controlword that a
  * stop may follow. A stop request ends an active enable first, even if the stop itself is refused:
  * no further word follows it. The session refuses an enable once
- * it has itself admitted a write other than an acknowledged 6060=1. That record lasts as long as this
+ * it has itself admitted a write other than an acknowledged 6060=1 or 6060=6. That record lasts as long as this
  * object, across close and open, because reopening cannot retire earlier drive work. A new object
  * knows nothing, as after an MCU restart, so the caller's EnableEvidence must speak for that time.
  *
@@ -112,7 +113,8 @@ class AxisSession {
     bool open(const MotorControlCAN::LICHUAN_C::ReadTarget& target,
               MotorControlCAN::LICHUAN_C::SettingsModel model, uint8_t producer,
               uint64_t nowUs) noexcept;
-    /** Close after every result is consumed, keeping no history. Releases only a
+    /** Close after every result is consumed. Home terminals and unresolved-effect fences survive.
+     * Releases only a
      * reservation this session took. A counter clear's owner synchronization that service() could not
      * yet make is dropped with that history: the application then calls
      * CanBusOwner::advanceConfiguration itself before it opens on the axis's new binding.
@@ -141,13 +143,15 @@ class AxisSession {
     bool velocityActive() const noexcept {
         return velocity_.state == MotorControlCAN::ActionState::ACTIVE;
     }
+    /** @return True while a home has admitted or eligible work. */
+    bool homeActive() const noexcept { return home_.state == MotorControlCAN::ActionState::ACTIVE; }
     /** @return True while an alarm clear or counter clear is neither finished nor failed. */
     bool clearActive() const noexcept { return clear_.state == MotorControlCAN::ActionState::ACTIVE; }
     /** @return True with a stop, enable, move or clear in progress or a request unsettled, which excludes
      * new operations and reads: starting one would orphan that terminal's history. */
     bool busy() const noexcept {
-        return stopActive() || enableActive() || moveActive() || velocityActive() || clearActive() || pending_.owner ||
-               urgent_.owner || superseded_.owner;
+        return stopActive() || enableActive() || moveActive() || velocityActive() || homeActive() ||
+               clearActive() || pending_.owner || urgent_.owner || superseded_.owner;
     }
     /** Start a new operation for the next commands on this reservation.
      * @param[in] deadlineUs Immutable exclusive future cutoff.
@@ -207,7 +211,7 @@ class AxisSession {
      * and not held inside enableAction().
      * @param[in] evidence Caller's explicit gate, trial, reservation, operation (use nextOperation),
      * expiry, start record, shaft observation and exact reviewed values. The session adds its own
-     * record: it refuses after any write of its own other than 6060=1, and it consumes each trial
+     * record: it refuses after any write of its own other than 6060=1 or 6060=6, and it consumes each trial
      * identity once, in rising order, for this object's life.
      * @param[in] options Copied budgets, as prepareEnable requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
@@ -378,6 +382,51 @@ class AxisSession {
     bool velocityNeedsStop() const noexcept { return velocityNeedsStop_; }
     /** @return Retained reason an admission or handover recheck refused the latest velocity write. */
     const MotorControlCAN::Status& velocityRefusal() const noexcept { return velocityRefusal_; }
+    /** Request conditional mode6 homing without changing mode or enabling.
+     * The session supplies its actual latest acknowledged 000F and a new operation identity.
+     * All acquired prerequisites must match the current binding and exact qualification record.
+     * The mutable axis/reference are borrowed until terminal; the trigger withdraws coordinates
+     * once and synchronizes the owner before transmission on the new configuration epoch.
+     * @param[in] state Complete enabled stationary mode6 state after the latest 000F.
+     * @param[in] identity Exact acquired specimen identity.
+     * @param[in] inputs Reviewed input mapping/polarity acquisition.
+     * @param[in] driver Fresh raw direction acquisition.
+     * @param[in] evidence Exact selected-firmware qualification.
+     * @param[in] request Method, engineering rates, ramp time and offset.
+     * @param[in,out] axis Borrowed current host configuration.
+     * @param[in,out] reference Borrowed witness withdrawn before a possible trigger.
+     * @param[in] options Fixed caller budgets.
+     * @param[in] deadlineUs Immutable exclusive cutoff.
+     * @param[in] nowUs Nondecreasing processing time.
+     * @return Checked preparation status; refusal changes no outputs or owner operation.
+     */
+    MotorControlCAN::Status
+    requestHome(const MotorControlCAN::LICHUAN_C::ReadContext& state,
+                const MotorControlCAN::LICHUAN_C::IdentityObservation& identity,
+                const MotorControlCAN::LICHUAN_C::DriverContext& inputs,
+                const MotorControlCAN::LICHUAN_C::DriverContext& driver,
+                const MotorControlCAN::LICHUAN_C::HomeEvidence& evidence,
+                const MotorControlCAN::LICHUAN_C::HomeRequest& request,
+                MotorControlCAN::AxisConfig& axis, MotorControlCAN::AxisReference& reference,
+                const MotorControlCAN::LICHUAN_C::HomeOptions& options, uint64_t deadlineUs,
+                uint64_t nowUs) noexcept;
+    /** Withdraw locally; queued work retires, possible writes remain uncertain, and no stop is sent.
+     * @param[in] nowUs Nondecreasing processing time.
+     * @param[in] reason CANCELLED or independently established DRIVE_FAULT.
+     * @return False unchanged for invalid time, reason or inactive home.
+     */
+    bool cancelHome(uint64_t nowUs, MotorControlCAN::HomeInterruption reason =
+                                        MotorControlCAN::HomeInterruption::CANCELLED) noexcept;
+    /** @return Retained concrete home; a separate stop retains its own terminal. */
+    const MotorControlCAN::LICHUAN_C::HomeContext& homeAction() const noexcept { return home_; }
+    /** @return Last complete home cycle; shares the two motion observation buffers. */
+    const MotorControlCAN::LICHUAN_C::ReadContext& homeObservation() const noexcept {
+        return moveReads_[moveComplete_];
+    }
+    /** @return Persistent possible-motion fence, cleared only by a later checked stop. */
+    bool homeNeedsStop() const noexcept { return homeNeedsStop_; }
+    /** @return Latest failed home admission/handover check; no motor or protocol outcome. */
+    const MotorControlCAN::Status& homeRefusal() const noexcept { return homeRefusal_; }
     /** Request one explicit alarm clear on this axis through prepareClearAlarm: 2301 U16 1, then 0
      * after the 1's acknowledgement. No specimen has run it. Starts a new owner operation, then prepares
      * clearAction() in place. Yields no traffic here: service() admits each write and read on this
@@ -592,6 +641,16 @@ class AxisSession {
     MotorControlCAN::ActionOutcome enableWithdrawn_ = MotorControlCAN::ActionOutcome::NONE;
     MotorControlCAN::LICHUAN_C::MoveContext move_;
     MotorControlCAN::LICHUAN_C::VelocityContext velocity_;
+    MotorControlCAN::LICHUAN_C::HomeContext home_;
+    MotorControlCAN::LICHUAN_C::AxisReservation homeReservation_;
+    MotorControlCAN::LICHUAN_C::ReadTarget homeTarget_;
+    MotorControlCAN::AxisConfig* homeAxis_ = nullptr;
+    MotorControlCAN::AxisReference* homeReference_ = nullptr;
+    MotorControlCAN::HomeInterruption homeWithdrawn_ = MotorControlCAN::HomeInterruption::NONE;
+    MotorControlCAN::Status homeRefusal_;
+    bool homeNeedsStop_ = false;
+    uint64_t homeCommandAfterUs_ = 0;
+    uint32_t homeStopOperation_ = 0;
     const MotorControlCAN::AxisConfig* velocityAxis_ = nullptr;
     MotorControlCAN::VelocityInterruption velocityWithdrawn_ = MotorControlCAN::VelocityInterruption::NONE;
     MotorControlCAN::Status velocityRefusal_;
@@ -656,6 +715,12 @@ class AxisSession {
     void endVelocity(MotorControlCAN::VelocityInterruption reason, uint64_t nowUs) noexcept;
     void afterVelocity() noexcept;
     void settleVelocityStop(uint64_t nowUs) noexcept;
+    void serviceHome(uint64_t nowUs) noexcept;
+    void withdrawHome(MotorControlCAN::HomeInterruption reason, uint64_t nowUs) noexcept;
+    void endHome(MotorControlCAN::HomeInterruption reason, uint64_t nowUs) noexcept;
+    void afterHome() noexcept;
+    bool syncHome(uint64_t nowUs) noexcept;
+    void settleHomeStop(uint64_t nowUs) noexcept;
     MotorControlCAN::Status startClear(const MotorControlCAN::LICHUAN_C::ReadContext& state,
                                        int64_t nativePosition, MotorControlCAN::AxisConfig* axis,
                                        MotorControlCAN::AxisReference* reference,

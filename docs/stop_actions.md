@@ -84,7 +84,7 @@ The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS report
 **idle** drive that is alarmed, released, in another mode or not enabled refuse the request
 on both paths, with no traffic, because nothing establishes what `000B` does in those
 states. A running report keeps the stop available on the best-effort path, as this project's
-decision that a running motor should get the attempt. Prompt 35 adds the mode-3 row below; mode6 remains prompt36.
+decision that a running motor should get the attempt. Prompt 35 adds the mode-3 row below; mode6 is the separately gated prompt36 row described below.
 
 The word must be the application's actual latest acknowledged controlword, under a
 reservation acquired before that command. Fresh low bits 7 cannot reconstruct it. An
@@ -271,3 +271,14 @@ node 2 at about 100 rpm); and `000B` with no known predecessor on two states (30
 homing modes need their own fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.
+
+## Mode-6 interruption (prompt 36)
+
+`prepareStop(HALT)` accepts mode 6 only from the actual acknowledged `001F`,
+under the same uninterrupted reservation and fresh state. It emits one `000F`:
+the documented bit-4 falling edge, with a derived whole word and
+`predecessorDocumented=false`. It adds feedback to each observation cycle and
+requires monitor running clear plus zero `606C`. This is controller evidence,
+not a physical standstill/reference guarantee. No enabling preamble is sent.
+A confirmed mode-6 quick-stop/escalation has no reviewed transition; the existing
+explicit DEC-2 unknown-state path remains unconfirmed. See [homing](homing.md).

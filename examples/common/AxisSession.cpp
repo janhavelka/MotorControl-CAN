@@ -20,16 +20,20 @@ bool isControlWrite(const C::SdoTransfer& t) {
 uint16_t word(const C::SdoTransfer& t) {
     return uint16_t(t.data[0] | (uint16_t(t.data[1]) << 8));
 }
-// The one write that leaves an enable admissible: selecting mode 1 is the manuals' first step.
-bool isModeOneWrite(const C::SdoTransfer& t) {
+// Explicit mode selection precedes the separately gated position or homing enable.
+bool isEnableModeWrite(const C::SdoTransfer& t) {
     return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6060 && !t.subindex &&
-           t.size == 1 && t.data[0] == 1;
+           t.size == 1 && (t.data[0] == 1 || t.data[0] == 6);
 }
 bool sameRequest(RequestId a, RequestId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
 }
 bool sameSequence(SequenceId a, SequenceId b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
+}
+bool overlaps(const void* a, size_t aSize, const void* b, size_t bSize) {
+    const uintptr_t first = reinterpret_cast<uintptr_t>(a), second = reinterpret_cast<uintptr_t>(b);
+    return first <= second ? second - first < aSize : first - second < bSize;
 }
 const char* const CLEAR_BLOCKED = "an earlier clear's value 1 may still be held; only a stop is admitted";
 const char* const FAULT_BLOCKED =
@@ -100,6 +104,16 @@ bool AxisSession::open(const L::ReadTarget& target, L::SettingsModel model, uint
     // moveFenced_ stays: reopening cannot show that an earlier move's motion ended.
     L::resetMove(move_);
     L::resetVelocity(velocity_);
+    // Retain the last terminal home and its partial effects across reopen. Only a new
+    // validated home request replaces that record; opening cannot reconcile a write.
+    homeReservation_ = reservation_;
+    homeTarget_ = target;
+    homeAxis_ = nullptr;
+    homeReference_ = nullptr;
+    homeWithdrawn_ = M::HomeInterruption::NONE;
+    homeRefusal_ = M::Status();
+    homeStopOperation_ = 0;
+    // homeNeedsStop_ survives reopen; opening does not establish that a home ended.
     velocityAxis_ = nullptr;
     velocityWithdrawn_ = M::VelocityInterruption::NONE;
     velocityRefusal_ = M::Status();
@@ -177,13 +191,14 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
             dropControl();
             if (present)
                 suspended_ = id; // Its terminal decides whether control_ is the latest again.
-            motionWritten_ |= !isModeOneWrite(transfer);
+            motionWritten_ |= !isEnableModeWrite(transfer);
         }
     }
     return admission;
 }
 bool AxisSession::settle(C::SdoCompletion& output) noexcept {
-    return !enableActive() && !moveActive() && !velocityActive() && !clearActive() && takeTerminal(output);
+    return !enableActive() && !moveActive() && !velocityActive() && !homeActive() &&
+           !clearActive() && takeTerminal(output);
 }
 bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
     const Completion* terminal = owner_.result(pending_);
@@ -205,8 +220,8 @@ bool AxisSession::takeTerminal(C::SdoCompletion& output) noexcept {
         suspended_ = RequestId();
         controllerEpoch_ = owner_.controllerEpoch();
     }
-    // A 6060=1 that may have reached the drive unacknowledged leaves its effect unknown.
-    motionWritten_ |= isModeOneWrite(copy.transfer) && copy.outcome != C::SdoOutcome::SUCCESS &&
+    // A reviewed mode-selection write without acknowledgement leaves its effect unknown.
+    motionWritten_ |= isEnableModeWrite(copy.transfer) && copy.outcome != C::SdoOutcome::SUCCESS &&
                       copy.effectPossible;
     output = copy;
     return true;
@@ -227,8 +242,8 @@ M::Status AxisSession::requestEnable(const L::ReadContext& state, const L::Enabl
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
     if (faultBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
-    if (velocityNeedsStop_)
-        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier velocity run needs a checked stop");
+    if (velocityNeedsStop_ || homeNeedsStop_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier motion operation needs a checked stop");
     if (motionWritten_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "this session wrote to the drive; no fresh enable history remains");
@@ -377,8 +392,8 @@ M::Status AxisSession::startMove(MoveForm form, const L::ReadContext& state,
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (faultBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
-    if (velocityNeedsStop_)
-        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier velocity run needs a checked stop");
+    if (velocityNeedsStop_ || homeNeedsStop_)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier motion operation needs a checked stop");
     if (moveFenced_)
         return M::Status(M::Err::INVALID_CONFIG, stateError,
                          "an earlier trigger may still be moving the drive: new moves stay fenced");
@@ -603,7 +618,7 @@ M::Status AxisSession::requestVelocity(const L::ReadContext& state,
         return M::Status(M::Err::INVALID_CONFIG, error, "no idle usable axis reservation");
     if (state.startedUs < lastWriteUs_)
         return M::Status(M::Err::INVALID_CONFIG, error, "velocity state predates this session's latest write");
-    if (clearBlocked_ || faultBlocked_ || moveFenced_ || velocityNeedsStop_)
+    if (clearBlocked_ || faultBlocked_ || moveFenced_ || velocityNeedsStop_ || homeNeedsStop_)
         return M::Status(M::Err::INVALID_CONFIG, error, "earlier uncertain work fences this axis");
     const uint32_t next = nextOperation();
     if (!next)
@@ -788,6 +803,239 @@ void AxisSession::serviceVelocity(uint64_t now) noexcept {
         }
     }
 }
+M::Status AxisSession::requestHome(const L::ReadContext& state,
+                                   const L::IdentityObservation& identity,
+                                   const L::DriverContext& inputs, const L::DriverContext& driver,
+                                   const L::HomeEvidence& evidence, const L::HomeRequest& request,
+                                   M::AxisConfig& axis, M::AxisReference& reference,
+                                   const L::HomeOptions& options, uint64_t deadline,
+                                   uint64_t now) noexcept {
+    const int32_t error = static_cast<int32_t>(M::HomeError::STATE);
+    if (now < latestUs())
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::HomeError::TIME),
+                         "time is behind this session or owner");
+    if (!open_ || !usable() || busy())
+        return M::Status(M::Err::INVALID_CONFIG, error, "no idle usable axis reservation");
+    if (clearBlocked_ || faultBlocked_ || moveFenced_ || velocityNeedsStop_ || homeNeedsStop_)
+        return M::Status(M::Err::INVALID_CONFIG, error, "earlier uncertain work fences this axis");
+    if (!controlPresent_ || state.startedUs < lastWriteUs_)
+        return M::Status(M::Err::INVALID_CONFIG, error,
+                         "home needs the latest controlword and later state");
+    if (reference.nativeKnown && (!M::sameBinding(reference.binding, axis.binding) ||
+                                  reference.referenceGeneration != axis.referenceGeneration))
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::HomeError::REFERENCE),
+                         "home trigger storage contains a stale coordinate witness");
+    if (overlaps(&reference, sizeof reference, &axis, sizeof axis) ||
+        overlaps(&reference, sizeof reference, this, sizeof *this) ||
+        overlaps(&axis, sizeof axis, this, sizeof *this))
+        return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::HomeError::OVERLAP),
+                         "home coordinate storage overlaps this session");
+    for (unsigned i = 0; i < retainedCount_; ++i)
+        if (overlaps(retained_[i], sizeof *retained_[i], this, sizeof *this) ||
+            overlaps(retained_[i], sizeof *retained_[i], &axis, sizeof axis) ||
+            overlaps(retained_[i], sizeof *retained_[i], &reference, sizeof reference))
+            return M::Status(M::Err::INVALID_CONFIG, static_cast<int32_t>(M::HomeError::OVERLAP),
+                             "retained settings overlap home coordinate storage");
+    const uint32_t next = nextOperation();
+    if (!next)
+        return M::Status(M::Err::INVALID_CONFIG, error, "operation identities exhausted");
+    const M::Status checked =
+        L::validateHome(home_, reservation_, target_, state, control_, identity, inputs, driver,
+                        evidence, request, axis, next, now, deadline, options);
+    if (!checked)
+        return checked;
+    if (!owner_.beginOperation(sequence_, next, deadline, now))
+        return M::Status(M::Err::INVALID_CONFIG, error, "owner refused a new home operation");
+    L::prepareHome(home_, reservation_, target_, state, control_, identity, inputs, driver,
+                   evidence, request, axis, next, now, deadline, options);
+    homeReservation_ = reservation_;
+    homeTarget_ = target_;
+    homeAxis_ = &axis;
+    homeReference_ = &reference;
+    homeWithdrawn_ = M::HomeInterruption::NONE;
+    homeRefusal_ = M::Status();
+    homeStopOperation_ = 0;
+    L::resetRead(moveReads_[0]);
+    L::resetRead(moveReads_[1]);
+    moveRead_ = 0;
+    moveComplete_ = 1;
+    operation_ = next;
+    lastUs_ = now;
+    return M::Ok();
+}
+bool AxisSession::cancelHome(uint64_t now, M::HomeInterruption reason) noexcept {
+    if (now < latestUs() || !homeActive() ||
+        (reason != M::HomeInterruption::CANCELLED && reason != M::HomeInterruption::DRIVE_FAULT))
+        return false;
+    lastUs_ = now;
+    faultBlocked_ |= reason == M::HomeInterruption::DRIVE_FAULT;
+    withdrawHome(reason, now);
+    return true;
+}
+void AxisSession::afterHome() noexcept {
+    homeNeedsStop_ = home_.needsStop;
+    homeAxis_ = nullptr;
+    homeReference_ = nullptr;
+}
+void AxisSession::endHome(M::HomeInterruption reason, uint64_t now) noexcept {
+    if (!L::advanceHome(home_, moveReads_[moveRead_], homeReservation_, homeTarget_, reason, now))
+        L::advanceHome(home_, moveReads_[moveRead_], homeReservation_, homeTarget_,
+                       M::HomeInterruption::INVALIDATED, now);
+    afterHome();
+}
+void AxisSession::withdrawHome(M::HomeInterruption reason, uint64_t now) noexcept {
+    if (!homeActive() || homeWithdrawn_ != M::HomeInterruption::NONE)
+        return;
+    homeWithdrawn_ = reason;
+    if (pending_.owner && !owner_.result(pending_) && !owner_.mayHaveTransmitted(pending_))
+        owner_.cancel(pending_, now);
+    if (const Completion* closed = pending_.owner ? owner_.result(pending_) : nullptr)
+        keepUnsentControl(closed->service);
+    if (!pending_.owner)
+        endHome(reason, now);
+    else
+        L::noteHomeWithdrawal(home_, homeReservation_, homeTarget_, reason, now);
+}
+// The local trigger boundary withdrew coordinates before admission. Move only the owner binding;
+// the frozen home reservation continues to identify the original operation and its exact advance.
+bool AxisSession::syncHome(uint64_t now) noexcept {
+    if (!home_.coordinatesInvalidated ||
+        M::sameBinding(target_.channel.binding, homeTarget_.channel.binding))
+        return true;
+    if (pending_.owner || urgent_.owner || superseded_.owner || stopActive() || !usable() ||
+        !owner_.advanceConfiguration(sequence_, homeTarget_.channel.binding, now))
+        return false;
+    dropControl();
+    target_.channel.binding = homeTarget_.channel.binding;
+    reservation_.target.channel.binding = target_.channel.binding;
+    lastUs_ = now;
+    return true;
+}
+void AxisSession::settleHomeStop(uint64_t now) noexcept {
+    if (!homeStopOperation_ || homeActive() || stopActive())
+        return;
+    // Escalation and controller-proved non-transmission can leave an earlier failed stop
+    // beside the final path. Retain the first terminal, not whichever path ended last.
+    const L::ActionContext* first = nullptr;
+    for (unsigned i = 0; i < 2; ++i) {
+        const L::ActionContext& stop = stops_[i];
+        if (stop.operation >= homeStopOperation_ &&
+            (stop.state == M::ActionState::SUCCEEDED || stop.state == M::ActionState::FAILED) &&
+            (!first || stop.operation < first->operation))
+            first = &stop;
+    }
+    const L::BestEffortStop* best = nullptr;
+    const L::BestEffortStop* candidates[] = {&firstBestEffort_, &bestEffort_};
+    for (const L::BestEffortStop* stop : candidates)
+        if (stop->operation >= homeStopOperation_ &&
+            (stop->state == M::ActionState::SUCCEEDED || stop->state == M::ActionState::FAILED) &&
+            (!best || stop->operation < best->operation))
+            best = stop;
+    if (first && (!best || first->operation < best->operation))
+        L::advanceHomeStop(home_, *first, now);
+    else if (best)
+        L::advanceHomeStop(home_, *best, now);
+    homeStopOperation_ = 0;
+}
+void AxisSession::serviceHome(uint64_t now) noexcept {
+    if (!homeActive())
+        return;
+    if (pending_.owner) {
+        const Completion* closed = owner_.result(pending_);
+        const bool guarded = closed && closed->reason == CompletionReason::PREFLIGHT_REJECTED;
+        C::SdoCompletion terminal;
+        if (!takeTerminal(terminal))
+            return;
+        if ((guarded || terminal.outcome == C::SdoOutcome::CANCELLED) &&
+            homeWithdrawn_ == M::HomeInterruption::NONE) {
+            homeWithdrawn_ = M::HomeInterruption::INVALIDATED;
+            L::noteHomeWithdrawal(home_, homeReservation_, homeTarget_, homeWithdrawn_, now);
+        }
+        if (isControlWrite(terminal.transfer))
+            homeCommandAfterUs_ = terminal.completedUs;
+        L::ReadContext& read = moveReads_[moveRead_];
+        if (!L::advanceHome(home_, read, homeReservation_, homeTarget_, terminal, now))
+            L::advanceHome(home_, read, homeReservation_, homeTarget_,
+                           homeWithdrawn_ == M::HomeInterruption::NONE
+                               ? M::HomeInterruption::INVALIDATED
+                               : homeWithdrawn_,
+                           now);
+        if (read.state == M::ReadState::SUCCEEDED && read.operation == home_.operation &&
+            read.startedUs == home_.observationStartedUs)
+            moveComplete_ = moveRead_;
+        if (!homeActive()) {
+            afterHome();
+            return;
+        }
+    }
+    if (homeWithdrawn_ != M::HomeInterruption::NONE || now >= home_.deadlineUs || !usable()) {
+        endHome(now >= home_.deadlineUs                       ? M::HomeInterruption::DEADLINE
+                : homeWithdrawn_ != M::HomeInterruption::NONE ? homeWithdrawn_
+                                                              : M::HomeInterruption::INVALIDATED,
+                now);
+        return;
+    }
+    L::PreparedHome work;
+    if (!L::nextHome(home_, moveReads_[moveRead_], homeReservation_, homeTarget_, now, work)) {
+        endHome(M::HomeInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.prepareTrigger) {
+        const M::Status prepared = L::beginHomeTrigger(home_, homeReservation_, homeTarget_,
+                                                       *homeAxis_, *homeReference_, now);
+        if (!prepared) {
+            homeRefusal_ = prepared;
+            endHome(M::HomeInterruption::INVALIDATED, now);
+            return;
+        }
+    }
+    if (!syncHome(now))
+        return; // No request admitted while another node-local handoff still owns the old epoch.
+    if (work.prepareTrigger &&
+        !L::nextHome(home_, moveReads_[moveRead_], homeReservation_, homeTarget_, now, work)) {
+        endHome(M::HomeInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.observe) {
+        const uint8_t slot = uint8_t(1u - moveComplete_);
+        if (!L::beginHomeObservation(home_, moveReads_[slot], homeReservation_, homeTarget_, now) ||
+            !L::nextHome(home_, moveReads_[slot], homeReservation_, homeTarget_, now, work)) {
+            endHome(M::HomeInterruption::INVALIDATED, now);
+            return;
+        }
+        moveRead_ = slot;
+    }
+    if (!work.ready)
+        return;
+    if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
+        const M::Status checked =
+            L::validateHomeAdmission(home_, homeReservation_, homeTarget_, *homeAxis_, now);
+        if (!checked) {
+            homeRefusal_ = checked;
+            endHome(M::HomeInterruption::INVALIDATED, now);
+            return;
+        }
+    }
+    const BusAdmission admitted = admitWork(work.transfer, now);
+    if (admitted == BusAdmission::RESULTS_FULL)
+        return;
+    if (admitted != BusAdmission::ACCEPTED) {
+        endHome(M::HomeInterruption::INVALIDATED, now);
+        return;
+    }
+    if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
+        const M::Status noted =
+            L::noteHomeTransmission(home_, homeReservation_, homeTarget_, *homeAxis_,
+                                    *homeReference_, retained_, retainedCount_, now);
+        homeNeedsStop_ |= home_.needsStop;
+        if (isControlWrite(work.transfer) && noted)
+            homeCommandAfterUs_ = now;
+        if (!noted) {
+            homeRefusal_ = noted;
+            withdrawHome(M::HomeInterruption::INVALIDATED, now);
+        }
+    }
+}
 M::Status AxisSession::requestClearAlarm(const L::ReadContext& state, const L::ActionOptions& options,
                                          uint64_t deadline, uint64_t now) noexcept {
     return startClear(state, 0, nullptr, nullptr, options, deadline, now);
@@ -813,8 +1061,8 @@ M::Status AxisSession::startClear(const L::ReadContext& state, int64_t nativePos
         return M::Status(M::Err::INVALID_CONFIG, stateError, "axis is busy");
     if (clearBlocked_)
         return M::Status(M::Err::INVALID_CONFIG, stateError, CLEAR_BLOCKED);
-    if (velocityNeedsStop_ && axis)
-        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier velocity run needs a checked stop");
+    if ((velocityNeedsStop_ || homeNeedsStop_) && axis)
+        return M::Status(M::Err::INVALID_CONFIG, stateError, "an earlier motion operation needs a checked stop");
     if (faultBlocked_ && axis)
         return M::Status(M::Err::INVALID_CONFIG, stateError, FAULT_BLOCKED);
     const uint32_t next = nextOperation();
@@ -975,6 +1223,14 @@ void AxisSession::serviceClear(uint64_t now) noexcept {
 // session's action.
 bool AxisSession::holdForFault(const C::SdoTransfer& transfer, uint64_t now) noexcept {
     const M::ActionOutcome fault = M::ActionOutcome::DRIVE_FAULT;
+    if (homeActive() && transfer.operation == home_.operation) {
+        faultBlocked_ = true;
+        if (homeWithdrawn_ == M::HomeInterruption::NONE) {
+            homeWithdrawn_ = M::HomeInterruption::DRIVE_FAULT;
+            L::noteHomeWithdrawal(home_, homeReservation_, homeTarget_, homeWithdrawn_, now);
+        }
+        return true;
+    }
     if (enableActive() && transfer.operation == enable_.operation) {
         faultBlocked_ = true;
         if (enableWithdrawn_ == M::ActionOutcome::NONE) {
@@ -1031,6 +1287,16 @@ bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
         return enableWithdrawn_ == M::ActionOutcome::NONE;
     if (clearActive() && transfer.operation == clear_.operation)
         return clearWithdrawn_ == M::ActionOutcome::NONE; // Withdrawn while it waited; its cancel lost.
+    if (homeActive() && transfer.operation == home_.operation) {
+        if (homeWithdrawn_ != M::HomeInterruption::NONE)
+            return false;
+        const M::Status checked =
+            L::validateHomeAdmission(home_, homeReservation_, homeTarget_, *homeAxis_, at);
+        if (checked)
+            return true;
+        homeRefusal_ = checked;
+        return false;
+    }
     if (velocityActive() && transfer.operation == velocity_.operation) {
         if (velocityWithdrawn_ != M::VelocityInterruption::NONE)
             return false;
@@ -1059,10 +1325,11 @@ bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
 bool AxisSession::freshlyIdle(const L::ReadContext& state, const StopPolicy& policy,
                               uint64_t now) const noexcept {
     L::StateObservation monitors;
-    return L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, policy.options.maximumAgeUs,
-                            monitors) &&
+    return L::getStateBlock(state, L::StateBlock::MONITORS, target_, now,
+                            policy.options.maximumAgeUs, monitors) &&
            !(monitors.monitor & L::MONITOR_RUNNING) &&
-           (!velocityNeedsStop_ || monitors.window.earliestUs >= velocityCommandAfterUs_);
+           (!velocityNeedsStop_ || monitors.window.earliestUs >= velocityCommandAfterUs_) &&
+           (!homeNeedsStop_ || monitors.window.earliestUs >= homeCommandAfterUs_);
 }
 // Fresh evidence that this drive is idle and outside the stop's states refuses both paths:
 // nothing establishes what 000B does in those states. A running report keeps the stop.
@@ -1072,11 +1339,12 @@ bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& po
     const uint64_t age = policy.options.maximumAgeUs;
     if (!L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, age, monitors) ||
         (monitors.monitor & L::MONITOR_RUNNING) ||
-        (velocityNeedsStop_ && monitors.window.earliestUs < velocityCommandAfterUs_))
+        (velocityNeedsStop_ && monitors.window.earliestUs < velocityCommandAfterUs_) ||
+        (homeNeedsStop_ && monitors.window.earliestUs < homeCommandAfterUs_))
         return false;
     return (monitors.monitor & (L::MONITOR_ALARM | L::MONITOR_RELEASED)) ||
            (L::getStateBlock(state, L::StateBlock::STATUS, target_, now, age, status) &&
-            (status.modeRaw != 1 || (status.statusword & 7u) != 7));
+            ((status.modeRaw != 1 && status.modeRaw != 6) || (status.statusword & 7u) != 7));
 }
 StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                   const StopPolicy& requested, uint64_t now) noexcept {
@@ -1089,11 +1357,13 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                   (moveActive() && moveWithdrawn_ == M::MoveInterruption::NONE) ||
                   (velocityActive() && !requestingVelocityStop_ &&
                    velocityWithdrawn_ == M::VelocityInterruption::NONE) ||
+                  (homeActive() && homeWithdrawn_ == M::HomeInterruption::NONE) ||
                   (clearActive() && clearWithdrawn_ == M::ActionOutcome::NONE))) {
         withdrawEnable(M::ActionOutcome::CANCELLED, at);
         withdrawMove(M::MoveInterruption::STOP, at);
         if (!requestingVelocityStop_)
             withdrawVelocity(M::VelocityInterruption::STOP, at);
+        withdrawHome(M::HomeInterruption::STOP, at);
         withdrawClear(M::ActionOutcome::CANCELLED, at);
         lastUs_ = at;
     }
@@ -1167,6 +1437,9 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     }
     policy_ = policy;
     operation_ = next;
+    if (!homeStopOperation_ && home_.state != M::ActionState::EMPTY &&
+        (homeActive() || homeNeedsStop_ || home_.interruption == M::HomeInterruption::STOP))
+        homeStopOperation_ = next;
     suspended_ = RequestId(); // From here the stop decides the latest word.
     motionWritten_ = true; // Whichever path this takes, a stop frame may reach the drive.
     lastWriteUs_ = now;
@@ -1194,6 +1467,7 @@ void AxisSession::service(uint64_t now) noexcept {
     serviceEnable(now);
     serviceMove(now);
     serviceVelocity(now);
+    serviceHome(now);
     serviceClear(now);
     switch (path_) {
     case StopPath::CONFIRMED:
@@ -1209,6 +1483,9 @@ void AxisSession::service(uint64_t now) noexcept {
         break;
     }
     settleVelocityStop(now);
+    settleHomeStop(now);
+    if (!homeActive())
+        syncHome(now);
     // A counter clear that ended before the owner could follow it, as behind a stop.
     if (!clearActive())
         syncCounter(now);
@@ -1304,6 +1581,9 @@ void AxisSession::afterConfirmedEnd(uint64_t now) noexcept {
     if (a.state == M::ActionState::SUCCEEDED && a.completion == M::ActionCompletion::OBSERVED &&
         a.startedUs >= velocity_.startedUs)
         velocityNeedsStop_ = false;
+    if (a.state == M::ActionState::SUCCEEDED && a.completion == M::ActionCompletion::OBSERVED &&
+        a.startedUs >= homeCommandAfterUs_)
+        homeNeedsStop_ = false;
     if (a.phase != L::ActionPhase::COMMAND || a.execution != M::ActionExecution::NOT_TRANSMITTED ||
         a.effectsPossible)
         return; // A write that may have left is never sent again.
