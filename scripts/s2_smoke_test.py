@@ -70,9 +70,13 @@ class Clock:
 class Board:
     """The smoke image's console as the runner sees it: bytes become readable at clock times."""
 
-    def __init__(self, clock, boot=PASSIVE_BOOT, answer=None, later=()):
+    def __init__(self, clock, boot=PASSIVE_BOOT, answer=None, later=(), boots_on_reset=False):
         self.clock = clock
-        self.queue = bytearray(boot)
+        # A board that already booted keeps its boot lines only if they arrive after a reset.
+        self.pending = bytearray(boot) if boots_on_reset else bytearray()
+        self.queue = bytearray() if boots_on_reset else bytearray(boot)
+        self.signals = []
+        self._rts = False
         self.answer = reply() if answer is None else answer
         self.later = sorted(later)  # (seconds, bytes) that arrive on their own, without a write.
         self.writes = []
@@ -101,6 +105,26 @@ class Board:
 
     def close(self):
         self.closed = True
+
+    @property
+    def rts(self):
+        return self._rts
+
+    @rts.setter
+    def rts(self, value):
+        self.signals.append(("rts", value))
+        if self._rts and not value:  # EN released: the chip boots and prints its boot lines.
+            self.queue.extend(self.pending)
+            del self.pending[:]
+        self._rts = value
+
+    @property
+    def dtr(self):
+        return False
+
+    @dtr.setter
+    def dtr(self, value):
+        self.signals.append(("dtr", value))
 
 
 class Item:
@@ -558,8 +582,28 @@ class SmokeTest(unittest.TestCase):
         source = Path(smoke.__file__).read_text(encoding="utf-8")
         self.assertEqual(source.count(".send("), 1)
         self.assertEqual(source.count(".write("), 0)
-        self.assertNotIn("dtr = True", source)
-        self.assertNotIn("rts = True", source)
+        self.assertNotIn("dtr = True", source)  # IO0 is never pulled low: no download mode.
+        self.assertEqual(source.count("rts = True"), 1)  # Only the one requested EN pulse.
+
+    def test_reset_en_pulses_once_and_catches_the_boot_lines(self):
+        # 2026-11-07: the user asked for the reset through the ESP-Prog-2 instead of the EN button.
+        write_record(self.artifact)
+        board = self.board(boots_on_reset=True)
+        code, _ = self.run_main(Backend(board), "--reset-en")
+        self.assertEqual(code, 0)
+        self.assertEqual(board.signals, [("rts", True), ("dtr", False), ("rts", False), ("dtr", False)])
+        self.assertEqual(board.writes, [smoke.TRIGGER])
+        meta = json.loads((self.output / "request.json").read_text(encoding="utf-8"))
+        self.assertEqual(meta["reset"], "en_pulse")
+        self.assertEqual(meta["en_pulse"]["via"], "RTS, DTR deasserted")
+
+    def test_without_reset_en_a_booted_board_is_missed_and_no_line_moves(self):
+        write_record(self.artifact)
+        board = self.board(boots_on_reset=True)
+        code, output = self.run_main(Backend(board))
+        self.assertEqual(code, 2)
+        self.assertEqual((board.signals, board.writes), ([], []))
+        self.assertIn("--reset-en", output)
 
 
 class Formats(unittest.TestCase):

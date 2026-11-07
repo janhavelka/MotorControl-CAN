@@ -276,10 +276,13 @@ bench image's `S2_BENCH ready`, a fixture or failure banner, or a `SMOKE` line,
 including a ready line before the passive line). The same holds for a missing,
 malformed or `identity=unconfigured` ready line, a ready line naming another ELF,
 IDF version or project, and any byte during the quiet interval. The image prints
-both lines once per boot. Whether the lines printed after the upload's reset reach
-a port opened later is not established; when they are missed the run records
-`passive_state_missed`. Then start a new run and reset the board by hand (EN button
-or power) while it waits. Offline tests (`s2_flash_test.py`, `s2_smoke_test.py`)
+both lines once per boot. A ping after an upload captured no boot banner
+(2026-11-06), so lines printed after the upload's reset do not reach a port opened
+later; such a run records `passive_state_missed`. `--reset-en` resets the board once
+after the port is open: RTS asserted pulls EN low for 0.1 s while DTR stays deasserted,
+so IO0 stays high and the chip boots its application, the hard reset esptool performs
+after an upload. Without it the runner never moves DTR or RTS, and the board must be
+reset by hand (EN button or power) while it waits. Offline tests (`s2_flash_test.py`, `s2_smoke_test.py`)
 use fakes only; they are not a smoke result.
 
 ## Arduino S2: blocked by the pinned package

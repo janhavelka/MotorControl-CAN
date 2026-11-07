@@ -21,8 +21,10 @@ identity read on each configured node, print each result and end with "SMOKE don
    first line (the bench image's S2_BENCH ready, a fixture or failure banner, a SMOKE line), a
    missing, malformed or unconfigured ready line, an identity mismatch or more output. The lines
    are printed once per boot: when the board booted before the port opened (as after an upload)
-   the run records passive_state_missed. Start a new run and reset the board by hand (EN button
-   or power) while it waits; DTR/RTS never reset it;
+   the run records passive_state_missed. Start a new run and reset the board while it waits: by
+   hand (EN button or power), or with --reset-en, one EN pulse through the ESP-Prog-2's RTS line
+   after the port is open, with DTR held deasserted so the chip boots its application (the hard
+   reset esptool performs after an upload). Without --reset-en, DTR/RTS never reset it;
 4. sends exactly one byte G, once, and captures until a terminal SMOKE line (done, refused, a
    failed start or a stopped node) or --seconds, then TAIL_S more;
 5. writes rx.bin (authoritative raw bytes), rx.txt and request.json to a new --output directory,
@@ -30,7 +32,8 @@ identity read on each configured node, print each result and end with "SMOKE don
    running=1 transceiver=normal-requested, identity=ok on each configured node and "ignored=0",
    and reports each node's line or failure.
 
-No second G, no other byte, no reset, no retry. Ctrl-C ends the capture and sends nothing.
+No second G, no other byte, no retry, and at most the one requested EN pulse. Ctrl-C ends the
+capture and sends nothing.
 --dry-run reads the record and prints the plan; it enumerates, opens and creates nothing. Exit
 status: 0 every check passed; 1 G was sent (or its write did not complete) and a check failed or
 the capture ended early; 2 nothing was sent.
@@ -243,6 +246,24 @@ def ready_reason(line, expected, meta):
     return "identity_mismatch" if meta["ready_problems"] else None
 
 
+EN_LOW_S = 0.1  # As esptool's hard reset holds EN low; the S2 needs far less.
+
+
+def pulse_en(port, clock, meta):
+    """One EN reset through the ESP-Prog-2: RTS asserted pulls EN low while DTR stays deasserted,
+    so IO0 stays high and the chip boots its application. DTR is rewritten after each RTS change,
+    as esptool does, so that Windows' usbser.sys sends the new line state. Never retried."""
+    import time
+    started = clock.monotonic()
+    port.rts = True
+    port.dtr = False
+    time.sleep(EN_LOW_S)
+    port.rts = False
+    port.dtr = False
+    meta["en_pulse"] = {"via": "RTS, DTR deasserted", "low_s": EN_LOW_S,
+                        "released_s": clock.monotonic() - started}
+
+
 def smoke(args, capture, clock, meta, expected):
     """Passive line, ready line naming the recorded image, quiet, one G, capture to a terminal
     line. Sends at most the one byte, and only after every check before it passed."""
@@ -350,6 +371,8 @@ def arguments(argv):
     for name, (default, low, high) in SECONDS.items():
         parser.add_argument("--%sseconds" % ("boot-" if name == "boot" else ""), type=float, default=default,
                             help="%s..%s (default %s)" % (low, high, default))
+    parser.add_argument("--reset-en", action="store_true",
+                        help="After opening, reset the board once through RTS (EN), DTR deasserted, then wait")
     parser.add_argument("--dry-run", action="store_true", help="Read the record and print the plan; touches nothing")
     args = parser.parse_args(argv)
     for name, value in (("boot", args.boot_seconds), ("smoke", args.seconds)):
@@ -385,13 +408,16 @@ def main(argv=None, backend=None, clock=None):
     meta = {"tool": "s2_smoke", "started_utc": clock.utc(), "port": args.port, "serial": args.serial, "usb": usb,
             "baud": BAUD, "artifact": str(args.artifact), "expected": expected, "boot_seconds": args.boot_seconds,
             "seconds": args.seconds, "settle_seconds": SETTLE_S, "tail_seconds": TAIL_S,
-            "dtr_rts": "deasserted before open", "reset": False, "retry": False, "sent": [], "times": {}}
+            "dtr_rts": "deasserted before open", "reset": "en_pulse" if args.reset_en else False,
+            "retry": False, "sent": [], "times": {}}
     meta.update(repository_state())
     capture = None
     try:
         port = backend.open(args.port)
         try:
             capture = Capture(port, clock)
+            if args.reset_en:
+                pulse_en(port, clock, meta)
             smoke(args, capture, clock, meta, expected)
         finally:
             port.close()
@@ -426,8 +452,8 @@ def main(argv=None, backend=None, clock=None):
         print("problem: %s" % problem)
     print("verdict: %s" % result["verdict"])
     if meta.get("reason") == "passive_state_missed":
-        print("The passive and ready lines are printed once per boot. Run again with a new --output and reset "
-              "the board by hand (EN button or power) while it waits.")
+        print("The passive and ready lines are printed once per boot. Run again with a new --output and "
+              "--reset-en, or reset the board by hand (EN button or power) while it waits.")
     return 0 if result["verdict"] == "passed" else 2 if result["verdict"] == "not_sent" else 1
 
 
