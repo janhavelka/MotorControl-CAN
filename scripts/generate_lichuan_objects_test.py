@@ -30,7 +30,7 @@ def fixture_entry(index=0x1009, subindex=0):
         "scaling": "unknown", "pdo_mapping_eds": "0", "pdo_mapping_reviewed": False,
         "effect": "unknown", "prerequisites": ["unbound fixture"], "edge_behavior": "unknown",
         "source_refs": [{"id": "EDS", "section": "1009", "line_start": 1, "line_end": 3}],
-        "owner_prompt": 19, "read_owner_prompt": 38,
+        "owner_prompt": 19, "read_owner_prompt": 40,
         "disposition": "supported_evidence", "exclusion_reason": None,
         "conflict_ids": [], "review": {"status": "complete", "generation_type": "resolved",
             "read_effect": "not_established", "write_policy": "not_writable",
@@ -315,12 +315,12 @@ class ProjectionTests(unittest.TestCase):
         entry["review"]["write_policy"] = "allowed"
         self.reject(entry, "unqualified write policy")
 
-    def test_read_descriptor_capacity_rejects_a_103rd_row(self):
+    def test_read_descriptor_capacity_rejects_a_192nd_row(self):
         # Exercise the independent renderer bound; projection rejects duplicate addresses earlier.
         row = fixture_entry(0x2500)
         row.update(owner_prompt=22, read_owner_prompt=22)
-        with self.assertRaisesRegex(ValueError, "capacity exceeds 102"):
-            read_descriptor_function([row] * 103)
+        with self.assertRaisesRegex(ValueError, "capacity exceeds 191"):
+            read_descriptor_function([row] * 192)
 
 
 class GenerationTests(unittest.TestCase):
@@ -473,8 +473,18 @@ class GenerationTests(unittest.TestCase):
                 address, width, representation = line.split()
                 index, sub = address.split(":")
                 expected[(int(index, 16), int(sub, 16))] = (int(width), representation)
-        self.assertEqual(len(expected), 102)
-        self.assertEqual(len(actual), 102)
+        # Original EDS PDO record shapes, independently of the generated declarations.
+        for base in (0x1400, 0x1800):
+            for record in range(base, base + 4):
+                for sub, width in enumerate((1, 4, 1, 2, 1, 2)):
+                    expected[(record, sub)] = (width, "UNSIGNED")
+        for base in (0x1600, 0x1A00):
+            for record in range(base, base + 4):
+                for sub, width in enumerate((1, 4, 4, 4, 4)):
+                    expected[(record, sub)] = (width, "UNSIGNED")
+        expected[(0x2203, 0)] = (2, "UNSIGNED")
+        self.assertEqual(len(expected), 191)
+        self.assertEqual(len(actual), 191)
         self.assertEqual({(int(index, 16), int(sub, 16)): (int(width), sign)
                           for index, sub, width, sign, _ in actual}, expected)
         # DEC-1, transcribed from the repair audit. Every other row in this table stays unqualified.
@@ -484,7 +494,7 @@ class GenerationTests(unittest.TestCase):
         self.assertEqual({(int(index, 16), int(sub, 16)) for index, sub, _, _, effect in actual
                           if effect == "ACCEPTED_UNQUALIFIED"}, accepted)
         self.assertNotIn("REVIEWED_NON_CHANGING", header)
-        self.assertIn("i < 102", header)
+        self.assertIn("i < 191", header)
         self.assertNotIn("Catalogue.h", header)
         self.assertNotIn("OBJECT_6061_00", header)
 
@@ -498,8 +508,9 @@ class GenerationTests(unittest.TestCase):
             row["read_coverage"] = dict(documented=True, implemented=True,
                                         host_tested=True, hardware_qualified=False)
         document = coverage_document(data, projected_rows(data["objects"]))
-        self.assertIn("| Read shape descriptors | 102 |", document)
-        self.assertIn("| Typed settings | 13 |", document)
+        self.assertIn("| Read shape descriptors | 191 |", document)
+        self.assertIn("| Typed settings | 14 |", document)
+        self.assertIn("| Workflows | 1 | Explicit typed heartbeat scope only", document)
         self.assertIn("position_parameters_86c", document)
         self.assertIn("explicit_di_configuration_86c", document)
         self.assertIn("explicit_loop_mode_86c", document)

@@ -22,13 +22,34 @@ const Address identity[] = {{0x1000, 0}, {0x1009, 0}, {0x100a, 0}, {0x1018, 0}, 
                             {0x1018, 2}, {0x1018, 3}, {0x2000, 0}, {0x2001, 0}};
 const Address configuration[] = {{0x1005, 0}, {0x1014, 0}, {0x1017, 0},
                                  {0x1200, 0}, {0x1200, 1}, {0x1200, 2}};
+const Address nodeSetting[] = {{0x2203, 0}};
 const Address state[] = {{0x1001, 0}, {0x603f, 0}, {0x1003, 0}, {0x1003, 1}, {0x1003, 2},
                          {0x1003, 3}, {0x1003, 4}, {0x2100, 0}, {0x2101, 0}, {0x2102, 0},
                          {0x6041, 0}, {0x6061, 0}, {0x6064, 0}, {0x606c, 0}, {0x60fd, 0}};
 const uint8_t starts[STATE_BLOCKS] = {0, 2, 7, 10, 12, 14};
 const uint8_t lengths[STATE_BLOCKS] = {2, 5, 3, 2, 2, 1};
 // The fixed address list of every kind but STATE, whose blocks are selected by mask.
-const Address* fixedPlan(ReadKind kind, unsigned& count) {
+bool pdoKind(ReadKind kind) {
+    return kind == ReadKind::RPDO_COMMUNICATION || kind == ReadKind::TPDO_COMMUNICATION ||
+           kind == ReadKind::RPDO_MAPPING || kind == ReadKind::TPDO_MAPPING;
+}
+const Address* fixedPlan(ReadKind kind, const ReadOptions& options, Address* scratch,
+                         unsigned& count) {
+    if (pdoKind(kind)) {
+        if (!options.pdoNumber || options.pdoNumber > 4) {
+            count = 0;
+            return nullptr;
+        }
+        const bool communication = kind == ReadKind::RPDO_COMMUNICATION ||
+                                   kind == ReadKind::TPDO_COMMUNICATION;
+        const uint16_t base = kind == ReadKind::RPDO_COMMUNICATION ? 0x1400
+                              : kind == ReadKind::TPDO_COMMUNICATION ? 0x1800
+                              : kind == ReadKind::RPDO_MAPPING ? 0x1600 : 0x1a00;
+        count = communication ? 6 : 5;
+        for (unsigned i = 0; i < count; ++i)
+            scratch[i] = Address{uint16_t(base + options.pdoNumber - 1), uint8_t(i)};
+        return scratch;
+    }
     if (const GroupPlan* plan = groupPlan(kind)) {
         count = plan->count;
         return plan->fields;
@@ -43,6 +64,9 @@ const Address* fixedPlan(ReadKind kind, unsigned& count) {
     case ReadKind::PROBE:
         count = 1;
         return identity;
+    case ReadKind::COMMUNICATION_NODE:
+        count = 1;
+        return nodeSetting;
     default:
         count = 0;
         return nullptr;
@@ -50,7 +74,8 @@ const Address* fixedPlan(ReadKind kind, unsigned& count) {
 }
 
 // Visits the selected plan in slot order without touching any context.
-template <class Visit> bool visitPlan(ReadKind kind, uint8_t mask, Visit visit) {
+template <class Visit>
+bool visitPlan(ReadKind kind, uint8_t mask, const ReadOptions& options, Visit visit) {
     if (kind == ReadKind::STATE) {
         if (!mask || (mask & 0xc0u))
             return false;
@@ -68,7 +93,8 @@ template <class Visit> bool visitPlan(ReadKind kind, uint8_t mask, Visit visit) 
         return true;
     }
     unsigned count;
-    const Address* fields = fixedPlan(kind, count);
+    Address scratch[6];
+    const Address* fields = fixedPlan(kind, options, scratch, count);
     if (!fields)
         return false;
     for (unsigned i = 0; i < count; ++i) {
@@ -106,7 +132,8 @@ struct RouteFields {
 };
 // Each width option is a known enumerator, and a measured width only on the kind it concerns.
 bool widthsFit(ReadKind kind, const ReadOptions& o) {
-    return o.identityWidths <= IdentityWidths::MEASURED_U8 &&
+    return (pdoKind(kind) ? o.pdoNumber >= 1 && o.pdoNumber <= 4 : o.pdoNumber == 0) &&
+           o.identityWidths <= IdentityWidths::MEASURED_U8 &&
            (o.identityWidths == IdentityWidths::DECLARED_U16 || kind == ReadKind::IDENTITY) &&
            o.countWidths <= CountWidths::MEASURED_U16 &&
            (o.countWidths == CountWidths::DECLARED_U8 || kind == ReadKind::DRIVER_SOFT_LIMITS ||
@@ -122,6 +149,7 @@ bool shape(const ReadContext& c) {
     unsigned cursor = 0;
     for (unsigned b = 0; b < (c.kind == ReadKind::STATE ? STATE_BLOCKS : 1); ++b) {
         const Address* addresses = nullptr;
+        Address scratch[6];
         unsigned count = 0;
         if (c.kind == ReadKind::STATE) {
             if (!c.blockMask || (c.blockMask & 0xc0u))
@@ -136,7 +164,7 @@ bool shape(const ReadContext& c) {
             addresses = state + starts[b];
             count = lengths[b];
         } else {
-            addresses = fixedPlan(c.kind, count);
+            addresses = fixedPlan(c.kind, c.options, scratch, count);
             if (!addresses)
                 return false;
         }
@@ -185,6 +213,7 @@ CANOPEN::SdoTransfer work(const ReadContext& c) {
     out.readEffect = object.readEffect == ReadEffect::ACCEPTED_UNQUALIFIED
                          ? CANOPEN::SdoReadEffect::ACCEPTED_UNQUALIFIED
                          : CANOPEN::SdoReadEffect::UNQUALIFIED;
+    out.requireUploadReview = pdoKind(c.kind) || c.kind == ReadKind::COMMUNICATION_NODE;
     out.deadlineUs = c.deadlineUs;
     out.queueTimeoutUs = c.options.queueTimeoutUs;
     out.responseTimeoutUs = c.options.responseTimeoutUs;
@@ -227,7 +256,7 @@ Status validateInputs(const ReadTarget& target, uint32_t operation, uint64_t now
     if (!operation || deadline <= now || !options.queueTimeoutUs || !options.responseTimeoutUs ||
         !widthsFit(kind, options))
         return invalid(ReadError::ARGUMENT, "invalid read identity or budgets");
-    if (!visitPlan(kind, mask, PlanNoop()))
+    if (!visitPlan(kind, mask, options, PlanNoop()))
         return invalid(ReadError::ARGUMENT, "invalid read selection");
     if (kind == ReadKind::PROBE) {
         ReadDescriptor object;
@@ -248,7 +277,7 @@ Status validateInputs(const ReadTarget& target, uint32_t operation, uint64_t now
         rebuilt.layout = checked;
         if (!CANOPEN::samePdoRoute(rebuilt, *route))
             return invalid(ReadError::TARGET, "TPDO field facts differ from reviewed profile");
-        if (!visitPlan(kind, mask, RouteFields{checked}))
+        if (!visitPlan(kind, mask, options, RouteFields{checked}))
             return invalid(ReadError::ARGUMENT, "selected state fields are absent from TPDO");
     }
     return Ok();
@@ -273,7 +302,7 @@ Status prepare(ReadContext& output, const ReadTarget& target, uint32_t operation
     output.deadlineUs = deadline;
     output.options = options;
     output.blockMask = mask;
-    visitPlan(kind, mask, PlanWriter{output});
+    visitPlan(kind, mask, options, PlanWriter{output});
     for (unsigned i = 0; i < output.count; ++i) {
         ReadDescriptor& object = output.values[i].object;
         if (const uint8_t width = measuredWidth(kind, object.index, object.subindex, options))

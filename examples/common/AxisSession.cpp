@@ -13,6 +13,24 @@ using MotorControlCANOwner::SequenceId;
 namespace M = MotorControlCAN;
 namespace C = MotorControlCAN::CANOPEN;
 namespace L = MotorControlCAN::LICHUAN_C;
+bool sameDownload(const C::SdoTransfer& a, const C::SdoTransfer& b) noexcept {
+    if (a.direction != C::SdoDirection::DOWNLOAD || b.direction != a.direction ||
+        !a.size || a.size > sizeof a.data || a.size != b.size ||
+        !M::sameBinding(a.channel.binding, b.channel.binding) ||
+        a.channel.clientToServerId != b.channel.clientToServerId ||
+        a.channel.serverToClientId != b.channel.serverToClientId ||
+        a.operation != b.operation || a.request != b.request || a.step != b.step ||
+        a.index != b.index || a.subindex != b.subindex || a.uploadSize != b.uploadSize ||
+        a.readEffect != b.readEffect || a.allowSegmentedUpload != b.allowSegmentedUpload ||
+        a.requirePreOperational != b.requirePreOperational ||
+        a.requireUploadReview != b.requireUploadReview || a.deadlineUs != b.deadlineUs ||
+        a.queueTimeoutUs != b.queueTimeoutUs || a.responseTimeoutUs != b.responseTimeoutUs)
+        return false;
+    for (unsigned i = 0; i < a.size; ++i)
+        if (a.data[i] != b.data[i])
+            return false;
+    return true;
+}
 namespace {
 bool isControlWrite(const C::SdoTransfer& t) {
     return t.direction == C::SdoDirection::DOWNLOAD && t.index == 0x6040 && !t.subindex && t.size == 2;
@@ -184,6 +202,7 @@ BusAdmission AxisSession::admitWork(const C::SdoTransfer& transfer, uint64_t now
     const BusAdmission admission = owner_.admit(work, now, id);
     if (admission == BusAdmission::ACCEPTED) {
         pending_ = id;
+        pendingWork_ = transfer;
         lastUs_ = now;
         if (transfer.direction == C::SdoDirection::DOWNLOAD) {
             lastWriteUs_ = now;
@@ -1274,6 +1293,12 @@ bool AxisSession::holdForFault(const C::SdoTransfer& transfer, uint64_t now) noe
     }
     return false;
 }
+bool AxisSession::ownsDownload(SequenceId sequence, const C::SdoTransfer& transfer) const noexcept {
+    return open_ && sameSequence(sequence, sequence_) &&
+           transfer.direction == C::SdoDirection::DOWNLOAD &&
+           ((pending_.owner && sameDownload(pendingWork_, transfer)) ||
+            (urgent_.owner && sameDownload(urgentWork_, transfer)));
+}
 bool AxisSession::preflight(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now,
                             bool driveFault) noexcept {
     if (!sameSequence(sequence, sequence_) || transfer.direction != C::SdoDirection::DOWNLOAD)
@@ -1567,6 +1592,7 @@ void AxisSession::serviceConfirmed(uint64_t now) noexcept {
         return;
     }
     urgent_ = id;
+    urgentWork_ = work.transfer;
     if (a.phase == L::ActionPhase::COMMAND) {
         // Nothing can leave before the next owner turn, so the boundary is noted here, and the
         // terminal refines this notice.
@@ -1654,6 +1680,7 @@ void AxisSession::serviceHeld(uint64_t now) noexcept {
     const BusAdmission admission = owner_.admitBestEffortStop(work.transfer, now, id);
     if (admission == BusAdmission::ACCEPTED) {
         urgent_ = id;
+        urgentWork_ = work.transfer;
         dropControl();
         L::noteBestEffortAdmission(bestEffort_, now);
         path_ = StopPath::BEST_EFFORT;

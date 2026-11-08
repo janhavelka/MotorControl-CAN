@@ -243,6 +243,14 @@ void RawEvidence::finish(RawEvidenceFailure why, uint64_t now) noexcept {
     record_.finalResources = owner_.resources();
     services_.clearUploadExperiment(record_.plan.slot);
 }
+bool RawEvidence::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
+                            uint64_t now) const noexcept {
+    return occupied_ && !record_.terminal && !record_.evidenceLost && pendingValid_ &&
+           now >= lastUs_ && now < record_.plan.review.plan.deadlineUs && current() &&
+           sequence.owner == sequence_.owner && sequence.slot == sequence_.slot &&
+           sequence.generation == sequence_.generation &&
+           sameDownload(expected_, transfer);
+}
 bool RawEvidence::service(uint64_t now) noexcept {
     if (now < lastUs_ || now < owner_.lastTimeUs())
         return false;

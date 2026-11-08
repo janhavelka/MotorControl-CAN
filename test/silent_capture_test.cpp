@@ -193,6 +193,19 @@ struct Rig {
     unsigned samples = 0;
     O::SequenceId sequence[2];
     uint32_t operation = 0;
+    O::BusRequest occupyingDownload;
+    bool downloadArmed = false;
+    static bool authorizeDownload(void* context, O::SequenceId sequence,
+                                  const C::SdoTransfer& transfer, uint64_t) {
+        Rig& r = *static_cast<Rig*>(context);
+        const O::SequenceId expected = r.occupyingDownload.sequence;
+        if (!r.downloadArmed || sequence.owner != expected.owner || sequence.slot != expected.slot ||
+            sequence.generation != expected.generation ||
+            !E::sameDownload(transfer, r.occupyingDownload.transfer))
+            return false;
+        r.downloadArmed = false; // This exact synthetic occupying command, once only.
+        return true;
+    }
     static void sample(void* context, E::CaptureSample& output) {
         Rig& r = *static_cast<Rig*>(context);
         ++r.samples;
@@ -219,6 +232,10 @@ struct Rig {
           capture(firmware, services, tap, transceiver(pin), sampling(this), REVISION, IMAGE) {
         driver.console = &console;
         pin.tap = &tap;
+        E::DownloadPreflight preflight;
+        preflight.context = this;
+        preflight.check = authorizeDownload;
+        firmware.setPreflight(preflight);
         E::FirmwareConfig config;
         config.configured = true;
         config.controller.txPin = 17;
@@ -294,6 +311,12 @@ struct Rig {
         request.transfer = transfer(node, write, index);
         O::RequestId id;
         CHECK(owner.admit(request, console.now, id) == O::BusAdmission::ACCEPTED);
+        if (write) {
+            // Capture tests deliberately occupy the ordinary download/retirement path.
+            // Authorize only that exact admitted work, never arbitrary firmware downloads.
+            occupyingDownload = request;
+            downloadArmed = true;
+        }
         return id;
     }
     C::NmtRequestId nmt(unsigned node, uint32_t request) {
@@ -648,6 +671,8 @@ void refusedUrgentWork() {
     request.transfer = c.r->transfer(1, true, 0x6040);
     O::RequestId id;
     CHECK(owner.admitUrgent(request, c.r->console.now, id) == O::BusAdmission::ACCEPTED);
+    c.r->occupyingDownload = request;
+    c.r->downloadArmed = true; // Exercise rejection by the closed capture tap, after authorization.
     c.r->turns(4);
     provedUnsent(owner.result(id));
     c.nothingSent(1);

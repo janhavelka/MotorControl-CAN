@@ -1,5 +1,7 @@
 # Executable backlog
 
+Prompt38 delivers the 89 read rows, C-09 firmware guard and the reviewed heartbeat workflow. Its remaining node/SYNC/EMCY/SDO-route mutation needs exact-firmware activation/reply-route evidence under Q16; per-row restart/persistence remain unknown. Keep this work assigned to 38, independently of prompt18 remapping and prompt39 save/reset. See [commissioning](commissioning.md#explicit-communication-commissioning).
+
 Prompt37's [finite discovery software](commissioning.md) is implemented: installed
 inventory, exact host selection and two-slot explicit probe/identity/passive scans.
 G-06's slot/timeout design is recorded. No arbitrary-node slot recycling or real

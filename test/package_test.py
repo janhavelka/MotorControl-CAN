@@ -18,7 +18,7 @@ import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HEADERS = {"MotorControlCAN/Discovery.h", "MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
+HEADERS = {"MotorControlCAN/profiles/lichuan_c/Communication.h", "MotorControlCAN/Discovery.h", "MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/VelocityOperation.h", "MotorControlCAN/HomeOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
            "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN/profiles/lichuan_c/Velocity.h", "MotorControlCAN/profiles/lichuan_c/Homing.h",
            "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
@@ -94,6 +94,7 @@ def check_package(args, work, summary):
     run(sys.executable, str(ROOT / "scripts/export_package.py"), str(archive))
     source = work / "exported source"
     expected = {"include/" + h for h in HEADERS} | {
+        "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
         "src/profiles/lichuan_c/PdoConfiguration.cpp",
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",

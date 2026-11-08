@@ -10,6 +10,12 @@
 #include <MotorControlCAN/profiles/lichuan_c/Velocity.h>
 
 namespace MotorControlCANExample {
+/** Compare complete download identity, route, policy and bytes without I/O.
+ * @param a First copied work. @param b Second copied work.
+ * @return False for uploads, invalid payload bounds or any differing field.
+ */
+bool sameDownload(const MotorControlCAN::CANOPEN::SdoTransfer& a,
+                  const MotorControlCAN::CANOPEN::SdoTransfer& b) noexcept;
 /** Where a requested stop stands. Never a claim about the drive. */
 enum class StopPath : uint8_t {
     NONE,        ///< No stop requested, or the request was refused with nothing changed.
@@ -129,6 +135,12 @@ class AxisSession {
     const MotorControlCAN::Binding& binding() const noexcept { return target_.channel.binding; }
     /** @return The reservation this session uses; meaningful only while open. */
     MotorControlCANOwner::SequenceId sequence() const noexcept { return sequence_; }
+    /** Exact pending download owned by this open session; no authorization of other work.
+     * @param sequence Owner reservation identity. @param transfer Complete copied work.
+     * @return True only for the current ordinary or urgent admission, without I/O.
+     */
+    bool ownsDownload(MotorControlCANOwner::SequenceId sequence,
+                      const MotorControlCAN::CANOPEN::SdoTransfer& transfer) const noexcept;
     /** @return True when a stop is in progress. */
     bool stopActive() const noexcept {
         return path_ != StopPath::NONE && path_ != StopPath::FINISHED;
@@ -621,6 +633,7 @@ class AxisSession {
     MotorControlCAN::LICHUAN_C::AxisReservation reservation_;
     MotorControlCANOwner::SequenceId sequence_;
     MotorControlCANOwner::RequestId pending_, urgent_, superseded_;
+    MotorControlCAN::CANOPEN::SdoTransfer pendingWork_, urgentWork_;
     // The admitted download that withdrew a present control_; if it closes provably unsent, control_
     // is the latest again. Cleared by any other change of the latest word.
     MotorControlCANOwner::RequestId suspended_;

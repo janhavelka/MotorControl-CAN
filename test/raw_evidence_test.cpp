@@ -47,6 +47,8 @@ L::ReadTarget target() {
     return t;
 }
 struct Wire {
+    E::RawEvidence* collector = nullptr;
+    unsigned guardCalls = 0;
     enum class Mode { SUCCESS, SILENT, WRONG_OBJECT, BOOTUP, SERVER_ABORT, OVERSIZED, MALFORMED };
     Mode mode = Mode::SUCCESS;
     uint64_t now = 0;
@@ -198,6 +200,20 @@ struct Wire {
         t.receive = receive;
         t.transmit = transmit;
         t.takeTxReport = report;
+        t.beforeTransmit = [](void* context, O::SequenceId sequence,
+                              const C::SdoTransfer& transfer, uint64_t now) {
+            Wire& w = *static_cast<Wire*>(context);
+            ++w.guardCalls;
+            CHECK(w.collector);
+            C::SdoTransfer other = transfer;
+            other.data[0] ^= 1;
+            CHECK(!w.collector->preflight(sequence, other, now));
+            O::SequenceId unrelated = sequence;
+            ++unrelated.generation;
+            CHECK(!w.collector->preflight(unrelated, transfer, now));
+            CHECK(!w.collector->preflight(sequence, transfer, transfer.deadlineUs));
+            return w.collector->preflight(sequence, transfer, now);
+        };
         t.retire = [](void* ptr, O::TransportTxId, uint32_t) {
             Wire& w = *static_cast<Wire*>(ptr);
             ++w.retireCalls;
@@ -217,6 +233,7 @@ struct Rig {
     uint64_t now = 0;
     explicit Rig(M::Generation configuration = 1, M::Generation nodeGeneration = 1)
         : owner(services, wire.callbacks(), 42), collector(owner, services) {
+        wire.collector = &collector;
         L::ReadTarget t = target();
         t.channel.binding.configurationGeneration = configuration;
         t.nodeGeneration = nodeGeneration;
@@ -689,7 +706,10 @@ void networkAndHeartbeat() {
               (initial ? E::RawEvidenceFailure::READBACK : E::RawEvidenceFailure::NONE));
         CHECK(r.wire.transmitted == (initial ? 1u : 3u));
         if (!initial) {
+            CHECK(r.wire.guardCalls == 1);
             CHECK(record.terminals[1].service.transfer.direction == C::SdoDirection::DOWNLOAD);
+            CHECK(!r.collector.preflight(record.terminals[1].sequence,
+                                        record.terminals[1].service.transfer, r.now));
             CHECK(record.terminals[2].service.size == 2 && r.wire.heartbeatMs == 1000);
             // Only this experiment republishes producer timing, from its exact readback.
             CHECK(r.services.node(0)->producerKnown && r.services.node(0)->producerTimeMs == 1000);

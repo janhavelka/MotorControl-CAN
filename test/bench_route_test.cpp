@@ -375,6 +375,7 @@ struct Rig {
     E::AxisSession one, two;
     E::BenchRoute route;
     E::RouteWork routeWork;
+    const C::SdoTransfer* externalWord = nullptr; // Explicit additional test producer, scoped below.
     unsigned samples = 0;
     static void sample(void* context, E::RouteResources& output) {
         Rig& r = *static_cast<Rig*>(context);
@@ -394,6 +395,20 @@ struct Rig {
     Rig()
         : firmware(services, driver.callbacks(), console.callbacks()), one(firmware.owner()),
           two(firmware.owner()), route(firmware, services, hooks(this)) {
+        E::DownloadPreflight check;
+        check.context = this;
+        check.check = [](void* context, O::SequenceId sequence, const C::SdoTransfer& transfer,
+                         uint64_t now) {
+            Rig& r = *static_cast<Rig*>(context);
+            if (r.externalWord && E::sameDownload(*r.externalWord, transfer) &&
+                r.one.ownsDownload(sequence, transfer))
+                return true;
+            C::SdoTransfer other = transfer;
+            other.data[0] ^= 1;
+            CHECK(!r.route.preflight(sequence, other, now));
+            return r.route.preflight(sequence, transfer, now);
+        };
+        firmware.setPreflight(check);
         driver.console = &console;
         E::FirmwareConfig config;
         config.configured = true;
@@ -1865,6 +1880,9 @@ void ownWord(Rig& r, uint16_t word) {
     t.queueTimeoutUs = E::ROUTE_QUEUE_US;
     t.responseTimeoutUs = E::ROUTE_RESPONSE_US;
     CHECK(s.admitPrepared(t, now) == O::BusAdmission::ACCEPTED);
+    // The route cannot authorize a different writer even on its attached session.
+    CHECK(!r.route.preflight(s.sequence(), t, now));
+    r.externalWord = &t;
     C::SdoCompletion done;
     bool settled = false;
     for (unsigned i = 0; i < 1000 && !settled; ++i) {
@@ -1874,6 +1892,7 @@ void ownWord(Rig& r, uint16_t word) {
         settled = s.settle(done);
     }
     CHECK(settled && done.outcome == C::SdoOutcome::SUCCESS);
+    r.externalWord = nullptr;
 }
 // The predecessor the check step judged is judged again when the first write is offered.
 void testPredecessorAtAdmission() {

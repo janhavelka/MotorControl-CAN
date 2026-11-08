@@ -102,7 +102,8 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 35 | Finite velocity | Conditional lifecycle and owner stop implemented; original stage Partial until Q03/Q11/Q12 firmware facts. Fixed preparation-time duration, exact signed rpm and retained uncertainty; [report](reports/prompt_35.md) |
 | 36 | Homing | Partial: conditional methods 17/18/24/29, explicit mode6 enable/interrupt, six typed reads and checked reference publication. Firmware, switch, direction, offset and completion facts still need the [listed measurements](homing.md). |
 | 37 | Explicit discovery and binding | Complete: one implemented-profile inventory, checked probe, finite configured-target scans, passive observations and exact cached host selection. [Slot/timeout limits](commissioning.md); Q01/Q18/Q20 and physical evidence stay separate. |
-| 38-39 | Communication changes, save/reset | Pending; no hidden persistence; retain uncertain route/partial effects |
+| 38 | Communication commissioning | 89 typed reads and conditional heartbeat workflow implemented; remaining node/route changes need Q16 firmware evidence. [Report](reports/prompt_38.md); no implicit persistence or guessed-route retry. |
+| 39 | Save/reset | Pending; no hidden persistence; retain uncertain effects |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |
 | 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |
 | 45-46 | Integrated faults and FieldCore-like/alternate-drive consumers | Pending; test real resumed settings/remap through owner and preserve framework independence |

@@ -30,7 +30,8 @@ inline bool sameSdoWork(const SdoTransfer& a, const SdoTransfer& b) noexcept {
         a.subindex != b.subindex || a.direction != b.direction || a.size != b.size ||
         a.uploadSize != b.uploadSize || a.readEffect != b.readEffect ||
         a.allowSegmentedUpload != b.allowSegmentedUpload ||
-        a.requirePreOperational != b.requirePreOperational || a.deadlineUs != b.deadlineUs ||
+        a.requirePreOperational != b.requirePreOperational ||
+        a.requireUploadReview != b.requireUploadReview || a.deadlineUs != b.deadlineUs ||
         a.queueTimeoutUs != b.queueTimeoutUs || a.responseTimeoutUs != b.responseTimeoutUs)
         return false;
     if (a.direction == SdoDirection::DOWNLOAD)

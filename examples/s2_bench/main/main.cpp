@@ -789,6 +789,23 @@ void ownerTask(void*) {
     // rearm's predecessor, the move's relative base and the Q, W and L routes (4), then the D and J
     // settings routes and the move's observer node (5).
     E::BenchRoute* route = nullptr;
+    // One bounded dispatcher owns ordinary download authorization. Constructing a later
+    // route cannot replace it or silently authorize another producer's work.
+    struct DownloadDispatch {
+        E::RawEvidence* raw;
+        E::PdoExperiment* pdo;
+        E::BenchRoute** route;
+    } downloads = {&raw, &pdo, &route};
+    E::DownloadPreflight preflight;
+    preflight.context = &downloads;
+    preflight.check = [](void* context, MotorControlCANOwner::SequenceId sequence,
+                         const C::SdoTransfer& transfer, uint64_t now) {
+        DownloadDispatch& d = *static_cast<DownloadDispatch*>(context);
+        return d.raw->preflight(sequence, transfer, now) ||
+               d.pdo->preflight(sequence, transfer, now) ||
+               (*d.route && (*d.route)->preflight(sequence, transfer, now));
+    };
+    firmware.setPreflight(preflight);
     char trialText[E::ROUTE_LINE] = {};
     size_t trialLength = 0;
     bool trialCollecting = false;

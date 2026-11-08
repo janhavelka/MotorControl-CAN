@@ -16,11 +16,11 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
-| Read shape descriptors | 102 | Prompt 19/20/21/22/35/36 source width/representation only; read effects remain unqualified |
-| Typed reads | 102 | Implemented scalar read rows; see separate read coverage, not whole-object support |
-| Typed settings | 13 | Conditional scalar setting rows, not complete object permission; model/state scope below |
+| Read shape descriptors | 191 | Prompt 19/20/21/22/35/36/38 source width/representation only; read effects remain unqualified |
+| Typed reads | 191 | Implemented scalar read rows; see separate read coverage, not whole-object support |
+| Typed settings | 14 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
-| Workflows | 0 | Assigned semantic prompts remain pending |
+| Workflows | 1 | Explicit typed heartbeat scope only; other workflow coverage stays in its owning report, never inferred from declarations |
 
 Coverage `D/I/H/Q` means documented / semantic implementation / host-tested semantic function / hardware-qualified. Generator and declaration tests do not change a semantic coverage field. `resolved` describes native declaration scope only; other conflicts and every listed qualification gate remain visible. `withheld` and `excluded` entries have no ObjectDescriptor or ObjectMetadata constant.
 
@@ -215,94 +215,94 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | 0x1200:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 13 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x1200:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x1200:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 38 | 19 | yes/no/no/no | yes/yes/yes/no |
-| 0x1400:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1400:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1400:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1400:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1400:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1400:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1401:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1401:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1401:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1401:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1401:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1401:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1402:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1402:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1402:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1402:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1402:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1402:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1403:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1403:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1403:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1403:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1403:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1403:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1600:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1600:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1600:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1600:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1600:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1601:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1601:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1601:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1601:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1601:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1602:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1602:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1602:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1602:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1602:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1603:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1603:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1603:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1603:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1603:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1800:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1800:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1800:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1800:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1800:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1800:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1801:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1801:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1801:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1801:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1801:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1801:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1802:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1802:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1802:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1802:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1802:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1802:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1803:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | not reported |
-| 0x1803:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1803:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1803:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1803:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1803:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A00:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A00:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A00:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A00:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A00:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A01:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A01:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A01:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A01:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A01:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A02:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A02:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A02:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A02:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A02:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A03:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A03:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A03:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A03:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
-| 0x1A03:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | not reported |
+| 0x1400:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1400:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1400:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1400:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1400:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1400:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1401:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1401:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1401:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1401:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1401:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1401:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1402:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1402:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1402:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1402:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1402:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1402:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1403:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1403:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1403:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1403:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1403:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1403:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1600:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1600:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1600:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1600:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1600:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1601:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1601:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1601:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1601:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1601:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1602:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1602:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1602:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1602:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1602:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1603:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1603:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1603:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1603:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1603:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1800:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1800:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1800:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1800:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1800:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1800:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1801:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1801:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1801:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1801:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1801:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1801:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1802:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1802:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1802:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1802:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1802:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1802:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1803:00 | count | U8 / 1 / false | RO / RO | 0 / false | resolved | 17 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1803:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1803:02 | value | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1803:03 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1803:04 | value | U8 / 1 / false | RW / RO | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1803:05 | value | U16 / 2 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A00:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A00:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A00:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A00:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A00:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A01:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A01:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A01:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A01:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A01:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A02:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A02:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A02:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A02:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A02:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A03:00 | count | U8 / 1 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A03:01 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A03:02 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A03:03 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
+| 0x1A03:04 | value | U32 / 4 / false | RW / RW | 0 / false | resolved | 18 | 38 | yes/no/no/no | yes/yes/yes/no |
 | 0x2000:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x2001:00 | value | U16 / 2 / false | RO / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
 | 0x2100:00 | value | U16 / 2 / false | RW / RO | 1 / `null` (not stated) | resolved | 19 | 19 | yes/no/no/no | yes/yes/yes/no |
@@ -311,7 +311,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | 0x2200:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
-| 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | 38 | yes/no/no/no | not reported |
+| 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | 38 | yes/no/no/no | yes/yes/yes/no |
 | 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 39 | yes/no/no/no | not reported |
 | 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 32 | yes/no/no/no | not reported |
 | 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 32 | yes/no/no/no | not reported |
@@ -606,7 +606,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes service/event routing; may lose contact or collide with another route. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
 | Read owner prompt | 19 |
@@ -687,7 +687,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes service/event routing; may lose contact or collide with another route. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
 | Read owner prompt | 19 |
@@ -714,14 +714,14 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Configure producer heartbeat only; no consumer/host-loss reaction established. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q18", "Q20"], "generation_type": "resolved", "next_evidence": "Replay the public typed workflow on the exact reviewed fixture; other values/firmware, effective timing and persistence remain separately qualified. No host-loss stop guarantee.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
 | Read owner prompt | 19 |
 | Read representation | UNSIGNED |
 | Read coverage D/I/H/Q | yes/yes/yes/no |
-| Typed setting scope | `null` (not stated) |
-| Setting coverage D/I/H/Q | not reported |
+| Typed setting scope | explicit_heartbeat_0_to_1000_cl86c |
+| Setting coverage D/I/H/Q | yes/yes/yes/no |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
 | Raw source claim | {"AccessType": "RW", "DataType": "0x0006", "DefaultValue": "0", "ObjFlags": "0x00000000", "ObjectType": "7", "PDOMapping": "0", "ParameterName": "Producer Heartbeat Time"} |
 
@@ -849,7 +849,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Two children; default 2.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q20"], "generation_type": "resolved", "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 13 |
 | Read owner prompt | 19 |
@@ -876,7 +876,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes service/event routing; may lose contact or collide with another route. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
 | Read owner prompt | 19 |
@@ -903,7 +903,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes service/event routing; may lose contact or collide with another route. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
 | Read owner prompt | 19 |
@@ -930,12 +930,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -957,12 +957,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -984,12 +984,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1011,12 +1011,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1038,12 +1038,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1065,12 +1065,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1092,12 +1092,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1119,12 +1119,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1146,12 +1146,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1173,12 +1173,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1200,12 +1200,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1227,12 +1227,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1254,12 +1254,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1281,12 +1281,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1308,12 +1308,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1335,12 +1335,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1362,12 +1362,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1389,12 +1389,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1416,12 +1416,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1443,12 +1443,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1470,12 +1470,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1497,12 +1497,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1524,12 +1524,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1551,12 +1551,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1578,12 +1578,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1605,12 +1605,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1632,12 +1632,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1659,12 +1659,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1686,12 +1686,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1713,12 +1713,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1740,12 +1740,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1767,12 +1767,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1794,12 +1794,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1821,12 +1821,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1848,12 +1848,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1875,12 +1875,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1902,12 +1902,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1929,12 +1929,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1956,12 +1956,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -1983,12 +1983,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2010,12 +2010,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2037,12 +2037,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2064,12 +2064,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2091,12 +2091,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2118,12 +2118,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2145,12 +2145,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2172,12 +2172,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2199,12 +2199,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Fixture observation 2026-11-02: Both CL86-C fixtures return raw100 versus EDS default0; current readback is not a factory-default or time-unit claim. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Fixture observation 2026-11-02: Both CL86-C fixtures return raw100 versus EDS default0; current readback is not a factory-default or time-unit claim. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2226,12 +2226,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2253,12 +2253,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Fixture observation 2026-11-02: Both CL86-C fixtures return raw0 versus EDS default100; current readback does not establish zero behavior. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Fixture observation 2026-11-02: Both CL86-C fixtures return raw0 versus EDS default100; current readback does not establish zero behavior. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2280,12 +2280,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2307,12 +2307,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2334,12 +2334,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2361,12 +2361,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2388,12 +2388,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2415,12 +2415,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2442,12 +2442,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2469,12 +2469,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2496,12 +2496,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2523,12 +2523,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2550,12 +2550,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2577,12 +2577,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2604,12 +2604,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Observe the declared entry count; not the physical semantics of its children. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 17 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2631,12 +2631,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2658,12 +2658,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2685,12 +2685,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2712,12 +2712,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter.", "write_policy": "not_writable"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.", "write_policy": "not_writable"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2739,12 +2739,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2766,12 +2766,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2793,12 +2793,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2820,12 +2820,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2847,12 +2847,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60640020, whereas the EDS default is 0x60610008; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60640020, whereas the EDS default is 0x60610008; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2874,12 +2874,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2901,12 +2901,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2928,12 +2928,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2955,12 +2955,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -2982,12 +2982,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3009,12 +3009,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3036,12 +3036,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3063,12 +3063,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3090,12 +3090,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3117,12 +3117,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3144,12 +3144,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3171,12 +3171,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3198,12 +3198,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3225,12 +3225,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3252,12 +3252,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3279,12 +3279,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes PDO layout/route/timing; partial reconfiguration and delayed samples can remain ambiguous. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q17", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 18 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -3522,12 +3522,12 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Effect | Changes software node setting; route/activation/persistence unknown. |
 | Prerequisites | ["Raw acquisition retains route, source and observation provenance; it may precede exact-model binding.", "Model-specific interpretation or effects require a selected model/firmware binding and only the applicable feature gates."] |
 | Edge behavior | Not specified by the retained source. |
-| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0..127 includes zero; all-off DIP selects user parameter, not a unicast node zero.", "write_policy": "qualification_required"} |
+| Documentary review | {"gate_ids": ["Q01", "Q16", "Q20"], "generation_type": "resolved", "next_evidence": "Prompt 38/Q16: actual node-DIP attestation and exact-firmware activation/acknowledgement-route evidence; separately establish restart/persistence without guessed routes or automatic replay.", "read_effect": "not_established", "status": "complete", "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.", "value_policy": "Manual 0..127 includes zero; all-off DIP selects user parameter, not a unicast node zero. Restart requirement: unknown. Persistence: unknown. No object reports DIP state: all-OFF is a caller attestation. Readback is stored selection, not the active node; zero is not unicast.", "write_policy": "qualification_required"} |
 | Conflicts | [] |
 | Owner prompt | 38 |
 | Read owner prompt | 38 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |

@@ -16,12 +16,15 @@ enum class FirmwareFailure : uint8_t {
     APPLICATION, ///< ProbeApp service, which includes the owner turn, was rejected.
     EVIDENCE     ///< DeviceEvidence service was rejected.
 };
-/** Application check of one download just before the owner hands it over, forwarded from
- * Transport::beforeTransmit. AxisSession::preflight is the intended callee. */
+/** Application authorization of one download at the owner-to-adapter handoff.
+ * Missing authorization refuses ordinary downloads. The dispatcher must match an exact
+ * pending workflow/sequence/transfer before its required notice and preflight check.
+ * A successful check does not establish validity at a later deferred SDK submission. */
 struct DownloadPreflight {
     void* context = nullptr; ///< Borrowed; outlives the registration.
     /** False withdraws the download: the owner closes it PREFLIGHT_REJECTED, provably unsent.
-     * Runs inside the owner's turn and must not call the owner. */
+     * Runs inside the owner's turn: only snapshot getters may be consulted; never
+     * reenter owner/service progression, admission, cancellation or configuration. */
     bool (*check)(void*, MotorControlCANOwner::SequenceId, const MotorControlCAN::CANOPEN::SdoTransfer&,
                   uint64_t) = nullptr;
 };
@@ -255,8 +258,9 @@ class FirmwareProbe {
     TwaiAdapter& transport() noexcept { return transport_; }
     /** @return The borrowed sole service store, for explicit route configuration. */
     MotorControlCAN::CANOPEN::SdoClient& services() noexcept { return services_; }
-    /** Register the check the owner runs before each download leaves; a null check removes it.
-     * Call between service turns. Without one, every download is handed over unchecked.
+    /** Register exact download authorization at owner-to-adapter handoff.
+     * Call between service turns. A null check refuses ordinary downloads; the owner's
+     * explicitly unsequenced best-effort stop retains its separate exemption.
      * @param preflight Copied; its context outlives the registration. */
     void setPreflight(const DownloadPreflight& preflight) noexcept { preflight_ = preflight; }
 

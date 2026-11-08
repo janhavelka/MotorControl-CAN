@@ -20,6 +20,9 @@ EXPORTS = {
     "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
+    "include/MotorControlCAN/profiles/lichuan_c/Communication.h",
+    "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
+    "test/communication_test.cpp", "test/heartbeat_communication_test.cpp",
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",

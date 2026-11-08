@@ -61,7 +61,8 @@ bool sameExperiment(const SdoTransfer& a, const SdoTransfer& b) {
         a.uploadSize == b.uploadSize &&
         a.direction == b.direction && a.readEffect == b.readEffect &&
         a.allowSegmentedUpload == b.allowSegmentedUpload &&
-        a.requirePreOperational == b.requirePreOperational && a.deadlineUs == b.deadlineUs &&
+        a.requirePreOperational == b.requirePreOperational &&
+        a.requireUploadReview == b.requireUploadReview && a.deadlineUs == b.deadlineUs &&
         a.queueTimeoutUs == b.queueTimeoutUs && a.responseTimeoutUs == b.responseTimeoutUs &&
         (a.direction != SdoDirection::DOWNLOAD || std::memcmp(a.data, b.data, a.size) == 0);
 }
@@ -233,6 +234,7 @@ bool SdoClient::authorizeExperiment(uint8_t slot, const SdoTransfer& input,
         input.channel.serverToClientId != c.route.serverToClientId ||
         !input.operation || !input.request || !input.step || !input.size || input.size > 32 ||
         (input.direction != SdoDirection::UPLOAD && input.direction != SdoDirection::DOWNLOAD) ||
+        (input.requireUploadReview && input.direction != SdoDirection::UPLOAD) ||
         input.readEffect != SdoReadEffect::UNQUALIFIED ||
         (input.uploadSize != SdoUploadSize::EXACT && input.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
         input.deadlineUs <= now || !input.queueTimeoutUs || !input.responseTimeoutUs)
@@ -326,6 +328,7 @@ bool SdoClient::checkWork(uint8_t slot, const SdoTransfer& work, uint64_t now) c
         return false;
     const Channel& c = channels_[slot];
     return checkShape(c, work, now) &&
+        (!work.requireUploadReview || experimentMatches(slot, work, now, false)) &&
         (c.confirmed || experimentMatches(slot, work, now, false) ||
          (work.direction == SdoDirection::UPLOAD && work.readEffect != SdoReadEffect::UNQUALIFIED));
 }
@@ -370,6 +373,7 @@ bool SdoClient::checkShape(const Channel& c, const SdoTransfer& work, uint64_t n
         work.request == 0 || work.step == 0 || work.size == 0 || work.size > 32 ||
         work.deadlineUs <= now || work.queueTimeoutUs == 0 || work.responseTimeoutUs == 0 ||
         (work.direction != SdoDirection::UPLOAD && work.direction != SdoDirection::DOWNLOAD) ||
+        (work.requireUploadReview && work.direction != SdoDirection::UPLOAD) ||
         (work.uploadSize != SdoUploadSize::EXACT && work.uploadSize != SdoUploadSize::SERVER_INDICATED) ||
         (work.uploadSize == SdoUploadSize::SERVER_INDICATED &&
          !experimentMatches(slot, work, now, false)) ||

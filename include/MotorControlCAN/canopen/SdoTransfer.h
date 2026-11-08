@@ -52,6 +52,8 @@ struct SdoTransfer {
     bool requirePreOperational = false; ///< True requires current qualified Pre-operational evidence
     ///< at admission and every transport handoff, including delayed controller submission.
     ///< False uses ordinary service eligibility; this flag never requests an NMT transition.
+    bool requireUploadReview = false; ///< Upload only: require an exact one-use reviewed acquisition
+    ///< grant at admission even on a confirmed channel. This does not qualify read effects.
     uint64_t deadlineUs = 0; ///< Exclusive immutable overall cutoff in caller monotonic microseconds.
     uint32_t queueTimeoutUs = 0; ///< Nonzero maximum staging delay per frame, clamped to deadlineUs.
     uint32_t responseTimeoutUs = 0; ///< Nonzero response interval after handoff, clamped to deadlineUs.
