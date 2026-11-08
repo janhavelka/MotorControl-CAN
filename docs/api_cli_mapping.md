@@ -1,5 +1,10 @@
 # API and CLI naming map
 
+Prompt37 implements `getDiscoveryProfile`, `getDiscoveryCapabilities`, profile
+`prepareProbe/checkProbe`, `ProbeApp::select` and the optional `DiscoveryScan`.
+They are native APIs today; discovery CLI fields/routes remain prompt41. Read
+[commissioning](commissioning.md) for bounded slots and identity/effect limitations.
+
 | New public API | Scope | CLI status |
 | --- | --- | --- |
 | `LICHUAN_C::preparePositionParameters` | Pure native pulse/rpm/ms candidate with exact owned axis/intent; no move/service work | No implemented route; future motion routes must first satisfy prompt 33 gates |

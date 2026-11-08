@@ -44,6 +44,12 @@ class ProbeApp {
      */
     bool requestIdentity(uint64_t nowUs, uint64_t deadlineUs,
                          const MotorControlCAN::LICHUAN_C::ReadOptions& options) noexcept;
+    /** Explicit minimal 1000 upload, not an identity sweep or non-changing-read assertion.
+     * @param nowUs As requestIdentity. @param deadlineUs As requestIdentity.
+     * @param options As requestIdentity. @return Same preparation/retention contract.
+     */
+    bool requestProbe(uint64_t nowUs, uint64_t deadlineUs,
+                      const MotorControlCAN::LICHUAN_C::ReadOptions& options) noexcept;
     /** Explicitly prepare six raw communication configuration uploads, never writes.
      * @param[in] nowUs Same monotonic time domain as requestIdentity.
      * @param[in] deadlineUs Exclusive future overall cutoff.
@@ -76,6 +82,12 @@ class ProbeApp {
      * terminal is never consumed here. Output pressure never gates owner service.
      */
     bool service(uint64_t nowUs) noexcept;
+    /** Service with explicit owner work bounds instead of the default nonzero budgets.
+     * @param nowUs Supplied nondecreasing microseconds.
+     * @param budget Caller work bounds, clamped/validated by the same owner; zero work stays zero.
+     * @return Same service result/retention contract; at most one read field is admitted.
+     */
+    bool service(uint64_t nowUs, const MotorControlCANOwner::ServiceBudget& budget) noexcept;
     /** Open one axis's session: latest controlword and stop work. An active read's
      * reservation passes to the session, and later reads use the session's.
      * @param[in] session Caller-owned closed session, borrowed until closed. Sessions are
@@ -114,6 +126,12 @@ class ProbeApp {
      */
     bool getIdentity(uint64_t nowUs, uint64_t maximumAgeUs,
                      MotorControlCAN::LICHUAN_C::IdentityObservation& output) const noexcept;
+    /** Publish current successful minimal presence, not model/firmware qualification.
+     * @param nowUs Supplied nondecreasing us. @param maximumAgeUs Nonzero original-observation age.
+     * @param output Owned result unchanged on failure. @return Checked current PROBE only; no I/O.
+     */
+    bool getProbe(uint64_t nowUs, uint64_t maximumAgeUs,
+                  MotorControlCAN::LICHUAN_C::ProbeObservation& output) const noexcept;
     /** Publish current six-field raw configuration, without adopting routes/timing.
      * @param[in] nowUs Nondecreasing supplied us.
      * @param[in] maximumAgeUs Nonzero inclusive per-field age.

@@ -105,6 +105,14 @@ class CanBusOwner {
      */
     bool nodeEpochs(const Binding& binding, MotorControlCAN::Generation& nodeGeneration,
                     uint32_t& serverSessions) const noexcept;
+    /** Check cached exact route/node provenance without reservation, I/O or eligibility claims.
+     * @param channel Already configured SDO route, including both COB-IDs.
+     * @param nodeGeneration Expected nonzero current node epoch.
+     * @return True only for a matching channel and current unexhausted node. Quarantine is not
+     * cleared or hidden: a match permits host selection, not service admission.
+     */
+    bool matchesChannel(const MotorControlCAN::CANOPEN::SdoChannel& channel,
+                        MotorControlCAN::Generation nodeGeneration) const noexcept;
     /** Find the usable reservation of a binding, for a producer that does not hold it.
      * @param[in] binding Exact current binding.
      * @param[out] output Published only when found.

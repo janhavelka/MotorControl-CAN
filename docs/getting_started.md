@@ -2,16 +2,20 @@
 
 The installed [typed read API](reads.md) needs only the core target. The
 [reads preview](../examples/reads_preview/README.md) compiles a finite identity
-read with synthetic evidence, without a controller. Read effects and model
-applicability remain unqualified; the non-consuming probe is evidence gated.
+read with synthetic evidence, without a controller. The [discovery inventory and
+checked probe](commissioning.md) are implemented. DEC-1 explicitly accepts the
+probe/identity uploads while their read effects and model applicability remain
+unqualified; they are not advertised as non-consuming reads.
 
 The development package `MotorControl-CAN` currently implements local call
 status, exact numeric/unit conversion and quantization, pure axis targets, copied logical endpoint/
 binding identity, Classical CAN frame validation and pure checked CANopen SDO envelopes. The C++ namespace, include
 directory, CMake package and target are
 `MotorControlCAN`, with imported target `MotorControlCAN::MotorControlCAN`.
-There is no installed drive profile, CAN controller, motion operation or
-hardware qualification. Version `0.1.0` describes this development source and
+The installed Lichuan C profile exposes implemented raw reads and conditional
+settings/motion, with [scope and gates](prompts/PROGRESS.md). Controller ownership
+and scans are optional application code; hardware qualification is not implied.
+Version `0.1.0` describes this development source and
 does not identify a published release or tag.
 
 ## Requirements and ordinary use

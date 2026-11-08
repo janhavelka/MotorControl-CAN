@@ -1,5 +1,8 @@
 # MotorControl-CAN documentation
 
+[Discovery and host binding](commissioning.md) documents implemented-profile
+inventory, explicit finite scans, passive observations and permanent-slot limits.
+
 [Conditional homing and reference contract](homing.md), [prompt 36 report](reports/prompt_36.md),
 and [manual native coverage reconciliation](reports/prompt_36_coverage.md).
 

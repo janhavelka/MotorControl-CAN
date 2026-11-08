@@ -11,6 +11,6 @@
   "headers": ["MotorControlCAN/MotorControlCAN.h"],
   "build": {"includeDir": "include", "srcDir": "src"},
   "export": {
-    "include": ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"]
+    "include": ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE", "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md"]
   }
 }

@@ -155,6 +155,13 @@ struct PreparedRead {
     CANOPEN::SdoTransfer
         transfer; ///< Repeated next calls yield the same operation/step; owner prevents replay.
 };
+/** Checked successful minimal presence observation, never model or firmware identification. */
+struct ProbeObservation {
+    ReadTarget target;         ///< Full frozen route/configuration/node provenance.
+    uint32_t deviceType = 0;   ///< Raw 1000 U32; generic values are not unique identity.
+    ReadProvenance provenance; ///< Original service observation, not getter time.
+    ReadWindow window;         ///< Admission/completion bounds, no fabricated wire capture.
+};
 /** Raw identity result; values and source scope do not establish a supported model. */
 struct IdentityObservation {
     ReadTarget target;            ///< Frozen target, checked against supplied current provenance.
@@ -223,6 +230,17 @@ struct ConfigObservation {
  */
 Status prepareProbe(ReadContext& output, const ReadTarget& target, uint32_t operation,
                     uint64_t nowUs, uint64_t deadlineUs, const ReadOptions& options) noexcept;
+/** Check successful minimal PROBE evidence from the ordinary read lifecycle.
+ * @param[in] context Completed PROBE context; failures retain their own outcome/evidence there.
+ * @param[in] current Exact current channel and node epoch.
+ * @param[in] nowUs Supplied nondecreasing monotonic publication time, zero valid.
+ * @param[in] maximumAgeUs Nonzero inclusive age cap from original service admission.
+ * @param[out] output Owned observation, unchanged on failure or input overlap.
+ * @return OK proves a matching responder only. Wrong kind, incomplete, stale, invalidated or failed
+ * context refuses. No read, download, NMT, model selection or non-changing guarantee is produced.
+ */
+Status checkProbe(const ReadContext& context, const ReadTarget& current, uint64_t nowUs,
+                  uint64_t maximumAgeUs, ProbeObservation& output) noexcept;
 /** Prepare nine finite raw identity uploads with unknown read effects.
  * @param[out] output Atomically replaced valid context; no overlap with inputs.
  * @param[in] target Explicit usable channel/binding/node epoch, not validated model identity.

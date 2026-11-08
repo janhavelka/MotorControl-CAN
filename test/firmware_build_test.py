@@ -23,7 +23,7 @@ import check_twai_sdk as twai_checker
 SHARED_SOURCES = [
     "examples/common/ProbeApp.cpp",
     "examples/common/ProbePlatform.cpp",
-    "examples/common/DeviceEvidence.cpp",
+    "examples/common/DeviceEvidence.cpp", "examples/common/DiscoveryScan.cpp",
     "adapters/owner/CanBusOwner.cpp",
     "examples/common/FirmwareProbe.cpp",
     "examples/common/EspProbePlatform.cpp",

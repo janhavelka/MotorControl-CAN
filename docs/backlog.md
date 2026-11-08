@@ -1,5 +1,11 @@
 # Executable backlog
 
+Prompt37's [finite discovery software](commissioning.md) is implemented: installed
+inventory, exact host selection and two-slot explicit probe/identity/passive scans.
+G-06's slot/timeout design is recorded. No arbitrary-node slot recycling or real
+route reopening is claimed; Q18 remains its external evidence gate. Generic raw
+identity/read effects retain Q01/Q20, and communication/persistence work stays 38-39.
+
 Prompt 36's conditional homing software and six typed reads are tracked in
 [its report](reports/prompt_36.md). Q04 direction, actual input wiring/polarity,
 Q11 mode-6 enabling, Q14 offset/reference and Q21 method completion remain open;

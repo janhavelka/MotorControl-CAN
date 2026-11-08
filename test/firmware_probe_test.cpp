@@ -1002,7 +1002,15 @@ void refusesLaterWork(Rig& r) {
     CHECK(r.services.controllerState() == C::ControllerState::RECOVERING);
     const unsigned submits = r.driver.submits, starts = r.driver.starts;
     const uint64_t now = r.firmware.owner().lastTimeUs();
-    CHECK(r.firmware.app().selected() || r.firmware.app().select(target()));
+    L::ReadTarget current = target();
+    const C::NodeSnapshot* node = r.services.node(0);
+    CHECK(node);
+    current.nodeGeneration = node->route.generation;
+    current.channel.binding = node->route.binding;
+    // Selection itself must be current. This test isolates controller inhibition rather than
+    // relying on the old selection bug admitting the pre-invalidation node epoch.
+    CHECK(r.firmware.app().select(current));
+    CHECK(r.firmware.owner().matchesChannel(current.channel, current.nodeGeneration));
     CHECK(!r.firmware.app().requestIdentity(now, now + 2000, options()));
     CHECK(r.firmware.app().readContext().state == M::ReadState::EMPTY);
     for (uint64_t t = now; t < now + 50; ++t) {
