@@ -17,7 +17,7 @@ from generate_version import version_header
 ROOT = Path(__file__).resolve().parents[1]
 EXPORTS = {
     "include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
 }
 REQUIRED = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
@@ -72,6 +72,10 @@ REQUIRED = {
     "test/twai_sdk_compile/main/sizes.cpp",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
+    "include/MotorControlCAN/Discovery.h", "src/Discovery.cpp", "test/discovery_test.cpp",
+    "test/discovery_scan_test.cpp", "examples/common/DiscoveryScan.h", "examples/common/DiscoveryScan.cpp",
+    "examples/discovery_preview/main.cpp", "examples/discovery_preview/CMakeLists.txt",
+    "examples/discovery_preview/README.md", "docs/commissioning.md",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
     "include/MotorControlCAN/Axis.h", "src/Axis.cpp", "test/axis_test.cpp",
     "examples/units_preview/CMakeLists.txt", "examples/units_preview/main.cpp", "examples/units_preview/README.md",

@@ -176,6 +176,12 @@ bool CanBusOwner::nodeEpochs(const Binding& binding, MotorControlCAN::Generation
     serverSessions = node->serverSessions;
     return true;
 }
+bool CanBusOwner::matchesChannel(const C::SdoChannel& route,
+                                 MotorControlCAN::Generation nodeGeneration) const noexcept {
+    const int slot = channel(route);
+    const auto* node = slot < 0 ? nullptr : services_.node(uint8_t(slot));
+    return nodeGeneration && node && !node->exhausted && node->route.generation == nodeGeneration;
+}
 bool CanBusOwner::findSequence(const Binding& binding, SequenceId& output) const noexcept {
     if (overlap(&output, sizeof output, this, sizeof *this) ||
         overlap(&output, sizeof output, &services_, sizeof services_) ||

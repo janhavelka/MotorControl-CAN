@@ -513,3 +513,21 @@ set_tests_properties(documentation_contract PROPERTIES TIMEOUT 90 LABELS "full;d
 set_tests_properties(package_contract PROPERTIES LABELS full)
 set_tests_properties(version_contract repository_contract verification_contract firmware_build_contract planning_integrity
     planning_validator_contract ledger_validator_contract stack_check_contract repository_checks objects_generated objects_generator_contract PROPERTIES TIMEOUT 90)
+
+add_executable(discovery_test discovery_test.cpp)
+target_link_libraries(discovery_test PRIVATE MotorControlCAN::CanopenNode)
+strict_test(discovery_test)
+add_test(NAME discovery COMMAND discovery_test)
+set_tests_properties(discovery PROPERTIES TIMEOUT 30)
+
+add_executable(discovery_scan_test discovery_scan_test.cpp)
+target_link_libraries(discovery_scan_test PRIVATE MotorControlCANProbeApp)
+strict_test(discovery_scan_test)
+add_test(NAME discovery_scan COMMAND discovery_scan_test)
+set_tests_properties(discovery_scan PROPERTIES TIMEOUT 30)
+if(NOT TARGET discovery_preview)
+    add_subdirectory(../examples/discovery_preview discovery_preview_example)
+endif()
+strict_test(discovery_preview)
+add_test(NAME discovery_preview COMMAND discovery_preview)
+set_tests_properties(discovery_preview PROPERTIES TIMEOUT 10)

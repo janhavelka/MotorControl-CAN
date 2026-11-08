@@ -43,10 +43,9 @@ AxisSession* ProbeApp::openAxis(AxisSession& session, const L::ReadTarget& targe
     return nullptr;
 }
 bool ProbeApp::select(const L::ReadTarget& target) noexcept {
-    Health known;
     if (read_.state != M::ReadState::EMPTY || !target.nodeGeneration ||
         !M::CANOPEN::validateSdoChannel(target.channel) ||
-        !owner_.health(target.channel.binding, known))
+        !owner_.matchesChannel(target.channel, target.nodeGeneration))
         return false;
     target_ = target;
     selected_ = true;
@@ -58,6 +57,10 @@ const L::ReadTarget* ProbeApp::selected() const noexcept {
 bool ProbeApp::requestIdentity(uint64_t now, uint64_t deadline,
                                const L::ReadOptions& options) noexcept {
     return request(L::ReadKind::IDENTITY, now, deadline, options);
+}
+bool ProbeApp::requestProbe(uint64_t now, uint64_t deadline,
+                            const L::ReadOptions& options) noexcept {
+    return request(L::ReadKind::PROBE, now, deadline, options);
 }
 bool ProbeApp::requestConfig(uint64_t now, uint64_t deadline,
                              const L::ReadOptions& options) noexcept {
@@ -99,7 +102,9 @@ bool ProbeApp::request(L::ReadKind kind, uint64_t now, uint64_t deadline,
     sequence_ = sequence;
     readOwnsSequence_ = !session;
     // Same values as the check above; read_ was EMPTY, and only the owner has moved.
-    if (kind == L::ReadKind::IDENTITY)
+    if (kind == L::ReadKind::PROBE)
+        L::prepareProbe(read_, target_, last + 1, now, deadline, options);
+    else if (kind == L::ReadKind::IDENTITY)
         L::prepareIdentity(read_, target_, last + 1, now, deadline, options);
     else if (kind == L::ReadKind::CONFIG)
         L::prepareConfig(read_, target_, last + 1, now, deadline, options);
@@ -126,14 +131,17 @@ bool ProbeApp::current() const noexcept {
            M::sameBinding(reservation->binding, target_.channel.binding);
 }
 bool ProbeApp::service(uint64_t now) noexcept {
-    if (now < lastUs_)
-        return false;
     ServiceBudget budget;
     budget.rx = CanBusOwner::RX_LIMIT;
     budget.tx = CanBusOwner::TX_LIMIT;
     budget.events = CanBusOwner::EVENT_LIMIT;
     budget.starts = CanBusOwner::START_LIMIT;
     budget.recovery = 1;
+    return service(now, budget);
+}
+bool ProbeApp::service(uint64_t now, const ServiceBudget& budget) noexcept {
+    if (now < lastUs_)
+        return false;
     if (!owner_.service(now, budget))
         return false;
     lastUs_ = now;
@@ -145,7 +153,7 @@ bool ProbeApp::service(uint64_t now) noexcept {
             L::advanceRead(read_, M::ReadOutcome::DEADLINE, now);
         } else if (!current()) {
             L::advanceRead(read_, M::ReadOutcome::INVALIDATED, now);
-        } else {
+        } else if (budget.starts) {
             L::PreparedRead prepared;
             if (!L::nextRead(read_, now, prepared))
                 return false;
@@ -180,6 +188,9 @@ bool ProbeApp::advanceRead(uint64_t now) noexcept {
 bool ProbeApp::getIdentity(uint64_t now, uint64_t age,
                            L::IdentityObservation& output) const noexcept {
     return now >= lastUs_ && current() && L::getIdentity(read_, target_, now, age, output).isOk();
+}
+bool ProbeApp::getProbe(uint64_t now, uint64_t age, L::ProbeObservation& output) const noexcept {
+    return now >= lastUs_ && current() && L::checkProbe(read_, target_, now, age, output).isOk();
 }
 bool ProbeApp::getConfig(uint64_t now, uint64_t age, L::ConfigObservation& output) const noexcept {
     return now >= lastUs_ && current() && L::getConfig(read_, target_, now, age, output).isOk();

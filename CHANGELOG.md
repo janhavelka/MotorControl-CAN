@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Explicit discovery and binding
+
+- Added installed `Discovery.h` inventory/capability queries for the implemented
+  Lichuan C family and checked `checkProbe` presence projection. Generic replies
+  establish no exact model, firmware, motor/feedback or non-changing-read guarantee.
+- Added bounded `DiscoveryScan` and native preview over the existing shared app,
+  owner and permanent slots. Explicit probe/identity reads and passive observations
+  retain outcomes, original provenance, uncertainty and final slot accounting.
+- Fixed host selection accepting stale node epochs or different COB-IDs, and
+  guarded discovery against deadline/reboot/stale passive-history promotion.
+  Result release does not clear channel quarantine or trigger recovery.
+
 ### Conditional homing (prompt 36)
 
 - Added method-specific `prepareHome`, `nextHome`, `advanceHome` and checked

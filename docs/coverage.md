@@ -1,5 +1,11 @@
 # Requirement coverage after pure CAN/SDO checks
 
+Prompt37 adds implemented-profile inventory, checked minimal probe projection,
+explicit host selection and bounded passive/active discovery through the same
+app/owner. Native and isolated package consumers exercise it; [commissioning](commissioning.md)
+states the permanent two-slot limit, unknown read effects, identity ambiguity and
+retained quarantine. No physical discovery, unique model map or firmware qualification is added.
+
 Prompt 36 adds conditional method-specific homing, separate mode-6 enable and
 interrupt, and checked reference publication. The six assigned read rows are
 implemented. [Manual native reconciliation](reports/prompt_36_coverage.md)
@@ -167,7 +173,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R13 | 2-4, 19-22, 30-39, 49-50 | Reviewed documentary access/effect/value policy and exact native owners exist. Prompt 12 generates 194 compact descriptors and complete source/semantic coverage with active freshness checks; four conflicting types and four reserved entries are withheld/excluded. 19 implements 30 raw read rows, 20 nine native group rows, and 21 all 23 I/O read rows and 22 all 33 tuning/control rows; 35 adds typed raw `60FF` and 36 adds six homing reads (102 total), with separate read coverage. Remaining reads retain their ledger owners; the [manual reconciliation](reports/prompt_36_coverage.md) lists four earlier software omissions and communication rows under 38. Thirteen conditional setting rows now have separate setting coverage (three position parameters, the 2202 selector, eight DI fields and one loop selector); remaining DO/filter/actions stay gated under 21, and the 32 other tuning rows under 22 each name their next evidence in the ledger. Q20 read effects stay unestablished. The owner-accepted DEC-1 list is risk acceptance, not evidence: it admits ordinary typed reads of all 16 listed rows and `prepareProbe` on `1000:00`, and every row outside it stays gated. Packet 11 read all 16 live on two specimens, which records success, not read effects. Descriptors do not complete setters or actions. |
 | R14 | 21-25, 29-36, 47-48 | Prompt 21 decodes documentary DI function/polarity separately from raw output registers and logical monitor levels. Wiring/electrical knowledge and method prerequisites remain independent; explicit DI reassignment is implemented with partial-effect/readback/invalidation tests; no output action is implemented. |
 | R15 | 21-22, 29, 32-36, 47-48 | Conditional finite position/angle, velocity and homing APIs have bounded owner tests and retained trigger/completion/stop evidence. Physical scope and firmware gates remain separate; homing requires actual method-specific inputs, direction and reference qualification. |
-| R16 | 37-39 | Pending |
+| R16 | 37-39 | 37 implements static profile/capability queries, checked probe, finite explicit configured-target scans, passive network-only observations and zero-I/O host selection. Timeout/result release cannot recycle quarantined channels. Communication mutation and persistence remain 38-39; Q01/Q18/Q20 and physical qualification remain separate. |
 | R17 | 26-28, 40-42, 49-50 | Prompt 26 implements framework-free offline units and fake native read examples plus bounded shared ProbeApp/ProbePlatform. Prompt 27 adds the controller adapter; 28 builds shared Arduino/IDF firmware and an isolated core component. CLI remains later work; fake/compile results are not physical qualification. |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Prompt 29 delivers bounded native/firmware read acquisition through the ordinary application, explicit admission, raw traffic and retained failed evidence; [host checks and limits](reports/prompt_29.md). S2 raw reads, `1017`, addressed NMT TX and fixed TPDO1 are retained for named specimens. Motion experiments, Python campaigns and physical qualification remain pending. |

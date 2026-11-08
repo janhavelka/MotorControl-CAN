@@ -47,7 +47,7 @@ def firmware_inventory(root=ROOT):
             if (key == "sources") != path.is_file():
                 raise ValueError("Invalid firmware input kind: " + value)
     required = {"examples/common/ProbeApp.cpp", "examples/common/ProbePlatform.cpp",
-                "examples/common/DeviceEvidence.cpp",
+                "examples/common/DeviceEvidence.cpp", "examples/common/DiscoveryScan.cpp",
                 "adapters/owner/CanBusOwner.cpp", "examples/common/FirmwareProbe.cpp",
                 "examples/common/EspProbePlatform.cpp", "examples/common/EspProbeMain.cpp",
                 "examples/common/EspTransceiverPin.cpp",

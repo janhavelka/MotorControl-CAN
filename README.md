@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+The [discovery APIs](docs/commissioning.md) provide implemented-profile inventory,
+explicit finite probe/identity scans, passive presence observations and local
+binding selection. They preserve channel quarantine and generic identity uncertainty;
+see the [native fake preview](examples/discovery_preview/README.md).
+
 The conditional [homing API](docs/homing.md) adds four Lichuan methods, explicit mode-6
 enable/interrupt and checked reference publication. Its firmware and physical-input
 gates remain closed; no homing trial has been run. See [prompt 36](docs/reports/prompt_36.md).

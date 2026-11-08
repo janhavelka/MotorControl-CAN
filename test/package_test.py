@@ -18,7 +18,7 @@ import time
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HEADERS = {"MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
+HEADERS = {"MotorControlCAN/Discovery.h", "MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/VelocityOperation.h", "MotorControlCAN/HomeOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
            "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN/profiles/lichuan_c/Velocity.h", "MotorControlCAN/profiles/lichuan_c/Homing.h",
            "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
@@ -98,9 +98,9 @@ def check_package(args, work, summary):
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
         "src/ExactArithmetic.h", "src/canopen/PdoState.cpp",
-        "src/Endpoint.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "src/profiles/lichuan_c/Homing.cpp", "CMakeLists.txt", "library.json",
+        "src/Endpoint.cpp", "src/Discovery.cpp", "src/can/Frame.cpp", "src/Units.cpp", "src/Axis.cpp", "src/canopen/Sdo.cpp", "src/canopen/Network.cpp", "src/canopen/Pdo.cpp", "src/profiles/lichuan_c/Reads.cpp", "src/profiles/lichuan_c/Settings.cpp", "src/profiles/lichuan_c/State.cpp", "src/profiles/lichuan_c/Actions.cpp", "src/profiles/lichuan_c/Position.cpp", "src/profiles/lichuan_c/Velocity.cpp", "src/profiles/lichuan_c/Homing.cpp", "CMakeLists.txt", "library.json",
         "cmake/MotorControlCANConfig.cmake.in", "LICENSE", "README.md", "CHANGELOG.md",
-        "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
+        "docs/getting_started.md", "docs/commissioning.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"}
     with zipfile.ZipFile(archive) as package:
         require(len(package.namelist()) == len(expected) and set(package.namelist()) == expected,
                 package.namelist())
@@ -156,9 +156,10 @@ def check_package(args, work, summary):
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
         "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
-                    "DeviceEvidence.h", "DeviceEvidence.cpp"]),
+                    "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
         "evidence": ("examples/device_evidence", ["main.cpp"]),
+        "discovery": ("examples/discovery_preview", ["main.cpp"]),
         "units": ("examples/units_preview", ["main.cpp"]),
         "position": ("examples/position_preview", ["main.cpp"]),
         "angle": ("examples/angle_preview", ["main.cpp"]),
@@ -186,7 +187,7 @@ target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
 add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
 target_include_directories(owner PUBLIC owner)
 target_link_libraries(owner PUBLIC adapter)
-add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp)
+add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)
@@ -194,6 +195,9 @@ target_link_libraries(native_probe PRIVATE app)
 add_executable(device_evidence evidence/main.cpp native/FakeTransport.cpp)
 target_include_directories(device_evidence PRIVATE native)
 target_link_libraries(device_evidence PRIVATE app)
+add_executable(discovery_preview discovery/main.cpp native/FakeTransport.cpp)
+target_include_directories(discovery_preview PRIVATE native)
+target_link_libraries(discovery_preview PRIVATE app)
 add_executable(units_preview units/main.cpp)
 target_link_libraries(units_preview PRIVATE MotorControlCAN::MotorControlCAN)
 add_executable(position_preview position/main.cpp)
@@ -213,7 +217,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp" "#include <ProbePla
 add_library(probe_headers OBJECT "${CMAKE_CURRENT_BINARY_DIR}/app_header.cpp"
     "${CMAKE_CURRENT_BINARY_DIR}/platform_header.cpp")
 target_link_libraries(probe_headers PRIVATE app)
-foreach(target stack adapter owner app native_probe device_evidence units_preview position_preview angle_preview velocity_preview reads_preview
+foreach(target stack adapter owner app native_probe device_evidence discovery_preview units_preview position_preview angle_preview velocity_preview reads_preview
         pdo_configuration_preview action_preview probe_headers)
     set_target_properties(${target} PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
     if(MSVC)
@@ -225,6 +229,7 @@ endforeach()
 enable_testing()
 add_test(NAME native_probe COMMAND native_probe --fake)
 add_test(NAME device_evidence COMMAND device_evidence --fake-only)
+add_test(NAME discovery_preview COMMAND discovery_preview)
 add_test(NAME units_preview COMMAND units_preview)
 add_test(NAME position_preview COMMAND position_preview)
 add_test(NAME angle_preview COMMAND angle_preview)
@@ -232,7 +237,7 @@ add_test(NAME velocity_preview COMMAND velocity_preview)
 add_test(NAME reads_preview COMMAND reads_preview)
 add_test(NAME pdo_configuration_preview COMMAND pdo_configuration_preview)
 add_test(NAME action_preview COMMAND action_preview)
-set_tests_properties(native_probe device_evidence units_preview position_preview angle_preview velocity_preview reads_preview
+set_tests_properties(native_probe device_evidence discovery_preview units_preview position_preview angle_preview velocity_preview reads_preview
     pdo_configuration_preview action_preview PROPERTIES TIMEOUT 10)
 ''', encoding="utf-8")
     probe_build = work / "native probe build"

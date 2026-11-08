@@ -21,7 +21,7 @@ FILES = {
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
-    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md",
+    "docs/README.md", "docs/getting_started.md", "docs/verification.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md",
     "docs/native_application.md",
     "platformio.ini",
     "scripts/check_firmware.py",
@@ -70,6 +70,10 @@ FILES = {
     "test/twai_sdk_compile/main/sizes.cpp",
     "include/MotorControlCAN/MotorControlCAN.h", "include/MotorControlCAN/Status.h",
     "include/MotorControlCAN/Endpoint.h", "include/MotorControlCAN/Version.h",
+    "include/MotorControlCAN/Discovery.h", "src/Discovery.cpp", "test/discovery_test.cpp",
+    "test/discovery_scan_test.cpp", "examples/common/DiscoveryScan.h", "examples/common/DiscoveryScan.cpp",
+    "examples/discovery_preview/main.cpp", "examples/discovery_preview/CMakeLists.txt",
+    "examples/discovery_preview/README.md", "docs/commissioning.md",
     "include/MotorControlCAN/Units.h", "src/Units.cpp", "test/units_test.cpp",
     "include/MotorControlCAN/Axis.h", "src/Axis.cpp", "test/axis_test.cpp",
     "examples/units_preview/CMakeLists.txt", "examples/units_preview/main.cpp", "examples/units_preview/README.md",
@@ -149,7 +153,7 @@ FILES = {
     "test/installed_consumer/main.cpp", "experiments/canopen_service_fit/CMakeLists.txt",
 }
 EXPORTS = ["include/", "src/", "cmake/", "CMakeLists.txt", "library.json", "LICENSE",
-           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md"]
+           "README.md", "CHANGELOG.md", "docs/getting_started.md", "docs/units_status.md", "docs/axis_contract.md", "docs/canopen_services.md", "docs/reads.md", "docs/drive_actions.md", "docs/position_parameters.md", "docs/driver_settings.md", "docs/io_settings.md", "docs/tuning.md", "docs/commissioning.md"]
 
 
 class RepositoryTests(unittest.TestCase):
@@ -168,7 +172,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

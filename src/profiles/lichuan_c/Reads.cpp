@@ -540,6 +540,19 @@ Status advanceRead(ReadContext& c, ReadOutcome reason, uint64_t now) noexcept {
     return Ok();
 }
 
+Status checkProbe(const ReadContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
+                  ProbeObservation& output) noexcept {
+    ProbeObservation candidate;
+    const Status status = beginGet(c, &output, sizeof output, target, now, age,
+                                   c.kind == ReadKind::PROBE, candidate.window);
+    if (!status)
+        return status;
+    candidate.target = c.target;
+    candidate.deviceType = c.values[0].raw;
+    candidate.provenance = c.values[0].provenance;
+    output = candidate;
+    return Ok();
+}
 Status getIdentity(const ReadContext& c, const ReadTarget& target, uint64_t now, uint64_t age,
                    IdentityObservation& output) noexcept {
     IdentityObservation candidate;

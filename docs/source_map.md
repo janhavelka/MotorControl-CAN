@@ -2,6 +2,17 @@
 
 ## Fixed TPDO1 and observed NMT checkpoint
 
+## Explicit discovery (prompt 37)
+
+- Installed inventory: `include/MotorControlCAN/Discovery.h` / `src/Discovery.cpp`;
+  `getDiscoveryProfile/getDiscoveryCapabilities`, `test/discovery_test.cpp`.
+- Minimal presence: `profiles/lichuan_c/Reads.h/.cpp::prepareProbe/checkProbe`;
+  existing typed service matching, unknown read effects and atomic checked output.
+- Finite application scan: `examples/common/DiscoveryScan.h/.cpp`, existing
+  `ProbeApp` and `CanBusOwner`; `test/discovery_scan_test.cpp` and native
+  `examples/discovery_preview`. No second receiver/node registry; findings are copies.
+- [Commissioning](commissioning.md) owns slot/timeout/selection and duplicate limits.
+
 | Responsibility | Implementation / test | Evidence boundary |
 | --- | --- | --- |
 | TPDO1 configuration lifecycle | [PdoConfiguration.h](../include/MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h), [implementation](../src/profiles/lichuan_c/PdoConfiguration.cpp), [tests](../test/pdo_configuration_test.cpp), [offline caller](../examples/pdo_configuration_preview/main.cpp) | Two transitions: the map3-to-map2 experiment (six writes) and the `1800:05` event timer raw 0/100 (one write); exact baseline, nine final reads, immutable deadline, retained steps and partial effects; no sample qualification |

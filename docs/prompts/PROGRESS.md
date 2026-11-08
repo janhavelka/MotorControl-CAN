@@ -1,5 +1,12 @@
 # Prompt execution progress
 
+Prompt 37 completes [explicit discovery and binding software](../reports/prompt_37.md):
+one installed profile inventory, checked minimal probe, finite application scans,
+passive network-only observations and exact host route selection. It uses the
+existing app/owner/slots, retains uncertainty and distinguishes generic identity
+from caller-supplied expectations. No arbitrary-node slot recycling, automatic
+model selection, NMT, settings or physical qualification is implied.
+
 Prompt 36 adds the conditional [homing lifecycle and six typed reads](../reports/prompt_36.md),
 with explicit mode-6 enable/interrupt integration and checked reference publication.
 It remains Partial while method, input, direction, offset and completion facts
@@ -57,7 +64,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 34 | [Wrapped-angle motion integration](34_angle_moves.md) | Complete | 33; Q04, Q14 and applicable motion evidence; no physical angle qualification | [Exact conversion, existing lifecycle, offline example and checks](../reports/prompt_34.md) |
 | 35 | [Finite velocity operations](35_velocity.md) | Partial | Q03/Q11 startup, reverse and mode changes; Q12 mode3 stop and Q20 general 60FF read effects. Conditional lifecycle and owner path implemented; no specimen velocity qualification | [Software and precise remaining gates](../reports/prompt_35.md) |
 | 36 | [Homing and native coverage reconciliation](36_homing.md) | Partial | Q02/Q04/Q10/Q11/Q14/Q20/Q21: exact firmware, inputs, direction, offset, enable/completion and reference qualification | [Conditional software and remaining evidence](../reports/prompt_36.md); [native reconciliation](../reports/prompt_36_coverage.md) |
-| 37 | [Explicit discovery and binding](37_discovery.md) | Pending | Q01; an SDO scan needs G-06's slot and timeout design, and Q18 before a marker can free a slot | - |
+| 37 | [Explicit discovery and binding](37_discovery.md) | Complete | Q01/Q20 identity/effect meaning; Q18 before real route reopening. Explicit scans are bounded to the existing two configured slots; arbitrary-node slot recycling is unavailable | [Inventory, slot design, finite scans, host selection and checks](../reports/prompt_37.md) |
 | 38 | [Explicit communication commissioning](38_communication_commissioning.md) | Pending | Node and heartbeat read rows first; Q16, Q17, Q18 for writes and PDO rows | - |
 | 39 | [Persistence reset and reconciliation](39_persistence.md) | Pending | Q15 | - |
 | 40 | [Shared CLI parser and local routes](40_cli_parser.md) | Pending | None for local routes. Best next prompt under W10 | - |

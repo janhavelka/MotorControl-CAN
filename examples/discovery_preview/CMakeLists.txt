@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.19)
+if(NOT TARGET MotorControlCANFakeProbe)
+    message(FATAL_ERROR "Build discovery_preview from the root with examples and CANopenNode enabled")
+endif()
+add_executable(discovery_preview main.cpp)
+target_link_libraries(discovery_preview PRIVATE MotorControlCANFakeProbe)
+set_target_properties(discovery_preview PROPERTIES
+    CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS OFF)
+if(MSVC)
+    target_compile_options(discovery_preview PRIVATE /W4 /WX)
+else()
+    target_compile_options(discovery_preview PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
