@@ -66,6 +66,29 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 38:
+        index, sub = entry.get("index"), entry.get("subindex")
+        communication = (type(index) is int and
+                         (0x1400 <= index <= 0x1403 or 0x1800 <= index <= 0x1803))
+        mapping = (type(index) is int and
+                   (0x1600 <= index <= 0x1603 or 0x1A00 <= index <= 0x1A03))
+        if (type(sub) is not int or
+                not ((communication and 0 <= sub <= 5) or (mapping and 0 <= sub <= 4) or
+                     (index == 0x2203 and sub == 0))):
+            return [label + "outside the reviewed Prompt 38 communication read scope"]
+        native = "U16" if index == 0x2203 else (
+            ("U8", "U32", "U8", "U16", "U8", "U16")[sub] if communication
+            else "U8" if sub == 0 else "U32")
+        code, width = {"U8": ("0x0005", 1), "U16": ("0x0006", 2),
+                       "U32": ("0x0007", 4)}[native]
+        if (entry.get("key") != "0x{:04X}:{:02X}".format(index, sub) or
+                entry.get("role") != ("count" if index != 0x2203 and sub == 0 else "value") or
+                entry.get("type") != dict(eds_code=code, name=native, width_bytes=width, signed=False)):
+            return [label + "requires the reviewed Prompt 38 EDS native read shape"]
+        if (entry.get("access_eds") != ("RO" if communication and sub == 0 else "RW") or
+                entry.get("access_reviewed") != ("RO" if communication and sub in (0, 4) else "RW")):
+            return [label + "requires the reviewed Prompt 38 service access"]
+        return []
     if owner == 36:
         shapes = {"0x607C:00": (0x607C, 0, "0x0004", "I32", 4, True, "value"),
                   "0x6098:00": (0x6098, 0, "0x0005", "U8", 1, False, "value"),
@@ -159,7 +182,7 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35, 36) or read_owner_errors(entry):
+    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35, 36, 38) or read_owner_errors(entry):
         errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")
@@ -185,15 +208,18 @@ def setting_coverage_errors(entry):
     di = index == 0x2400 and type(sub) is int and 1 <= sub <= 8
     loop_mode = (index == 0x2500 and type(sub) is int and sub == 0 and
                  entry.get("read_owner_prompt") == 22 and not read_owner_errors(entry))
+    heartbeat = (index == 0x1017 and sub == 0 and entry.get("read_owner_prompt") == 19 and
+                 entry.get("type") == dict(eds_code="0x0006", name="U16", width_bytes=2, signed=False))
     review = entry.get("review", {})
-    if (not (motion or selector or di or loop_mode) or
-            entry.get("owner_prompt") != (20 if motion or selector else (21 if di else 22)) or
+    if (not (motion or selector or di or loop_mode or heartbeat) or
+            entry.get("owner_prompt") != (38 if heartbeat else 20 if motion or selector else (21 if di else 22)) or
             entry.get("access_reviewed") != "RW" or generation_disposition(entry) != "resolved" or
             review.get("write_policy") != "qualification_required"):
         return [label + "outside the reviewed conditional typed subset"]
     expected_scope = ("position_parameters_86c" if motion else
                       "explicit_soft_limit_selector_86c" if index == 0x2202 else
-                      "explicit_di_configuration_86c" if di else "explicit_loop_mode_86c")
+                      "explicit_di_configuration_86c" if di else
+                      "explicit_heartbeat_0_to_1000_cl86c" if heartbeat else "explicit_loop_mode_86c")
     errors = []
     if entry.get("setting_scope") != expected_scope:
         errors.append(label + "requires exact model-bound subset scope")

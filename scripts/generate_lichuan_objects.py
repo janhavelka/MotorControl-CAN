@@ -193,7 +193,7 @@ enum class ReadRepresentation : uint8_t {
 };
 
 /** @brief Bounded read shape, independent of live binding, interpretation and effects.
- * Returned by readDescriptor for the reviewed Prompt 19/20/21/22/35/36 assignments only.
+ * Returned by readDescriptor for the reviewed Prompt 19/20/21/22/35/36/38 assignments only.
  * Does not establish a non-changing probe or grant polling qualification.
  */
 struct ReadDescriptor {
@@ -281,9 +281,9 @@ def read_effect(row):
 
 def read_descriptor_function(rows):
     """Generate one bounded lookup from explicit read ownership, never EDS flags alone."""
-    selected = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36)]
-    if len(selected) > 102:
-        raise ValueError("Implemented read descriptor capacity exceeds 102")
+    selected = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36, 38)]
+    if len(selected) > 191:
+        raise ValueError("Implemented read descriptor capacity exceeds 191")
     lines = [r'''/** @brief Copy the reviewed shape of one implemented native read.
  * Contains only explicitly assigned readable source rows. Raw mode/velocity words retain
  * disputed signedness; a match does not qualify read effects, polling, physical
@@ -465,7 +465,7 @@ def coverage_text(coverage):
 
 def coverage_document(data, rows):
     counts = Counter(row["review"]["generation_type"] for row in rows)
-    read_rows = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36)]
+    read_rows = [row for row in rows if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36, 38)]
     implemented_reads = sum(row.get("read_coverage", {}).get("implemented", False) for row in rows)
     lines = ["# Generated Lichuan native declarations and semantic coverage\n\n",
              "Generated from `" + LEDGER_PATH + "` by `" + COMMAND + "`. Do not edit.\n\n",
@@ -486,12 +486,14 @@ def coverage_document(data, rows):
              "| Withheld declarations | {} | Unresolved complete signed type, raw claims retained |\n".format(counts["withheld"]),
              "| Excluded reserved entries | {} | No descriptor or operation route |\n".format(counts["excluded"]),
              "| Manual-only semantic items | {} | Reviewed evidence, semantic functions pending |\n".format(len(data["manual_only"])),
-             "| Read shape descriptors | {} | Prompt 19/20/21/22/35/36 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
+             "| Read shape descriptors | {} | Prompt 19/20/21/22/35/36/38 source width/representation only; read effects remain unqualified |\n".format(len(read_rows)),
              "| Typed reads | {} | Implemented scalar read rows; see separate read coverage, not whole-object support |\n".format(implemented_reads),
              "| Typed settings | {} | Conditional scalar setting rows, not complete object permission; model/state scope below |\n".format(
                  sum(row.get("setting_coverage", {}).get("implemented", False) for row in rows)),
              "| Actions | 0 | Assigned semantic prompts remain pending |\n",
-             "| Workflows | 0 | Assigned semantic prompts remain pending |\n\n",
+             "| Workflows | {} | Explicit typed heartbeat scope only; other workflow coverage stays in its owning report, never inferred from declarations |\n\n".format(
+                 sum(row.get("setting_scope") == "explicit_heartbeat_0_to_1000_cl86c" and
+                     row.get("setting_coverage", {}).get("implemented", False) for row in rows)),
              "Coverage `D/I/H/Q` means documented / semantic implementation / host-tested semantic "
              "function / hardware-qualified. Generator and declaration tests do not change a "
              "semantic coverage field. `resolved` describes native declaration scope only; other "
@@ -566,7 +568,7 @@ def coverage_document(data, rows):
                   ("Edge behavior", row["edge_behavior"]), ("Documentary review", row["review"]),
                   ("Conflicts", row["conflict_ids"]), ("Owner prompt", row["owner_prompt"]),
                   ("Read owner prompt", row.get("read_owner_prompt")),
-                  ("Read representation", read_descriptor_representation(row) if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36) else None),
+                  ("Read representation", read_descriptor_representation(row) if row.get("read_owner_prompt") in (19, 20, 21, 22, 35, 36, 38) else None),
                   ("Read coverage D/I/H/Q", coverage_text(row["read_coverage"]) if "read_coverage" in row else "not reported"),
                   ("Typed setting scope", row.get("setting_scope")),
                   ("Setting coverage D/I/H/Q", coverage_text(row["setting_coverage"]) if "setting_coverage" in row else "not reported"),

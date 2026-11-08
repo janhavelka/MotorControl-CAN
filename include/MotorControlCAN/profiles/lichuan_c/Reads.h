@@ -38,7 +38,12 @@ enum class ReadKind : uint8_t {
     TUNING_LOOP_GAINS,        ///< 250E..2519 documented native loop words.
     TUNING_EDS_GAINS,         ///< 251A..2520 opaque EDS words, no semantic write permission.
     VELOCITY_TARGET,          ///< One raw 60FF word; EDS I32 is not reverse-motion qualification.
-    HOMING                    ///< Six raw homing fields, not motion completion or a home reference.
+    HOMING,                   ///< Six raw homing fields, not motion completion or a home reference.
+    COMMUNICATION_NODE,       ///< Stored 2203 selector, never proof of the active node.
+    RPDO_COMMUNICATION,       ///< Six raw 1400..1403 fields; explicit pdoNumber selects one record.
+    TPDO_COMMUNICATION,       ///< Six raw 1800..1803 fields, not confirmed live routing.
+    RPDO_MAPPING,             ///< Five raw 1600..1603 fields, including all inactive slots.
+    TPDO_MAPPING              ///< Five raw 1A00..1A03 fields, not qualified map/sample evidence.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {
@@ -88,6 +93,7 @@ struct ReadOptions {
     IdentityWidths identityWidths = IdentityWidths::DECLARED_U16; ///< Identity reads only.
     /** DRIVER_SOFT_LIMITS and IO_OUTPUT_COMMAND reads only; any other kind refuses MEASURED_U16. */
     CountWidths countWidths = CountWidths::DECLARED_U8;
+    uint8_t pdoNumber = 0; ///< 1..4 for a PDO record read, zero for every other kind; no default map.
 };
 /** Conservative acquisition interval, never an atomic device snapshot. */
 struct ReadWindow {
@@ -210,7 +216,7 @@ struct ConfigObservation {
     uint32_t syncCobId = 0; ///< 1005 raw field, not configured host SYNC.
     uint32_t emcyCobId = 0; ///< 1014 raw field, not permission to switch routing.
     uint16_t producerTimeMs =
-        0;                  ///< 1017 raw producer interval, zero disabled metadata observed here.
+        0; ///< 1017 raw value; milliseconds follow CiA 301, not a vendor-wide timing guarantee.
     uint8_t sdoEntries = 0; ///< 1200:00 raw declared count.
     uint32_t clientToServer = 0; ///< 1200:01 raw field, no automatic channel rebind.
     uint32_t serverToClient = 0; ///< 1200:02 raw field, no automatic channel rebind.

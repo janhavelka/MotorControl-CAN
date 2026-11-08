@@ -152,7 +152,7 @@ class LedgerTests(unittest.TestCase):
     def test_read_coverage_cannot_widen_scope_or_claim_hardware(self):
         coverage = dict(documented=True, implemented=True, host_tested=True,
                         hardware_qualified=False)
-        for key in ("0x6040:00", "0x2400:09", "0x1600:00", "0x2203:00"):
+        for key in ("0x6040:00", "0x2400:09", "0x607A:00", "0x2300:00"):
             data = self.changed()
             entry(data, key)["read_coverage"] = coverage.copy()
             self.reject(data, "read coverage requires a reviewed implemented-group")
@@ -193,10 +193,11 @@ class LedgerTests(unittest.TestCase):
     def test_setting_subsets_keep_scope_policy_and_qualification_separate(self):
         data = self.changed()
         rows = [e for o in data["objects"] for e in o["entries"] if "setting_coverage" in e]
-        self.assertEqual(len(rows), 13)
+        self.assertEqual(len(rows), 14)
         self.assertEqual(sum(e["owner_prompt"] == 20 for e in rows), 4)
         self.assertEqual(sum(e["owner_prompt"] == 21 for e in rows), 8)
         self.assertEqual(sum(e["owner_prompt"] == 22 for e in rows), 1)
+        self.assertEqual(sum(e["owner_prompt"] == 38 for e in rows), 1)
         for row in rows:
             self.assertEqual(row["review"]["write_policy"], "qualification_required")
             self.assertFalse(row["coverage"]["implemented"])
@@ -374,10 +375,12 @@ class LedgerTests(unittest.TestCase):
                                    0x1800 <= row["index"] <= 0x1803) and row["subindex"] == 0
             self.assertEqual((row["owner_prompt"], row["read_owner_prompt"]),
                              (17 if communication_count else 18, 38))
-            self.assertNotIn("read_coverage", row)
+            self.assertEqual(row["read_coverage"], dict(documented=True, implemented=True,
+                                                       host_tested=True, hardware_qualified=False))
         self.assertEqual(sum(e.get("read_owner_prompt") == 38
                              for o in LEDGER["objects"] for e in o["entries"]), 89)
         self.assertEqual(entry(LEDGER, "0x2203:00")["read_owner_prompt"], 38)
+
         # Each operation that writes one of these objects owns its readback (G-07).
         for key, owner in (("0x605D:00", 31), ("0x2301:00", 32), ("0x2302:00", 32),
                            ("0x607A:00", 33), ("0x60FF:00", 35), ("0x607C:00", 36),
@@ -385,6 +388,31 @@ class LedgerTests(unittest.TestCase):
                            ("0x6099:02", 36), ("0x609A:00", 36), ("0x2300:00", 39)):
             self.assertEqual(entry(LEDGER, key)["read_owner_prompt"], owner, key)
             self.assertEqual(entry(LEDGER, key)["owner_prompt"], owner, key)
+
+    def test_communication_read_scope_and_widths_cannot_expand(self):
+        for key in ("0x1000:00", "0x607A:00", "0x2500:00"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 38
+            self.reject(data, "outside the reviewed Prompt 38 communication read scope")
+        for key in ("0x1400:00", "0x1400:01", "0x1803:05", "0x1600:00", "0x1A03:04", "0x2203:00"):
+            data = self.changed()
+            row = entry(data, key)
+            row["type"]["width_bytes"] = 3
+            self.reject(data, "Prompt 38 EDS native read shape")
+        data = self.changed()
+        entry(data, "0x1400:04")["access_reviewed"] = "RW"
+        self.reject(data, "Prompt 38 service access")
+
+    def test_heartbeat_setting_scope_is_only_the_reviewed_transition(self):
+        row = entry(LEDGER, "0x1017:00")
+        self.assertEqual(row["setting_scope"], "explicit_heartbeat_0_to_1000_cl86c")
+        self.assertFalse(row["setting_coverage"]["hardware_qualified"])
+        for key in ("0x1005:00", "0x1014:00", "0x1200:01", "0x2203:00"):
+            data = self.changed()
+            other = entry(data, key)
+            other["setting_scope"] = row["setting_scope"]
+            other["setting_coverage"] = row["setting_coverage"].copy()
+            self.reject(data, "outside the reviewed conditional typed subset")
 
     def test_read_ownership_accounts_for_every_row(self):
         # The corrected ledger after G-07, not the baseline's 101 rows with Prompt 38.

@@ -1,5 +1,13 @@
 # API and CLI naming map
 
+Prompt 38 implements `LICHUAN_C::prepareCommunicationRead`, `nextCommunication`,
+`advanceCommunication` and `getCommunication` for finite raw records, and
+`prepareCommunication`, `noteCommunicationTransmission` and explicit
+`prepareCommunicationConfirmation` for the reviewed heartbeat transition.
+These are native APIs with owner tests; production console routes remain prompt41.
+See [commissioning](commissioning.md#explicit-communication-commissioning) for
+the exact read, write and acquisition scopes.
+
 Prompt37 implements `getDiscoveryProfile`, `getDiscoveryCapabilities`, profile
 `prepareProbe/checkProbe`, `ProbeApp::select` and the optional `DiscoveryScan`.
 They are native APIs today; discovery CLI fields/routes remain prompt41. Read

@@ -1,5 +1,10 @@
 # MotorControl-CAN
 
+[Communication commissioning](docs/commissioning.md#explicit-communication-commissioning)
+provides 89 additional reviewed-acquisition read rows and one conditional
+`1017` raw `0 → 1000` heartbeat workflow. Node/route/bitrate mutation and general
+persistence remain gated; stored readback does not prove active routing or timing.
+
 The [discovery APIs](docs/commissioning.md) provide implemented-profile inventory,
 explicit finite probe/identity scans, passive presence observations and local
 binding selection. They preserve channel quarantine and generic identity uncertainty;

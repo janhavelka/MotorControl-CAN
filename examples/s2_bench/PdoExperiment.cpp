@@ -250,6 +250,18 @@ void PdoExperiment::finish(PdoExperimentFailure why, uint64_t now) noexcept {
     record_.finalResources = owner_.resources();
     services_.clearUploadExperiment(record_.plan.slot);
 }
+bool PdoExperiment::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
+                              uint64_t now) const noexcept {
+    C::ObservationTime preOperational;
+    return occupied_ && !record_.terminal && !record_.evidenceLost && pendingValid_ &&
+           requestedFailure_ == PdoExperimentFailure::NONE &&
+           record_.configuration.transmissionNoted && now >= lastUs_ &&
+           now < record_.plan.review.plan.deadlineUs && current() &&
+           currentPreOperational(now, preOperational) &&
+           sequence.owner == sequence_.owner && sequence.slot == sequence_.slot &&
+           sequence.generation == sequence_.generation &&
+           sameDownload(expected_, transfer);
+}
 bool PdoExperiment::service(uint64_t now) noexcept {
     if (now < lastUs_ || now < owner_.lastTimeUs())
         return false;

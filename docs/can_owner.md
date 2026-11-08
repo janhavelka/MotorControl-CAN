@@ -240,6 +240,21 @@ operation stepping, I/O or reentrant owner call. `nextTx`, exact-token
 `canTransmit` and one-shot `transmit` then run in the same cooperative turn
 without receive interleaving. Failed enqueue is not retried.
 
+The transport-level hook is optional for a native application, but the firmware
+assembly now requires an explicit dispatcher for ordinary downloads. Missing or
+unmatched work closes `PREFLIGHT_REJECTED` before controller enqueue. The shared
+bench dispatcher matches owned sequence/transfer/payload/policy, then invokes the
+concrete workflow's notice and preflight. Construction of another helper cannot
+replace it. The best-effort stop exception remains separate. This once-only
+boundary does not promise repeatable application preflight during deferred SDK
+promotion; native service eligibility is still checked there.
+
+New communication PDO/2203 uploads and heartbeat confirmation set
+`requireUploadReview`. Their exact one-use acquisition grant is required even on
+a confirmed SDO channel; confirmation of serviceability never qualifies read
+effects. See [commissioning](commissioning.md#explicit-communication-commissioning)
+for the typed workflow and configuration/retirement ordering.
+
 A turn receives before it transmits, so an EMCY received in a turn does not by
 itself stop a download queued earlier from leaving in that turn. An application
 that withdraws motion on a fault decides the fault itself (the S2 bench: a

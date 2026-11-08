@@ -664,7 +664,7 @@ void failureReportsTheRealReason() {
 } // namespace
 // The firmware hands the owner a transport whose beforeTransmit reaches the registered preflight,
 // as the bench routes register AxisSession::preflight. A refusal closes the download unsent and
-// nothing reaches the controller; with the check removed the same download is handed over.
+// nothing reaches the controller. Missing authorization also refuses ordinary downloads.
 struct Gate {
     unsigned calls = 0;
     bool allow = false;
@@ -713,9 +713,17 @@ void preflightReachesTheOwner() {
     CHECK(!c->controllerAccepted && !c->service.transmissionPossible && r.driver.submits == 0);
     CHECK(r.firmware.owner().release(refused) && r.firmware.owner().releaseSequence(sequence));
     r.firmware.setPreflight(E::DownloadPreflight());
-    download(r, 2, 3, sequence);
+    const O::RequestId missing = download(r, 2, 3, sequence);
     r.turn(4);
-    CHECK(gate.calls == 1 && r.driver.submits == 1 && r.driver.sent[0].id == 0x605 &&
+    c = r.firmware.owner().result(missing);
+    CHECK(gate.calls == 1 && c && c->reason == O::CompletionReason::PREFLIGHT_REJECTED &&
+          !c->service.transmissionPossible && r.driver.submits == 0);
+    CHECK(r.firmware.owner().release(missing) && r.firmware.owner().releaseSequence(sequence));
+    gate.allow = true;
+    r.firmware.setPreflight(preflight);
+    download(r, 3, 5, sequence);
+    r.turn(6);
+    CHECK(gate.calls == 2 && r.driver.submits == 1 && r.driver.sent[0].id == 0x605 &&
           r.driver.sent[0].data[0] == 0x2b && r.driver.sent[0].data[1] == 0x00 &&
           r.driver.sent[0].data[2] == 0x25);
 }
@@ -1369,7 +1377,9 @@ int main() {
     bootStatus();
     closedPathsInvalidateTheOwner();
     std::printf("firmware_probe_test: %u checks; sizeof FirmwareProbe=%zu, CanBusOwner=%zu, "
-                "TwaiAdapter=%zu, ProbeApp=%zu, ProbePlatform=%zu, SdoClient=%zu\n",
+                "TwaiAdapter=%zu, ProbeApp=%zu, ProbePlatform=%zu, SdoClient=%zu, AxisSession=%zu, "
+                "SdoTransfer=%zu\n",
                 checks, sizeof(E::FirmwareProbe), sizeof(O::CanBusOwner), sizeof(E::TwaiAdapter),
-                sizeof(E::ProbeApp), sizeof(E::ProbePlatform), sizeof(C::SdoClient));
+                sizeof(E::ProbeApp), sizeof(E::ProbePlatform), sizeof(C::SdoClient),
+                sizeof(E::AxisSession), sizeof(C::SdoTransfer));
 }

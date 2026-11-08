@@ -579,6 +579,13 @@ class BenchRoute {
     const RouteRecord* record() const noexcept { return occupied_ ? &record_ : nullptr; }
     /** @return True from admission until the terminal. */
     bool active() const noexcept { return occupied_ && !record_.terminal; }
+    /** Authorize only an exact pending download of this route or an attached session.
+     * Calls the session preflight and required settings notice once at owner handoff.
+     * @param sequence Reservation identity. @param transfer Complete pending work.
+     * @param now Supplied owner time. @return False for unmatched or withdrawn work.
+     */
+    bool preflight(MotorControlCANOwner::SequenceId sequence,
+                   const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept;
     /** @return Motion admissions this boot. */
     uint8_t motionAdmissions() const noexcept { return motionTotal_; }
     /** Format one line of the terminal record: header, summaries, RESULT, TRAFFIC, TAIL, END.
@@ -606,12 +613,7 @@ class BenchRoute {
         uint8_t kind;
         uint8_t arg;
     };
-    // Registered with the firmware's owner transport: each attached session rechecks its own move
-    // downloads when they are handed over, so a reference invalidated after admission still holds,
-    // and holds back its enable, move and clear downloads while its node has an EMCY fault this
-    // route has not yet handled.
-    static bool preflight(void* context, MotorControlCANOwner::SequenceId sequence,
-                          const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept;
+    // RX precedes TX within an owner turn, before the route has consumed its diagnostic copy.
     bool unhandledFault(uint8_t slot) const noexcept;
     void noteEmcyHandled() noexcept;
     FirmwareProbe& firmware_;

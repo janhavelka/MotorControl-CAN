@@ -521,24 +521,35 @@ bool checkRouteIntegrity(const char* text, size_t size, size_t& body) noexcept {
 
 BenchRoute::BenchRoute(FirmwareProbe& firmware, C::SdoClient& services,
                        const RouteCallbacks& callbacks) noexcept
-    : firmware_(firmware), services_(services), callbacks_(callbacks) {
-    DownloadPreflight check;
-    check.context = this;
-    check.check = &BenchRoute::preflight;
-    firmware_.setPreflight(check);
-}
-bool BenchRoute::preflight(void* context, SequenceId sequence, const C::SdoTransfer& transfer,
+    : firmware_(firmware), services_(services), callbacks_(callbacks) {}
+bool BenchRoute::preflight(SequenceId sequence, const C::SdoTransfer& transfer,
                            uint64_t now) noexcept {
-    BenchRoute& route = *static_cast<BenchRoute*>(context);
-    // A session answers true for every sequence but its own, so asking both is exact. Each is told
-    // whether its node has an EMCY this route has not yet handled that counts as a fault: the owner
-    // received it earlier in this same turn, and service() handles it only after the turn.
+    // Positive ownership precedes the session's permissive preflight. An unrelated producer
+    // cannot borrow a session's default acceptance to send an unnotified settings write.
     for (unsigned slot = 0; slot < 2; ++slot) {
-        AxisSession* session = route.sessions_[slot];
-        if (session && !session->preflight(sequence, transfer, now, route.unhandledFault(slot)))
+        AxisSession* session = sessions_[slot];
+        if (!session || !session->ownsDownload(sequence, transfer))
+            continue;
+        const bool routeWork = active() && pending_ && sameDownload(expected_, transfer);
+        const bool actionWork =
+            (session->enableActive() && transfer.operation == session->enableAction().operation) ||
+            (session->clearActive() && transfer.operation == session->clearAction().operation) ||
+            (session->moveActive() && transfer.operation == session->moveAction().operation) ||
+            (session->velocityActive() && transfer.operation == session->velocityAction().operation) ||
+            (session->homeActive() && transfer.operation == session->homeAction().operation) ||
+            (session->stopActive() &&
+             (transfer.operation == session->stopAction(L::StopKind::HALT).operation ||
+              transfer.operation == session->stopAction(L::StopKind::QUICK_STOP).operation));
+        if (!routeWork && !actionWork)
             return false;
+        if (!session->preflight(sequence, transfer, now, unhandledFault(slot)))
+            return false;
+        if (routeWork && isSettings(record_.plan.kind)) {
+            return noteSettings(sequence, transfer, now);
+        }
+        return true;
     }
-    return route.noteSettings(sequence, transfer, now);
+    return false;
 }
 // The route's own EMCY policy, as capture() applies it: a nonzero error code is a fault, zero the
 // no-error form. The node keeps only its newest EMCY, so several since the last handled one count
@@ -560,12 +571,12 @@ void BenchRoute::noteEmcyHandled() noexcept {
 bool BenchRoute::noteSettings(SequenceId sequence, const C::SdoTransfer& transfer, uint64_t now) noexcept {
     if (!occupied_ || record_.terminal || !isSettings(record_.plan.kind) || !work_ ||
         steps_[stepIndex_].kind != STEP_SETTINGS || !stepActive_)
-        return true;
+        return false;
     const SequenceId own = axis().sequence();
     L::DriverSettingsContext& tx = work_->transaction;
     if (sequence.owner != own.owner || sequence.slot != own.slot || sequence.generation != own.generation ||
         transfer.direction != C::SdoDirection::DOWNLOAD || transfer.operation != tx.operation)
-        return true;
+        return false;
     return L::noteDriverTransmission(tx, work_->live, work_->binding, now).isOk();
 }
 bool BenchRoute::attach(unsigned node, AxisSession& session) noexcept {

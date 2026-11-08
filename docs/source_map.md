@@ -1,5 +1,13 @@
 # Live source and responsibility map
 
+## Communication commissioning (prompt 38)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Boundary |
+| --- | --- | --- | --- |
+| 89 typed read rows | [Communication.h](../include/MotorControlCAN/profiles/lichuan_c/Communication.h), [Communication.cpp](../src/profiles/lichuan_c/Communication.cpp), existing Reads plan | [Communication owner suite](../test/communication_test.cpp), isolated installed consumer | Complete raw records and mandatory one-use Q20 acquisition; no active-node/map proof |
+| Conditional heartbeat write and confirmation | Same header, [HeartbeatCommunication.cpp](../src/profiles/lichuan_c/HeartbeatCommunication.cpp) | [Native owner caller](../test/heartbeat_communication_test.cpp) | Exact CL86-C raw 0→1000 with original evidence retained; no node/route/bitrate/persistence workflow |
+| Firmware download handoff | FirmwareProbe::ownerTransport, AxisSession::ownsDownload and sameDownload; concrete RawEvidence/PdoExperiment/BenchRoute preflight | s2_bench/main/main.cpp dispatcher and four fake suites | Exact pending-work check and once-only notice before adapter enqueue; no second receiver or SDK-promotion guarantee |
+
 ## Fixed TPDO1 and observed NMT checkpoint
 
 ## Explicit discovery (prompt 37)

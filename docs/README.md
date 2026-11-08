@@ -1,5 +1,9 @@
 # MotorControl-CAN documentation
 
+[Communication commissioning](commissioning.md#explicit-communication-commissioning)
+separates stored/native reads, host selection, the conditional heartbeat write,
+route reconciliation and still-unknown activation/persistence.
+
 [Discovery and host binding](commissioning.md) documents implemented-profile
 inventory, explicit finite scans, passive observations and permanent-slot limits.
 

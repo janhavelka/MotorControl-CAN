@@ -144,3 +144,87 @@ Windows executables have the `.exe` suffix. The package gate independently build
 the preview against a relocated installed core; ordinary consumers require no
 Python, source ledger, SDK, vendor documents or sibling checkout. Physical
 discovery/commissioning is separate bench evidence; these tests qualify none.
+
+## Explicit communication commissioning
+
+The installed [Communication.h](../include/MotorControlCAN/profiles/lichuan_c/Communication.h)
+adds finite typed reads and one conditional heartbeat transition. Selecting a
+host binding, reading a stored setting, changing a device setting and proving
+persistence are separate operations. None happens during startup or discovery.
+
+| Row / group | Implemented public path | Remaining evidence |
+| --- | --- | --- |
+| `1005`, `1014`, `1017`, `1200:00..02` | Existing six-field `prepareConfig/getConfig`, also `CommunicationGroup::NETWORK` | Reads do not adopt routes. General SYNC/EMCY/SDO-route writes are unqualified; `1200` has no typed setter. |
+| `2203:00` | `CommunicationGroup::NODE_SETTING`, raw U16 | Stored node setting only. No activation, acknowledgement-route, DIP precedence, save or restart procedure is established. No typed node setter. |
+| `1400..1403`, `1800..1803`, each `:00..05` | RPDO/TPDO communication groups, 48 fields | Complete raw COB-ID flags, transmission type, inhibit, compatibility and timer words; no inferred supported mask, unit or active route. |
+| `1600..1603`, `1A00..1A03`, each `:00..04` | RPDO/TPDO mapping groups, 40 fields | All four slots are read even when count is zero. Raw readback alone certifies neither a live map nor a new sample. |
+| `1017:00`, raw `0 → 1000` | Explicit `prepareCommunication` heartbeat workflow | Exact CL86-C fixture/firmware review required; broader values, reverse transition and other firmware remain unavailable. |
+
+Every row above has **unknown restart and persistence requirements**. Standard
+interpretations are labelled **CiA 301: general vendor claim, service unconfirmed**,
+apart from the individually retained measurements. The vendor EDS gives no
+heartbeat unit. CiA 301 and the pinned stacks use milliseconds; the retained
+[node-1 experiment](reports/2026-11-02_nmt_pdo_checkpoint.md) observed about
+1.0008 seconds after raw 1000 and raw zero after one power cycle. That is neither
+a general timing range nor a save/reset or host-loss stop guarantee. PDO inhibit
+and event units remain independently Q17 gated.
+
+For a read, use `CommunicationReadContext`, `prepareCommunicationRead`,
+`nextCommunication`, `advanceCommunication` and `getCommunication`. PDO groups
+require explicit `ReadOptions::pdoNumber` 1..4; every other group requires zero.
+Each complete result retains the original binding/node/configuration epochs,
+per-field timing and aggregate skew. Invalid semantic values remain raw evidence;
+a count of 255 does not become a loop bound. Partial, stale and wrong-kind getters
+leave output unchanged. These 89 new rows remain outside DEC-1: each yielded
+upload sets `requireUploadReview`, so admission requires its exact one-use
+`authorizeUploadExperiment` grant **even on an already confirmed channel**.
+Review acceptance does not establish harmless read effects. The
+[native owner tests](../test/communication_test.cpp) are executable callers.
+
+For the heartbeat transition, acquire continuous owner exclusion before a fresh
+exact U16 `1017:00` upload of zero. Supply the actual CL86-C reservation, explicit
+fixture/firmware/procedure/authorization records and raw candidate 1000. A known
+state must be fresh Pre-operational; an isolated reviewed experiment may use
+unknown exact NMT with a fresh matching service baseline. It does not infer
+Operational. Known Stopped/Initializing cannot be bypassed with an old successful
+SDO. No workflow starts NMT or configures a heartbeat to obtain its own admission.
+
+`nextCommunication` yields one download. After admission and before possible
+handoff, the application withdraws effective producer confidence and dependent
+maps/reference/prepared work, then calls `noteCommunicationTransmission` to
+advance its actual configuration binding once. The ordinary owner retains the
+ACK, abort or uncertain failure. Release the native result and establish local
+TX retirement before `owner.advanceConfiguration`. Only an acknowledged write
+allows explicit `prepareCommunicationConfirmation` at the actual next-epoch
+target; its single U16 readback also requires a reviewed upload grant. The
+original deadline cannot be renewed. Matching raw 1000 proves stored readback,
+not active timing, persistence or sample provenance. The
+[heartbeat owner caller](../test/heartbeat_communication_test.cpp) tests this order.
+
+An old-route timeout preserves uncertainty and channel quarantine. A failed
+intent cannot resume or be rewritten by a later successful read. Never retry at
+guessed nodes, COB-IDs or bitrates. Independently reviewed reconciliation requires
+the existing Q18 server-order/retirement premises; a host rebind proves no device
+change. Same-ID/same-DLC PDO bytes after rebind stay unqualified until prompt 17's
+evidenced provenance boundary. Neither confirmation nor health reinstalls maps.
+
+The existing `PdoConfiguration.h` remains the separate narrow TPDO1 lifecycle:
+six ordered map3-to-map2 writes and nine readbacks, or its separately measured
+event-timer transition. It requires its own exact baseline, qualified NMT and
+review. These reads do not extend it to other maps, timers, SYNC or firmware.
+General remapping remains prompt 18; persistent save/reset remains prompt 39.
+
+SW1–5 select the documented node setting, SW6–7 bitrate, and SW8 termination.
+All node switches OFF is an operator attestation; no object reports DIP state.
+`2203=0` is a valid stored observation but not a unicast target. Only a response on
+the explicitly configured SDO reply route establishes that route's serviceability.
+Bitrate changes are physical bench work: there is no software bitrate/LSS API,
+and the EDS 50-kbit/s claim supplies no documented DIP choice.
+
+Firmware uses one explicit download dispatcher. A missing guard or unmatched
+pending sequence/transfer refuses ordinary downloads before controller enqueue.
+The concrete settings/PDO/motion caller supplies its required once-only notice;
+trace or unrelated producers cannot authorize it. This is the owner-to-adapter
+boundary, not repeated application preflight at a later deferred SDK promotion.
+The existing best-effort stop exemption is unchanged. Larger write scopes remain
+gated by Q16/Q17/Q18; physical qualification of these new typed APIs is unperformed.

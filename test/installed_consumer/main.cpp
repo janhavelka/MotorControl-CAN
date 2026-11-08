@@ -4,6 +4,7 @@
 #include <MotorControlCAN/canopen/Network.h>
 #include <MotorControlCAN/canopen/SdoTransfer.h>
 #include <MotorControlCAN/profiles/lichuan_c/DriverSettings.h>
+#include <MotorControlCAN/profiles/lichuan_c/Communication.h>
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Homing.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
@@ -19,6 +20,27 @@
 
 int main() {
     using namespace MotorControlCAN;
+    LICHUAN_C::CommunicationReadContext communication;
+    LICHUAN_C::ReadTarget communicationTarget;
+    communicationTarget.channel.binding.logicalAxisId = 1;
+    communicationTarget.channel.binding.endpoint.protocol = Protocol::CANOPEN;
+    communicationTarget.channel.binding.endpoint.profile = 1;
+    communicationTarget.channel.binding.endpoint.address = 5;
+    communicationTarget.channel.binding.bindingGeneration = 1;
+    communicationTarget.channel.binding.configurationGeneration = 1;
+    communicationTarget.channel.clientToServerId = 0x605;
+    communicationTarget.channel.serverToClientId = 0x585;
+    communicationTarget.nodeGeneration = 1;
+    LICHUAN_C::ReadOptions communicationOptions;
+    communicationOptions.queueTimeoutUs = communicationOptions.responseTimeoutUs = 10;
+    LICHUAN_C::PreparedRead communicationWork;
+    if (!LICHUAN_C::prepareCommunicationRead(communication, communicationTarget, 1, 0, 100,
+                                              communicationOptions, LICHUAN_C::CommunicationGroup::NODE_SETTING) ||
+        !LICHUAN_C::nextCommunication(communication, 0, communicationWork) ||
+        !communicationWork.ready || communicationWork.transfer.index != 0x2203 ||
+        communicationWork.transfer.size != 2 ||
+        communicationWork.transfer.direction != CANOPEN::SdoDirection::UPLOAD)
+        return 30;
     CANOPEN::SdoTransfer service;
     CANOPEN::SdoCompletion terminal;
     if (service.size != 0 || terminal.protocolAcknowledged || terminal.transmissionPossible) return 20;

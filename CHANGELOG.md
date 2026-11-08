@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Explicit communication commissioning
+
+- Added typed raw `2203` and all 88 PDO communication/mapping read rows, with
+  complete atomic getters and exact per-upload review even on confirmed channels.
+- Added one reviewed CL86-C heartbeat `1017` raw `0 → 1000` workflow with explicit
+  confirmation, configuration withdrawal and retained ACK/abort/unknown effects.
+  Node/route/bitrate changes, general remapping and persistence remain gated.
+- Closed C-09's missing firmware notice path: ordinary downloads require an
+  exact pending-work dispatcher; unrelated or missing guards refuse before enqueue.
+  Existing raw/PDO experiments and motion callers retain their ordinary owner path.
+
 ### Explicit discovery and binding
 
 - Added installed `Discovery.h` inventory/capability queries for the implemented

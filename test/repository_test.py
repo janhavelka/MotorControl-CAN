@@ -18,6 +18,9 @@ import check_repository as checker
 
 # Independent fixture inventory: deleting a checker rule must not weaken tests.
 FILES = {
+    "include/MotorControlCAN/profiles/lichuan_c/Communication.h",
+    "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
+    "test/communication_test.cpp", "test/heartbeat_communication_test.cpp",
     "CMakeLists.txt", "cmake/MotorControlCANConfig.cmake.in", "library.json",
     "LICENSE", "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
     "Doxyfile", ".clang-format", ".github/workflows/verify.yml",
@@ -172,7 +175,7 @@ class RepositoryTests(unittest.TestCase):
         self.registrations = []
         self.tests = []
         suffix = ".exe" if sys.platform == "win32" else ""
-        for name in ("core", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
+        for name in ("core", "communication", "heartbeat_communication", "discovery", "discovery_scan", "discovery_preview", "firmware_probe", "esp_probe_platform", "twai_adapter", "twai_driver", "units", "axis", "frame", "sdo_codec", "sdo_adapter", "sdo_transfer", "sdo_evidence", "sdo_reconciliation", "network_codec", "network_events", "nmt_codec", "nmt_services", "pdo_codec", "pdo_observations", "reads", "drive_state", "stop_action", "enable_action", "move_absolute", "move_relative", "move_common", "move_angle", "velocity", "velocity_owner", "homing", "homing_action", "homing_owner", "velocity_preview", "angle_preview", "action_preview", "reference_action", "alarm_clear", "counter_clear", "position_parameters", "position_preview", "driver_settings", "io_settings", "settings_write", "settings_owner", "tuning", "can_bus_owner", "can_bus_recovery", "can_bus_health", "probe_app", "device_evidence", "owner_preview", "io_settings_preview", "driver_settings_preview", "objects", "api_ownership", "multidrive_contract"):
             self.registrations.append(f"add_executable({name}_test {name}_test.cpp)\n"
                                       f"add_test(NAME {name} COMMAND {name}_test)\n")
             self.tests.append({"name": name, "command": [str(self.build / "test" / (name + "_test" + suffix))]})

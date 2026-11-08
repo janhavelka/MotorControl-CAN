@@ -122,6 +122,12 @@ class PdoExperiment {
      * no quarantine, configuration, NMT, firmware qualification or remote effect clears.
      */
     bool release() noexcept;
+    /** Match the exact already-notified pending configuration download at owner handoff.
+     * @param sequence Reservation identity. @param transfer Complete pending work.
+     * @param nowUs Supplied owner time. @return False for unmatched or stale prerequisites.
+     */
+    bool preflight(SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                   uint64_t nowUs) const noexcept;
 
   private:
     CanBusOwner& owner_;

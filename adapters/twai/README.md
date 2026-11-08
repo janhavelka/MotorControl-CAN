@@ -1,5 +1,10 @@
 # ESP32-S2/S3 TWAI adapter
 
+`transport()` supplies controller evidence, not a typed settings permission.
+`FirmwareProbe` wraps it with the mandatory explicit application download
+dispatcher; see [commissioning](../../docs/commissioning.md#explicit-communication-commissioning).
+An absent or unmatched guard refuses ordinary firmware downloads before enqueue.
+
 This application adapter uses the ESP-IDF v5.5.5 node API, pinned to
 `b774170ff46c393eeb5e495ea37936038d3f4f4f`. Arduino 3.3.11 with pioarduino
 55.03.311 supplies the same SDK. Read the [SDK evidence and limitations](../../docs/adapters/twai_sdk.md)

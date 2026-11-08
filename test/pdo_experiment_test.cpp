@@ -39,6 +39,8 @@ L::ReadTarget target(unsigned node = 1) {
 }
 // Two TPDO1 dictionaries in the measured specimens' state, answering on 0x580 + node.
 struct Wire {
+    E::PdoExperiment* experiment = nullptr;
+    unsigned guardCalls = 0;
     // SILENT: no effect and no reply. LOST: the write takes effect, but its reply never arrives.
     enum class Failure { NONE, ABORT, SILENT, LOST, BOOTUP, READBACK };
     Failure failure = Failure::NONE;
@@ -200,6 +202,20 @@ struct Wire {
         t.receive = receive;
         t.transmit = transmit;
         t.takeTxReport = report;
+        t.beforeTransmit = [](void* context, O::SequenceId sequence,
+                              const C::SdoTransfer& transfer, uint64_t now) {
+            Wire& w = *static_cast<Wire*>(context);
+            ++w.guardCalls;
+            CHECK(w.experiment);
+            C::SdoTransfer other = transfer;
+            other.data[0] ^= 1;
+            CHECK(!w.experiment->preflight(sequence, other, now));
+            O::SequenceId unrelated = sequence;
+            ++unrelated.generation;
+            CHECK(!w.experiment->preflight(unrelated, transfer, now));
+            CHECK(!w.experiment->preflight(sequence, transfer, transfer.deadlineUs));
+            return w.experiment->preflight(sequence, transfer, now);
+        };
         return t;
     }
     // Node-2 frames other than uploads: the writes this harness actually put on the wire.
@@ -237,6 +253,7 @@ struct Rig {
     // requires before it accepts replacement map evidence for a newer configuration epoch.
     explicit Rig(bool node2Confirmed = false)
         : owner(services, wire.callbacks(), 42), experiment(owner, services) {
+        wire.experiment = &experiment;
         for (unsigned node = 1; node <= 2; ++node) {
             const auto t = target(node);
             CHECK(services.configure(uint8_t(node - 1), t.channel, node == 2 && node2Confirmed,
@@ -387,6 +404,9 @@ void passiveHappyAndReservation() {
     CHECK(out->current.configurationGeneration == 2 &&
           r.services.channel(0)->binding.configurationGeneration == 2);
     CHECK(r.wire.downloads[1] == 6 && r.wire.values[1][0] == 0x181 && r.wire.values[1][4] == 2);
+    CHECK(r.wire.guardCalls == 6);
+    CHECK(!r.experiment.preflight(out->terminals[9].sequence,
+                                 out->terminals[9].service.transfer, r.now));
     CHECK(r.wire.values[1][6] == 0x60640020 && r.wire.values[1][7] == 0x60640020 &&
           r.wire.values[1][8] == 0);
     CHECK(!out->evidenceLost && !out->tailOverflow);

@@ -97,7 +97,7 @@ MotorControlCANOwner::Transport FirmwareProbe::ownerTransport() noexcept {
         const auto& a = self.adapter_;
         if (a.beforeTransmit && !a.beforeTransmit(a.context, sequence, transfer, now))
             return false;
-        return !self.preflight_.check || self.preflight_.check(self.preflight_.context, sequence, transfer, now);
+        return self.preflight_.check && self.preflight_.check(self.preflight_.context, sequence, transfer, now);
     };
     return t;
 }

@@ -1,5 +1,10 @@
 # Shared Arduino and ESP-IDF firmware
 
+Ordinary firmware downloads require the explicit pending-work dispatcher described
+in [commissioning](commissioning.md#explicit-communication-commissioning). A null
+or unrelated preflight refuses before enqueue. Raw acquisition, fixed PDO trials
+and motion share that one owner; no helper constructor installs a hidden guard.
+
 The requested target set is ESP32-S2, S3 and P4. Current evidence differs by layer:
 
 | Target | Portable core/component | Shared application image | Special bench image | Physical qualification |

@@ -956,7 +956,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.",
+            "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -964,7 +964,8 @@
               "Q16",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows."
           },
           "read_owner_prompt": 19,
           "read_coverage": {
@@ -1256,7 +1257,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.",
+            "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -1264,7 +1265,8 @@
               "Q16",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows."
           },
           "read_owner_prompt": 19,
           "read_coverage": {
@@ -1356,7 +1358,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -1364,10 +1366,18 @@
               "Q18",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Replay the public typed workflow on the exact reviewed fixture; other values/firmware, effective timing and persistence remain separately qualified. No host-loss stop guarantee."
           },
           "read_owner_prompt": 19,
           "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          },
+          "setting_scope": "explicit_heartbeat_0_to_1000_cl86c",
+          "setting_coverage": {
             "documented": true,
             "implemented": true,
             "host_tested": true,
@@ -1780,14 +1790,15 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Two children; default 2.",
+            "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
               "Q01",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows."
           },
           "read_owner_prompt": 19,
           "read_coverage": {
@@ -1855,7 +1866,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.",
+            "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -1863,7 +1874,8 @@
               "Q16",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows."
           },
           "read_owner_prompt": 19,
           "read_coverage": {
@@ -1931,7 +1943,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Preserve EDS default/expression; use checked node 1..127 and verified route masks.",
+            "value_policy": "Retain original EDS width, access and default/expression. CiA 301: general vendor claim, service unconfirmed. No typed route/SYNC/EMCY mutation is established. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -1939,7 +1951,8 @@
               "Q16",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Prompt 38: exact-firmware vendor procedure or isolated reviewed activation/reply-route/rollback-free failure measurement before any typed mutation. 1200 remains read-only in typed workflows."
           },
           "read_owner_prompt": 19,
           "read_coverage": {
@@ -2028,7 +2041,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -2038,7 +2051,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1400:01",
@@ -2098,7 +2117,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2108,7 +2127,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1400:02",
@@ -2168,7 +2193,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2178,7 +2203,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1400:03",
@@ -2238,7 +2269,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2248,7 +2279,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1400:04",
@@ -2308,7 +2345,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -2318,7 +2355,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1400:05",
@@ -2378,7 +2421,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2388,7 +2431,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -2469,7 +2518,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -2479,7 +2528,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1401:01",
@@ -2539,7 +2594,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2549,7 +2604,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1401:02",
@@ -2609,7 +2670,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2619,7 +2680,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1401:03",
@@ -2679,7 +2746,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2689,7 +2756,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1401:04",
@@ -2749,7 +2822,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -2759,7 +2832,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1401:05",
@@ -2819,7 +2898,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2829,7 +2908,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -2910,7 +2995,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -2920,7 +3005,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1402:01",
@@ -2980,7 +3071,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -2990,7 +3081,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1402:02",
@@ -3050,7 +3147,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3060,7 +3157,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1402:03",
@@ -3120,7 +3223,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3130,7 +3233,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1402:04",
@@ -3190,7 +3299,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -3200,7 +3309,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1402:05",
@@ -3260,7 +3375,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3270,7 +3385,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -3351,7 +3472,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -3361,7 +3482,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1403:01",
@@ -3421,7 +3548,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3431,7 +3558,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1403:02",
@@ -3491,7 +3624,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3501,7 +3634,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1403:03",
@@ -3561,7 +3700,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3571,7 +3710,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1403:04",
@@ -3631,7 +3776,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -3641,7 +3786,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1403:05",
@@ -3701,7 +3852,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3711,7 +3862,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -3794,7 +3951,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3804,7 +3961,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1600:01",
@@ -3864,7 +4027,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3874,7 +4037,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1600:02",
@@ -3934,7 +4103,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -3944,7 +4113,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1600:03",
@@ -4004,7 +4179,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4014,7 +4189,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1600:04",
@@ -4073,7 +4254,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4083,7 +4264,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -4166,7 +4353,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4176,7 +4363,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1601:01",
@@ -4236,7 +4429,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4246,7 +4439,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1601:02",
@@ -4306,7 +4505,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4316,7 +4515,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1601:03",
@@ -4375,7 +4580,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4385,7 +4590,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1601:04",
@@ -4444,7 +4655,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4454,7 +4665,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -4537,7 +4754,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4547,7 +4764,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1602:01",
@@ -4606,7 +4829,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4616,7 +4839,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1602:02",
@@ -4675,7 +4904,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4685,7 +4914,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1602:03",
@@ -4744,7 +4979,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4754,7 +4989,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1602:04",
@@ -4813,7 +5054,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4823,7 +5064,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -4906,7 +5153,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4916,7 +5163,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1603:01",
@@ -4975,7 +5228,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -4985,7 +5238,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1603:02",
@@ -5044,7 +5303,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5054,7 +5313,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1603:03",
@@ -5113,7 +5378,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5123,7 +5388,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1603:04",
@@ -5182,7 +5453,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5192,7 +5463,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -5273,7 +5550,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -5283,7 +5560,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1800:01",
@@ -5343,7 +5626,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5353,7 +5636,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1800:02",
@@ -5413,7 +5702,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5423,7 +5712,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1800:03",
@@ -5483,7 +5778,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS. Fixture observation 2026-11-02: Both CL86-C fixtures return raw100 versus EDS default0; current readback is not a factory-default or time-unit claim. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Fixture observation 2026-11-02: Both CL86-C fixtures return raw100 versus EDS default0; current readback is not a factory-default or time-unit claim. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5493,7 +5788,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1800:04",
@@ -5553,7 +5854,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -5563,7 +5864,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1800:05",
@@ -5623,7 +5930,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Fixture observation 2026-11-02: Both CL86-C fixtures return raw0 versus EDS default100; current readback does not establish zero behavior. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Fixture observation 2026-11-02: Both CL86-C fixtures return raw0 versus EDS default100; current readback does not establish zero behavior. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5633,7 +5940,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -5714,7 +6027,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -5724,7 +6037,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1801:01",
@@ -5784,7 +6103,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5794,7 +6113,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1801:02",
@@ -5854,7 +6179,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5864,7 +6189,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1801:03",
@@ -5924,7 +6255,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -5934,7 +6265,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1801:04",
@@ -5994,7 +6331,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -6004,7 +6341,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1801:05",
@@ -6064,7 +6407,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6074,7 +6417,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -6155,7 +6504,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -6165,7 +6514,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1802:01",
@@ -6225,7 +6580,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6235,7 +6590,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1802:02",
@@ -6295,7 +6656,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6305,7 +6666,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1802:03",
@@ -6365,7 +6732,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6375,7 +6742,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1802:04",
@@ -6435,7 +6808,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -6445,7 +6818,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1802:05",
@@ -6505,7 +6884,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6515,7 +6894,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -6596,7 +6981,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Five declared children; count default 5.",
+            "value_policy": "Five declared children; count default 5. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -6606,7 +6991,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1803:01",
@@ -6666,7 +7057,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported.",
+            "value_policy": "Keep default $NODEID expression. A raw U32 is not proof every routing/flag combination is supported. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6676,7 +7067,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1803:02",
@@ -6736,7 +7133,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence.",
+            "value_policy": "Default 255 only; accepted synchronous/asynchronous types need evidence. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6746,7 +7143,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1803:03",
@@ -6806,7 +7209,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; units/effect not specified in this EDS.",
+            "value_policy": "Default 0; units/effect not specified in this EDS. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6816,7 +7219,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1803:04",
@@ -6876,7 +7285,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; no operational purpose established; no generic setter.",
+            "value_policy": "Default 0; no operational purpose established; no generic setter. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "not_writable",
             "gate_ids": [
@@ -6886,7 +7295,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1803:05",
@@ -6946,7 +7361,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows.",
+            "value_policy": "RPDO default 1000 / TPDO default 100; no drive host-loss reaction follows. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -6956,7 +7371,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -7039,7 +7460,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7049,7 +7470,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A00:01",
@@ -7109,7 +7536,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7119,7 +7546,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A00:02",
@@ -7179,7 +7612,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60610008, whereas the EDS default is 0x60FD0020; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Checkpoint 2026-11-02: fixed TPDO1 map3 [60410010,60610008,60640020] to map2 [60410010,60640020] is implemented and host-tested through PdoConfiguration; node1 CL86-C accepted six writes and all nine final reads after fresh addressed Pre-operational. COB-ID181/type255/inhibit100/event0 and inactive slots3=60640020,4=0 were preserved. This is specimen-specific experiment evidence, not generic flags/timers, persistence or sample qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7189,7 +7622,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A00:03",
@@ -7249,7 +7688,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60640020, whereas the EDS default is 0x60610008; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Fixture observation 2026-11-02: Both CL86-C fixtures return 0x60640020, whereas the EDS default is 0x60610008; retain both claims. See docs/reports/2026-11-02_s2_live_connection.md; original EDS metadata and production qualification remain unchanged. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7259,7 +7698,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A00:04",
@@ -7318,7 +7763,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7328,7 +7773,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -7411,7 +7862,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7421,7 +7872,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A01:01",
@@ -7481,7 +7938,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7491,7 +7948,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A01:02",
@@ -7551,7 +8014,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7561,7 +8024,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A01:03",
@@ -7620,7 +8089,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7630,7 +8099,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A01:04",
@@ -7689,7 +8164,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7699,7 +8174,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -7782,7 +8263,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7792,7 +8273,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A02:01",
@@ -7851,7 +8338,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7861,7 +8348,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A02:02",
@@ -7920,7 +8413,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7930,7 +8423,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A02:03",
@@ -7989,7 +8488,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -7999,7 +8498,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A02:04",
@@ -8058,7 +8563,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -8068,7 +8573,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -8151,7 +8662,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots.",
+            "value_policy": "Count 0..4; only that many leading slots active. No use of inactive or missing-default slots. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -8161,7 +8672,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A03:01",
@@ -8220,7 +8737,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -8230,7 +8747,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A03:02",
@@ -8289,7 +8812,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -8299,7 +8822,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A03:03",
@@ -8358,7 +8887,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -8368,7 +8897,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         },
         {
           "key": "0x1A03:04",
@@ -8427,7 +8962,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes.",
+            "value_policy": "U32 descriptor encodes index/subindex/bit width; at most four slots and eight Classical CAN payload bytes. Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -8437,7 +8972,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -9416,7 +9957,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Manual 0..127 includes zero; all-off DIP selects user parameter, not a unicast node zero.",
+            "value_policy": "Manual 0..127 includes zero; all-off DIP selects user parameter, not a unicast node zero. Restart requirement: unknown. Persistence: unknown. No object reports DIP state: all-OFF is a caller attestation. Readback is stored selection, not the active node; zero is not unicast.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -9424,9 +9965,16 @@
               "Q16",
               "Q20"
             ],
-            "generation_type": "resolved"
+            "generation_type": "resolved",
+            "next_evidence": "Prompt 38/Q16: actual node-DIP attestation and exact-firmware activation/acknowledgement-route evidence; separately establish restart/persistence without guessed routes or automatic replay."
           },
-          "read_owner_prompt": 38
+          "read_owner_prompt": 38,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },

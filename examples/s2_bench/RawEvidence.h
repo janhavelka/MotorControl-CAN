@@ -167,6 +167,12 @@ class RawEvidence {
      * or qualify remote effects.
      */
     bool release() noexcept;
+    /** Match the exact reviewed pending download at the owner-to-adapter boundary.
+     * @param sequence Reservation identity. @param transfer Copied pending work.
+     * @param nowUs Supplied owner time. @return False for unrelated, stale or lost work.
+     */
+    bool preflight(SequenceId sequence, const MotorControlCAN::CANOPEN::SdoTransfer& transfer,
+                   uint64_t nowUs) const noexcept;
 
   private:
     CanBusOwner& owner_;

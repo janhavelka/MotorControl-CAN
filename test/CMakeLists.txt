@@ -520,6 +520,18 @@ strict_test(discovery_test)
 add_test(NAME discovery COMMAND discovery_test)
 set_tests_properties(discovery PROPERTIES TIMEOUT 30)
 
+add_executable(communication_test communication_test.cpp)
+target_link_libraries(communication_test PRIVATE MotorControlCAN::CanBusOwner)
+strict_test(communication_test)
+add_test(NAME communication COMMAND communication_test)
+set_tests_properties(communication PROPERTIES TIMEOUT 30)
+
+add_executable(heartbeat_communication_test heartbeat_communication_test.cpp)
+target_link_libraries(heartbeat_communication_test PRIVATE MotorControlCAN::CanBusOwner)
+strict_test(heartbeat_communication_test)
+add_test(NAME heartbeat_communication COMMAND heartbeat_communication_test)
+set_tests_properties(heartbeat_communication PROPERTIES TIMEOUT 30)
+
 add_executable(discovery_scan_test discovery_scan_test.cpp)
 target_link_libraries(discovery_scan_test PRIVATE MotorControlCANProbeApp)
 strict_test(discovery_scan_test)
