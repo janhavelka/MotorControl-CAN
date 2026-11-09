@@ -241,8 +241,11 @@ fixed order, each group through `prepareCommunicationRead`, `nextCommunication`,
 `getCommunication`, with one exact reviewed upload grant per unqualified field (Q20) from the same increasing per-slot
 sequence as `R`, `W` and `E`. [`HeartbeatCommission`](CommunicationBench.h) (`H`) runs the profile's `CommunicationContext`
 for the reviewed `1017:00` raw 0 to raw 1000 transition (scope `ISOLATED_EXPERIMENT`) and is the only one of the three in
-the download dispatcher; it refuses with `reason=service` unless the adapter already reports ordinary service for the node,
-which an accepted `D` probe or identity scan after any `N` line provides. The three records are 5784, 9712 and 10168 bytes
+the download dispatcher; it refuses before anything is sent unless the node premises of the owner's epoch migration hold
+(`SdoClient::configurationEligible`): `reason=service` without ordinary service, which an accepted `D` probe or identity
+scan after any `N` line provides, and `reason=transition` while an `N` line's transition is pending, which at producer
+time 0 lasts its whole 5 s window. `K` and `H` refuse `reason=reserved` while an open route session keeps the axis's
+reservation, for the rest of the MCU boot. The three records are 5784, 9712 and 10168 bytes
 on S2 (pinned compiler, `sizeof`) and live in the shared record arena of the heap plan below. After `K` or `H` on a node the
 fixed-grant commands (`1`/`2`, `3`/`4`, `h`/`j`, `m`, `v`/`b`) fail on that node until the next MCU boot, as after `R`, `W`
 and `E`. Lines, refusal reasons, runner checks and plans are in

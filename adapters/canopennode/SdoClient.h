@@ -262,6 +262,8 @@ public:
      * be idle, with terminals released and all staging/cleanup/handoffs retired.
      * No occupied NMT result or pending node transition is allowed. This is not
      * recovery, route rebinding, a device write or a fresh-session qualification.
+     * configurationEligible reports every one of these premises except idleness in
+     * advance; check it before the settings download is admitted.
      * @param[in] slot Configured SDO channel whose exact binding is previous.
      * @param[in] previous Original binding, borrowed only for this call; no owner overlap.
      * @param[in] current Same binding with configurationGeneration increased by exactly one.
@@ -277,6 +279,27 @@ public:
      */
     bool advanceConfiguration(uint8_t slot, const Binding& previous, const Binding& current,
                               uint64_t nowUs);
+    /** Report whether advanceConfiguration's node premises hold now; no mutation or I/O.
+     * Check before admitting a settings download whose configuration epoch the application
+     * synchronizes afterwards: once that download may have left, a refused migration cannot
+     * be undone and the write stays unconfirmed. The premises are exactly those of
+     * advanceConfiguration apart from idleness: a usable controller; no occupied NMT result;
+     * no pending node transition, which an NMT intent sets at its possible TX until a
+     * matching heartbeat or boot-up is observed or until the first service at or after the
+     * intent's own deadline (a node that produces no heartbeat clears it only then);
+     * current ordinary-service evidence from serviceEligibility, of which a pending
+     * transition is no part; and every configured channel of the physical node on exactly
+     * this binding and not unresolved. A later boot-up, evidence-age expiry, new NMT request,
+     * Stopped heartbeat or quarantine can still withdraw them before the migration. Idleness
+     * (released terminals, retired staging, no cleanup or handoff) is the caller's own work
+     * and only advanceConfiguration checks it.
+     * @param[in] slot Configured SDO channel whose exact binding is binding.
+     * @param[in] binding Its current binding, read during this call only; channel(slot)'s own
+     * binding may be passed.
+     * @param[in] nowUs Supplied microseconds, not before the adapter's last time.
+     * @return True only when every node premise holds now. Grants nothing, renews nothing.
+     */
+    bool configurationEligible(uint8_t slot, const Binding& binding, uint64_t nowUs) const;
     /** Configure passive routing in an existing unused network slot, without I/O.
      * A passive-only slot needs no SDO session premise. One route per physical
      * node; other SDO channels share that anchor. All identifiers must be unique
@@ -711,6 +734,7 @@ private:
     void applyNmt(uint64_t nowUs);
     void observeNmt(NodeSnapshot& state, const ObservationTime& time, NmtState observed);
     bool eligibleSdo(uint8_t slot, const SdoTransfer& work, uint64_t nowUs) const;
+    bool configurationPremises(uint8_t slot, const Binding& previous, uint64_t nowUs) const;
     bool authorizeExperiment(uint8_t slot, const SdoTransfer& work, Generation nodeGeneration,
                              uint32_t authorizationId, uint64_t nowUs);
     bool experimentMatches(uint8_t slot, const SdoTransfer& work, uint64_t nowUs,

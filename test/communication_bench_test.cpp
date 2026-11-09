@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 // The S2 bench's K and H lines through the real owner and service store over a synthetic two-node
 // communication dictionary. Widths are transcribed from the EDS independently of the profile.
-// The firmware turn is an ordinary owner service; the transport's handoff guard plays main.cpp's
+// The firmware turn is an ordinary owner service, or with firmwareTurn the firmware's own ProbeApp
+// turn, which the D line's DiscoveryBench needs; the transport's handoff guard plays main.cpp's
 // download dispatcher, in which only the H record takes part.
 #include "CommunicationBench.h"
+#include "DiscoveryBench.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -90,7 +92,7 @@ struct Wire : OwnerRig::WireBase {
     uint16_t storeOverride = 0;     // Nonzero: a download stores this instead (readback mismatch).
     // Failure injection on the n-th request frame to `failNode` (1-based), or on its download.
     enum class Fault { NONE, ABORT, SILENT, BOOTUP } fault = Fault::NONE;
-    unsigned failNode = 0, failAt = 0, frames[3] = {}, downloads[3] = {}, guardCalls = 0;
+    unsigned failNode = 0, failAt = 0, frames[3] = {}, downloads[3] = {}, guardCalls = 0, nmtFrames = 0;
     bool silentDownload = false;
     uint8_t stateWithAck = 0; // Nonzero: a heartbeat in this state arrives just before the write's ACK.
     static bool guard(void* context, O::SequenceId sequence, const C::SdoTransfer& t, uint64_t now) {
@@ -100,6 +102,14 @@ struct Wire : OwnerRig::WireBase {
     }
     static bool transmit(void* context, const M::Frame& f, O::TransportTxId id, uint32_t epoch) {
         Wire& w = *static_cast<Wire*>(static_cast<OwnerRig::WireBase*>(context));
+        if (f.id == 0) {
+            // An addressed NMT command (the N line). A node with producer time 0 sends no heartbeat,
+            // so nothing on this wire observes its transition.
+            CHECK(f.payloadLength == 2 && (f.data[1] == 1 || f.data[1] == 2));
+            CHECK(OwnerRig::WireBase::transmit(context, f, id, epoch));
+            ++w.nmtFrames;
+            return true;
+        }
         CHECK(f.id == 0x601 || f.id == 0x602);
         const unsigned node = f.id - 0x600;
         CHECK(OwnerRig::WireBase::transmit(context, f, id, epoch));
@@ -166,9 +176,14 @@ struct Rig {
     O::CanBusOwner owner;
     E::CommunicationReads reads;
     E::HeartbeatCommission commission;
+    E::ProbePlatform platform;
+    E::ProbeApp app;
+    E::DiscoveryBench discovery;
     uint64_t now = 10;
+    bool firmwareTurn = false; // True: ProbeApp::service is the turn, as FirmwareProbe runs it.
     explicit Rig(unsigned routes = 2)
-        : owner(services, wire.callbacks(), 28), reads(owner, services), commission(owner, services) {
+        : owner(services, wire.callbacks(), 28), reads(owner, services), commission(owner, services),
+          platform(E::ProbeCallbacks()), app(owner, platform), discovery(app, owner, services) {
         wire.heartbeat = &commission;
         for (unsigned node = 1; node <= routes; ++node) {
             const L::ReadTarget t = target(node);
@@ -184,7 +199,12 @@ struct Rig {
     void turn(uint64_t step = 100) {
         now += step;
         wire.now = now;
-        CHECK(owner.service(now, OwnerRig::budget()));
+        if (firmwareTurn)
+            CHECK(app.service(now));
+        else
+            CHECK(owner.service(now, OwnerRig::budget()));
+        // main.cpp's order after the firmware turn: D, K, then H.
+        CHECK(discovery.service(owner.lastTimeUs()));
         CHECK(reads.service(owner.lastTimeUs()));
         CHECK(commission.service(owner.lastTimeUs()));
     }
@@ -236,6 +256,40 @@ struct Rig {
         for (unsigned i = 0; i < 100 && !owner.localTxRetired(uint8_t(node - 1)); ++i)
             turn();
         CHECK(owner.releaseSequence(sequence));
+    }
+    // The N line (main.cpp admitNmt): one addressed command with the bench's 250 ms queue budget and
+    // 5 s wait window, its TX report, then r releases the result. Returns the admission time.
+    uint64_t nmt(unsigned node, C::NmtCommand command, uint32_t id) {
+        C::NmtTransfer work;
+        work.target = services.node(uint8_t(node - 1))->route;
+        work.command = command;
+        work.bus = work.target.binding.endpoint.bus;
+        work.request = id;
+        work.queueTimeoutUs = 250000;
+        work.deadlineUs = now + 5000000;
+        C::NmtRequestId request;
+        const uint64_t admitted = now;
+        CHECK(owner.admitNmt(work, now, request));
+        for (unsigned i = 0; i < 100 && !owner.nmtResult(request); ++i)
+            turn();
+        CHECK(owner.nmtResult(request) && owner.nmtResult(request)->transmissionConfirmed);
+        CHECK(owner.releaseNmt(request));
+        return admitted;
+    }
+    // The D line in probe mode over both nodes, selecting `select`, then r.
+    void probe(uint8_t select, uint32_t id) {
+        E::DiscoveryBenchRequest r;
+        r.id = id;
+        r.mode = E::DiscoveryMode::PROBE;
+        r.seconds = 3;
+        r.select = select;
+        r.bitrate = 1000000;
+        CHECK(discovery.begin(r, now) == nullptr);
+        for (unsigned i = 0; i < 40000 && discovery.active(); ++i)
+            turn();
+        CHECK(discovery.record() && discovery.record()->terminal);
+        CHECK(discovery.scan().result(0) && discovery.scan().result(0)->bindingCurrent);
+        CHECK(discovery.release());
     }
     void heartbeatFrame(unsigned node, uint8_t state) {
         M::Frame f = OwnerRig::frame(0x700 + node, 1);
@@ -334,11 +388,11 @@ void readRefusals() {
     CHECK(refused(rig.reads.begin(bad, rig.now), "invalid"));
     Rig one(1);
     CHECK(refused(one.reads.begin(one.readRequest(2), one.now), "route"));
-    // While one record is held the binding is reserved: a second record on it is busy.
+    // While one record is held it is busy, and the other record finds the binding reserved.
     rig.qualify(1);
     CHECK(rig.reads.begin(rig.readRequest(1), rig.now) == nullptr);
     CHECK(refused(rig.reads.begin(rig.readRequest(1, 300), rig.now), "busy"));
-    CHECK(refused(rig.commission.begin(rig.heartbeatRequest(1), rig.now), "busy"));
+    CHECK(refused(rig.commission.begin(rig.heartbeatRequest(1), rig.now), "reserved"));
     CHECK(!rig.reads.release());
     CHECK(rig.wire.sentCount == 1); // Only the qualifying probe; the refusals sent nothing.
 }
@@ -632,6 +686,124 @@ void heartbeatWithoutDispatcherIsUnsent() {
     CHECK(rig.wire.sentCount == 2 && !rig.wire.downloads[1] && rig.wire.guardCalls == 1);
     CHECK(!r.terminals[1].possible && r.context.state == L::CommunicationState::FAILED);
 }
+// The 2026-11-09 S2 sequence on both nodes (docs/bench/20261109T1121Z-r2b-p38_heartbeat_node1),
+// through the firmware's own ProbeApp turn: N1,p, the D probe, K1, then H1,1000. The probe gave
+// ordinary service, which was all the old precondition checked; but the N line's transition stayed
+// pending, as no heartbeat at producer time 0 could observe it, and the adapter refuses the epoch
+// migration while it is. The write was then applied and acknowledged and could not be confirmed.
+// Now H refuses before anything is sent, and once the N line's 5 s window has ended it commissions.
+void heartbeatWaitsForPendingTransition() {
+    Rig rig;
+    rig.firmwareTurn = true;
+    const uint64_t nmtAt = rig.nmt(1, C::NmtCommand::PRE_OPERATIONAL, 37);
+    rig.probe(1, 38);
+    CHECK(rig.reads.begin(rig.readRequest(1, 39), rig.now) == nullptr);
+    rig.finish(rig.reads);
+    CHECK(rig.reads.record()->failure == E::CommunicationBenchFailure::NONE && rig.reads.release());
+    const C::NodeSnapshot& node = *rig.services.node(0);
+    C::ServiceEligibility e;
+    CHECK(C::serviceEligibility(node, rig.now, e) && e.ordinarySdo && !e.exactNmtKnown);
+    CHECK(node.transitionPending && rig.now < node.transitionDeadlineUs);
+    CHECK(!rig.services.configurationEligible(0, rig.services.channel(0)->binding, rig.now));
+    const unsigned sent = rig.wire.sentCount;
+    CHECK(refused(rig.commission.begin(rig.heartbeatRequest(1, 57, 20001), rig.now), "transition"));
+    CHECK(!rig.commission.record() && rig.wire.sentCount == sent);
+    CHECK(!rig.wire.downloads[1] && !rig.wire.stored[1] && !rig.wire.guardCalls);
+    // Nothing can observe the transition here; only the N line's own window ends it.
+    while (rig.now < nmtAt + 5000000)
+        rig.turn(100000);
+    CHECK(!node.transitionPending && node.transitionExpired);
+    // Expiry promotes no NMT state: the experiment still runs with the state unknown.
+    CHECK(C::serviceEligibility(node, rig.now, e) && e.ordinarySdo && !e.exactNmtKnown);
+    CHECK(rig.commission.begin(rig.heartbeatRequest(1, 57, 20001), rig.now) == nullptr);
+    rig.finish(rig.commission);
+    const E::HeartbeatBenchRecord& r = *rig.commission.record();
+    CHECK(r.failure == E::HeartbeatBenchFailure::NONE && r.prepared && r.migrated && r.published);
+    CHECK(!r.nmt.known && r.context.readbackMatched && !r.context.uncertain);
+    CHECK(rig.wire.downloads[1] == 1 && rig.wire.stored[1] == 1000 && rig.wire.nmtFrames == 1);
+    CHECK(rig.wire.sentCount == sent + 3);
+    CHECK(rig.services.channel(0)->binding.configurationGeneration == 2);
+    CHECK(rig.commission.release());
+}
+
+// Node 2's run with the probe moved last (20261109T1123Z-r2b-hb-node2-probe-last): N2,p, K2, the D
+// probe, H2. The order of K and the probe does not matter; the pending transition refuses alike.
+// A probe before the N line gives no ordinary service at all: its evidence precedes the intent.
+void heartbeatProbeOrderAroundNmt() {
+    Rig rig;
+    rig.firmwareTurn = true;
+    rig.nmt(2, C::NmtCommand::PRE_OPERATIONAL, 77);
+    CHECK(rig.reads.begin(rig.readRequest(2, 78), rig.now) == nullptr);
+    rig.finish(rig.reads);
+    CHECK(rig.reads.release());
+    rig.probe(2, 96);
+    const unsigned sent = rig.wire.sentCount;
+    CHECK(refused(rig.commission.begin(rig.heartbeatRequest(2, 97, 20001), rig.now), "transition"));
+    CHECK(rig.wire.sentCount == sent && !rig.wire.downloads[2]);
+    Rig early;
+    early.firmwareTurn = true;
+    early.probe(1, 1);
+    early.nmt(1, C::NmtCommand::PRE_OPERATIONAL, 2);
+    CHECK(refused(early.commission.begin(early.heartbeatRequest(1, 3, 20001), early.now), "service"));
+    // After the window the earlier probe still counts for nothing: it preceded the intent.
+    for (unsigned i = 0; i < 60; ++i)
+        early.turn(100000);
+    CHECK(!early.services.node(0)->transitionPending);
+    CHECK(refused(early.commission.begin(early.heartbeatRequest(1, 3, 20001), early.now), "service"));
+    early.probe(1, 4);
+    CHECK(early.commission.begin(early.heartbeatRequest(1, 5, 20001), early.now) == nullptr);
+}
+
+// The premises are checked once more just before the write is admitted. An NMT intent between the
+// baseline and the write ends the record with only the baseline upload sent, nothing written.
+void heartbeatRechecksBeforeWrite() {
+    Rig rig;
+    rig.qualify(1);
+    CHECK(rig.commission.begin(rig.heartbeatRequest(1), rig.now) == nullptr);
+    for (unsigned i = 0; i < 100 && rig.wire.sentCount < 2; ++i)
+        rig.turn();
+    CHECK(rig.wire.sentCount == 2 && !rig.commission.record()->terminal); // The baseline is out.
+    C::NmtTransfer work;
+    work.target = rig.services.node(0)->route;
+    work.command = C::NmtCommand::PRE_OPERATIONAL;
+    work.bus = work.target.binding.endpoint.bus;
+    work.request = 90;
+    work.queueTimeoutUs = 250000;
+    work.deadlineUs = rig.now + 5000000;
+    C::NmtRequestId nmt;
+    CHECK(rig.owner.admitNmt(work, rig.now, nmt));
+    rig.finish(rig.commission);
+    const E::HeartbeatBenchRecord& r = *rig.commission.record();
+    CHECK(r.failure == E::HeartbeatBenchFailure::ELIGIBILITY && r.terminalCount == 1);
+    CHECK(!r.context.effectsPossible && !r.context.writeAcknowledged && !r.migrated);
+    CHECK(!rig.wire.downloads[1] && !rig.wire.guardCalls && rig.wire.nmtFrames == 1);
+    CHECK(rig.services.channel(0)->binding.configurationGeneration == 1);
+    CHECK(rig.commission.release());
+}
+// An open route AxisSession keeps its axis's owner reservation (2026-11-09: after routes 901 and
+// 902, K and H were refused for the rest of the boot). They now say so, send nothing, and leave
+// the other node alone. Closing the idle session releases it and keeps its object-life records.
+void routeSessionKeepsReservation() {
+    Rig rig;
+    rig.firmwareTurn = true;
+    rig.qualify(1);
+    rig.qualify(2);
+    static E::AxisSession session(rig.owner); // Large; as on the bench, stationary storage.
+    CHECK(rig.app.openAxis(session, target(1), L::SettingsModel::CL86_C, rig.now) == &session);
+    CHECK(session.isOpen() && rig.owner.sequence(session.sequence()));
+    const unsigned sent = rig.wire.sentCount;
+    CHECK(refused(rig.reads.begin(rig.readRequest(1), rig.now), "reserved"));
+    CHECK(refused(rig.commission.begin(rig.heartbeatRequest(1), rig.now), "reserved"));
+    CHECK(rig.wire.sentCount == sent && !rig.reads.record() && !rig.commission.record());
+    CHECK(rig.commission.begin(rig.heartbeatRequest(2), rig.now) == nullptr);
+    rig.finish(rig.commission);
+    CHECK(rig.commission.record()->failure == E::HeartbeatBenchFailure::NONE && rig.commission.release());
+    CHECK(rig.wire.sentCount == sent + 3 && rig.wire.frames[1] == 1 && rig.wire.downloads[2] == 1);
+    CHECK(!session.busy() && !session.motionHistoryWritten() && session.close() && !session.isOpen());
+    CHECK(rig.reads.begin(rig.readRequest(1), rig.now) == nullptr);
+    rig.finish(rig.reads);
+    CHECK(rig.reads.record()->failure == E::CommunicationBenchFailure::NONE && rig.reads.release());
+}
 } // namespace
 int main() {
     readsAllGroups();
@@ -650,5 +822,9 @@ int main() {
     heartbeatPreOperationalAfterWrite();
     heartbeatRefusalsAndPreflight();
     heartbeatWithoutDispatcherIsUnsent();
+    heartbeatWaitsForPendingTransition();
+    heartbeatProbeOrderAroundNmt();
+    heartbeatRechecksBeforeWrite();
+    routeSessionKeepsReservation();
     std::printf("communication bench: %u checks passed\n", checks);
 }

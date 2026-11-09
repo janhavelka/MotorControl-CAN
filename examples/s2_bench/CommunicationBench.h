@@ -79,7 +79,9 @@ class CommunicationReads {
     CommunicationReads(const CommunicationReads&) = delete;
     CommunicationReads& operator=(const CommunicationReads&) = delete;
     /** Reserve the node's binding as producer 4; nothing is sent here.
-     * @return Null when admitted, else busy, invalid, route or unresolved. */
+     * @return Null when admitted, else busy, invalid, route, unresolved or reserved: another
+     * holder keeps the axis's owner reservation, on the bench an open route AxisSession, which
+     * keeps it for the rest of the MCU boot. */
     const char* begin(const CommunicationBenchRequest& request, uint64_t nowUs) noexcept;
     /** Consume at most one terminal and admit at most one next upload. @return False for
      * backward time or an owner release refusal. */
@@ -123,8 +125,8 @@ enum class HeartbeatBenchFailure : uint8_t {
     CONFIGURATION, ///< The profile or owner refused a notice, migration or confirmation step.
     READBACK,      ///< Acknowledged write, but the readback differed from raw 1000.
     PUBLICATION,   ///< getCommunication refused the confirmed result.
-    /** The adapter stopped reporting ordinary service for the node before the baseline; nothing
-     * was sent. The owner's epoch migration after the write needs it (see HeartbeatCommission). */
+    /** The owner's epoch migration premises (see HeartbeatCommission) stopped holding before the
+     * baseline or before the write: nothing, or only the baseline upload, was sent; no write. */
     ELIGIBILITY
 };
 /** One checked H-line request; only producerTimeRaw 1000 exists. */
@@ -171,12 +173,18 @@ struct HeartbeatBenchRecord {
  * the download can leave and are not restored: a stored readback is not active timing.
  * There is no reverse transition, save, reset or NMT here; restoration is a separate bench step.
  *
- * Precondition, checked at begin and again before the baseline: the adapter must already report
- * ordinary SDO service for the node (a current qualified Pre-operational or Operational state, or
- * service evidence from an accepted, ungranted upload such as the D line's probe). The baseline,
- * write and readback here are granted experiments and establish none. Without it the owner's
- * advanceConfiguration refuses the migration after an acknowledged write, which would leave an
- * applied write that cannot be confirmed; so the record refuses before anything is sent.
+ * Precondition, checked at begin, again before the baseline and again before the write is
+ * admitted: the node premises of the owner's epoch migration, SdoClient::configurationEligible,
+ * must hold. Otherwise the owner's advanceConfiguration refuses the migration after an
+ * acknowledged write, which leaves an applied write that cannot be confirmed (2026-11-09, both
+ * nodes). Two of them need explicit bench steps:
+ * - Ordinary SDO service: a current qualified Pre-operational or Operational state, or service
+ *   evidence from an accepted, ungranted upload after any NMT intent, such as the D line's probe.
+ *   The baseline, write and readback here are granted experiments and establish none.
+ * - No pending NMT transition: an N line leaves its node's transition pending until a matching
+ *   heartbeat or boot-up is observed or until its 5 s wait window ends. A node at producer time 0
+ *   sends no heartbeat, so H can follow N only after that window.
+ * begin refuses "service" or "transition" for these, "configuration" for any other premise.
  */
 class HeartbeatCommission {
   public:
@@ -184,8 +192,9 @@ class HeartbeatCommission {
     HeartbeatCommission(const HeartbeatCommission&) = delete;
     HeartbeatCommission& operator=(const HeartbeatCommission&) = delete;
     /** Reserve the node's binding as producer 4; nothing is sent here.
-     * @return Null when admitted, else busy, invalid, value, route, unresolved or service (no
-     * current ordinary service for the node, see the precondition above). */
+     * @return Null when admitted, else busy, invalid, value, route, unresolved, service,
+     * transition or configuration (a migration premise is missing, see the precondition above),
+     * or reserved (another holder keeps the axis's reservation, as for CommunicationReads). */
     const char* begin(const HeartbeatBenchRequest& request, uint64_t nowUs) noexcept;
     /** Consume at most one terminal and admit at most one next step. @return False for
      * backward time or an owner release refusal. */
@@ -215,7 +224,7 @@ class HeartbeatCommission {
     HeartbeatBenchFailure requested_ = HeartbeatBenchFailure::NONE;
     uint8_t slot() const noexcept { return uint8_t(record_.request.node - 1); }
     bool current() const noexcept;
-    bool serviceable(uint8_t slot, uint64_t nowUs) const noexcept;
+    const char* migrationRefusal(uint8_t slot, uint64_t nowUs) const noexcept;
     MotorControlCAN::LICHUAN_C::ReadTarget currentTarget() const noexcept;
     void currentNmt(uint64_t nowUs, MotorControlCAN::LICHUAN_C::CommunicationNmt& output) const noexcept;
     void capture(bool tail) noexcept;

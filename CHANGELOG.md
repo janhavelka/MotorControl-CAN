@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Heartbeat commissioning migration fix (backlog S14, 2026-11-09)
+
+- **Fixed:** on 2026-11-09 bench `H` wrote and got an acknowledgement for `1017=1000` on both nodes, then the owner refused the epoch migration and the write stayed uncertain. Cause: the `N` line's NMT transition was still pending, and `SdoClient::advanceConfiguration` refuses while it is; at producer time 0 nothing observes that transition before the `N` line's 5 s window ends. `H` had checked only ordinary SDO service, which the `D` probe after `N` provided. `H` now checks the migration's node premises at admission, before the baseline and before the write, and refuses with nothing sent (`reason=transition`, `service` or `configuration`), or ends `failure=13` with no write if a premise is lost after the baseline. Run `H` at least 5 s after `N`.
+- **Added:** `SdoClient::configurationEligible`, which reports `advanceConfiguration`'s node premises (all but idleness) from the same code. `CanBusOwner::advanceConfiguration`, `prepareCommunication` and `prepareCommunicationConfirmation` now document the premise.
+- **Changed:** bench `K` and `H` refuse with `reason=reserved` instead of `busy` while another holder keeps the axis's reservation; on the bench that is an open route session (S15). Tests: `communication_bench` (the hardware sequence reproduced over the real owner, adapter, `ProbeApp` and `DiscoveryBench`) and `nmt_services`; seven mutants killed. Not yet rerun on hardware.
+
 ### Bench round on `757f1cd`, unattended (2026-11-09)
 
 - On hardware: the heap fix reserved all five blocks at boot and admitted both nodes' routes; discovery (passive, probe, identity, selection) and the 95 typed communication reads ran on both nodes; the homing admission reads ran and the library refused before any write; `6060=3` was accepted on released node 2.

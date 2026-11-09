@@ -467,7 +467,7 @@ The values are raw stored words: `producer` is raw `1017` (milliseconds per CiA 
 vendor-confirmed), `2203` is the stored node setting and not the active node or DIP position,
 `1200` and the COB-ID words are not adopted as routes, inhibit and event raw units stay Q17 gated,
 and a mapping count or word certifies no live map or sample. Refusals: `COMM refused reason=`
-`state`, `route`, `memory`, `invalid`, `busy` or `unresolved`.
+`state`, `route`, `memory`, `invalid`, `busy`, `unresolved` or `reserved` (see `H` below).
 
 **`H<node>,1000`: guarded heartbeat commissioning (prompt 38).**
 [`HeartbeatCommission`](../examples/s2_bench/CommunicationBench.h) runs the profile's
@@ -476,12 +476,19 @@ scope `ISOLATED_EXPERIMENT` and the attestations fixture 20261102, identity reco
 procedure 38 and authorization 20261102. Any other value is refused by the parser and the runner;
 there is no reverse transition, save, NMT or reset. Steps, each with its own exact grant:
 
-1. Before anything is sent the adapter must report ordinary service for the node, because
-   `CanBusOwner::advanceConfiguration` needs it after the write and every step here is a granted
-   experiment that establishes none: a current qualified Pre-operational or Operational state, or
-   service evidence from an accepted ungranted upload. On this bench that is a `D` probe or identity
-   scan after any `N` line (`HB refused reason=service`; after admission `failure=13`). A known
-   current state other than Pre-operational ends the record before the baseline (`failure=8`).
+1. Before anything is sent, and again before the baseline and before the write, the node premises
+   of the owner's epoch migration after the write must hold (`SdoClient::configurationEligible`);
+   otherwise `CanBusOwner::advanceConfiguration` refuses after an applied, acknowledged write, as on
+   both nodes on 2026-11-09 ([report](reports/2026-11-09_bench_r2.md)). Two need bench steps.
+   Ordinary service: a current qualified Pre-operational or Operational state, or service evidence
+   from an accepted ungranted upload after any `N` line, on this bench a `D` probe or identity scan;
+   every step here is a granted experiment that establishes none (`HB refused reason=service`). No
+   pending NMT transition: an `N` line's transition stays pending until a matching heartbeat or
+   boot-up is observed or its 5 s window ends, and at producer time 0 no heartbeat comes, so wait
+   at least 5 s after `N` (`HB refused reason=transition`). Any other premise refuses
+   `reason=configuration`; one lost after admission ends the record with `failure=13` and no
+   write. A known current state other than Pre-operational ends it before the baseline
+   (`failure=8`).
 2. One exact U16 upload of `1017:00` under the actual NMT observation. `prepareCommunication`
    refuses anything but a fresh exact raw 0 before any write (`failure=9`; `detail=6` is VALUE).
 3. The one download, `2B 17 10 00 E8 03 00 00`. Immediately after admission the node's producer
@@ -503,7 +510,10 @@ retried, rolled back or read back. Success shows that this node's stored `1017:0
 after one acknowledged write; it is not active producer timing, persistence or a host-loss reaction.
 The producer interval stays withdrawn after release (`n` shows `producerKnown=0`), and the heartbeat
 period is a separate measurement, for example with a `P` watch. Refusals: `HB refused reason=`
-`state`, `route`, `memory`, `invalid`, `value`, `busy`, `unresolved` or `service`.
+`state`, `route`, `memory`, `invalid`, `value`, `busy`, `unresolved`, `service`, `transition`,
+`configuration` or `reserved`. `reserved`, for `K` too, means another holder keeps the axis's
+owner reservation: on this bench an open route `AxisSession`, which keeps it for the rest of the
+MCU boot, so run `K` and `H` before any `T` route of that node or after an EN reset.
 
 **Restoration.** No reviewed software transition returns `1017:00` to raw 0. On 2026-11-02 node 1
 read raw 0 again after one power cycle of the drive supply with no save; both nodes have read raw
@@ -525,7 +535,9 @@ sent node in order, with 95 successful uploads and no download. An `H` record is
 result described above with exactly one non-upload frame to the node, the write's bytes. `analyze`
 lists each record's header and typed lines. Run order for the first session: discovery (`o`, `p`,
 `i`), `K1`/`K2`, the power-cycle restoration while `producer` is nonzero, then per node `N<n>,p`,
-a `D` probe, `K<n>`, `H<n>,1000` gated on `producer=0`, a `P` watch, `n` and `K<n>` again.
+a wait of at least 5 s for that intent's window to end (no heartbeat at `producer=0`), a `D`
+probe, `K<n>`, `H<n>,1000` gated on `producer=0`, a `P` watch, `n` and `K<n>` again, all before
+any `T` route of the node in that MCU boot.
 
 **Heap plan and `M`.** The same image changes the bench's memory layout
 ([s2_bench README](../examples/s2_bench/README.md#heap-plan)): the raw, PDO, `D`, `K` and `H` collectors share one

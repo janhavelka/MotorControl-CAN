@@ -285,6 +285,11 @@ class CanBusOwner {
      * @param[in] nowUs Same monotonic caller time.
      * @return Adapter's checked idle advance only; preserves frozen settings token,
      * node history and quarantine. No device action, reference renewal or recovery.
+     * The adapter also requires its node premises: notably current ordinary SDO service
+     * and no pending NMT transition for the node (SdoClient::configurationEligible). They
+     * do not follow from a granted experiment or an acknowledged write, so check them
+     * before the settings download is admitted; a refusal after a possible TX leaves that
+     * write unconfirmed.
      */
     bool advanceConfiguration(SequenceId id, const Binding& current, uint64_t nowUs) noexcept;
     /** Copy cached communication health at the most recent supplied owner time.

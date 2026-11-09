@@ -455,6 +455,9 @@ After writes and service terminals are released, call the owner's checked
 healthy-idle check, preserves exclusion/node history, and advances the reservation
 to the actual new configuration. Pending or unretired external frames on the
 same node reject this advance even after their owner results are released.
+The adapter's node premises apply as well, notably current ordinary SDO service
+and no pending NMT transition; `SdoClient::configurationEligible` reports them
+before the settings download is admitted, when a refusal can still be avoided.
 New-epoch reads then use the same reservation
 and operation. Map/sample qualification, physical activation and motion completion
 stay independent; no hidden save, reset, enable or retry occurs.

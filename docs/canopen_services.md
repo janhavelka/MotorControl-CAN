@@ -941,8 +941,12 @@ specimen evidence, not a firmware qualification.
 on an otherwise identical, idle, confirmed and resolved node/channel binding.
 It requires released terminals, retired staging/cleanup, no pending NMT and
 existing usable service evidence. It cannot reconcile an ambiguous channel or
-rebind identifiers. It preserves node generation, liveness/NMT/service times and
-historical diagnostics without renewing them. Cache observers run and PDO samples
+rebind identifiers. `configurationEligible` reports every premise except
+idleness in advance, before a settings download is admitted. A pending NMT
+transition is no part of ordinary service eligibility: it lasts until a matching
+heartbeat or boot-up or the intent's own deadline, so a node without a heartbeat
+producer keeps it for that whole window. The migration preserves node generation,
+liveness/NMT/service times and historical diagnostics without renewing them. Cache observers run and PDO samples
 are revoked before publishing the new binding. See the
 [owner contract](can_owner.md#native-settings-exclusion-and-configuration-epochs).
 Explicit new-epoch map evidence requires withdrawal/reinstallation; delayed

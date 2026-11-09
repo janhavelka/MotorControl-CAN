@@ -705,6 +705,67 @@ void controllerEventWithdrawsUnanchoredServiceProof() {
     }
 }
 } // namespace
+// configurationEligible reports advanceConfiguration's node premises before any settings work. The
+// S2 case (2026-11-09): an accepted reply after a Pre-operational intent gives ordinary service, but
+// with no heartbeat the intent's transition stays pending until its own deadline, and until then a
+// migration is refused, so an application must check before it lets a settings write leave.
+void configurationPremisesIncludePendingTransition() {
+    M::Binding next = binding(); ++next.configurationGeneration;
+    {   // Unconfirmed channel without service evidence: neither eligible nor migrated.
+        C::SdoClient owner; setup(owner, true, false);
+        CHECK(!eligibility(owner, 1).ordinarySdo);
+        CHECK(!owner.configurationEligible(0, binding(), 1));
+        CHECK(!owner.advanceConfiguration(0, binding(), next, 1));
+    }
+    C::SdoClient owner; setup(owner, true, false);
+    auto work = request(C::NmtCommand::PRE_OPERATIONAL); work.deadlineUs = 60;
+    const auto nmt = admitNmt(owner, work, 1);
+    M::Frame frame; CHECK(owner.nextNmtTx(nmt, 2, frame)); expectWire(frame, 0x80, 1);
+    CHECK(owner.confirmNmtTx(nmt, 3));
+    const auto probe = admitSdo(owner, transfer(), 4); handoffSdo(owner, 5);
+    CHECK(owner.receive(reply(), 6, 6)); CHECK(owner.result(probe)->outcome == C::SdoOutcome::SUCCESS);
+    CHECK(owner.release(probe));
+    CHECK(eligibility(owner, 6).ordinarySdo && !eligibility(owner, 6).exactNmtKnown);
+    CHECK(!owner.configurationEligible(0, binding(), 6)); // The NMT result is still held.
+    CHECK(owner.releaseNmt(nmt));
+    // Ordinary service, no held result, and still refused: the transition has not been observed.
+    CHECK(owner.node(0)->transitionPending && eligibility(owner, 7).ordinarySdo);
+    CHECK(!owner.configurationEligible(0, owner.channel(0)->binding, 7));
+    const Saved<C::NodeSnapshot> before(*owner.node(0));
+    CHECK(!owner.advanceConfiguration(0, binding(), next, 7));
+    CHECK(before.unchanged(*owner.node(0)) && M::sameBinding(owner.channel(0)->binding, binding()));
+    CHECK(owner.service(59)); CHECK(!owner.configurationEligible(0, binding(), 59));
+    // The intent's own deadline ends the wait without promoting any NMT state.
+    CHECK(owner.service(60));
+    CHECK(!owner.node(0)->transitionPending && owner.node(0)->transitionExpired);
+    CHECK(!eligibility(owner, 60).exactNmtKnown && eligibility(owner, 60).ordinarySdo);
+    CHECK(owner.configurationEligible(0, owner.channel(0)->binding, 60));
+    CHECK(!owner.configurationEligible(0, next, 60) && !owner.configurationEligible(1, binding(), 60));
+    CHECK(owner.advanceConfiguration(0, binding(), next, 60));
+    CHECK(owner.configurationEligible(0, next, 60) && !owner.configurationEligible(0, binding(), 60));
+    // A quarantined channel is no premise either, whatever the service evidence says.
+    auto lost = transfer(); lost.channel.binding = next; lost.deadlineUs = 200;
+    const auto pending = admitSdo(owner, lost, 61); handoffSdo(owner, 62);
+    CHECK(owner.service(113) && owner.result(pending) && owner.unresolved(0));
+    CHECK(owner.release(pending) && eligibility(owner, 113).ordinarySdo);
+    CHECK(!owner.configurationEligible(0, next, 113));
+    CHECK(owner.port(0)->accepted == 2 && owner.nmtPort()->accepted == 1);
+    {   // A matching heartbeat after the intent ends the wait at once, with exact state and service;
+        // the held NMT result alone still refuses until it is released.
+        C::SdoClient observed; setup(observed, true, false);
+        const auto id = admitNmt(observed, work, 1);
+        CHECK(observed.nextNmtTx(id, 2, frame) && observed.confirmNmtTx(id, 3));
+        CHECK(!observed.configurationEligible(0, binding(), 3));
+        CHECK(observed.receiveNetwork(heartbeat(1, 127), route(), 4, 4));
+        CHECK(!observed.node(0)->transitionPending && eligibility(observed, 4).exactNmtKnown);
+        CHECK(eligibility(observed, 4).ordinarySdo && observed.nmtResult(id));
+        CHECK(!observed.configurationEligible(0, binding(), 4));
+        CHECK(!observed.advanceConfiguration(0, binding(), next, 4));
+        CHECK(observed.releaseNmt(id));
+        CHECK(observed.configurationEligible(0, binding(), 4));
+        CHECK(observed.advanceConfiguration(0, binding(), next, 4));
+    }
+}
 int main() {
     codecAndOwnedVectors(); invalidAdmissionsAndFrozenMembership(); queueFailureAndDeadlines();
     transitionObservations(); serviceStatesAndAges(); disabledProducerReconciliation();
@@ -717,5 +778,6 @@ int main() {
     checkedAbortQualifiesServiceAndLeavesChannelOpen();
     networkAttachmentSelectsUsableChannelProof();
     controllerEventWithdrawsUnanchoredServiceProof();
+    configurationPremisesIncludePendingTransition();
     std::printf("nmt_services: %u checks\n", checks);
 }
