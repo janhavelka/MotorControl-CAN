@@ -189,7 +189,10 @@ Next numbered work is prompt38; this turn is assigned prompt37 only. Final
 commit, push/fresh-fetch comparison and exact CI receipt are recorded in the
 user handoff and `.build/p37-ci/final.json`; unrelated IDE files remain untouched.
 
-## Bench integration (draft, not yet run on hardware)
+## Bench integration
+
+Run on hardware on 2026-11-09 ([2026-11-09 bench round](2026-11-09_bench_r2.md)): passive, probe and identity scans and host selection on both nodes, as described below; selection sent nothing. The text below was written before that run.
+
 
 The S2 bench image with PONG `pdo=4` adds the `D<o|p|i>,<seconds>,<select>,<expect>` line
 ([hardware bench](../hardware_bench.md#discovery-communication-reads-and-heartbeat-commissioning)).

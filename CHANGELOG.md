@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Bench round on `757f1cd`, unattended (2026-11-09)
+
+- On hardware: the heap fix reserved all five blocks at boot and admitted both nodes' routes; discovery (passive, probe, identity, selection) and the 95 typed communication reads ran on both nodes; the homing admission reads ran and the library refused before any write; `6060=3` was accepted on released node 2.
+- Found: the heartbeat commissioning's write is acknowledged and takes effect, but the owner refuses the epoch migration, so the record ends uncertain (backlog S14); route sessions and grant draws impose an ordering within one MCU boot (S15). The drives had not been power-cycled, so nothing was enabled or moved. [Report](docs/reports/2026-11-09_bench_r2.md).
+
 ### S2 bench integration of prompts 35-38, and the heap fix (2026-11-09)
 
 - **Fixed:** at `8293b3e` a second node's route was refused `reason=memory`: `BenchRoute` (42624 bytes) plus two `AxisSession`s (35592 each) no longer fit the heap region after `.bss`. The raw, PDO, `D`, `K` and `H` collectors now share one 23688-byte arena instead of 46248 bytes of static DRAM, and the route, both sessions, the arena and the work block are reserved at boot, largest first. `M` prints the internal heap regions and `reserved=` (1f when all five were granted).

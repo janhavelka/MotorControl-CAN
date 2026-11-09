@@ -1,0 +1,10 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/b3738-plans/p37_discovery.json: 8 steps; Prompt 37 bench integration: the library's DiscoveryScan over both configured nodes through the firmware's own ProbeApp and owner: passive observation, one 1000:00 probe per node with host selection of node 1, nine identity uploads per node compared with the retained 2026-11-04 fixture identity with host selection of node 2. Uploads only; selection sends nothing.
+   1 {"send": "Do,5,0,0", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 12, "note": "Passive 5 s window, nothing sent. Heartbeat 1017=1000: PRESENCE hb=1; 1017=0: NO_RESPONSE is legitimate (a serviceable drive may not heartbeat)"}
+   2 {"send": "r", "expect": "DISC record released"}
+   3 {"send": "Dp,3,1,0", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 10, "note": "Two accepted 1000:00 uploads; PRESENCE/RESPONDER_ONLY on both; host selects node 1, tx0 == tx1"}
+   4 {"send": "r", "expect": "DISC record released"}
+   5 {"send": "Di,5,2,1", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 12, "note": "18 accepted identity uploads (1009/100A as MEASURED_U8); EXPECTATION_MATCH on both if each specimen still reads 1018:01..03=1000/1/0, 2000=0400, 2001=0200; host selects node 2"}
+   6 {"send": "r", "expect": "DISC record released"}
+   7 {"send": "n", "expect": "NETWORK", "end": "END network", "end_timeout_s": 5}
+   8 {"send": "s", "expect": "STATS"}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dry-p37_discovery; touches nothing now

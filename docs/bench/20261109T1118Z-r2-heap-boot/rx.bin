@@ -1,0 +1,4 @@
+PONG target=esp32s2 base=757f1cd2bddff7614edfbea3e58771f326e7ebcc elf=f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96 sdk=5.5.5 running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=6 trial=0 motion=0 pdo=4 watch=0 capture=0
+HEAP free=38180 largest=21504 minimum=33740 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:4096:4096 r2=3ffd2800:169984:26256:21744 reserved=1f arena=0 arenaBytes=23688
+CAN ready bitrate=1000000 TX17 RX16 S18; no request
+HEAP free=37616 largest=21504 minimum=33176 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3532:3532 r2=3ffd2800:169984:26256:21744 reserved=1f arena=0 arenaBytes=23688

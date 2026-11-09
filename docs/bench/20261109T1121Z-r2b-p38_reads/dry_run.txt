@@ -1,0 +1,7 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/b3738-plans/p38_reads.json: 5 steps; Prompt 38 bench integration: every typed communication read group of both nodes (1005/1014/1017/1200:00..02, 2203, 1400..1403/1600..1603/1800..1803/1A00..1A03 with all children) through prepareCommunicationRead/nextCommunication/advanceCommunication/getCommunication, one exact reviewed grant per unqualified upload (Q20). 95 uploads per node, no download.
+   1 {"send": "K1", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 40}
+   2 {"send": "r", "expect": "COMM record released"}
+   3 {"send": "K2", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 40}
+   4 {"send": "r", "expect": "COMM record released"}
+   5 {"send": "s", "expect": "STATS"}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dryb-p38_reads; touches nothing now

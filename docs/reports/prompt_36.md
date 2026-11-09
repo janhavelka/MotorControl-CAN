@@ -99,6 +99,10 @@ and automatic CI results are reported at handoff. The final push's existing CI
 covers Windows, Linux GCC/Clang sanitizers, Arduino and IDF builds; local Windows
 does not substitute for those remote matrix checks.
 
+## Bench run, 2026-11-09
+
+The bench `home` route ran its 29 admission reads on both nodes and the library refused before any write (`code=1 detail=3`, no enable history in that MCU boot); both nodes assign DI0..2 functions 1, 2, 3 ([report](2026-11-09_bench_r2.md)). The CLOSED-gate refusal after an enable, and any homing motion, remain to be run.
+
 ## Next physical evidence
 
 No current bench record establishes homing switch wiring, logical polarity,

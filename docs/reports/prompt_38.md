@@ -186,7 +186,10 @@ retry, model inference or persistence enters installed code. Broader mutation
 stays assigned to prompt 38 pending exact evidence; prompt 18 owns remapping and
 39 owns save/reset. This turn executes only prompt 38.
 
-## Bench integration (draft, not yet run on hardware)
+## Bench integration
+
+Run on hardware on 2026-11-09 ([2026-11-09 bench round](2026-11-09_bench_r2.md)): `K` read all 95 fields on both nodes. `H` failed on both nodes: the `1017:00` write was acknowledged and took effect (heartbeats `7F` at 1.0008 s, `1017=1000` read back by `K` afterwards), but the owner refused the configuration-epoch migration, so the record ended `failure=10 uncertain=1` with no readback. Diagnosis in progress (backlog S14). The text below was written before that run.
+
 
 The S2 bench image with PONG `pdo=4` adds `K<node>` and `H<node>,1000`
 ([hardware bench](../hardware_bench.md#discovery-communication-reads-and-heartbeat-commissioning)).

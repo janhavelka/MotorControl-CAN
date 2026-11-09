@@ -1,0 +1,157 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T11:23:05.518230+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hb_node2_probe_last.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1123Z-r2b-hb-node2-probe-last"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hb_node2_probe_last.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+    "elf": "f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "125915974",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "terminal_failed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Pre-operational before the producer starts: a first heartbeat reporting Operational would refuse the confirmation after the write",
+      "sent": "N2,p",
+      "tx_hex": "4e322c700a",
+      "utc": "2026-11-09T11:23:05.861389+00:00",
+      "monotonic": 267758.906,
+      "reply": "NMT admitted node=2 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 2,
+      "end": "NMT request=77 target=2 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=125959981 admitted=125956669; retained; network observation separate",
+      "end_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T11:23:05.889474+00:00",
+      "monotonic": 267758.937,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 4,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "Typed baseline of the node's communication settings, 1017 included",
+      "sent": "K2",
+      "tx_hex": "4b320a",
+      "utc": "2026-11-09T11:23:05.896833+00:00",
+      "monotonic": 267758.953,
+      "reply": "COMM admitted node=2 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 5,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 120,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T11:23:09.161051+00:00",
+      "monotonic": 267762.203,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 121,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "Accepted, ungranted probe after the NMT intent: ordinary service evidence for both nodes",
+      "sent": "Dp,3,2,0",
+      "tx_hex": "44702c332c322c300a",
+      "utc": "2026-11-09T11:23:09.169942+00:00",
+      "monotonic": 267762.218,
+      "reply": "DISC admitted mode=1 seconds=3 select=2 expect=0; uploads only, selection sends nothing; no retry",
+      "reply_line": 122,
+      "end": "END discovery terminals=2 targets=2; selection sends nothing; r=release",
+      "end_line": 131,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T11:23:09.321088+00:00",
+      "monotonic": 267762.375,
+      "reply": "DISC record released; routes, epochs and quarantine unchanged",
+      "reply_line": 132,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "Watch the producer start: 0x702 frames",
+      "sent": "P15",
+      "tx_hex": "5031350a",
+      "utc": "2026-11-09T11:23:09.330804+00:00",
+      "monotonic": 267762.375,
+      "reply": "PDOW admitted seconds=15; copies received frames, sends nothing",
+      "reply_line": 133,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "",
+      "sent": "H2,1000",
+      "tx_hex": "48322c313030300a",
+      "utc": "2026-11-09T11:23:09.347507+00:00",
+      "monotonic": 267762.39,
+      "reply": "HB admitted node=2 raw=1000; exact baseline 0, one 1017:00 write, exact readback; no save, reset or retry",
+      "reply_line": 135,
+      "end": "END heartbeat terminals=2 traffic=6 tail=0 tailLost=0 lost=0; no save, reset or restore; r=release",
+      "end_line": 146,
+      "outcome": "terminal_failed",
+      "problem": "heartbeat_failure_10"
+    },
+    {
+      "step": "cleanup",
+      "sent": "P0",
+      "tx_hex": "50300a",
+      "utc": "2026-11-09T11:23:09.550584+00:00",
+      "outcome": "watch_ended"
+    }
+  ],
+  "ended_utc": "2026-11-09T11:23:10.749022+00:00",
+  "bytes": 25377
+}

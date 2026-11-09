@@ -1,0 +1,64 @@
+{
+  "mode": "s2-flash",
+  "omitted_gates": [],
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "root": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\wt-757f1cd",
+  "artifacts": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T111649Z-s2-upload\\tools\\20261109T111649950849Z-44492-ee8nyur0",
+  "status": "running",
+  "tools": {
+    "xtensa": {
+      "path": "C:\\pio\\packages\\toolchain-xtensa-esp-elf\\bin\\xtensa-esp32s2-elf-g++.EXE",
+      "version": "xtensa-esp-elf-g++.EXE (crosstool-NG esp-14.2.0_20260121) 14.2.0"
+    }
+  },
+  "steps": [
+    {
+      "name": "idf_version",
+      "command": [
+        "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\build\\p25\\idf-python\\Scripts\\python.exe",
+        "C:\\pio\\packages\\framework-espidf\\tools\\idf.py",
+        "--version"
+      ],
+      "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\wt-757f1cd",
+      "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T111649Z-s2-upload\\tools\\20261109T111649950849Z-44492-ee8nyur0\\00_idf_version.log",
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 13.609
+    },
+    {
+      "name": "sdk_python_version",
+      "command": [
+        "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\build\\p25\\idf-python\\Scripts\\python.exe",
+        "--version"
+      ],
+      "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\wt-757f1cd",
+      "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T111649Z-s2-upload\\tools\\20261109T111649950849Z-44492-ee8nyur0\\01_sdk_python_version.log",
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 0.016
+    },
+    {
+      "name": "xtensa_version",
+      "command": [
+        "C:\\pio\\packages\\toolchain-xtensa-esp-elf\\bin\\xtensa-esp32s2-elf-g++.EXE",
+        "--version"
+      ],
+      "cwd": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\.build\\wt-757f1cd",
+      "log": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T111649Z-s2-upload\\tools\\20261109T111649950849Z-44492-ee8nyur0\\02_xtensa_version.log",
+      "returncode": 0,
+      "status": "passed",
+      "seconds": 0.015
+    }
+  ],
+  "sdk": {
+    "repository": "https://github.com/espressif/esp-idf",
+    "tag": "v5.5.5",
+    "commit": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
+    "interface": "esp_twai.h and esp_twai_onchip.h",
+    "target": "ESP32-S2 and ESP32-S3",
+    "license": "Apache-2.0"
+  },
+  "source_hashes_verified": 43,
+  "sdk_python": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-RS\\build\\p25\\idf-python\\Scripts\\python.exe"
+}

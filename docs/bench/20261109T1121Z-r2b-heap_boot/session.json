@@ -1,0 +1,93 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T11:21:16.070159+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/b3738-plans/heap_boot.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1121Z-r2b-heap_boot"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/b3738-plans/heap_boot.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+    "elf": "f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96",
+    "sdk": "5.5.5",
+    "running": "0",
+    "active": "0",
+    "silent": "1",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "0",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Expect reserved=1f arena=0 arenaBytes=23688",
+      "sent": "M",
+      "tx_hex": "4d",
+      "utc": "2026-11-09T11:21:16.410884+00:00",
+      "monotonic": 267649.453,
+      "reply": "HEAP free=38180 largest=21504 minimum=33740 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:4096:4096 r2=3ffd2800:169984:26256:21744 reserved=1f arena=0 arenaBytes=23688",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "c",
+      "tx_hex": "63",
+      "utc": "2026-11-09T11:21:16.431052+00:00",
+      "monotonic": 267649.484,
+      "reply": "CAN ready bitrate=1000000 TX17 RX16 S18; no request",
+      "reply_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "",
+      "sent": "M",
+      "tx_hex": "4d",
+      "utc": "2026-11-09T11:21:16.440560+00:00",
+      "monotonic": 267649.484,
+      "reply": "HEAP free=37616 largest=21504 minimum=33176 regions=3 r0=3ff9e000:8168:7780:7780 r1=3fffc000:14864:3532:3532 r2=3ffd2800:169984:26256:21744 reserved=1f arena=0 arenaBytes=23688",
+      "reply_line": 4,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "wait_s": 1,
+      "utc": "2026-11-09T11:21:16.460572+00:00",
+      "outcome": "waited"
+    }
+  ],
+  "ended_utc": "2026-11-09T11:21:18.684340+00:00",
+  "bytes": 652
+}

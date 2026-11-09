@@ -1,5 +1,9 @@
 # Prompt 35: finite velocity operations
 
+## Bench run, 2026-11-09
+
+The bench `mode3` route wrote `6060=3` once on node 2 while it was released and stationary; `6061` read back 3 and nothing moved ([report](2026-11-09_bench_r2.md)): one Q11 data point. No velocity run: not unattended, and its start and stop qualification (Q03, Q12) is not established by any record.
+
 ## Scope
 
 The conditional finite velocity software and application owner integration are
