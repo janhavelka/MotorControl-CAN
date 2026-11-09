@@ -1,0 +1,64 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T16:01:23.483187+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\s16-plans\\s15_k1.json",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T1601Z-s16-k1-before-close"
+  ],
+  "plan_file": "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\s16-plans\\s15_k1.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "061bc35fd39c131ab6b5ac70b94241f95d20fd5fbce94e29d4de1e718055e8bf"
+  },
+  "host_revision": "faffa22e52737b92fba574ee5926f5e4448054b7",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "faffa22e52737b92fba574ee5926f5e4448054b7",
+    "elf": "c55bebab96dc2cf5b3fe69c4531216ff202e7b0dc152f87237f2f62a209d2eba",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "50483980",
+    "routes": "7",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "refused",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Typed communication reads of node 1; before close-sessions expected refused reason=reserved",
+      "sent": "K1",
+      "tx_hex": "4b310a",
+      "utc": "2026-11-09T16:01:23.844729+00:00",
+      "monotonic": 284457.203,
+      "reply": "COMM refused reason=reserved; no work",
+      "reply_line": 2,
+      "outcome": "refused"
+    }
+  ],
+  "ended_utc": "2026-11-09T16:01:24.970597+00:00",
+  "bytes": 291
+}

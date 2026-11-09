@@ -1,0 +1,118 @@
+PONG target=esp32s2 base=faffa22e52737b92fba574ee5926f5e4448054b7 elf=c55bebab96dc2cf5b3fe69c4531216ff202e7b0dc152f87237f2f62a209d2eba sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=64468977 routes=7 trial=0 motion=0 pdo=4 watch=0 capture=0
+COMM admitted node=1 groups=18 uploads=95; typed reads only, no write; no retry
+COMM id=4 node=1 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 status=0 detail=0 terminals=95 grants=95 admission=0 gap=4002
+COMM_NETWORK node=1 sync=00000080 emcy=00000081 producer=0 sdo=2 cs=00000601 sc=00000581 lo=64502986 hi=64535984 skew=32998
+COMM_NODE node=1 raw=0 lo=64539986 hi=64542984 skew=2998
+COMM_PDO node=1 dir=t pdo=1 entries=5 cob=00000181 type=255 inhibit=100 compat=0 event=0 lo=64546986 hi=64579984 skew=32998
+COMM_PDO node=1 dir=t pdo=2 entries=5 cob=00000281 type=255 inhibit=100 compat=0 event=0 lo=64583986 hi=64616984 skew=32998
+COMM_PDO node=1 dir=t pdo=3 entries=5 cob=00000381 type=255 inhibit=100 compat=0 event=0 lo=64620986 hi=64653984 skew=32998
+COMM_PDO node=1 dir=t pdo=4 entries=5 cob=00000481 type=255 inhibit=100 compat=0 event=0 lo=64657986 hi=64690984 skew=32998
+COMM_MAP node=1 dir=t pdo=1 count=3 w1=60410010 w2=60610008 w3=60640020 w4=00000000 lo=64694986 hi=64721984 skew=26998
+COMM_MAP node=1 dir=t pdo=2 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 lo=64725986 hi=64752984 skew=26998
+COMM_MAP node=1 dir=t pdo=3 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 lo=64756986 hi=64783984 skew=26998
+COMM_MAP node=1 dir=t pdo=4 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 lo=64787986 hi=64814984 skew=26998
+COMM_PDO node=1 dir=r pdo=1 entries=5 cob=00000201 type=255 inhibit=0 compat=0 event=1000 lo=64818986 hi=64851984 skew=32998
+COMM_PDO node=1 dir=r pdo=2 entries=5 cob=00000301 type=255 inhibit=0 compat=0 event=1000 lo=64855986 hi=64888984 skew=32998
+COMM_PDO node=1 dir=r pdo=3 entries=5 cob=00000401 type=255 inhibit=0 compat=0 event=1000 lo=64892986 hi=64925984 skew=32998
+COMM_PDO node=1 dir=r pdo=4 entries=5 cob=00000501 type=255 inhibit=0 compat=0 event=1000 lo=64929986 hi=64962984 skew=32998
+COMM_MAP node=1 dir=r pdo=1 count=4 w1=60400010 w2=60600008 w3=60980008 w4=607a0020 lo=64966986 hi=64993984 skew=26998
+COMM_MAP node=1 dir=r pdo=2 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 lo=64997986 hi=65024984 skew=26998
+COMM_MAP node=1 dir=r pdo=3 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 lo=65028986 hi=65055984 skew=26998
+COMM_MAP node=1 dir=r pdo=4 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 lo=65059986 hi=65086984 skew=26998
+RESULT op=4 req=4 oreq=32 step=1 object=1005:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=80000000 admitted=64502986 completed=64505984 ne=1 reason=0 st=3f
+RESULT op=4 req=4 oreq=33 step=2 object=1014:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81000000 admitted=64508986 completed=64511984 ne=1 reason=0 st=3f
+RESULT op=4 req=4 oreq=34 step=3 object=1017:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64514986 completed=64517984 ne=1 reason=0 st=3f
+RESULT op=4 req=4 oreq=35 step=4 object=1200:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=02000000 admitted=64520986 completed=64523984 ne=1 reason=0 st=3f
+RESULT op=4 req=4 oreq=36 step=5 object=1200:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01060000 admitted=64526986 completed=64529984 ne=1 reason=0 st=3f
+RESULT op=4 req=4 oreq=37 step=6 object=1200:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81050000 admitted=64532986 completed=64535984 ne=1 reason=0 st=3f
+RESULT op=5 req=5 oreq=38 step=1 object=2203:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64539986 completed=64542984 ne=1 reason=0 st=3f
+RESULT op=6 req=6 oreq=39 step=1 object=1800:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64546986 completed=64549984 ne=1 reason=0 st=3f
+RESULT op=6 req=6 oreq=40 step=2 object=1800:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81010000 admitted=64552986 completed=64555984 ne=1 reason=0 st=3f
+RESULT op=6 req=6 oreq=41 step=3 object=1800:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64558986 completed=64561984 ne=1 reason=0 st=3f
+RESULT op=6 req=6 oreq=42 step=4 object=1800:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=64000000 admitted=64564986 completed=64567984 ne=1 reason=0 st=3f
+RESULT op=6 req=6 oreq=43 step=5 object=1800:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64570986 completed=64573984 ne=1 reason=0 st=3f
+RESULT op=6 req=6 oreq=44 step=6 object=1800:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64576986 completed=64579984 ne=1 reason=0 st=3f
+RESULT op=7 req=7 oreq=45 step=1 object=1801:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64583986 completed=64586984 ne=1 reason=0 st=3f
+RESULT op=7 req=7 oreq=46 step=2 object=1801:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81020000 admitted=64589986 completed=64592984 ne=1 reason=0 st=3f
+RESULT op=7 req=7 oreq=47 step=3 object=1801:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64595986 completed=64598984 ne=1 reason=0 st=3f
+RESULT op=7 req=7 oreq=48 step=4 object=1801:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=64000000 admitted=64601986 completed=64604984 ne=1 reason=0 st=3f
+RESULT op=7 req=7 oreq=49 step=5 object=1801:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64607986 completed=64610984 ne=1 reason=0 st=3f
+RESULT op=7 req=7 oreq=50 step=6 object=1801:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64613986 completed=64616984 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=51 step=1 object=1802:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64620986 completed=64623984 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=52 step=2 object=1802:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81030000 admitted=64626986 completed=64629984 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=53 step=3 object=1802:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64632986 completed=64635984 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=54 step=4 object=1802:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=64000000 admitted=64638986 completed=64641984 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=55 step=5 object=1802:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64644986 completed=64647984 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=56 step=6 object=1802:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64650986 completed=64653984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=57 step=1 object=1803:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64657986 completed=64660984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=58 step=2 object=1803:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=81040000 admitted=64663986 completed=64666984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=59 step=3 object=1803:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64669986 completed=64672984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=60 step=4 object=1803:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=64000000 admitted=64675986 completed=64678984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=61 step=5 object=1803:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64681986 completed=64684984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=62 step=6 object=1803:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64687986 completed=64690984 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=63 step=1 object=1a00:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=03000000 admitted=64694986 completed=64697984 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=64 step=2 object=1a00:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=10004160 admitted=64700986 completed=64703984 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=65 step=3 object=1a00:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=08006160 admitted=64706986 completed=64709984 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=66 step=4 object=1a00:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=20006460 admitted=64712986 completed=64715984 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=67 step=5 object=1a00:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64718986 completed=64721984 ne=1 reason=0 st=3f
+RESULT op=11 req=11 oreq=68 step=1 object=1a01:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64725986 completed=64728984 ne=1 reason=0 st=3f
+RESULT op=11 req=11 oreq=69 step=2 object=1a01:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64731986 completed=64734984 ne=1 reason=0 st=3f
+RESULT op=11 req=11 oreq=70 step=3 object=1a01:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64737986 completed=64740984 ne=1 reason=0 st=3f
+RESULT op=11 req=11 oreq=71 step=4 object=1a01:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64743986 completed=64746984 ne=1 reason=0 st=3f
+RESULT op=11 req=11 oreq=72 step=5 object=1a01:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64749986 completed=64752984 ne=1 reason=0 st=3f
+RESULT op=12 req=12 oreq=73 step=1 object=1a02:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64756986 completed=64759984 ne=1 reason=0 st=3f
+RESULT op=12 req=12 oreq=74 step=2 object=1a02:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64762986 completed=64765984 ne=1 reason=0 st=3f
+RESULT op=12 req=12 oreq=75 step=3 object=1a02:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64768986 completed=64771984 ne=1 reason=0 st=3f
+RESULT op=12 req=12 oreq=76 step=4 object=1a02:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64774986 completed=64777984 ne=1 reason=0 st=3f
+RESULT op=12 req=12 oreq=77 step=5 object=1a02:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64780986 completed=64783984 ne=1 reason=0 st=3f
+RESULT op=13 req=13 oreq=78 step=1 object=1a03:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64787986 completed=64790984 ne=1 reason=0 st=3f
+RESULT op=13 req=13 oreq=79 step=2 object=1a03:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64793986 completed=64796984 ne=1 reason=0 st=3f
+RESULT op=13 req=13 oreq=80 step=3 object=1a03:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64799986 completed=64802984 ne=1 reason=0 st=3f
+RESULT op=13 req=13 oreq=81 step=4 object=1a03:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64805986 completed=64808984 ne=1 reason=0 st=3f
+RESULT op=13 req=13 oreq=82 step=5 object=1a03:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=64811986 completed=64814984 ne=1 reason=0 st=3f
+RESULT op=14 req=14 oreq=83 step=1 object=1400:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64818986 completed=64821984 ne=1 reason=0 st=3f
+RESULT op=14 req=14 oreq=84 step=2 object=1400:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01020000 admitted=64824986 completed=64827984 ne=1 reason=0 st=3f
+RESULT op=14 req=14 oreq=85 step=3 object=1400:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64830986 completed=64833984 ne=1 reason=0 st=3f
+RESULT op=14 req=14 oreq=86 step=4 object=1400:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64836986 completed=64839984 ne=1 reason=0 st=3f
+RESULT op=14 req=14 oreq=87 step=5 object=1400:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64842986 completed=64845984 ne=1 reason=0 st=3f
+RESULT op=14 req=14 oreq=88 step=6 object=1400:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=64848986 completed=64851984 ne=1 reason=0 st=3f
+RESULT op=15 req=15 oreq=89 step=1 object=1401:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64855986 completed=64858984 ne=1 reason=0 st=3f
+RESULT op=15 req=15 oreq=90 step=2 object=1401:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01030000 admitted=64861986 completed=64864984 ne=1 reason=0 st=3f
+RESULT op=15 req=15 oreq=91 step=3 object=1401:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64867986 completed=64870984 ne=1 reason=0 st=3f
+RESULT op=15 req=15 oreq=92 step=4 object=1401:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64873986 completed=64876984 ne=1 reason=0 st=3f
+RESULT op=15 req=15 oreq=93 step=5 object=1401:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64879986 completed=64882984 ne=1 reason=0 st=3f
+RESULT op=15 req=15 oreq=94 step=6 object=1401:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=64885986 completed=64888984 ne=1 reason=0 st=3f
+RESULT op=16 req=16 oreq=95 step=1 object=1402:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64892986 completed=64895984 ne=1 reason=0 st=3f
+RESULT op=16 req=16 oreq=96 step=2 object=1402:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01040000 admitted=64898986 completed=64901984 ne=1 reason=0 st=3f
+RESULT op=16 req=16 oreq=97 step=3 object=1402:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64904986 completed=64907984 ne=1 reason=0 st=3f
+RESULT op=16 req=16 oreq=98 step=4 object=1402:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64910986 completed=64913984 ne=1 reason=0 st=3f
+RESULT op=16 req=16 oreq=99 step=5 object=1402:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64916986 completed=64919984 ne=1 reason=0 st=3f
+RESULT op=16 req=16 oreq=100 step=6 object=1402:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=64922986 completed=64925984 ne=1 reason=0 st=3f
+RESULT op=17 req=17 oreq=101 step=1 object=1403:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=64929986 completed=64932984 ne=1 reason=0 st=3f
+RESULT op=17 req=17 oreq=102 step=2 object=1403:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01050000 admitted=64935986 completed=64938984 ne=1 reason=0 st=3f
+RESULT op=17 req=17 oreq=103 step=3 object=1403:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=ff000000 admitted=64941986 completed=64944984 ne=1 reason=0 st=3f
+RESULT op=17 req=17 oreq=104 step=4 object=1403:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=64947986 completed=64950984 ne=1 reason=0 st=3f
+RESULT op=17 req=17 oreq=105 step=5 object=1403:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64953986 completed=64956984 ne=1 reason=0 st=3f
+RESULT op=17 req=17 oreq=106 step=6 object=1403:05 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=64959986 completed=64962984 ne=1 reason=0 st=3f
+RESULT op=18 req=18 oreq=107 step=1 object=1600:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=04000000 admitted=64966986 completed=64969984 ne=1 reason=0 st=3f
+RESULT op=18 req=18 oreq=108 step=2 object=1600:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=10004060 admitted=64972986 completed=64975984 ne=1 reason=0 st=3f
+RESULT op=18 req=18 oreq=109 step=3 object=1600:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=08006060 admitted=64978986 completed=64981984 ne=1 reason=0 st=3f
+RESULT op=18 req=18 oreq=110 step=4 object=1600:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=08009860 admitted=64984986 completed=64987984 ne=1 reason=0 st=3f
+RESULT op=18 req=18 oreq=111 step=5 object=1600:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=20007a60 admitted=64990986 completed=64993984 ne=1 reason=0 st=3f
+RESULT op=19 req=19 oreq=112 step=1 object=1601:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=64997986 completed=65000984 ne=1 reason=0 st=3f
+RESULT op=19 req=19 oreq=113 step=2 object=1601:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65003986 completed=65006984 ne=1 reason=0 st=3f
+RESULT op=19 req=19 oreq=114 step=3 object=1601:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65009986 completed=65012984 ne=1 reason=0 st=3f
+RESULT op=19 req=19 oreq=115 step=4 object=1601:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65015986 completed=65018984 ne=1 reason=0 st=3f
+RESULT op=19 req=19 oreq=116 step=5 object=1601:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65021986 completed=65024984 ne=1 reason=0 st=3f
+RESULT op=20 req=20 oreq=117 step=1 object=1602:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=65028986 completed=65031984 ne=1 reason=0 st=3f
+RESULT op=20 req=20 oreq=118 step=2 object=1602:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65034986 completed=65037984 ne=1 reason=0 st=3f
+RESULT op=20 req=20 oreq=119 step=3 object=1602:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65040986 completed=65043984 ne=1 reason=0 st=3f
+RESULT op=20 req=20 oreq=120 step=4 object=1602:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65046986 completed=65049984 ne=1 reason=0 st=3f
+RESULT op=20 req=20 oreq=121 step=5 object=1602:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65052986 completed=65055984 ne=1 reason=0 st=3f
+RESULT op=21 req=21 oreq=122 step=1 object=1603:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=65059986 completed=65062984 ne=1 reason=0 st=3f
+RESULT op=21 req=21 oreq=123 step=2 object=1603:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65065986 completed=65068984 ne=1 reason=0 st=3f
+RESULT op=21 req=21 oreq=124 step=3 object=1603:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65071986 completed=65074984 ne=1 reason=0 st=3f
+RESULT op=21 req=21 oreq=125 step=4 object=1603:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65077986 completed=65080984 ne=1 reason=0 st=3f
+RESULT op=21 req=21 oreq=126 step=5 object=1603:04 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=65083986 completed=65086984 ne=1 reason=0 st=3f
+END comm terminals=95 groups=18; typed uploads only, nothing written; r=release
+COMM record released; channel uncertainty unchanged

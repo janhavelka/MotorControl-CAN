@@ -1,0 +1,17 @@
+{
+  "purpose": "s15_k1",
+  "authorization": "Standing bench authorization (docs/prompts/COMMON.md); the user present at the bench at 15:49Z on 2026-11-09, both drives powered up and HOLDING; reads only, no write",
+  "steps": [
+    {
+      "send": "K1",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40,
+      "note": "Typed communication reads of node 1; before close-sessions expected refused reason=reserved"
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    }
+  ]
+}

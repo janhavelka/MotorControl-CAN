@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench round 6 on `faffa22` (2026-11-09)
+
+- S15 and S16 checked on hardware in one boot. S15: `K1` refused `reserved` after two history routes, `close-sessions` sent nothing (`tx` unchanged), then `K1` admitted with all 95 grants, and homing after `K` read all 29 objects before its intended `code=1 detail=3`. S16: node 1's velocity start again ended unconfirmed one cycle after word 15 (`8033`), and the run's own HALT left 58 ms after word 15; later reads found the drive enabled, halted and stationary. `1003:00=0` on both nodes with both fault LEDs reported off. The shaft was not watched during the velocity check. [Report](docs/reports/2026-11-09_bench_r6.md).
+
 ### Velocity stop after an unconfirmed final enable (backlog S16, 2026-11-09)
 
 - **Fixed (safety, bench):** when a velocity run ends needing a stop with none of its own sent (`velocityNeedsStop()`, stop execution NOT_TRANSMITTED, for example after word 15's reply was lost), `BenchRoute` sends one fallback QUICK_STOP (best-effort `000B` allowed) before the record ends, except after a DRIVE_FAULT withdrawal. `s2_bench.py` prints `ALERT: node N MAY BE RUNNING: no stop left; use the cutoff` and exits 4 after any velocity record with `needs=1` (or `fenced=1`) in which no stop left. `s2_evidence.py` accepts only stop terminals after a failed one in a velocity record. Tests: `bench_route` fallback and 1009-shape cases plus a transcript record, runner alert tests; 11 mutants killed.
