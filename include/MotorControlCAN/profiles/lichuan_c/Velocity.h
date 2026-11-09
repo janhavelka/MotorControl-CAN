@@ -184,7 +184,8 @@ struct VelocityContext {
     uint32_t stopOperation = 0; ///< Accepted distinct stop operation identity, zero until settled.
     ActionExecution stopExecution =
         ActionExecution::NOT_TRANSMITTED;            ///< Independent stop command evidence.
-    ActionOutcome stopOutcome = ActionOutcome::NONE; ///< Independent stop outcome.
+    /** Independent stop outcome; with stopOperation zero, why the requested stop was not composed. */
+    ActionOutcome stopOutcome = ActionOutcome::NONE;
     CANOPEN::SdoCompletion
         stopEvidence; ///< Retained stop command terminal, never motion confirmation.
 };
@@ -283,10 +284,59 @@ Status serviceVelocity(VelocityContext& context, const AxisReservation& live,
                        const ReadTarget& current, uint64_t nowUs, bool transactionAdmitted,
                        bool& stopDue) noexcept;
 /** Settle the distinct urgent stop, preserving the first velocity failure. No stop is generated.
+ * Its observed completion settles needsStop only when the run's latest cycle before the stop request
+ * (latest) reported the drive enabled and running in mode 3 with no alarm or release, the state an
+ * ordinary mode 3 stop admission needs. Otherwise the drive was not reported running before the stop
+ * either, so its not-running report shows nothing the stop did: the stop's own record keeps what it
+ * saw, and this run keeps needsStop, completion NOT_OBSERVED and its first failure.
  * @param[in,out] context STOPPING operation. @param[in] stop Same route/kind/deadline, newer operation.
  * @param[in] nowUs Processing time. @return Local status; failed terminal is never rewritten. */
 Status advanceVelocityStop(VelocityContext& context, const ActionContext& stop,
                            uint64_t nowUs) noexcept;
+/** Record that the application could not compose the stop this run requested. Nothing is sent: the
+ * run ends FAILED with its first failure kept, stopOutcome set to reason, stopExecution NOT_TRANSMITTED
+ * and needsStop and uncertainty kept. stopRequested with stopOperation zero and this stopOutcome is the
+ * application's signal that no stop of this run left; it must stop the axis by other means.
+ * @param[in,out] context STOPPING operation with no composed stop.
+ * @param[in] reason INVALIDATED, or DEADLINE at or after the deadline; DEADLINE replaces INVALIDATED
+ * at or after it. @param[in] nowUs Processing time. @return Local status; unchanged on refusal. */
+Status advanceVelocityStop(VelocityContext& context, ActionOutcome reason, uint64_t nowUs) noexcept;
+/** Check the stop that follows this run's own acknowledged final 000F, changing nothing. It is the
+ * stop prepareStop would compose from that word, without the drive-state admission prepareStop needs:
+ * a report after the 000F need not show its effect yet. On 2026-11-09 the first cycle after it, about
+ * 25 ms after its acknowledgement, still read 6041 8033 in all 13 retained enable and velocity records
+ * of one firmware, and in trial 1009 the drive was found running 37 s later. HALT emits 010F and
+ * QUICK_STOP 000B; neither sets an enabling bit 000F did not already request, and neither is sent
+ * after any other word. Its result is unqualified: advanceVelocityStop settles nothing with it unless
+ * the run had reported running, and an application must not treat its observation as a checked stop.
+ * The run is either ACTIVE in STOPPING with its stop requested and none composed, in which case kind
+ * and deadlineUs must be the run's own, or ended (FAILED, or ACTIVE with a recorded withdrawal) while
+ * needsStop remains, for a later explicit stop of the application's own kind and deadline.
+ * @param[in] output Context prepareVelocityStop would write; read only for overlap checks.
+ * @param[in] run This finite run. @param[in] live Current reservation. @param[in] current Target.
+ * @param[in] control The application's actual latest acknowledged 6040 terminal; it must be the run's
+ * own word 15 terminal, so no later word intervened. @param[in] kind Native stop selection.
+ * @param[in] operation New operation identity, above the run's. @param[in] nowUs Preparation time.
+ * @param[in] deadlineUs Exclusive cutoff. @param[in] options Stop budgets, as prepareStop's.
+ * @return Exactly prepareVelocityStop's status; all inputs unchanged. */
+Status validateVelocityStop(const ActionContext& output, const VelocityContext& run,
+                            const AxisReservation& live, const ReadTarget& current,
+                            const CANOPEN::SdoCompletion& control, StopKind kind,
+                            uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                            const ActionOptions& options) noexcept;
+/** Prepare that stop in place as an ordinary mode 3 STOP ActionContext (predecessor 000F,
+ * PROJECT_DECISION, not documented, no admission observation), for the same nextAction and
+ * advanceAction path as prepareStop's. The run itself is not written.
+ * @param[out] output Unchanged on refusal. @param[in] run As validateVelocityStop.
+ * @param[in] live As validateVelocityStop. @param[in] current As validateVelocityStop.
+ * @param[in] control As validateVelocityStop. @param[in] kind As validateVelocityStop.
+ * @param[in] operation As validateVelocityStop. @param[in] nowUs As validateVelocityStop.
+ * @param[in] deadlineUs As validateVelocityStop. @param[in] options As validateVelocityStop.
+ * @return Local status; no I/O. */
+Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
+                           const AxisReservation& live, const ReadTarget& current,
+                           const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                           uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
 /** Retain an unconfirmed DEC-2 stop; it can never clear needsStop or prove completion.
  * @param[in,out] context STOPPING operation. @param[in] stop Distinct same-route stop.
  * @param[in] nowUs Processing time. @return Local status; no success can result. */

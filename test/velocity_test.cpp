@@ -58,6 +58,7 @@ struct Rig {
     L::VelocityContext context;
     uint8_t mode = 3;
     uint16_t control = 0;
+    bool lag = false; // After 15, keep word 7's report, as trial 1009's drive did (6041 8033, 2100 0001).
     uint64_t now = START;
     Rig() {
         target.channel.binding.logicalAxisId = 17;
@@ -116,6 +117,8 @@ struct Rig {
     uint32_t value(uint16_t index) const {
         if (index == 0x6061)
             return mode;
+        if (lag && control == 15)
+            return index == 0x6041 ? 0x8033u : index == 0x2100 ? 0x0001u : 0u;
         if (index == 0x6041)
             return control == 15 ? 0x4007u : control == 7 ? 3u : 1u;
         if (index == 0x2100)
@@ -179,34 +182,48 @@ struct Rig {
         CHECK(false);
         return L::PreparedVelocity();
     }
+    // One step of the sequence against this fake: begin a cycle, wait, or serve the yielded work.
+    void serveOne() {
+        L::PreparedVelocity work = next(now);
+        if (work.observe) {
+            CHECK(L::beginVelocityObservation(context, observation, live, target, now));
+            return;
+        }
+        if (!work.ready) {
+            now = work.eligibleUs > now ? work.eligibleUs : now + 100;
+            return;
+        }
+        if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
+            CHECK(L::noteVelocityTransmission(context, live, target, axis, nullptr, 0, now));
+            if (work.transfer.index == 0x6040)
+                control = uint16_t(work.transfer.data[0] | (uint16_t(work.transfer.data[1]) << 8));
+            if (work.transfer.index == 0x6060)
+                mode = work.transfer.data[0];
+        }
+        CHECK(L::advanceVelocity(context, observation, live, target,
+                                 reply(work.transfer, now, now + 1, value(work.transfer.index)),
+                                 now + 1));
+        now += 100;
+    }
     void reachRunning() {
         CHECK(prepare());
-        for (unsigned step = 0; step < 100 && !context.runningObserved; ++step) {
-            L::PreparedVelocity work = next(now);
-            if (work.observe) {
-                CHECK(L::beginVelocityObservation(context, observation, live, target, now));
-                continue;
-            }
-            if (!work.ready) {
-                now = work.eligibleUs > now ? work.eligibleUs : now + 100;
-                continue;
-            }
-            if (work.transfer.direction == C::SdoDirection::DOWNLOAD) {
-                CHECK(L::noteVelocityTransmission(context, live, target, axis, nullptr, 0, now));
-                if (work.transfer.index == 0x6040)
-                    control =
-                        uint16_t(work.transfer.data[0] | (uint16_t(work.transfer.data[1]) << 8));
-                if (work.transfer.index == 0x6060)
-                    mode = work.transfer.data[0];
-            }
-            CHECK(L::advanceVelocity(context, observation, live, target,
-                                     reply(work.transfer, now, now + 1, value(work.transfer.index)),
-                                     now + 1));
-            now += 100;
-        }
+        for (unsigned step = 0; step < 100 && !context.runningObserved; ++step)
+            serveOne();
         CHECK(context.runningObserved && context.needsStop &&
               context.state == M::ActionState::ACTIVE);
         CHECK(context.startedUs == START && context.stopDueUs == START + DURATION);
+    }
+    // Trial 1009's shape: the first cycle after the acknowledged 15 still reports word 7's state.
+    void reachLaggingFailure() {
+        lag = true;
+        CHECK(prepare());
+        for (unsigned step = 0; step < 100 && context.phase != L::VelocityPhase::STOPPING; ++step)
+            serveOne();
+        CHECK(context.state == M::ActionState::ACTIVE && context.phase == L::VelocityPhase::STOPPING &&
+              context.stopRequested && context.needsStop && !context.runningObserved);
+        CHECK(context.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+              context.commandEvidenceMask == 7 && context.latest.statusword == 0x8033 &&
+              context.latest.monitor == 0x0001 && context.stopRequestedUs == context.servicedUs);
     }
 };
 
@@ -701,8 +718,158 @@ void attendedExperimentScope() {
         r.reject();
     }
 }
+L::ActionOptions stopOptions(const Rig& r) {
+    L::ActionOptions value;
+    value.service = r.options.service;
+    value.observationIntervalUs = 1000;
+    value.maximumAgeUs = 1000000;
+    return value;
+}
+// One prepared stop through its command and MONITORS+STATUS cycles reporting monitor and status.
+void runStop(Rig& r, L::ActionContext& stop, uint16_t monitor, uint16_t status) {
+    for (unsigned guard = 0; guard < 40 && stop.state == M::ActionState::ACTIVE; ++guard) {
+        L::PreparedAction work;
+        CHECK(L::nextAction(stop, r.live, r.target, r.now, work));
+        if (!work.ready) {
+            r.now = work.eligibleUs > r.now ? work.eligibleUs : r.now + 100;
+            continue;
+        }
+        if (work.transfer.direction == C::SdoDirection::DOWNLOAD)
+            CHECK(L::noteActionTransmission(stop, r.live, r.target, r.now));
+        const uint16_t index = work.transfer.index;
+        const uint32_t value = index == 0x2100 ? monitor : index == 0x6041 ? status : index == 0x6061 ? 3u : 0u;
+        CHECK(L::advanceAction(stop, r.live, r.target, reply(work.transfer, r.now, r.now + 1, value),
+                               r.now + 1));
+        r.now += 100;
+    }
+}
+// The stop that follows the run's own acknowledged final 000F, from any report (trial 1009, where the
+// fresh-state admission refused it and nothing was sent), and the record of a stop never composed.
+void runStopFollowsTheAcknowledgedFinalWord() {
+    {
+        Rig r;
+        r.reachLaggingFailure();
+        const C::SdoCompletion control = r.context.commandHistory[2];
+        const L::ActionOptions o = stopOptions(r);
+        static L::ActionContext stop;
+        const Saved<L::VelocityContext> run(r.context);
+        CHECK(L::validateVelocityStop(stop, r.context, r.live, r.target, control, L::StopKind::HALT,
+                                      43, r.now, DEADLINE, o));
+        // Only the run's own kind, deadline and word, a newer identity and valid budgets.
+        C::SdoCompletion later = control;
+        ++later.completedUs;
+        L::ActionOptions noAge = o;
+        noAge.maximumAgeUs = 0;
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, control,
+                                       L::StopKind::QUICK_STOP, 43, r.now, DEADLINE, o));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, control, L::StopKind::HALT,
+                                       43, r.now, DEADLINE - 1, o));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, control, L::StopKind::HALT,
+                                       42, r.now, DEADLINE, o));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, later, L::StopKind::HALT,
+                                       43, r.now, DEADLINE, o));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, r.context.commandHistory[1],
+                                       L::StopKind::HALT, 43, r.now, DEADLINE, o));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, control, L::StopKind::HALT,
+                                       43, r.now, DEADLINE, noAge));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, control, L::StopKind::HALT,
+                                       43, r.context.stopRequestedUs - 1, DEADLINE, o));
+        run.unchanged(r.context);
+        CHECK(L::prepareVelocityStop(stop, r.context, r.live, r.target, control, L::StopKind::HALT, 43,
+                                     r.now, DEADLINE, o));
+        run.unchanged(r.context); // Preparation writes only the stop.
+        CHECK(stop.state == M::ActionState::ACTIVE && stop.actionKind == M::ActionKind::STOP &&
+              stop.kind == L::StopKind::HALT && stop.stopModeRaw == 3 && stop.operation == 43 &&
+              stop.predecessorWord == 0x000f && !stop.predecessorDocumented &&
+              stop.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION &&
+              stop.startedUs == r.now && stop.deadlineUs == DEADLINE && !stop.observationKnown);
+        L::PreparedAction command;
+        CHECK(L::nextAction(stop, r.live, r.target, r.now, command) && command.ready);
+        CHECK(command.transfer.index == 0x6040 && command.transfer.size == 2 &&
+              command.transfer.data[0] == 0x0f && command.transfer.data[1] == 0x01);
+        // The drive keeps word 7's report: the stop sees nothing running, which settles nothing here.
+        runStop(r, stop, 0x0001, 0x8033);
+        CHECK(stop.state == M::ActionState::SUCCEEDED && stop.completion == M::ActionCompletion::OBSERVED);
+        CHECK(L::advanceVelocityStop(r.context, stop, r.now));
+        CHECK(r.context.state == M::ActionState::FAILED &&
+              r.context.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+              r.context.completion == M::ActionCompletion::NOT_OBSERVED && r.context.needsStop &&
+              r.context.uncertain && r.context.stopOutcome == M::ActionOutcome::OBSERVED &&
+              r.context.stopExecution == M::ActionExecution::ACKNOWLEDGED && r.context.stopOperation == 43);
+        // The ended run takes an application stop of its own kind and deadline, never after another word.
+        static L::ActionContext second;
+        CHECK(L::validateVelocityStop(second, r.context, r.live, r.target, control,
+                                      L::StopKind::QUICK_STOP, 44, r.now, r.now + 5000, o));
+        CHECK(!L::validateVelocityStop(second, r.context, r.live, r.target, stop.commandHistory[0],
+                                       L::StopKind::QUICK_STOP, 44, r.now, r.now + 5000, o));
+    }
+    {
+        // After a running report the same stop can settle the run: its not-running report follows
+        // one that showed the drive running.
+        Rig r;
+        r.reachRunning();
+        bool due = false;
+        CHECK(L::serviceVelocity(r.context, r.live, r.target, r.context.stopDueUs, false, due) && due);
+        r.now = r.context.stopDueUs;
+        static L::ActionContext stop;
+        CHECK(L::prepareVelocityStop(stop, r.context, r.live, r.target, r.context.commandHistory[2],
+                                     L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
+        runStop(r, stop, 0x0000, 0x0007);
+        CHECK(L::advanceVelocityStop(r.context, stop, r.now));
+        CHECK(r.context.state == M::ActionState::SUCCEEDED && !r.context.needsStop &&
+              r.context.completion == M::ActionCompletion::OBSERVED);
+    }
+    {
+        // A requested stop that could not be composed: recorded, nothing sent, the fence kept.
+        Rig r;
+        r.reachLaggingFailure();
+        Saved<L::VelocityContext> requested(r.context);
+        CHECK(!L::advanceVelocityStop(r.context, M::ActionOutcome::CANCELLED, r.now));
+        CHECK(!L::advanceVelocityStop(r.context, M::ActionOutcome::DEADLINE, r.now));
+        requested.unchanged(r.context);
+        CHECK(L::advanceVelocityStop(r.context, M::ActionOutcome::INVALIDATED, r.now));
+        CHECK(r.context.state == M::ActionState::FAILED && r.context.phase == L::VelocityPhase::STOPPING &&
+              r.context.stopRequested && !r.context.stopOperation &&
+              r.context.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+              r.context.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+              r.context.interruption == M::VelocityInterruption::NONE &&
+              r.context.stopOutcome == M::ActionOutcome::INVALIDATED &&
+              r.context.stopExecution == M::ActionExecution::NOT_TRANSMITTED && r.context.needsStop);
+        const Saved<L::VelocityContext> terminal(r.context);
+        CHECK(!L::advanceVelocityStop(r.context, M::ActionOutcome::INVALIDATED, r.now));
+        terminal.unchanged(r.context);
+        Rig late;
+        late.reachLaggingFailure();
+        CHECK(L::advanceVelocityStop(late.context, M::ActionOutcome::INVALIDATED, DEADLINE));
+        CHECK(late.context.stopOutcome == M::ActionOutcome::DEADLINE);
+        Rig idle;
+        CHECK(idle.prepare());
+        CHECK(!L::advanceVelocityStop(idle.context, M::ActionOutcome::INVALIDATED, START));
+    }
+    {
+        // Word 15 never acknowledged: from 6 or 7 a 010F would be the first enable-operation word.
+        Rig r;
+        r.reachWord(15);
+        r.now = r.context.stopDueUs - 200;
+        const L::PreparedVelocity work = r.next(r.now);
+        CHECK(L::noteVelocityTransmission(r.context, r.live, r.target, r.axis, nullptr, 0, r.now));
+        C::SdoCompletion lost = reply(work.transfer, r.now, r.now + 150);
+        lost.outcome = C::SdoOutcome::TIMEOUT;
+        lost.protocolAcknowledged = false;
+        lost.effectUncertain = true;
+        CHECK(L::advanceVelocity(r.context, r.observation, r.live, r.target, lost, r.now + 150));
+        r.now += 150;
+        CHECK(r.context.phase == L::VelocityPhase::STOPPING && r.context.needsStop);
+        static L::ActionContext stop;
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, r.context.commandHistory[1],
+                                       L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
+        CHECK(!L::validateVelocityStop(stop, r.context, r.live, r.target, r.context.commandHistory[2],
+                                       L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
+    }
+}
 } // namespace
 int main() {
+    runStopFollowsTheAcknowledgedFinalWord();
     attendedExperimentScope();
     exactPollCoverageIncludesTheWholeDuration();
     bestEffortSettlementRequiresQuickStopPolicy();

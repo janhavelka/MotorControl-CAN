@@ -212,6 +212,14 @@ class AxisSession {
      * requested during a clear usually finds no latest controlword, since the clear's writes withdrew
      * it, and so takes the 000B branch when the policy allows; fresh state reporting an idle alarmed
      * drive refuses it.
+     *
+     * After a finite velocity run: while velocityNeedsStop() holds, no idle report refuses either
+     * path, because a report after a velocity word need not show it yet (trial 1009 read 6041 8033
+     * after its acknowledged 000F and was found running 37 s later). When the run's acknowledged 000F
+     * is still the latest controlword and the fresh-state admission refuses, the sequenced path takes
+     * that word's own stop instead (validateVelocityStop): 010F or 000B, whatever the report says.
+     * Its observation is unqualified: it never clears velocityNeedsStop(). The run's own stop at due
+     * or after a failure takes this request too, with the run's kind and deadline.
      */
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -352,6 +360,9 @@ class AxisSession {
     /** Request a finite velocity run, initially released and stationary under explicit firmware
      * evidence. No traffic occurs until service(). Preparation time anchors the duration; admission
      * and setup consume it. The original deadline also bounds the internally requested urgent stop.
+     * Once the run's 000F is acknowledged, that stop leaves at due or after any failure that asks for
+     * it, whatever the drive then reports (requestStop); when no stop can be composed the run records
+     * it and velocityNeedsStop() stays, for the application to act on.
      * @param[in] state Fresh MONITORS/STATUS/FEEDBACK cycle, borrowed during this call only.
      * @param[in] identity Current raw identity on this binding and node epoch.
      * @param[in] evidence Explicit startup, direction and stop qualification, or the attended experiment
@@ -391,7 +402,13 @@ class AxisSession {
         return moveReads_[moveComplete_];
     }
     /** @return True after a possibly starting velocity write without checked stop observation.
-     * Recovery, reopen and best-effort transmission cannot clear it. */
+     * Recovery, reopen and best-effort transmission cannot clear it, nor can a stop admitted on the
+     * run's 000F alone. This is the application's signal, and it must act on it: the drive may start
+     * or keep running. When velocityAction().stopExecution is NOT_TRANSMITTED no stop of the run left
+     * (a local cancel, a withdrawal, the deadline, or a requested stop recorded with stopOutcome and
+     * stopOperation zero because it could not be composed): stop the axis with requestStop, or by the
+     * independent cutoff when that refuses. Otherwise a stop left but did not establish that the
+     * drive stopped. */
     bool velocityNeedsStop() const noexcept { return velocityNeedsStop_; }
     /** @return Retained reason an admission or handover recheck refused the latest velocity write. */
     const MotorControlCAN::Status& velocityRefusal() const noexcept { return velocityRefusal_; }
@@ -669,7 +686,9 @@ class AxisSession {
     MotorControlCAN::VelocityInterruption velocityWithdrawn_ = MotorControlCAN::VelocityInterruption::NONE;
     MotorControlCAN::Status velocityRefusal_;
     bool velocityNeedsStop_ = false, scheduledVelocityStop_ = false;
-    bool requestingVelocityStop_ = false;
+    // requestingVelocityStop_: the run's own requested stop is being composed. unqualifiedStop_: the
+    // current sequenced stop was admitted on the run's acknowledged 000F alone (validateVelocityStop).
+    bool requestingVelocityStop_ = false, unqualifiedStop_ = false;
     uint64_t velocityCommandAfterUs_ = 0;
     uint64_t lastWriteUs_ = 0; // New velocity state must postdate this session's writes.
     // Observation cycles alternate between these, so the last complete one survives the next.

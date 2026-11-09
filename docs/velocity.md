@@ -136,15 +136,110 @@ provisional needs-stop notice; earlier possibly transmitted words still count.
 Parameter writes retire retained `MOTION_PARAMETERS`, including the other mode's
 shared `6083/6084` snapshot; they do not advance configuration generation.
 
+### The stop after the run's acknowledged 000F
+
+Once the run's final `000F` is acknowledged, every failure that asks for the
+run's stop sends it, within the run's deadline, whatever the drive reports:
+`010F` for HALT, `000B` for QUICK_STOP, each exactly once. `AxisSession` first
+tries the ordinary mode 3 admission above. When that refuses, and the run's
+acknowledged `000F` is still the session's latest controlword, it prepares the
+same stop with `prepareVelocityStop`, which needs only that word: a report after
+the `000F` need not show its effect yet (see trial 1009 below). Neither stop sets
+an enabling bit the `000F` did not already request, so this is the run's own stop
+after its own word, not an enable and not a replay. The same path serves a later
+explicit `requestStop` while `velocityNeedsStop` holds and that `000F` is still
+the latest word, for example after a local cancel.
+
+Such a stop is unqualified. The stop's own context records what it saw, but its
+not-running report settles nothing unless the run's latest cycle before the stop
+request reported the drive enabled and running (6041 low bits 111, 2100 running
+set, no alarm or release, mode 3), the report an ordinary mode 3 admission needs.
+Otherwise the drive was not reported running before the stop either.
+`advanceVelocityStop` then keeps `needsStop`, `completion` `NOT_OBSERVED` and the
+first failure, and the session keeps `velocityNeedsStop`; a stop admitted on the
+`000F` alone never clears that fence.
+
+Before the run's final `000F` is acknowledged no such stop exists: from words 6
+or 7, `010F` would be the first enable-operation word, and HALT allows no `000B`
+substitute. A QUICK_STOP run can still take the DEC-2 `000B` path when the stop
+policy allows it. When the requested stop cannot be composed at all, the session
+records that with `advanceVelocityStop(context, reason, now)`: the run ends
+`FAILED` with its first failure, `phase` `STOPPING`, `stopRequested` set,
+`stopOperation` zero, `stopOutcome` `INVALIDATED` (or `DEADLINE` at or after the
+deadline) and `stopExecution` `NOT_TRANSMITTED`, and `velocityNeedsStop` stays.
+Before this change the same case ended with `interruption` `INVALIDATED`, which
+named a lifecycle change that had not happened.
+
+`velocityNeedsStop` is the application's signal and must not be ignored: the
+drive may start or keep running. When `velocityAction().stopExecution` is
+`NOT_TRANSMITTED`, no stop of the run left (local cancel, withdrawal, deadline,
+or a requested stop that could not be composed), and the application must stop
+the axis itself: `requestStop`, or the independent cutoff where that refuses.
+While the fence stands an idle report no longer refuses either stop path, so an
+explicitly chosen QUICK_STOP can take the DEC-2 `000B` after such a run even when
+a fresh read reports word 7's state. Local cancellation still sends nothing.
+
 The session alternates two shared state-read buffers so a stop sees the last
 complete cycle, not a partial newer cycle. Starting a move or velocity operation
 reuses those buffers; retain a copy if an application needs older raw cycles.
 The concrete context keeps owned summaries and service terminals.
 
+## Trial 1009 (2026-11-09)
+
+What happened, from the [record](bench/20261109T1446Z-p3536-velocity-node1-1009/)
+on image `4247e59`: the attended bench `velocity` route ran node 1 (CL86-C) under
+the attended experiment scope, 6 rpm, ramps 200 ms, 12 s, HALT, ZH86 layout, from
+mode 3, released and stationary (`6041=8050`, `2100=0011`). `60FF=6`, `6083=200`
+and `6084=200` were acknowledged, then word 6 (next cycle `8031`/`0011`), word 7
+(`8033`/`0001`) and word 15, acknowledged. The cycle after word 15, read about 4 to
+50 ms after its acknowledgement, still reported `8033`/`0001` with `6064=0` and
+`606C=0`. The run failed there (`OBSERVATION_SCOPE`, final enable not confirmed)
+and asked for its HALT. No stop was sent: the run ended `FAILED` with
+`interruption` `INVALIDATED`. A read-only route about 37 s later found node 1
+running (`6041=C437`, `2100=0004`, `606C=5`, `6064` about 3600 and rising) until
+the attendant opened the drive-power cutoff.
+
+Cause, reproduced on the host by `velocity_owner`'s literal replay: three gates
+in `AxisSession::requestStop` each refused that HALT. `stateRefuses` refused both
+paths because a fresh report after the velocity word showed an idle drive in mode
+3; `validateStop` refused the sequenced path because the report did not show low
+bits 111 with 2100 running; and a HALT policy has no best-effort branch. The session
+then ended the run with `INVALIDATED`, and the bench route, seeing no active run or
+stop, finished the record without acting on `velocityNeedsStop`. The rules behind
+the first two gates assume that a report after an acknowledged word shows its
+effect. This record contradicts that assumption for word 15.
+
+Fix: the run's own stop after its acknowledged `000F`, and the explicit record of
+an uncomposed stop, as described above. The replay now sends `2B 40 60 00 0F 01 00 00`
+at once after the failure; the run ends `FAILED` with its first failure, the HALT
+acknowledged, `completion` `NOT_OBSERVED` and the fence kept.
+
+The lag, as observed: in all 13 retained records in which word 15 was sent on this
+firmware (12 mode 1 enables on both nodes, 2026-11-03 to 2026-11-09, and 1009 in
+mode 3), the first cycle after its acknowledgement, with 6041 read about 23 to 28 ms
+after it, still reported `6041=8033`. In each mode 1 enable the next cycle, about
+850 to 880 ms after the acknowledgement, reported `8437`; the enable action waits
+and re-reads, so it passed. In mode 3 nothing was read between about 50 ms and 37 s,
+when the drive was running. So in mode 1 the drive reported operation enabled more
+than 28 ms and at most about 880 ms after the acknowledgement; in mode 3 the time is
+not measured. The velocity sequence accepts only the first cycle after word 15, so
+on this firmware a run is expected to fail there, as 1009 did, and now ends with its
+own stop. No wait or window is assumed; one would be an explicit application bound,
+and choosing its value needs a mode 3 measurement of that time.
+
+What is documented, measured and qualified stays separate. Documented: ZH86 p13's
+order and the position-section arrows from `000F` to `010F` and `000B`. Measured, on
+one specimen and one firmware: the report lag above, and that node 1 ran at about
+the commanded rate after 1009's acknowledged `000F` with no stop sent. Not measured:
+what `010F` or `000B` does in mode 3, during or after that lag, and whether the drive
+honours a HALT sent before it reports operation enabled. Nothing here is qualified.
+
 ## Remaining specimen evidence
 
 No retained record establishes mode3 startup, reverse operation or a mode3 stop
-on the connected CL86-C specimens. One related fact is measured: on 2026-11-09 the
+on the connected CL86-C specimens; trial 1009 above measured a start that the
+library failed and that was stopped only by the attendant's cutoff. One related
+fact is measured: on 2026-11-09 the
 bench `mode3` route found node 2 released (`2100=0011`, `6041=8050`), mode 1 and
 stationary at `6064=-49` on two fresh reads, wrote `6060=3` once
 (`2F 60 60 00 03 00 00 00`, acknowledged), and then read `6061=3` twice with the
