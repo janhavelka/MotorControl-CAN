@@ -1,0 +1,218 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T12:45:41.304234+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_heartbeat_node1_power_cycled.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1245Z-r4a-hb-node1"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_heartbeat_node1_power_cycled.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "627bb42d504ba50d387539a0993921689a7e2f59",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "627bb42d504ba50d387539a0993921689a7e2f59",
+    "elf": "e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "50563983",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Pre-operational before the producer starts: a first heartbeat reporting Operational would refuse the confirmation after the write",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-09T12:45:41.880162+00:00",
+      "monotonic": 272715.0,
+      "reply": "NMT admitted node=1 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 2,
+      "end": "NMT request=3 target=1 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=50629985 admitted=50626710; retained; network observation separate",
+      "end_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:45:41.907920+00:00",
+      "monotonic": 272715.031,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 4,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "No heartbeat at producer time 0 can observe the transition; it ends with the N line's 5 s window. H before then refuses reason=transition",
+      "wait_s": 6,
+      "utc": "2026-11-09T12:45:41.915241+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 4,
+      "note": "Accepted, ungranted probe after the NMT intent: ordinary service evidence",
+      "sent": "Dp,3,1,0",
+      "tx_hex": "44702c332c312c300a",
+      "utc": "2026-11-09T12:45:47.920280+00:00",
+      "monotonic": 272721.046,
+      "reply": "DISC admitted mode=1 seconds=3 select=1 expect=0; uploads only, selection sends nothing; no retry",
+      "reply_line": 5,
+      "end": "END discovery terminals=2 targets=2; selection sends nothing; r=release",
+      "end_line": 14,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:45:48.069831+00:00",
+      "monotonic": 272721.203,
+      "reply": "DISC record released; routes, epochs and quarantine unchanged",
+      "reply_line": 15,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "Typed baseline of the node's communication settings, 1017 included",
+      "sent": "K1",
+      "tx_hex": "4b310a",
+      "utc": "2026-11-09T12:45:48.079340+00:00",
+      "monotonic": 272721.203,
+      "reply": "COMM admitted node=1 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 16,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 131,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:45:51.304217+00:00",
+      "monotonic": 272724.437,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 132,
+      "outcome": "answered"
+    },
+    {
+      "step": 8,
+      "note": "Watch the producer start: 0x701 frames",
+      "sent": "P15",
+      "tx_hex": "5031350a",
+      "utc": "2026-11-09T12:45:51.311722+00:00",
+      "monotonic": 272724.437,
+      "reply": "PDOW admitted seconds=15; copies received frames, sends nothing",
+      "reply_line": 133,
+      "outcome": "answered"
+    },
+    {
+      "step": 9,
+      "note": "Expected: HB failure=0 published=1 raw=1000 terminals=3, HB_PREP migrated=1 cfg=2, three RESULT lines, one 2B 17 10 00 E8 03 00 00 frame",
+      "sent": "H1,1000",
+      "tx_hex": "48312c313030300a",
+      "utc": "2026-11-09T12:45:51.330232+00:00",
+      "monotonic": 272724.453,
+      "reply": "HB admitted node=1 raw=1000; exact baseline 0, one 1017:00 write, exact readback; no save, reset or retry",
+      "reply_line": 135,
+      "end": "END heartbeat terminals=3 traffic=9 tail=0 tailLost=0 lost=0; no save, reset or restore; r=release",
+      "end_line": 150,
+      "outcome": "answered"
+    },
+    {
+      "step": 10,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:45:51.605903+00:00",
+      "monotonic": 272724.734,
+      "reply": "HB record released; configuration and uncertainty retained, producer interval stays withdrawn",
+      "reply_line": 151,
+      "outcome": "answered"
+    },
+    {
+      "step": 11,
+      "note": "About five heartbeats expected in the watch (2026-11-06 and 2026-11-09: about 1000.8 ms period)",
+      "wait_s": 5,
+      "utc": "2026-11-09T12:45:51.618967+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 12,
+      "note": "Node state from its heartbeat; producerKnown stays 0: a stored readback is not active timing",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-09T12:45:56.661942+00:00",
+      "monotonic": 272729.781,
+      "reply": "NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=0 ms=0 pending=0 observed=0 expired=1 exact=0 bounds=1 lo=65092016 hi=65092232 p=65092981 dropped=1",
+      "reply_line": 162,
+      "end": "END network; boot-up requires an actual observed00 frame; no inferred reset",
+      "end_line": 168,
+      "outcome": "answered"
+    },
+    {
+      "step": 13,
+      "note": "",
+      "sent": "K1",
+      "tx_hex": "4b310a",
+      "utc": "2026-11-09T12:45:56.759229+00:00",
+      "monotonic": 272729.89,
+      "reply": "COMM admitted node=1 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 169,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 286,
+      "outcome": "answered"
+    },
+    {
+      "step": 14,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:46:00.020648+00:00",
+      "monotonic": 272733.14,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 290,
+      "outcome": "answered"
+    },
+    {
+      "step": 15,
+      "note": "Lets the 15 s watch end by itself with its PDOW_END summary",
+      "wait_s": 8,
+      "utc": "2026-11-09T12:46:00.055155+00:00",
+      "outcome": "waited"
+    }
+  ],
+  "ended_utc": "2026-11-09T12:46:09.233558+00:00",
+  "bytes": 51123
+}

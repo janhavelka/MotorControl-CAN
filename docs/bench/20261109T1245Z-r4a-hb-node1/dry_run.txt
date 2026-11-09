@@ -1,0 +1,17 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_heartbeat_node1_power_cycled.json: 15 steps; Prompt 38 heartbeat commissioning on node 1 after a drive power cycle has returned 1017:00 to raw 0 (verify first with the restoration plan: COMM_NETWORK producer=0): exact baseline raw 0, one write of raw 1000, owner epoch migration, exact readback raw 1000. Scope ISOLATED_EXPERIMENT. The fix's two migration premises are established explicitly: the N line's transition, unobservable at producer time 0, is left to end with its own 5 s window, and the accepted D probe after the intent gives ordinary service. No save, NMT reset or reverse transition; restoration is a power cycle.
+   1 {"send": "N1,p", "expect": "NMT admitted", "end": "NMT request", "end_timeout_s": 6, "note": "Pre-operational before the producer starts: a first heartbeat reporting Operational would refuse the confirmation after the write"}
+   2 {"send": "r", "expect": "NMT result released"}
+   3 {"wait_s": 6, "note": "No heartbeat at producer time 0 can observe the transition; it ends with the N line's 5 s window. H before then refuses reason=transition"}
+   4 {"send": "Dp,3,1,0", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 10, "note": "Accepted, ungranted probe after the NMT intent: ordinary service evidence"}
+   5 {"send": "r", "expect": "DISC record released"}
+   6 {"send": "K1", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 40, "note": "Typed baseline of the node's communication settings, 1017 included"}
+   7 {"send": "r", "expect": "COMM record released"}
+   8 {"send": "P15", "expect": "PDOW admitted", "note": "Watch the producer start: 0x701 frames"}
+   9 {"send": "H1,1000", "expect": "HB admitted", "end": "END heartbeat", "end_timeout_s": 15, "require": [{"kind": "COMM_NETWORK", "where": {"node": 1}, "match": {"producer": 0}}, {"kind": "DISC_T", "where": {"node": 1}, "match": {"outcome": 1, "current": 1}}], "note": "Expected: HB failure=0 published=1 raw=1000 terminals=3, HB_PREP migrated=1 cfg=2, three RESULT lines, one 2B 17 10 00 E8 03 00 00 frame"}
+  10 {"send": "r", "expect": "HB record released"}
+  11 {"wait_s": 5, "note": "About five heartbeats expected in the watch (2026-11-06 and 2026-11-09: about 1000.8 ms period)"}
+  12 {"send": "n", "expect": "NETWORK", "end": "END network", "end_timeout_s": 5, "note": "Node state from its heartbeat; producerKnown stays 0: a stored readback is not active timing"}
+  13 {"send": "K1", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 40}
+  14 {"send": "r", "expect": "COMM record released"}
+  15 {"wait_s": 8, "note": "Lets the 15 s watch end by itself with its PDOW_END summary", "require": [{"kind": "COMM_NETWORK", "where": {"node": 1}, "match": {"producer": 1000}}]}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dry-r4a-1; touches nothing now

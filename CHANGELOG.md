@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Attended bench round on `627bb42` (2026-11-09)
+
+- After a drive power cycle: heartbeat commissioning `1017` 0 to 1000 succeeded on both nodes with migration, readback and publication (S14 fixed on hardware); homing refused at its CLOSED gate after an enable on both nodes, zero downloads; a quick stop interrupted node 1's moving relative move from `005F` and released it at 259 with node 2 observed stationary; node 2's first production relative move with its own record 830 ended at exactly +200. Packet 8 complete. [Report](docs/reports/2026-11-09_bench_r4.md).
+
 ### Heartbeat commissioning migration fix (backlog S14, 2026-11-09)
 
 - **Fixed:** on 2026-11-09 bench `H` wrote and got an acknowledgement for `1017=1000` on both nodes, then the owner refused the epoch migration and the write stayed uncertain. Cause: the `N` line's NMT transition was still pending, and `SdoClient::advanceConfiguration` refuses while it is; at producer time 0 nothing observes that transition before the `N` line's 5 s window ends. `H` had checked only ordinary SDO service, which the `D` probe after `N` provided. `H` now checks the migration's node premises at admission, before the baseline and before the write, and refuses with nothing sent (`reason=transition`, `service` or `configuration`), or ends `failure=13` with no write if a premise is lost after the baseline. Run `H` at least 5 s after `N`.

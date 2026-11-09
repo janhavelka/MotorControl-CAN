@@ -1,0 +1,100 @@
+{
+  "started_utc": "2026-11-09T12:51:19.045950+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "home",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 1107,
+  "plan": "prompt 36 homing admission",
+  "fields": [
+    1,
+    1107,
+    1,
+    24,
+    60,
+    6,
+    200,
+    0
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "Moves unattended - I'm here for the enables only; run the moves and stops under my waiver. (user's dialog answer, 2026-11-09 12:4xZ)",
+      "accepted": true
+    },
+    "home_inputs_wired": {
+      "question": "Attendant: which DI terminals of node 1 are wired to a switch, as seen? Type NONE, or the terminals and switches: ",
+      "typed": "unattended: not observed"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "home",
+    "--node",
+    "1",
+    "--trial",
+    "1107",
+    "--method",
+    "24",
+    "--search-rpm",
+    "60",
+    "--creep-rpm",
+    "6",
+    "--ramp-ms",
+    "200",
+    "--offset",
+    "0",
+    "--campaign",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109-r4-campaign.jsonl",
+    "--unattended-waiver",
+    "Moves unattended - I'm here for the enables only; run the moves and stops under my waiver. (user's dialog answer, 2026-11-09 12:4xZ)",
+    "--seconds",
+    "30",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1251Z-r4b-home24-node1-1107"
+  ],
+  "host_revision": "627bb42d504ba50d387539a0993921689a7e2f59",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-r4-campaign.jsonl",
+    "motion_total": 4,
+    "cases": {
+      "E1": 1,
+      "E2": 1,
+      "M1": 1,
+      "M2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544f312c313130372c312c32342c36302c362c3230302c302c4b66313038373765300a"
+  ],
+  "image": {
+    "base": "627bb42d504ba50d387539a0993921689a7e2f59",
+    "elf": "e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TO1,1107,1,24,60,6,200,0,Kf10877e0",
+  "tx_hex": "544f312c313130372c312c32342c36302c362c3230302c302c4b66313038373765300a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T12:51:22.061178+00:00"
+}
