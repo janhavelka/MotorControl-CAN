@@ -354,7 +354,8 @@ class AxisSession {
      * and setup consume it. The original deadline also bounds the internally requested urgent stop.
      * @param[in] state Fresh MONITORS/STATUS/FEEDBACK cycle, borrowed during this call only.
      * @param[in] identity Current raw identity on this binding and node epoch.
-     * @param[in] evidence Explicit startup, direction and stop qualification; closed by default.
+     * @param[in] evidence Explicit startup, direction and stop qualification, or the attended experiment
+     * scope that claims none of them; closed by default and kept in velocityAction().
      * @param[in] request Signed engineering rate and nonzero finite duration in microseconds.
      * @param[in] profile Reviewed native ramp times in milliseconds.
      * @param[in] axis Borrowed stationary configuration through terminal settlement. Its generation

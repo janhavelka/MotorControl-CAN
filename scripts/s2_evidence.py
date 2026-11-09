@@ -273,11 +273,12 @@ GRAMMAR = (
     # home (protocol 6): the reads requestHome consumed and its refusal; gate is always 0 (CLOSED).
     Row("TRIAL_HOME", "TRIAL_HOME ", "summary",
         "method:u gate:u identity:b io:b state:b driver:b 2101:x 2200:x 2201:x admitted:b"),
-    # velocity (protocol 6): the host's evidence as received, the session's VelocityContext, its
-    # preparation-anchored timeline and its admission and latest samples, raw. Its stop is TRIAL_STOP.
+    # velocity (protocol 6; protocol 7 adds gate, always 2 ATTENDED_EXPERIMENT, with start and stop 0): the
+    # host's evidence as received, the session's VelocityContext, its preparation-anchored timeline and its
+    # admission and latest samples, raw. Its stop is TRIAL_STOP.
     Row("TRIAL_VELOCITY_EVIDENCE", "TRIAL_VELOCITY_EVIDENCE ", "summary",
-        "record:u layout:u start:b stop:b kind:u max:u reverse:b modeChange:b dt:x hw:x sw:x vid:x pc:x rev:x "
-        "mc:x fc:x"),
+        "record:u layout:u gate:u start:b stop:b kind:u max:u reverse:b modeChange:b dt:x hw:x sw:x vid:x pc:x "
+        "rev:x mc:x fc:x"),
     Row("TRIAL_VELOCITY", "TRIAL_VELOCITY ", "summary",
         "own:b state:u phase:u outcome:u>velocityOutcome first:u int:u setup:u exec:u completion:u>velocityCompletion "
         "stop:u sexec:u uncertain:b>velocityUncertain effects:b needs:b fenced:b>velocityFenced running:b cycles:u "

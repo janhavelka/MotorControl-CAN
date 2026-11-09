@@ -49,9 +49,10 @@ def check_trial_transcript(path, every=False):
                 "status": "captured"}
         report = evidence.replay_bytes(body, meta)
         # A lost reply on node 1, and a move on node 2 whose copied traffic overflowed. Home is refused before
-        # any write by design, and one velocity line names a closed start flag the library refuses.
+        # any write by design, and one velocity line names 61 rpm, over the attended experiment's 60, which
+        # the library refuses.
         lost = line.startswith("G2,13,")
-        refused = line[0] == "O" or (line[0] == "V" and fields[12] == "0")
+        refused = line[0] == "O" or (line[0] == "V" and int(fields[3]) > 60)
         wanted = "failed-evidence" if line.startswith("S1,7,") or lost or refused else "complete"
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
@@ -107,6 +108,9 @@ def check_trial_transcript(path, every=False):
             problems.append("%s: no check, evidence or velocity summary" % line)
         if line[0] == "V" and refused and kinds & run:
             problems.append("%s: a refused velocity printed a run" % line)
+        # Protocol 7: every velocity record names the attended experiment and claims no start or stop.
+        if line[0] == "V" and b" gate=2 start=0 stop=0 " not in body:
+            problems.append("%s: a velocity record without the attended experiment scope" % line)
         if line[0] in "AIUH" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
         # The routes read 607D:00 and 60FE:00 in two bytes, as both specimens answered them. Against
@@ -253,14 +257,13 @@ def signed(text):
 
 MOVE_LINE = signed(MOVE_BODY + ",0,0,0,0,0")
 # A velocity line's evidence: this test's numbers, the same as test/bench_route_test.cpp's fake, never a
-# measurement.
+# measurement. No start or stop flag: the line runs as the library's attended experiment.
 VELOCITY = ["--command", "velocity", "--node", "1", "--trial", "30", "--rpm", "6", "--ramp-up-ms", "200",
             "--ramp-down-ms", "200", "--duration-ms", "12000", "--interval-ms", "2000", "--deadline-ms", "18000",
-            "--kind", "halt", "--record", "351", "--layout", "zh86", "--start-qualified", "1", "--stop-qualified",
-            "1", "--device-type", "0x00040192", "--hardware-version", "0x12", "--software-version", "0x34",
-            "--vendor-id", "0x300", "--product-code", "0x8605", "--revision", "0x10001", "--model-code", "0x86",
-            "--firmware-code", "0x123"]
-VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,2000,18000,1,351,2,1,1,262546,18,52,768,34309,65537,134,291")
+            "--kind", "halt", "--record", "351", "--layout", "zh86", "--device-type", "0x00040192",
+            "--hardware-version", "0x12", "--software-version", "0x34", "--vendor-id", "0x300", "--product-code",
+            "0x8605", "--revision", "0x10001", "--model-code", "0x86", "--firmware-code", "0x123"]
+VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,2000,18000,1,351,2,262546,18,52,768,34309,65537,134,291")
 HOME = ["--command", "home", "--node", "1", "--trial", "31", "--method", "24", "--search-rpm", "60", "--creep-rpm",
         "6", "--ramp-ms", "200", "--offset", "0"]
 MODE3 = ["--command", "mode3", "--node", "1", "--trial", "32", "--cycles", "2", "--interval-ms", "200"]
@@ -812,8 +815,8 @@ class BenchTest(unittest.TestCase):
                                      ("velocity", VELOCITY, "ATTENDED 30"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            # Older images, protocol 5's among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 7):
+            # Older images, protocol 6's among them, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 5, 6, 8):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -1222,8 +1225,7 @@ class BenchTest(unittest.TestCase):
         quick = list(VELOCITY)
         quick[quick.index("--kind") + 1] = "quick"
         quick[quick.index("--layout") + 1] = "op86"
-        quick[quick.index("--start-qualified") + 1] = "0"
-        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,2000,18000,2,351,4,0,1,262546,18,52,768,34309,65537,134,291")
+        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,2000,18000,2,351,4,262546,18,52,768,34309,65537,134,291")
         for method in (17, 18, 29):
             argv = list(HOME)
             argv[argv.index("--method") + 1] = str(method)
@@ -1248,7 +1250,6 @@ class BenchTest(unittest.TestCase):
                changed(VELOCITY, "--ramp-up-ms", "0"), changed(VELOCITY, "--ramp-down-ms", "2001"),
                changed(VELOCITY, "--duration-ms", "18000"), changed(VELOCITY, "--deadline-ms", "55001"),
                changed(VELOCITY, "--interval-ms", "19"), changed(VELOCITY, "--layout", "zh57"),
-               changed(VELOCITY, "--start-qualified", "2"), changed(VELOCITY, "--stop-qualified", "-1"),
                changed(VELOCITY, "--record", "0"), changed(VELOCITY, "--hardware-version", "0x10000"),
                changed(HOME, "--method", "19"), changed(HOME, "--search-rpm", "0"),
                changed(HOME, "--creep-rpm", "3001"), changed(HOME, "--ramp-ms", "0"),
@@ -1258,6 +1259,14 @@ class BenchTest(unittest.TestCase):
         for argv in bad:
             with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
                 bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        # No record of this fixture measured a mode 3 start or stop, so neither flag can be stated, with any
+        # value: the line has no such field (protocol 7), and the run is the library's attended experiment.
+        for name in ("--start-qualified", "--stop-qualified"):
+            for value in ("1", "0"):
+                err = io.StringIO()
+                with self.assertRaises(SystemExit), contextlib.redirect_stderr(err):
+                    bench.arguments(BASE + VELOCITY + [name, value] + LEDGER + ["--output", "x"])
+                self.assertIn("--start-qualified and --stop-qualified are refused", err.getvalue())
         # The longest velocity line fits the firmware's ROUTE_LINE (256 bytes after T).
         widest = list(VELOCITY)
         for name, value in (("--trial", "4294967295"), ("--record", "4294967295"), ("--rpm", "3000"),
@@ -1318,7 +1327,47 @@ class BenchTest(unittest.TestCase):
             bench.main(BASE + velocity(9000, 18000) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(),
                        Clock(), Operator())
         self.assertIn("would refuse before sending: velocity duration: 9000 ms", out.getvalue())
-        self.assertIn("startQualified 1, stopQualified 1", out.getvalue())
+        self.assertIn("VelocityEvidence gate ATTENDED_EXPERIMENT, startQualified 0, stopQualified 0", out.getvalue())
+
+    def test_velocity_experiment_bounds_and_attendant(self):
+        def changed(**values):
+            argv = list(VELOCITY)
+            for name, value in values.items():
+                argv[argv.index("--" + name.replace("_", "-")) + 1] = str(value)
+            return argv
+        # The attended experiment's bounds, the library's: 60 rpm and 20000 ms. The library would refuse
+        # them only after the firmware counted the line, so they are refused here, unsent and uncounted.
+        for argv, reason in ((changed(rpm=61), "velocity rpm: 61 is over the ATTENDED_EXPERIMENT scope's 60 rpm"),
+                             (changed(duration_ms=20001, deadline_ms=26000, interval_ms=5000),
+                              "velocity duration: 20001 ms is over the ATTENDED_EXPERIMENT scope's 20000 ms")):
+            self.clear_output()
+            board = Board()
+            operator = Operator("ATTENDED 30", "none")
+            status, _, err = self.run_main(argv, Backend(board), operator)
+            self.assertEqual(status, 2, err)
+            self.assertIn("REFUSED: %s" % reason, err)
+            self.assertEqual((board.writes, operator.questions), ([], []))
+            self.assertFalse(self.output.exists())
+            self.assertEqual(self.ledger.read_bytes(), b"")
+        for argv in (changed(rpm=60), changed(duration_ms=20000, deadline_ms=26000, interval_ms=5000)):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            bench.check_bounds(args.command, fields)  # No refusal at the bounds themselves.
+        # Nobody at the bench is no option: the attendant's cutoff is the only control the run lacks.
+        err = io.StringIO()
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(err):
+            bench.arguments(BASE + VELOCITY + ["--unattended-waiver", "I accept it unattended"] + LEDGER +
+                            ["--output", "x"])
+        self.assertIn("--unattended-waiver refuses velocity", err.getvalue())
+        # The scope is recorded in request.json and in the send entry.
+        self.clear_output()
+        self.ledger.write_bytes(b"")
+        status, _, err = self.run_main(VELOCITY, Backend(Board()), Operator("ATTENDED 30", "none"))
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual(self.meta()["velocity_scope"],
+                         {"gate": "ATTENDED_EXPERIMENT", "start_qualified": False, "stop_qualified": False,
+                          "record": 351, "maximum_rpm": 60, "maximum_duration_ms": 20000})
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([entry.get("scope") for entry in send], ["ATTENDED_EXPERIMENT"])
 
     def test_velocity_and_mode3_are_attended_and_counted(self):
         board = Board()

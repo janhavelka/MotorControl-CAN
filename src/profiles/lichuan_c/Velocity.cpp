@@ -135,16 +135,27 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
     for (unsigned i = 0; i < sizeof sizes / sizeof sizes[0]; ++i)
         if (overlaps(&output, sizeof output, inputs[i], sizes[i]))
             return error(VelocityError::OVERLAP, "velocity preparation overlaps input");
-    if (e.gate == VelocityGate::CLOSED || !e.startQualified || !e.stopQualified)
+    // An attended experiment measures start and stop; it never carries a claim that they are
+    // established, nor the separate mode-change and reverse facts.
+    const bool experiment = e.gate == VelocityGate::ATTENDED_EXPERIMENT;
+    if (e.gate == VelocityGate::CLOSED ||
+        (e.gate == VelocityGate::MEASURED && (!e.startQualified || !e.stopQualified)))
         return error(VelocityError::CAPABILITY,
                      "mode3 start and stop need selected-firmware evidence", Err::UNSUPPORTED);
-    if (e.gate != VelocityGate::MEASURED || !e.record || e.layout == StatusLayout::UNSPECIFIED ||
-        e.layout > StatusLayout::OP86 || e.layout == StatusLayout::ZH57 || !e.maximumForwardRpm ||
-        e.maximumForwardRpm > 3000 ||
+    if ((e.gate != VelocityGate::MEASURED && !experiment) || !e.record ||
+        e.layout == StatusLayout::UNSPECIFIED || e.layout > StatusLayout::OP86 ||
+        e.layout == StatusLayout::ZH57 || !e.maximumForwardRpm || e.maximumForwardRpm > 3000 ||
         (e.reverseQualified ? !e.maximumReverseRpm || e.maximumReverseRpm > 3000
                             : e.maximumReverseRpm != 0) ||
         e.stopKind != o.stopKind)
         return error(VelocityError::ARGUMENT, "invalid selected velocity evidence scope");
+    if (experiment && (e.startQualified || e.stopQualified || e.modeChangeQualified ||
+                       e.reverseQualified || e.maximumForwardRpm > VELOCITY_EXPERIMENT_MAXIMUM_RPM))
+        return error(VelocityError::ARGUMENT,
+                     "an attended velocity experiment claims no qualification and stays slow");
+    if (experiment && request.durationUs > VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US)
+        return error(VelocityError::TIME, "an attended velocity experiment is at most 20 s");
+    static_assert(VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US == 20000000, "the message names 20 s");
     if (!validReservation(r) || !operation || !optionsValid(o) || r.acquiredUs > now ||
         now > uint64_t(INT64_MAX) || deadline > uint64_t(INT64_MAX) || deadline <= now ||
         !request.durationUs || request.durationUs >= deadline - now ||
@@ -201,7 +212,9 @@ Status shape(const VelocityContext& c, uint64_t now) {
         c.setupCursor > 2 || c.commandCursor > 2 || (c.setupEvidenceMask & ~7u) ||
         (c.commandEvidenceMask & ~7u) || c.withdrawal > VelocityInterruption::DEADLINE ||
         c.interruption > VelocityInterruption::DEADLINE ||
-        c.evidence.gate != VelocityGate::MEASURED || c.stopDueUs <= c.startedUs ||
+        (c.evidence.gate != VelocityGate::MEASURED &&
+         c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
+        c.stopDueUs <= c.startedUs ||
         c.stopDueUs >= c.deadlineUs || c.deadlineUs > uint64_t(INT64_MAX) ||
         now > uint64_t(INT64_MAX) || c.servicedUs < c.startedUs || now < c.servicedUs ||
         c.runningPolls > c.options.maxPolls || c.runningPolls > c.observations ||

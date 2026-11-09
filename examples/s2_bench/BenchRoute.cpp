@@ -110,6 +110,11 @@ bool plansStop(const RoutePlan& p) {
 }
 // VELOCITY's running cycles: the library's maxPolls, the fewest whose spacing covers the duration.
 uint32_t velocityPolls(const RoutePlan& p) { return (p.durationMs + p.intervalMs - 1) / p.intervalMs; }
+// VELOCITY's scope: the library's attended experiment, which the attended flag opens as it opens ENABLE's.
+// No line field can state a measured start or stop, because no record of this fixture holds one.
+L::VelocityGate velocityGate(const RoutePlan& p) {
+    return p.attended ? L::VelocityGate::ATTENDED_EXPERIMENT : L::VelocityGate::CLOSED;
+}
 // A truncated line is failed evidence, never a plausible shortened observation.
 bool put(char* output, size_t size, const char* pattern, ...) ROUTE_PRINTF;
 bool put(char* output, size_t size, const char* pattern, ...) {
@@ -237,7 +242,8 @@ constexpr Field MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                  ROUTE_FIELD(stopDeadlineMs, OPTIONAL_MS),
                                  ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
                                  ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
-// VELOCITY: every evidence value is the host's, as for MOVE; none has a firmware default.
+// VELOCITY: every evidence value is the host's, as for MOVE; none has a firmware default. The line
+// has no start or stop flag: the route's scope is the library's ATTENDED_EXPERIMENT, which claims neither.
 constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(trial, TRIAL),
                                      ROUTE_FIELD(attended, FLAG),
@@ -250,8 +256,6 @@ constexpr Field VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
                                      ROUTE_FIELD(stopKind, KIND),
                                      ROUTE_FIELD(record, TRIAL),
                                      ROUTE_FIELD(layout, LAYOUT),
-                                     ROUTE_FIELD(startQualified, FLAG),
-                                     ROUTE_FIELD(stopQualified, FLAG),
                                      ROUTE_FIELD(firmware.deviceType, U32),
                                      ROUTE_FIELD(firmware.hardwareVersion, U16),
                                      ROUTE_FIELD(firmware.softwareVersion, U16),
@@ -2200,8 +2204,9 @@ void BenchRoute::startMove(uint64_t now) noexcept {
     actionStarted_ = true;
 }
 // VELOCITY through the session, which then admits every write, cycle and its own stop itself. The
-// evidence is the host's line, never defaulted; this route adds only what it can state: the line's rpm
-// is the whole qualified forward range, and neither reverse nor a mode change is claimed.
+// evidence is the host's line, never defaulted; this route adds only what it can state: the attended
+// experiment scope, which claims no start or stop qualification, the line's rpm as the whole forward
+// range, and neither reverse nor a mode change.
 void BenchRoute::startVelocity(uint64_t now) noexcept {
     const RoutePlan& p = record_.plan;
     L::ReadTarget target;
@@ -2216,7 +2221,7 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     axisConfig.nativeVelocityTime = M::TimeUnit::MINUTE;
     RouteWork& w = *work_;
     L::VelocityEvidence& evidence = w.velocityEvidence;
-    evidence.gate = L::VelocityGate::MEASURED;
+    evidence.gate = velocityGate(p);
     evidence.record = p.record;
     evidence.model = L::SettingsModel::CL86_C;
     evidence.firmware.deviceType = p.firmware.deviceType;
@@ -2228,8 +2233,9 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     evidence.firmware.modelCode = p.firmware.modelCode;
     evidence.firmware.firmwareCode = p.firmware.firmwareCode;
     evidence.layout = static_cast<L::StatusLayout>(p.layout);
-    evidence.startQualified = p.startQualified;
-    evidence.stopQualified = p.stopQualified;
+    // Nothing on this fixture measured either; this run is the experiment that measures them.
+    evidence.startQualified = false;
+    evidence.stopQualified = false;
     evidence.stopKind = p.stopKind == 2 ? L::StopKind::QUICK_STOP : L::StopKind::HALT;
     evidence.modeChangeQualified = false;
     evidence.modeChangeFromRaw = 0;
@@ -3266,14 +3272,16 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
     }
     if (p.kind == RouteKind::VELOCITY) {
         if (!index--) {
-            // The host's record as the firmware received it, and what this route adds: the line's rpm as
-            // the whole qualified forward range, no reverse and no mode change. Never a firmware default.
+            // The host's record as the firmware received it, and what this route adds: the experiment
+            // gate (2, ATTENDED_EXPERIMENT), no start or stop qualification, the line's rpm as the whole
+            // forward range, no reverse and no mode change. Never a firmware default.
             const L::MoveFirmware& f = p.firmware;
             return put(out, size,
-                       "TRIAL_VELOCITY_EVIDENCE record=%lu layout=%u start=%u stop=%u kind=%u max=%lu reverse=0 "
-                       "modeChange=0 dt=%08lx hw=%04x sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x fc=%04x\n",
-                       static_cast<unsigned long>(p.record), unsigned(p.layout), unsigned(p.startQualified),
-                       unsigned(p.stopQualified), unsigned(p.stopKind), static_cast<unsigned long>(p.rpm),
+                       "TRIAL_VELOCITY_EVIDENCE record=%lu layout=%u gate=%u start=0 stop=0 kind=%u max=%lu "
+                       "reverse=0 modeChange=0 dt=%08lx hw=%04x sw=%04x vid=%08lx pc=%08lx rev=%08lx mc=%04x "
+                       "fc=%04x\n",
+                       static_cast<unsigned long>(p.record), unsigned(p.layout), unsigned(velocityGate(p)),
+                       unsigned(p.stopKind), static_cast<unsigned long>(p.rpm),
                        static_cast<unsigned long>(f.deviceType), unsigned(f.hardwareVersion),
                        unsigned(f.softwareVersion), static_cast<unsigned long>(f.vendorId),
                        static_cast<unsigned long>(f.productCode), static_cast<unsigned long>(f.revision),

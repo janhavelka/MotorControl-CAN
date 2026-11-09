@@ -14,6 +14,12 @@ the firmware would refuse it only after the campaign counted it. Ctrl-C sends on
 --dry-run prints the plan without enumerating, prompting, opening or creating anything. The firmware
 refuses that abort while a velocity runs: its own stop at the due time is its only software bound.
 
+A velocity line runs as the library's VelocityGate::ATTENDED_EXPERIMENT: the run measures its mode 3
+start and stop and claims neither. No record of this fixture measured them, so --start-qualified and
+--stop-qualified are refused, and so are a rate over 60 rpm and a duration over 20000 ms, the library's
+bounds for that scope. request.json and the send entry record the scope. It always needs the attendant
+with the independent cutoff in hand: --unattended-waiver refuses velocity.
+
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
 One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
 is read until its result entry is written. Each entry carries its sequence number and the SHA-256 of
@@ -93,9 +99,10 @@ SETTINGS_ROUTES = ("settings-2202", "io-di3", "home")
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
-# Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36. Any other
-# image would misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 6
+# Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36, 7 the V line
+# without the host's start and stop flags, which the firmware runs as the library's attended experiment.
+# Any other image would misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 7
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -135,6 +142,12 @@ ROUTE_RESPONSE_MS = 250
 VELOCITY_SETUP_STEPS = 27
 VELOCITY_WORD_MS = 10
 VELOCITY_STOP_STEPS = 8
+# The scope every velocity line runs under (Velocity.h VelocityGate::ATTENDED_EXPERIMENT) and its bounds,
+# VELOCITY_EXPERIMENT_MAXIMUM_RPM and VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US: project policy for an
+# unmeasured start and stop, never a drive fact.
+VELOCITY_SCOPE = "ATTENDED_EXPERIMENT"
+VELOCITY_EXPERIMENT_RPM = 60
+VELOCITY_EXPERIMENT_DURATION_MS = 20000
 # Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
@@ -243,9 +256,7 @@ def trial_line(args, parser):
                    _within(parser, "ramp-up-ms", args.ramp_up_ms, 1, 2000),
                    _within(parser, "ramp-down-ms", args.ramp_down_ms, 1, 2000), duration,
                    _within(parser, "interval-ms", args.interval_ms, 20, 5000), deadline, STOP_KINDS[args.kind],
-                   _within(parser, "record", args.record, 1, 0xFFFFFFFF), LAYOUTS[args.layout],
-                   _within(parser, "start-qualified", args.start_qualified, 0, 1),
-                   _within(parser, "stop-qualified", args.stop_qualified, 0, 1)]
+                   _within(parser, "record", args.record, 1, 0xFFFFFFFF), LAYOUTS[args.layout]]
         for name, high in (("device-type", 0xFFFFFFFF), ("hardware-version", 0xFFFF), ("software-version", 0xFFFF),
                            ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
                            ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
@@ -356,9 +367,8 @@ def trial_line(args, parser):
         parser.error("--soft-limit-code belongs to settings-2202")
     if args.command != "io-di3" and args.di3_change is not None:
         parser.error("--di3-change belongs to io-di3")
-    if args.command != "velocity" and any(getattr(args, name) is not None for name in
-                                          ("duration_ms", "layout", "start_qualified", "stop_qualified")):
-        parser.error("--duration-ms, --layout, --start-qualified and --stop-qualified belong to velocity")
+    if args.command != "velocity" and any(getattr(args, name) is not None for name in ("duration_ms", "layout")):
+        parser.error("--duration-ms and --layout belong to velocity")
     if args.command != "home" and any(getattr(args, name) is not None for name in
                                       ("method", "search_rpm", "creep_rpm", "ramp_ms", "offset")):
         parser.error("--method, --search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
@@ -472,7 +482,13 @@ def check_bounds(command, fields):
         raise Refused("move deadline: %d ms does not cover the library's %d services at %d + %d ms; it needs over "
                       "%d ms" % (fields[8], MOVE_SERVICE_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, services))
     if command == "velocity":
-        duration, deadline = fields[6], fields[8]
+        rpm, duration, deadline = fields[3], fields[6], fields[8]
+        if rpm > VELOCITY_EXPERIMENT_RPM:
+            raise Refused("velocity rpm: %d is over the %s scope's %d rpm" % (rpm, VELOCITY_SCOPE,
+                                                                           VELOCITY_EXPERIMENT_RPM))
+        if duration > VELOCITY_EXPERIMENT_DURATION_MS:
+            raise Refused("velocity duration: %d ms is over the %s scope's %d ms" %
+                          (duration, VELOCITY_SCOPE, VELOCITY_EXPERIMENT_DURATION_MS))
         setup = VELOCITY_SETUP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS) + 2 * VELOCITY_WORD_MS
         reserve = VELOCITY_STOP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS)
         if duration < setup:
@@ -906,9 +922,9 @@ def dry_run(args, fields):
                   "CLOSED, so the library refuses before any write")
         if args.command == "velocity":
             weight, _ = motion_weight(args.command, fields)
-            print("  VelocityEvidence from this line only: record %d, layout %d, startQualified %d, stopQualified %d, "
-                  "stop kind %d; an experiment scope the library binds and cannot check (motion weight %d with its "
-                  "own stop)" % (fields[10], fields[11], fields[12], fields[13], fields[9], weight))
+            print("  VelocityEvidence gate %s, startQualified 0, stopQualified 0: the run measures its start and "
+                  "stop and claims neither; from this line: record %d, layout %d, stop kind %d (motion weight %d "
+                  "with its own stop)" % (VELOCITY_SCOPE, fields[10], fields[11], fields[9], weight))
         print("  send p; refuse unless PONG has routes=%d soak=0 trial=0 active=1 running=1" % ROUTE_PROTOCOL)
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
@@ -938,14 +954,16 @@ def arguments(argv):
                        help="rearm: the acknowledged latest word it follows, of a finished record on that node")
     trial.add_argument("--soft-limit-code", choices=sorted(SOFT_LIMIT_CODES), help="settings-2202: the 2202 code")
     trial.add_argument("--di3-change", choices=sorted(DI3_CHANGES), help="io-di3: the one DI3 change")
-    velocity = parser.add_argument_group("velocity: the reviewed experiment record's evidence, never defaulted; "
-                                         "also --rpm, ramps, --interval-ms, --deadline-ms, --kind, --record and the "
-                                         "identity fields")
+    velocity = parser.add_argument_group("velocity: the attended experiment's evidence, never defaulted; also "
+                                         "--rpm (at most %d), ramps, --interval-ms, --deadline-ms, --kind, --record "
+                                         "(the trial's own) and the identity fields" % VELOCITY_EXPERIMENT_RPM)
     velocity.add_argument("--duration-ms", type=int, help="FiniteVelocityRequest duration from the request, below "
-                                                          "--deadline-ms")
+                                                          "--deadline-ms and at most %d" %
+                                                          VELOCITY_EXPERIMENT_DURATION_MS)
     velocity.add_argument("--layout", choices=sorted(LAYOUTS), help="VelocityEvidence statusword dialect")
-    velocity.add_argument("--start-qualified", type=int, help="VelocityEvidence::startQualified as stated, 0 or 1")
-    velocity.add_argument("--stop-qualified", type=int, help="VelocityEvidence::stopQualified as stated, 0 or 1")
+    # Kept only to refuse them: the line has no such field, and no record measured either fact.
+    velocity.add_argument("--start-qualified", help=argparse.SUPPRESS)
+    velocity.add_argument("--stop-qualified", help=argparse.SUPPRESS)
     home = parser.add_argument_group("home: the request the library refuses before any write")
     home.add_argument("--method", type=int, choices=HOME_METHODS, help="Lichuan homing method")
     home.add_argument("--search-rpm", type=int, help="6099:01 motor rpm, 1..3000")
@@ -981,6 +999,9 @@ def arguments(argv):
                        help="Where and when the user gave the relayed shaft observation, verbatim")
     args = parser.parse_args(argv)
     is_trial = args.command in TRIALS
+    if args.start_qualified is not None or args.stop_qualified is not None:
+        parser.error("--start-qualified and --stop-qualified are refused: no record of this fixture measured a mode 3 "
+                     "start or stop, and velocity runs as the library's %s, which claims neither" % VELOCITY_SCOPE)
     if args.unattended_waiver is not None:
         if not is_trial:
             parser.error("--unattended-waiver belongs to trial commands")
@@ -991,6 +1012,9 @@ def arguments(argv):
                          "shaft observation (relay one the user made with --relayed-power-up-shaft)")
         if args.fault_led == "prompt":
             parser.error("--unattended-waiver refuses --fault-led prompt: nobody can see the drive")
+        if args.command == "velocity":
+            parser.error("--unattended-waiver refuses velocity: its start and stop are unmeasured, so the attendant "
+                         "with the independent drive-power cutoff in hand is its only control beyond its own stop")
     if args.relayed_power_up_shaft or args.relayed_shaft_source is not None:
         if args.command != "enable" or not args.unattended_waiver:
             parser.error("--relayed-power-up-shaft belongs to an enable under --unattended-waiver")
@@ -1062,6 +1086,10 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     if is_trial:
         meta.update(node=fields[0], trial=fields[1], plan=TRIALS[args.command][2], fields=list(fields),
                     operator=operator, argv=list(argv) if argv is not None else sys.argv[1:])
+        if args.command == "velocity":
+            meta["velocity_scope"] = {"gate": VELOCITY_SCOPE, "start_qualified": False, "stop_qualified": False,
+                                      "record": fields[10], "maximum_rpm": VELOCITY_EXPERIMENT_RPM,
+                                      "maximum_duration_ms": VELOCITY_EXPERIMENT_DURATION_MS}
         meta.update(repository_state())
         if campaign is not None:
             meta["campaign"] = dict(campaign.summary(), before=True)
@@ -1080,6 +1108,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                  "image": meta.get("image")}
         if args.command in SETTINGS_ROUTES:
             entry["settings"] = 1
+        if args.command == "velocity":
+            entry["scope"] = VELOCITY_SCOPE
         if args.unattended_waiver:
             entry["unattended_waiver"] = args.unattended_waiver
         campaign.append(entry)

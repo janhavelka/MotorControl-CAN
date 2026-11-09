@@ -585,8 +585,125 @@ void exactPollCoverageIncludesTheWholeDuration() {
     overflow.options.pollIntervalUs = uint64_t(INT64_MAX) / UINT32_MAX + 1;
     overflow.reject();
 }
+// ATTENDED_EXPERIMENT admits one bounded run whose start and stop are measured, not claimed. The
+// context keeps the gate, no qualification flag can ride along, and every other refusal stays.
+void experiment(Rig& r) {
+    r.evidence.gate = L::VelocityGate::ATTENDED_EXPERIMENT;
+    r.evidence.startQualified = r.evidence.stopQualified = false;
+    r.evidence.maximumForwardRpm = L::VELOCITY_EXPERIMENT_MAXIMUM_RPM;
+    r.request.velocity.value = M::Rational(int64_t(L::VELOCITY_EXPERIMENT_MAXIMUM_RPM));
+}
+void attendedExperimentScope() {
+    {
+        Rig r;
+        experiment(r);
+        r.reachRunning();
+        CHECK(r.context.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT &&
+              !r.context.evidence.startQualified && !r.context.evidence.stopQualified &&
+              !r.context.evidence.modeChangeQualified && !r.context.evidence.reverseQualified);
+        CHECK(r.context.rate.effectiveNative == 60 && r.context.phase != L::VelocityPhase::MODE &&
+              !r.context.modeEvidencePresent);
+        bool stop = false;
+        CHECK(L::serviceVelocity(r.context, r.live, r.target, r.context.stopDueUs, false, stop));
+        CHECK(stop && r.context.stopRequested && r.context.phase == L::VelocityPhase::STOPPING &&
+              r.context.needsStop && r.context.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT);
+    }
+    for (unsigned bad = 0; bad < 13; ++bad) {
+        Rig r;
+        experiment(r);
+        M::Err code = M::Err::INVALID_CONFIG;
+        M::VelocityError detail = M::VelocityError::ARGUMENT;
+        switch (bad) {
+        case 0:
+            r.evidence.startQualified = true; // A claim the experiment exists to measure.
+            break;
+        case 1:
+            r.evidence.stopQualified = true;
+            break;
+        case 2:
+            r.evidence.startQualified = r.evidence.stopQualified = true;
+            break;
+        case 3:
+            r.evidence.modeChangeQualified = true; // Even while the drive already reads mode 3.
+            r.evidence.modeChangeFromRaw = 1;
+            break;
+        case 4:
+            r.evidence.reverseQualified = true;
+            r.evidence.maximumReverseRpm = 60;
+            break;
+        case 5:
+            r.evidence.maximumForwardRpm = L::VELOCITY_EXPERIMENT_MAXIMUM_RPM + 1;
+            break;
+        case 6:
+            r.request.velocity.value = M::Rational(int64_t(L::VELOCITY_EXPERIMENT_MAXIMUM_RPM + 1));
+            code = M::Err::ILLEGAL_VALUE; // The evidence's own range, unchanged.
+            detail = M::VelocityError::RANGE;
+            break;
+        case 7:
+            r.evidence.gate = L::VelocityGate(3);
+            break;
+        case 8:
+            r.evidence.record = 0;
+            break;
+        case 9:
+            r.mode = 1; // No mode change is claimed, so mode 1 cannot be the start.
+            r.acquireInitial();
+            code = M::Err::UNSUPPORTED;
+            detail = M::VelocityError::CAPABILITY;
+            break;
+        case 10:
+            r.control = 15; // An enabled drive is never an admissible start.
+            r.acquireInitial();
+            detail = M::VelocityError::STATE;
+            break;
+        case 11:
+            ++r.identity.firmwareCode;
+            code = M::Err::UNSUPPORTED;
+            detail = M::VelocityError::CAPABILITY;
+            break;
+        default:
+            r.request.velocity.value = M::Rational(-60); // Reverse is never claimed.
+            code = M::Err::ILLEGAL_VALUE;
+            detail = M::VelocityError::RANGE;
+            break;
+        }
+        const M::Status status = r.prepare();
+        CHECK(!status && status.code == code && status.detail == int32_t(detail));
+        r.reject();
+    }
+    {
+        // The duration bound: exactly 20 s is admitted, one microsecond more is not, with the deadline
+        // and running budget wide enough that only the experiment's bound decides. MEASURED has none.
+        const uint64_t longest = L::VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US;
+        for (unsigned variant = 0; variant < 3; ++variant) {
+            Rig r;
+            if (variant < 2)
+                experiment(r);
+            r.options.maxPolls = 3000;
+            r.request.durationUs = longest + (variant ? 1 : 0);
+            const M::Status status = r.prepare(START + longest + 5000000);
+            if (variant == 1) {
+                CHECK(!status && status.code == M::Err::INVALID_CONFIG &&
+                      status.detail == int32_t(M::VelocityError::TIME));
+                r.reject(START + longest + 5000000);
+            } else {
+                CHECK(status && r.context.stopDueUs == START + r.request.durationUs);
+            }
+        }
+    }
+    {
+        // A MEASURED record keeps its own refusals: an experiment never stands in for it.
+        Rig r;
+        r.evidence.startQualified = false;
+        const M::Status status = r.prepare();
+        CHECK(!status && status.code == M::Err::UNSUPPORTED &&
+              status.detail == int32_t(M::VelocityError::CAPABILITY));
+        r.reject();
+    }
+}
 } // namespace
 int main() {
+    attendedExperimentScope();
     exactPollCoverageIncludesTheWholeDuration();
     bestEffortSettlementRequiresQuickStopPolicy();
     preparationBoundaries();

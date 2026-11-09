@@ -95,6 +95,57 @@ void unsupportedStartsPublishNothing() {
         CHECK(r.wire.sentCount == sent);
     }
 }
+// The attended experiment through the session: the same frames, its own stop at due, and a context
+// that still names the experiment after success. A qualification claim inside it sends nothing.
+L::VelocityEvidence experimentEvidence() {
+    L::VelocityEvidence value = evidence();
+    value.gate = L::VelocityGate::ATTENDED_EXPERIMENT;
+    value.startQualified = value.stopQualified = value.modeChangeQualified = false;
+    value.modeChangeFromRaw = 0;
+    value.maximumForwardRpm = L::VELOCITY_EXPERIMENT_MAXIMUM_RPM;
+    return value;
+}
+void attendedExperimentThroughSession() {
+    scenario = "attended experiment scope through the session";
+    {
+        Rig r;
+        r.asynchronous = true;
+        r.ready();
+        CHECK(r.start(experimentEvidence(), request(60)));
+        r.finish();
+        const L::VelocityContext& c = r.session.velocityAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
+              c.completion == M::ActionCompletion::OBSERVED && !c.needsStop);
+        CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && !c.evidence.startQualified &&
+              !c.evidence.stopQualified && !c.evidence.modeChangeQualified &&
+              !c.evidence.reverseQualified && c.evidence.maximumForwardRpm == 60);
+        CHECK(r.writes(0x60ff, 60) == 1 && r.writes(0x6040, 15) == 1 && r.writes(0x6040, 0x010f) == 1 &&
+              !r.writes(0x6060, 0, false));
+    }
+    for (unsigned item = 0; item < 5; ++item) {
+        Rig r;
+        if (item == 4)
+            r.drive.mode = 1; // Released in mode 1: the experiment claims no mode change.
+        r.ready();
+        L::VelocityEvidence proof = experimentEvidence();
+        M::FiniteVelocityRequest intent = request(60);
+        if (item == 0)
+            proof.startQualified = true;
+        if (item == 1)
+            proof.stopQualified = true;
+        if (item == 2)
+            intent = request(61);
+        if (item == 3)
+            proof.maximumForwardRpm = 61;
+        const Saved<L::VelocityContext> empty(r.session.velocityAction());
+        const unsigned sent = r.wire.sentCount;
+        CHECK(!r.start(proof, intent));
+        empty.unchanged(r.session.velocityAction());
+        CHECK(r.wire.sentCount == sent && !r.session.velocityActive());
+        r.step();
+        CHECK(r.wire.sentCount == sent);
+    }
+}
 void exactPollBudgetCoversSetupAndTheWholeDuration() {
     scenario = "setup confirmations do not consume the exact running poll budget";
     for (unsigned variant = 0; variant < 8; ++variant) {
@@ -599,6 +650,7 @@ void settingsSnapshotRetiresWithoutChangingGeneration() {
 } // namespace
 int main() {
     completeRunsKeepPreparationAnchor();
+    attendedExperimentThroughSession();
     exactPollBudgetCoversSetupAndTheWholeDuration();
     unsupportedStartsPublishNothing();
     releasedModeChangeAndQualifiedReverse();
