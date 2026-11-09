@@ -1,0 +1,1 @@
+STATS running=1 inhibited=0 rx=310 tx=310 dropped=0 errors=101429 flags=00000010 stackFree=7592 t=584912972 txRej=0 rxLost=0 unmatched=0 traceOver=0 ownerGap=7002 conRej=10930

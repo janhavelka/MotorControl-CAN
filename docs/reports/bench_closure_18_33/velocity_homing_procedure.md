@@ -1,5 +1,7 @@
 # Prompts 35 and 36 bench procedure: finite velocity and homing admission
 
+**Run on 2026-11-09 from 14:44Z on `4247e59` and stopped at line 1009** ([report](../2026-11-09_bench_r5.md)): node 1's velocity start ended unconfirmed and no stop was sent, so the motor ran until the user opened the cutoff (backlog S16). Do not send a velocity line again until S16 is fixed. The text below is the plan as written before that run.
+
 Runnable plan for the attended routes `mode3`, `velocity` and `home` (line protocol 7, [hardware_bench](../../hardware_bench.md#attended-bench-routes)), written on 2026-11-09 against `8293b3e` plus the uncommitted route change that adds them, and revised the same day for protocol 7: the velocity lines run as the library's attended experiment and carry no start or stop flag. **Nothing here has been run.** Every command line below passed `python scripts/s2_bench.py ... --dry-run` with exit status 0 and the values shown; the dry runs touched no port, prompt or file. The same sequence, with the fake's own identity and reports, runs through the real `BenchRoute` in `test/bench_route_test.cpp` `testVelocityHomePlan`.
 
 One lead holds the port. The user is the attendant: every motion line and every `home` line needs the typed `ATTENDED <trial>` with the independent drive-power cutoff in hand, and each enable needs the attendant's own felt shaft observation.
