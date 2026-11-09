@@ -1,0 +1,34 @@
+{
+  "purpose": "Prompt 38 heartbeat migration fix, the new refusal: the 2026-11-09 sequence N1,p, D probe, H1,1000 run within one heartbeat period. Before the fix H was admitted here with only ordinary service checked; now H refuses before anything is sent while the N line's transition is still pending: HB refused reason=transition; no work. The plan then ends refused by design. Node 1 holds 1017:00 = raw 1000 and heartbeats 7F about every 1.0008 s until its next power cycle, so a heartbeat can fall between N and H (DISC_T hb=1 with hbp after the NMT completion): then the transition is observed, H is admitted, and it ends at its baseline with failure 9 and no write. Either outcome sends no 1017 write.",
+  "authorization": "Standing bench authorization 2026-11-02 (docs/prompts/COMMON.md): finite reviewed bench work on the two CL86-C nodes; no save, no NMT reset, no motion; at most one 1017:00 upload on node 1, no write expected",
+  "steps": [
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "Dp,1,1,0",
+      "expect": "DISC admitted",
+      "end": "END discovery",
+      "end_timeout_s": 4,
+      "note": "Accepted probe after the intent: ordinary service. Record DISC_T hb/hbp to see whether a heartbeat arrived after N"
+    },
+    {
+      "send": "r",
+      "expect": "DISC record released"
+    },
+    {
+      "send": "H1,1000",
+      "expect": "HB admitted",
+      "end": "END heartbeat",
+      "end_timeout_s": 15,
+      "note": "Expected: HB refused reason=transition; no work (plan outcome refused). Alternative if a heartbeat came after N: terminal_failed heartbeat_failure_9, no 2B frame"
+    }
+  ]
+}
