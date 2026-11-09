@@ -63,9 +63,21 @@ const uint16_t HARDWARE = 0x12, SOFTWARE = 0x34, MODEL = 0x0086, FIRMWARE = 0x01
 // This test's acceptance and completion bits for the fake's 6041. Not a dialect: no specimen has shown
 // what either bit does.
 const uint16_t ACCEPT_BIT = 0x1000, COMPLETE_BIT = 0x8000;
+// One upload reply of a retained bench capture as its RESULT line prints it: object=, size= and the
+// little-endian data= bytes as a raw value.
+struct Captured {
+    uint16_t index;
+    uint8_t sub;
+    uint8_t size;
+    uint32_t raw;
+};
 // One synthetic drive. Widths follow the EDS declarations the typed reads expect, except 1009, 100A,
 // 607D:00 and 60FE:00, which answer as both specimens did and as the routes read them.
 struct Drive {
+    // While set, each upload must be the table's next object, in the captured order, and takes its
+    // captured reply; downloads keep this fake's own behavior.
+    const Captured* script = nullptr;
+    unsigned scriptLength = 0, scriptAt = 0;
     uint8_t errorRegister = 0;
     uint16_t errorCode = 0, monitor = 1, status = 0x8037, lastWord = 0;
     uint8_t mode = 0;
@@ -213,6 +225,15 @@ struct Drive {
         const bool upload = request.data[0] == 0x40;
         const uint16_t word = uint16_t(request.data[4] | uint16_t(request.data[5]) << 8);
         std::memcpy(reply.data + 1, request.data + 1, 3);
+        if (upload && script) {
+            CHECK(scriptAt < scriptLength);
+            const Captured& c = script[scriptAt++];
+            CHECK(c.index == index && c.sub == sub);
+            reply.data[0] = uint8_t(0x43u | (4u - c.size) << 2);
+            for (unsigned i = 0; i < c.size; ++i)
+                reply.data[4 + i] = uint8_t(c.raw >> (8 * i));
+            return true;
+        }
         if (index == abortIndex && !(writesOnly && upload)) {
             reply.data[0] = 0x80;
             reply.data[4] = 0x20;
@@ -4204,6 +4225,962 @@ void writeTranscript(const char* path, bool all) {
     CHECK(std::fwrite(out.data(), 1, out.size(), file) == out.size());
     std::fclose(file);
 }
+// ------------------------------------------------------- 2026-11-09 captures, replayed literally
+// A produced line against a retained captured line, token by token. A token whose key is listed in
+// `skip` is compared by key only. Every other token, every value included, must be identical, and
+// so must the token count.
+bool listedKey(const char* list, const char* key, size_t size) {
+    for (const char* at = list; *at;) {
+        while (*at == ' ')
+            ++at;
+        const char* end = at;
+        while (*end && *end != ' ')
+            ++end;
+        if (size_t(end - at) == size && !std::strncmp(at, key, size))
+            return true;
+        at = end;
+    }
+    return false;
+}
+bool sameLine(const std::string& produced, const char* captured, const char* skip) {
+    const char* a = produced.c_str();
+    const char* b = captured;
+    for (;;) {
+        while (*a == ' ')
+            ++a;
+        while (*b == ' ')
+            ++b;
+        const bool doneA = !*a || *a == '\n', doneB = !*b || *b == '\n';
+        if (doneA || doneB) {
+            if (doneA && doneB)
+                return true;
+            break;
+        }
+        const char* endA = a;
+        while (*endA && *endA != ' ' && *endA != '\n')
+            ++endA;
+        const char* endB = b;
+        while (*endB && *endB != ' ' && *endB != '\n')
+            ++endB;
+        const char* keyA = a;
+        while (keyA < endA && *keyA != '=')
+            ++keyA;
+        const char* keyB = b;
+        while (keyB < endB && *keyB != '=')
+            ++keyB;
+        const size_t key = size_t(keyA - a);
+        if (key != size_t(keyB - b) || std::strncmp(a, b, key))
+            break;
+        if (!listedKey(skip, a, key) && (endA - a != endB - b || std::strncmp(a, b, size_t(endA - a))))
+            break;
+        a = endA;
+        b = endB;
+    }
+    std::fprintf(stderr, "produced: %s\ncaptured: %s\n", produced.c_str(), captured);
+    return false;
+}
+// The skip list per tag. TRIAL: gap is S2 microseconds, summaries counts the record's one-second
+// resource summaries over the S2's run time. RESULT: op and req number the session's operations of
+// that boot, oreq the owner's requests, admitted and completed are S2 microseconds. END: tail
+// counts heartbeats copied after the terminal while the S2 printed (both drives at producer 1000 in
+// those boots), which this fake does not send.
+const char* replaySkip(const std::string& line) {
+    return line.compare(0, 6, "TRIAL ") == 0     ? "gap summaries"
+           : line.compare(0, 7, "RESULT ") == 0 ? "op req oreq admitted completed"
+           : line.compare(0, 4, "END ") == 0    ? "tail"
+                                                : "";
+}
+// The record's lines in print order without TRIAL_RES (the S2's stack, heap and controller
+// counters) and without the copied TRAFFIC and TAIL frames, which the RESULT lines restate.
+std::vector<std::string> replayed(const std::string& text) {
+    std::vector<std::string> out;
+    size_t begin = 0;
+    for (size_t end = text.find('\n'); end != std::string::npos; end = text.find('\n', begin)) {
+        const std::string line = text.substr(begin, end - begin);
+        begin = end + 1;
+        if (line.compare(0, 10, "TRIAL_RES ") && line.compare(0, 8, "TRAFFIC ") && line.compare(0, 5, "TAIL "))
+            out.push_back(line);
+    }
+    return out;
+}
+void expectCaptured(const Rig& r, const char* const* captured, size_t count) {
+    std::vector<const char*> wanted;
+    for (size_t i = 0; i < count; ++i)
+        if (std::strncmp(captured[i], "TRIAL_RES ", 10) && std::strncmp(captured[i], "TRAFFIC ", 8) &&
+            std::strncmp(captured[i], "TAIL ", 5))
+            wanted.push_back(captured[i]);
+    const std::vector<std::string> got = replayed(r.dump());
+    CHECK(got.size() == wanted.size());
+    for (size_t i = 0; i < got.size() && i < wanted.size(); ++i)
+        CHECK(sameLine(got[i], wanted[i], replaySkip(got[i])));
+}
+// The 29 admission replies of each homing record, from its RESULT lines 10-38: identity (1000, 1009,
+// 100A, 1018:00..03, 2000, 2001), the input configuration 2400:00..08, the full state (1001, 603F,
+// 2100, 2101, 2102, 6041, 6061, 6064, 606C) and the driver group (2200, 2201). Both specimens:
+// 2400:00 = 16, polarity 0, DI0..DI2 = functions 1, 2, 3 (origin, positive limit, negative limit by
+// the manuals' labels), DI3..DI6 = 0, 2101 = 0 (no input effective), 2200 = 0, 2201 = 1000. Only
+// the state block differs between the records.
+const Captured HOME_913[29] = {
+    {0x1000, 0x00, 4, 0x00040192}, {0x1009, 0x00, 1, 0x0000000c}, {0x100a, 0x00, 1, 0x00000020},
+    {0x1018, 0x00, 1, 0x00000005}, {0x1018, 0x01, 4, 0x00001000}, {0x1018, 0x02, 4, 0x00000001},
+    {0x1018, 0x03, 4, 0x00000000}, {0x2000, 0x00, 2, 0x00000400}, {0x2001, 0x00, 2, 0x00000200},
+    {0x2400, 0x00, 2, 0x00000010}, {0x2400, 0x01, 2, 0x00000000}, {0x2400, 0x02, 2, 0x00000001},
+    {0x2400, 0x03, 2, 0x00000002}, {0x2400, 0x04, 2, 0x00000003}, {0x2400, 0x05, 2, 0x00000000},
+    {0x2400, 0x06, 2, 0x00000000}, {0x2400, 0x07, 2, 0x00000000}, {0x2400, 0x08, 2, 0x00000000},
+    {0x1001, 0x00, 1, 0x00000000}, {0x603f, 0x00, 2, 0x00000000}, {0x2100, 0x00, 2, 0x00000000},
+    {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000}, {0x6041, 0x00, 2, 0x00000437},
+    {0x6061, 0x00, 1, 0x00000001}, {0x6064, 0x00, 4, 0x0000009e}, {0x606c, 0x00, 4, 0x00000000},
+    {0x2200, 0x00, 2, 0x00000000}, {0x2201, 0x00, 2, 0x000003e8}};
+const Captured HOME_915[29] = {
+    {0x1000, 0x00, 4, 0x00040192}, {0x1009, 0x00, 1, 0x0000000c}, {0x100a, 0x00, 1, 0x00000020},
+    {0x1018, 0x00, 1, 0x00000005}, {0x1018, 0x01, 4, 0x00001000}, {0x1018, 0x02, 4, 0x00000001},
+    {0x1018, 0x03, 4, 0x00000000}, {0x2000, 0x00, 2, 0x00000400}, {0x2001, 0x00, 2, 0x00000200},
+    {0x2400, 0x00, 2, 0x00000010}, {0x2400, 0x01, 2, 0x00000000}, {0x2400, 0x02, 2, 0x00000001},
+    {0x2400, 0x03, 2, 0x00000002}, {0x2400, 0x04, 2, 0x00000003}, {0x2400, 0x05, 2, 0x00000000},
+    {0x2400, 0x06, 2, 0x00000000}, {0x2400, 0x07, 2, 0x00000000}, {0x2400, 0x08, 2, 0x00000000},
+    {0x1001, 0x00, 1, 0x00000000}, {0x603f, 0x00, 2, 0x00000000}, {0x2100, 0x00, 2, 0x00000011},
+    {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000}, {0x6041, 0x00, 2, 0x00008050},
+    {0x6061, 0x00, 1, 0x00000001}, {0x6064, 0x00, 4, 0xffffffcf}, {0x606c, 0x00, 4, 0x00000000},
+    {0x2200, 0x00, 2, 0x00000000}, {0x2201, 0x00, 2, 0x000003e8}};
+const Captured HOME_1107[29] = {
+    {0x1000, 0x00, 4, 0x00040192}, {0x1009, 0x00, 1, 0x0000000c}, {0x100a, 0x00, 1, 0x00000020},
+    {0x1018, 0x00, 1, 0x00000005}, {0x1018, 0x01, 4, 0x00001000}, {0x1018, 0x02, 4, 0x00000001},
+    {0x1018, 0x03, 4, 0x00000000}, {0x2000, 0x00, 2, 0x00000400}, {0x2001, 0x00, 2, 0x00000200},
+    {0x2400, 0x00, 2, 0x00000010}, {0x2400, 0x01, 2, 0x00000000}, {0x2400, 0x02, 2, 0x00000001},
+    {0x2400, 0x03, 2, 0x00000002}, {0x2400, 0x04, 2, 0x00000003}, {0x2400, 0x05, 2, 0x00000000},
+    {0x2400, 0x06, 2, 0x00000000}, {0x2400, 0x07, 2, 0x00000000}, {0x2400, 0x08, 2, 0x00000000},
+    {0x1001, 0x00, 1, 0x00000000}, {0x603f, 0x00, 2, 0x00000000}, {0x2100, 0x00, 2, 0x00000001},
+    {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000}, {0x6041, 0x00, 2, 0x00008437},
+    {0x6061, 0x00, 1, 0x00000001}, {0x6064, 0x00, 4, 0x00000000}, {0x606c, 0x00, 4, 0x00000000},
+    {0x2200, 0x00, 2, 0x00000000}, {0x2201, 0x00, 2, 0x000003e8}};
+// 1108 replied as 1107 did, value for value (its RESULT lines 10-38).
+const Captured* const HOME_1108 = HOME_1107;
+// MODE_THREE 917, node 2: its 34 uploads from RESULT lines 10-27 and 29-44; line 28 is the one
+// 6060:00 download, which this fake acknowledges as the drive did (TRAFFIC lines 99-101:
+// 2F 60 60 00 03 00 00 00, then 60 60 60 00 ...).
+const Captured MODE3_917[34] = {
+    {0x1001, 0x00, 1, 0x00000000}, {0x603f, 0x00, 2, 0x00000000}, {0x2100, 0x00, 2, 0x00000011},
+    {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000}, {0x6041, 0x00, 2, 0x00008050},
+    {0x6061, 0x00, 1, 0x00000001}, {0x6064, 0x00, 4, 0xffffffcf}, {0x606c, 0x00, 4, 0x00000000},
+    {0x1001, 0x00, 1, 0x00000000}, {0x603f, 0x00, 2, 0x00000000}, {0x2100, 0x00, 2, 0x00000011},
+    {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000}, {0x6041, 0x00, 2, 0x00008050},
+    {0x6061, 0x00, 1, 0x00000001}, {0x6064, 0x00, 4, 0xffffffcf}, {0x606c, 0x00, 4, 0x00000000},
+    {0x1001, 0x00, 1, 0x00000000}, {0x603f, 0x00, 2, 0x00000000}, {0x2100, 0x00, 2, 0x00000011},
+    {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000}, {0x6041, 0x00, 2, 0x00008050},
+    {0x6061, 0x00, 1, 0x00000003}, {0x6064, 0x00, 4, 0xffffffcf}, {0x606c, 0x00, 4, 0x00000000},
+    {0x2100, 0x00, 2, 0x00000011}, {0x2101, 0x00, 2, 0x00000000}, {0x2102, 0x00, 2, 0x00000000},
+    {0x6041, 0x00, 2, 0x00008050}, {0x6061, 0x00, 1, 0x00000003}, {0x6064, 0x00, 4, 0xffffffcf},
+    {0x606c, 0x00, 4, 0x00000000}};
+// One route replayed from a captured reply table: every upload in the captured order, no download,
+// unless the route makes one, and the captured record lines. With `beatsAfter`, 7F heartbeats of
+// node 1 and then node 2 arrive 125 ms and 209 ms after that many uploads, as in MODE_THREE 917.
+void replayRoute(Rig& r, unsigned node, const std::string& line, const Captured* replies, unsigned count,
+                 const char* const* captured, size_t lines, unsigned beatsAfter = 0) {
+    Drive& d = r.driver.drives[node - 1];
+    d.script = replies;
+    d.scriptLength = count;
+    d.scriptAt = 0;
+    if (beatsAfter) {
+        CHECK(!r.start(line));
+        for (unsigned i = 0; i < 80000 && r.route.active() && d.scriptAt < beatsAfter; ++i)
+            r.turn();
+        r.turns(122);
+        r.heartbeat(1);
+        r.turns(81);
+        r.heartbeat(2);
+        finishRoute(r);
+    } else {
+        r.run(line);
+    }
+    d.script = nullptr;
+    CHECK(d.scriptAt == count);
+    expectCaptured(r, captured, lines);
+}
+// Boot r2c of 2026-11-09 (image 757f1cd, after an EN reset, the drives as the 2026-11-08 campaign
+// left them): home 913 on node 1 (docs/bench/20261109T1125Z-r2c-home24-node1-913/rx.txt), home 915 on
+// node 2 (20261109T1125Z-r2c-home17-node2-915), then mode3 917 on node 2
+// (20261109T1125Z-r2c-mode3-node2-917). With no controlword in this MCU boot both homes end in the
+// session's refusal, code=1 detail=3, after their 29 reads and before any write. MODE_THREE then finds
+// node 2 released (2100 0011, 6041 8050) and stationary at -49 in mode 1, writes 6060=3 once, and
+// reads 6061 = 3 back while the drive stays released and at -49: one measurement of a mode change
+// while released (Q11), node 2 only, with no enable.
+void replayRouteBootR2c() {
+    scenario = "replay r2c";
+    std::unique_ptr<Rig> r(new Rig);
+    const char* const home913[] = {
+        // line 3
+        "TRIAL id=913 node=1 route=home failure=11 why=home lost=0 terminals=29 traffic=87 tail=0 "
+        "tailLost=0 summaries=6 step=4 cycles=0 motion=0 case=1 unsettled=0 gap=5004 lossCancel=0",
+        // line 4
+        "TRIAL_PLAN route=home node=1 trial=913 attended=1 method=24 search=60 creep=6 ramp=200 "
+        "offset=0",
+        // line 5
+        "TRIAL_RES stack0=8984 stack1=8740 heap0=37616 heap1=37616 heapMin=33176 largest=21504 "
+        "gap=5004 dropped=0 admission=0 started=5481412 completed=5678979 tec0=0 rec0=0 tec1=0 "
+        "rec1=0",
+        // line 6
+        "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0000 6041=0437 6061=01 6064=158 "
+        "606c=0",
+        // line 7
+        "TRIAL_STATUS code=1 detail=3; home needs the latest controlword and later state",
+        // line 8
+        "TRIAL_IO which=0 present=1 entries=16 polarity=0000 di0=0001 di1=0002 di2=0003 di3=0000 "
+        "di4=0000 di5=0000 di6=0000",
+        // line 9
+        "TRIAL_HOME method=24 gate=0 identity=1 io=1 state=1 driver=1 2101=0000 2200=0000 "
+        "2201=03e8 admitted=0",
+        // line 10
+        "RESULT op=1 req=1 oreq=2 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=5487983 "
+        "completed=5490979 ne=1 reason=0 st=3f node=1",
+        // line 11
+        "RESULT op=1 req=1 oreq=3 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=5493980 "
+        "completed=5496978 ne=1 reason=0 st=3f node=1",
+        // line 12
+        "RESULT op=1 req=1 oreq=4 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=5499981 "
+        "completed=5502978 ne=1 reason=0 st=3f node=1",
+        // line 13
+        "RESULT op=1 req=1 oreq=5 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=5505983 "
+        "completed=5508979 ne=1 reason=0 st=3f node=1",
+        // line 14
+        "RESULT op=1 req=1 oreq=6 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=5511983 "
+        "completed=5514979 ne=1 reason=0 st=3f node=1",
+        // line 15
+        "RESULT op=1 req=1 oreq=7 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=5517983 "
+        "completed=5520979 ne=1 reason=0 st=3f node=1",
+        // line 16
+        "RESULT op=1 req=1 oreq=8 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=5523983 "
+        "completed=5526979 ne=1 reason=0 st=3f node=1",
+        // line 17
+        "RESULT op=1 req=1 oreq=9 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=5529983 "
+        "completed=5532979 ne=1 reason=0 st=3f node=1",
+        // line 18
+        "RESULT op=1 req=1 oreq=10 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=5535983 "
+        "completed=5538979 ne=1 reason=0 st=3f node=1",
+        // line 19
+        "RESULT op=2 req=2 oreq=11 step=1 object=2400:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=10000000 admitted=5542983 "
+        "completed=5545979 ne=1 reason=0 st=3f node=1",
+        // line 20
+        "RESULT op=2 req=2 oreq=12 step=2 object=2400:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5549983 "
+        "completed=5552979 ne=1 reason=0 st=3f node=1",
+        // line 21
+        "RESULT op=2 req=2 oreq=13 step=3 object=2400:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=5556983 "
+        "completed=5559979 ne=1 reason=0 st=3f node=1",
+        // line 22
+        "RESULT op=2 req=2 oreq=14 step=4 object=2400:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=02000000 admitted=5563983 "
+        "completed=5566979 ne=1 reason=0 st=3f node=1",
+        // line 23
+        "RESULT op=2 req=2 oreq=15 step=5 object=2400:04 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=03000000 admitted=5570983 "
+        "completed=5573979 ne=1 reason=0 st=3f node=1",
+        // line 24
+        "RESULT op=2 req=2 oreq=16 step=6 object=2400:05 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5577983 "
+        "completed=5580979 ne=1 reason=0 st=3f node=1",
+        // line 25
+        "RESULT op=2 req=2 oreq=17 step=7 object=2400:06 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5584983 "
+        "completed=5587979 ne=1 reason=0 st=3f node=1",
+        // line 26
+        "RESULT op=2 req=2 oreq=18 step=8 object=2400:07 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5591983 "
+        "completed=5594979 ne=1 reason=0 st=3f node=1",
+        // line 27
+        "RESULT op=2 req=2 oreq=19 step=9 object=2400:08 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5598983 "
+        "completed=5601979 ne=1 reason=0 st=3f node=1",
+        // line 28
+        "RESULT op=3 req=3 oreq=20 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=5605983 "
+        "completed=5608979 ne=1 reason=0 st=3f node=1",
+        // line 29
+        "RESULT op=3 req=3 oreq=21 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5612983 "
+        "completed=5615979 ne=1 reason=0 st=3f node=1",
+        // line 30
+        "RESULT op=3 req=3 oreq=22 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5619983 "
+        "completed=5622979 ne=1 reason=0 st=3f node=1",
+        // line 31
+        "RESULT op=3 req=3 oreq=23 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5626983 "
+        "completed=5629979 ne=1 reason=0 st=3f node=1",
+        // line 32
+        "RESULT op=3 req=3 oreq=24 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5633983 "
+        "completed=5636979 ne=1 reason=0 st=3f node=1",
+        // line 33
+        "RESULT op=3 req=3 oreq=25 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=37040000 admitted=5640983 "
+        "completed=5643979 ne=1 reason=0 st=3f node=1",
+        // line 34
+        "RESULT op=3 req=3 oreq=26 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=5647983 "
+        "completed=5650979 ne=1 reason=0 st=3f node=1",
+        // line 35
+        "RESULT op=3 req=3 oreq=27 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=9e000000 admitted=5654983 "
+        "completed=5657979 ne=1 reason=0 st=3f node=1",
+        // line 36
+        "RESULT op=3 req=3 oreq=28 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=5661983 "
+        "completed=5664979 ne=1 reason=0 st=3f node=1",
+        // line 37
+        "RESULT op=4 req=4 oreq=29 step=1 object=2200:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=5669983 "
+        "completed=5672979 ne=1 reason=0 st=3f node=1",
+        // line 38
+        "RESULT op=4 req=4 oreq=30 step=2 object=2201:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=5675983 "
+        "completed=5678979 ne=1 reason=0 st=3f node=1",
+        // line 130
+        "END trial terminals=29 traffic=87 tail=4 tailLost=0 lost=0; r=release"};
+    uint32_t trial = 912;
+    size_t first = r->driver.requests.size();
+    replayRoute(*r, 1, homeLine(1, trial, 24), HOME_913, 29, home913, sizeof home913 / sizeof home913[0]);
+    CHECK(r->downloadsFrom(first) == 0 && r->route.record()->statusDetail == 3);
+    r->release();
+    const char* const home915[] = {
+        // line 3
+        "TRIAL id=915 node=2 route=home failure=11 why=home lost=0 terminals=29 traffic=87 tail=0 "
+        "tailLost=0 summaries=6 step=4 cycles=0 motion=0 case=1 unsettled=0 gap=5004 lossCancel=0",
+        // line 4
+        "TRIAL_PLAN route=home node=2 trial=915 attended=1 method=17 search=60 creep=6 ramp=200 "
+        "offset=0",
+        // line 5
+        "TRIAL_RES stack0=8612 stack1=8612 heap0=37616 heap1=37616 heapMin=33176 largest=21504 "
+        "gap=5004 dropped=0 admission=0 started=12962706 completed=13160978 tec0=0 rec0=0 tec1=0 "
+        "rec1=0",
+        // line 6
+        "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=-49 "
+        "606c=0",
+        // line 7
+        "TRIAL_STATUS code=1 detail=3; home needs the latest controlword and later state",
+        // line 8
+        "TRIAL_IO which=0 present=1 entries=16 polarity=0000 di0=0001 di1=0002 di2=0003 di3=0000 "
+        "di4=0000 di5=0000 di6=0000",
+        // line 9
+        "TRIAL_HOME method=17 gate=0 identity=1 io=1 state=1 driver=1 2101=0000 2200=0000 "
+        "2201=03e8 admitted=0",
+        // line 10
+        "RESULT op=1 req=1 oreq=32 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=12967983 "
+        "completed=12970978 ne=1 reason=0 st=3f node=2",
+        // line 11
+        "RESULT op=1 req=1 oreq=33 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=12974983 "
+        "completed=12977979 ne=1 reason=0 st=3f node=2",
+        // line 12
+        "RESULT op=1 req=1 oreq=34 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=12981985 "
+        "completed=12984979 ne=1 reason=0 st=3f node=2",
+        // line 13
+        "RESULT op=1 req=1 oreq=35 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=12987983 "
+        "completed=12990979 ne=1 reason=0 st=3f node=2",
+        // line 14
+        "RESULT op=1 req=1 oreq=36 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=12993983 "
+        "completed=12996979 ne=1 reason=0 st=3f node=2",
+        // line 15
+        "RESULT op=1 req=1 oreq=37 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=12999983 "
+        "completed=13002979 ne=1 reason=0 st=3f node=2",
+        // line 16
+        "RESULT op=1 req=1 oreq=38 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=13005983 "
+        "completed=13008979 ne=1 reason=0 st=3f node=2",
+        // line 17
+        "RESULT op=1 req=1 oreq=39 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=13011983 "
+        "completed=13014979 ne=1 reason=0 st=3f node=2",
+        // line 18
+        "RESULT op=1 req=1 oreq=40 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=13017983 "
+        "completed=13020979 ne=1 reason=0 st=3f node=2",
+        // line 19
+        "RESULT op=2 req=2 oreq=41 step=1 object=2400:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=10000000 admitted=13024983 "
+        "completed=13027979 ne=1 reason=0 st=3f node=2",
+        // line 20
+        "RESULT op=2 req=2 oreq=42 step=2 object=2400:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13031983 "
+        "completed=13034979 ne=1 reason=0 st=3f node=2",
+        // line 21
+        "RESULT op=2 req=2 oreq=43 step=3 object=2400:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=13038983 "
+        "completed=13041979 ne=1 reason=0 st=3f node=2",
+        // line 22
+        "RESULT op=2 req=2 oreq=44 step=4 object=2400:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=02000000 admitted=13045983 "
+        "completed=13048979 ne=1 reason=0 st=3f node=2",
+        // line 23
+        "RESULT op=2 req=2 oreq=45 step=5 object=2400:04 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=03000000 admitted=13052983 "
+        "completed=13055979 ne=1 reason=0 st=3f node=2",
+        // line 24
+        "RESULT op=2 req=2 oreq=46 step=6 object=2400:05 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13059983 "
+        "completed=13062979 ne=1 reason=0 st=3f node=2",
+        // line 25
+        "RESULT op=2 req=2 oreq=47 step=7 object=2400:06 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13066983 "
+        "completed=13069979 ne=1 reason=0 st=3f node=2",
+        // line 26
+        "RESULT op=2 req=2 oreq=48 step=8 object=2400:07 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13073983 "
+        "completed=13076979 ne=1 reason=0 st=3f node=2",
+        // line 27
+        "RESULT op=2 req=2 oreq=49 step=9 object=2400:08 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13080983 "
+        "completed=13083979 ne=1 reason=0 st=3f node=2",
+        // line 28
+        "RESULT op=3 req=3 oreq=50 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=13087983 "
+        "completed=13090979 ne=1 reason=0 st=3f node=2",
+        // line 29
+        "RESULT op=3 req=3 oreq=51 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13094983 "
+        "completed=13097979 ne=1 reason=0 st=3f node=2",
+        // line 30
+        "RESULT op=3 req=3 oreq=52 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=11000000 admitted=13101983 "
+        "completed=13104979 ne=1 reason=0 st=3f node=2",
+        // line 31
+        "RESULT op=3 req=3 oreq=53 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13108983 "
+        "completed=13111979 ne=1 reason=0 st=3f node=2",
+        // line 32
+        "RESULT op=3 req=3 oreq=54 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13115983 "
+        "completed=13118979 ne=1 reason=0 st=3f node=2",
+        // line 33
+        "RESULT op=3 req=3 oreq=55 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=50800000 admitted=13122983 "
+        "completed=13125979 ne=1 reason=0 st=3f node=2",
+        // line 34
+        "RESULT op=3 req=3 oreq=56 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=13129983 "
+        "completed=13132979 ne=1 reason=0 st=3f node=2",
+        // line 35
+        "RESULT op=3 req=3 oreq=57 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=cfffffff admitted=13136983 "
+        "completed=13139979 ne=1 reason=0 st=3f node=2",
+        // line 36
+        "RESULT op=3 req=3 oreq=58 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=13143983 "
+        "completed=13146979 ne=1 reason=0 st=3f node=2",
+        // line 37
+        "RESULT op=4 req=4 oreq=59 step=1 object=2200:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=13151983 "
+        "completed=13154979 ne=1 reason=0 st=3f node=2",
+        // line 38
+        "RESULT op=4 req=4 oreq=60 step=2 object=2201:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=13158001 "
+        "completed=13160978 ne=1 reason=0 st=3f node=2",
+        // line 132
+        "END trial terminals=29 traffic=87 tail=6 tailLost=0 lost=0; r=release"};
+    trial = 914;
+    first = r->driver.requests.size();
+    replayRoute(*r, 2, homeLine(2, trial, 17), HOME_915, 29, home915, sizeof home915 / sizeof home915[0]);
+    CHECK(r->downloadsFrom(first) == 0 && r->route.record()->statusDetail == 3);
+    r->release();
+    const char* const mode917[] = {
+        // line 3
+        "TRIAL id=917 node=2 route=mode3 failure=0 why=none lost=0 terminals=35 traffic=107 "
+        "tail=0 tailLost=0 summaries=6 step=4 cycles=2 motion=1 case=1 unsettled=0 gap=5004 "
+        "lossCancel=0",
+        // line 4
+        "TRIAL_PLAN route=mode3 node=2 trial=917 attended=1 cycles=2 interval=500",
+        // line 5
+        "TRIAL_RES stack0=8612 stack1=8612 heap0=37616 heap1=37616 heapMin=33176 largest=21504 "
+        "gap=5004 dropped=0 admission=0 started=51019707 completed=51705979 tec0=0 rec0=0 tec1=0 "
+        "rec1=0",
+        // line 6
+        "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=-49 "
+        "606c=0",
+        // line 7
+        "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=-49 "
+        "606c=0",
+        // line 8
+        "TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=-49 "
+        "606c=0",
+        // line 9
+        "TRIAL_CONTROL prior=0 pword=0000 pop=0 pus=0 latest=0 word=0000 latestop=0",
+        // line 10
+        "RESULT op=5 req=5 oreq=61 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=51024983 "
+        "completed=51027979 ne=1 reason=0 st=3f node=2",
+        // line 11
+        "RESULT op=5 req=5 oreq=62 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51031983 "
+        "completed=51034979 ne=1 reason=0 st=3f node=2",
+        // line 12
+        "RESULT op=5 req=5 oreq=63 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=11000000 admitted=51038983 "
+        "completed=51041979 ne=1 reason=0 st=3f node=2",
+        // line 13
+        "RESULT op=5 req=5 oreq=64 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51045983 "
+        "completed=51048979 ne=1 reason=0 st=3f node=2",
+        // line 14
+        "RESULT op=5 req=5 oreq=65 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51052983 "
+        "completed=51055979 ne=1 reason=0 st=3f node=2",
+        // line 15
+        "RESULT op=5 req=5 oreq=66 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=50800000 admitted=51059983 "
+        "completed=51062979 ne=1 reason=0 st=3f node=2",
+        // line 16
+        "RESULT op=5 req=5 oreq=67 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=51066983 "
+        "completed=51069979 ne=1 reason=0 st=3f node=2",
+        // line 17
+        "RESULT op=5 req=5 oreq=68 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=cfffffff admitted=51073983 "
+        "completed=51076979 ne=1 reason=0 st=3f node=2",
+        // line 18
+        "RESULT op=5 req=5 oreq=69 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=51080983 "
+        "completed=51083979 ne=1 reason=0 st=3f node=2",
+        // line 19
+        "RESULT op=6 req=6 oreq=70 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=51088983 "
+        "completed=51091979 ne=1 reason=0 st=3f node=2",
+        // line 20
+        "RESULT op=6 req=6 oreq=71 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51095983 "
+        "completed=51098979 ne=1 reason=0 st=3f node=2",
+        // line 21
+        "RESULT op=6 req=6 oreq=72 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=11000000 admitted=51102983 "
+        "completed=51105979 ne=1 reason=0 st=3f node=2",
+        // line 22
+        "RESULT op=6 req=6 oreq=73 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51109983 "
+        "completed=51112979 ne=1 reason=0 st=3f node=2",
+        // line 23
+        "RESULT op=6 req=6 oreq=74 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51116983 "
+        "completed=51119979 ne=1 reason=0 st=3f node=2",
+        // line 24
+        "RESULT op=6 req=6 oreq=75 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=50800000 admitted=51123983 "
+        "completed=51126979 ne=1 reason=0 st=3f node=2",
+        // line 25
+        "RESULT op=6 req=6 oreq=76 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=51130983 "
+        "completed=51133979 ne=1 reason=0 st=3f node=2",
+        // line 26
+        "RESULT op=6 req=6 oreq=77 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=cfffffff admitted=51137983 "
+        "completed=51140979 ne=1 reason=0 st=3f node=2",
+        // line 27
+        "RESULT op=6 req=6 oreq=78 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=51144983 "
+        "completed=51147979 ne=1 reason=0 st=3f node=2",
+        // line 28
+        "RESULT op=7 req=7 oreq=79 step=1 object=6060:00 dir=1 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=51153983 "
+        "completed=51156979 ne=1 reason=0 st=3f node=2",
+        // line 29
+        "RESULT op=8 req=8 oreq=80 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=51160983 "
+        "completed=51163979 ne=1 reason=0 st=3f node=2",
+        // line 30
+        "RESULT op=8 req=8 oreq=81 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51167983 "
+        "completed=51170979 ne=1 reason=0 st=3f node=2",
+        // line 31
+        "RESULT op=8 req=8 oreq=82 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=11000000 admitted=51174983 "
+        "completed=51177979 ne=1 reason=0 st=3f node=2",
+        // line 32
+        "RESULT op=8 req=8 oreq=83 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51181983 "
+        "completed=51184979 ne=1 reason=0 st=3f node=2",
+        // line 33
+        "RESULT op=8 req=8 oreq=84 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51188983 "
+        "completed=51191979 ne=1 reason=0 st=3f node=2",
+        // line 34
+        "RESULT op=8 req=8 oreq=85 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=50800000 admitted=51195983 "
+        "completed=51198979 ne=1 reason=0 st=3f node=2",
+        // line 35
+        "RESULT op=8 req=8 oreq=86 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=03000000 admitted=51202983 "
+        "completed=51205979 ne=1 reason=0 st=3f node=2",
+        // line 36
+        "RESULT op=8 req=8 oreq=87 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=cfffffff admitted=51209983 "
+        "completed=51212979 ne=1 reason=0 st=3f node=2",
+        // line 37
+        "RESULT op=8 req=8 oreq=88 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=51216983 "
+        "completed=51219979 ne=1 reason=0 st=3f node=2",
+        // line 38
+        "RESULT op=9 req=9 oreq=89 step=1 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=11000000 admitted=51660983 "
+        "completed=51663979 ne=1 reason=0 st=3f node=2",
+        // line 39
+        "RESULT op=9 req=9 oreq=90 step=2 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51667983 "
+        "completed=51670979 ne=1 reason=0 st=3f node=2",
+        // line 40
+        "RESULT op=9 req=9 oreq=91 step=3 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=51674983 "
+        "completed=51677979 ne=1 reason=0 st=3f node=2",
+        // line 41
+        "RESULT op=9 req=9 oreq=92 step=4 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=50800000 admitted=51681983 "
+        "completed=51684979 ne=1 reason=0 st=3f node=2",
+        // line 42
+        "RESULT op=9 req=9 oreq=93 step=5 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=03000000 admitted=51688983 "
+        "completed=51691979 ne=1 reason=0 st=3f node=2",
+        // line 43
+        "RESULT op=9 req=9 oreq=94 step=6 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=cfffffff admitted=51695983 "
+        "completed=51698979 ne=1 reason=0 st=3f node=2",
+        // line 44
+        "RESULT op=9 req=9 oreq=95 step=7 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=51702983 "
+        "completed=51705979 ne=1 reason=0 st=3f node=2",
+        // line 158
+        "END trial terminals=35 traffic=107 tail=6 tailLost=0 lost=0; r=release"};
+    trial = 916;
+    first = r->driver.requests.size();
+    // The 701 and 702 heartbeats inside the record (TRAFFIC lines 129-130), between its third full
+    // read and its last cycle: both nodes held producer 1000 from the 11:21Z writes.
+    replayRoute(*r, 2, modeThreeLine(2, trial, 2, 500), MODE3_917, 34, mode917,
+                sizeof mode917 / sizeof mode917[0], 27);
+    const std::vector<M::Frame> written = downloads(*r, first, 2);
+    const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
+    CHECK(written.size() == 1 && frameIs(written[0], three) && r->driver.drives[1].mode == 3);
+    CHECK(r->route.record()->failure == E::RouteFailure::NONE && r->route.record()->cycles == 2);
+    CHECK(r->downloadsFrom(0) == 1);
+    r->release();
+}
+// Boot B of round 4 (image 627bb42, drives power-cycled by the user): mode1 and the attended enable
+// on both nodes (trials 1103 to 1106, here on this fake's own replies with the suite's lines), then
+// home 1107 on node 1 (docs/bench/20261109T1251Z-r4b-home24-node1-1107/rx.txt) and home 1108 on node
+// 2 (20261109T1251Z-r4b-home17-node2-1108). With the enable's 000F as the latest word both pass the
+// session and reach the library, which refuses at its CLOSED gate, code=3 detail=7, "homing needs
+// exact selected-firmware qualification", after the 29 reads and before any write. Node states as
+// read: enabled (6041 8437, 2100 0001), mode 1, at 0.
+void replayRouteBootR4b() {
+    scenario = "replay r4b";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 1102;
+    enabled(*r, trial, 1);
+    enabled(*r, trial, 2);
+    CHECK(trial == 1106 && r->route.motionAdmissions() == 4);
+    const char* const home1107[] = {
+        // line 3
+        "TRIAL id=1107 node=1 route=home failure=11 why=home lost=0 terminals=29 traffic=87 "
+        "tail=0 tailLost=0 summaries=6 step=4 cycles=0 motion=4 case=1 unsettled=0 gap=5002 "
+        "lossCancel=0",
+        // line 4
+        "TRIAL_PLAN route=home node=1 trial=1107 attended=1 method=24 search=60 creep=6 ramp=200 "
+        "offset=0",
+        // line 5
+        "TRIAL_RES stack0=8296 stack1=7592 heap0=37616 heap1=37616 heapMin=33176 largest=21504 "
+        "gap=5002 dropped=0 admission=0 started=257469837 completed=257670985 tec0=0 rec0=0 "
+        "tec1=0 rec1=0",
+        // line 6
+        "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 "
+        "606c=0",
+        // line 7
+        "TRIAL_STATUS code=3 detail=7; homing needs exact selected-firmware qualification",
+        // line 8
+        "TRIAL_IO which=0 present=1 entries=16 polarity=0000 di0=0001 di1=0002 di2=0003 di3=0000 "
+        "di4=0000 di5=0000 di6=0000",
+        // line 9
+        "TRIAL_HOME method=24 gate=0 identity=1 io=1 state=1 driver=1 2101=0000 2200=0000 "
+        "2201=03e8 admitted=0",
+        // line 10
+        "RESULT op=20 req=20 oreq=237 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=257474987 "
+        "completed=257477985 ne=1 reason=0 st=3f node=1",
+        // line 11
+        "RESULT op=20 req=20 oreq=238 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=257481987 "
+        "completed=257484985 ne=1 reason=0 st=3f node=1",
+        // line 12
+        "RESULT op=20 req=20 oreq=239 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=257488987 "
+        "completed=257491985 ne=1 reason=0 st=3f node=1",
+        // line 13
+        "RESULT op=20 req=20 oreq=240 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=257494990 "
+        "completed=257497985 ne=1 reason=0 st=3f node=1",
+        // line 14
+        "RESULT op=20 req=20 oreq=241 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=257500988 "
+        "completed=257503985 ne=1 reason=0 st=3f node=1",
+        // line 15
+        "RESULT op=20 req=20 oreq=242 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=257506988 "
+        "completed=257509985 ne=1 reason=0 st=3f node=1",
+        // line 16
+        "RESULT op=20 req=20 oreq=243 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=257512988 "
+        "completed=257515985 ne=1 reason=0 st=3f node=1",
+        // line 17
+        "RESULT op=20 req=20 oreq=244 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=257518990 "
+        "completed=257521985 ne=1 reason=0 st=3f node=1",
+        // line 18
+        "RESULT op=20 req=20 oreq=245 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=257524988 "
+        "completed=257527985 ne=1 reason=0 st=3f node=1",
+        // line 19
+        "RESULT op=21 req=21 oreq=246 step=1 object=2400:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=10000000 admitted=257532987 "
+        "completed=257535985 ne=1 reason=0 st=3f node=1",
+        // line 20
+        "RESULT op=21 req=21 oreq=247 step=2 object=2400:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257539987 "
+        "completed=257542985 ne=1 reason=0 st=3f node=1",
+        // line 21
+        "RESULT op=21 req=21 oreq=248 step=3 object=2400:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=257546987 "
+        "completed=257549985 ne=1 reason=0 st=3f node=1",
+        // line 22
+        "RESULT op=21 req=21 oreq=249 step=4 object=2400:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=02000000 admitted=257553987 "
+        "completed=257556985 ne=1 reason=0 st=3f node=1",
+        // line 23
+        "RESULT op=21 req=21 oreq=250 step=5 object=2400:04 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=03000000 admitted=257560987 "
+        "completed=257563985 ne=1 reason=0 st=3f node=1",
+        // line 24
+        "RESULT op=21 req=21 oreq=251 step=6 object=2400:05 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257567987 "
+        "completed=257570985 ne=1 reason=0 st=3f node=1",
+        // line 25
+        "RESULT op=21 req=21 oreq=252 step=7 object=2400:06 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257574987 "
+        "completed=257577985 ne=1 reason=0 st=3f node=1",
+        // line 26
+        "RESULT op=21 req=21 oreq=253 step=8 object=2400:07 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257581987 "
+        "completed=257584985 ne=1 reason=0 st=3f node=1",
+        // line 27
+        "RESULT op=21 req=21 oreq=254 step=9 object=2400:08 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257588987 "
+        "completed=257591985 ne=1 reason=0 st=3f node=1",
+        // line 28
+        "RESULT op=22 req=22 oreq=255 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=257596987 "
+        "completed=257599985 ne=1 reason=0 st=3f node=1",
+        // line 29
+        "RESULT op=22 req=22 oreq=256 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257603987 "
+        "completed=257606985 ne=1 reason=0 st=3f node=1",
+        // line 30
+        "RESULT op=22 req=22 oreq=257 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=257610987 "
+        "completed=257613985 ne=1 reason=0 st=3f node=1",
+        // line 31
+        "RESULT op=22 req=22 oreq=258 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257617987 "
+        "completed=257620985 ne=1 reason=0 st=3f node=1",
+        // line 32
+        "RESULT op=22 req=22 oreq=259 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257624987 "
+        "completed=257627985 ne=1 reason=0 st=3f node=1",
+        // line 33
+        "RESULT op=22 req=22 oreq=260 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=37840000 admitted=257631987 "
+        "completed=257634985 ne=1 reason=0 st=3f node=1",
+        // line 34
+        "RESULT op=22 req=22 oreq=261 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=257638987 "
+        "completed=257641985 ne=1 reason=0 st=3f node=1",
+        // line 35
+        "RESULT op=22 req=22 oreq=262 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=257645987 "
+        "completed=257648985 ne=1 reason=0 st=3f node=1",
+        // line 36
+        "RESULT op=22 req=22 oreq=263 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=257652987 "
+        "completed=257655985 ne=1 reason=0 st=3f node=1",
+        // line 37
+        "RESULT op=23 req=23 oreq=264 step=1 object=2200:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=257660987 "
+        "completed=257663985 ne=1 reason=0 st=3f node=1",
+        // line 38
+        "RESULT op=23 req=23 oreq=265 step=2 object=2201:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=257667987 "
+        "completed=257670985 ne=1 reason=0 st=3f node=1",
+        // line 132
+        "END trial terminals=29 traffic=87 tail=6 tailLost=0 lost=0; r=release"};
+    size_t first = r->driver.requests.size();
+    replayRoute(*r, 1, homeLine(1, trial, 24), HOME_1107, 29, home1107, sizeof home1107 / sizeof home1107[0]);
+    CHECK(r->downloadsFrom(first) == 0 && r->route.record()->statusCode == 3 &&
+          r->route.record()->statusDetail == 7 && !r->route.record()->homeAdmitted);
+    r->release();
+    const char* const home1108[] = {
+        // line 3
+        "TRIAL id=1108 node=2 route=home failure=11 why=home lost=0 terminals=29 traffic=87 "
+        "tail=0 tailLost=0 summaries=6 step=4 cycles=0 motion=4 case=1 unsettled=0 gap=5002 "
+        "lossCancel=0",
+        // line 4
+        "TRIAL_PLAN route=home node=2 trial=1108 attended=1 method=17 search=60 creep=6 ramp=200 "
+        "offset=0",
+        // line 5
+        "TRIAL_RES stack0=7592 stack1=7592 heap0=37616 heap1=37616 heapMin=33176 largest=21504 "
+        "gap=5002 dropped=0 admission=0 started=262807842 completed=263008985 tec0=0 rec0=0 "
+        "tec1=0 rec1=0",
+        // line 6
+        "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=0 "
+        "606c=0",
+        // line 7
+        "TRIAL_STATUS code=3 detail=7; homing needs exact selected-firmware qualification",
+        // line 8
+        "TRIAL_IO which=0 present=1 entries=16 polarity=0000 di0=0001 di1=0002 di2=0003 di3=0000 "
+        "di4=0000 di5=0000 di6=0000",
+        // line 9
+        "TRIAL_HOME method=17 gate=0 identity=1 io=1 state=1 driver=1 2101=0000 2200=0000 "
+        "2201=03e8 admitted=0",
+        // line 10
+        "RESULT op=20 req=20 oreq=266 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=262812987 "
+        "completed=262815985 ne=1 reason=0 st=3f node=2",
+        // line 11
+        "RESULT op=20 req=20 oreq=267 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=262819987 "
+        "completed=262822985 ne=1 reason=0 st=3f node=2",
+        // line 12
+        "RESULT op=20 req=20 oreq=268 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=262826987 "
+        "completed=262829985 ne=1 reason=0 st=3f node=2",
+        // line 13
+        "RESULT op=20 req=20 oreq=269 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=262832992 "
+        "completed=262835985 ne=1 reason=0 st=3f node=2",
+        // line 14
+        "RESULT op=20 req=20 oreq=270 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=262838990 "
+        "completed=262841985 ne=1 reason=0 st=3f node=2",
+        // line 15
+        "RESULT op=20 req=20 oreq=271 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=262844990 "
+        "completed=262847985 ne=1 reason=0 st=3f node=2",
+        // line 16
+        "RESULT op=20 req=20 oreq=272 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=262850992 "
+        "completed=262853985 ne=1 reason=0 st=3f node=2",
+        // line 17
+        "RESULT op=20 req=20 oreq=273 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=262856990 "
+        "completed=262859985 ne=1 reason=0 st=3f node=2",
+        // line 18
+        "RESULT op=20 req=20 oreq=274 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=262862992 "
+        "completed=262865985 ne=1 reason=0 st=3f node=2",
+        // line 19
+        "RESULT op=21 req=21 oreq=275 step=1 object=2400:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=10000000 admitted=262870987 "
+        "completed=262873985 ne=1 reason=0 st=3f node=2",
+        // line 20
+        "RESULT op=21 req=21 oreq=276 step=2 object=2400:01 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262877987 "
+        "completed=262880985 ne=1 reason=0 st=3f node=2",
+        // line 21
+        "RESULT op=21 req=21 oreq=277 step=3 object=2400:02 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=262884987 "
+        "completed=262887985 ne=1 reason=0 st=3f node=2",
+        // line 22
+        "RESULT op=21 req=21 oreq=278 step=4 object=2400:03 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=02000000 admitted=262891987 "
+        "completed=262894985 ne=1 reason=0 st=3f node=2",
+        // line 23
+        "RESULT op=21 req=21 oreq=279 step=5 object=2400:04 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=03000000 admitted=262898987 "
+        "completed=262901985 ne=1 reason=0 st=3f node=2",
+        // line 24
+        "RESULT op=21 req=21 oreq=280 step=6 object=2400:05 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262905987 "
+        "completed=262908985 ne=1 reason=0 st=3f node=2",
+        // line 25
+        "RESULT op=21 req=21 oreq=281 step=7 object=2400:06 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262912987 "
+        "completed=262915985 ne=1 reason=0 st=3f node=2",
+        // line 26
+        "RESULT op=21 req=21 oreq=282 step=8 object=2400:07 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262919987 "
+        "completed=262922985 ne=1 reason=0 st=3f node=2",
+        // line 27
+        "RESULT op=21 req=21 oreq=283 step=9 object=2400:08 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262926987 "
+        "completed=262929985 ne=1 reason=0 st=3f node=2",
+        // line 28
+        "RESULT op=22 req=22 oreq=284 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=262934987 "
+        "completed=262937985 ne=1 reason=0 st=3f node=2",
+        // line 29
+        "RESULT op=22 req=22 oreq=285 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262941987 "
+        "completed=262944985 ne=1 reason=0 st=3f node=2",
+        // line 30
+        "RESULT op=22 req=22 oreq=286 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=262948987 "
+        "completed=262951985 ne=1 reason=0 st=3f node=2",
+        // line 31
+        "RESULT op=22 req=22 oreq=287 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262955987 "
+        "completed=262958985 ne=1 reason=0 st=3f node=2",
+        // line 32
+        "RESULT op=22 req=22 oreq=288 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262962987 "
+        "completed=262965985 ne=1 reason=0 st=3f node=2",
+        // line 33
+        "RESULT op=22 req=22 oreq=289 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=37840000 admitted=262969987 "
+        "completed=262972985 ne=1 reason=0 st=3f node=2",
+        // line 34
+        "RESULT op=22 req=22 oreq=290 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=262976987 "
+        "completed=262979985 ne=1 reason=0 st=3f node=2",
+        // line 35
+        "RESULT op=22 req=22 oreq=291 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=262983987 "
+        "completed=262986985 ne=1 reason=0 st=3f node=2",
+        // line 36
+        "RESULT op=22 req=22 oreq=292 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=262990987 "
+        "completed=262993985 ne=1 reason=0 st=3f node=2",
+        // line 37
+        "RESULT op=23 req=23 oreq=293 step=1 object=2200:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=262998987 "
+        "completed=263001985 ne=1 reason=0 st=3f node=2",
+        // line 38
+        "RESULT op=23 req=23 oreq=294 step=2 object=2201:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=263005987 "
+        "completed=263008985 ne=1 reason=0 st=3f node=2",
+        // line 130
+        "END trial terminals=29 traffic=87 tail=4 tailLost=0 lost=0; r=release"};
+    first = r->driver.requests.size();
+    replayRoute(*r, 2, homeLine(2, trial, 17), HOME_1108, 29, home1108, sizeof home1108 / sizeof home1108[0]);
+    CHECK(r->downloadsFrom(first) == 0 && r->route.record()->statusDetail == 7);
+    CHECK(r->route.motionAdmissions() == 4); // HOME weighs no motion.
+    r->release();
+}
 } // namespace
 
 // Packet 8's planned boot, replayed in order through the real routes on this fake, with the procedure's
@@ -4374,6 +5351,8 @@ int main(int argc, char** argv) {
     testVelocityFailures();
     testHome();
     testVelocityHomePlan();
+    replayRouteBootR2c();
+    replayRouteBootR4b();
     std::printf("bench_route: %u checks\n", checks);
     return 0;
 }

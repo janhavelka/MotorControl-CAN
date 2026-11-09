@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Replays of the 2026-11-09 bench measurements
+
+- Tests: literal replays of the retained captures through the real owner, `AxisSession` and bench code, value for value in captured order; no library change. `move_relative` tests 31 to 33: relative moves 825 and 1110, the HALT 832 and the quick stop 1109 from a moving `005F` with the other node observed, and node 2's base chain 828 to 830. `communication_bench`: `K` and `H` commissioning on both nodes, the pending-transition failure at its captured instants, and the 12:06Z refusals. `discovery_bench`: passive, probe and identity scans, with the captured `1018:00=5`. `bench_route`: home admissions 913, 915, 1107, 1108 and `mode3` 917. `pdo_watch`: heartbeat gaps of about 1.0008 s. Eleven mutants killed.
+- **Fixed (test fake):** the move fake's HALT now clears `6041` bit 12 at the `010F` and keeps `2100` running for one more cycle (two with `haltReads`), as 832 and 828 reported, instead of clearing running at once.
+- **Fixed (docs):** a heartbeat baseline refused with a running producer ends `detail=2` (the NMT premise is checked before the value), not `detail=6` as `docs/hardware_bench.md` predicted. Packet 8 and the round 2 report no longer call 146 node 1's halted position: 832 read it at `606C=5` just before the `010F`, and the HALT's cycles read no position.
+- Records: the ledger's Q02, Q11, Q12, Q16, Q18 and Q21 evidence, `1017:00` and `2400:02..04` carry the 2026-11-09 measurements; every gate stays open. Guides: `position_parameters`, `stop_actions`, `commissioning`, `canopen_services`, `homing`, `velocity`.
+
 ### Attended velocity experiment scope (prompt 35, 2026-11-09)
 
 - **Changed:** `VelocityGate::ATTENDED_EXPERIMENT` admits one finite mode 3 run whose start and stop it measures instead of claiming: `startQualified`, `stopQualified`, `modeChangeQualified` and `reverseQualified` must be false, the rate is at most `VELOCITY_EXPERIMENT_MAXIMUM_RPM` (60 rpm) and the duration at most `VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US` (20 s), both project policy; every other preparation, timing, stop, uncertainty and fault check is unchanged. The context keeps the gate, so a run under it is never published as qualification. `CLOSED` stays the default and `MEASURED` still needs both facts.

@@ -323,10 +323,13 @@ The default is `UNMEASURED`, so a relative request is refused unless the caller
 names a measured base. **Node 1 measured `ACTUAL` on 2026-11-04** (trial 409):
 after a halted move left it at 104 with target 600, `005F` with +200 ended at
 304. With that record, `requestMoveRelative` +100 under `ACTUAL` then
-`SUCCEEDED` at 404, its computed endpoint, with its own rearm (trial 411), and on
-2026-11-05 +3000 at 120 rpm `SUCCEEDED` at 2000 (trial 708). One specimen, one
-firmware, positive displacements, judged from drive reports with no shaft observed ([report](reports/2026-11-04_bench.md),
-[packet 21](reports/handoff_19_33/packet_21.md)). The axis's
+`SUCCEEDED` at 404, its computed endpoint, with its own rearm (trial 411), on
+2026-11-05 +3000 at 120 rpm `SUCCEEDED` at 2000 (trial 708), and on 2026-11-09
+-100 `SUCCEEDED` at -100 (trial 825). **Node 2 measured `ACTUAL` on 2026-11-09**
+(trials 828 to 830, record 830), and +200 under that record `SUCCEEDED` at 200
+(trial 1110); see the evidence below. Two specimens, one firmware, judged from
+drive reports with no shaft angle measured ([report](reports/2026-11-04_bench.md),
+[packet 21](reports/handoff_19_33/packet_21.md), [packet 8](reports/bench_closure_18_33/packet_8.md)). The axis's
 `supportedRelativeBases` is a separate host-arithmetic policy and is still checked.
 
 Two bases stay apart in the context. `parameters.target.retainedReference` is
@@ -375,8 +378,29 @@ observation, beside the absolute items above:
    `005F`, or the record must carry measured ones for it.
 3. What `005F` does with a zero `607A`, which the library never sends.
 
-For node 1 on its firmware, items 1 and 2 are answered by drive reports, without
-a shaft observation: the base is the actual position, and acceptance (`6041` bit
-12 from the first cycle) and completion (`2100` bit 0 absent while running, then
-present) behave as after `001F`. Item 3, node 2, a negative displacement and the
-shaft remain.
+The manuals document none of the three (documented: the trigger only). What has
+been measured, as drive reports on one firmware identity and without a shaft
+observation, is below; none of it is a qualification.
+
+For node 1, items 1 and 2 are answered: the base is the actual position, and
+acceptance (`6041` bit 12 from the first cycle) and completion (`2100` bit 0
+absent while running, then present) behave as after `001F`. A negative
+displacement behaves the same: -100 from 0 read acceptance in cycle 1 and
+completion in cycle 2 at -100 (trial 825, 2026-11-09).
+
+For node 2, items 1 and 2 were answered on 2026-11-09 by the same procedure, from
+a start where the actual and commanded positions differ. A position move to 600
+was halted (828); the read before the next write found `6064` 104, and `000F`
+did not resume the halted target (829: 104 before it and in eight cycles after
+it). `005F` with +200 from there then ended at 304 (830). The actual position
+plus the displacement is 304; the last commanded target plus the displacement
+would be 800. So node 2's base is also `ACTUAL`, recorded as record 830. Under
+that record node 2's first production relative move, +200 from 0, read
+acceptance in cycle 1 (`6041=5037`) and completion in cycle 2 (`2100=0001`,
+`6041=9437`) at exactly 200 (trial 1110). For 828 to 830 the attendant could
+not confirm the motion or position; 1110 ran unattended.
+
+Open on both nodes: item 3; any other firmware; a start offset by a stall rather
+than a halt; and the physical displacement, whose scale and direction need an
+independent angle measurement. `move_relative_test.cpp` tests 31 and 33 replay
+825, 828 to 830 and 1110 value for value through the real owner and `AxisSession`.

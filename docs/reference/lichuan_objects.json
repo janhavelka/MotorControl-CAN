@@ -1358,7 +1358,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Restart requirement: unknown. Persistence: unknown.",
+            "value_policy": "Default 0; never infer an active heartbeat or watchdog. Checkpoint 2026-11-02: both nodes read0; node1 exact read0/write1000/read1000 succeeded and bounded701/7F observations followed about1.0008s apart. CiA 2024 poster page1 explicitly states1017h milliseconds; retained original/provenance in docs/reference/public. Only this explicit experiment is observed; no generic range, persistence, read-effect or host-loss reaction qualification. See docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Bench 2026-11-09, both nodes, one firmware identity (1000=0x00040192, 2000=0x0400, 2001=0x0200): on image 627bb42 after the user's drive power cycle, an exact read of 0, one acknowledged write (2B 17 10 00 E8 03 00 00), the owner's epoch migration and a readback of 1000 published with no uncertainty (docs/bench/20261109T1245Z-r4a-hb-node1, docs/bench/20261109T1246Z-r4a-hb-node2). 7F heartbeats followed with mean gaps of 1000792 to 1000796 us on the S2 clock (receive upper bounds; every gap 1000715 to 1000875 us). Earlier that day, on image 757f1cd, the same write was acknowledged and took effect on both nodes but stayed uncertain because the N line's transition was still pending (backlog S14). That 1000 read 0 again on both nodes after the 12:43Z power cycle without a save: one more observed cycle per node. A 1000 baseline with a running producer is refused before any write (HB_PREP detail=2, the NMT premise is checked before the value). Restart requirement: unknown. Persistence: unknown.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -10569,7 +10569,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.",
+            "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values. Active value read on both specimens on 2026-11-09 (four home admissions): 1 (origin). No bench record writes this subindex; the value names the assigned function, not a wired switch.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -10672,7 +10672,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.",
+            "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values. Active value read on both specimens on 2026-11-09 (four home admissions): 2 (positive limit). No bench record writes this subindex; the value names the assigned function, not a wired switch.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -10775,7 +10775,7 @@
           "review": {
             "status": "complete",
             "type_policy": "Retain exact EDS wire width and signedness; no conversion to another profile type.",
-            "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values.",
+            "value_policy": "0 undefined; 1 origin; 2 positive limit; 3 negative limit; 4 enable/MF; 5 stop; 6 emergency stop; 7..13 user-defined0..6. Factory defaults conflict, read active values. Active value read on both specimens on 2026-11-09 (four home admissions): 3 (negative limit). No bench record writes this subindex; the value names the assigned function, not a wired switch.",
             "read_effect": "not_established",
             "write_policy": "qualification_required",
             "gate_ids": [
@@ -23249,7 +23249,7 @@
       {
         "id": "Q02",
         "feature": "6041 interpreted status and completion",
-        "required_evidence": "For the exact firmware record raw 6041 together with independently known fault, enabled/released, moving, standstill, homing and positioning states. Distinguish bits 3/7/10/12/14; verify freshness/reset behavior of bits 8/15. Do not combine the three 86C layouts. For 57C, qualify its own cited bit7/14 layout and freshness; resolving 86C alternatives is not a 57C prerequisite.",
+        "required_evidence": "For the exact firmware record raw 6041 together with independently known fault, enabled/released, moving, standstill, homing and positioning states. Distinguish bits 3/7/10/12/14; verify freshness/reset behavior of bits 8/15. Do not combine the three 86C layouts. For 57C, qualify its own cited bit7/14 layout and freshness; resolving 86C alternatives is not a 57C prerequisite. Bench 2026-11-09, both CL86-C specimens, one firmware identity (1000=0x00040192, 2000=0x0400, 2001=0x0200), drive reports only: 6041=5037 while 2100 read running after 001F or 005F; 4037 in the first cycle after 010F with 2100 still running (828, 832); 0437 once 2100 read 0000 after a HALT; 9437 with 2100=0001 at relative completion (825, 830, 1110); 8437 after the rearm 000F (831, 1112); 4050 with 2100=0014 after 000B during motion (1109, 1111). These correlations select no layout and qualify no bit. Replayed by test/move_relative_test.cpp tests 31 to 33.",
         "owner_prompts": [
           19,
           30,
@@ -23396,7 +23396,7 @@
       {
         "id": "Q11",
         "feature": "Enable / position trigger and ramp boundary",
-        "required_evidence": "For the current mode/state establish retained-target behavior, enable/release effect, bit-4 trigger/rearm and target-acceptance evidence. Verify zero ramp behavior before accepting it; approximate 10 ms between example transitions is not a response/completion deadline. Post-cycle2026-11-02 both specimens report retained607A=5000 and60FF=120, with6061=0; enabling/retained-target effect remains unresolved. Finite read-only readiness inventory and raw links: docs/reports/2026-11-02_nmt_pdo_checkpoint.md. No executable motion controller or blind enable sequence is qualified.",
+        "required_evidence": "For the current mode/state establish retained-target behavior, enable/release effect, bit-4 trigger/rearm and target-acceptance evidence. Verify zero ramp behavior before accepting it; approximate 10 ms between example transitions is not a response/completion deadline. Post-cycle2026-11-02 both specimens report retained607A=5000 and60FF=120, with6061=0; enabling/retained-target effect remains unresolved. Finite read-only readiness inventory and raw links: docs/reports/2026-11-02_nmt_pdo_checkpoint.md. No executable motion controller or blind enable sequence is qualified. Bench 2026-11-09, both CL86-C specimens, one firmware identity (1000=0x00040192, 2000=0x0400, 2001=0x0200), drive reports only, no shaft angle measured (docs/reports/bench_closure_18_33/packet_8.md, docs/reports/2026-11-09_bench_r4.md): node 2's relative base is ACTUAL, as node 1's (record 409). After a HALT of a 001F move to 600 the next read found 6064=104 (828); 000F did not resume the halted target (829); 607A=200 with 005F then ended at 304, not at the commanded 600 plus 200 (830, record 830). Relative moves of +200 on node 2 (1110) and -100 on node 1 (825) read 6041 bit 12 in cycle 1 and 2100 bit 0 in cycle 2 at their endpoints. On node 2, released, one 6060=3 download read back 6061=3 with 2100, 6041 and 6064 unchanged (917, docs/bench/20261109T1125Z-r2c-mode3-node2-917); no enable, mode-3 start or stop followed. Zero 607A with 005F, mode changes while enabled, other firmware and the physical displacement remain open. Replayed by test/move_relative_test.cpp tests 31 and 33 and test/bench_route_test.cpp replayRouteBootR2c.",
         "owner_prompts": [
           20,
           30,
@@ -23415,7 +23415,7 @@
       {
         "id": "Q12",
         "feature": "Normal / emergency stop and 605D",
-        "required_evidence": "Obtain current-state stop transitions, applicable 605D option meanings, ramp/deceleration behavior and observable completion. Measure latency separately. Never send 15 merely to prepare 271 or 11; absent 605A/6085 is not a fallback.",
+        "required_evidence": "Obtain current-state stop transitions, applicable 605D option meanings, ramp/deceleration behavior and observable completion. Measure latency separately. Never send 15 merely to prepare 271 or 11; absent 605A/6085 is not a fallback. Bench 2026-11-09, both CL86-C specimens, one firmware identity (1000=0x00040192, 2000=0x0400, 2001=0x0200), drive reports only: 010F during a relative move from a held 005F (832, node 1) read 2100=0004 with 6041=4037 in its first cycle and 2100=0000 with 6041=0437 in its second; 010F during a 001F move (828, node 2) read running for two cycles, then 0000 and 0437; both drives stayed enabled. 000B during a relative move from a held 005F (1109, node 1) read 2100=0014 with 6041=4050 in all three cycles and 6064=259 with 606C=0 in the last two; the next read (1111) still found 0014 and 4050, so the drive reports itself released after that quick stop. 000B from a stationary acknowledged 005F (833, node 2) read 6041=8050 with 2100=0011. The 005F rows remain project decisions (DEC-8); latency, deceleration, torque and 605D meaning are not established. Replayed by test/move_relative_test.cpp tests 32 and 33.",
         "owner_prompts": [
           31
         ],
@@ -23477,7 +23477,7 @@
       {
         "id": "Q16",
         "feature": "Node / bitrate / configurable routes",
-        "required_evidence": "Establish DIP precedence and activation/restart/persistence for 2203 and routing fields; identify a supported way to select EDS-only 50 kbit/s before offering it. Verify full route field masks and new/old route retirement with a retained recovery plan.",
+        "required_evidence": "Establish DIP precedence and activation/restart/persistence for 2203 and routing fields; identify a supported way to select EDS-only 50 kbit/s before offering it. Verify full route field masks and new/old route retirement with a retained recovery plan. Bench 2026-11-09, both nodes at 1 Mbit/s: the communication reads found 2203=0, 1005=0x80, 1014=0x80+node, 1200:01/02=0x600/0x580+node and the predefined TPDO and RPDO COB-IDs of each node with bit 31 clear, identical before and after one drive power cycle (docs/bench/20261109T1121Z-r2b-p38_reads, docs/bench/20261109T1245Z-r4a-hb-node1, docs/bench/20261109T1246Z-r4a-hb-node2). Stored words only: no activation, DIP precedence, route change, bitrate selection or persistence evidence.",
         "owner_prompts": [
           16,
           37,
@@ -23511,7 +23511,7 @@
       {
         "id": "Q18",
         "feature": "Service / network event behavior",
-        "required_evidence": "Observe actual upload forms, NMT transitions, heartbeat/EMCY/SYNC behavior and reset recovery for the binding. No manufacturer host-loss stop guarantee follows from 1017=0 or absent 1016; obtain applicable drive reaction evidence separately. The 2026-11-02 NMT/TPDO checkpoint observes node1 heartbeat1000 and addressed Pre-operational with fresh interval evidence; broader transitions, reset recovery, consumer reaction and firmware scope remain open. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md.",
+        "required_evidence": "Observe actual upload forms, NMT transitions, heartbeat/EMCY/SYNC behavior and reset recovery for the binding. No manufacturer host-loss stop guarantee follows from 1017=0 or absent 1016; obtain applicable drive reaction evidence separately. The 2026-11-02 NMT/TPDO checkpoint observes node1 heartbeat1000 and addressed Pre-operational with fresh interval evidence; broader transitions, reset recovery, consumer reaction and firmware scope remain open. Later user physical power cycle and fresh26-field acquisitions on both nodes found node1 producer1017=0 and TPDO1 count3/60410010,60610008,60640020 again, with no save/restore command. This is one observed cycle, not a generic persistence/reset guarantee. Second image and raw links are in docs/reports/2026-11-02_nmt_pdo_checkpoint.md. Bench 2026-11-09, both nodes: heartbeat commissioning 1017 0 to 1000 confirmed on image 627bb42 after a drive power cycle, with 7F heartbeats about 1.0008 s apart on the S2 clock; a 1000 written earlier that day read 0 again after the power cycle without a save. Details under 1017:00. No host-loss reaction was observed.",
         "owner_prompts": [
           13,
           14,
@@ -23568,7 +23568,7 @@
       {
         "id": "Q21",
         "feature": "Homing method / completion / reference",
-        "required_evidence": "Verify actual switch assignment/polarity, safe direction/travel, method-specific edge behavior, interrupt result, offset and fresh completion evidence before publishing a home reference. Physical inputs are required only for the selected method.",
+        "required_evidence": "Verify actual switch assignment/polarity, safe direction/travel, method-specific edge behavior, interrupt result, offset and fresh completion evidence before publishing a home reference. Physical inputs are required only for the selected method. Bench 2026-11-09, both CL86-C specimens, one firmware identity (1000=0x00040192, 2000=0x0400, 2001=0x0200): the bench home route's 29 admission reads completed four times (913 and 915 on image 757f1cd; 1107 and 1108 on 627bb42) and found 2400:00=16, 2400:01=0, DI0..DI2 functions 2400:02..04 = 1, 2, 3 (origin, positive limit, negative limit), 2400:05..08=0, 2101=0, 2200=0 and 2201=1000. Each ended before any write: code=1 detail=3 without a controlword in the MCU boot (913, 915), and code=3 detail=7 at the CLOSED gate after an attended enable (1107 method 24, 1108 method 17). No switch wiring, direction, offset, mode-6 transition or completion was observed. Replayed by test/bench_route_test.cpp replayRouteBootR2c and replayRouteBootR4b.",
         "owner_prompts": [
           36
         ],

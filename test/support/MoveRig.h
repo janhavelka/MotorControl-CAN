@@ -136,8 +136,12 @@ struct FakeDrive {
     // its last 607A is unmeasured, so the fake leaves both alone.
     bool counterArmed = false;
     unsigned travelReads = 1; // 6041 reads reporting motion after a trigger, before arrival.
+    // 6041 reads after a 010F during motion that keep 2100 running set beyond the first one. 0 gives
+    // trial 832's shape (running in the first cycle after the word, clear from the next); 1 gives
+    // 828's (running in two cycles). See word().
+    unsigned haltReads = 0;
     unsigned remaining = 0, statusReads = 0, words = 0, alarmAtRead = 0, edges = 0;
-    bool moving = false;
+    bool moving = false, halting = false;
     uint16_t lastWord = 0xffff;
     uint16_t silentIndex = 0, abortIndex = 0, silentWord = 0, abortWord = 0;
     const Report* script = nullptr;
@@ -168,6 +172,7 @@ struct FakeDrive {
             if (clearCompletion)
                 status = uint16_t(status & ~COMPLETE_BIT);
             moving = !script;
+            halting = false;
             scripted = script != nullptr;
             scriptCursor = 0;
             remaining = travelReads;
@@ -175,17 +180,36 @@ struct FakeDrive {
         } else if (w == 0x000f && (lastWord == 0x001f || lastWord == 0x005f)) {
             status = uint16_t(status & ~ACCEPT_BIT);
         } else if (w == 0x010f) {
+            // As captured during a move from 001F (trial 828, node 2) and from 005F (832, node 1): the
+            // first cycle after 010F read 6041 bit 12 clear (5037 before, 4037 after) with 2100 running
+            // still set. Running cleared in the next cycle in 832 and one cycle later in 828, leaving
+            // 2100 = 0000, neither running nor in place, and 6041 = 0437. A stationary 010F from 000F
+            // changed nothing (207). So the fake clears bit 12 at a word after a trigger, as for 000F,
+            // and while it was moving keeps running set through haltReads more 6041 reads, then clears
+            // it. Its position stays where the word found it, so it never decelerates (832 last read
+            // 146 at 606C 5 before its 010F; no later cycle read 6064), and it models no 6041 bit 10
+            // or 14. A script, when set, replaces all of this from its next report.
+            if (lastWord == 0x001f || lastWord == 0x005f)
+                status = uint16_t(status & ~ACCEPT_BIT);
+            if (moving) {
+                halting = true;
+                remaining = haltReads;
+            } else {
+                monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
+            }
             moving = false;
-            monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
         } else if (w == 0x000b) {
             // As captured on both specimens: 000B during a move released the drive and left running
-            // latched, 2100 = 0014 with 6041 = 4050 (trials 213, 413, 713). From idle it released
-            // the drive with 6041 = 8050 while in place (124, 2100 = 0011) and 0050 while not (126,
-            // 2100 = 0010). The fake freezes its position at the word and reads 606C 0, so it never
-            // decelerates: trial 713 moved from 854 to 896 after its 000B. No stop test here
-            // exercises the motion after the word.
+            // latched, 2100 = 0014 with 6041 = 4050, from 001F (trials 213, 413, 713) and from 005F
+            // (1109, node 1). From idle it released the drive with 6041 = 8050 while in place (124,
+            // 2100 = 0011) and 0050 while not (126, 2100 = 0010). The fake freezes its position at the
+            // word and reads 606C 0, so it never decelerates: trial 713 moved from 854 to 896 after its
+            // 000B, and 1109 from 256, its last move cycle, to 259. No stop test here exercises the
+            // motion after the word. Unmeasured: 000B during a HALT's deceleration latches running here
+            // as during a move; no escalation has run on a drive.
             const bool running = (monitor & L::MONITOR_RUNNING) != 0;
             moving = false;
+            halting = false;
             velocity = 0;
             monitor = uint16_t(monitor | L::MONITOR_RELEASED);
             const unsigned inPlace = monitor & L::MONITOR_POSITION_COMPLETE ? 0x8000u : 0u;
@@ -289,6 +313,14 @@ inline bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
                 drive.arrive();
             else
                 --drive.remaining;
+        } else if (drive.halting) {
+            // This cycle's 2100 was read before this 6041, so it still reported running.
+            if (!drive.remaining) {
+                drive.halting = false;
+                drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_RUNNING);
+            } else {
+                --drive.remaining;
+            }
         }
         raw = drive.status;
         break;
@@ -493,6 +525,19 @@ struct Rig {
             }
         wire.autoReport = true;
         holdTx = false;
+    }
+    // Forget a settled wire log so a long replay fits WireBase's fixed capacity: only once every frame
+    // reached its fake, was stamped and reported, and every report and received frame was consumed.
+    // Frame indices taken before it no longer apply.
+    void compact() {
+        CHECK(served == wire.sentCount && stamped == wire.sentCount && !holdTx);
+        CHECK(wire.reportRead == wire.reportWrite && wire.rxRead == wire.rxWrite);
+        for (unsigned i = 0; i < wire.sentCount; ++i) {
+            CHECK(!wire.pending[i]);
+            dropped[i] = false;
+        }
+        wire.sentCount = wire.reportRead = wire.reportWrite = 0;
+        served = stamped = startFrame = 0;
     }
     void step() { turn(now + TICK); }
     void steps(unsigned count) {

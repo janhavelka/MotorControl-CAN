@@ -541,6 +541,11 @@ payload as the producer's NMT state in its
 The retained Lichuan EDS `[1017]`, lines 261–269, supplies U16/RW/default-zero
 metadata but no unit or firmware activation guarantee. The protocol source does
 not resolve that separate device qualification gap or establish a host-loss stop.
+Measured on 2026-11-09, one firmware tuple: after raw 1000 both CL86-C specimens
+sent 7F heartbeats about every 1.0008 s on the S2's clock (receive upper bounds,
+mean gaps 1000792 to 1000796 µs), and both read raw 0 again after one power cycle
+([commissioning](commissioning.md#measured-on-the-bench-2026-11-09)). That is a
+measured period, not a vendor timing range or consumer timeout.
 
 Configured node snapshots keep heartbeat, observed NMT and last checked matching
 SDO times independently. Malformed SDO frames cannot renew that communication
@@ -945,7 +950,11 @@ rebind identifiers. `configurationEligible` reports every premise except
 idleness in advance, before a settings download is admitted. A pending NMT
 transition is no part of ordinary service eligibility: it lasts until a matching
 heartbeat or boot-up or the intent's own deadline, so a node without a heartbeat
-producer keeps it for that whole window. The migration preserves node generation,
+producer keeps it for that whole window. On 2026-11-09, at producer time 0, both
+specimens' transitions were still pending when an acknowledged `1017` write came
+3.46 s and 3.50 s after the bench's `N` line (1.54 s and 1.50 s before its 5 s
+window ended), so the write could not migrate; after a 6 s wait it did
+([measured](commissioning.md#measured-on-the-bench-2026-11-09)). The migration preserves node generation,
 liveness/NMT/service times and historical diagnostics without renewing them. Cache observers run and PDO samples
 are revoked before publishing the new binding. See the
 [owner contract](can_owner.md#native-settings-exclusion-and-configuration-epochs).

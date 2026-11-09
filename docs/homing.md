@@ -140,7 +140,9 @@ the home outcome.
 
 ## Remaining specimen evidence
 
-No physical homing measurement was made by the prompt-36 source review. The
+No physical homing measurement was made by the prompt-36 source review, and no
+homing motion has run since; the admission reads of 2026-11-09 are recorded
+[below](#bench-observations-2026-11-09). The
 conditional prompt-29 acquisition route or manufacturer clarification must
 establish each dependent fact before that feature is qualified:
 
@@ -161,6 +163,32 @@ establish each dependent fact before that feature is qualified:
 
 The [contrast ledger](reference/drive_contrasts.md) records why supported method
 numbers cannot be shared with EPOS4. It creates no additional installed profile.
+
+### Bench observations, 2026-11-09
+
+The S2 bench `home` route reads what `requestHome` consumes and, with a CLOSED
+`HomeEvidence`, ends at the library's refusal before any write. Its 29 admission
+reads completed four times on the two CL86-C specimens, one firmware tuple, nothing
+written and nothing moved (trials 913, 915, 1107, 1108; trials 903 to 906 stopped
+after their identity reads, refused `why=grant` by the bench ordering of backlog S15)
+([round 2](reports/2026-11-09_bench_r2.md), [round 4](reports/2026-11-09_bench_r4.md)).
+
+- **Measured, both specimens, all four runs:** `2400:00` raw 16, `2400:01` polarity 0,
+  `2400:02..04` (DI0..DI2) functions 1, 2, 3, `2400:05..08` (DI3..DI6) 0, `2101=0`
+  (no input effective), `2200=0`, `2201=1000`. Functions 1, 2, 3 are origin, positive
+  limit and negative limit by the manuals' labels. No switch is known to be wired:
+  an assigned function says nothing about wiring, and an unconnected input is not a
+  disabled function. Nothing about direction, offset, mode 6 or completion is measured.
+- **Refusals measured:** without a controlword in that MCU boot the session refused
+  first, `code=1 detail=3` ("home needs the latest controlword and later state";
+  node 1 method 24 and node 2 method 17, image `757f1cd`). After an attended enable,
+  with `000F` the latest word, both nodes reached the library and were refused at its
+  CLOSED gate, `code=3 detail=7` ("homing needs exact selected-firmware qualification";
+  node 1 method 24 and node 2 method 17, image `627bb42`). Zero downloads in all four.
+- **Qualified:** nothing. The gate stays closed; items 1 to 5 above remain.
+
+`bench_route` replays all four records from their captured replies, value for value
+(`replayRouteBootR2c`, `replayRouteBootR4b`).
 
 ## Ordinary owner path
 

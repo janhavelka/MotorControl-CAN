@@ -144,7 +144,15 @@ The concrete context keeps owned summaries and service terminals.
 ## Remaining specimen evidence
 
 No retained record establishes mode3 startup, reverse operation or a mode3 stop
-on the connected CL86-C specimens. The following conditional prompt29 experiment
+on the connected CL86-C specimens. One related fact is measured: on 2026-11-09 the
+bench `mode3` route found node 2 released (`2100=0011`, `6041=8050`), mode 1 and
+stationary at `6064=-49` on two fresh reads, wrote `6060=3` once
+(`2F 60 60 00 03 00 00 00`, acknowledged), and then read `6061=3` twice with the
+drive still released and at -49 ([record](bench/20261109T1125Z-r2c-mode3-node2-917/),
+[report](reports/2026-11-09_bench_r2.md)). One measurement, one specimen, from a
+released state, with no enable and no motion; `bench_route` replays it value for value
+(`replayRouteBootR2c`). It qualifies no mode change while enabled, no startup or stop
+and no other source mode, and Q11 stays open. The following conditional prompt29 experiment
 can establish a narrow positive subset; it is not an automatic production run.
 The bench `velocity` route runs it under the attended experiment scope above
 ([procedure](reports/bench_closure_18_33/velocity_homing_procedure.md)); only a

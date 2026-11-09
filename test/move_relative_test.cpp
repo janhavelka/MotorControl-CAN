@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 // prepareMoveRelative through the real owner, the selected SDO engine and AxisSession, on the shared
-// fake of support/MoveRig.h, and the combined interruption matrix of both moves. No relative base is
-// measured on any specimen: every MoveEvidence::relativeBase here is this test's switch, opened only to
-// exercise the lifecycle, and the fake's base is a switch too. Nothing here shows what a drive adds a
-// displacement to, or that it accepts, moves or completes one. NMT stopped is never used as a drive
-// state, and no free SDO channel is fabricated. Every scenario runs twice, the second time with
-// heartbeat traffic delivered on every turn.
+// fake of support/MoveRig.h, and the combined interruption matrix of both moves. In tests 1 to 30 every
+// MoveEvidence::relativeBase is this test's switch, opened only to exercise the lifecycle, and the
+// fake's base is a switch too; nothing there shows what a drive adds a displacement to, or that it
+// accepts, moves or completes one. Tests 31 to 33 replay retained captures of trials that measured
+// those facts on one firmware, as drive reports; the replays check the library's reading of the
+// captured values, not the drive. NMT stopped is never used as a drive state, and no free SDO channel
+// is fabricated. Every scenario runs twice, the second time with heartbeat traffic delivered on every
+// turn.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -704,24 +706,31 @@ void cancelAroundHandoff() {
     }
 }
 
-// 10. A mid-curve stop comes from the held 005F, with no 000F preamble.
+// 10. A mid-curve stop comes from the held 005F, with no 000F preamble. The fake's HALT reports as the
+// drives did (832 with haltReads 0, 828 with 1): running stays set in the first cycle or two after
+// 010F, with 6041 bit 12 already clear, and the HALT completes only in the cycle that reads it clear.
 void stopFromHeldTrigger() {
     scenario = "stop from held trigger";
-    Rig r;
-    r.drive.travelReads = 1000000;
-    r.ready();
-    CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(-4000)).isOk());
-    for (unsigned k = 0; k < 400 && moveOf(r).observations < 1; ++k)
-        r.step();
-    const unsigned at = r.wire.sentCount;
-    const E::StopPolicy policy = stopPolicy(r);
-    CHECK(r.a.requestStop(L::StopKind::HALT, r.a.moveObservation(), policy, r.now) == E::StopPath::CONFIRMED);
-    finishAll(r);
-    const L::ActionContext& s = r.a.stopAction(L::StopKind::HALT);
-    CHECK(s.state == M::ActionState::SUCCEEDED && s.predecessorWord == 0x005f && !s.predecessorDocumented);
-    CHECK(s.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
-    CHECK(wordsFrom(r, at, 0x010f) == 1 && !wordsFrom(r, at, 0x000f) && !wordsFrom(r, at, 0x000b));
-    CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && r.a.moveFenced());
+    for (unsigned haltReads = 0; haltReads < 2; ++haltReads) {
+        Rig r;
+        r.drive.travelReads = 1000000;
+        r.drive.haltReads = haltReads;
+        r.ready();
+        CHECK(r.relative(witness(r, 0), relEvidence(), relRequest(-4000)).isOk());
+        for (unsigned k = 0; k < 400 && moveOf(r).observations < 1; ++k)
+            r.step();
+        const unsigned at = r.wire.sentCount;
+        const E::StopPolicy policy = stopPolicy(r);
+        CHECK(r.a.requestStop(L::StopKind::HALT, r.a.moveObservation(), policy, r.now) == E::StopPath::CONFIRMED);
+        finishAll(r);
+        const L::ActionContext& s = r.a.stopAction(L::StopKind::HALT);
+        CHECK(s.state == M::ActionState::SUCCEEDED && s.predecessorWord == 0x005f && !s.predecessorDocumented);
+        CHECK(s.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+        CHECK(s.observations == haltReads + 2 && !(s.monitorObservation.monitor & L::MONITOR_RUNNING));
+        CHECK(!(s.statusObservation.statusword & ACCEPT_BIT) && !(s.monitorObservation.monitor & L::MONITOR_POSITION_COMPLETE));
+        CHECK(wordsFrom(r, at, 0x010f) == 1 && !wordsFrom(r, at, 0x000f) && !wordsFrom(r, at, 0x000b));
+        CHECK(moveOf(r).interruption == M::MoveInterruption::STOP && r.a.moveFenced());
+    }
 }
 
 // A quick stop during a move completes through the standstill rule on the captured 000B report:
@@ -2186,6 +2195,438 @@ void counterZeroAfterMove() {
     edges.unchanged(zero);
 }
 
+// 31 to 33: the 2026-11-09 motion trials replayed. Every 2100, 6041, 6064 and 606C value in these
+// tables is the retained capture's, in its order; the cited lines are the capture's RESULT lines (the
+// TX lines for frames sent). Each test drives the real owner and AxisSession with those values and
+// checks what the library concluded on the bench, so a change in how it reads these exact values fails
+// here. The fake identity stands in for the identity reads (one firmware: 1000=00040192, 2000=0400,
+// 2001=0200), and observation intervals are host ticks, not the bench's seconds. Drive reports only:
+// no shaft angle or direction was measured in any of these trials.
+//
+// The trials' measured signals and base, from each capture's TRIAL_EVIDENCE line: acceptance 6041 bit
+// 12, completion 2100 bit 0 after its absence, base ACTUAL, under the given record.
+L::MoveEvidence benchEvidence(uint32_t record) {
+    L::MoveEvidence value = relEvidence(L::RelativeBase::ACTUAL);
+    value.record = record;
+    value.completion.source = L::MoveSignalSource::MONITOR;
+    value.completion.mask = value.completion.value = L::MONITOR_POSITION_COMPLETE;
+    return value;
+}
+M::MoveRequest benchRequest(int32_t displacement) {
+    M::MoveRequest value = moveRequest(displacement, 6); // 6 rpm: 6081 = 6.
+    value.position.relative = true;
+    value.position.basis = M::RelativeBasis::ACTUAL;
+    return value;
+}
+// BenchRoute::startStop's budgets: an age cap of seven fields, which offers a quick stop the
+// standstill rule, and no best-effort branch (--stop-best-effort-ms 0).
+E::StopPolicy benchStopPolicy(const Rig& r) {
+    E::StopPolicy policy;
+    policy.options.service = reads();
+    policy.options.observationIntervalUs = 1000;
+    policy.options.maximumAgeUs = 7 * (uint64_t(QUEUE) + RESPONSE);
+    policy.deadlineUs = r.now + 200000;
+    return policy;
+}
+bool sampleIs(const L::MoveSample& s, uint32_t cycle, uint16_t status, uint16_t monitor, bool feedback,
+              int32_t position, int32_t velocity) {
+    return s.present && s.cycle == cycle && s.statusword == status && s.monitor == monitor && s.modeRaw == 1 &&
+           s.feedback == feedback && s.position == position && s.velocity == velocity;
+}
+bool cycleOn(const Rig& r, unsigned i, unsigned node) {
+    const uint16_t order[] = {0x2100, 0x2101, 0x2102, 0x6041, 0x6061, 0x6064, 0x606c};
+    for (unsigned k = 0; k < 7; ++k)
+        if (!uploadAt(r, i + k, order[k], 0, node))
+            return false;
+    return true;
+}
+// The trials' setup on the wire, byte for byte: 607A, 6081 = 6, 6083, 6084, then the 005F trigger.
+bool benchSetupAt(const Rig& r, unsigned i, int32_t displacement, uint32_t ramp, unsigned node) {
+    return downloadAt(r, i, 0x607a, 4, uint32_t(displacement), node) && downloadAt(r, i + 1, 0x6081, 4, 6, node) &&
+           downloadAt(r, i + 2, 0x6083, 4, ramp, node) && downloadAt(r, i + 3, 0x6084, 4, ramp, node) &&
+           wordAt(r, i + 4, 0x005f, node);
+}
+// The typed reads of one state read: what the bench's routes and observer recorded.
+struct Seen {
+    uint16_t monitor, status;
+    int32_t position, velocity;
+};
+Seen seen(const Rig& r, const L::ReadContext& read, unsigned node) {
+    L::StateObservation m, s, f;
+    CHECK(L::getStateBlock(read, L::StateBlock::MONITORS, r.current(node), r.now, LEAD, m));
+    CHECK(L::getStateBlock(read, L::StateBlock::STATUS, r.current(node), r.now, LEAD, s) && s.modeRaw == 1);
+    CHECK(L::getStateBlock(read, L::StateBlock::FEEDBACK, r.current(node), r.now, LEAD, f));
+    const Seen value = {m.monitor, s.statusword, f.actualPosition, f.actualVelocity};
+    return value;
+}
+bool seenIs(const Seen& v, uint16_t monitor, uint16_t status, int32_t position, int32_t velocity) {
+    return v.monitor == monitor && v.status == status && v.position == position && v.velocity == velocity;
+}
+
+// 31. Trials 825 and 1110: a production relative move from an ACTUAL witness at 0, accepted in cycle 1
+// (6041 5037, bit 12; 2100 0004, bit 0 absent) and complete in cycle 2 (2100 0001, 6041 9437) at the
+// written displacement, then rearmed with 000F. Node 1's -100 ran under its record 409 (attended, "a
+// small turn", direction not given); node 2's +200 was its first production relative move, under its
+// own record 830 (unattended). The later reads 831 and 1112 found 6041 8437: bit 12 clear after the rearm.
+struct CompletedReplay {
+    const char* name;
+    unsigned node;
+    uint32_t record;
+    int32_t displacement;
+    Report cycles[2];
+};
+const CompletedReplay COMPLETED[] = {
+    // docs/bench/20261109T1033Z-p8-moverel-neg-node1-825/rx.txt: admission lines 37, 40 and 42 (2100
+    // 0001, 6041 8437, 6064 0); setup TX lines 145 to 157; cycle 1 lines 49 to 55, cycle 2 lines 56 to
+    // 62; rearm line 63 (TX 202); TRIAL_MOVE line 11. Later read: 20261109T1039Z-p8-p1-node1-831 line 6.
+    {"trial 825", 1, 409, -100, {{0x0004, 0x5037, 0, 0}, {0x0001, 0x9437, -100, 0}}},
+    // docs/bench/20261109T1252Z-r4b-moverel-node2-1110/rx.txt: admission lines 37, 40 and 42; setup TX
+    // lines 145 to 157; cycle 1 lines 49 to 55, cycle 2 lines 56 to 62; rearm line 63 (TX 208);
+    // TRIAL_MOVE line 11. Later read: 20261109T1252Z-r4b-p1-node2-1112 line 6.
+    {"trial 1110", 2, 830, 200, {{0x0004, 0x5037, 0, 0}, {0x0001, 0x9437, 200, 0}}},
+};
+void replayCompleted(const CompletedReplay& t) {
+    scenario = t.name;
+    Rig r(t.node == 2);
+    Axis& x = r.axis(t.node);
+    x.drive.status = 0x8437;
+    x.drive.monitor = 0x0001;
+    x.drive.position = 0;
+    x.drive.script = t.cycles;
+    x.drive.scriptLength = 2;
+    r.ready(t.node);
+    const M::AxisReference start = witness(r, 0, M::RelativeBasis::ACTUAL, t.node);
+    CHECK(r.relative(start, benchEvidence(t.record), benchRequest(t.displacement), t.node, profile(200, 200)).isOk());
+    r.finishMove(2000, t.node);
+    for (unsigned k = 0; k < 600 && x.a.busy(); ++k)
+        r.step();
+    // TRIAL_MOVE: state 2, phase 4, outcome 1, int 0, setup, exec, completion and rearm 1, uncertain 0,
+    // readUnc 0, effects 1, cycles 2, mask f, ev f, trigger 1, rearmed 1, fenced 0, code 0.
+    const L::MoveContext& c = moveOf(r, t.node);
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.phase == L::MovePhase::REARM);
+    CHECK(c.outcome == M::ActionOutcome::OBSERVED && c.interruption == M::MoveInterruption::NONE);
+    CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(c.completion == M::ActionCompletion::OBSERVED && c.rearm == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(!c.uncertain && !c.readUncertain && c.effectsPossible && c.observations == 2);
+    CHECK(c.setupMask == 0xf && c.setupEvidenceMask == 0xf && c.triggerPresent && c.rearmPresent);
+    CHECK(c.status.code == M::Err::OK && !c.status.detail && !x.a.moveFenced());
+    CHECK(c.parameters.targetNative == t.displacement && c.evidence.record == t.record);
+    // TRIAL_MOVE_SAMPLE lines 12 to 16: admission, latest, acceptance, absence, completed.
+    CHECK(sampleIs(c.admission, 0, 0x8437, 0x0001, false, 0, 0));
+    CHECK(sampleIs(c.latest, 2, 0x9437, 0x0001, true, t.displacement, 0));
+    CHECK(sampleIs(c.acceptance, 1, 0x5037, 0x0004, true, 0, 0));
+    CHECK(sampleIs(c.absence, 1, 0x5037, 0x0004, true, 0, 0));
+    CHECK(sampleIs(c.completed, 2, 0x9437, 0x0001, true, t.displacement, 0));
+    // The host endpoint from the ACTUAL witness, and the drive's report at it. The report does not
+    // establish the endpoint; here they agree.
+    const M::PreparedTarget& target = c.parameters.target;
+    CHECK(c.displacement == M::MoveDisplacement::KNOWN && c.displacementNative == t.displacement);
+    CHECK(target.endpointNative == t.displacement && target.retainedReference.nativePosition == 0);
+    CHECK(target.retainedReference.basis == M::RelativeBasis::ACTUAL && c.evidence.relativeBase == L::RelativeBase::ACTUAL);
+    // The wire, as the capture's: setup, the trigger, two seven-field cycles, the rearm, nothing more.
+    unsigned i = r.startFrame;
+    CHECK(benchSetupAt(r, i, t.displacement, 200, t.node));
+    i += 5;
+    CHECK(cycleOn(r, i, t.node) && cycleOn(r, i + 7, t.node));
+    i += 14;
+    CHECK(wordAt(r, i++, 0x000f, t.node) && i == r.wire.sentCount && x.drive.edges == 1);
+    const C::SdoCompletion* control = x.a.latestControl();
+    CHECK(control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0 &&
+          control->completedUs == c.rearmEvidence.completedUs);
+    // The later read: the fake's rearm cleared bit 12 of the last report, as the drive's did.
+    const Saved<L::MoveContext> done(c);
+    static L::ReadContext later;
+    r.readState(later, OBSERVE, t.node);
+    CHECK(seenIs(seen(r, later, t.node), 0x0001, 0x8437, t.displacement, 0));
+    done.unchanged(c);
+}
+void completedReplays() {
+    for (const CompletedReplay& t : COMPLETED)
+        replayCompleted(t);
+}
+
+// 32. Trials 832 and 1109: node 1's production relative move +600 at 6 rpm from an ACTUAL witness, node
+// 2 observing through its own session, and the planned stop from the held 005F after the second cycle
+// that reported no completion. The move ends interrupted and kept (outcome CANCELLED, interruption
+// STOP, trajectory uncertain, fenced); the stop completes as its own record. 832's HALT completed when
+// 2100 running cleared, in its second cycle: the first after 010F still read running (0004) with 6041
+// 4037. 1109's quick stop read released with running latched (2100 0014, 6041 4050) in every cycle;
+// it completed on standstill, 6064 259 with 606C 0 in two FEEDBACK cycles in a row, 3 pulses past the
+// last move cycle's 256. In both the observer read the same position and 606C 0 throughout and received
+// no write. 832's last move cycle read 146 with 606C 5, before the 010F; the HALT's cycles read no
+// 6064, so the halted position is not in this capture. In the stop rows, 6064 and 606C of a cycle that
+// did not read them repeat the previous values and are never read.
+struct StoppedReplay {
+    const char* name;
+    L::StopKind kind;
+    int32_t start;
+    uint16_t observerStatus;
+    int32_t observerPosition;
+    Report cycles[5]; // Two move cycles, then the stop's.
+    unsigned length, stopObservations;
+    uint16_t stopMonitor, stopStatus;
+    unsigned stopUploads; // Node 1's uploads after the stop word: five per cycle, seven with FEEDBACK.
+};
+const StoppedReplay STOPPED[] = {
+    // docs/bench/20261109T1039Z-p8-moverel-halt-observed-node1-832/rx.txt: admission lines 53, 56 and 58
+    // (2100 0001, 6041 8437, 6064 -100); observer node 2 lines 35 to 41, 61 to 78 and 79 to 85 (2100
+    // 0001, 6041 9437, 6064 304, 606C 0); setup TX lines 212 to 230; cycle 1 lines 68 to 77, cycle 2
+    // lines 86 to 92; 010F line 93 (TX 311); stop cycles lines 94 to 98 and 99 to 103; TRIAL_MOVE line
+    // 15, TRIAL_STOP line 21, TRIAL_OBSERVER line 10.
+    {"trial 832", L::StopKind::HALT, -100, 0x9437, 304,
+     {{0x0004, 0x5037, -100, 0}, {0x0004, 0x5037, 146, 5}, {0x0004, 0x4037, 146, 5}, {0x0000, 0x0437, 146, 5}},
+     4, 2, 0x0000, 0x0437, 10},
+    // docs/bench/20261109T1251Z-r4b-moverel-quick-observed-node1-1109/rx.txt: admission lines 53, 56 and
+    // 58 (2100 0001, 6041 8437, 6064 0); observer node 2 lines 35 to 41, 61 to 78 and 79 to 85 (2100
+    // 0001, 6041 8437, 6064 0, 606C 0); setup TX lines 223 to 241; cycle 1 lines 68 to 77, cycle 2 lines
+    // 86 to 92; 000B line 93 (TX 326); stop cycles lines 94 to 98, 99 to 105 and 106 to 112; TRIAL_MOVE
+    // line 15, TRIAL_STOP line 21, TRIAL_OBSERVER line 10.
+    {"trial 1109", L::StopKind::QUICK_STOP, 0, 0x8437, 0,
+     {{0x0004, 0x5037, 0, 0}, {0x0004, 0x5037, 256, 5}, {0x0014, 0x4050, 256, 5}, {0x0014, 0x4050, 259, 0},
+      {0x0014, 0x4050, 259, 0}},
+     5, 3, 0x0014, 0x4050, 19},
+};
+// TRIAL_OBSERVER: the observer's positions and 606C over its reads, and its 2100 bits together.
+struct Watch {
+    int32_t lowest = INT32_MAX, highest = INT32_MIN, fastest = 0;
+    uint16_t monitors = 0;
+    unsigned reads = 0;
+};
+void watch(Rig& r, Watch& w) {
+    r.readState(r.two.state, OBSERVE, 2);
+    const Seen v = seen(r, r.two.state, 2);
+    w.lowest = v.position < w.lowest ? v.position : w.lowest;
+    w.highest = v.position > w.highest ? v.position : w.highest;
+    const int32_t speed = v.velocity < 0 ? -v.velocity : v.velocity;
+    w.fastest = speed > w.fastest ? speed : w.fastest;
+    w.monitors = uint16_t(w.monitors | v.monitor);
+    ++w.reads;
+}
+void replayStopped(const StoppedReplay& t) {
+    scenario = t.name;
+    Rig r(true);
+    r.one.drive.status = 0x8437;
+    r.one.drive.monitor = 0x0001;
+    r.one.drive.position = t.start;
+    r.one.drive.script = t.cycles;
+    r.one.drive.scriptLength = t.length;
+    r.two.drive.status = t.observerStatus;
+    r.two.drive.monitor = 0x0001;
+    r.two.drive.position = t.observerPosition;
+    r.ready(1);
+    r.ready(2);
+    const unsigned observerStart = r.wire.sentCount;
+    const unsigned observerWords = r.two.drive.words;
+    const C::SdoCompletion observerControl = *r.two.a.latestControl();
+    Watch w;
+    watch(r, w);
+    L::MoveOptions o = options();
+    o.observationIntervalUs = 20000; // Room for an observer read between cycles, as on the bench.
+    CHECK(r.relative(witness(r, t.start, M::RelativeBasis::ACTUAL, 1), benchEvidence(409), benchRequest(600), 1,
+                     profile(200, 200), LEAD, o)
+              .isOk());
+    const unsigned start = r.startFrame;
+    for (unsigned k = 0; k < 400 && moveOf(r).observations < 1; ++k)
+        r.step();
+    watch(r, w);
+    CHECK(moveOf(r).observations == 1);
+    for (unsigned k = 0; k < 400 && moveOf(r).observations < 2; ++k)
+        r.step();
+    // BenchRoute::serviceMove: after the second cycle without completion, while the move waits.
+    CHECK(moveOf(r).observations == 2 && moveOf(r).phase == L::MovePhase::WAITING);
+    CHECK(moveOf(r).completion == M::ActionCompletion::NOT_OBSERVED);
+    const unsigned at = r.wire.sentCount;
+    const E::StopPolicy policy = benchStopPolicy(r);
+    CHECK(r.one.a.requestStop(t.kind, r.one.a.moveObservation(), policy, r.now) == E::StopPath::CONFIRMED);
+    finishAll(r);
+    watch(r, w);
+
+    // TRIAL_MOVE: state 3, phase 2, outcome 5, int 2, setup and exec 1, completion 0, rearm 0, uncertain
+    // 1, readUnc 0, effects 1, cycles 2, target 600, mask f, ev f, trigger 1, rearmed 0, fenced 1, code 1,
+    // detail 3.
+    const L::MoveContext& c = moveOf(r);
+    CHECK(c.state == M::ActionState::FAILED && c.phase == L::MovePhase::WAITING);
+    CHECK(c.outcome == M::ActionOutcome::CANCELLED && c.interruption == M::MoveInterruption::STOP);
+    CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(c.completion == M::ActionCompletion::NOT_OBSERVED && c.rearm == M::ActionExecution::NOT_TRANSMITTED);
+    CHECK(c.uncertain && !c.readUncertain && c.effectsPossible && c.observations == 2);
+    CHECK(c.setupMask == 0xf && c.setupEvidenceMask == 0xf && c.triggerPresent && !c.rearmPresent);
+    CHECK(c.status.code == M::Err::INVALID_CONFIG && c.status.detail == int32_t(M::MoveError::STATE));
+    CHECK(r.one.a.moveFenced() && c.parameters.targetNative == 600);
+    CHECK(c.parameters.target.endpointNative == t.start + 600 && c.parameters.target.retainedReference.nativePosition == t.start);
+    // TRIAL_MOVE_SAMPLE lines 16 to 20: admission, latest, acceptance, absence; nothing completed.
+    CHECK(sampleIs(c.admission, 0, 0x8437, 0x0001, false, 0, 0));
+    CHECK(sampleIs(c.latest, 2, 0x5037, 0x0004, true, t.cycles[1].position, 5));
+    CHECK(sampleIs(c.acceptance, 1, 0x5037, 0x0004, true, t.start, 0));
+    CHECK(sampleIs(c.absence, 1, 0x5037, 0x0004, true, t.start, 0) && !c.completed.present);
+    // TRIAL_STOP: path 1, final 4, state 2, outcome 1, exec 1, completion 1, uncertain 0, effects 1, pred
+    // 005f, documented 0, basis 3; no best-effort stop.
+    const L::ActionContext& s = r.one.a.stopAction(t.kind);
+    CHECK(s.kind == t.kind && s.stopModeRaw == 1 && s.operation > c.operation);
+    CHECK(s.state == M::ActionState::SUCCEEDED && s.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(s.execution == M::ActionExecution::ACKNOWLEDGED && s.completion == M::ActionCompletion::OBSERVED);
+    CHECK(!s.uncertain && s.effectsPossible && s.observations == t.stopObservations);
+    CHECK(s.predecessorWord == 0x005f && !s.predecessorDocumented &&
+          s.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+    CHECK(r.one.a.stopPath() == E::StopPath::FINISHED && r.one.a.bestEffort().state == M::ActionState::EMPTY);
+    CHECK(s.monitorObservation.monitor == t.stopMonitor && s.statusObservation.statusword == t.stopStatus);
+    if (t.kind == L::StopKind::HALT) {
+        // Complete on running clear; FEEDBACK never read.
+        CHECK(!s.standstillObserving && !s.extraObservation.fieldCount);
+    } else {
+        // Complete on standstill: released, low bits 000, running latched, then 6064 unchanged at 606C 0.
+        CHECK(s.standstillObserving && s.extraObservation.fieldCount == 2);
+        CHECK(s.extraObservation.actualPosition == 259 && !s.extraObservation.actualVelocity);
+    }
+    // Node 1's wire: setup, the 005F, two seven-field cycles, the one stop word, then only uploads.
+    CHECK(benchSetupAt(r, start, 600, 200, 1) && wordsFrom(r, start, 0x005f, 1) == 1);
+    CHECK(uploadsFrom(r, start, 0x2100, 1) == 2 + t.stopObservations && r.one.drive.edges == 1);
+    unsigned stopFrame = r.wire.sentCount, after = 0, downloads = 0;
+    for (unsigned i = at; i < r.wire.sentCount; ++i) {
+        if (r.wire.sent[i].id != 0x601)
+            continue;
+        if (r.wire.sent[i].data[0] != 0x40) {
+            ++downloads;
+            CHECK(wordAt(r, i, t.kind == L::StopKind::HALT ? 0x010f : 0x000b, 1));
+            stopFrame = i;
+        } else if (stopFrame < i) {
+            ++after;
+        }
+    }
+    CHECK(downloads == 1 && after == t.stopUploads && !wordsFrom(r, start, 0x000f, 1));
+    // TRIAL_OBSERVER: checked, never moved, 606C max 0, 2100 0001 in every read, no write to it.
+    CHECK(w.reads == 3 && w.lowest == t.observerPosition && w.highest == t.observerPosition);
+    CHECK(!w.fastest && w.monitors == 0x0001);
+    for (unsigned i = observerStart; i < r.wire.sentCount; ++i)
+        CHECK(r.wire.sent[i].id != 0x602 || r.wire.sent[i].data[0] == 0x40);
+    CHECK(r.two.drive.words == observerWords && !r.two.drive.edges && !r.two.a.moveActive());
+    const C::SdoCompletion* control = r.two.a.latestControl();
+    CHECK(control && control->transfer.operation == observerControl.transfer.operation &&
+          control->completedUs == observerControl.completedUs);
+}
+void stoppedReplays() {
+    for (const StoppedReplay& t : STOPPED)
+        replayStopped(t);
+}
+
+// 33. Trials 828, 829 and 830 on node 2, as the bench's experiment routes ran them through the
+// session: each write as its own explicit download, each cycle a typed MONITORS, STATUS and FEEDBACK
+// read. 828: 607A 600, 6081 6, 6083 500, 6084 500, then 001F from 6064 0; after two cycles, the second at
+// 6064 75 with 606C 5 and running, a HALT from the acknowledged 001F completed when 2100 running
+// cleared, in its third cycle (0004, 0004, then 0000; 6041 4037, 4037, 0437). 829: 000F after the 010F,
+// and 6064 stayed 104 in the read before it and in all eight cycles after it, 6041 0437 then 0037, so
+// the drive did not resume the halted target. 830: 607A 200 and 005F from 6064 104 ended at 304, the
+// actual position plus the displacement; the commanded 600 plus 200 would be 800. That comparison is
+// the measurement of node 2's base (attended: "seems to me that exactly that happened but cant confirm
+// precise motion, position etc"); the library does not infer a base, and this test checks only the
+// arithmetic on the values it read.
+//
+// docs/bench/20261109T1034Z-p8-position-halt-node2-828/rx.txt: read before lines 11 to 19 (2100 0001,
+// 6041 8437, 6064 0); writes TX lines 98 to 110; cycles lines 29 to 35 and 36 to 42; 010F line 43 (TX
+// 155); stop cycles lines 44 to 48, 49 to 53 and 54 to 58 (no 6064 read); TRIAL_STOP line 8. Then
+// docs/bench/20261109T1034Z-p8-rearm-halt-node2-829/rx.txt: read lines 9 to 17, 000F line 18 (TX 102),
+// cycles lines 19 to 74.
+const Report HALTED_828[] = {{0x0004, 0x5037, 0, 0},   {0x0004, 0x5037, 75, 5},  {0x0004, 0x4037, 75, 5},
+                             {0x0004, 0x4037, 75, 5},  {0x0000, 0x0437, 75, 5},  {0x0000, 0x0437, 104, 0},
+                             {0x0000, 0x0037, 104, 0}, {0x0000, 0x0037, 104, 0}, {0x0000, 0x0037, 104, 0},
+                             {0x0000, 0x0037, 104, 0}, {0x0000, 0x0037, 104, 0}, {0x0000, 0x0037, 104, 0},
+                             {0x0000, 0x0037, 104, 0}, {0x0000, 0x0037, 104, 0}};
+// docs/bench/20261109T1035Z-p8-relative-node2-830/rx.txt: read before lines 9 to 17 (6064 104), 6081,
+// 6083, 6084 lines 18 to 20 (6, 500, 500), 607A line 21 (600); writes TX lines 136 to 148; ten cycles
+// lines 27 to 96; TRIAL_BASE line 8.
+const Report RELATIVE_830[] = {{0x0004, 0x5037, 104, 0}, {0x0004, 0x5037, 179, 5}, {0x0004, 0x5037, 278, 5},
+                               {0x0001, 0x9437, 304, 0}, {0x0001, 0x9437, 304, 0}, {0x0001, 0x9437, 304, 0},
+                               {0x0001, 0x9437, 304, 0}, {0x0001, 0x9437, 304, 0}, {0x0001, 0x9437, 304, 0},
+                               {0x0001, 0x9437, 304, 0}};
+void node2Base() {
+    scenario = "trials 828 to 830";
+    Rig r(true);
+    Axis& x = r.two;
+    x.drive.status = 0x8437;
+    x.drive.monitor = 0x0001;
+    x.drive.position = 0;
+    x.drive.script = HALTED_828;
+    x.drive.scriptLength = sizeof HALTED_828 / sizeof HALTED_828[0];
+    r.ready(2);
+    const uint8_t FULL = uint8_t(OBSERVE | bit(L::StateBlock::ERRORS));
+    // 828, POSITION: the writes and the 001F, then two cycles.
+    const unsigned from = r.wire.sentCount;
+    r.writeThrough(0x607a, 4, 600, 2);
+    r.writeThrough(0x6081, 4, 6, 2);
+    r.writeThrough(0x6083, 4, 500, 2);
+    r.writeThrough(0x6084, 4, 500, 2);
+    r.writeThrough(0x6040, 2, 0x001f, 2);
+    CHECK(downloadAt(r, from, 0x607a, 4, 600, 2) && wordsFrom(r, from, 0x001f, 2) == 1 && x.drive.edges == 1);
+    r.readState(x.state, OBSERVE, 2);
+    CHECK(seenIs(seen(r, x.state, 2), 0x0004, 0x5037, 0, 0));
+    r.readState(x.state, OBSERVE, 2);
+    CHECK(seenIs(seen(r, x.state, 2), 0x0004, 0x5037, 75, 5));
+    // The planned HALT from that last cycle (TRIAL_STOP kind 1 path 1 final 4 state 2 outcome 1 exec 1
+    // completion 1 uncertain 0 effects 1 pred 001f documented 0 basis 3 observations 3).
+    const unsigned at = r.wire.sentCount;
+    CHECK(x.a.requestStop(L::StopKind::HALT, x.state, benchStopPolicy(r), r.now) == E::StopPath::CONFIRMED);
+    for (unsigned k = 0; k < 400 && (x.a.stopActive() || x.a.busy()); ++k)
+        r.step();
+    const L::ActionContext& s = x.a.stopAction(L::StopKind::HALT);
+    CHECK(s.state == M::ActionState::SUCCEEDED && s.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(s.execution == M::ActionExecution::ACKNOWLEDGED && s.completion == M::ActionCompletion::OBSERVED);
+    CHECK(!s.uncertain && s.effectsPossible && s.observations == 3 && x.a.stopPath() == E::StopPath::FINISHED);
+    CHECK(s.predecessorWord == 0x001f && !s.predecessorDocumented &&
+          s.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+    CHECK(s.monitorObservation.monitor == 0x0000 && s.statusObservation.statusword == 0x0437);
+    CHECK(!s.standstillObserving && !s.extraObservation.fieldCount);
+    CHECK(wordsFrom(r, at, 0x010f, 2) == 1 && downloadsFrom(r, at, 0x6040, 2) == 1);
+    CHECK(uploadsFrom(r, at, 0x2100, 2) == 3 && !uploadsFrom(r, at, 0x6064, 2));
+    // The session's latest word is the stop's own 010F, the one a later rearm follows.
+    const C::SdoCompletion* control = x.a.latestControl();
+    CHECK(control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0x01 &&
+          control->completedUs == s.commandHistory[0].completedUs);
+    const Saved<L::ActionContext> halt(s);
+    r.compact(); // Each trial's frames fit the rig's log; the drive and session keep their state.
+    // 829, REARM: one 000F after the 010F; no new edge, and no read shows the halted target resumed.
+    r.readState(x.state, FULL, 2);
+    CHECK(seenIs(seen(r, x.state, 2), 0x0000, 0x0437, 104, 0));
+    const unsigned rearm = r.wire.sentCount;
+    r.writeThrough(0x6040, 2, 0x000f, 2);
+    CHECK(wordAt(r, rearm, 0x000f, 2) && rearm + 1 == r.wire.sentCount);
+    control = x.a.latestControl();
+    CHECK(control && control->transfer.data[0] == 0x0f && control->transfer.data[1] == 0);
+    for (unsigned k = 0; k < 8; ++k) {
+        r.readState(x.state, OBSERVE, 2);
+        CHECK(seenIs(seen(r, x.state, 2), 0x0000, 0x0037, 104, 0));
+    }
+    CHECK(x.drive.edges == 1 && !x.a.stopActive() && !x.a.moveActive());
+    CHECK(!downloadsFrom(r, rearm + 1, 0x6040, 2) && !downloadsFrom(r, rearm + 1, 0x607a, 2));
+    halt.unchanged(s);
+    r.compact();
+    // 830, RELATIVE: the read before, then 607A 200, 6081 6, 6083 500, 6084 500 and 005F.
+    r.readState(x.state, FULL, 2);
+    const Seen before = seen(r, x.state, 2);
+    CHECK(seenIs(before, 0x0000, 0x0037, 104, 0));
+    const int32_t commanded = 600; // 828's acknowledged 607A, read back as 600 on line 21.
+    CHECK(x.drive.target == commanded);
+    x.drive.script = RELATIVE_830;
+    x.drive.scriptLength = sizeof RELATIVE_830 / sizeof RELATIVE_830[0];
+    const unsigned relative = r.wire.sentCount;
+    r.writeThrough(0x607a, 4, 200, 2);
+    r.writeThrough(0x6081, 4, 6, 2);
+    r.writeThrough(0x6083, 4, 500, 2);
+    r.writeThrough(0x6084, 4, 500, 2);
+    r.writeThrough(0x6040, 2, 0x005f, 2);
+    CHECK(downloadAt(r, relative, 0x607a, 4, 200, 2) && wordAt(r, relative + 4, 0x005f, 2) && x.drive.edges == 2);
+    Seen last = before;
+    for (unsigned k = 0; k < 10; ++k) {
+        r.readState(x.state, OBSERVE, 2);
+        last = seen(r, x.state, 2);
+        const Report& expected = RELATIVE_830[k];
+        CHECK(seenIs(last, expected.monitor, expected.status, expected.position, expected.velocity));
+    }
+    // ACTUAL: 104 + 200 = 304, the reported end. COMMANDED: 600 + 200 = 800.
+    CHECK(seenIs(last, 0x0001, 0x9437, 304, 0));
+    CHECK(before.position + 200 == last.position && commanded + 200 != last.position);
+    halt.unchanged(s);
+}
+
 void runAll() {
     golden();
     gates();
@@ -2218,6 +2659,9 @@ void runAll() {
     lostTriggerThenStop();
     stopsBesideObserver();
     counterZeroAfterMove();
+    completedReplays();
+    stoppedReplays();
+    node2Base();
 }
 } // namespace
 

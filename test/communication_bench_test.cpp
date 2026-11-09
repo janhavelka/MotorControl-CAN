@@ -85,11 +85,54 @@ uint32_t value(unsigned node, uint16_t index, uint8_t sub, uint16_t heartbeat) {
     }
     return 0;
 }
+// One upload reply of a retained bench capture as its RESULT line prints it: object=, size= and the
+// little-endian data= bytes as a raw value.
+struct Captured {
+    uint16_t index;
+    uint8_t sub;
+    uint8_t size;
+    uint32_t raw;
+};
 struct Wire : OwnerRig::WireBase {
     uint64_t now = 0;
     E::HeartbeatCommission* heartbeat = nullptr;
     uint16_t stored[3] = {0, 0, 0}; // 1017:00 per node.
     uint16_t storeOverride = 0;     // Nonzero: a download stores this instead (readback mismatch).
+    // While set, each upload to that node must be the table's next object, in the captured order,
+    // and takes its captured reply. 1017:00 keeps the fake's stored value, which a download changes.
+    const Captured* script[3] = {};
+    unsigned scriptLength[3] = {}, scriptAt[3] = {};
+    const Captured* next(unsigned node, uint16_t index, uint8_t sub) {
+        if (!script[node])
+            return nullptr;
+        CHECK(scriptAt[node] < scriptLength[node]);
+        const Captured& c = script[node][scriptAt[node]++];
+        CHECK(c.index == index && c.sub == sub);
+        return &c;
+    }
+    // A received frame with the S2 driver's receive bounds, as a capture's PDOW_F or EVENT line
+    // prints them (lo, hi).
+    void pushBounded(const M::Frame& value, uint64_t lo, uint64_t hi) {
+        CHECK(rxWrite < CAPACITY && lo <= hi);
+        O::ReceivedFrame& input = incoming[rxWrite++];
+        input = O::ReceivedFrame();
+        input.frame = value;
+        input.receiveBoundsKnown = true;
+        input.receivedEarliestUs = lo;
+        input.receivedLatestUs = hi;
+        input.controllerEpoch = 1;
+    }
+    // The base queues never wrap. With nothing queued or in flight, a replay of a whole MCU boot
+    // starts them again; the frame log then begins at the next record. The base push sets only
+    // the exact time, so every reused slot starts from a default frame.
+    void compact() {
+        CHECK(rxRead == rxWrite && reportRead == reportWrite);
+        for (unsigned i = 0; i < sentCount; ++i)
+            CHECK(!pending[i]);
+        for (unsigned i = 0; i < CAPACITY; ++i)
+            incoming[i] = O::ReceivedFrame();
+        rxRead = rxWrite = reportRead = reportWrite = sentCount = 0;
+    }
     // Failure injection on the n-th request frame to `failNode` (1-based), or on its download.
     enum class Fault { NONE, ABORT, SILENT, BOOTUP } fault = Fault::NONE;
     unsigned failNode = 0, failAt = 0, frames[3] = {}, downloads[3] = {}, guardCalls = 0, nmtFrames = 0;
@@ -147,7 +190,13 @@ struct Wire : OwnerRig::WireBase {
             return true;
         }
         CHECK(f.data[0] == 0x40); // Every other frame is an expedited upload request.
-        const unsigned size = width(index, sub);
+        unsigned size = width(index, sub);
+        uint32_t raw = value(node, index, sub, w.stored[node]);
+        if (const Captured* c = w.next(node, index, sub)) {
+            size = c->size;
+            if (index != 0x1017)
+                raw = c->raw;
+        }
         if (!size || (w.fault == Fault::ABORT && node == w.failNode && w.frames[node] == w.failAt)) {
             reply.data[0] = 0x80;
             const uint32_t abort = 0x06090011; // Subindex does not exist.
@@ -156,7 +205,6 @@ struct Wire : OwnerRig::WireBase {
             w.push(reply, w.now, epoch);
             return true;
         }
-        const uint32_t raw = value(node, index, sub, w.stored[node]);
         reply.data[0] = size == 1 ? 0x4f : size == 2 ? 0x4b : 0x43;
         for (unsigned i = 0; i < 4; ++i)
             reply.data[4 + i] = uint8_t(raw >> (8 * i));
@@ -207,6 +255,22 @@ struct Rig {
         CHECK(discovery.service(owner.lastTimeUs()));
         CHECK(reads.service(owner.lastTimeUs()));
         CHECK(commission.service(owner.lastTimeUs()));
+    }
+    // Firmware turns of `step` until `t`, the last one landing on it: a capture's own instants.
+    void until(uint64_t t, uint64_t step = 1000) {
+        CHECK(t >= now);
+        while (t - now > step)
+            turn(step);
+        if (t > now)
+            turn(t - now);
+    }
+    // A 7F heartbeat of `node` with a capture's receive bounds, processed by the next turn.
+    void beat(unsigned node, uint64_t lo, uint64_t hi) {
+        until(hi);
+        M::Frame f = OwnerRig::frame(0x700 + node, 1);
+        f.data[0] = 0x7f;
+        wire.pushBounded(f, lo, hi);
+        turn();
     }
     template <class T> void finish(const T& record, unsigned limit = 20000) {
         for (unsigned i = 0; i < limit && !(record.record() && record.record()->terminal); ++i)
@@ -804,6 +868,721 @@ void routeSessionKeepsReservation() {
     rig.finish(rig.reads);
     CHECK(rig.reads.record()->failure == E::CommunicationBenchFailure::NONE && rig.reads.release());
 }
+
+// ------------------------------------------------------- 2026-11-09 captures, replayed literally
+// A produced line against a retained captured line, token by token. A token whose key is listed in
+// `skip` is compared by key only: S2 microseconds (admitted, completed, p, lo, hi, skew, gap,
+// hbp), boot-wide serials (oreq, txr, tx0, tx1) and the driver's receive-time quality (exact, t,
+// bounds), which this fake's exact time stamps and fresh counters do not reproduce. Every other
+// token, every value included, must be identical, and so must the token count.
+bool listed(const char* list, const char* key, size_t size) {
+    for (const char* at = list; *at;) {
+        while (*at == ' ')
+            ++at;
+        const char* end = at;
+        while (*end && *end != ' ')
+            ++end;
+        if (size_t(end - at) == size && !std::strncmp(at, key, size))
+            return true;
+        at = end;
+    }
+    return false;
+}
+bool sameLine(const char* got, const char* captured, const char* skip) {
+    const char* a = got;
+    const char* b = captured;
+    for (;;) {
+        while (*a == ' ')
+            ++a;
+        while (*b == ' ')
+            ++b;
+        const bool doneA = !*a || *a == '\n', doneB = !*b || *b == '\n';
+        if (doneA || doneB) {
+            if (doneA && doneB)
+                return true;
+            break;
+        }
+        const char* endA = a;
+        while (*endA && *endA != ' ' && *endA != '\n')
+            ++endA;
+        const char* endB = b;
+        while (*endB && *endB != ' ' && *endB != '\n')
+            ++endB;
+        const char* keyA = a;
+        while (keyA < endA && *keyA != '=')
+            ++keyA;
+        const char* keyB = b;
+        while (keyB < endB && *keyB != '=')
+            ++keyB;
+        const size_t key = size_t(keyA - a);
+        if (key != size_t(keyB - b) || std::strncmp(a, b, key))
+            break;
+        if (!listed(skip, a, key) &&
+            (endA - a != endB - b || std::strncmp(a, b, size_t(endA - a))))
+            break;
+        a = endA;
+        b = endB;
+    }
+    std::fprintf(stderr, "produced: %s\ncaptured: %s\n", got, captured);
+    return false;
+}
+const char* const RESULT_SKIP = "oreq admitted completed";
+const char* const TRAFFIC_SKIP = "p exact t bounds lo hi txr";
+
+// Every K upload reply of both nodes, in the K order, from the RESULT lines of
+// docs/bench/20261109T1121Z-r2b-p38_reads/rx.txt: node 1 lines 22-116, node 2 lines 139-233
+// (image 757f1cd, drives not power-cycled since 2026-11-08). The K reads after the next power-up,
+// 20261109T1245Z-r4a-hb-node1 lines 36-130 and 20261109T1246Z-r4a-hb-node2 lines 36-130, returned
+// the same 95 values per node, and so did 20261109T1121Z-r2b-p38_heartbeat_node1 lines 36-130.
+// Every one of those RESULT lines has dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000
+// cleanup=0 ne=1 reason=0 st=3f.
+const Captured K_NODE1[95] = {
+    {0x1005, 0x00, 4, 0x00000080}, {0x1014, 0x00, 4, 0x00000081}, {0x1017, 0x00, 2, 0x00000000},
+    {0x1200, 0x00, 1, 0x00000002}, {0x1200, 0x01, 4, 0x00000601}, {0x1200, 0x02, 4, 0x00000581},
+    {0x2203, 0x00, 2, 0x00000000}, {0x1800, 0x00, 1, 0x00000005}, {0x1800, 0x01, 4, 0x00000181},
+    {0x1800, 0x02, 1, 0x000000ff}, {0x1800, 0x03, 2, 0x00000064}, {0x1800, 0x04, 1, 0x00000000},
+    {0x1800, 0x05, 2, 0x00000000}, {0x1801, 0x00, 1, 0x00000005}, {0x1801, 0x01, 4, 0x00000281},
+    {0x1801, 0x02, 1, 0x000000ff}, {0x1801, 0x03, 2, 0x00000064}, {0x1801, 0x04, 1, 0x00000000},
+    {0x1801, 0x05, 2, 0x00000000}, {0x1802, 0x00, 1, 0x00000005}, {0x1802, 0x01, 4, 0x00000381},
+    {0x1802, 0x02, 1, 0x000000ff}, {0x1802, 0x03, 2, 0x00000064}, {0x1802, 0x04, 1, 0x00000000},
+    {0x1802, 0x05, 2, 0x00000000}, {0x1803, 0x00, 1, 0x00000005}, {0x1803, 0x01, 4, 0x00000481},
+    {0x1803, 0x02, 1, 0x000000ff}, {0x1803, 0x03, 2, 0x00000064}, {0x1803, 0x04, 1, 0x00000000},
+    {0x1803, 0x05, 2, 0x00000000}, {0x1a00, 0x00, 1, 0x00000003}, {0x1a00, 0x01, 4, 0x60410010},
+    {0x1a00, 0x02, 4, 0x60610008}, {0x1a00, 0x03, 4, 0x60640020}, {0x1a00, 0x04, 4, 0x00000000},
+    {0x1a01, 0x00, 1, 0x00000000}, {0x1a01, 0x01, 4, 0x00000000}, {0x1a01, 0x02, 4, 0x00000000},
+    {0x1a01, 0x03, 4, 0x00000000}, {0x1a01, 0x04, 4, 0x00000000}, {0x1a02, 0x00, 1, 0x00000000},
+    {0x1a02, 0x01, 4, 0x00000000}, {0x1a02, 0x02, 4, 0x00000000}, {0x1a02, 0x03, 4, 0x00000000},
+    {0x1a02, 0x04, 4, 0x00000000}, {0x1a03, 0x00, 1, 0x00000000}, {0x1a03, 0x01, 4, 0x00000000},
+    {0x1a03, 0x02, 4, 0x00000000}, {0x1a03, 0x03, 4, 0x00000000}, {0x1a03, 0x04, 4, 0x00000000},
+    {0x1400, 0x00, 1, 0x00000005}, {0x1400, 0x01, 4, 0x00000201}, {0x1400, 0x02, 1, 0x000000ff},
+    {0x1400, 0x03, 2, 0x00000000}, {0x1400, 0x04, 1, 0x00000000}, {0x1400, 0x05, 2, 0x000003e8},
+    {0x1401, 0x00, 1, 0x00000005}, {0x1401, 0x01, 4, 0x00000301}, {0x1401, 0x02, 1, 0x000000ff},
+    {0x1401, 0x03, 2, 0x00000000}, {0x1401, 0x04, 1, 0x00000000}, {0x1401, 0x05, 2, 0x000003e8},
+    {0x1402, 0x00, 1, 0x00000005}, {0x1402, 0x01, 4, 0x00000401}, {0x1402, 0x02, 1, 0x000000ff},
+    {0x1402, 0x03, 2, 0x00000000}, {0x1402, 0x04, 1, 0x00000000}, {0x1402, 0x05, 2, 0x000003e8},
+    {0x1403, 0x00, 1, 0x00000005}, {0x1403, 0x01, 4, 0x00000501}, {0x1403, 0x02, 1, 0x000000ff},
+    {0x1403, 0x03, 2, 0x00000000}, {0x1403, 0x04, 1, 0x00000000}, {0x1403, 0x05, 2, 0x000003e8},
+    {0x1600, 0x00, 1, 0x00000004}, {0x1600, 0x01, 4, 0x60400010}, {0x1600, 0x02, 4, 0x60600008},
+    {0x1600, 0x03, 4, 0x60980008}, {0x1600, 0x04, 4, 0x607a0020}, {0x1601, 0x00, 1, 0x00000000},
+    {0x1601, 0x01, 4, 0x00000000}, {0x1601, 0x02, 4, 0x00000000}, {0x1601, 0x03, 4, 0x00000000},
+    {0x1601, 0x04, 4, 0x00000000}, {0x1602, 0x00, 1, 0x00000000}, {0x1602, 0x01, 4, 0x00000000},
+    {0x1602, 0x02, 4, 0x00000000}, {0x1602, 0x03, 4, 0x00000000}, {0x1602, 0x04, 4, 0x00000000},
+    {0x1603, 0x00, 1, 0x00000000}, {0x1603, 0x01, 4, 0x00000000}, {0x1603, 0x02, 4, 0x00000000},
+    {0x1603, 0x03, 4, 0x00000000}, {0x1603, 0x04, 4, 0x00000000},
+};
+const Captured K_NODE2[95] = {
+    {0x1005, 0x00, 4, 0x00000080}, {0x1014, 0x00, 4, 0x00000082}, {0x1017, 0x00, 2, 0x00000000},
+    {0x1200, 0x00, 1, 0x00000002}, {0x1200, 0x01, 4, 0x00000602}, {0x1200, 0x02, 4, 0x00000582},
+    {0x2203, 0x00, 2, 0x00000000}, {0x1800, 0x00, 1, 0x00000005}, {0x1800, 0x01, 4, 0x00000182},
+    {0x1800, 0x02, 1, 0x000000ff}, {0x1800, 0x03, 2, 0x00000064}, {0x1800, 0x04, 1, 0x00000000},
+    {0x1800, 0x05, 2, 0x00000000}, {0x1801, 0x00, 1, 0x00000005}, {0x1801, 0x01, 4, 0x00000282},
+    {0x1801, 0x02, 1, 0x000000ff}, {0x1801, 0x03, 2, 0x00000064}, {0x1801, 0x04, 1, 0x00000000},
+    {0x1801, 0x05, 2, 0x00000000}, {0x1802, 0x00, 1, 0x00000005}, {0x1802, 0x01, 4, 0x00000382},
+    {0x1802, 0x02, 1, 0x000000ff}, {0x1802, 0x03, 2, 0x00000064}, {0x1802, 0x04, 1, 0x00000000},
+    {0x1802, 0x05, 2, 0x00000000}, {0x1803, 0x00, 1, 0x00000005}, {0x1803, 0x01, 4, 0x00000482},
+    {0x1803, 0x02, 1, 0x000000ff}, {0x1803, 0x03, 2, 0x00000064}, {0x1803, 0x04, 1, 0x00000000},
+    {0x1803, 0x05, 2, 0x00000000}, {0x1a00, 0x00, 1, 0x00000003}, {0x1a00, 0x01, 4, 0x60410010},
+    {0x1a00, 0x02, 4, 0x60610008}, {0x1a00, 0x03, 4, 0x60640020}, {0x1a00, 0x04, 4, 0x00000000},
+    {0x1a01, 0x00, 1, 0x00000000}, {0x1a01, 0x01, 4, 0x00000000}, {0x1a01, 0x02, 4, 0x00000000},
+    {0x1a01, 0x03, 4, 0x00000000}, {0x1a01, 0x04, 4, 0x00000000}, {0x1a02, 0x00, 1, 0x00000000},
+    {0x1a02, 0x01, 4, 0x00000000}, {0x1a02, 0x02, 4, 0x00000000}, {0x1a02, 0x03, 4, 0x00000000},
+    {0x1a02, 0x04, 4, 0x00000000}, {0x1a03, 0x00, 1, 0x00000000}, {0x1a03, 0x01, 4, 0x00000000},
+    {0x1a03, 0x02, 4, 0x00000000}, {0x1a03, 0x03, 4, 0x00000000}, {0x1a03, 0x04, 4, 0x00000000},
+    {0x1400, 0x00, 1, 0x00000005}, {0x1400, 0x01, 4, 0x00000202}, {0x1400, 0x02, 1, 0x000000ff},
+    {0x1400, 0x03, 2, 0x00000000}, {0x1400, 0x04, 1, 0x00000000}, {0x1400, 0x05, 2, 0x000003e8},
+    {0x1401, 0x00, 1, 0x00000005}, {0x1401, 0x01, 4, 0x00000302}, {0x1401, 0x02, 1, 0x000000ff},
+    {0x1401, 0x03, 2, 0x00000000}, {0x1401, 0x04, 1, 0x00000000}, {0x1401, 0x05, 2, 0x000003e8},
+    {0x1402, 0x00, 1, 0x00000005}, {0x1402, 0x01, 4, 0x00000402}, {0x1402, 0x02, 1, 0x000000ff},
+    {0x1402, 0x03, 2, 0x00000000}, {0x1402, 0x04, 1, 0x00000000}, {0x1402, 0x05, 2, 0x000003e8},
+    {0x1403, 0x00, 1, 0x00000005}, {0x1403, 0x01, 4, 0x00000502}, {0x1403, 0x02, 1, 0x000000ff},
+    {0x1403, 0x03, 2, 0x00000000}, {0x1403, 0x04, 1, 0x00000000}, {0x1403, 0x05, 2, 0x000003e8},
+    {0x1600, 0x00, 1, 0x00000004}, {0x1600, 0x01, 4, 0x60400010}, {0x1600, 0x02, 4, 0x60600008},
+    {0x1600, 0x03, 4, 0x60980008}, {0x1600, 0x04, 4, 0x607a0020}, {0x1601, 0x00, 1, 0x00000000},
+    {0x1601, 0x01, 4, 0x00000000}, {0x1601, 0x02, 4, 0x00000000}, {0x1601, 0x03, 4, 0x00000000},
+    {0x1601, 0x04, 4, 0x00000000}, {0x1602, 0x00, 1, 0x00000000}, {0x1602, 0x01, 4, 0x00000000},
+    {0x1602, 0x02, 4, 0x00000000}, {0x1602, 0x03, 4, 0x00000000}, {0x1602, 0x04, 4, 0x00000000},
+    {0x1603, 0x00, 1, 0x00000000}, {0x1603, 0x01, 4, 0x00000000}, {0x1603, 0x02, 4, 0x00000000},
+    {0x1603, 0x03, 4, 0x00000000}, {0x1603, 0x04, 4, 0x00000000},
+};
+// The typed lines of the same records, lines 4-21 and 121-138.
+const char* const K_TYPED_NODE1[18] = {
+    // line 4
+    "COMM_NETWORK node=1 sync=00000080 emcy=00000081 producer=0 sdo=2 cs=00000601 sc=00000581 "
+    "lo=21369983 hi=21402979 skew=32996",
+    // line 5
+    "COMM_NODE node=1 raw=0 lo=21406983 hi=21409981 skew=2998",
+    // line 6
+    "COMM_PDO node=1 dir=t pdo=1 entries=5 cob=00000181 type=255 inhibit=100 compat=0 event=0 "
+    "lo=21413983 hi=21446979 skew=32996",
+    // line 7
+    "COMM_PDO node=1 dir=t pdo=2 entries=5 cob=00000281 type=255 inhibit=100 compat=0 event=0 "
+    "lo=21450983 hi=21483979 skew=32996",
+    // line 8
+    "COMM_PDO node=1 dir=t pdo=3 entries=5 cob=00000381 type=255 inhibit=100 compat=0 event=0 "
+    "lo=21487983 hi=21520979 skew=32996",
+    // line 9
+    "COMM_PDO node=1 dir=t pdo=4 entries=5 cob=00000481 type=255 inhibit=100 compat=0 event=0 "
+    "lo=21524983 hi=21557979 skew=32996",
+    // line 10
+    "COMM_MAP node=1 dir=t pdo=1 count=3 w1=60410010 w2=60610008 w3=60640020 w4=00000000 "
+    "lo=21561983 hi=21588979 skew=26996",
+    // line 11
+    "COMM_MAP node=1 dir=t pdo=2 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=21592983 hi=21619979 skew=26996",
+    // line 12
+    "COMM_MAP node=1 dir=t pdo=3 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=21623983 hi=21650979 skew=26996",
+    // line 13
+    "COMM_MAP node=1 dir=t pdo=4 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=21654983 hi=21681979 skew=26996",
+    // line 14
+    "COMM_PDO node=1 dir=r pdo=1 entries=5 cob=00000201 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=21685983 hi=21718979 skew=32996",
+    // line 15
+    "COMM_PDO node=1 dir=r pdo=2 entries=5 cob=00000301 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=21721984 hi=21754979 skew=32995",
+    // line 16
+    "COMM_PDO node=1 dir=r pdo=3 entries=5 cob=00000401 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=21757982 hi=21790979 skew=32997",
+    // line 17
+    "COMM_PDO node=1 dir=r pdo=4 entries=5 cob=00000501 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=21794983 hi=21827979 skew=32996",
+    // line 18
+    "COMM_MAP node=1 dir=r pdo=1 count=4 w1=60400010 w2=60600008 w3=60980008 w4=607a0020 "
+    "lo=21831983 hi=21858979 skew=26996",
+    // line 19
+    "COMM_MAP node=1 dir=r pdo=2 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=21862983 hi=21889979 skew=26996",
+    // line 20
+    "COMM_MAP node=1 dir=r pdo=3 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=21893983 hi=21920979 skew=26996",
+    // line 21
+    "COMM_MAP node=1 dir=r pdo=4 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=21924983 hi=21951979 skew=26996",
+};
+const char* const K_TYPED_NODE2[18] = {
+    // line 121
+    "COMM_NETWORK node=2 sync=00000080 emcy=00000082 producer=0 sdo=2 cs=00000602 sc=00000582 "
+    "lo=24589983 hi=24622979 skew=32996",
+    // line 122
+    "COMM_NODE node=2 raw=0 lo=24626983 hi=24629979 skew=2996",
+    // line 123
+    "COMM_PDO node=2 dir=t pdo=1 entries=5 cob=00000182 type=255 inhibit=100 compat=0 event=0 "
+    "lo=24633983 hi=24666979 skew=32996",
+    // line 124
+    "COMM_PDO node=2 dir=t pdo=2 entries=5 cob=00000282 type=255 inhibit=100 compat=0 event=0 "
+    "lo=24670983 hi=24703979 skew=32996",
+    // line 125
+    "COMM_PDO node=2 dir=t pdo=3 entries=5 cob=00000382 type=255 inhibit=100 compat=0 event=0 "
+    "lo=24707983 hi=24740979 skew=32996",
+    // line 126
+    "COMM_PDO node=2 dir=t pdo=4 entries=5 cob=00000482 type=255 inhibit=100 compat=0 event=0 "
+    "lo=24744983 hi=24777979 skew=32996",
+    // line 127
+    "COMM_MAP node=2 dir=t pdo=1 count=3 w1=60410010 w2=60610008 w3=60640020 w4=00000000 "
+    "lo=24781983 hi=24808979 skew=26996",
+    // line 128
+    "COMM_MAP node=2 dir=t pdo=2 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=24812983 hi=24839979 skew=26996",
+    // line 129
+    "COMM_MAP node=2 dir=t pdo=3 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=24843983 hi=24870979 skew=26996",
+    // line 130
+    "COMM_MAP node=2 dir=t pdo=4 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=24874983 hi=24901979 skew=26996",
+    // line 131
+    "COMM_PDO node=2 dir=r pdo=1 entries=5 cob=00000202 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=24905983 hi=24938979 skew=32996",
+    // line 132
+    "COMM_PDO node=2 dir=r pdo=2 entries=5 cob=00000302 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=24942001 hi=24974979 skew=32978",
+    // line 133
+    "COMM_PDO node=2 dir=r pdo=3 entries=5 cob=00000402 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=24978983 hi=25011979 skew=32996",
+    // line 134
+    "COMM_PDO node=2 dir=r pdo=4 entries=5 cob=00000502 type=255 inhibit=0 compat=0 event=1000 "
+    "lo=25015983 hi=25048979 skew=32996",
+    // line 135
+    "COMM_MAP node=2 dir=r pdo=1 count=4 w1=60400010 w2=60600008 w3=60980008 w4=607a0020 "
+    "lo=25052983 hi=25079979 skew=26996",
+    // line 136
+    "COMM_MAP node=2 dir=r pdo=2 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=25083983 hi=25110979 skew=26996",
+    // line 137
+    "COMM_MAP node=2 dir=r pdo=3 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=25114983 hi=25141979 skew=26996",
+    // line 138
+    "COMM_MAP node=2 dir=r pdo=4 count=0 w1=00000000 w2=00000000 w3=00000000 w4=00000000 "
+    "lo=25145983 hi=25172979 skew=26996",
+};
+// The fixed K group sizes: NETWORK six, the node setting one, then 1800..1803 (six children),
+// 1A00..1A03 (five), 1400..1403 (six) and 1600..1603 (five).
+unsigned groupFields(unsigned group) {
+    return group == 0 ? 6 : group == 1 ? 1 : (group - 2) / 4 % 2 == 0 ? 6 : 5;
+}
+// One K record replayed from a captured table: the header, the 18 typed lines and every RESULT as
+// the S2 printed them, in that order, and no download. `network` replaces the typed NETWORK line
+// and `producer` the 1017:00 value once a write has changed the fake's stored value.
+void replayRead(Rig& rig, unsigned node, uint32_t id, uint32_t grant, const Captured* table,
+                const char* const* typed, const char* header, const char* network = nullptr,
+                uint16_t producer = 0) {
+    rig.wire.script[node] = table;
+    rig.wire.scriptLength[node] = 95;
+    rig.wire.scriptAt[node] = 0;
+    CHECK(rig.wire.stored[node] == producer);
+    const unsigned downloads = rig.wire.downloads[node];
+    CHECK(rig.reads.begin(rig.readRequest(node, id, grant), rig.now) == nullptr);
+    rig.finish(rig.reads);
+    rig.wire.script[node] = nullptr;
+    CHECK(rig.wire.scriptAt[node] == 95 && rig.wire.downloads[node] == downloads);
+    static char out[128][E::COMMUNICATION_LINE];
+    const unsigned n = rig.lines(rig.reads, out, 128);
+    CHECK(n == 1 + 18 + 95 + 1);
+    CHECK(sameLine(out[0], header, "gap"));
+    for (unsigned i = 0; i < 18; ++i)
+        CHECK(sameLine(out[1 + i], i == 0 && network ? network : typed[i], "lo hi skew"));
+    unsigned at = 0;
+    for (unsigned group = 0; group < 18; ++group)
+        for (unsigned step = 1; step <= groupFields(group); ++step, ++at) {
+            const Captured& c = table[at];
+            const uint32_t raw = c.index == 0x1017 ? producer : c.raw;
+            char expected[E::COMMUNICATION_LINE];
+            std::snprintf(expected, sizeof expected,
+                          "RESULT op=%lu req=%lu oreq=0 step=%u object=%04x:%02x dir=0 outcome=0 "
+                          "ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=%u "
+                          "data=%02x%02x%02x%02x admitted=0 completed=0 ne=1 reason=0 st=3f",
+                          static_cast<unsigned long>(id + group),
+                          static_cast<unsigned long>(id + group), step, unsigned(c.index),
+                          unsigned(c.sub), unsigned(c.size), unsigned(raw & 0xff),
+                          unsigned(raw >> 8 & 0xff), unsigned(raw >> 16 & 0xff),
+                          unsigned(raw >> 24));
+            CHECK(sameLine(out[19 + at], expected, RESULT_SKIP));
+        }
+    CHECK(at == 95);
+    CHECK(sameLine(out[114], "END comm terminals=95 groups=18; typed uploads only, nothing "
+                             "written; r=release", ""));
+    CHECK(rig.reads.release());
+}
+
+// K1 and K2 of 2026-11-09 11:21Z in one MCU boot (docs/bench/20261109T1121Z-r2b-p38_reads/rx.txt:
+// COMM id=1 line 3, COMM id=19 line 120). The stored words as the drives reported them: all four
+// TPDO COB-IDs valid at 0x180/0x280/0x380/0x480 + node, type 255 and inhibit raw 100; the four
+// RPDOs valid with event raw 1000; TPDO1 map count 3, RPDO1 count 4 (6040, 6060, 6098, 607A) and
+// the other maps empty; 1017 = 0, 2203 = 0. Read effects stay unknown (Q20), and none of these
+// stored words is an active route, map or timing.
+void replayReads20261109() {
+    Rig rig;
+    replayRead(rig, 1, 1, 10001, K_NODE1, K_TYPED_NODE1,
+               "COMM id=1 node=1 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 "
+               "status=0 detail=0 terminals=95 grants=95 admission=0 gap=4004");
+    rig.wire.compact();
+    replayRead(rig, 2, 19, 10001, K_NODE2, K_TYPED_NODE2,
+               "COMM id=19 node=2 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 "
+               "status=0 detail=0 terminals=95 grants=95 admission=0 gap=4004");
+    CHECK(rig.wire.sentCount == 95 && rig.wire.frames[1] == 95 && rig.wire.frames[2] == 95);
+}
+
+// Boot A of 2026-11-09 (image 627bb42), the drives freshly power-cycled by the user: H on each
+// node through the S14-fixed path. Node 1: docs/bench/20261109T1245Z-r4a-hb-node1/rx.txt; node 2:
+// docs/bench/20261109T1246Z-r4a-hb-node2/rx.txt. Each plan: N<node>,p, 6 s, a D probe, K, a P
+// watch (its heartbeat statistics are pdo_watch_test's replay), H, 5 s, n, K. The node's own 7F
+// heartbeats after the write carry the watch's PDOW_F bounds; node 1's heartbeats during node 2's
+// run, from its own commissioning a minute earlier, act on no node 2 fact and are left out.
+struct Beat {
+    uint64_t lo, hi;
+};
+struct Commissioning {
+    unsigned node;
+    uint32_t nmtId;
+    uint64_t nmtAt; // The NMT line's admitted=.
+    uint32_t probeId;
+    uint64_t probeAt; // The D probe's first RESULT admitted=.
+    uint32_t readId;
+    uint64_t readAt; // K's first RESULT admitted=.
+    const char* readHeader;
+    uint32_t heartbeatId;
+    uint64_t heartbeatAt;   // The H baseline's RESULT admitted=.
+    const char* record[15]; // HB, HB_PREP, three RESULT, nine TRAFFIC, END.
+    Beat beats[5];          // The node's heartbeats before n; the last is n's NETWORK lo/hi.
+    uint32_t afterId;
+    uint64_t afterAt;
+    const char* afterHeader;
+    const char* afterNetwork;
+};
+const Commissioning COMMISSIONING[2] = {
+    {1, 3, 50626710, 4, 56671998, 5, 56828987,
+     // line 17
+     "COMM id=5 node=1 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 status=0 "
+     "detail=0 terminals=95 grants=95 admission=0 gap=4000",
+     23, 60079987,
+     {
+         // line 136
+         "HB id=23 node=1 failure=0 lost=0 state=4 outcome=1 write=1 ack=1 effects=1 uncertain=0 "
+         "known=1 readback=1000 matched=1 published=1 raw=1000 terminals=3 gap=3017",
+         // line 137
+         "HB_PREP node=1 nmt=0 nmtState=0 prepared=1 migrated=1 cfg=2 scope=1 restart=0 "
+         "persistence=0 status=0 detail=0",
+         // line 138
+         "RESULT op=23 req=1 oreq=164 step=1 object=1017:00 dir=0 outcome=0 ack=1 possible=1 "
+         "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=60079987 "
+         "completed=60082985 ne=1 reason=0 st=3f",
+         // line 139
+         "RESULT op=24 req=24 oreq=165 step=1 object=1017:00 dir=1 outcome=0 ack=1 possible=1 "
+         "uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=60085987 "
+         "completed=60088985 ne=1 reason=0 st=3f",
+         // line 140
+         "RESULT op=24 req=24 oreq=166 step=2 object=1017:00 dir=0 outcome=0 ack=1 possible=1 "
+         "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=60092002 "
+         "completed=60094985 ne=1 reason=0 st=3f",
+         // line 141
+         "TRAFFIC k=1 p=60079987 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=127 txf=1",
+         // line 142
+         "TRAFFIC k=2 p=60082985 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=127 txf=1",
+         // line 143
+         "TRAFFIC k=0 p=60082985 id=581 ext=0 rtr=0 dlc=8 data=4b17100000000000 ok=1 exact=0 t=0 "
+         "bounds=1 lo=60080274 hi=60082169 epoch=1",
+         // line 144
+         "TRAFFIC k=1 p=60085987 id=601 ext=0 rtr=0 dlc=8 data=2b171000e8030000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=128 txf=1",
+         // line 145
+         "TRAFFIC k=2 p=60088985 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=128 txf=1",
+         // line 146
+         "TRAFFIC k=0 p=60088985 id=581 ext=0 rtr=0 dlc=8 data=6017100000000000 ok=1 exact=0 t=0 "
+         "bounds=1 lo=60086281 hi=60088539 epoch=1",
+         // line 147
+         "TRAFFIC k=1 p=60092002 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=129 txf=1",
+         // line 148
+         "TRAFFIC k=2 p=60094985 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=129 txf=1",
+         // line 149
+         "TRAFFIC k=0 p=60094985 id=581 ext=0 rtr=0 dlc=8 data=4b171000e8030000 ok=1 exact=0 t=0 "
+         "bounds=1 lo=60092288 hi=60094131 epoch=1",
+         // line 150
+         "END heartbeat terminals=3 traffic=9 tail=0 tailLost=0 lost=0; no save, reset or "
+         "restore; r=release",
+     },
+     // PDOW_F lines 153-161; the last is also n's NETWORK line 162.
+     {{61088163, 61089040}, {62089162, 62089852}, {63090162, 63090634}, {64091162, 64091440},
+      {65092016, 65092232}},
+     25, 65508987,
+     // lines 172-173
+     "COMM id=25 node=1 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 status=0 "
+     "detail=0 terminals=95 grants=95 admission=0 gap=4002",
+     "COMM_NETWORK node=1 sync=00000080 emcy=00000081 producer=1000 sdo=2 cs=00000601 "
+     "sc=00000581 lo=65508987 hi=65541985 skew=32998"},
+    {2, 43, 78715722, 44, 84757995, 45, 84908987,
+     // line 17
+     "COMM id=45 node=2 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 status=0 "
+     "detail=0 terminals=95 grants=95 admission=0 gap=4000",
+     63, 88169987,
+     {
+         // line 136
+         "HB id=63 node=2 failure=0 lost=0 state=4 outcome=1 write=1 ack=1 effects=1 uncertain=0 "
+         "known=1 readback=1000 matched=1 published=1 raw=1000 terminals=3 gap=3002",
+         // line 137
+         "HB_PREP node=2 nmt=0 nmtState=0 prepared=1 migrated=1 cfg=2 scope=1 restart=0 "
+         "persistence=0 status=0 detail=0",
+         // line 138
+         "RESULT op=63 req=1 oreq=364 step=1 object=1017:00 dir=0 outcome=0 ack=1 possible=1 "
+         "uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=88169987 "
+         "completed=88172985 ne=1 reason=0 st=3f",
+         // line 139
+         "RESULT op=64 req=64 oreq=365 step=1 object=1017:00 dir=1 outcome=0 ack=1 possible=1 "
+         "uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=88175987 "
+         "completed=88178985 ne=1 reason=0 st=3f",
+         // line 140
+         "RESULT op=64 req=64 oreq=366 step=2 object=1017:00 dir=0 outcome=0 ack=1 possible=1 "
+         "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=88181987 "
+         "completed=88184985 ne=1 reason=0 st=3f",
+         // line 141
+         "TRAFFIC k=1 p=88169987 id=602 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=128 txf=1",
+         // line 142
+         "TRAFFIC k=2 p=88172985 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=128 txf=1",
+         // line 143
+         "TRAFFIC k=0 p=88172985 id=582 ext=0 rtr=0 dlc=8 data=4b17100000000000 ok=1 exact=0 t=0 "
+         "bounds=1 lo=88170273 hi=88172178 epoch=1",
+         // line 144
+         "TRAFFIC k=1 p=88175987 id=602 ext=0 rtr=0 dlc=8 data=2b171000e8030000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=129 txf=1",
+         // line 145
+         "TRAFFIC k=2 p=88178985 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=129 txf=1",
+         // line 146
+         "TRAFFIC k=0 p=88178985 id=582 ext=0 rtr=0 dlc=8 data=6017100000000000 ok=1 exact=0 t=0 "
+         "bounds=1 lo=88176282 hi=88178531 epoch=1",
+         // line 147
+         "TRAFFIC k=1 p=88181987 id=602 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=130 txf=1",
+         // line 148
+         "TRAFFIC k=2 p=88184985 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+         "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=130 txf=1",
+         // line 149
+         "TRAFFIC k=0 p=88184985 id=582 ext=0 rtr=0 dlc=8 data=4b171000e8030000 ok=1 exact=0 t=0 "
+         "bounds=1 lo=88182273 hi=88184188 epoch=1",
+         // line 150
+         "END heartbeat terminals=3 traffic=9 tail=0 tailLost=0 lost=0; no save, reset or "
+         "restore; r=release",
+     },
+     // PDOW_F lines 154-166 for 702; the last is also n's NETWORK line 168.
+     {{89178162, 89178561}, {90179159, 90179335}, {91180014, 91180149}, {92180159, 92180925},
+      {93181159, 93181730}},
+     65, 93599987,
+     // lines 178-179
+     "COMM id=65 node=2 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 status=0 "
+     "detail=0 terminals=95 grants=95 admission=0 gap=4002",
+     "COMM_NETWORK node=2 sync=00000080 emcy=00000082 producer=1000 sdo=2 cs=00000602 "
+     "sc=00000582 lo=93599987 hi=93632985 skew=32998"},
+};
+// The measured commissioning, per node: N, then the D probe more than 5 s later, when the N line's
+// window had ended unobserved (no heartbeat at producer time 0) and only the probe's ordinary
+// service remained; the K reads; H: baseline 1017:00 = 0, the one download 2B 17 10 00 E8 03 00 00
+// acknowledged, the owner's migration to configuration epoch 2, the readback raw 1000 published,
+// with no uncertainty; then the node's own heartbeats, Pre-operational, its producer interval
+// still withdrawn (a stored readback is no active timing), and a K that reads producer 1000.
+void replayCommissioning20261109() {
+    for (const Commissioning& c : COMMISSIONING) {
+        Rig rig;
+        rig.firmwareTurn = true;
+        const uint8_t slot = uint8_t(c.node - 1);
+        const Captured* table = c.node == 1 ? K_NODE1 : K_NODE2;
+        const char* const* typed = c.node == 1 ? K_TYPED_NODE1 : K_TYPED_NODE2;
+        rig.until(c.nmtAt);
+        CHECK(rig.nmt(c.node, C::NmtCommand::PRE_OPERATIONAL, c.nmtId) == c.nmtAt);
+        const C::NodeSnapshot& node = *rig.services.node(slot);
+        CHECK(node.transitionPending && node.transitionDeadlineUs == c.nmtAt + 5000000);
+        rig.until(c.probeAt - 2000);
+        // The 6 s wait: the window ended with nothing observed; the state stays unknown.
+        CHECK(!node.transitionPending && node.transitionExpired && !node.transitionObserved);
+        rig.probe(uint8_t(c.node), c.probeId);
+        rig.until(c.readAt - 1000);
+        replayRead(rig, c.node, c.readId, 10001, table, typed, c.readHeader);
+        rig.wire.compact();
+        rig.until(c.heartbeatAt - 1000);
+        CHECK(rig.services.configurationEligible(slot, rig.services.channel(slot)->binding,
+                                                 rig.now));
+        CHECK(rig.commission.begin(rig.heartbeatRequest(c.node, c.heartbeatId, 20001), rig.now) ==
+              nullptr);
+        rig.finish(rig.commission);
+        static char out[32][E::COMMUNICATION_LINE];
+        CHECK(rig.lines(rig.commission, out, 32) == 15);
+        CHECK(sameLine(out[0], c.record[0], "gap"));
+        CHECK(sameLine(out[1], c.record[1], ""));
+        for (unsigned i = 2; i < 5; ++i)
+            CHECK(sameLine(out[i], c.record[i], RESULT_SKIP));
+        for (unsigned i = 5; i < 14; ++i)
+            CHECK(sameLine(out[i], c.record[i], TRAFFIC_SKIP));
+        CHECK(sameLine(out[14], c.record[14], ""));
+        const E::HeartbeatBenchRecord& r = *rig.commission.record();
+        CHECK(r.failure == E::HeartbeatBenchFailure::NONE && r.migrated && r.published &&
+              !r.context.uncertain && r.result.producerTimeRaw == 1000);
+        CHECK(rig.wire.downloads[c.node] == 1 && rig.wire.stored[c.node] == 1000);
+        CHECK(rig.commission.release());
+        for (const Beat& b : c.beats)
+            rig.beat(c.node, b.lo, b.hi);
+        // n's NETWORK line: epoch=1 state=127 qualified=1 producerKnown=0 ms=0 pending=0
+        // observed=0 expired=1 exact=0 bounds=1 and the last heartbeat's lo and hi.
+        C::ServiceEligibility e;
+        CHECK(C::serviceEligibility(node, rig.now, e) && e.exactNmtKnown &&
+              e.state == C::NmtState::PRE_OPERATIONAL);
+        CHECK(node.route.generation == 1 && node.nmt == C::NmtState::PRE_OPERATIONAL);
+        CHECK(!node.producerKnown && node.producerTimeMs == 0 && !node.transitionPending &&
+              !node.transitionObserved && node.transitionExpired);
+        CHECK(!node.nmtTime.receivedTimeKnown && node.nmtTime.receiveBoundsKnown &&
+              node.nmtTime.receivedEarliestUs == c.beats[4].lo &&
+              node.nmtTime.receivedLatestUs == c.beats[4].hi);
+        rig.wire.compact();
+        rig.until(c.afterAt - 1000);
+        replayRead(rig, c.node, c.afterId, 30001, table, typed, c.afterHeader, c.afterNetwork,
+                   1000);
+        CHECK(!node.producerKnown && rig.wire.downloads[c.node] == 1);
+    }
+}
+
+// The 2026-11-09 failure on the old image (757f1cd), at its captured instants. Node 1
+// (docs/bench/20261109T1121Z-r2b-p38_heartbeat_node1/rx.txt): N1,p admitted 45846649 (line 3), the
+// probe's upload 45886983 (line 12), K1 from 46039983 (line 18), the H baseline admitted 49299981
+// and the write acknowledged at 49308981 (lines 32-33). Node 2
+// (20261109T1123Z-r2b-hb-node2-probe-last/rx.txt): N2,p 125956669 (line 3), K2 from 125995983
+// (line 25), the probe 129280982 (line 130), the baseline 129446981 and the acknowledgement at
+// 129455981 (lines 138-139). On that image H was admitted, and after the acknowledged write the
+// owner refused the epoch migration (HB failure=10 migrated=0, lines 30-31 and 136-137): each N
+// line's window, its admission + 5 s, still held, 1537668 us and 1500688 us past the
+// acknowledgements. At the same instants the adapter refuses the migration premises now, and H
+// refuses at its captured admission with nothing sent; once the window ends they hold.
+void replayPendingTransition20261109() {
+    struct Run {
+        unsigned node;
+        uint32_t nmtId;
+        uint64_t nmtAt;
+        uint32_t probeId;
+        uint64_t probeAt;
+        uint32_t readId;
+        uint64_t readAt, baselineAt, acknowledgedAt, margin;
+        const char* readHeader;
+    };
+    const Run runs[2] = {
+        {1, 37, 45846649, 38, 45886983, 39, 46039983, 49299981, 49308981, 1537668,
+         // line 17
+         "COMM id=39 node=1 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 "
+         "status=0 detail=0 terminals=95 grants=95 admission=0 gap=4005"},
+        {2, 77, 125956669, 96, 129280982, 78, 125995983, 129446981, 129455981, 1500688,
+         // line 6
+         "COMM id=78 node=2 failure=0 groups=18 published=18 group=18 outcome=1 uncertain=0 "
+         "status=0 detail=0 terminals=95 grants=95 admission=0 gap=4004"}};
+    for (const Run& run : runs) {
+        Rig rig;
+        rig.firmwareTurn = true;
+        const uint8_t slot = uint8_t(run.node - 1);
+        rig.until(run.nmtAt);
+        CHECK(rig.nmt(run.node, C::NmtCommand::PRE_OPERATIONAL, run.nmtId) == run.nmtAt);
+        const C::NodeSnapshot& node = *rig.services.node(slot);
+        const bool probeFirst = run.probeAt < run.readAt;
+        if (probeFirst) {
+            rig.until(run.probeAt - 2000);
+            rig.probe(uint8_t(run.node), run.probeId);
+        }
+        rig.until(run.readAt - 1000);
+        replayRead(rig, run.node, run.readId, 10001, run.node == 1 ? K_NODE1 : K_NODE2,
+                   run.node == 1 ? K_TYPED_NODE1 : K_TYPED_NODE2, run.readHeader);
+        rig.wire.compact();
+        if (!probeFirst) {
+            rig.until(run.probeAt - 10000);
+            rig.probe(uint8_t(run.node), run.probeId);
+        }
+        // The premises the old image did not check: service alone held, and the window was open.
+        C::ServiceEligibility e;
+        CHECK(C::serviceEligibility(node, rig.now, e) && e.ordinarySdo && !e.exactNmtKnown);
+        CHECK(node.transitionPending && node.transitionDeadlineUs == run.nmtAt + 5000000);
+        CHECK(node.transitionDeadlineUs - run.acknowledgedAt == run.margin);
+        rig.until(run.baselineAt - 1000);
+        const unsigned sent = rig.wire.sentCount;
+        CHECK(refused(rig.commission.begin(rig.heartbeatRequest(run.node, 57, 20001), rig.now),
+                      "transition"));
+        CHECK(!rig.commission.record() && rig.wire.sentCount == sent &&
+              !rig.wire.downloads[run.node]);
+        const M::Binding& binding = rig.services.channel(slot)->binding;
+        rig.until(run.acknowledgedAt);
+        CHECK(!rig.services.configurationEligible(slot, binding, rig.now));
+        rig.until(node.transitionDeadlineUs - 1);
+        CHECK(node.transitionPending &&
+              !rig.services.configurationEligible(slot, binding, rig.now));
+        rig.until(node.transitionDeadlineUs + 1000);
+        CHECK(!node.transitionPending && node.transitionExpired &&
+              rig.services.configurationEligible(slot, binding, rig.now));
+        CHECK(rig.wire.sentCount == sent && !rig.wire.stored[run.node]);
+    }
+}
+
+// The fix on hardware, 2026-11-09 12:06Z (image 627bb42), one MCU boot, node 1 still holding
+// 1017:00 = raw 1000 from the 11:21Z write and heartbeating 7F about every 1.0008 s.
+// Transition (docs/bench/20261109T1206Z-r3-hb-transition-node1b/rx.txt): node 1's last heartbeat
+// before N was processed at 51860981 (DISC_T hbp, line 7); N1,p admitted 52314711 (line 3); the
+// probe's upload 52356007 (line 12); H refused reason=transition (line 16), all inside one
+// heartbeat period. The S2 printed no receive bounds for that heartbeat; any interval before the
+// N line acts the same, and this replay gives it [51859981, 51860881].
+// Baseline (20261109T1206Z-r3-hb-baseline-node1b/rx.txt): the heartbeats 52861151..52861571 and
+// 53862134..53862364 (EVENT lines 8 and 10), N1,p admitted 54315734 (line 3), the heartbeat
+// 55863138..55863948 that n listed (line 5: Pre-operational, observed, not pending), then H, its
+// baseline admitted at 56960989. It read raw 1000 and ended failure=9, HB_PREP nmt=1 nmtState=127
+// prepared=0 status=1 detail=2 (lines 13-19). Detail 2 is ReadError::ARGUMENT from
+// prepareCommunication's NMT premise: a known Pre-operational state must come from a heartbeat
+// received at or after the reservation, and every heartbeat had been received before H was
+// admitted; none came in the record's 3 ms (its TRAFFIC, lines 16-18, has none). The plan's
+// predicted detail=6, VALUE, is the baseline check after it: reached only if a heartbeat is
+// received between the H admission and the baseline, as the last part shows. Nothing was written.
+void replayHeartbeatRefusals20261109() {
+    Rig rig;
+    rig.firmwareTurn = true;
+    rig.wire.stored[1] = 1000;
+    // Transition.
+    rig.until(51860881);
+    M::Frame beat = OwnerRig::frame(0x701, 1);
+    beat.data[0] = 0x7f;
+    rig.wire.pushBounded(beat, 51859981, 51860881);
+    rig.turn(100);
+    const C::NodeSnapshot& node = *rig.services.node(0);
+    CHECK(node.nmtTime.processedUs == 51860981 && node.nmt == C::NmtState::PRE_OPERATIONAL);
+    rig.until(52314711);
+    CHECK(rig.nmt(1, C::NmtCommand::PRE_OPERATIONAL, 2) == 52314711);
+    rig.until(52354007);
+    rig.probe(1, 3);
+    CHECK(node.transitionPending && !node.transitionObserved);
+    CHECK(refused(rig.commission.begin(rig.heartbeatRequest(1, 5, 20001), rig.now), "transition"));
+    CHECK(!rig.commission.record() && rig.wire.sentCount == 1 + 2 && !rig.wire.downloads[1]);
+    // Baseline: the next heartbeat observes the first transition; then a second N line.
+    rig.beat(1, 52861151, 52861571);
+    CHECK(!node.transitionPending && node.transitionObserved);
+    rig.beat(1, 53862134, 53862364);
+    rig.until(54315734);
+    CHECK(rig.nmt(1, C::NmtCommand::PRE_OPERATIONAL, 4) == 54315734);
+    CHECK(node.transitionPending);
+    rig.beat(1, 55863138, 55863948);
+    // n (line 5): state=127 qualified=1 pending=0 observed=1 expired=0 bounds=1 and these bounds.
+    C::ServiceEligibility e;
+    CHECK(C::serviceEligibility(node, rig.now, e) && e.exactNmtKnown &&
+          e.state == C::NmtState::PRE_OPERATIONAL && e.ordinarySdo);
+    CHECK(!node.transitionPending && node.transitionObserved && !node.transitionExpired);
+    CHECK(node.nmtTime.receivedEarliestUs == 55863138 && node.nmtTime.receivedLatestUs == 55863948);
+    rig.wire.compact();
+    rig.until(56959989);
+    CHECK(rig.commission.begin(rig.heartbeatRequest(1, 5, 30001), rig.now) == nullptr);
+    rig.finish(rig.commission);
+    const char* const captured[7] = {
+        // line 13
+        "HB id=5 node=1 failure=9 lost=0 state=0 outcome=0 write=0 ack=0 effects=0 uncertain=0 "
+        "known=0 readback=0 matched=0 published=0 raw=0 terminals=1 gap=2998",
+        // line 14
+        "HB_PREP node=1 nmt=1 nmtState=127 prepared=0 migrated=0 cfg=1 scope=1 restart=0 "
+        "persistence=0 status=1 detail=2",
+        // line 15
+        "RESULT op=5 req=1 oreq=10 step=1 object=1017:00 dir=0 outcome=0 ack=1 possible=1 "
+        "uncertain=0 abort=00000000 cleanup=0 size=2 data=e8030000 admitted=56960989 "
+        "completed=56963987 ne=1 reason=0 st=3f",
+        // line 16
+        "TRAFFIC k=1 p=56960989 id=601 ext=0 rtr=0 dlc=8 data=4017100000000000 ok=1 exact=0 t=0 "
+        "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=3 txf=1",
+        // line 17
+        "TRAFFIC k=2 p=56963987 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 "
+        "bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=3 txf=1",
+        // line 18
+        "TRAFFIC k=0 p=56963987 id=581 ext=0 rtr=0 dlc=8 data=4b171000e8030000 ok=1 exact=0 t=0 "
+        "bounds=1 lo=56961273 hi=56963141 epoch=1",
+        // line 19
+        "END heartbeat terminals=1 traffic=3 tail=0 tailLost=0 lost=0; no save, reset or restore; "
+        "r=release",
+    };
+    static char out[16][E::COMMUNICATION_LINE];
+    CHECK(rig.lines(rig.commission, out, 16) == 7);
+    CHECK(sameLine(out[0], captured[0], "gap"));
+    CHECK(sameLine(out[1], captured[1], ""));
+    CHECK(sameLine(out[2], captured[2], RESULT_SKIP));
+    for (unsigned i = 3; i < 6; ++i)
+        CHECK(sameLine(out[i], captured[i], TRAFFIC_SKIP));
+    CHECK(sameLine(out[6], captured[6], ""));
+    const E::HeartbeatBenchRecord& r = *rig.commission.record();
+    CHECK(r.failure == E::HeartbeatBenchFailure::BASELINE && !r.prepared && r.nmt.known &&
+          r.status.detail == int32_t(M::ReadError::ARGUMENT));
+    CHECK(r.nmt.time.receivedEarliestUs == 55863138 &&
+          r.nmt.time.receivedEarliestUs < r.reservation.acquiredUs);
+    CHECK(!rig.wire.downloads[1] && !r.context.effectsPossible && !rig.wire.guardCalls);
+    CHECK(rig.commission.release());
+    // Counterfactual: a heartbeat received after the H admission and processed before the baseline
+    // admission gives the NMT premise; the raw 1000 baseline then refuses as VALUE.
+    rig.until(57959989);
+    CHECK(rig.commission.begin(rig.heartbeatRequest(1, 7, 40001), rig.now) == nullptr);
+    rig.wire.pushBounded(beat, rig.now + 10, rig.now + 50);
+    rig.finish(rig.commission);
+    const E::HeartbeatBenchRecord& late = *rig.commission.record();
+    CHECK(late.failure == E::HeartbeatBenchFailure::BASELINE && late.nmt.known &&
+          late.status.detail == int32_t(M::ReadError::VALUE) && !rig.wire.downloads[1]);
+    CHECK(rig.commission.release());
+}
 } // namespace
 int main() {
     readsAllGroups();
@@ -826,5 +1605,9 @@ int main() {
     heartbeatProbeOrderAroundNmt();
     heartbeatRechecksBeforeWrite();
     routeSessionKeepsReservation();
+    replayReads20261109();
+    replayCommissioning20261109();
+    replayPendingTransition20261109();
+    replayHeartbeatRefusals20261109();
     std::printf("communication bench: %u checks passed\n", checks);
 }

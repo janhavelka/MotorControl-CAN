@@ -69,10 +69,10 @@ The user power-cycled both drives and attended with the drive-power cutoff, answ
 | 829 | Node 2 `rearm` | `000F` acknowledged after `010F`; `6064=104` before and after (`6041` `0437` then `0037`): the drive did not resume the halted target |
 | 830 | Node 2 `relative` +200 | From 104 to 304, in place (`2100=0001`, `6041=9437`); `TRIAL_BASE target=600 prevTrial=828`. Endpoint 304 = 104 + 200: base `ACTUAL`, not `COMMANDED` (800) |
 | 831 | Node 1 read | `6064=-100`, `2100=0001`, `6041=8437` |
-| 832 | Node 1 `move` +600 from -100, `ACTUAL`, node 2 observing, HALT after 2 cycles | Move interrupted (`outcome=5 int=2`, `uncertain=1`, `fenced=1`), kept as its own record; HALT from the held `005F` completed (`outcome=1 pred=005f`); node 1 stopped at 146. Observer node 2: checked, passed, `moved=0`, `6064` 304 throughout, `606C` max 0, no write to it |
+| 832 | Node 1 `move` +600 from -100, `ACTUAL`, node 2 observing, HALT after 2 cycles | Move interrupted (`outcome=5 int=2`, `uncertain=1`, `fenced=1`), kept as its own record; HALT from the held `005F` completed (`outcome=1 pred=005f`). Node 1's last move cycle read `6064=146` at `606C=5`, just before the `010F`; the HALT's cycles read no `6064`, and the next read (901, a later MCU boot without a drive power cycle) found 158. Observer node 2: checked, passed, `moved=0`, `6064` 304 throughout, `606C` max 0, no write to it |
 | 833 | Node 2 `stop`, quick | One `000B` from the acknowledged, stationary `005F` of 830: `outcome=1`, no uncertainty; after it `6041=8050` and `2100=0011` (released, in place), as after every earlier `000B`. The record's `TRIAL_LAST` (`9437`) is the stop's admission read, taken before the write |
 
-End state, felt by the attendant: node 1 holding (enabled, halted at 146, fenced for this MCU boot), node 2 free (released at 304). CAN: no EMCY, no alarm bit, `1001=00` and `603F=0000` throughout, TEC and REC 0.
+End state, felt by the attendant: node 1 holding (enabled and halted, last read 146 before the HALT, fenced for this MCU boot), node 2 free (released at 304). CAN: no EMCY, no alarm bit, `1001=00` and `603F=0000` throughout, TEC and REC 0.
 
 Device facts for the ledger, one firmware: node 2's relative base `ACTUAL` (trial 830), alongside node 1's (409); a HALT from a moving `005F` on node 1 and a quick stop from a stationary acknowledged `005F` on node 2, both reported complete by the drive. The attendant's observations are qualitative; no shaft angle or direction was measured.
 
