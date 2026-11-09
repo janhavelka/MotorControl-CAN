@@ -166,7 +166,7 @@ apart from the individually retained measurements. The vendor EDS gives no
 heartbeat unit. CiA 301 and the pinned stacks use milliseconds; the retained
 [node-1 experiment](reports/2026-11-02_nmt_pdo_checkpoint.md) observed about
 1.0008 seconds after raw 1000 and raw zero after one power cycle; both specimens
-repeated both observations on 2026-11-09 ([below](#measured-on-the-bench-2026-11-09)).
+repeated both observations on 2026-11-09 (see "Measured on the bench, 2026-11-09" below).
 That is neither a general timing range nor a save/reset or host-loss stop guarantee.
 PDO inhibit and event units remain independently Q17 gated.
 
@@ -201,7 +201,7 @@ establishes: current ordinary SDO service and no pending NMT transition, among
 others. Check `SdoClient::configurationEligible` before the download is admitted;
 on 2026-11-09 a probe after a Pre-operational intent gave service while the
 intent's transition, unobservable at producer time 0, was still pending, and the
-applied write could not be confirmed ([measured](#measured-on-the-bench-2026-11-09)).
+applied write could not be confirmed (measured: "Measured on the bench, 2026-11-09" below).
 Only an acknowledged write
 allows explicit `prepareCommunicationConfirmation` at the actual next-epoch
 target; its single U16 readback also requires a reviewed upload grant. The
