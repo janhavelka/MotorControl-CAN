@@ -165,9 +165,10 @@ interpretations are labelled **CiA 301: general vendor claim, service unconfirme
 apart from the individually retained measurements. The vendor EDS gives no
 heartbeat unit. CiA 301 and the pinned stacks use milliseconds; the retained
 [node-1 experiment](reports/2026-11-02_nmt_pdo_checkpoint.md) observed about
-1.0008 seconds after raw 1000 and raw zero after one power cycle. That is neither
-a general timing range nor a save/reset or host-loss stop guarantee. PDO inhibit
-and event units remain independently Q17 gated.
+1.0008 seconds after raw 1000 and raw zero after one power cycle; both specimens
+repeated both observations on 2026-11-09 ([below](#measured-on-the-bench-2026-11-09)).
+That is neither a general timing range nor a save/reset or host-loss stop guarantee.
+PDO inhibit and event units remain independently Q17 gated.
 
 For a read, use `CommunicationReadContext`, `prepareCommunicationRead`,
 `nextCommunication`, `advanceCommunication` and `getCommunication`. PDO groups
@@ -200,7 +201,8 @@ establishes: current ordinary SDO service and no pending NMT transition, among
 others. Check `SdoClient::configurationEligible` before the download is admitted;
 on 2026-11-09 a probe after a Pre-operational intent gave service while the
 intent's transition, unobservable at producer time 0, was still pending, and the
-applied write could not be confirmed. Only an acknowledged write
+applied write could not be confirmed ([measured](#measured-on-the-bench-2026-11-09)).
+Only an acknowledged write
 allows explicit `prepareCommunicationConfirmation` at the actual next-epoch
 target; its single U16 readback also requires a reviewed upload grant. The
 original deadline cannot be renewed. Matching raw 1000 proves stored readback,
@@ -233,4 +235,55 @@ The concrete settings/PDO/motion caller supplies its required once-only notice;
 trace or unrelated producers cannot authorize it. This is the owner-to-adapter
 boundary, not repeated application preflight at a later deferred SDK promotion.
 The existing best-effort stop exemption is unchanged. Larger write scopes remain
-gated by Q16/Q17/Q18; physical qualification of these new typed APIs is unperformed.
+gated by Q16/Q17/Q18. The bench measurements below are evidence for one firmware
+tuple on one fixture; they qualify none of these typed APIs.
+
+### Measured on the bench, 2026-11-09
+
+S2 fixture, both CL86-C specimens (nodes 1 and 2), the S2 bench lines `N`, `D`, `K`,
+`H`, `P` and `n`, images `757f1cd` and `627bb42`
+([round 2](reports/2026-11-09_bench_r2.md), [round 4](reports/2026-11-09_bench_r4.md)).
+Documented: EDS `[1017]` U16, RW, default 0, no unit; the millisecond unit is CiA's.
+Measured: the items below. Qualified: nothing; restart, persistence, other values,
+the reverse transition and any host-loss reaction remain unknown.
+
+- **Reads, both nodes.** `K` read all 95 stored words on each node, the same values
+  before and after a power cycle: `1017=0`, `2203=0`, SYNC `0x80`, EMCY `0x80`+node,
+  SDO `0x600`/`0x580`+node, all four TPDOs valid at `0x180`/`0x280`/`0x380`/`0x480`+node
+  with type 255 and inhibit raw 100, all four RPDOs valid with event raw 1000, TPDO1
+  map `60410010 60610008 60640020`, RPDO1 map `60400010 60600008 60980008 607A0020`,
+  the other maps empty. Stored words only: no active route, map, timing or read effect.
+- **Commissioning, both nodes**, after the user's drive power cycle: `N<node>,p`,
+  6 s, a `D` probe, `K`, then `H`: baseline raw 0, the one download
+  `2B 17 10 00 E8 03 00 00` acknowledged, the owner's migration to configuration
+  epoch 2, readback raw 1000 published with no uncertainty. A later `K` read
+  `producer=1000`, and each node reported Pre-operational in its own heartbeats with
+  the producer interval still withdrawn: a stored readback is not active timing.
+- **Heartbeat period.** The S2's watch timed the 7F frames by the TWAI driver's
+  receive upper bound: mean gaps 1000795 µs (node 1, 14 frames), then 1000796 µs and
+  1000792 µs (nodes 1 and 2, 15 and 14 frames), every gap 1000715 to 1000875 µs. About
+  1.0008 s at raw 1000 on the S2's clock, as for node 1 on 2026-11-02; the gaps
+  include interrupt and FIFO latency, so this is no bus timestamp or timing range.
+- **The N-then-5 s rule.** An `N` line's Pre-operational intent stays pending until
+  a matching heartbeat or boot-up or its own deadline, the admission plus 5 s, and at
+  producer time 0 no heartbeat ends it. On image `757f1cd`, `H` admitted inside that
+  window wrote, was acknowledged, and could not be confirmed; the acknowledgements came
+  1.54 s (node 1) and 1.50 s (node 2) before the windows ended. The current check
+  refuses there with nothing sent (`HB refused reason=transition`, measured on node 1);
+  the successful runs waited 6 s after `N`.
+- **Refusal with a running producer.** Node 1 at raw 1000 read its baseline once and
+  ended `failure=9` with `HB_PREP detail=2`: `prepareCommunication`'s NMT premise (a
+  known state needs a heartbeat received after the reservation) refused before its
+  value check (which reports `detail=6`). Nothing was written.
+- **One power cycle each.** Raw 1000 written to both nodes at 11:21Z to 11:23Z was
+  still in effect at 12:06Z (node 1 read it; both heartbeated) and both nodes read raw
+  0 after the user's power cycle at 12:43Z, with no save. One observed cycle per node,
+  not a persistence or reset guarantee.
+
+The native suites replay these captures value for value: `communication_bench`
+(`replayReads20261109`, `replayCommissioning20261109`,
+`replayPendingTransition20261109`, `replayHeartbeatRefusals20261109`) and
+`pdo_watch` (`testHeartbeatPeriod20261109`). The discovery scans of the same day are
+replayed by `discovery_bench` (`replayDiscovery20261109`): passive found nothing at
+producer 0, the probe found both nodes, identity matched the retained 2026-11-04
+identity on both, and selection sent nothing.

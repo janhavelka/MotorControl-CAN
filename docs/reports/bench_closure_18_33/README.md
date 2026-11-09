@@ -36,7 +36,9 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | `ed8e86d` | Link fix | Passed |
 | `627bb42` | Heartbeat commissioning fix (backlog S14) | **Failed**, full gcc ASan job only: the build step exceeded the verifier's 240 s bound at [211/252]. The same library and test code passed on `374ad13`; that step took 165 to 211 s on the passing runs |
 | `374ad13`, `316d79b` | Hardware refusal record; attended round 4 record | Passed |
-| `061aa6f` | Verifier build-step bound raised to 600 s (a hang guard, not a budget) | See the next record |
+| `28bea3d` | Attended velocity experiment scope (prompt 35) | Passed |
+| `061aa6f` | Verifier build-step bound raised to 600 s (a hang guard, not a budget) | Passed; the gcc build step took 182 s |
+| `9736e65` | CI and prompt 35-38 record | Passed |
 
 ## Originals: what exists and what is missing
 

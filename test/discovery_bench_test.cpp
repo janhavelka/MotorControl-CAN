@@ -36,10 +36,22 @@ L::ReadTarget target(unsigned node) {
     t.nodeGeneration = 1;
     return t;
 }
+// One upload reply of a retained bench capture as its RESULT line prints it: object=, size= and the
+// little-endian data= bytes as a raw value.
+struct Captured {
+    uint16_t index;
+    uint8_t sub;
+    uint8_t size;
+    uint32_t raw;
+};
 // Two identity dictionaries in the specimens' retained form; node 2 can differ on request.
 struct Wire : OwnerRig::WireBase {
     uint64_t now = 0;
     bool silent[3] = {};
+    // While set, each upload to that node must be the table's next object, in the captured order,
+    // and takes its captured reply instead of the dictionary below.
+    const Captured* script[3] = {};
+    unsigned scriptLength[3] = {}, scriptAt[3] = {};
     uint16_t model[3] = {0, 0x0400, 0x0400};
     unsigned uploads = 0;
     static bool transmit(void* context, const M::Frame& f, O::TransportTxId id, uint32_t epoch) {
@@ -83,6 +95,13 @@ struct Wire : OwnerRig::WireBase {
             break;
         default:
             CHECK(false);
+        }
+        if (w.script[node]) {
+            CHECK(w.scriptAt[node] < w.scriptLength[node]);
+            const Captured& c = w.script[node][w.scriptAt[node]++];
+            CHECK(c.index == index && c.sub == sub);
+            width = c.size;
+            raw = c.raw;
         }
         M::Frame reply = OwnerRig::frame(0x580 + node, 8);
         reply.data[0] = width == 1 ? 0x4f : width == 2 ? 0x4b : 0x43;
@@ -333,6 +352,268 @@ void silentNodeKeepsUncertainty() {
     CHECK(rig.bench.release());
     CHECK(refused(rig.bench.begin(rig.request(E::DiscoveryMode::PROBE, 2), rig.now), "scan"));
 }
+
+// ------------------------------------------------------- 2026-11-09 capture, replayed literally
+// A produced line against a retained captured line, token by token. A token whose key is listed in
+// `skip` is compared by key only: S2 microseconds (completed, admitted, gap), the owner's request
+// and TX counters of that boot (oreq, tx0, tx1) and the app's operation numbers (op, req; the
+// readiness routes 901 and 902 had used the first six of that boot). Every other token, every value
+// included, must be identical, and so must the token count.
+bool listed(const char* list, const char* key, size_t size) {
+    for (const char* at = list; *at;) {
+        while (*at == ' ')
+            ++at;
+        const char* end = at;
+        while (*end && *end != ' ')
+            ++end;
+        if (size_t(end - at) == size && !std::strncmp(at, key, size))
+            return true;
+        at = end;
+    }
+    return false;
+}
+bool sameLine(const char* got, const char* captured, const char* skip) {
+    const char* a = got;
+    const char* b = captured;
+    for (;;) {
+        while (*a == ' ')
+            ++a;
+        while (*b == ' ')
+            ++b;
+        const bool doneA = !*a || *a == '\n', doneB = !*b || *b == '\n';
+        if (doneA || doneB) {
+            if (doneA && doneB)
+                return true;
+            break;
+        }
+        const char* endA = a;
+        while (*endA && *endA != ' ' && *endA != '\n')
+            ++endA;
+        const char* endB = b;
+        while (*endB && *endB != ' ' && *endB != '\n')
+            ++endB;
+        const char* keyA = a;
+        while (keyA < endA && *keyA != '=')
+            ++keyA;
+        const char* keyB = b;
+        while (keyB < endB && *keyB != '=')
+            ++keyB;
+        const size_t key = size_t(keyA - a);
+        if (key != size_t(keyB - b) || std::strncmp(a, b, key))
+            break;
+        if (!listed(skip, a, key) &&
+            (endA - a != endB - b || std::strncmp(a, b, size_t(endA - a))))
+            break;
+        a = endA;
+        b = endB;
+    }
+    std::fprintf(stderr, "produced: %s\ncaptured: %s\n", got, captured);
+    return false;
+}
+// The skip list of each record line's tag.
+const char* skipFor(const char* line) {
+    return starts(line, "DISC_T ")        ? "completed"
+           : starts(line, "DISC_SELECT ") ? "tx0 tx1"
+           : starts(line, "RESULT ")      ? "op req oreq admitted completed"
+           : starts(line, "DISC ")        ? "gap"
+                                          : "";
+}
+// The probe and identity replies of 2026-11-09 11:19Z, from the RESULT lines of
+// docs/bench/20261109T1119Z-r2-p37_discovery/rx.txt: the probe lines 16-17, the identity uploads
+// of node 1 lines 27-35 and of node 2 lines 36-44. Both specimens answered 1009 and 100A in one
+// byte and 1018:00 with 5, while the EDS names subindexes 1..3 only.
+const Captured PROBE_REPLY[1] = {{0x1000, 0x00, 4, 0x00040192}};
+const Captured IDENTITY_REPLIES[9] = {
+    {0x1000, 0x00, 4, 0x00040192}, {0x1009, 0x00, 1, 0x0000000c}, {0x100a, 0x00, 1, 0x00000020},
+    {0x1018, 0x00, 1, 0x00000005}, {0x1018, 0x01, 4, 0x00001000}, {0x1018, 0x02, 4, 0x00000001},
+    {0x1018, 0x03, 4, 0x00000000}, {0x2000, 0x00, 2, 0x00000400}, {0x2001, 0x00, 2, 0x00000200}};
+// The three D lines of that plan (Do,5,0,0, Dp,3,1,0 and Di,5,2,1) in one MCU boot (image
+// 757f1cd), heartbeats disabled on both nodes (1017 = 0): the passive window finds no evidence and
+// sends nothing; one accepted 1000:00 probe per node, both 00040192, then host selection of node 1;
+// the nine identity uploads per node, both matching the retained 2026-11-04 identity (1018
+// 1000/1/0, 2000 0400, 2001 0200), then selection of node 2. Selection sends nothing. Each record's
+// lines are compared with the captured ones; the n listing afterwards (lines 47-48) has no
+// observation of either node.
+void replayDiscovery20261109() {
+    struct Plan {
+        E::DiscoveryMode mode;
+        uint32_t id, seconds;
+        uint8_t select;
+        bool expect;
+        const Captured* replies;
+        unsigned replyCount;
+        unsigned lineCount;
+        const char* lines[25];
+    };
+    static const Plan plans[3] = {
+        {E::DiscoveryMode::PASSIVE, 1, 5, 0, false, nullptr, 0, 5,
+         {
+            // line 3
+            "DISC id=1 mode=0 seconds=5 targets=2 attempted=2 completed=2 admitted=0 terminals=0 "
+            "occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=1 changed=0 failed=0 "
+            "lost=0 gap=2000",
+            // line 4
+            "DISC_T node=1 slot=0 outcome=3 confidence=0 read=0 state=0 fields=0 uncertain=0 hb=0 "
+            "hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70572979",
+            // line 5
+            "DISC_T node=2 slot=1 outcome=3 confidence=0 read=0 state=0 fields=0 uncertain=0 hb=0 "
+            "hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70572979",
+            // line 6
+            "DISC_SELECT node=0 attempted=0 selected=0 current=0 tx0=0 tx1=0",
+            // line 7
+            "END discovery terminals=0 targets=2; selection sends nothing; r=release",
+         }},
+        {E::DiscoveryMode::PROBE, 2, 3, 1, false, PROBE_REPLY, 1, 9,
+         {
+            // line 10
+            "DISC id=2 mode=1 seconds=3 targets=2 attempted=2 completed=2 admitted=2 terminals=2 "
+            "occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=0 changed=0 failed=0 "
+            "lost=0 gap=4100",
+            // line 11
+            "DISC_T node=1 slot=0 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=0 "
+            "hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70661981",
+            // line 12
+            "DISC_T node=2 slot=1 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=0 "
+            "hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70670993",
+            // line 13
+            "DISC_PROBE node=1 type=00040192",
+            // line 14
+            "DISC_PROBE node=2 type=00040192",
+            // line 15
+            "DISC_SELECT node=1 attempted=1 selected=1 current=1 tx0=46 tx1=46",
+            // line 16
+            "RESULT op=7 req=7 oreq=47 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70657981 "
+            "completed=70661981 ne=1 reason=0 st=3f",
+            // line 17
+            "RESULT op=8 req=8 oreq=48 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70667981 "
+            "completed=70670993 ne=1 reason=0 st=3f",
+            // line 18
+            "END discovery terminals=2 targets=2; selection sends nothing; r=release",
+         }},
+        {E::DiscoveryMode::IDENTITY, 3, 5, 2, true, IDENTITY_REPLIES, 9, 25,
+         {
+            // line 21
+            "DISC id=3 mode=2 seconds=5 targets=2 attempted=2 completed=2 admitted=18 "
+            "terminals=18 occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=0 changed=0 "
+            "failed=0 lost=0 gap=4157",
+            // line 22
+            "DISC_T node=1 slot=0 outcome=2 confidence=3 read=1 state=2 fields=9 uncertain=0 hb=0 "
+            "hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70892982",
+            // line 23
+            "DISC_T node=2 slot=1 outcome=2 confidence=3 read=1 state=2 fields=9 uncertain=0 hb=0 "
+            "hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70974990",
+            // line 24
+            "DISC_ID node=1 type=00040192 hw=c hww=1 sw=20 sww=1 entries=5 vendor=00001000 "
+            "product=00000001 revision=00000000 model=0400 firmware=0200",
+            // line 25
+            "DISC_ID node=2 type=00040192 hw=c hww=1 sw=20 sww=1 entries=5 vendor=00001000 "
+            "product=00000001 revision=00000000 model=0400 firmware=0200",
+            // line 26
+            "DISC_SELECT node=2 attempted=1 selected=1 current=1 tx0=64 tx1=64",
+            // line 27
+            "RESULT op=9 req=9 oreq=49 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70816981 "
+            "completed=70820981 ne=1 reason=0 st=3f",
+            // line 28
+            "RESULT op=9 req=9 oreq=50 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=70826981 "
+            "completed=70829984 ne=1 reason=0 st=3f",
+            // line 29
+            "RESULT op=9 req=9 oreq=51 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=70835981 "
+            "completed=70838981 ne=1 reason=0 st=3f",
+            // line 30
+            "RESULT op=9 req=9 oreq=52 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=70844981 "
+            "completed=70847981 ne=1 reason=0 st=3f",
+            // line 31
+            "RESULT op=9 req=9 oreq=53 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=70853981 "
+            "completed=70856985 ne=1 reason=0 st=3f",
+            // line 32
+            "RESULT op=9 req=9 oreq=54 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=70862981 "
+            "completed=70865981 ne=1 reason=0 st=3f",
+            // line 33
+            "RESULT op=9 req=9 oreq=55 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=70871981 "
+            "completed=70874981 ne=1 reason=0 st=3f",
+            // line 34
+            "RESULT op=9 req=9 oreq=56 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=70880981 "
+            "completed=70883983 ne=1 reason=0 st=3f",
+            // line 35
+            "RESULT op=9 req=9 oreq=57 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=70889981 "
+            "completed=70892982 ne=1 reason=0 st=3f",
+            // line 36
+            "RESULT op=10 req=10 oreq=58 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70899981 "
+            "completed=70902990 ne=1 reason=0 st=3f",
+            // line 37
+            "RESULT op=10 req=10 oreq=59 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=70908981 "
+            "completed=70911982 ne=1 reason=0 st=3f",
+            // line 38
+            "RESULT op=10 req=10 oreq=60 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=70917981 "
+            "completed=70920983 ne=1 reason=0 st=3f",
+            // line 39
+            "RESULT op=10 req=10 oreq=61 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=70926981 "
+            "completed=70929982 ne=1 reason=0 st=3f",
+            // line 40
+            "RESULT op=10 req=10 oreq=62 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=70935981 "
+            "completed=70938982 ne=1 reason=0 st=3f",
+            // line 41
+            "RESULT op=10 req=10 oreq=63 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=70944981 "
+            "completed=70947989 ne=1 reason=0 st=3f",
+            // line 42
+            "RESULT op=10 req=10 oreq=64 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=70953981 "
+            "completed=70956988 ne=1 reason=0 st=3f",
+            // line 43
+            "RESULT op=10 req=10 oreq=65 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=70962981 "
+            "completed=70965988 ne=1 reason=0 st=3f",
+            // line 44
+            "RESULT op=10 req=10 oreq=66 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 "
+            "uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=70971981 "
+            "completed=70974990 ne=1 reason=0 st=3f",
+            // line 45
+            "END discovery terminals=18 targets=2; selection sends nothing; r=release",
+         }},
+    };
+    Rig rig;
+    for (const Plan& p : plans) {
+        for (unsigned node = 1; node <= 2; ++node) {
+            rig.wire.script[node] = p.replies;
+            rig.wire.scriptLength[node] = p.replyCount;
+            rig.wire.scriptAt[node] = 0;
+        }
+        const unsigned sent = rig.wire.sentCount;
+        CHECK(rig.bench.begin(rig.request(p.mode, p.id, p.select, p.expect, p.seconds), rig.now) ==
+              nullptr);
+        rig.finish(80000);
+        CHECK(rig.wire.scriptAt[1] == p.replyCount && rig.wire.scriptAt[2] == p.replyCount);
+        CHECK(rig.wire.sentCount == sent + 2 * p.replyCount);
+        char out[32][E::DISCOVERY_BENCH_LINE];
+        CHECK(rig.lines(out, 32) == p.lineCount);
+        for (unsigned i = 0; i < p.lineCount; ++i)
+            CHECK(sameLine(out[i], p.lines[i], skipFor(p.lines[i])));
+        const E::DiscoveryBenchRecord& r = *rig.bench.record();
+        CHECK(r.selection.txBefore == r.selection.txAfter);
+        CHECK(rig.bench.release());
+    }
+    for (unsigned slot = 0; slot < 2; ++slot) {
+        const C::NodeSnapshot& node = *rig.services.node(uint8_t(slot));
+        CHECK(!node.heartbeat.present && !node.nmtTime.present && !node.transitionPending);
+    }
+}
 } // namespace
 int main() {
     admissionRefusals();
@@ -341,5 +622,6 @@ int main() {
     probeAndSelection();
     identityExpectations();
     silentNodeKeepsUncertainty();
+    replayDiscovery20261109();
     std::printf("discovery bench: %u checks passed\n", checks);
 }

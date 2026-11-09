@@ -60,6 +60,27 @@ reported released with running latched, settled at 896 and completed on standsti
 [2026-11-04 session](reports/2026-11-04_bench.md),
 [2026-11-05 session](reports/2026-11-05_motion_and_stress.md), [packet 16](reports/handoff_19_33/packet_16.md)).
 
+**From a moving `005F`, measured on 2026-11-09.** These are drive reports on one firmware and two
+specimens; no shaft angle was measured. A HALT interrupting node 1's relative move (trial 832, 6 rpm,
+200 ms ramps, node 2 observed stationary) read `2100=0004` with `6041=4037` in its first cycle: bit
+12 already clear, running still set. The second cycle read `2100=0000` with `6041=0437`, and the stop
+completed `OBSERVED` there. A HALT from node 2's moving `001F` the same morning (828, 500 ms ramps)
+read running in two cycles before `0000` and `0437`, and the `000F` after it did not resume the halted
+target (829: `6064` 104 before it and in eight cycles after it). Both drives stayed enabled (low bits
+7, `2100` bit 4 clear). In 832, `6064` was last read at 146 with `606C=5`, just before the `010F`. The
+HALT's own cycles read no `6064`, and the next read of node 1, in a later MCU boot without a drive
+power cycle, found 158 (901). A quick stop interrupting node 1's relative move (1109, 6 rpm, node 2
+observed stationary) read released with running latched, `2100=0014` and `6041=4050`, in all three of
+its cycles. `6064` read 259 with `606C=0` in the second and third cycles, 3 pulses past the last move
+cycle's 256, and the standstill rule below completed it `OBSERVED`. **After that quick stop the drive
+reports itself released:** the next read (1111) again found `2100=0014` and `6041=4050` at 259. Torque
+was not observed, so treat a load the motor held as no longer held. A quick stop from node 2's
+acknowledged, stationary `005F` (833) also released it (`6041=8050`, `2100=0011`). Each interrupted move
+was kept as its own record: `CANCELLED` with interruption `STOP`, trajectory uncertain, the session
+fenced. `move_relative_test.cpp` tests 32 and 33 replay these values through the real owner and
+`AxisSession` ([packet 8](reports/bench_closure_18_33/packet_8.md),
+[2026-11-09 round 4](reports/2026-11-09_bench_r4.md)).
+
 | Latest acknowledged `6040`, mode 1 | Stop | `predecessorDocumented` | Basis |
 | --- | --- | --- | --- |
 | `000F` | `000B` (`QUICK_STOP`) | True | EN86 and ZH86 p12, OP86 p10 |
@@ -143,8 +164,8 @@ that the command should have retained torque. **One exception, from drive report
 no alarm, is `OBSERVED`, because that is what both specimens reported after `000B`.
 `monitorObservation` keeps the released bit: **after a quick stop this drive reports itself
 released**. Torque was not observed, so treat a load the motor held as no longer held. Every
-`HALT` tried left the drive reporting enabled, not released (207, 406, 709), so a release still
-ends it outside the scope, as does a release with any low bit set.
+`HALT` tried left the drive reporting enabled, not released (207, 406, 709, 828, 832), so a release
+still ends it outside the scope, as does a release with any low bit set.
 
 **Standstill after a moving quick stop, from drive reports.** After `000B` during a move the drive
 reported release but kept `2100` bit 2 set while its target stayed unreached, so "not running" never came.
@@ -155,8 +176,9 @@ with `606C` zero and `6064` unchanged then complete it as `OBSERVED`. With a fiv
 the rule is not offered and the stop ends at its deadline as before. The latched bit is the drive's
 report, not motion. Retested on node 1 (trial 413): `000B` at `6064=1558` during a 30 rpm move, then
 `6064=1569` twice with `606C=0`, `OBSERVED` about 0.6 s after the command. The latch appeared on
-both specimens. The rule has completed twice, once on each node, on one firmware: at about 30 rpm
-(413, node 1) and at about 100 rpm while accelerating (713, node 2).
+both specimens. The rule has completed three times on one firmware: from `001F` at about 30 rpm (413,
+node 1) and at about 100 rpm while accelerating (713, node 2), and from a held `005F` at 6 rpm (1109,
+node 1).
 
 **No observation at the deadline.** An action yields no new observation read once one exchange's
 queue and response budgets no longer fit before its deadline. On 2026-11-04 a stop's last read
@@ -265,10 +287,13 @@ manufactured by a fake. They do not establish firmware applicability, motor stan
 stop latency, braking curve, torque, device-target retirement or reference validity.
 On one firmware, judged from drive reports: `000B` from `000F` (124) and from `010F` (126, 208);
 `010F` from `000F` (207); `010F` from `001F` three times on node 1 (113 at 2 rpm, 406 at 6 rpm,
-709 at 300 rpm); `000B` from `001F` three times (213 on node 2 and 413 on node 1 at 30 rpm, 713 on
-node 2 at about 100 rpm); and `000B` with no known predecessor on two states (307, 503). Stops from
-`005F`, `003F` and `007F`, any other state, a moving `010F` to `000B` escalation, and velocity and
-homing modes need their own fixture evidence. See the
+709 at 300 rpm) and once on node 2 (828 at 6 rpm); `000B` from `001F` three times (213 on node 2 and
+413 on node 1 at 30 rpm, 713 on node 2 at about 100 rpm); `010F` from a moving `005F` (832, node 1);
+`000B` from a moving `005F` (1109, node 1) and from a stationary acknowledged one (833, node 2); and
+`000B` with no known predecessor on two states (307, 503). These are measurements, not a
+qualification: the `005F` rows stay project decisions (DEC-8) with no documented arrow. Stops from
+`003F` and `007F`, any other state, a moving `010F` to `000B` escalation, and velocity and homing
+modes need their own fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.
 

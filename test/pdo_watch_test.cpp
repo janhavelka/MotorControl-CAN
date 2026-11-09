@@ -887,6 +887,102 @@ void testLongestLines() {
         longest = each.size() + 1 > longest ? each.size() + 1 : longest;
     CHECK(longest < size_t(E::PDO_WATCH_LINE_BYTES));
 }
+
+// The heartbeat period of 2026-11-09 as the S2 measured it, replayed from the watch's own lines:
+// each 7F frame enters the tap at its captured receive bounds, and the watch must print the
+// captured gaps and per-identifier statistics. Boot A, image 627bb42, after each node's 1017:00
+// raw 0 to 1000 write: node 1 (docs/bench/20261109T1245Z-r4a-hb-node1/rx.txt, P15 begun at
+// 60057979: PDOW_F lines 153-303, PDOW_ID lines 294 and 304) and then node 2 with node 1 still
+// producing (20261109T1246Z-r4a-hb-node2/rx.txt, begun at 88148979: PDOW_F lines 152-319, PDOW_ID
+// lines 304-305 and 320-321). The mean gap is 1000795 us for node 1's 14 frames and 1000796 and
+// 1000792 us in the second watch: about 1.0008 s per heartbeat on the S2's clock at raw 1000.
+// Times are the IdfTwaiDriver bounds, hi as the frame's time, so each gap includes interrupt
+// latency; this is no CAN-bus timestamp and no drive timing guarantee.
+void testHeartbeatPeriod20261109() {
+    struct Captured {
+        uint32_t id;
+        uint64_t lo, hi, gap;
+    };
+    struct Watch {
+        uint64_t begin;
+        unsigned count;
+        Captured frames[29];
+        unsigned idCount;
+        const char* ids[4];
+    };
+    static const Watch watches[2] = {
+        {60057979, 14,
+         {{0x701, 61088163, 61089040, 0},       {0x701, 62089162, 62089852, 1000812},
+          {0x701, 63090162, 63090634, 1000782}, {0x701, 64091162, 64091440, 1000806},
+          {0x701, 65092016, 65092232, 1000792}, {0x701, 66090280, 66092947, 1000715},
+          {0x701, 67093204, 67093822, 1000875}, {0x701, 68093197, 68094602, 1000780},
+          {0x701, 69095154, 69095442, 1000840}, {0x701, 70096012, 70096201, 1000759},
+          {0x701, 71096158, 71097000, 1000799}, {0x701, 72097158, 72097791, 1000791},
+          {0x701, 73098158, 73098576, 1000785}, {0x701, 74099158, 74099382, 1000806}},
+         2,
+         {"PDOW_ID n=19 t=70058985 id=701 ext=0 count=9 first=61089040 last=69095442 "
+          "minGap=1000715 maxGap=1000875 meanGap=1000800 sdGap=43 changes=0 dlc=1 data=7f",
+          "PDOW_ID n=29 t=75057979 id=701 ext=0 count=14 first=61089040 last=74099382 "
+          "minGap=1000715 maxGap=1000875 meanGap=1000795 sdGap=36 changes=0 dlc=1 data=7f"}},
+        {88148979, 29,
+         {{0x701, 89111166, 89111304, 0},         {0x702, 89178162, 89178561, 0},
+          {0x701, 90111159, 90112088, 1000784},   {0x702, 90179159, 90179335, 1000774},
+          {0x701, 91112159, 91112917, 1000829},   {0x702, 91180014, 91180149, 1000814},
+          {0x701, 92113159, 92113711, 1000794},   {0x702, 92180159, 92180925, 1000776},
+          {0x701, 93114159, 93114474, 1000763},   {0x702, 93181159, 93181730, 1000805},
+          {0x701, 94113280, 94115222, 1000748},   {0x702, 94182280, 94182529, 1000799},
+          {0x701, 95115199, 95116051, 1000829},   {0x702, 95183198, 95183317, 1000788},
+          {0x701, 96115198, 96116860, 1000809},   {0x702, 96183200, 96184104, 1000787},
+          {0x701, 97117150, 97117653, 1000793},   {0x702, 97184156, 97184905, 1000801},
+          {0x701, 98118154, 98118452, 1000799},   {0x702, 98185156, 98185693, 1000788},
+          {0x701, 99119012, 99119231, 1000779},   {0x702, 99186156, 99186524, 1000831},
+          {0x701, 100119156, 100120039, 1000808}, {0x702, 100187156, 100187281, 1000757},
+          {0x701, 101120156, 101120816, 1000777}, {0x702, 101187156, 101188074, 1000793},
+          {0x701, 102121156, 102121620, 1000804}, {0x702, 102188156, 102188866, 1000792},
+          {0x701, 103122156, 103122454, 1000834}},
+         4,
+         {"PDOW_ID n=29 t=98149983 id=701 ext=0 count=10 first=89111304 last=98118452 "
+          "minGap=1000748 maxGap=1000829 meanGap=1000794 sdGap=25 changes=0 dlc=1 data=7f",
+          "PDOW_ID n=30 t=98151987 id=702 ext=0 count=9 first=89178561 last=97184905 "
+          "minGap=1000774 maxGap=1000814 meanGap=1000793 sdGap=13 changes=0 dlc=1 data=7f",
+          "PDOW_ID n=45 t=103148979 id=701 ext=0 count=15 first=89111304 last=103122454 "
+          "minGap=1000748 maxGap=1000834 meanGap=1000796 sdGap=24 changes=0 dlc=1 data=7f",
+          "PDOW_ID n=46 t=103150987 id=702 ext=0 count=14 first=89178561 last=102188866 "
+          "minGap=1000757 maxGap=1000831 meanGap=1000792 sdGap=17 changes=0 dlc=1 data=7f"}},
+    };
+    for (const Watch& w : watches) {
+        Rig rig;
+        rig.now = w.begin;
+        CHECK(rig.watch.begin(15, rig.now) == E::PdoWatchAdmission::ACCEPTED);
+        for (unsigned i = 0; i < w.count; ++i) {
+            const Captured& c = w.frames[i];
+            while (rig.now + 1000 < c.hi)
+                rig.turn();
+            M::Frame beat = frame(c.id, 1);
+            beat.data[0] = 0x7f;
+            rig.add(bounded(beat, c.lo, c.hi));
+            rig.turn(false, c.hi + 100 - rig.now);
+        }
+        rig.finish();
+        rig.checkLines();
+        const std::vector<std::string> printed = rig.tagged("PDOW_F");
+        CHECK(printed.size() == w.count);
+        for (unsigned i = 0; i < w.count && i < printed.size(); ++i) {
+            const Captured& c = w.frames[i];
+            CHECK(std::strtoul(field(printed[i], "id").c_str(), nullptr, 16) == c.id);
+            CHECK(number(printed[i], "lo") == c.lo && number(printed[i], "hi") == c.hi);
+            CHECK(number(printed[i], "gap") == c.gap && field(printed[i], "data") == "7f");
+        }
+        const std::vector<std::string> ids = rig.tagged("PDOW_ID");
+        CHECK(ids.size() == w.idCount);
+        for (unsigned i = 0; i < w.idCount && i < ids.size(); ++i) {
+            if (shape(ids[i]) != shape(w.ids[i]))
+                std::fprintf(stderr, "produced: %s\ncaptured: %s\n", ids[i].c_str(), w.ids[i]);
+            CHECK(shape(ids[i]) == shape(w.ids[i]));
+        }
+        CHECK(number(rig.last("PDOW_END"), "frames") == w.count);
+    }
+}
 } // namespace
 
 int main() {
@@ -907,6 +1003,7 @@ int main() {
     testHeldOutput();
     testTapDropsReported();
     testLongestLines();
+    testHeartbeatPeriod20261109();
     std::printf("pdo_watch: %u checks, sizeof(PdoWatch)=%lu sizeof(ReceiveRing)=%lu\n", checks,
                 static_cast<unsigned long>(sizeof(E::PdoWatch)),
                 static_cast<unsigned long>(sizeof(E::ReceiveRing)));

@@ -397,7 +397,10 @@ The bench image with PONG `pdo=4` integrates prompts 37 and 38 as three console 
 after its terminal. They run through the same owner, adapter and dispatcher as everything else. An
 older image reads `D`, `K` and `H` as unknown bytes followed by single-byte commands (`K1` would be
 a node-1 identity read), so `scripts/s2_pdo.py` sends them only to a `pdo=4` image. Host tests:
-`discovery_bench`, `communication_bench` and `pdo_command`; no bench run is recorded yet.
+`discovery_bench`, `communication_bench` and `pdo_command`. Bench runs on 2026-11-09:
+[round 2](reports/2026-11-09_bench_r2.md) and [round 4](reports/2026-11-09_bench_r4.md); both suites
+replay those captures value for value (`replayDiscovery20261109`, `replayReads20261109`,
+`replayCommissioning20261109`, `replayPendingTransition20261109`, `replayHeartbeatRefusals20261109`).
 
 **Entry, all three.** `c` has started the controller, and no dump, network listing, NMT result,
 raw, typed, PDO, route, soak, capture or other `D`/`K`/`H` record is held (`reason=state`, or
@@ -490,7 +493,13 @@ there is no reverse transition, save, NMT or reset. Steps, each with its own exa
    write. A known current state other than Pre-operational ends it before the baseline
    (`failure=8`).
 2. One exact U16 upload of `1017:00` under the actual NMT observation. `prepareCommunication`
-   refuses anything but a fresh exact raw 0 before any write (`failure=9`; `detail=6` is VALUE).
+   refuses anything but a fresh exact raw 0 before any write (`failure=9`, the `HB_PREP` detail is
+   its `ReadError`). It checks the NMT premise before the value: a known state must come from a
+   heartbeat received at or after the record's admission, and the baseline is admitted at once, so
+   on a node that already heartbeats (raw not 0) the last heartbeat normally precedes the admission
+   and the refusal is `detail=2` (ARGUMENT), as measured on node 1 on 2026-11-09 12:06Z. `detail=6`
+   (VALUE) needs an unknown NMT state, or a heartbeat inside the few milliseconds between admission
+   and baseline. Either way nothing is written.
 3. The one download, `2B 17 10 00 E8 03 00 00`. Immediately after admission the node's producer
    interval and PDO routes are withdrawn and `noteCommunicationTransmission` advances the
    application epoch; the dispatcher's `preflight` then matches only this noticed download.
