@@ -1,0 +1,16 @@
+{
+  "purpose": "Configure both node routes in a fresh MCU boot with one accepted 1000:00 probe per node (no write), so that NMT lines are admitted afterwards.",
+  "authorization": "user 2026-11-09: 'do all the tests yourself' (absent); read-only",
+  "steps": [
+    {
+      "send": "Dp,3,0,0",
+      "expect": "DISC admitted",
+      "end": "END discovery",
+      "end_timeout_s": 10
+    },
+    {
+      "send": "r",
+      "expect": "DISC record released"
+    }
+  ]
+}

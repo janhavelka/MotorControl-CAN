@@ -1,0 +1,112 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T12:06:41.430167+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_hb_now_transition_node1.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1206Z-r3-hb-transition-node1b"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_hb_now_transition_node1.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "627bb42d504ba50d387539a0993921689a7e2f59",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "627bb42d504ba50d387539a0993921689a7e2f59",
+    "elf": "e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "52223977",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "refused",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-09T12:06:41.824822+00:00",
+      "monotonic": 270374.921,
+      "reply": "NMT admitted node=1 cmd=128; addressed, no drive-stop claim; network observation separate",
+      "reply_line": 2,
+      "end": "NMT request=2 target=1 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=52317985 admitted=52314711; retained; network observation separate",
+      "end_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:06:41.853338+00:00",
+      "monotonic": 270374.937,
+      "reply": "NMT result released; state/uncertainty retained",
+      "reply_line": 4,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "Accepted probe after the intent: ordinary service. Record DISC_T hb/hbp to see whether a heartbeat arrived after N",
+      "sent": "Dp,1,1,0",
+      "tx_hex": "44702c312c312c300a",
+      "utc": "2026-11-09T12:06:41.861337+00:00",
+      "monotonic": 270374.953,
+      "reply": "DISC admitted mode=1 seconds=1 select=1 expect=0; uploads only, selection sends nothing; no retry",
+      "reply_line": 5,
+      "end": "END discovery terminals=2 targets=2; selection sends nothing; r=release",
+      "end_line": 14,
+      "outcome": "answered"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:06:42.008879+00:00",
+      "monotonic": 270375.093,
+      "reply": "DISC record released; routes, epochs and quarantine unchanged",
+      "reply_line": 15,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "Expected: HB refused reason=transition; no work (plan outcome refused). Alternative if a heartbeat came after N: terminal_failed heartbeat_failure_9, no 2B frame",
+      "sent": "H1,1000",
+      "tx_hex": "48312c313030300a",
+      "utc": "2026-11-09T12:06:42.017383+00:00",
+      "monotonic": 270375.109,
+      "reply": "HB refused reason=transition; no work",
+      "reply_line": 16,
+      "outcome": "refused"
+    }
+  ],
+  "ended_utc": "2026-11-09T12:06:43.203602+00:00",
+  "bytes": 1851
+}

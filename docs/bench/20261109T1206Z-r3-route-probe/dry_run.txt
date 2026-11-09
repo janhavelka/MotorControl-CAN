@@ -1,0 +1,4 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/route_probe.json: 2 steps; Configure both node routes in a fresh MCU boot with one accepted 1000:00 probe per node (no write), so that NMT lines are admitted afterwards.
+   1 {"send": "Dp,3,0,0", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 10}
+   2 {"send": "r", "expect": "DISC record released"}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dry-r3-route-probe; touches nothing now

@@ -1,0 +1,35 @@
+{
+  "purpose": "Prompt 38 heartbeat migration fix, meaningful while node 1 still holds 1017:00 = raw 1000 (before its next power cycle): the node now sends heartbeats 7F about every 1.0008 s, so the N line's Pre-operational transition is observed by the next heartbeat, which also gives exact NMT state and ordinary service. H is then admitted (its migration premises hold), reads the baseline once and refuses before any write: HB failure=9, HB_PREP prepared=0 detail=6 (VALUE), one RESULT 1017:00 upload with data e8030000 and no 2B frame. The plan therefore ends terminal_failed heartbeat_failure_9 by design.",
+  "authorization": "Standing bench authorization 2026-11-02 (docs/prompts/COMMON.md): finite reviewed bench work on the two CL86-C nodes; no save, no NMT reset, no motion; one 1017:00 upload on node 1, no write expected",
+  "steps": [
+    {
+      "send": "N1,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Pre-operational intent; the drive is already Pre-operational, so the next 7F heartbeat ends the transition"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "wait_s": 2.5,
+      "note": "At least two heartbeat periods: the transition is observed and the NMT state is exact"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5,
+      "note": "Node 1 Pre-operational from a heartbeat after the intent; transition no longer pending"
+    },
+    {
+      "send": "H1,1000",
+      "expect": "HB admitted",
+      "end": "END heartbeat",
+      "end_timeout_s": 15,
+      "note": "Expected: terminal_failed heartbeat_failure_9, HB_PREP nmt=1 nmtState=127 prepared=0 status=1 detail=6, one RESULT 1017:00 dir=0 data=e8030000, no TRAFFIC frame starting 2b"
+    }
+  ]
+}

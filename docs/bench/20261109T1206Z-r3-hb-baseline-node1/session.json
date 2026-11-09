@@ -1,0 +1,64 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T12:06:13.464125+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_hb_now_baseline_node1.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1206Z-r3-hb-baseline-node1"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hbfix-plans/p38_hb_now_baseline_node1.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "627bb42d504ba50d387539a0993921689a7e2f59",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "627bb42d504ba50d387539a0993921689a7e2f59",
+    "elf": "e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "24258982",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "refused",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Pre-operational intent; the drive is already Pre-operational, so the next 7F heartbeat ends the transition",
+      "sent": "N1,p",
+      "tx_hex": "4e312c700a",
+      "utc": "2026-11-09T12:06:13.844302+00:00",
+      "monotonic": 270346.937,
+      "reply": "NMT refused; no work",
+      "reply_line": 2,
+      "outcome": "refused"
+    }
+  ],
+  "ended_utc": "2026-11-09T12:06:14.977245+00:00",
+  "bytes": 274
+}

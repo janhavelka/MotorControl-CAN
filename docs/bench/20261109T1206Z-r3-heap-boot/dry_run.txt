@@ -1,0 +1,6 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/b3738-plans/heap_boot.json: 4 steps; Heap plan check on a freshly flashed pdo=4 image: the boot reservation (reserved=1f) and the regions before and after the local CAN start; nothing is sent on CAN by M.
+   1 {"send": "M", "expect": "HEAP", "note": "Expect reserved=1f arena=0 arenaBytes=23688"}
+   2 {"send": "c", "expect": "CAN ready"}
+   3 {"send": "M", "expect": "HEAP"}
+   4 {"wait_s": 1, "require": [{"kind": "HEAP", "match": {"reserved": 31}}]}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dry-r3-heap-boot; touches nothing now

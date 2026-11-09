@@ -1,0 +1,12 @@
+PONG target=esp32s2 base=627bb42d504ba50d387539a0993921689a7e2f59 elf=e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=50321982 routes=6 trial=0 motion=0 pdo=4 watch=0 capture=0
+DISC admitted mode=1 seconds=3 select=0 expect=0; uploads only, selection sends nothing; no retry
+DISC id=1 mode=1 seconds=3 targets=2 attempted=2 completed=2 admitted=2 terminals=2 occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=0 changed=0 failed=0 lost=0 gap=3073
+DISC_T node=1 slot=0 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=50362995
+DISC_T node=2 slot=1 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=50370995
+DISC_PROBE node=1 type=00040192
+DISC_PROBE node=2 type=00040192
+DISC_SELECT node=0 attempted=0 selected=0 current=0 tx0=0 tx1=0
+RESULT op=1 req=1 oreq=2 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=50359990 completed=50362995 ne=1 reason=0 st=3f
+RESULT op=2 req=2 oreq=4 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=50367995 completed=50370995 ne=1 reason=0 st=3f
+END discovery terminals=2 targets=2; selection sends nothing; r=release
+DISC record released; routes, epochs and quarantine unchanged

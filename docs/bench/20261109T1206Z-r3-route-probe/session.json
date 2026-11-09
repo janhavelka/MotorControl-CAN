@@ -1,0 +1,77 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T12:06:39.529880+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/route_probe.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1206Z-r3-route-probe"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/route_probe.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "627bb42d504ba50d387539a0993921689a7e2f59",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "627bb42d504ba50d387539a0993921689a7e2f59",
+    "elf": "e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "50321982",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "Dp,3,0,0",
+      "tx_hex": "44702c332c302c300a",
+      "utc": "2026-11-09T12:06:39.865197+00:00",
+      "monotonic": 270372.953,
+      "reply": "DISC admitted mode=1 seconds=3 select=0 expect=0; uploads only, selection sends nothing; no retry",
+      "reply_line": 2,
+      "end": "END discovery terminals=2 targets=2; selection sends nothing; r=release",
+      "end_line": 11,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T12:06:40.014665+00:00",
+      "monotonic": 270373.109,
+      "reply": "DISC record released; routes, epochs and quarantine unchanged",
+      "reply_line": 12,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-09T12:06:41.147513+00:00",
+  "bytes": 1518
+}
