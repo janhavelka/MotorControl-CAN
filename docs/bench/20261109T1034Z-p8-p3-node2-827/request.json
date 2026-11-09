@@ -1,0 +1,110 @@
+{
+  "started_utc": "2026-11-09T10:34:07.072449+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "enable",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 827,
+  "plan": "packet 15 P3",
+  "fields": [
+    2,
+    827,
+    1,
+    1,
+    2,
+    33847,
+    5000,
+    120,
+    10000,
+    800
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 2 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 827 to confirm: ",
+      "typed": "ATTENDED 827",
+      "accepted": true
+    },
+    "power_up_shaft": {
+      "question": "Attendant: turn the node 2 shaft by hand now. Type FREE or HOLDING as felt, or UNOBSERVED if nobody felt it (the enable is then refused): ",
+      "typed": "HOLDING",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not recorded"
+    },
+    "holding_after": {
+      "question": "Attendant: turn the node 2 shaft by hand now: FREE or HOLDING? ",
+      "typed": "not recorded"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "enable",
+    "--node",
+    "2",
+    "--trial",
+    "827",
+    "--status",
+    "0x8437",
+    "--position-target",
+    "5000",
+    "--velocity-target",
+    "120",
+    "--deadline-ms",
+    "10000",
+    "--interval-ms",
+    "800",
+    "--no-motion-write-recorded",
+    "--campaign",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109-p8-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1034Z-p8-p3-node2-827"
+  ],
+  "host_revision": "18d6c2aefce844d8dcebf0d1e28ecfa782704bea",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-p8-campaign.jsonl",
+    "motion_total": 4,
+    "cases": {
+      "E1": 1,
+      "G1": 1,
+      "M1": 1,
+      "M2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5445322c3832372c312c312c322c33333834372c353030302c3132302c31303030302c3830302c4b35663132633662620a"
+  ],
+  "image": {
+    "base": "18d6c2aefce844d8dcebf0d1e28ecfa782704bea",
+    "elf": "765cec819ce3f65dbee9359ae80c3fc91e18a67000f7983448ecf12f939a6109",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TE2,827,1,1,2,33847,5000,120,10000,800,K5f12c6bb",
+  "tx_hex": "5445322c3832372c312c312c322c33333834372c353030302c3132302c31303030302c3830302c4b35663132633662620a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T10:34:11.922422+00:00"
+}

@@ -1,6 +1,6 @@
-# Packet 8: finite relative moves and stops (host part)
+# Packet 8: finite relative moves and stops
 
-[Packet 8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md), host work only, 2026-11-07. **Draft:** the motion items 2 to 4 did not run, and the packet stays open. Back to the [execution index](README.md); the bench plan is the [procedure](packet_8_procedure.md).
+[Packet 8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md), host work on 2026-11-07 and the attended bench campaign on 2026-11-09 (below). Items 2 to 4 ran; one planned case, a quick stop interrupting a moving `005F`, needs a later drive power-up. Back to the [execution index](README.md); the bench plan is the [procedure](packet_8_procedure.md).
 
 ## Start state
 
@@ -23,9 +23,9 @@
 | Item | Status | Where |
 | --- | --- | --- |
 | 1 Bounded route support and plan | Met without new route code. One runner refusal added (below). Procedure written and dry-run checked | [procedure](packet_8_procedure.md); `bench_route_test.cpp` `testPacket8Plan`; `s2_bench.py` `check_bounds` |
-| 2 Node 1 negative relative move | Not run: blocked (below). Planned as trial 805 | Procedure step 3 |
-| 3 Node 2 ACTUAL versus COMMANDED | Not run: blocked. Planned as trials 808 to 810 through the experiment routes; node 2's base stays `UNMEASURED` | Procedure step 4 |
-| 4 HALT and quick stop from `005F` | Not run: blocked. Planned as 812 (HALT interrupting node 1's relative move, node 2 observing) and 813 (quick stop from node 2's acknowledged `005F`); a quick stop interrupting a moving `005F` needs the next boot | Procedure step 5 |
+| 2 Node 1 negative relative move | Met 2026-11-09, trial 825: -100 at 6 rpm from an `ACTUAL` witness at 0, ended at -100 with acceptance and completion observed | [Campaign](#bench-campaign-2026-11-09) |
+| 3 Node 2 ACTUAL versus COMMANDED | Met 2026-11-09, trials 828 to 830: halted at 104 short of a commanded 600, rearmed without resuming, then +200 ended at 304 = 104 + 200, so node 2's base is `ACTUAL` (`COMMANDED` would give 800). One measurement on one firmware; no production relative move on node 2 ran in this boot | [Campaign](#bench-campaign-2026-11-09) |
+| 4 HALT and quick stop from `005F` | Met 2026-11-09: 832, a HALT interrupting node 1's moving relative move from its held `005F` with node 2 observed stationary; 833, a quick stop from node 2's acknowledged, stationary `005F`, which released the drive. A quick stop interrupting a moving `005F` remains for a later power-up (trial 905 in the procedure) | [Campaign](#bench-campaign-2026-11-09) |
 | 5 Unknown trigger, stop and counter consequences | Met as host timelines through the real owner; table below | `move_relative_test.cpp`, `alarm_clear_test.cpp`, `axis_session_test.cpp`, `bench_route_test.cpp` |
 | 6 Defects | None found in library or firmware. One runner gap fixed: a move deadline the library refuses was counted before the refusal | `scripts/s2_bench.py` |
 
@@ -52,6 +52,29 @@ Each mutant was built in `.build/p8host`, the new test run alone (a copy of the 
 | `test_short_move_deadline_refuses_before_sending` | `check_bounds` without the move-deadline rule | Fails: the 4550 ms line is sent (status 0, not 2) | n/a (one test) |
 
 Restored SHA-256: `AxisSession.cpp` `ff3939d1...`, `CanBusOwner.cpp` `8800f2ae...`, `Axis.cpp` `24349d00...`, `Actions.cpp` `6443178b...`, `BenchRoute.cpp` `7f03af0f...`, `s2_bench.py` `3a54bf38...`, each identical to the file before mutation.
+
+## Bench campaign, 2026-11-09
+
+The user power-cycled both drives and attended with the drive-power cutoff, answering in dialogs. Their shaft observations and attendance confirmation, which the lead typed into the runner, are quoted in a `NOTE.txt` beside each trial. Ledger: [20261109-p8-campaign.jsonl](../../bench/20261109-p8-campaign.jsonl), 12 of 12 motion admissions.
+
+**Image.** The current HEAD image `8293b3e` ([upload](../../bench/20261109T102332Z-s2-upload/)) refused node 2's first route with `TRIAL_REFUSED reason=memory` (trial 802, nothing sent). After `BenchRoute` and node 1's `AxisSession`, the largest free internal block was 34816 bytes (801's `TRIAL_RES`), and `AxisSession` has grown to about 35 KB with prompts 36 and 38. The campaign therefore ran on `18d6c2a` ([upload](../../bench/20261109T102645Z-s2-upload/), ELF `765cec81…`), whose firmware is `3353ed2`'s, the image this procedure and `testPacket8Plan` were checked against. On it, both sessions fit: 31188 bytes free and a largest block of 11264 after both. Measured with the S2 compiler: `AxisSession` 31880, `BenchRoute` 42624 and `RouteWork` 7720 bytes. The HEAD regression is open and is being fixed in the bench allocation. Trials were renumbered 821 to 833 (the procedure's 801 to 813 plus 20).
+
+| Trial | Route | Result |
+| --- | --- | --- |
+| 821, 822 | Power-up reads | Both nodes `6041=8037`, `2100=0001`, `6061=00`, `6064=0`, `607A=5000`, `60FF=120`, `1001=00`, `603F=0000` |
+| 823, 826 | `mode1` | `6041=8437`, `6061=01`, `2100=0001`, `6064=0` |
+| 824, 827 | `enable` | Words 6, 7 and 15 acknowledged (`8031`/`0011`, `8033`/`0001`, `8437`/`0001`), `outcome=1`, no uncertainty, `6064=0`. Node 1 held by hand afterwards |
+| 825 | Node 1 `move`, relative -100, 6 rpm, `ACTUAL` | Acceptance in cycle 1 (`6041=5037`, bit 12; `2100=0004`), completion in cycle 2 (`6041=9437`, `2100=0001`) at `6064=-100`; rearmed, `outcome=1`, retained target -100, not fenced. The attendant saw a small turn |
+| 828 | Node 2 `position` to 600, HALT after 2 cycles | Last move cycle `6064=75`, `606C=5`, running; the HALT from `001F` completed when `2100` running cleared (`0004`, `0004`, `0000`); `outcome=1`, no uncertainty |
+| 829 | Node 2 `rearm` | `000F` acknowledged after `010F`; `6064=104` before and after (`6041` `0437` then `0037`): the drive did not resume the halted target |
+| 830 | Node 2 `relative` +200 | From 104 to 304, in place (`2100=0001`, `6041=9437`); `TRIAL_BASE target=600 prevTrial=828`. Endpoint 304 = 104 + 200: base `ACTUAL`, not `COMMANDED` (800) |
+| 831 | Node 1 read | `6064=-100`, `2100=0001`, `6041=8437` |
+| 832 | Node 1 `move` +600 from -100, `ACTUAL`, node 2 observing, HALT after 2 cycles | Move interrupted (`outcome=5 int=2`, `uncertain=1`, `fenced=1`), kept as its own record; HALT from the held `005F` completed (`outcome=1 pred=005f`); node 1 stopped at 146. Observer node 2: checked, passed, `moved=0`, `6064` 304 throughout, `606C` max 0, no write to it |
+| 833 | Node 2 `stop`, quick | One `000B` from the acknowledged, stationary `005F` of 830: `outcome=1`, no uncertainty; after it `6041=8050` and `2100=0011` (released, in place), as after every earlier `000B`. The record's `TRIAL_LAST` (`9437`) is the stop's admission read, taken before the write |
+
+End state, felt by the attendant: node 1 holding (enabled, halted at 146, fenced for this MCU boot), node 2 free (released at 304). CAN: no EMCY, no alarm bit, `1001=00` and `603F=0000` throughout, TEC and REC 0.
+
+Device facts for the ledger, one firmware: node 2's relative base `ACTUAL` (trial 830), alongside node 1's (409); a HALT from a moving `005F` on node 1 and a quick stop from a stationary acknowledged `005F` on node 2, both reported complete by the drive. The attendant's observations are qualitative; no shaft angle or direction was measured.
 
 ## Route support (item 1)
 

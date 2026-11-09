@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Packet 8 bench campaign (2026-11-09)
+
+- Attended, after a drive power cycle, on image `18d6c2a`: node 1 relative -100 at 6 rpm ended at -100 (825); node 2 halted at 104, rearmed without resuming, then +200 ended at 304, so its relative base is `ACTUAL` (828-830); a HALT interrupted node 1's moving relative move from `005F` with node 2 observed stationary (832); a quick stop from node 2's stationary `005F` released it (833). 12 of 12 campaign admissions, every record as planned.
+- Found: on HEAD `8293b3e` the S2 bench cannot allocate a second `AxisSession` (largest free block 34816 bytes after the first; the session is now about 35 KB), so node 2's route was refused `reason=memory` with nothing sent. Open; being fixed in the bench allocation.
+
 ### Explicit communication commissioning
 
 - Added typed raw `2203` and all 88 PDO communication/mapping read rows, with
