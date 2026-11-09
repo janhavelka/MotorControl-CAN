@@ -220,13 +220,36 @@ target_include_directories(pdo_command_test PRIVATE ../examples/s2_bench)
 strict_test(pdo_command_test)
 add_test(NAME pdo_command COMMAND pdo_command_test)
 set_tests_properties(pdo_command PROPERTIES TIMEOUT 10)
+# The bench's D, K and H records (PONG pdo=4) over the real app, owner and service store.
+add_executable(discovery_bench_test discovery_bench_test.cpp)
+target_sources(discovery_bench_test PRIVATE ../examples/s2_bench/DiscoveryBench.cpp
+               ../examples/s2_bench/BenchTerminal.cpp)
+target_include_directories(discovery_bench_test PRIVATE ../examples/s2_bench)
+target_link_libraries(discovery_bench_test PRIVATE MotorControlCANProbeApp)
+strict_test(discovery_bench_test)
+add_test(NAME discovery_bench COMMAND discovery_bench_test)
+set_tests_properties(discovery_bench PROPERTIES TIMEOUT 30)
+add_executable(communication_bench_test communication_bench_test.cpp)
+target_sources(communication_bench_test PRIVATE ../examples/s2_bench/CommunicationBench.cpp
+               ../examples/s2_bench/BenchTerminal.cpp)
+target_include_directories(communication_bench_test PRIVATE ../examples/s2_bench)
+target_link_libraries(communication_bench_test PRIVATE MotorControlCANProbeApp)
+strict_test(communication_bench_test)
+add_test(NAME communication_bench COMMAND communication_bench_test)
+set_tests_properties(communication_bench PROPERTIES TIMEOUT 30)
+# The bench image's heap plan: largest-first reservation and the shared record arena.
+add_executable(bench_heap_test bench_heap_test.cpp)
+target_include_directories(bench_heap_test PRIVATE ../examples/s2_bench)
+strict_test(bench_heap_test)
+add_test(NAME bench_heap COMMAND bench_heap_test)
+set_tests_properties(bench_heap PROPERTIES TIMEOUT 10)
 add_executable(bench_route_test bench_route_test.cpp)
 target_sources(bench_route_test PRIVATE ../examples/s2_bench/BenchRoute.cpp)
 target_include_directories(bench_route_test PRIVATE ../examples/s2_bench)
 target_link_libraries(bench_route_test PRIVATE MotorControlCANFirmwareProbe)
 strict_test(bench_route_test)
 add_test(NAME bench_route COMMAND bench_route_test)
-add_test(NAME bench_route_transcript COMMAND bench_route_test --transcript
+add_test(NAME bench_route_transcript COMMAND bench_route_test --transcript-all
          "${CMAKE_CURRENT_BINARY_DIR}/bench_route_transcript.bin")
 set_tests_properties(bench_route bench_route_transcript PROPERTIES TIMEOUT 60)
 add_executable(probe_app_test probe_app_test.cpp)
@@ -504,7 +527,7 @@ add_test(NAME s2_soak_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOUR
 set_tests_properties(s2_soak_transcript PROPERTIES DEPENDS soak_transcript)
 add_test(NAME s2_bench_contract COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_bench_test.py")
 # Every trial record the firmware's BenchRoute prints, read by the same parser as bench captures.
-add_test(NAME s2_trial_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_trial_transcript.py"
+add_test(NAME s2_trial_transcript COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/s2_trial_transcript.py" --all
          "${CMAKE_CURRENT_BINARY_DIR}/bench_route_transcript.bin")
 set_tests_properties(s2_trial_transcript PROPERTIES DEPENDS bench_route_transcript)
 set_tests_properties(core units axis units_preview native_consumer api_ownership multidrive_contract frame sdo_codec sdo_adapter objects PROPERTIES TIMEOUT 10)

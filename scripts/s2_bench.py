@@ -7,10 +7,12 @@ route parameter explicitly, require the operator to type the attended confirmati
 enable, the attendant's own shaft observation, then ping, refuse unless the image speaks this
 runner's route protocol and nothing else is running, send one T line and capture until the record's
 END. Each T line ends in ",K" and the CRC-32 (zlib.crc32) of every byte before it, which the firmware
-checks before parsing. A plan that could exceed the firmware's record capacity or route cutoff, or a
-move deadline the library refuses (4550 ms or less), is refused here, before anything is sent, because
+checks before parsing. A plan that could exceed the firmware's record capacity or route cutoff, a
+move deadline the library refuses (4550 ms or less), or a velocity duration or stop reserve the library
+refuses (under 9470 ms, or 2800 ms or less after it), is refused here, before anything is sent, because
 the firmware would refuse it only after the campaign counted it. Ctrl-C sends one local abort ('A'), which sends no stop. Nothing is retried, and
---dry-run prints the plan without enumerating, prompting, opening or creating anything.
+--dry-run prints the plan without enumerating, prompting, opening or creating anything. The firmware
+refuses that abort while a velocity runs: its own stop at the due time is its only software bound.
 
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
 One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
@@ -27,7 +29,10 @@ statement that they accept it: TEXT is that statement, stored verbatim in reques
 entry. No attendant question is asked, and every observation only an attendant could make is stored
 as "unattended: not observed". The line's attended field still reads 1: it records that the host's
 gate was satisfied, here by the waiver. An enable is refused, because its start report needs the
-attendant's power-up shaft observation, and so is --fault-led prompt.
+attendant's power-up shaft observation, and so is --fault-led prompt, unless that observation was
+made and is relayed: --relayed-power-up-shaft FREE|HOLDING with --relayed-shaft-source TEXT, the
+user's own report of the shaft as they felt it after the power-up and before anything was sent,
+with where and when they gave it. It is stored as relayed, never inferred from the drive.
 """
 import argparse
 from collections import Counter
@@ -70,22 +75,38 @@ TRIALS = {
     # The session's two clears: counter zero moves the position reference, so both are motion class.
     "counter-zero": ("Z", True, "counter zero, 2302 0 1 0"),
     "clear-alarm": ("C", True, "alarm clear, 2301 1 0"),
+    # Prompt 35: one 6060=3 on a drive that reports itself released, then the library's finite velocity
+    # run from released mode 3, with its own stop at the due time.
+    "mode3": ("N", True, "prompt 35 released mode 3"),
+    "velocity": ("V", True, "prompt 35 finite velocity"),
+    # Prompt 36: the reads requestHome consumes and its refusal before any write. Nothing is written, so it
+    # has the settings routes' attended class: three per route and node, no motion weight.
+    "home": ("O", False, "prompt 36 homing admission"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
 FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "io-di3")
-# Attended state-changing routes that are not motion: one send counts one case, never motion weight.
-SETTINGS_ROUTES = ("settings-2202", "io-di3")
+# Attended routes that are not motion: one send counts one case, never motion weight. The two settings
+# writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
+# this class since the settings routes, kept so that earlier ledgers still read.
+SETTINGS_ROUTES = ("settings-2202", "io-di3", "home")
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
-# Z and C clears and the move's observer node. Any other image would misread the line, so it is
-# refused before anything is sent.
-ROUTE_PROTOCOL = 5
+# Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36. Any other
+# image would misread the line, so it is refused before anything is sent.
+ROUTE_PROTOCOL = 6
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
 STOP_LETTERS = frozenset(TRIALS[command][0] for command in STOP_ROUTES)
+# A finite velocity always asks for its own stop at its due time: one more against stop, every line.
+ALWAYS_STOP_ROUTES = ("velocity",)
+ALWAYS_STOP_LETTERS = frozenset(TRIALS[command][0] for command in ALWAYS_STOP_ROUTES)
+# StatusLayout numbers the library admits for a velocity's alarm and running reports (State.h); 3 is ZH57.
+LAYOUTS = {"en86": 1, "zh86": 2, "op86": 4}
+# Lichuan homing methods with an 86C sequence (EN86/ZH86 p13-15); numbers are profile-local.
+HOME_METHODS = (17, 18, 24, 29)
 # The first entry's predecessor digest.
 LEDGER_GENESIS = "0" * 64
 STOP_KINDS = {"halt": 1, "quick": 2}
@@ -108,6 +129,12 @@ ROUTE_OPERATION_MS = 5000
 MOVE_SERVICE_STEPS = 13
 ROUTE_QUEUE_MS = 100
 ROUTE_RESPONSE_MS = 250
+# The library's velocity admission (Velocity.cpp) from released mode 3: the duration must exceed 27 setup
+# services at the routes' budgets and leave two 10 ms enable intervals (ENABLE_WORD_INTERVAL_US), so at least
+# 9470 ms; the deadline must leave more than the route's stop reserve, 8 services, 2800 ms, after it.
+VELOCITY_SETUP_STEPS = 27
+VELOCITY_WORD_MS = 10
+VELOCITY_STOP_STEPS = 8
 # Packet 22's host campaign caps, across boots; the firmware enforces the same numbers per boot only.
 CAMPAIGN_MOTION_TOTAL = 12
 CAMPAIGN_PER_CASE = 3
@@ -200,8 +227,36 @@ def trial_line(args, parser):
     node = _within(parser, "node", args.node, 1, 2)
     trial = _within(parser, "trial", args.trial, 1, 0xFFFFFFFF)
     fields = [node, trial]
-    if args.command == "mode1":
+    if args.command in ("mode1", "mode3"):
         fields += [1, _within(parser, "cycles", args.cycles, 1, 10), _within(parser, "interval-ms", args.interval_ms, 100, 5000)]
+    elif args.command == "velocity":
+        if args.kind is None:
+            parser.error("--kind is required for this route: the stop the run asks for at its due time (halt or quick)")
+        if args.layout is None:
+            parser.error("--layout is required for this route (%s): the record's statusword dialect" %
+                         ", ".join(sorted(LAYOUTS)))
+        duration = _within(parser, "duration-ms", args.duration_ms, 1, 55000)
+        deadline = _within(parser, "deadline-ms", args.deadline_ms, 1, 55000)
+        if duration >= deadline:
+            parser.error("--duration-ms must be below --deadline-ms: the run's own stop settles after it")
+        fields += [1, _within(parser, "rpm", args.rpm, 1, 3000),
+                   _within(parser, "ramp-up-ms", args.ramp_up_ms, 1, 2000),
+                   _within(parser, "ramp-down-ms", args.ramp_down_ms, 1, 2000), duration,
+                   _within(parser, "interval-ms", args.interval_ms, 20, 5000), deadline, STOP_KINDS[args.kind],
+                   _within(parser, "record", args.record, 1, 0xFFFFFFFF), LAYOUTS[args.layout],
+                   _within(parser, "start-qualified", args.start_qualified, 0, 1),
+                   _within(parser, "stop-qualified", args.stop_qualified, 0, 1)]
+        for name, high in (("device-type", 0xFFFFFFFF), ("hardware-version", 0xFFFF), ("software-version", 0xFFFF),
+                           ("vendor-id", 0xFFFFFFFF), ("product-code", 0xFFFFFFFF), ("revision", 0xFFFFFFFF),
+                           ("model-code", 0xFFFF), ("firmware-code", 0xFFFF)):
+            fields.append(_within(parser, name, getattr(args, name.replace("-", "_")), 0, high))
+    elif args.command == "home":
+        if args.method is None:
+            parser.error("--method is required for this route (%s)" % ", ".join(str(m) for m in HOME_METHODS))
+        fields += [1, args.method, _within(parser, "search-rpm", args.search_rpm, 1, 3000),
+                   _within(parser, "creep-rpm", args.creep_rpm, 1, 3000),
+                   _within(parser, "ramp-ms", args.ramp_ms, 1, 2000),
+                   _within(parser, "offset", args.offset, -1000000, 1000000)]
     elif args.command == "enable":
         if not args.no_motion_write_recorded:
             parser.error("--no-motion-write-recorded is required: the trial log must show no 6040, target, "
@@ -301,6 +356,12 @@ def trial_line(args, parser):
         parser.error("--soft-limit-code belongs to settings-2202")
     if args.command != "io-di3" and args.di3_change is not None:
         parser.error("--di3-change belongs to io-di3")
+    if args.command != "velocity" and any(getattr(args, name) is not None for name in
+                                          ("duration_ms", "layout", "start_qualified", "stop_qualified")):
+        parser.error("--duration-ms, --layout, --start-qualified and --stop-qualified belong to velocity")
+    if args.command != "home" and any(getattr(args, name) is not None for name in
+                                      ("method", "search_rpm", "creep_rpm", "ramp_ms", "offset")):
+        parser.error("--method, --search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
         parser.error("--fault-led belongs to %s" % " and ".join(FAULT_LED_ROUTES))
     if args.command in FAULT_LED_ROUTES and args.fault_led is None:
@@ -318,10 +379,11 @@ def encode(command, fields):
 
 
 def motion_weight(command, fields):
-    """Motion admissions this line counts, as the firmware counts them: one, plus a planned stop."""
+    """Motion admissions this line counts, as the firmware counts them: one, plus a planned stop, or the
+    stop a velocity always asks for itself."""
     if not TRIALS[command][1]:
         return 0, 0
-    stop = 1 if command in STOP_ROUTES and fields[-5] else 0
+    stop = 1 if command in ALWAYS_STOP_ROUTES or (command in STOP_ROUTES and fields[-5]) else 0
     return 1 + stop, stop
 
 
@@ -344,6 +406,17 @@ def plan_bounds(command, fields):
     if command == "mode1":
         cycles, interval = fields[3:5]
         return 15 + 1 + 9 + 7 * (cycles - 1), cycles * interval
+    if command == "mode3":
+        cycles, interval = fields[3:5]
+        return 9 + 9 + 1 + 9 + 7 * (cycles - 1), cycles * interval  # Two full reads, 6060, the cycles.
+    if command == "velocity":
+        duration, interval, deadline = fields[6:9]
+        polls = -(-duration // interval)  # The library's maxPolls: the fewest cycles covering the duration.
+        # Identity, full read, 60FF 6083 6084, 6 7 15 with a cycle each, the running cycles, then the
+        # session's stop over the rest of the deadline at the same interval.
+        return (9 + 9 + 3 + 3 + 7 * 3 + 7 * polls + _stop_terminals(deadline - duration, interval), deadline)
+    if command == "home":
+        return 9 + 9 + 9 + 2, 0  # Identity, 2400:00..08, the full read, 2200 and 2201. No write.
     if command == "enable":
         deadline, interval = fields[8:10]
         return 9 + 2 + 3 + 7 * (3 + deadline // interval), deadline
@@ -398,6 +471,17 @@ def check_bounds(command, fields):
     if command == "move" and fields[8] <= services:
         raise Refused("move deadline: %d ms does not cover the library's %d services at %d + %d ms; it needs over "
                       "%d ms" % (fields[8], MOVE_SERVICE_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, services))
+    if command == "velocity":
+        duration, deadline = fields[6], fields[8]
+        setup = VELOCITY_SETUP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS) + 2 * VELOCITY_WORD_MS
+        reserve = VELOCITY_STOP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS)
+        if duration < setup:
+            raise Refused("velocity duration: %d ms does not cover the library's %d setup services at %d + %d ms "
+                          "and two %d ms enable intervals; it needs at least %d ms" %
+                          (duration, VELOCITY_SETUP_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, VELOCITY_WORD_MS, setup))
+        if deadline - duration <= reserve:
+            raise Refused("velocity deadline: %d ms leaves %d ms after the duration; the stop reserve of %d services "
+                          "needs over %d ms" % (deadline, deadline - duration, VELOCITY_STOP_STEPS, reserve))
 
 
 def _integer(value, low, high):
@@ -415,8 +499,11 @@ def _send_problem(entry):
         return "route or node"
     if not _integer(trial, 1, 0xFFFFFFFF):
         return "trial is not an integer 1..4294967295"
-    if not _integer(stop, 0, 1) or (stop and route not in STOP_LETTERS) or not _integer(motion, 0, 2):
+    if not _integer(stop, 0, 1) or (stop and route not in STOP_LETTERS | ALWAYS_STOP_LETTERS) or \
+            not _integer(motion, 0, 2):
         return "stop or motion"
+    if route in ALWAYS_STOP_LETTERS and not stop:
+        return "route %s always counts its own stop" % route
     if motion != ((1 + stop) if route in MOTION_ROUTES else 0):
         return "motion %d does not match route %s with stop %d" % (motion, route, stop)
     line = entry.get("line")
@@ -604,7 +691,12 @@ def before_send(args, fields, ask, operator):
                      "Attendant at node %d with the independent drive-power cutoff in hand and a shaft mark "
                      "visible: type %s to confirm: " % (node, wanted),
                      lambda text: text if text == wanted else None)
-    if args.command == "enable":
+    if args.command == "enable" and args.relayed_power_up_shaft:
+        # The user felt it and reported it; the lead relays it with its source (2026-11-09).
+        operator["power_up_shaft"] = {"typed": args.relayed_power_up_shaft, "relayed": True,
+                                      "source": args.relayed_shaft_source, "accepted": True}
+        fields[4] = SHAFT[args.relayed_power_up_shaft]
+    elif args.command == "enable":
         # The answer is what a person felt. A start report from the drive is never a substitute: on
         # 2026-11-05 (trials 704, 712) HOLDING was typed from 8437/0001 with nobody at the shaft, and
         # that passed the library guard which exists for exactly this observation.
@@ -619,6 +711,14 @@ def before_send(args, fields, ask, operator):
                               "observation, never a value inferred from the drive's start report")
             raise
         fields[4] = shaft
+    if args.command == "home":
+        # Recorded, never sent and never interpreted: the route opens no homing gate whatever is typed.
+        question = ("Attendant: which DI terminals of node %d are wired to a switch, as seen? Type NONE, or the "
+                    "terminals and switches: " % node)
+        if args.unattended_waiver:
+            operator["home_inputs_wired"] = {"question": question, "typed": UNOBSERVED}
+        else:
+            ask_operator(ask, operator, "home_inputs_wired", question, lambda text: text or None)
     if args.command in FAULT_LED_ROUTES and args.fault_led == "prompt":
         ask_operator(ask, operator, "fault_led_before",
                      "Fault LED of node %d now, as seen (for example off, red, red blinking): " % node,
@@ -776,6 +876,9 @@ def dry_run(args, fields):
         if attended and args.unattended_waiver:
             print("  unattended under the user's waiver %r: no attendant question; observations stored as %r" %
                   (args.unattended_waiver, UNOBSERVED))
+            if args.relayed_power_up_shaft:
+                print("  relayed power-up shaft %s, source %r" % (args.relayed_power_up_shaft,
+                                                                args.relayed_shaft_source))
         elif attended:
             print("  require the operator to type: ATTENDED %d" % fields[1])
         terminals, duration = plan_bounds(args.command, fields)
@@ -798,6 +901,14 @@ def dry_run(args, fields):
                 print("  campaign %s would refuse: %s" % (args.campaign, error))
         if args.command == "enable":
             print("  require the attendant to type FREE or HOLDING; it replaces the 0 in field 5 below")
+        if args.command == "home":
+            print("  ask the attendant which DI terminals are wired (recorded only); the route's HomeEvidence is "
+                  "CLOSED, so the library refuses before any write")
+        if args.command == "velocity":
+            weight, _ = motion_weight(args.command, fields)
+            print("  VelocityEvidence from this line only: record %d, layout %d, startQualified %d, stopQualified %d, "
+                  "stop kind %d; an experiment scope the library binds and cannot check (motion weight %d with its "
+                  "own stop)" % (fields[10], fields[11], fields[12], fields[13], fields[9], weight))
         print("  send p; refuse unless PONG has routes=%d soak=0 trial=0 active=1 running=1" % ROUTE_PROTOCOL)
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
@@ -827,6 +938,20 @@ def arguments(argv):
                        help="rearm: the acknowledged latest word it follows, of a finished record on that node")
     trial.add_argument("--soft-limit-code", choices=sorted(SOFT_LIMIT_CODES), help="settings-2202: the 2202 code")
     trial.add_argument("--di3-change", choices=sorted(DI3_CHANGES), help="io-di3: the one DI3 change")
+    velocity = parser.add_argument_group("velocity: the reviewed experiment record's evidence, never defaulted; "
+                                         "also --rpm, ramps, --interval-ms, --deadline-ms, --kind, --record and the "
+                                         "identity fields")
+    velocity.add_argument("--duration-ms", type=int, help="FiniteVelocityRequest duration from the request, below "
+                                                          "--deadline-ms")
+    velocity.add_argument("--layout", choices=sorted(LAYOUTS), help="VelocityEvidence statusword dialect")
+    velocity.add_argument("--start-qualified", type=int, help="VelocityEvidence::startQualified as stated, 0 or 1")
+    velocity.add_argument("--stop-qualified", type=int, help="VelocityEvidence::stopQualified as stated, 0 or 1")
+    home = parser.add_argument_group("home: the request the library refuses before any write")
+    home.add_argument("--method", type=int, choices=HOME_METHODS, help="Lichuan homing method")
+    home.add_argument("--search-rpm", type=int, help="6099:01 motor rpm, 1..3000")
+    home.add_argument("--creep-rpm", type=int, help="6099:02 motor rpm, 1..3000")
+    home.add_argument("--ramp-ms", type=int, help="609A ms, 1..2000")
+    home.add_argument("--offset", type=int, help="607C native offset, -1000000..1000000")
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))
@@ -850,6 +975,10 @@ def arguments(argv):
                        help="The trial log shows no motion write since power-up apart from one acknowledged 6060=1")
     trial.add_argument("--unattended-waiver", metavar="TEXT",
                        help="The user's own written acceptance of a trial with nobody at the bench, verbatim")
+    trial.add_argument("--relayed-power-up-shaft", choices=sorted(SHAFT),
+                       help="enable under --unattended-waiver: the shaft as the user felt it after the power-up")
+    trial.add_argument("--relayed-shaft-source", metavar="TEXT",
+                       help="Where and when the user gave the relayed shaft observation, verbatim")
     args = parser.parse_args(argv)
     is_trial = args.command in TRIALS
     if args.unattended_waiver is not None:
@@ -857,11 +986,16 @@ def arguments(argv):
             parser.error("--unattended-waiver belongs to trial commands")
         if not args.unattended_waiver.strip():
             parser.error("--unattended-waiver needs the user's statement")
-        if args.command == "enable":
+        if args.command == "enable" and not args.relayed_power_up_shaft:
             parser.error("--unattended-waiver refuses enable: its start report needs the attendant's power-up "
-                         "shaft observation")
+                         "shaft observation (relay one the user made with --relayed-power-up-shaft)")
         if args.fault_led == "prompt":
             parser.error("--unattended-waiver refuses --fault-led prompt: nobody can see the drive")
+    if args.relayed_power_up_shaft or args.relayed_shaft_source is not None:
+        if args.command != "enable" or not args.unattended_waiver:
+            parser.error("--relayed-power-up-shaft belongs to an enable under --unattended-waiver")
+        if not args.relayed_power_up_shaft or not (args.relayed_shaft_source or "").strip():
+            parser.error("--relayed-power-up-shaft needs both the observation and its --relayed-shaft-source")
     if args.seconds is None:
         args.seconds = 120.0 if is_trial else 4.0
     if not 1 <= args.seconds <= (300 if is_trial else 30):

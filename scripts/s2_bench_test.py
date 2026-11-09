@@ -18,22 +18,28 @@ PONG = "PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent
 NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning", "M": "mode1", "E": "enable",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
          "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
-         "Z": "counter-zero", "C": "clear-alarm"}
+         "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
-          "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm"}
+          "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
+          "V": "velocity", "O": "home"}
+# Protocol 6's routes. `bench_route_test --transcript` prints the earlier ones only; `--transcript-all` adds
+# these, which scripts/s2_evidence.py reads once its grammar names them (see check_trial_transcript).
+NEW_LETTERS = frozenset("NVO")
 
 
-def check_trial_transcript(path):
-    """Every record the real BenchRoute prints must parse whole, with its expected verdict."""
+def check_trial_transcript(path, every=False):
+    """Every record the real BenchRoute prints must parse whole, with its expected verdict. every: the
+    transcript of --transcript-all, which also holds protocol 6's mode3, velocity and home records."""
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    if len(parts) < 26:
-        problems.append("expected twenty-six records, found %d" % len(parts))
+    wanted_count = 30 if every else 26
+    if len(parts) < wanted_count:
+        problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
     for letter in NAMES:
-        if letter not in letters:
+        if letter not in letters and (every or letter not in NEW_LETTERS):
             problems.append("no %s record" % NAMES[letter])
     for part in parts:
         head, _, body = part.partition(b"\n")
@@ -42,9 +48,11 @@ def check_trial_transcript(path):
         meta = {"command": NAMES[line[0]], "node": int(fields[0]), "trial": int(fields[1]), "line": "T" + line,
                 "status": "captured"}
         report = evidence.replay_bytes(body, meta)
-        # A lost reply on node 1, and a move on node 2 whose copied traffic overflowed.
+        # A lost reply on node 1, and a move on node 2 whose copied traffic overflowed. Home is refused before
+        # any write by design, and one velocity line names a closed start flag the library refuses.
         lost = line.startswith("G2,13,")
-        wanted = "failed-evidence" if line.startswith("S1,7,") or lost else "complete"
+        refused = line[0] == "O" or (line[0] == "V" and fields[12] == "0")
+        wanted = "failed-evidence" if line.startswith("S1,7,") or lost or refused else "complete"
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
         if lost and not (report.failure_name == "EVIDENCE_LOSS" and b" lossCancel=1\n" in body):
@@ -87,6 +95,18 @@ def check_trial_transcript(path):
             problems.append("%s: no check, evidence or move summary" % line)
         if line.startswith("H") and "TRIAL_HISTORY" not in kinds:
             problems.append("%s: no history summary" % line)
+        if line[0] == "N" and not {"TRIAL_FIRST", "TRIAL_CHECK", "TRIAL_CONTROL"} <= kinds:
+            problems.append("%s: no first read, check or control summary" % line)
+        if line[0] == "O" and not {"TRIAL_STATUS", "TRIAL_IO", "TRIAL_HOME"} <= kinds:
+            problems.append("%s: no refusal, input mapping or home summary" % line)
+        if line[0] == "O" and (b" dir=1 " in body or b" gate=0 " not in body):
+            problems.append("%s: a home record with a download or an open gate" % line)
+        run = {"TRIAL_VELOCITY", "TRIAL_VELOCITY_TIME", "TRIAL_VELOCITY_SAMPLE", "TRIAL_STOP", "TRIAL_BEST_EFFORT"}
+        if line[0] == "V" and not ({"TRIAL_CHECK", "TRIAL_VELOCITY_EVIDENCE"} |
+                                   ({"TRIAL_STATUS"} if refused else run)) <= kinds:
+            problems.append("%s: no check, evidence or velocity summary" % line)
+        if line[0] == "V" and refused and kinds & run:
+            problems.append("%s: a refused velocity printed a run" % line)
         if line[0] in "AIUH" and not report.inventory_checked:
             problems.append("%s: fixed inventory not checked" % line)
         # The routes read 607D:00 and 60FE:00 in two bytes, as both specimens answered them. Against
@@ -232,6 +252,18 @@ def signed(text):
 
 
 MOVE_LINE = signed(MOVE_BODY + ",0,0,0,0,0")
+# A velocity line's evidence: this test's numbers, the same as test/bench_route_test.cpp's fake, never a
+# measurement.
+VELOCITY = ["--command", "velocity", "--node", "1", "--trial", "30", "--rpm", "6", "--ramp-up-ms", "200",
+            "--ramp-down-ms", "200", "--duration-ms", "12000", "--interval-ms", "2000", "--deadline-ms", "18000",
+            "--kind", "halt", "--record", "351", "--layout", "zh86", "--start-qualified", "1", "--stop-qualified",
+            "1", "--device-type", "0x00040192", "--hardware-version", "0x12", "--software-version", "0x34",
+            "--vendor-id", "0x300", "--product-code", "0x8605", "--revision", "0x10001", "--model-code", "0x86",
+            "--firmware-code", "0x123"]
+VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,2000,18000,1,351,2,1,1,262546,18,52,768,34309,65537,134,291")
+HOME = ["--command", "home", "--node", "1", "--trial", "31", "--method", "24", "--search-rpm", "60", "--creep-rpm",
+        "6", "--ramp-ms", "200", "--offset", "0"]
+MODE3 = ["--command", "mode3", "--node", "1", "--trial", "32", "--cycles", "2", "--interval-ms", "200"]
 
 
 def position(node, trial, stop="none"):
@@ -445,6 +477,37 @@ class BenchTest(unittest.TestCase):
         self.assertIn("UNOBSERVED", operator.questions[-1])
         self.assertEqual(board.writes, [])
         self.assertFalse(self.output.exists())
+
+    def test_a_relayed_power_up_shaft_lets_an_unattended_enable_run_and_is_recorded_as_relayed(self):
+        # 2026-11-09: the user felt both shafts after the power cycle, then left; the lead relays it.
+        waiver = "I will not be present - do all the tests yourself"
+        source = "user dialog 2026-11-09 10:57Z after the power cycle, before anything was sent"
+        board = Board()
+        operator = Operator()  # Any question would raise EOFError and refuse.
+        argv = ENABLE + ["--unattended-waiver", waiver, "--relayed-power-up-shaft", "FREE",
+                         "--relayed-shaft-source", source]
+        status, out, err = self.run_main(argv, Backend(board), operator)
+        self.assertEqual(operator.questions, [])
+        sent = [w for w in board.writes if w.startswith(b"T")]
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(sent[0].split(b",")[4], str(bench.SHAFT["FREE"]).encode())
+        meta = self.meta()
+        self.assertEqual(meta["operator"]["power_up_shaft"],
+                         {"typed": "FREE", "relayed": True, "source": source, "accepted": True})
+        self.assertEqual(meta["operator"]["holding_after"]["typed"], bench.UNOBSERVED)
+        # Without the relayed observation, or out of its place, nothing is sent.
+        for bad in (ENABLE + ["--unattended-waiver", waiver],
+                    ENABLE + ["--relayed-power-up-shaft", "FREE", "--relayed-shaft-source", source],
+                    ENABLE + ["--unattended-waiver", waiver, "--relayed-power-up-shaft", "FREE"],
+                    ENABLE + ["--unattended-waiver", waiver, "--relayed-power-up-shaft", "FREE",
+                              "--relayed-shaft-source", "  "],
+                    MOVE + ["--unattended-waiver", waiver, "--relayed-power-up-shaft", "FREE",
+                            "--relayed-shaft-source", source]):
+            self.clear_output()
+            board = Board()
+            with self.assertRaises(SystemExit):
+                self.run_main(bad, Backend(board), Operator())
+            self.assertEqual(board.writes, [])
 
     def test_unattended_waiver_replaces_the_attendant_questions_only(self):
         waiver = "I will not be present; I take the responsibility"
@@ -746,9 +809,11 @@ class BenchTest(unittest.TestCase):
                                                 "position-trigger", "--cycles", "3", "--interval-ms", "100"],
                                       "ATTENDED 3"),
                                      ("move", MOVE, "ATTENDED 20"),
+                                     ("velocity", VELOCITY, "ATTENDED 30"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            for routes in (1, 2, 3, 4, 6):  # Older images, and one this runner does not know.
+            # Older images, protocol 5's among them, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 5, 7):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -765,6 +830,8 @@ class BenchTest(unittest.TestCase):
                 self.assertEqual(board.writes[-1], signed("TR1,3,1,1,3,100").encode())
             elif command == "move":
                 self.assertEqual(board.writes[-1], MOVE_LINE.encode())
+            elif command == "velocity":
+                self.assertEqual(board.writes[-1], VELOCITY_LINE.encode())
             self.ledger.write_bytes(b"")
 
     def test_concurrent_invocations_refuse_campaign_busy(self):
@@ -1148,6 +1215,188 @@ class BenchTest(unittest.TestCase):
             self.assertEqual(status, 2, err)
             self.assertIn("inconsistent send entry", err)
             self.assertEqual(board.writes, [])
+
+    def test_velocity_home_lines_match_the_firmware_grammar(self):
+        cases = {tuple(MODE3): signed("TN1,32,1,2,200"), tuple(VELOCITY): VELOCITY_LINE,
+                 tuple(HOME): signed("TO1,31,1,24,60,6,200,0")}
+        quick = list(VELOCITY)
+        quick[quick.index("--kind") + 1] = "quick"
+        quick[quick.index("--layout") + 1] = "op86"
+        quick[quick.index("--start-qualified") + 1] = "0"
+        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,2000,18000,2,351,4,0,1,262546,18,52,768,34309,65537,134,291")
+        for method in (17, 18, 29):
+            argv = list(HOME)
+            argv[argv.index("--method") + 1] = str(method)
+            argv[argv.index("--offset") + 1] = "-1000000"
+            cases[tuple(argv)] = signed("TO1,31,1,%d,60,6,200,-1000000" % method)
+        for argv, line in cases.items():
+            args, fields = bench.arguments(BASE + list(argv) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line, argv)
+        # Every value is required: none has a default, the evidence least of all.
+        for required in (MODE3, VELOCITY, HOME):
+            for index in range(required.index("--trial") + 2, len(required), 2):
+                argv = required[:index] + required[index + 2:]
+                with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
+                    bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+
+        def changed(base, name, value):
+            argv = list(base)
+            argv[argv.index(name) + 1] = value
+            return argv
+        bad = [changed(MODE3, "--cycles", "11"), changed(MODE3, "--interval-ms", "99"),
+               changed(VELOCITY, "--rpm", "0"), changed(VELOCITY, "--rpm", "3001"),
+               changed(VELOCITY, "--ramp-up-ms", "0"), changed(VELOCITY, "--ramp-down-ms", "2001"),
+               changed(VELOCITY, "--duration-ms", "18000"), changed(VELOCITY, "--deadline-ms", "55001"),
+               changed(VELOCITY, "--interval-ms", "19"), changed(VELOCITY, "--layout", "zh57"),
+               changed(VELOCITY, "--start-qualified", "2"), changed(VELOCITY, "--stop-qualified", "-1"),
+               changed(VELOCITY, "--record", "0"), changed(VELOCITY, "--hardware-version", "0x10000"),
+               changed(HOME, "--method", "19"), changed(HOME, "--search-rpm", "0"),
+               changed(HOME, "--creep-rpm", "3001"), changed(HOME, "--ramp-ms", "0"),
+               changed(HOME, "--offset", "1000001"),
+               VELOCITY + ["--method", "24"], HOME + ["--layout", "zh86"], MODE3 + ["--duration-ms", "12000"],
+               MOVE + ["--start-qualified", "1"], HOME + ["--fault-led", "prompt"]]
+        for argv in bad:
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        # The longest velocity line fits the firmware's ROUTE_LINE (256 bytes after T).
+        widest = list(VELOCITY)
+        for name, value in (("--trial", "4294967295"), ("--record", "4294967295"), ("--rpm", "3000"),
+                            ("--duration-ms", "54999"), ("--deadline-ms", "55000"), ("--interval-ms", "5000"),
+                            ("--ramp-up-ms", "2000"), ("--ramp-down-ms", "2000"), ("--device-type", "0xffffffff"),
+                            ("--vendor-id", "0xffffffff"), ("--product-code", "0xffffffff"),
+                            ("--revision", "0xffffffff"), ("--hardware-version", "0xffff")):
+            widest[widest.index(name) + 1] = value
+        args, fields = bench.arguments(BASE + widest + LEDGER + ["--output", "x"])
+        self.assertLessEqual(len(bench.encode(args.command, fields)) - 2, 256)
+        # Weights as the firmware counts them: the velocity's own stop always counts against stop.
+        weights = {}
+        for argv in (MODE3, VELOCITY, HOME):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            weights[args.command] = bench.motion_weight(args.command, fields)
+        self.assertEqual(weights, {"mode3": (1, 0), "velocity": (2, 1), "home": (0, 0)})
+        self.assertEqual({"N", "V"} & bench.MOTION_ROUTES, {"N", "V"})
+        self.assertNotIn("O", bench.MOTION_ROUTES)
+        self.assertIn("O", bench.SETTINGS_LETTERS)
+
+    def test_velocity_bounds_and_library_minima(self):
+        def bounds(argv):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            return bench.plan_bounds(args.command, fields)
+        # The numbers test/bench_route_test.cpp pins against BenchRoute's own bounds.
+        self.assertEqual(bounds(VELOCITY), (118, 18000))
+        self.assertEqual(bounds(MODE3), (35, 400))
+        self.assertEqual(bounds(HOME), (29, 0))
+        dense = list(VELOCITY)
+        dense[dense.index("--interval-ms") + 1] = "100"
+        self.assertGreater(bounds(dense)[0], 128)
+
+        def velocity(duration, deadline):
+            argv = list(VELOCITY)
+            argv[argv.index("--duration-ms") + 1] = str(duration)
+            argv[argv.index("--deadline-ms") + 1] = str(deadline)
+            return argv
+        # The library refuses a duration under 27 services at 100 + 250 ms and two 10 ms enable intervals,
+        # and a deadline that leaves 2800 ms or less after it, both after the firmware counted the line
+        # (test/bench_route_test.cpp testVelocityRefusals): refused here, unsent and uncounted.
+        for argv, reason in ((velocity(9469, 18000), "velocity duration: 9469 ms"),
+                             (velocity(12000, 14800), "velocity deadline: 14800 ms leaves 2800 ms"),
+                             (dense, "capacity")):
+            self.clear_output()
+            board = Board()
+            operator = Operator("ATTENDED 30", "none")
+            status, _, err = self.run_main(argv, Backend(board), operator)
+            self.assertEqual(status, 2, err)
+            self.assertIn("REFUSED: %s" % reason, err)
+            self.assertEqual((board.writes, operator.questions), ([], []))
+            self.assertFalse(self.output.exists())
+            self.assertEqual(self.ledger.read_bytes(), b"")
+        for argv in (velocity(9470, 18000), velocity(12000, 14801)):
+            args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+            bench.check_bounds(args.command, fields)  # No refusal.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + velocity(9000, 18000) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(),
+                       Clock(), Operator())
+        self.assertIn("would refuse before sending: velocity duration: 9000 ms", out.getvalue())
+        self.assertIn("startQualified 1, stopQualified 1", out.getvalue())
+
+    def test_velocity_and_mode3_are_attended_and_counted(self):
+        board = Board()
+        operator = Operator("ATTENDED 30", "turned about one revolution, then stopped")
+        status, _, err = self.run_main(VELOCITY, Backend(board), operator)
+        self.assertIn(status, (0, 1), err)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", VELOCITY_LINE.encode()])
+        self.assertIn("ATTENDED 30", operator.questions[0])
+        self.assertIn("describe the node 1 shaft", operator.questions[1])
+        self.assertEqual(self.meta()["plan"], "prompt 35 finite velocity")
+        self.clear_output()
+        status, _, err = self.run_main(MODE3, Backend(Board()), Operator("ATTENDED 32", "none"))
+        self.assertIn(status, (0, 1), err)
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["node"], e["trial"], e["motion"], e["stop"]) for e in send],
+                         [("V", 1, 30, 2, 1), ("N", 1, 32, 1, 0)])
+        # Two earlier stops on node 1: a velocity's own would be the fourth, over the stop cap.
+        self.write_ledger([send_entry("S", 1, 1), send_entry("S", 1, 2), send_entry("V", 1, 3, 2, 1)])
+        self.clear_output()
+        board = Board()
+        argv = list(VELOCITY)
+        argv[argv.index("--trial") + 1] = "40"
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 40"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("planned stop", err)
+        self.assertEqual(board.writes, [])
+        # A velocity send entry without its stop is inconsistent, and so is a stop on mode3.
+        for entry in (dict(send_entry("V", 1, 4, 1, 0)), dict(send_entry("N", 1, 4, 2, 1))):
+            entry["line"] = bench.sign_line("T%s1,4,1,0,0,0,0,0" % entry["route"])
+            self.ledger.write_bytes(chain([entry]))
+            board = Board()
+            status, _, err = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+            self.assertEqual(status, 2, err)
+            self.assertIn("inconsistent send entry", err)
+            self.assertEqual(board.writes, [])
+
+    def test_home_is_attended_counted_and_not_motion(self):
+        board = Board()
+        operator = Operator("ATTENDED 31", "NONE")
+        status, _, err = self.run_main(HOME, Backend(board), operator)
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual(board.writes, [b"p", signed("TO1,31,1,24,60,6,200,0").encode()])
+        self.assertEqual(len(operator.questions), 2)  # Attended, the wired inputs; nothing after, no shaft.
+        self.assertIn("which DI terminals of node 1 are wired", operator.questions[1])
+        self.assertEqual(self.meta()["operator"]["home_inputs_wired"]["typed"], "NONE")
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("O", 0, 0, 1)])
+        # An empty answer refuses before anything is sent.
+        self.clear_output()
+        board = Board()
+        argv = list(HOME)
+        argv[argv.index("--trial") + 1] = "32"
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 32", ""))
+        self.assertEqual(status, 2, err)
+        self.assertEqual(board.writes, [])
+        # Three per node across boots, never toward the twelve motion admissions.
+        self.write_ledger([dict(send_entry("O", 1, n, 0), settings=1) for n in (1, 2, 3)] +
+                          [send_entry("M", 1, n) for n in range(4, 15)])
+        self.clear_output()
+        board = Board()
+        argv[argv.index("--trial") + 1] = "40"
+        status, _, err = self.run_main(argv, Backend(board), Operator("ATTENDED 40", "NONE"))
+        self.assertEqual(status, 2, err)
+        self.assertIn("home admissions on node 1", err)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        argv[argv.index("--node") + 1] = "2"
+        status, _, err = self.run_main(argv, Backend(Board()), Operator("ATTENDED 40", "NONE"))
+        self.assertIn(status, (0, 1), err)  # Eleven motion admissions do not count against home.
+        # With nobody at the bench a waiver replaces both questions.
+        self.ledger.write_bytes(b"")
+        self.clear_output()
+        operator = Operator()
+        status, _, err = self.run_main(HOME + ["--unattended-waiver", "I accept this unattended"], Backend(Board()),
+                                       operator)
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual(operator.questions, [])
+        self.assertEqual(self.meta()["operator"]["home_inputs_wired"]["typed"], bench.UNOBSERVED)
 
     def test_single_byte_commands_unchanged(self):
         board = Board()

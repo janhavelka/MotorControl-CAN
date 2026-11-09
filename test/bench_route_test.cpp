@@ -99,6 +99,10 @@ struct Drive {
     int32_t endpoint = 0, commanded = 0;
     int32_t drift = 0; // Added to 6064 after each 6064 read: a shaft that turns between reads.
     uint16_t trapWord = 0, trapMonitor = 0; // 2100 bits set by this 6040 word.
+    // This fake's mode 3: 0007 to 000F starts the 60FF target, and reports it as 2100 running, 606C at
+    // the target and, with spinBit, 6041 bit 14 (the ZH86 running bit); 010F and 000B end it. Off by
+    // default, so every earlier suite keeps its fake. No drive's velocity behavior is claimed.
+    bool spins = false, spinBit = true;
     // 2202, 607D and 2400:00..08 as this fake stores them: written by downloads, read back as written.
     // The 2400 defaults keep what earlier suites read: undocumented codes on DI3..DI6 and polarity 0101.
     uint16_t limitSelector = 0;
@@ -253,6 +257,17 @@ struct Drive {
                     status = uint16_t(status & ~ACCEPT_BIT);
                 if (word == 0x010f || word == 0x000b)
                     moveReads = 0;
+                if (spins && mode == 3 && word == 0x000f && previous == 0x0007) {
+                    monitor = uint16_t(monitor | L::MONITOR_RUNNING);
+                    status = uint16_t(spinBit ? status | 0x4000 : status);
+                    velocity = velocityTarget;
+                } else if (spins && mode == 3 && (word == 0x010f || word == 0x000b)) {
+                    monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
+                    status = uint16_t(status & ~0x4000);
+                    velocity = 0;
+                }
+            } else if (index == 0x60ff) {
+                velocityTarget = signedValue;
             } else if (index == 0x2202) {
                 limitSelector = word;
             } else if (index == 0x2301 && word == 1) {
@@ -392,7 +407,8 @@ struct Rig {
         value.sample = sample;
         return value;
     }
-    Rig()
+    // work: attach RouteWork, as the firmware does on the first route that needs it.
+    explicit Rig(bool work = true)
         : firmware(services, driver.callbacks(), console.callbacks()), one(firmware.owner()),
           two(firmware.owner()), route(firmware, services, hooks(this)) {
         E::DownloadPreflight check;
@@ -436,7 +452,7 @@ struct Rig {
             CHECK(services.configureNetwork(uint8_t(node - 1), network, C::NetworkObserver(), console.now));
         }
         CHECK(route.attach(1, one) && route.attach(2, two));
-        CHECK(route.attachWork(routeWork) && !route.attachWork(routeWork));
+        CHECK(!work || (route.attachWork(routeWork) && !route.attachWork(routeWork)));
         CHECK(!route.attach(1, two));
     }
     void turn() {
@@ -3346,7 +3362,677 @@ void testClearAlarm() {
 // A full set of records for the parser's grammar check in s2_evidence_test.py: every route, the
 // rearm and the move on node 2 after the lost reply ended node 1's evidence, a second move on node
 // 2 whose copied traffic overflowed, and a history read with two entries on a fake of its own.
-void writeTranscript(const char* path) {
+// ------------------------------------------------------------------- prompts 35 and 36
+// The host's VELOCITY line. Every evidence value here is this fake's, never a measurement.
+struct VelocitySpec {
+    unsigned attended = 1, rpm = 6, up = 200, down = 200;
+    unsigned long duration = 12000, interval = 2000, deadline = 18000;
+    unsigned kind = 1;
+    unsigned long record = 351;
+    unsigned layout = 2, start = 1, stop = 1;
+    unsigned long dt = DEVICE_TYPE, hw = HARDWARE, sw = SOFTWARE, vid = VENDOR, pc = PRODUCT, rev = REVISION;
+    unsigned long mc = MODEL, fc = FIRMWARE;
+};
+std::string velocityLine(unsigned node, uint32_t& trial, const VelocitySpec& v = VelocitySpec()) {
+    char text[300];
+    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%u,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", node,
+                  id(trial).c_str(), v.attended, v.rpm, v.up, v.down, v.duration, v.interval, v.deadline, v.kind,
+                  v.record, v.layout, v.start, v.stop, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc);
+    return text;
+}
+std::string modeThreeLine(unsigned node, uint32_t& trial, unsigned cycles = 2, unsigned interval = 200,
+                          unsigned attended = 1) {
+    return "N" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," +
+           std::to_string(cycles) + "," + std::to_string(interval);
+}
+std::string homeLine(unsigned node, uint32_t& trial, unsigned method = 24, unsigned attended = 1) {
+    return "O" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," +
+           std::to_string(method) + ",60,6,200,0";
+}
+// This fake released and stationary in mode 3, as a quick stop and MODE_THREE leave it below.
+void releasedModeThree(Drive& d) {
+    releasedDrive(d);
+    d.mode = 3;
+    d.spins = true;
+}
+// Every download from `first` to `node`, in order.
+std::vector<M::Frame> downloads(const Rig& r, size_t first, unsigned node) {
+    std::vector<M::Frame> out;
+    for (size_t i = first; i < r.driver.requests.size(); ++i) {
+        const M::Frame& f = r.driver.requests[i];
+        if (f.id == 0x600 + node && f.data[0] != 0x40 && f.data[0] != 0x80)
+            out.push_back(f);
+    }
+    return out;
+}
+bool frameIs(const M::Frame& f, const uint8_t (&bytes)[8]) { return !std::memcmp(f.data, bytes, 8); }
+// The record's copied terminal of one operation's download of an object.
+const E::RouteTerminal* terminalOf(const E::RouteRecord& r, uint16_t index, uint32_t operation) {
+    for (unsigned i = 0; i < r.terminalCount; ++i) {
+        const E::RouteTerminal& t = r.terminals[i];
+        if (t.index == index && t.direction == uint8_t(C::SdoDirection::DOWNLOAD) && t.operation == operation)
+            return &t;
+    }
+    return nullptr;
+}
+// A read route first: its checked SDO replies give the ordinary service qualification that an
+// enable, a move or a velocity needs on this fake, as on the fixture.
+void qualified(Rig& r, uint32_t& trial, unsigned node = 1) {
+    CHECK(r.run("A" + std::to_string(node) + "," + id(trial)).failure == E::RouteFailure::NONE);
+    r.release();
+    r.heartbeat(node);
+}
+void testParseVelocityHome() {
+    scenario = "parse-velocity-home";
+    // Appended after CLEAR_ALARM: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::CLEAR_ALARM) == 17 && unsigned(E::RouteKind::MODE_THREE) == 18 &&
+          unsigned(E::RouteKind::VELOCITY) == 19 && unsigned(E::RouteKind::HOME) == 20);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::MODE_THREE), "mode3") == 0 &&
+          std::strcmp(E::routeName(E::RouteKind::VELOCITY), "velocity") == 0 &&
+          std::strcmp(E::routeName(E::RouteKind::HOME), "home") == 0);
+    E::RoutePlan p;
+    const std::string mode = "N2,6,1,3,250";
+    CHECK(E::parseRouteCommand(mode.data(), mode.size(), p) && p.kind == E::RouteKind::MODE_THREE && p.node == 2 &&
+          p.attended && p.cycles == 3 && p.intervalMs == 250);
+    uint32_t trial = 6;
+    const std::string velocity = velocityLine(1, trial);
+    CHECK(E::parseRouteCommand(velocity.data(), velocity.size(), p) && p.kind == E::RouteKind::VELOCITY);
+    CHECK(p.trial == 7 && p.rpm == 6 && p.rampUpMs == 200 && p.rampDownMs == 200 && p.durationMs == 12000 &&
+          p.intervalMs == 2000 && p.deadlineMs == 18000 && p.stopKind == 1 && p.record == 351 && p.layout == 2 &&
+          p.startQualified && p.stopQualified && p.firmware.deviceType == DEVICE_TYPE &&
+          p.firmware.firmwareCode == FIRMWARE);
+    const std::string home = "O1,8,1,29,3000,1,2000,-1000000";
+    CHECK(E::parseRouteCommand(home.data(), home.size(), p) && p.kind == E::RouteKind::HOME && p.method == 29 &&
+          p.searchRpm == 3000 && p.creepRpm == 1 && p.homeRampMs == 2000 && p.offset == -1000000);
+    for (unsigned method : {17u, 18u, 24u}) {
+        uint32_t t = 1;
+        const std::string line = homeLine(1, t, method);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.method == method);
+    }
+    std::vector<std::string> bad = {"N1,6,1,0,250", "N1,6,1,11,250", "N1,6,1,3,99", "N1,6,2,3,250", "N1,6,1,3",
+                                    "O1,8,1,16,60,6,200,0", "O1,8,1,19,60,6,200,0", "O1,8,1,30,60,6,200,0",
+                                    "O1,8,1,24,0,6,200,0", "O1,8,1,24,60,0,200,0", "O1,8,1,24,3001,6,200,0",
+                                    "O1,8,1,24,60,6,0,0", "O1,8,1,24,60,6,2001,0", "O1,8,1,24,60,6,200,1000001",
+                                    "O1,8,1,24,60,6,200", "O1,8,2,24,60,6,200,0", "o1,8,1,24,60,6,200,0"};
+    // Velocity: rate, ramps, duration below its deadline, stop kind, record, layout (not ZH57), flags.
+    const VelocitySpec v;
+    VelocitySpec w = v;
+    w.rpm = 0;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.rpm = 3001;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.up = 0;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.down = 2001;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.duration = 18000; // Not below its deadline.
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.interval = 19;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.deadline = 55001;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.kind = 0; // A velocity always names its own stop.
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.kind = 3;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.record = 0;
+    bad.push_back(velocityLine(1, trial, w));
+    for (unsigned layout : {0u, 3u, 5u}) {
+        w = v;
+        w.layout = layout;
+        bad.push_back(velocityLine(1, trial, w));
+    }
+    w = v;
+    w.start = 2;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.stop = 2;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.hw = 65536;
+    bad.push_back(velocityLine(1, trial, w));
+    w = v;
+    w.attended = 2;
+    bad.push_back(velocityLine(1, trial, w));
+    bad.push_back(velocityLine(1, trial, v) + ",0"); // One field too many.
+    for (const std::string& text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text.data(), text.size(), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text.c_str());
+        CHECK(!E::parseRouteCommand(text.data(), text.size(), untouched));
+        CHECK(untouched.kind == E::RouteKind::NONE && untouched.trial == 0);
+    }
+    // Each layout the library admits parses; a plan built in code is judged the same way.
+    for (unsigned layout : {1u, 2u, 4u}) {
+        w = v;
+        w.layout = layout;
+        const std::string line = velocityLine(1, trial, w);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.layout == layout);
+    }
+    E::RoutePlan built = p;
+    CHECK(E::routePlanValid(built));
+    built.layout = 3;
+    CHECK(!E::routePlanValid(built));
+    built = p;
+    built.durationMs = built.deadlineMs;
+    CHECK(!E::routePlanValid(built));
+    E::RoutePlan homePlan;
+    CHECK(E::parseRouteCommand(home.data(), home.size(), homePlan));
+    homePlan.method = 20;
+    CHECK(!E::routePlanValid(homePlan));
+    // The longest velocity line, integrity field included, fits ROUTE_LINE.
+    VelocitySpec longest;
+    longest.rpm = 3000;
+    longest.up = longest.down = 2000;
+    longest.deadline = 55000;
+    longest.duration = 54999;
+    longest.interval = 5000;
+    longest.kind = 2;
+    longest.record = longest.dt = longest.vid = longest.pc = longest.rev = 4294967295ul;
+    longest.hw = longest.sw = longest.mc = longest.fc = 65535;
+    uint32_t big = 4294967294u;
+    const std::string line = velocityLine(2, big, longest);
+    CHECK(line.size() + 10 <= E::ROUTE_LINE && E::parseRouteCommand(line.data(), line.size(), p));
+}
+// MODE_THREE: two released, stationary reads, one 6060=3, cycles; refused before the write otherwise.
+void testModeThree() {
+    scenario = "mode3";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    releasedDrive(d);
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(modeThreeLine(1, trial, 2, 200, 0)), "unattended") == 0);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& m = r->run(modeThreeLine(1, trial, 2, 200));
+    CHECK(m.failure == E::RouteFailure::NONE && m.checkPassed && m.firstPresent && m.cycles == 2);
+    CHECK(m.motionTotal == 1 && m.caseCount == 1 && d.mode == 3);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t three[8] = {0x2f, 0x60, 0x60, 0, 3, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, three));
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, IMAGE, 7);
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1 && m.terminalCount == 9 + 9 + 1 + 9 + 7);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL id=2 node=1 route=mode3 failure=0 why=none "));
+    CHECK(has(text, "TRIAL_PLAN route=mode3 node=1 trial=2 attended=1 cycles=2 interval=200\n"));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 "));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0011 6041=8050 6061=03 "));
+    CHECK(has(text, "TRIAL_CONTROL prior=0 pword=0000 "));
+    r->release();
+    // MODE_ONE is refused after any 6060 write of this boot, and so is a second MODE_THREE in mode 3.
+    CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
+    const size_t again = r->driver.requests.size();
+    const E::RouteRecord& x = r->run(modeThreeLine(1, trial));
+    CHECK(x.failure == E::RouteFailure::PREREQUISITE && std::strcmp(x.why, "mode") == 0 && r->downloadsFrom(again) == 0);
+
+    // Each prerequisite refuses before the write, with nothing sent.
+    struct Case {
+        const char* why;
+        void (*apply)(Drive&);
+    };
+    const Case cases[] = {
+        {"unreleased", [](Drive& f) { f.monitor = 0x0001; f.status = 0x8437; }}, // The specimens' enabled report.
+        {"unreleased", [](Drive& f) { f.monitor = 0x0001; f.status = 0x8037; f.mode = 0; }}, // Their power-up.
+        {"status", [](Drive& f) { f.status = 0x8053; }},
+        {"mode", [](Drive& f) { f.mode = 6; }},
+        {"running", [](Drive& f) { f.monitor = 0x0015; }}, // Latched running after a moving 000B.
+        {"alarm", [](Drive& f) { f.monitor = uint16_t(0x0011 | L::MONITOR_ALARM); }},
+        {"velocity", [](Drive& f) { f.velocity = 1; }},
+        {"position", [](Drive& f) { f.drift = 1; }},
+        {"error-register", [](Drive& f) { f.errorRegister = 1; }},
+        {"fault-code", [](Drive& f) { f.errorCode = 0x2310; }},
+    };
+    for (const Case& c : cases) {
+        scenario = c.why;
+        std::unique_ptr<Rig> s(new Rig);
+        releasedDrive(s->driver.drives[0]);
+        c.apply(s->driver.drives[0]);
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(modeThreeLine(1, t));
+        if (std::strcmp(y.why, c.why) != 0)
+            std::fprintf(stderr, "mode3 %s: %s\n", c.why, y.why);
+        CHECK(y.failure == E::RouteFailure::PREREQUISITE && std::strcmp(y.why, c.why) == 0 && !y.checkPassed);
+        CHECK(s->downloadsFrom(0) == 0 && y.motionTotal == 1);
+        s->dump();
+    }
+
+    // Another writer between the check and the write: the word recorded at admission is not the latest.
+    scenario = "mode3-predecessor";
+    std::unique_ptr<Rig> w(new Rig);
+    releasedDrive(w->driver.drives[0]);
+    trial = 0;
+    const size_t mark = w->driver.requests.size();
+    CHECK(!w->start(modeThreeLine(1, trial)));
+    for (unsigned i = 0; i < 20000 && w->route.active() && w->route.record()->step < 3; ++i)
+        w->turn();
+    CHECK(w->route.active() && w->route.record()->checkPassed && w->downloadsFrom(mark) == 0);
+    ownWord(*w, 0x000b);
+    finishRoute(*w);
+    CHECK(w->route.record()->failure == E::RouteFailure::PREREQUISITE &&
+          std::strcmp(w->route.record()->why, "control") == 0);
+    CHECK(w->downloadsFrom(mark) == 1 && w->driver.drives[0].mode == 1); // Only the other writer's word.
+
+    // After the write: an alarm ends the cycles; a lost reply leaves the mode unknown.
+    scenario = "mode3-alarm";
+    std::unique_ptr<Rig> a(new Rig);
+    releasedDrive(a->driver.drives[0]);
+    a->driver.drives[0].alarmAfterMode = L::MONITOR_ALARM;
+    trial = 0;
+    const E::RouteRecord& b = a->run(modeThreeLine(1, trial, 4, 200));
+    CHECK(b.failure == E::RouteFailure::OBSERVATION && std::strcmp(b.why, "alarm") == 0 && b.cycles == 1);
+    CHECK(a->downloadsFrom(0) == 1);
+    scenario = "mode3-lost";
+    std::unique_ptr<Rig> l(new Rig);
+    releasedDrive(l->driver.drives[0]);
+    l->driver.drives[0].silentIndex = 0x6060;
+    trial = 0;
+    const E::RouteRecord& q = l->run(modeThreeLine(1, trial));
+    CHECK(q.failure == E::RouteFailure::SERVICE && std::strcmp(q.why, "uncertain") == 0 && l->downloadsFrom(0) == 1);
+    l->turns(400);
+    CHECK(l->route.release());
+    // The lost reply leaves the route unresolved until an MCU restart: nothing more on that node.
+    CHECK(std::strcmp(l->start("M1," + id(trial) + ",1,1,200"), "session") == 0);
+    // The cap: three per route and node, counted at admission whatever the check then finds.
+    scenario = "mode3-cap";
+    std::unique_ptr<Rig> c(new Rig);
+    trial = 0;
+    for (unsigned i = 0; i < 3; ++i) {
+        CHECK(c->run(modeThreeLine(1, trial)).failure == E::RouteFailure::PREREQUISITE); // Power-up: enabled.
+        c->release();
+    }
+    CHECK(std::strcmp(c->start(modeThreeLine(1, trial)), "budget") == 0);
+    CHECK(c->run(modeThreeLine(2, trial)).failure == E::RouteFailure::PREREQUISITE && c->downloadsFrom(0) == 0);
+}
+// VELOCITY through the session: exact frames and order, and its own stop after the due time.
+void testVelocity() {
+    scenario = "velocity";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    releasedModeThree(d);
+    uint32_t trial = 0;
+    VelocitySpec spec;
+    CHECK(std::strcmp(r->start(velocityLine(1, trial, spec)), "eligibility") == 0); // No service qualification.
+    qualified(*r, trial);
+    VelocitySpec quiet = spec;
+    quiet.attended = 0;
+    CHECK(std::strcmp(r->start(velocityLine(1, trial, quiet)), "unattended") == 0);
+    VelocitySpec dense = spec;
+    dense.interval = 100;
+    CHECK(std::strcmp(r->start(velocityLine(1, trial, dense)), "capacity") == 0);
+    // Without RouteWork, which holds its request, a velocity is refused before anything, as HOME is.
+    std::unique_ptr<Rig> bare(new Rig(false));
+    releasedModeThree(bare->driver.drives[0]);
+    uint32_t bareTrial = 0;
+    qualified(*bare, bareTrial);
+    CHECK(std::strcmp(bare->start(velocityLine(1, bareTrial, spec)), "memory") == 0);
+    CHECK(std::strcmp(bare->start(homeLine(1, bareTrial)), "memory") == 0);
+    CHECK(bare->downloadsFrom(0) == 0 && bare->route.motionAdmissions() == 0);
+    CHECK(r->route.motionAdmissions() == 0);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& v = r->run(velocityLine(1, trial, spec));
+    if (v.failure != E::RouteFailure::NONE)
+        std::fprintf(stderr, "%s", r->dump().c_str());
+    CHECK(v.failure == E::RouteFailure::NONE && v.velocityRequested && v.checkPassed && !v.stopRequested);
+    CHECK(v.motionTotal == 2 && v.caseCount == 1); // The run and its own stop.
+    const L::VelocityContext& c = r->one.velocityAction();
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
+          c.completion == M::ActionCompletion::OBSERVED && c.runningObserved && !c.needsStop);
+    CHECK(c.rate.effectiveNative == 6 && c.stopDueUs == c.startedUs + 12000000 &&
+          c.deadlineUs == c.startedUs + 18000000);
+    CHECK(c.startedUs == v.velocityRequestedUs && c.options.maxPolls == 6 && c.runningPolls <= 6);
+    CHECK(!r->one.velocityNeedsStop() && !r->one.faultBlocked());
+    size_t at = first;
+    expectUploads(*r, at, 1, IDENTITY, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const std::vector<M::Frame> sent = downloads(*r, first, 1);
+    const uint8_t target[8] = {0x23, 0xff, 0x60, 0, 6, 0, 0, 0}, up[8] = {0x23, 0x83, 0x60, 0, 0xc8, 0, 0, 0},
+                  down[8] = {0x23, 0x84, 0x60, 0, 0xc8, 0, 0, 0}, six[8] = {0x2b, 0x40, 0x60, 0, 6, 0, 0, 0},
+                  seven[8] = {0x2b, 0x40, 0x60, 0, 7, 0, 0, 0}, fifteen[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0, 0, 0},
+                  halt[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0x01, 0, 0};
+    CHECK(sent.size() == 7 && frameIs(sent[0], target) && frameIs(sent[1], up) && frameIs(sent[2], down) &&
+          frameIs(sent[3], six) && frameIs(sent[4], seven) && frameIs(sent[5], fifteen) && frameIs(sent[6], halt));
+    // The HALT leaves at or after the preparation-anchored due time, before the deadline.
+    const L::ActionContext& h = r->one.stopAction(L::StopKind::HALT);
+    const E::RouteTerminal* stopTerminal = terminalOf(v, 0x6040, h.operation);
+    CHECK(stopTerminal && stopTerminal->admittedUs >= c.stopDueUs && stopTerminal->completedUs < c.deadlineUs);
+    CHECK(v.terminalCount <= 9 + 9 + 3 + 3 + 21 + 7 * 6 + (1 + 7 * (1 + 6000 / 2000) + 2));
+    CHECK(h.state == M::ActionState::SUCCEEDED && h.predecessorWord == 0x000f && !h.predecessorDocumented &&
+          h.stopModeRaw == 3);
+    std::string text = r->dump();
+    CHECK(has(text, "route=velocity failure=0 why=none "));
+    CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=5 attended=1 rpm=6 up=200 down=200 dur=12000 "
+                    "interval=2000 deadline=18000 kind=1\n"));
+    CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 start=1 stop=1 kind=1 max=6 reverse=0 modeChange=0 "
+                    "dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123\n"));
+    CHECK(has(text, "TRIAL_VELOCITY own=1 state=2 ") && has(text, " needs=0 fenced=0 running=1 "));
+    CHECK(has(text, "TRIAL_VELOCITY_TIME started=") && has(text, " smask=7 cmask=7\n"));
+    CHECK(has(text, "TRIAL_VELOCITY_SAMPLE which=0 present=1 cycle=0 status=8050 monitor=0011 mode=03 "));
+    CHECK(has(text, "TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 ") &&
+          has(text, " pred=000f documented=0 "));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 "));
+    r->release();
+    // Halted and enabled now: a second run is refused by the route's check, before anything is sent.
+    const size_t mark = r->driver.requests.size();
+    const E::RouteRecord& again = r->run(velocityLine(1, trial, spec));
+    CHECK(again.failure == E::RouteFailure::PREREQUISITE && std::strcmp(again.why, "unreleased") == 0);
+    CHECK(downloads(*r, mark, 1).empty() && again.motionTotal == 4);
+    r->release();
+    // Each run counts its own stop against node 1's stop row: after three, no further stop is admitted.
+    CHECK(r->run(velocityLine(1, trial, spec)).failure == E::RouteFailure::PREREQUISITE);
+    r->release();
+    CHECK(std::strcmp(r->start("S1," + id(trial) + ",1,1,2000,0,200"), "budget") == 0);
+}
+// Refused by the library or the route before any write, and recorded.
+void testVelocityRefusals() {
+    struct Case {
+        const char* name;
+        void (*line)(VelocitySpec&);
+        void (*drive)(Drive&);
+        E::RouteFailure failure;
+        const char* why;
+        int code, detail;
+    };
+    const Case cases[] = {
+        {"start-closed", [](VelocitySpec& v) { v.start = 0; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7},
+        {"stop-closed", [](VelocitySpec& v) { v.stop = 0; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7},
+        {"identity", [](VelocitySpec& v) { v.fc = FIRMWARE + 1; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7},
+        // Below 27 services at the route budgets plus two enable intervals: 9470 ms.
+        {"short", [](VelocitySpec& v) { v.duration = 9469; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4},
+        // The stop reserve after due must exceed eight services: 2800 ms.
+        {"reserve", [](VelocitySpec& v) { v.deadline = v.duration + 2800; }, nullptr, E::RouteFailure::REFUSED,
+         "velocity", 1, 4},
+        {"unreleased", nullptr, [](Drive& f) { f.monitor = 0x0001; f.status = 0x8437; }, E::RouteFailure::PREREQUISITE,
+         "unreleased", -1, 0},
+        {"mode", nullptr, [](Drive& f) { f.mode = 1; }, E::RouteFailure::PREREQUISITE, "mode", -1, 0},
+        {"running", nullptr, [](Drive& f) { f.monitor = 0x0015; }, E::RouteFailure::PREREQUISITE, "running", -1, 0},
+        {"fault-code", nullptr, [](Drive& f) { f.errorCode = 0x2310; }, E::RouteFailure::PREREQUISITE, "fault-code",
+         -1, 0},
+        {"status", nullptr, [](Drive& f) { f.status = 0x8057; }, E::RouteFailure::PREREQUISITE, "status", -1, 0},
+    };
+    for (const Case& k : cases) {
+        scenario = k.name;
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThree(r->driver.drives[0]);
+        if (k.drive)
+            k.drive(r->driver.drives[0]);
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        VelocitySpec spec;
+        if (k.line)
+            k.line(spec);
+        const E::RouteRecord& v = r->run(velocityLine(1, trial, spec));
+        if (v.failure != k.failure || std::strcmp(v.why, k.why) != 0)
+            std::fprintf(stderr, "%s: failure=%u why=%s %s\n", k.name, unsigned(v.failure), v.why, v.statusMessage);
+        CHECK(v.failure == k.failure && std::strcmp(v.why, k.why) == 0 && !v.velocityRequested);
+        CHECK(downloads(*r, 0, 1).empty() && v.motionTotal == 2 &&
+              r->one.velocityAction().state == M::ActionState::EMPTY);
+        if (k.code >= 0)
+            CHECK(v.statusPresent && v.statusCode == k.code && v.statusDetail == k.detail);
+        const std::string text = r->dump();
+        CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 ") && !has(text, "TRIAL_VELOCITY own="));
+        if (k.code >= 0)
+            CHECK(has(text, "TRIAL_STATUS code="));
+    }
+}
+// The failure and uncertainty paths: abort refused while running, an EMCY, a lost stop reply, a setup
+// abort, a lost enable word, running never reported by the statusword, and lost evidence.
+void testVelocityFailures() {
+    scenario = "velocity-abort-refused";
+    std::unique_ptr<Rig> a(new Rig);
+    releasedModeThree(a->driver.drives[0]);
+    uint32_t trial = 0;
+    qualified(*a, trial);
+    CHECK(!a->start(velocityLine(1, trial)));
+    for (unsigned i = 0; i < 20000 && wordsFrom(*a, 0, 1, 0x000f) == 0; ++i)
+        a->turn();
+    a->turns(50);
+    CHECK(std::strcmp(a->route.abort(a->console.now), "velocity") == 0);
+    finishRoute(*a);
+    CHECK(a->route.record()->failure == E::RouteFailure::NONE && wordsFrom(*a, 0, 1, 0x010f) == 1);
+
+    scenario = "velocity-emcy";
+    std::unique_ptr<Rig> e(new Rig);
+    releasedModeThree(e->driver.drives[0]);
+    trial = 0;
+    qualified(*e, trial);
+    CHECK(!e->start(velocityLine(1, trial)));
+    for (unsigned i = 0; i < 20000 && wordsFrom(*e, 0, 1, 0x000f) == 0; ++i)
+        e->turn();
+    e->turns(100);
+    M::Frame emcy = frame(0x81, 8);
+    emcy.data[0] = 0x10;
+    emcy.data[1] = 0xff;
+    e->driver.push(emcy);
+    finishRoute(*e);
+    const E::RouteRecord& x = *e->route.record();
+    CHECK(x.failure == E::RouteFailure::OBSERVATION && std::strcmp(x.why, "emcy") == 0 && x.emcy);
+    const L::VelocityContext& ve = e->one.velocityAction();
+    CHECK(ve.state == M::ActionState::FAILED && ve.interruption == M::VelocityInterruption::DRIVE_FAULT &&
+          ve.needsStop && e->one.velocityNeedsStop() && e->one.faultBlocked());
+    e->turns(20000);
+    CHECK(wordsFrom(*e, 0, 1, 0x010f) == 0 && wordsFrom(*e, 0, 1, 0x000b) == 0); // No stop was sent.
+    CHECK(has(e->dump(), "TRIAL_EMCY data=10ff"));
+
+    scenario = "velocity-lost-stop";
+    std::unique_ptr<Rig> s(new Rig);
+    releasedModeThree(s->driver.drives[0]);
+    s->driver.drives[0].silentIndex = 0x6040;
+    s->driver.drives[0].silentWord = 0x010f;
+    trial = 0;
+    qualified(*s, trial);
+    const E::RouteRecord& ls = s->run(velocityLine(1, trial));
+    CHECK(ls.failure == E::RouteFailure::ACTION && std::strcmp(ls.why, "velocity") == 0);
+    const L::VelocityContext& vs = s->one.velocityAction();
+    CHECK(vs.state == M::ActionState::FAILED && vs.needsStop && s->one.velocityNeedsStop());
+    CHECK(vs.completion == M::ActionCompletion::NOT_OBSERVED && wordsFrom(*s, 0, 1, 0x010f) == 1);
+    std::string text = s->dump();
+    CHECK(has(text, "TRIAL_VELOCITY own=1 state=3 ") && has(text, " needs=1 fenced=1 "));
+    s->turns(500);
+    CHECK(s->route.release());
+    // The lost stop reply leaves the route unresolved until an MCU restart, and the session fenced.
+    releasedModeThree(s->driver.drives[0]);
+    s->driver.drives[0].silentIndex = 0;
+    const size_t mark = s->driver.requests.size();
+    CHECK(std::strcmp(s->start(velocityLine(1, trial)), "session") == 0 && s->one.velocityNeedsStop());
+    s->turns(100);
+    CHECK(s->driver.requests.size() == mark);
+
+    scenario = "velocity-setup-abort";
+    std::unique_ptr<Rig> p(new Rig);
+    releasedModeThree(p->driver.drives[0]);
+    p->driver.drives[0].abortIndex = 0x6083;
+    p->driver.drives[0].writesOnly = true;
+    trial = 0;
+    qualified(*p, trial);
+    const E::RouteRecord& sa = p->run(velocityLine(1, trial));
+    CHECK(sa.failure == E::RouteFailure::ACTION && std::strcmp(sa.why, "velocity") == 0);
+    const L::VelocityContext& vp = p->one.velocityAction();
+    CHECK(vp.state == M::ActionState::FAILED && !vp.needsStop && !p->one.velocityNeedsStop());
+    CHECK(downloads(*p, 0, 1).size() == 2 && wordsFrom(*p, 0, 1, 6) == 0); // 60FF and the refused 6083.
+
+    scenario = "velocity-lost-word";
+    std::unique_ptr<Rig> w(new Rig);
+    releasedModeThree(w->driver.drives[0]);
+    w->driver.drives[0].silentIndex = 0x6040;
+    w->driver.drives[0].silentWord = 7;
+    trial = 0;
+    qualified(*w, trial);
+    const E::RouteRecord& lw = w->run(velocityLine(1, trial));
+    CHECK(lw.failure == E::RouteFailure::ACTION && std::strcmp(lw.why, "velocity") == 0);
+    const L::VelocityContext& vw = w->one.velocityAction();
+    // Word 7 may have reached the drive: it needs a checked stop that no reviewed transition gives from 7.
+    CHECK(vw.state == M::ActionState::FAILED && vw.needsStop && w->one.velocityNeedsStop());
+    CHECK(wordsFrom(*w, 0, 1, 7) == 1 && wordsFrom(*w, 0, 1, 0x000f) == 0 && wordsFrom(*w, 0, 1, 0x010f) == 0);
+    w->dump();
+
+    scenario = "velocity-no-running-bit";
+    std::unique_ptr<Rig> n(new Rig);
+    releasedModeThree(n->driver.drives[0]);
+    n->driver.drives[0].spinBit = false; // 2100 reports running; 6041 bit 14 never does.
+    trial = 0;
+    qualified(*n, trial);
+    const E::RouteRecord& nr = n->run(velocityLine(1, trial));
+    CHECK(nr.failure == E::RouteFailure::ACTION);
+    const L::VelocityContext& vn = n->one.velocityAction();
+    CHECK(vn.state == M::ActionState::FAILED && vn.firstFailure == M::ActionOutcome::SERVICE_TIMEOUT &&
+          !vn.runningObserved);
+    // The stop still left and was observed: 2100 reported running, which is the stop's own predicate.
+    CHECK(vn.stopOutcome == M::ActionOutcome::OBSERVED && !vn.needsStop && wordsFrom(*n, 0, 1, 0x010f) == 1);
+    n->dump();
+
+    scenario = "velocity-lost-evidence";
+    std::unique_ptr<Rig> l(new Rig);
+    releasedModeThree(l->driver.drives[0]);
+    trial = 0;
+    qualified(*l, trial);
+    CHECK(!l->start(velocityLine(1, trial)));
+    for (unsigned i = 0; i < 200000 && l->route.active(); ++i) {
+        for (unsigned k = 0; k < 12 && !l->route.record()->evidenceLost && l->driver.count < 12 &&
+                             wordsFrom(*l, 0, 1, 0x000f);
+             ++k)
+            l->driver.push(beat(1));
+        l->turn();
+    }
+    const E::RouteRecord& le = *l->route.record();
+    CHECK(le.failure == E::RouteFailure::EVIDENCE_LOSS && le.evidenceLost && !le.lossCancel);
+    // Not withdrawn: the run reached its own stop and settled it.
+    CHECK(l->one.velocityAction().state == M::ActionState::SUCCEEDED && wordsFrom(*l, 0, 1, 0x010f) == 1);
+    CHECK(has(l->dump(), " lossCancel=0\n"));
+}
+// HOME: the reads requestHome consumes, then its refusal before any write; no motion weight.
+void testHome() {
+    scenario = "home-fresh";
+    std::unique_ptr<Rig> f(new Rig);
+    documentedInputs(f->driver.drives[0]);
+    uint32_t trial = 0;
+    CHECK(std::strcmp(f->start(homeLine(1, trial, 24, 0)), "unattended") == 0);
+    // With no latest controlword the session refuses before the library judges anything.
+    const E::RouteRecord& fresh = f->run(homeLine(1, trial));
+    CHECK(fresh.failure == E::RouteFailure::REFUSED && std::strcmp(fresh.why, "home") == 0);
+    CHECK(fresh.statusPresent && fresh.statusCode == 1 && fresh.statusDetail == 3 &&
+          std::strstr(fresh.statusMessage, "latest controlword"));
+    CHECK(fresh.motionTotal == 0 && fresh.caseCount == 1 && f->downloadsFrom(0) == 0 && fresh.terminalCount == 29);
+    f->release();
+    // Three per route and node, never motion; node 2 has its own row.
+    for (unsigned i = 0; i < 2; ++i) {
+        CHECK(f->run(homeLine(1, trial)).failure == E::RouteFailure::REFUSED);
+        f->release();
+    }
+    CHECK(std::strcmp(f->start(homeLine(1, trial)), "budget") == 0 && f->route.motionAdmissions() == 0);
+    // A lost reply ends the reads: requestHome is never called, and nothing is written.
+    f->driver.drives[1].silentIndex = 0x2400;
+    const E::RouteRecord& lost = f->run(homeLine(2, trial));
+    CHECK(lost.failure == E::RouteFailure::SERVICE && !lost.statusPresent && lost.caseCount == 1);
+    CHECK(f->downloadsFrom(0) == 0);
+    for (unsigned method : {17u, 18u, 24u, 29u}) {
+        scenario = "home-method";
+        std::unique_ptr<Rig> r(new Rig);
+        documentedInputs(r->driver.drives[0]);
+        trial = 0;
+        enabled(*r, trial);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& h = r->run(homeLine(1, trial, method));
+        CHECK(h.failure == E::RouteFailure::REFUSED && std::strcmp(h.why, "home") == 0 && !h.homeAdmitted);
+        // The library's first refusal after the method: the closed qualification gate.
+        CHECK(h.statusCode == 3 && h.statusDetail == 7 &&
+              std::strcmp(h.statusMessage, "homing needs exact selected-firmware qualification") == 0);
+        size_t at = first;
+        expectUploads(*r, at, 1, IDENTITY, 9);
+        expectUploads(*r, at, 1, IO_INPUTS, 9);
+        expectUploads(*r, at, 1, FULL, 9);
+        const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
+        expectUploads(*r, at, 1, driver, 2);
+        CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 0 && h.terminalCount == 29);
+        CHECK(h.homeIdentity && h.homeDriverPresent && h.groupPresent[0] && h.ioFunctions[0][0] == 1 &&
+              h.ioFunctions[0][1] == 2 && h.ioFunctions[0][2] == 3 && h.last.logicalInputs == 0xa580);
+        CHECK(h.motionTotal == 2 && h.caseCount == 1 && !r->one.homeActive() && !r->one.homeNeedsStop());
+        CHECK(r->one.homeAction().state == M::ActionState::EMPTY && r->route.motionAdmissions() == 2);
+        const std::string text = r->dump();
+        CHECK(has(text, ("TRIAL_PLAN route=home node=1 trial=3 attended=1 method=" + std::to_string(method) +
+                         " search=60 creep=6 ramp=200 offset=0\n").c_str()));
+        CHECK(has(text, "TRIAL_IO which=0 present=1 entries=8 polarity=0000 di0=0001 di1=0002 di2=0003 di3=0000 "));
+        CHECK(has(text, ("TRIAL_HOME method=" + std::to_string(method) +
+                         " gate=0 identity=1 io=1 state=1 driver=1 2101=a580 2200=0000 2201=0000 admitted=0\n")
+                            .c_str()));
+        CHECK(has(text, "TRIAL_STATUS code=3 detail=7; homing needs exact selected-firmware qualification\n"));
+    }
+}
+// The attended procedure of docs/reports/bench_closure_18_33/velocity_homing_procedure.md, in order, on
+// this fake: per node a readiness read, mode 1, the enable, a quick stop from its 000F, HOME, MODE_THREE
+// and VELOCITY. Twelve motion admissions in one boot; HOME weighs none. This fake chooses every report.
+void testVelocityHomePlan() {
+    scenario = "velocity-home-plan";
+    std::unique_ptr<Rig> r(new Rig);
+    for (unsigned node = 1; node <= 2; ++node) {
+        Drive& d = r->driver.drives[node - 1];
+        d.releaseWords = d.spins = true;
+        documentedInputs(d);
+    }
+    // Trials 1001 and 1002: both sessions first, as the procedure allocates them.
+    uint32_t trial = 1000;
+    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    CHECK(r->run("A2," + id(trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    const unsigned methods[2][2] = {{24, 29}, {17, 18}};
+    for (unsigned node = 1; node <= 2; ++node) {
+        Drive& d = r->driver.drives[node - 1];
+        const std::string n = std::to_string(node);
+        // mode1 and enable (1003, 1004 / 1010, 1011), with the procedure's values.
+        CHECK(r->run("M" + n + "," + id(trial) + ",1,5,500").failure == E::RouteFailure::NONE);
+        r->release();
+        r->heartbeat(node);
+        CHECK(r->run("E" + n + "," + id(trial) + ",1,1,1,32823,5000,120,10000,800").failure == E::RouteFailure::NONE);
+        r->release();
+        const E::RouteRecord& q = r->run("S" + n + "," + id(trial) + ",1,2,2000,0,250");
+        CHECK(q.failure == E::RouteFailure::NONE && q.stopPathRequested == uint8_t(E::StopPath::CONFIRMED));
+        CHECK((d.status & L::STATUS_LOW_BITS) == 0 && (d.monitor & L::MONITOR_RELEASED)); // This fake's release.
+        r->release();
+        for (unsigned method : methods[node - 1]) {
+            const E::RouteRecord& h = r->run(homeLine(node, trial, method));
+            CHECK(h.failure == E::RouteFailure::REFUSED && h.statusDetail == 7 && !h.homeAdmitted);
+            r->release();
+        }
+        const size_t before = r->driver.requests.size();
+        CHECK(r->run(modeThreeLine(node, trial, 2, 500)).failure == E::RouteFailure::NONE && d.mode == 3);
+        CHECK(downloads(*r, before, node).size() == 1);
+        r->release();
+        VelocitySpec spec;
+        CHECK(trial + 1 == (node == 1 ? 1009u : 1016u));
+        spec.record = trial + 1; // The trial's own number: its record is this experiment.
+        const E::RouteRecord& v = r->run(velocityLine(node, trial, spec));
+        if (v.failure != E::RouteFailure::NONE)
+            std::fprintf(stderr, "%s", r->dump().c_str());
+        CHECK(v.failure == E::RouteFailure::NONE && v.motionTotal == 6u * node && v.terminalCount <= 118);
+        CHECK(r->session(node).velocityAction().state == M::ActionState::SUCCEEDED);
+        r->release();
+    }
+    CHECK(r->route.motionAdmissions() == 12);
+    // The final reads (1017, 1018) record each node halted and enabled in mode 3 on this fake.
+    for (unsigned node = 1; node <= 2; ++node) {
+        const E::RouteRecord& a = r->run("A" + std::to_string(node) + "," + id(trial));
+        CHECK(a.failure == E::RouteFailure::NONE && a.last.mode == 3 && !(a.last.monitor & L::MONITOR_RELEASED));
+        r->release();
+    }
+    CHECK(trial == 1018);
+    CHECK(std::strcmp(r->start(modeThreeLine(1, trial)), "budget") == 0);
+    // HOME weighs no motion, so a third is still admitted on node 1; a fourth is over its own cap.
+    CHECK(r->run(homeLine(1, trial)).failure == E::RouteFailure::REFUSED);
+    r->release();
+    CHECK(std::strcmp(r->start(homeLine(1, trial)), "budget") == 0);
+}
+void writeTranscript(const char* path, bool all) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
     std::string out;
@@ -3461,6 +4147,38 @@ void writeTranscript(const char* path) {
     const std::string clear = "C1," + id(trial) + ",1,3000,500";
     CHECK(c->run(clear).failure == E::RouteFailure::NONE);
     append(*c, clear);
+    if (all) {
+        // Prompts 35 and 36, in the procedure's order on a fake of its own: after a quick stop from the
+        // enable's 000F, HOME refused before any write, MODE_THREE, VELOCITY to its own HALT; then a
+        // velocity the library refuses for the host's closed start flag.
+        std::unique_ptr<Rig> m(new Rig);
+        Drive& spun = m->driver.drives[0];
+        spun.releaseWords = spun.spins = true;
+        documentedInputs(spun);
+        trial = 0;
+        enabled(*m, trial, 1);
+        CHECK(m->run("S1," + id(trial) + ",1,2,2000,0,250").failure == E::RouteFailure::NONE);
+        m->turns(5);
+        m->route.release();
+        const std::string home = homeLine(1, trial);
+        CHECK(m->run(home).failure == E::RouteFailure::REFUSED);
+        append(*m, home);
+        const std::string three = modeThreeLine(1, trial);
+        CHECK(m->run(three).failure == E::RouteFailure::NONE);
+        append(*m, three);
+        const std::string run = velocityLine(1, trial);
+        CHECK(m->run(run).failure == E::RouteFailure::NONE);
+        append(*m, run);
+        std::unique_ptr<Rig> k(new Rig);
+        releasedModeThree(k->driver.drives[0]);
+        trial = 0;
+        qualified(*k, trial);
+        VelocitySpec closed;
+        closed.start = 0;
+        const std::string refused = velocityLine(1, trial, closed);
+        CHECK(k->run(refused).failure == E::RouteFailure::REFUSED);
+        append(*k, refused);
+    }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
     CHECK(std::fwrite(out.data(), 1, out.size(), file) == out.size());
@@ -3575,8 +4293,10 @@ void testPacket8Plan() {
 }
 
 int main(int argc, char** argv) {
-    if (argc == 3 && std::strcmp(argv[1], "--transcript") == 0) {
-        writeTranscript(argv[2]);
+    // --transcript-all adds the mode3, velocity and home records, which scripts/s2_evidence.py reads
+    // only once its grammar names them.
+    if (argc == 3 && (std::strcmp(argv[1], "--transcript") == 0 || std::strcmp(argv[1], "--transcript-all") == 0)) {
+        writeTranscript(argv[2], std::strcmp(argv[1], "--transcript-all") == 0);
         return 0;
     }
     testParse();
@@ -3627,6 +4347,13 @@ int main(int argc, char** argv) {
     testCounterZero();
     testClearAlarm();
     testPacket8Plan();
+    testParseVelocityHome();
+    testModeThree();
+    testVelocity();
+    testVelocityRefusals();
+    testVelocityFailures();
+    testHome();
+    testVelocityHomePlan();
     std::printf("bench_route: %u checks\n", checks);
     return 0;
 }

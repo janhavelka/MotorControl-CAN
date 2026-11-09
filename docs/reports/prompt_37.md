@@ -188,3 +188,26 @@ software correction is deferred. Physical/Q01/Q18/Q20 evidence is unchanged.
 Next numbered work is prompt38; this turn is assigned prompt37 only. Final
 commit, push/fresh-fetch comparison and exact CI receipt are recorded in the
 user handoff and `.build/p37-ci/final.json`; unrelated IDE files remain untouched.
+
+## Bench integration (draft, not yet run on hardware)
+
+The S2 bench image with PONG `pdo=4` adds the `D<o|p|i>,<seconds>,<select>,<expect>` line
+([hardware bench](../hardware_bench.md#discovery-communication-reads-and-heartbeat-commissioning)).
+`examples/s2_bench/DiscoveryBench` runs this prompt's `DiscoveryScan` over both configured slots
+through the firmware's own `ProbeApp`, owner and service store, then performs the requested host
+selection with `ProbeApp::select`. The scan receives a zero owner budget so that the shared firmware
+turn remains the only owner progression; the record copies each upload terminal before the scan
+consumes it and counts admitted uploads itself. This exposes one integration fact, not a defect:
+`DiscoveryScan` assumes it is the app's service caller, so its `servicesAdmitted` stays 0 when an
+outer firmware turn admits the reads. Host tests (`discovery_bench`) exercise passive, probe and
+identity scans, expectation match and contradiction, selection without traffic, a silent node left
+unresolved with its uncertainty, and every admission refusal; no download, NMT or drain marker
+reaches the fake wire.
+
+A bench run would show, per specimen and firmware: which configured nodes answer an accepted
+`1000:00` probe and the nine identity uploads under `MEASURED_U8`, whether both still match the
+retained 2026-11-04 identity, whether passive observation finds heartbeat or boot-up evidence
+(it can only when `1017` is nonzero or a boot-up falls in the window), and that host selection
+sends nothing. It would not show model or firmware identification, motor or feedback facts, a
+collision-free bus (one reply never excludes a duplicate node), behavior of any other node
+number, or anything about arbitrary-node scanning, which stays unavailable.

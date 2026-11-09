@@ -128,6 +128,59 @@ void captureLines() {
     refused("C4294967296,10,64");
     refused("c1,10,64");
 }
+// PONG pdo=4: the discovery scan, the typed communication reads and the heartbeat commissioning.
+void discoveryLines() {
+    E::PdoCommand c;
+    CHECK(parse("Do,5,0,0", c) && c.kind == E::PdoCommandKind::DISCOVER && c.discovery == 0 &&
+          c.seconds == 5 && c.select == 0 && !c.expect);
+    CHECK(parse("Dp,1,2,0", c) && c.discovery == 1 && c.seconds == 1 && c.select == 2 && !c.expect);
+    CHECK(parse("Di,60,1,1", c) && c.discovery == 2 && c.seconds == 60 && c.select == 1 && c.expect);
+    CHECK(!c.node && !c.nmt && !c.capture && !c.producerTime);
+    refused("D");
+    refused("Dx,5,0,0");
+    refused("DP,5,0,0");
+    refused("Do,0,0,0");
+    refused("Do,61,0,0");
+    refused("Do,5,3,0");
+    refused("Do,5,0,2");
+    refused("Do,5,0,1"); // An expectation is an identity comparison only.
+    refused("Dp,5,0,1");
+    refused("Do,5,0");
+    refused("Do,5,0,0,");
+    refused("Do5,0,0");
+    refused("Do,5,0,0 ");
+    refused("Di,4294967296,0,0");
+}
+void communicationLines() {
+    E::PdoCommand c;
+    CHECK(parse("K1", c) && c.kind == E::PdoCommandKind::COMMUNICATION && c.node == 1);
+    CHECK(parse("K2", c) && c.node == 2 && !c.set && !c.transmit && !c.value);
+    refused("K");
+    refused("K0");
+    refused("K3");
+    refused("K1,");
+    refused("K1,t,0"); // No group or object selector: the whole fixed group order runs.
+    refused("K12");
+}
+void heartbeatLines() {
+    E::PdoCommand c;
+    CHECK(parse("H1,1000", c) && c.kind == E::PdoCommandKind::HEARTBEAT && c.node == 1 &&
+          c.producerTime == 1000);
+    CHECK(parse("H2,1000", c) && c.node == 2 && c.producerTime == 1000 && !c.eventTimer);
+    refused("H1,0"); // The reverse transition is not a reviewed workflow.
+    refused("H1,500");
+    refused("H1,999");
+    refused("H1,1001");
+    refused("H1,2000");
+    refused("H1,01000x");
+    refused("H1,65536");
+    refused("H1");
+    refused("H1,");
+    refused("H0,1000");
+    refused("H3,1000");
+    refused("H1,1000,");
+    refused("h1,1000");
+}
 void otherLines() {
     E::PdoCommand c;
     refused("");
@@ -145,6 +198,9 @@ int main() {
     writeLines();
     configureLines();
     captureLines();
+    discoveryLines();
+    communicationLines();
+    heartbeatLines();
     otherLines();
     std::printf("pdo command: %u checks passed\n", checks);
 }

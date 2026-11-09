@@ -183,7 +183,7 @@ GRAMMAR = (
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
-        "rel:u? base:i? code:u? case:u? obs:u?"),
+        "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -270,6 +270,24 @@ GRAMMAR = (
         per_node=True),
     Row("TRIAL_MOVE_SAMPLE", "TRIAL_MOVE_SAMPLE ", "summary",
         "which:u present:b cycle:u status:x monitor:x mode:x feedback:b position:i velocity:i lo:u hi:u"),
+    # home (protocol 6): the reads requestHome consumed and its refusal; gate is always 0 (CLOSED).
+    Row("TRIAL_HOME", "TRIAL_HOME ", "summary",
+        "method:u gate:u identity:b io:b state:b driver:b 2101:x 2200:x 2201:x admitted:b"),
+    # velocity (protocol 6): the host's evidence as received, the session's VelocityContext, its
+    # preparation-anchored timeline and its admission and latest samples, raw. Its stop is TRIAL_STOP.
+    Row("TRIAL_VELOCITY_EVIDENCE", "TRIAL_VELOCITY_EVIDENCE ", "summary",
+        "record:u layout:u start:b stop:b kind:u max:u reverse:b modeChange:b dt:x hw:x sw:x vid:x pc:x rev:x "
+        "mc:x fc:x"),
+    Row("TRIAL_VELOCITY", "TRIAL_VELOCITY ", "summary",
+        "own:b state:u phase:u outcome:u>velocityOutcome first:u int:u setup:u exec:u completion:u>velocityCompletion "
+        "stop:u sexec:u uncertain:b>velocityUncertain effects:b needs:b fenced:b>velocityFenced running:b cycles:u "
+        "polls:u op:u sop:u rpm:i code:u detail:i",
+        signals=(("health", "velocityOutcome"), ("health", "velocityCompletion"), ("health", "velocityUncertain"),
+                 ("health", "velocityFenced")), per_node=True),
+    Row("TRIAL_VELOCITY_TIME", "TRIAL_VELOCITY_TIME ", "summary",
+        "started:u due:u deadline:u stopAt:u serviced:u smask:x cmask:x"),
+    Row("TRIAL_VELOCITY_SAMPLE", "TRIAL_VELOCITY_SAMPLE ", "summary",
+        "which:u present:b cycle:u status:x monitor:x mode:x position:i velocity:i lo:u hi:u"),
     Row("END", "END trial ", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
     Row("RELEASED", "TRIAL record released", "response"),
     Row("RELEASE_REFUSED", "TRIAL release refused", "response"),
@@ -417,6 +435,71 @@ GRAMMAR = (
     Row("CAP_F", "CAP_F ", "capture",
         "cap:u i:u id:x ext:b rtr:b dlc:u data:s bounds:b exact:b lo:u hi:u epoch:u pre:b post:b"),
     Row("CAP_END", "END capture", "capture", "cap:u stored:u overflow:u lost:b"),
+    # The D, K and H records (PONG pdo=4; examples/s2_bench/DiscoveryBench.h, CommunicationBench.h).
+    # Each is held until r and printed after its terminal; its RESULT, TRAFFIC and TAIL lines use the
+    # rows above. Typed values are raw observations: no model, route, map, unit or active setting.
+    # D: the library's DiscoveryScan over both configured nodes, then host selection (sends nothing).
+    Row("ADMITTED", "DISC admitted", "start", "mode:u seconds:u select:u expect:b"),
+    Row("REFUSED", "DISC refused", "refused", "reason:s"),
+    Row("DISC", "DISC id=", "header",
+        "id:u mode:u seconds:u targets:u attempted:u completed:u admitted:u terminals:u occupied:u free:u "
+        "unresolved:u drops:u cancelled:b deadline:b changed:b failed:b lost:b gap:u",
+        signals=(("health", "failed"), ("health", "unresolved"))),
+    # outcome: DiscoveryOutcome (1 PRESENCE, 2 GENERIC_IDENTITY, 3 NO_RESPONSE, 6 CONTRADICTORY_IDENTITY);
+    # confidence: DiscoveryConfidence (1 responder only, 2 raw identity, 3 caller expectation matched).
+    Row("DISC_T", "DISC_T ", "summary",
+        "node:u slot:u outcome:u confidence:u read:u state:u fields:u uncertain:b hb:b hbp:u boot:b bootp:u "
+        "pdo:b pdop:u dup:b unresolved:b current:b completed:u",
+        signals=(("health", "outcome"), ("health", "confidence")), per_node=True),
+    Row("DISC_PROBE", "DISC_PROBE ", "summary", "node:u type:x"),
+    Row("DISC_ID", "DISC_ID ", "summary",
+        "node:u type:x hw:x hww:u sw:x sww:u entries:u vendor:x product:x revision:x model:x firmware:x"),
+    Row("DISC_SELECT", "DISC_SELECT ", "summary", "node:u attempted:b selected:b current:b tx0:u tx1:u"),
+    Row("END", "END discovery", "end", "terminals:u targets:u"),
+    Row("RELEASED", "DISC record released", "response"),
+    Row("RELEASE_REFUSED", "DISC release refused", "response"),
+    # K: the eighteen typed communication read groups of one node, 95 uploads.
+    Row("ADMITTED", "COMM admitted", "start", "node:u groups:u uploads:u"),
+    Row("REFUSED", "COMM refused", "refused", "reason:s"),
+    Row("COMM", "COMM id=", "header",
+        "id:u node:u failure:u groups:u published:u group:u outcome:u uncertain:b status:u detail:i "
+        "terminals:u grants:u admission:u gap:u",
+        signals=(("health", "failure"), ("health", "uncertain")), per_node=True),
+    Row("COMM_NETWORK", "COMM_NETWORK ", "summary",
+        "node:u sync:x emcy:x producer:u sdo:u cs:x sc:x lo:u hi:u skew:u",
+        signals=(("status", "producer"),), per_node=True),
+    Row("COMM_NODE", "COMM_NODE ", "summary", "node:u raw:u lo:u hi:u skew:u"),
+    Row("COMM_PDO", "COMM_PDO ", "summary",
+        "node:u dir:s pdo:u entries:u cob:x type:u inhibit:u compat:u event:u lo:u hi:u skew:u"),
+    Row("COMM_MAP", "COMM_MAP ", "summary",
+        "node:u dir:s pdo:u count:u w1:x w2:x w3:x w4:x lo:u hi:u skew:u"),
+    Row("END", "END comm", "end", "terminals:u groups:u"),
+    Row("RELEASED", "COMM record released", "response"),
+    Row("RELEASE_REFUSED", "COMM release refused", "response"),
+    # H: the reviewed 1017:00 raw 0 to raw 1000 commissioning. state: CommunicationState (4 SUCCEEDED,
+    # 5 FAILED); write and outcome: ReadOutcome; restart and persistence stay 0, unknown.
+    Row("ADMITTED", "HB admitted", "start", "node:u raw:u"),
+    Row("REFUSED", "HB refused", "refused", "reason:s"),
+    Row("HB", "HB id=", "header",
+        "id:u node:u failure:u lost:b state:u outcome:u write:u ack:b effects:b uncertain:b known:b "
+        "readback:u matched:b published:b raw:u terminals:u gap:u",
+        signals=(("health", "failure"), ("health", "uncertain"), ("status", "readback")), per_node=True),
+    # The NMT observation given to the profile (nmtState NmtState when nmt=1), the epoch migration, the
+    # review scope (1 ISOLATED_EXPERIMENT) and the last refused profile call (Err code, ReadError detail).
+    Row("HB_PREP", "HB_PREP ", "summary",
+        "node:u nmt:b nmtState:u prepared:b migrated:b cfg:u scope:u restart:u persistence:u status:u "
+        "detail:i"),
+    Row("END", "END heartbeat", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
+    Row("RELEASED", "HB record released", "response"),
+    Row("RELEASE_REFUSED", "HB release refused", "response"),
+    # M (pdo=4): internal heap totals, each region as start:size:free:largest-free-block in the SDK's
+    # allocation order, the boot reservation mask (bits: route, session 1, session 2, arena, work) and
+    # the shared arena's occupant (0 none, 1 raw, 2 PDO, 3 D, 4 K, 5 H). A heap reading, not a budget.
+    Row("HEAP", "HEAP ", "response",
+        "free:u largest:u minimum:u regions:u r0:s? r1:s? r2:s? r3:s? reserved:x arena:u arenaBytes:u",
+        signals=(("health", "free"), ("health", "largest"))),
+    # n while a discovery scan runs: its passive evidence is the history the listing would drain.
+    Row("REFUSED", "NETWORK refused", "refused", "reason:s"),
     Row("UNKNOWN_COMMAND", "UNKNOWN command", "response"),
     Row("FORMAT_ERROR", "OUTPUT_FORMAT_ERROR", "error"),
     Row("BOOT_READY", "S2_BENCH ready", "boot", signals=_boot_signals),
@@ -470,7 +553,7 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "rearm": "rearm", "move": "move", "readiness-history": "history",
                 "released-quick": "released-quick", "word67": "word67", "relative": "relative",
                 "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
-                "clear-alarm": "clear-alarm"}
+                "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 

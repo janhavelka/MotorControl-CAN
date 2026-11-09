@@ -9,7 +9,8 @@ foreach(section sources include_dirs)
     endforeach()
 endforeach()
 idf_component_register(SRCS main.cpp ../RawEvidence.cpp ../PdoExperiment.cpp ../Soak.cpp ../BenchRoute.cpp
-    ../PdoWatch.cpp ../PdoCommand.cpp ../SilentCapture.cpp
+    ../PdoWatch.cpp ../PdoCommand.cpp ../SilentCapture.cpp ../BenchTerminal.cpp ../DiscoveryBench.cpp
+    ../CommunicationBench.cpp
     ${firmware_sources}
     INCLUDE_DIRS .. ${firmware_include_dirs}
     REQUIRES MotorControlCAN esp_driver_twai esp_driver_uart esp_driver_gpio esp_timer esp_app_format)

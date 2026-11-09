@@ -241,7 +241,7 @@ class RunTest(unittest.TestCase):
 
     def test_preflight_refusals_send_nothing_else(self):
         for board, why in ((Board(pdo=None), "image_without_pdo_lines"), (Board(soak=1), "soak_running"),
-                           (Board(watch=1), "watch_running"), (Board(pdo="4"), "image_without_pdo_lines"),
+                           (Board(watch=1), "watch_running"), (Board(pdo="5"), "image_without_pdo_lines"),
                            (Board(pdo="3", capture=1), "capture_held")):
             code, meta, _ = self.session(board, [{"send": "P5", "expect": "PDOW admitted"}])
             self.assertEqual((code, meta["reason"]), (1, why))
@@ -618,6 +618,281 @@ class CaptureTest(unittest.TestCase):
         self.assertEqual(meta["steps"][-1]["outcome"], "capture_ended")
 
 
+def full_result(step, obj, size, data, direction=0, outcome=0, abort="00000000", op=21):
+    """One RESULT line as BenchTerminal.cpp and main.cpp resultLine print it."""
+    return ("RESULT op=%d req=%d oreq=%d step=%d object=%s dir=%d outcome=%d ack=%d possible=1 uncertain=0 "
+            "abort=%s cleanup=0 size=%d data=%s admitted=%d completed=%d ne=1 reason=0 st=3f" %
+            (op, step, step + 100, step, obj, direction, outcome, int(outcome == 0), abort, size, data,
+             1000 + 100 * step, 1050 + 100 * step))
+
+
+def disc_reply(mode="p", seconds=2, select=1, expect=0, header=None, targets=None, results=None,
+               selection=None, values=True):
+    """One D record as DiscoveryBench.cpp prints it: both nodes present unless told otherwise."""
+    code = {"o": 0, "p": 1, "i": 2}[mode]
+    count = {0: 0, 1: 2, 2: 18}[code]
+    head = dict(id=9, mode=code, seconds=seconds, targets=2, attempted=2, completed=2, admitted=count,
+                terminals=count, occupied=2, free=0, unresolved=0, drops=0, cancelled=0, deadline=int(code == 0),
+                changed=0, failed=0, lost=0, gap=100)
+    head.update(header or {})
+    outcome, confidence = {0: (1, 1), 1: (1, 1), 2: (2, 3 if expect else 2)}[code]
+    lines = ["DISC admitted mode=%d seconds=%d select=%d expect=%d; uploads only, selection sends nothing; "
+             "no retry" % (code, seconds, select, expect),
+             "DISC " + " ".join("%s=%s" % item for item in head.items())]
+    for node in (1, 2):
+        t = dict(node=node, slot=node - 1, outcome=outcome, confidence=confidence, read=0 if code == 0 else 1,
+                 state=0 if code == 0 else 2, fields=0 if code == 0 else 1 if code == 1 else 9, uncertain=0,
+                 hb=int(code == 0), hbp=500 if code == 0 else 0, boot=0, bootp=0, pdo=0, pdop=0, dup=0,
+                 unresolved=0, current=1, completed=2000)
+        t.update((targets or {}).get(node, {}))
+        lines.append("DISC_T " + " ".join("%s=%s" % item for item in t.items()))
+    if values and code == 1:
+        lines += ["DISC_PROBE node=%d type=00040192" % node for node in (1, 2)]
+    if values and code == 2:
+        lines += ["DISC_ID node=%d type=00040192 hw=c hww=1 sw=20 sww=1 entries=3 vendor=00001000 "
+                  "product=00000001 revision=00000000 model=0400 firmware=0200" % node for node in (1, 2)]
+    s = dict(node=select, attempted=int(bool(select)), selected=int(bool(select)), current=int(bool(select)),
+             tx0=count, tx1=count)
+    s.update(selection or {})
+    lines.append("DISC_SELECT " + " ".join("%s=%s" % item for item in s.items()))
+    objects = ["1000:00"] if code == 1 else ["1000:00", "1009:00", "100a:00", "1018:00", "1018:01", "1018:02",
+                                             "1018:03", "2000:00", "2001:00"]
+    rows = [] if code == 0 else [full_result(i + 1, objects[i % len(objects)], 4, "92010400") for i in range(count)]
+    for index, change in (results or {}).items():
+        rows[index] = change
+    lines += rows
+    lines.append("END discovery terminals=%d targets=2; selection sends nothing; r=release" % len(rows))
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+COMM_GROUPS = ([("NETWORK", None, None, 6), ("NODE", None, None, 1)] +
+               [("PDO", "t", n, 6) for n in range(1, 5)] + [("MAP", "t", n, 5) for n in range(1, 5)] +
+               [("PDO", "r", n, 6) for n in range(1, 5)] + [("MAP", "r", n, 5) for n in range(1, 5)])
+
+
+def comm_reply(node=1, header=None, drop_group=None, swap=False, write_at=None, outcome_at=None):
+    """One K record as CommunicationBench.cpp prints it: the eighteen groups, 95 uploads."""
+    head = dict(id=40, node=node, failure=0, groups=18, published=18, group=18, outcome=1, uncertain=0, status=0,
+                detail=0, terminals=95, grants=95, admission=0, gap=100)
+    head.update(header or {})
+    lines = ["COMM admitted node=%d groups=18 uploads=95; typed reads only, no write; no retry" % node,
+             "COMM " + " ".join("%s=%s" % item for item in head.items())]
+    window = "lo=1000 hi=1500 skew=500"
+    groups = []
+    for kind, direction, number, _ in COMM_GROUPS:
+        if kind == "NETWORK":
+            groups.append("COMM_NETWORK node=%d sync=00000080 emcy=%08x producer=0 sdo=2 cs=%08x sc=%08x %s" %
+                          (node, 0x80 + node, 0x600 + node, 0x580 + node, window))
+        elif kind == "NODE":
+            groups.append("COMM_NODE node=%d raw=0 %s" % (node, window))
+        elif kind == "PDO":
+            groups.append("COMM_PDO node=%d dir=%s pdo=%d entries=5 cob=%08x type=255 inhibit=0 compat=0 event=0 %s" %
+                          (node, direction, number, 0x180 + node, window))
+        else:
+            groups.append("COMM_MAP node=%d dir=%s pdo=%d count=0 w1=00000000 w2=00000000 w3=00000000 "
+                          "w4=00000000 %s" % (node, direction, number, window))
+    if drop_group is not None:
+        del groups[drop_group]
+    if swap:
+        groups[2], groups[3] = groups[3], groups[2]
+    lines += groups
+    step = 0
+    for _, _, _, fields in COMM_GROUPS:
+        for sub in range(fields):
+            step += 1
+            lines.append(full_result(step, "1800:%02x" % sub, 1, "05000000", direction=int(step == write_at),
+                                     outcome=3 if step == outcome_at else 0))
+    lines.append("END comm terminals=95 groups=18; typed uploads only, nothing written; r=release")
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+def hb_reply(node=1, header=None, readback="e8030000", baseline="00000000", tx=None, extra_tx=None,
+             directions=(0, 1, 0)):
+    """One H record as CommunicationBench.cpp prints it: baseline 0, the write, readback 1000."""
+    head = dict(id=50, node=node, failure=0, lost=0, state=4, outcome=1, write=1, ack=1, effects=1, uncertain=0,
+                known=1, readback=1000, matched=1, published=1, raw=1000, terminals=3, gap=100)
+    prep = dict(node=node, nmt=0, nmtState=0, prepared=1, migrated=1, cfg=2, scope=1, restart=0, persistence=0,
+                status=0, detail=0)
+    for key, value in (header or {}).items():
+        (prep if key in prep and key != "node" else head)[key] = value
+    lines = ["HB admitted node=%d raw=1000; exact baseline 0, one 1017:00 write, exact readback; no save, reset "
+             "or retry" % node, "HB " + " ".join("%s=%s" % item for item in head.items()),
+             "HB_PREP " + " ".join("%s=%s" % item for item in prep.items()),
+             full_result(1, "1017:00", 2, baseline, directions[0], op=50),
+             full_result(1, "1017:00", 0, "00000000", directions[1], op=51),
+             full_result(2, "1017:00", 2, readback, directions[2], op=51)]
+    frames = [("1", "40171000" + "00000000"), ("0", "4b171000" + baseline), ("1", tx or "2b171000e8030000"),
+              ("0", "60171000" + "00000000"), ("1", "40171000" + "00000000"), ("0", "4b171000" + readback)]
+    if extra_tx:
+        frames.append(("1", extra_tx))
+    for i, (kind, data) in enumerate(frames):
+        ident = 0x600 + node if kind == "1" else 0x580 + node
+        suffix = " txk=0 txr=%d txf=1" % (i + 1) if kind == "1" else ""
+        lines.append("TRAFFIC k=%s p=%d id=%x ext=0 rtr=0 dlc=8 data=%s ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 "
+                     "epoch=1%s" % (kind, 1000 + 10 * i, ident, data, suffix))
+    lines.append("END heartbeat terminals=3 traffic=%d tail=0 tailLost=0 lost=0; no save, reset or restore; "
+                 "r=release" % len(frames))
+    return ("\n".join(lines) + "\n").encode("ascii")
+
+
+DISC_STEP = {"send": "Dp,2,1,0", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 5}
+COMM_STEP = {"send": "K1", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 30}
+HB_STEP = {"send": "H1,1000", "expect": "HB admitted", "end": "END heartbeat", "end_timeout_s": 10}
+
+
+class CommissioningTest(unittest.TestCase):
+    """The D, K and H lines (PONG pdo=4): one held record each, released by its own line, refused on
+    older images before anything is sent, and each checked against its own terminal. The fake board
+    answers as DiscoveryBench.cpp and CommunicationBench.cpp format their records."""
+
+    session = RunTest.session
+
+    def refused(self, *steps):
+        with self.assertRaises(pdo.SessionError):
+            pdo.check_plan(plan(*steps))
+
+    def test_line_rules(self):
+        for step in (DISC_STEP, COMM_STEP, HB_STEP, dict(DISC_STEP, send="Do,30,0,0", end_timeout_s=35),
+                     dict(DISC_STEP, send="Di,8,2,1", end_timeout_s=10), dict(COMM_STEP, send="K2"),
+                     dict(HB_STEP, send="H2,1000")):
+            self.assertEqual(len(pdo.check_plan(plan(step))), 1, step)
+        for bad in (dict(HB_STEP, send="H1,0"),  # The reverse transition is not reviewed.
+                    dict(HB_STEP, send="H1,500"), dict(HB_STEP, send="H3,1000"), dict(HB_STEP, send="H1"),
+                    dict(COMM_STEP, send="K3"), dict(COMM_STEP, send="K1,t,0"),  # No object selector.
+                    dict(DISC_STEP, send="Dx,2,1,0"), dict(DISC_STEP, send="Dp,2,1,1"),  # Expect is identity only.
+                    dict(DISC_STEP, send="Dp,0,1,0"), dict(DISC_STEP, send="Dp,61,1,0", end_timeout_s=70),
+                    dict(DISC_STEP, send="Dp,2,3,0"), dict(DISC_STEP, send="Dp,2,1"),
+                    dict(DISC_STEP, end_timeout_s=2),  # The record ends only at its window.
+                    dict(DISC_STEP, expect="DISC"), dict(DISC_STEP, end="END raw"),
+                    dict(COMM_STEP, expect="COMM"), dict(COMM_STEP, end="END PDO"),
+                    dict(HB_STEP, expect="HEARTBEAT experiment admitted"), dict(HB_STEP, end="END raw"),
+                    {"send": "K1", "expect": "COMM admitted"}):  # No terminal to check.
+            self.refused(bad)
+
+    def test_each_record_needs_its_own_release(self):
+        release = {"Dp,2,1,0": "DISC record released", "K1": "COMM record released", "H1,1000": "HB record released"}
+        steps = {"Dp,2,1,0": DISC_STEP, "K1": COMM_STEP, "H1,1000": HB_STEP}
+        for text, step in steps.items():
+            self.assertEqual(len(pdo.check_plan(plan(step, {"send": "r", "expect": release[text]}))), 2)
+            for other in set(pdo.RELEASE_LINES.values()) - {release[text]}:
+                self.refused(step, {"send": "r", "expect": other})
+            # New work while the record is held is refused, whatever it is.
+            for later in (DISC_STEP, COMM_STEP, HB_STEP, {"send": "N1,p", "expect": "NMT admitted", "end": "NMT request"},
+                          {"send": "R1,t,0", "expect": "PDO_READ admitted", "end": "END raw"}):
+                self.refused(step, later)
+            # A held raw, PDO or NMT record refuses these too.
+            self.refused({"send": "N1,p", "expect": "NMT admitted", "end": "NMT request"}, step)
+
+    def test_an_image_before_pdo4_is_never_sent_d_k_or_h(self):
+        # On a pdo=3 image the letters are unknown and their digits single-byte commands: K1 would be an
+        # UNKNOWN byte and then a node-1 identity read, H1,1000 the same and four more bytes.
+        for step in (DISC_STEP, COMM_STEP, HB_STEP):
+            for version in ("1", "2", "3"):
+                board = Board({}, pdo=version, capture=0)
+                code, meta, _ = self.session(board, [step])
+                self.assertEqual((code, meta["reason"]), (1, "image_without_pdo_config"), (step, version))
+                self.assertEqual(board.writes, [b"p"])
+
+    def run_one(self, step, reply, release_line):
+        board = Board({pdo.encode(step["send"]): reply, b"r": release_line.encode() + b"; x\n",
+                       b"N1,p\n": b"NMT admitted node=1 cmd=128; addressed\n"
+                                  b"NMT request=4 target=1 cmd=128 outcome=0 possible=1 txConfirmed=1 completed=900; x\n"},
+                      pdo="4", capture=0)
+        code, meta, out = self.session(board, [step, {"send": "r", "expect": release_line},
+                                               {"send": "N1,p", "expect": "NMT admitted", "end": "NMT request"}])
+        return board, code, meta, out
+
+    def check_cases(self, step, good, cases, release_line):
+        board, code, meta, out = self.run_one(step, good, release_line)
+        self.assertEqual((code, meta["reason"]), (0, "completed"), meta["steps"])
+        self.assertEqual(board.writes, [b"p", pdo.encode(step["send"]), b"r", b"N1,p\n"])
+        report = pdo.analyze(out)
+        self.assertEqual((report["unknown"], report["malformed"]), (["stale"], []))
+        for problem, reply in cases.items():
+            board, code, meta, _ = self.run_one(step, reply, release_line)
+            self.assertEqual((code, meta["reason"], meta["steps"][0].get("problem")), (1, "terminal_failed", problem),
+                             problem)
+            self.assertEqual(board.writes, [b"p", pdo.encode(step["send"])], problem)
+        return report
+
+    def test_discovery_terminal(self):
+        cases = {"discovery_outcome_3": disc_reply(targets={2: {"outcome": 3, "confidence": 0}}),
+                 "discovery_unresolved": disc_reply(targets={1: {"unresolved": 1}}),
+                 "discovery_interrupted": disc_reply(header={"cancelled": 1}),
+                 "discovery_wrong_request": disc_reply(header={"mode": 2}),
+                 "discovery_results_incomplete": disc_reply(header={"terminals": 1}),
+                 "discovery_service_failed": disc_reply(results={1: full_result(2, "1000:00", 0, "00000000",
+                                                                                outcome=3)}),
+                 "discovery_selection_refused": disc_reply(selection={"selected": 0}),
+                 "discovery_wrong_selection": disc_reply(select=2),
+                 "discovery_record_unparsed": disc_reply().replace(b"DISC_SELECT", b"DISC_CHOSEN")}
+        report = self.check_cases(DISC_STEP, disc_reply(), cases, "DISC record released")
+        (item,) = report["commissioning"]
+        self.assertEqual((item["kind"], item["header"]["mode"]), ("DISC", 1))
+        self.assertEqual([entry["kind"] for entry in item["lines"]],
+                         ["DISC_T", "DISC_T", "DISC_PROBE", "DISC_PROBE", "DISC_SELECT"])
+
+    def test_discovery_modes(self):
+        # Passive: nothing sent, and a silent node (heartbeat disabled) is a legitimate NO_RESPONSE.
+        step = dict(DISC_STEP, send="Do,3,0,0")
+        silent = disc_reply("o", 3, 0, targets={2: {"outcome": 3, "confidence": 0, "hb": 0, "hbp": 0}})
+        board, code, meta, _ = self.run_one(step, silent, "DISC record released")
+        self.assertEqual((code, meta["reason"]), (0, "completed"), meta["steps"])
+        sent = disc_reply("o", 3, 0, header={"admitted": 1})
+        board, code, meta, _ = self.run_one(step, sent, "DISC record released")
+        self.assertEqual(meta["steps"][0].get("problem"), "discovery_passive_sent")
+        # Identity with the fixture expectation: both must match it; a contradiction stops the plan.
+        step = dict(DISC_STEP, send="Di,4,0,1")
+        board, code, meta, _ = self.run_one(step, disc_reply("i", 4, 0, 1), "DISC record released")
+        self.assertEqual((code, meta["reason"]), (0, "completed"), meta["steps"])
+        contradiction = disc_reply("i", 4, 0, 1, targets={2: {"outcome": 6, "confidence": 2}})
+        board, code, meta, _ = self.run_one(step, contradiction, "DISC record released")
+        self.assertEqual(meta["steps"][0].get("problem"), "discovery_outcome_6")
+        generic = disc_reply("i", 4, 0, 1, targets={1: {"confidence": 2}})
+        board, code, meta, _ = self.run_one(step, generic, "DISC record released")
+        self.assertEqual(meta["steps"][0].get("problem"), "discovery_outcome_2")
+
+    def test_comm_terminal(self):
+        cases = {"comm_failure_3": comm_reply(header={"failure": 3, "outcome": 3, "published": 11, "group": 11}),
+                 "comm_wrong_node": comm_reply(header={"node": 2}),
+                 "comm_groups_incomplete": comm_reply(drop_group=17),
+                 "comm_groups_out_of_order": comm_reply(swap=True),
+                 "comm_results_incomplete": comm_reply(outcome_at=40),
+                 "comm_write_present": comm_reply(write_at=12),
+                 "comm_record_unparsed": comm_reply().replace(b"COMM id=", b"COMMX id=")}
+        report = self.check_cases(COMM_STEP, comm_reply(), cases, "COMM record released")
+        (item,) = report["commissioning"]
+        self.assertEqual(len(item["lines"]), 18)
+        self.assertEqual(item["lines"][0]["kind"], "COMM_NETWORK")
+
+    def test_heartbeat_terminal(self):
+        cases = {"heartbeat_failure_9": hb_reply(header={"failure": 9, "state": 0, "ack": 0, "matched": 0,
+                                                         "published": 0, "terminals": 1}),
+                 "heartbeat_failure_3": hb_reply(header={"failure": 3, "state": 5, "uncertain": 1}),
+                 "heartbeat_wrong_node": hb_reply(header={"node": 2}),
+                 "heartbeat_not_confirmed": hb_reply(header={"migrated": 0}),
+                 "heartbeat_results_incomplete": hb_reply(header={"terminals": 2}),
+                 "heartbeat_steps_differ": hb_reply(directions=(0, 0, 0)),
+                 "heartbeat_values_differ": hb_reply(readback="f4010000"),
+                 "heartbeat_write_bytes_differ": hb_reply(tx="2b171000f4010000"),
+                 "heartbeat_record_unparsed": hb_reply().replace(b"HB id=", b"HBX id=")}
+        report = self.check_cases(HB_STEP, hb_reply(), cases, "HB record released")
+        (item,) = report["commissioning"]
+        self.assertEqual((item["kind"], item["header"]["raw"], item["lines"][0]["migrated"]), ("HB", 1000, 1))
+        # A second write frame to the node, even of the same bytes, is no confirmed single write.
+        board, code, meta, _ = self.run_one(HB_STEP, hb_reply(extra_tx="2b171000e8030000"), "HB record released")
+        self.assertEqual(meta["steps"][0].get("problem"), "heartbeat_write_bytes_differ")
+
+    def test_refusals_end_the_plan(self):
+        for step, line in ((DISC_STEP, b"DISC refused reason=scan; no work\n"),
+                           (COMM_STEP, b"COMM refused reason=unresolved; no work\n"),
+                           (HB_STEP, b"HB refused reason=service; no work\n")):
+            board = Board({pdo.encode(step["send"]): line}, pdo="4", capture=0)
+            code, meta, _ = self.session(board, [step, {"send": "r", "expect": pdo.RELEASE_LINES[pdo.HOLDS[step["send"][0]]]}])
+            self.assertEqual((code, meta["reason"]), (1, "refused"))
+            self.assertEqual(board.writes, [b"p", pdo.encode(step["send"])])
+
+
 class FirmwareTextTest(unittest.TestCase):
     """The firmware's own format strings against the grammar and their buffers, read from source."""
 
@@ -669,10 +944,158 @@ class FirmwareTextTest(unittest.TestCase):
         for name, spec in re.findall(r"(\w+)=%(l{0,2}[us])", body):
             widest = widest.replace("%s=%%%s" % (name, spec), "%s=%s" % (name, "9" * widths.get(name, 1)), 1)
         self.assertNotIn("%", widest)
-        self.assertIn("pdo=3", widest)
+        self.assertIn("pdo=4", widest)
         self.assertIn("capture=9", widest)
         self.assertLess(len(widest) + 1, output)
         self.assertLess(len(widest) + 1, retained)  # line() keeps only a response shorter than the buffer.
+
+    # Widest text per conversion: unsigned and hex at their full width, signed with its sign.
+    SPEC_WIDTH = {"u": 10, "lu": 10, "llu": 20, "d": 11, "ld": 11, "lx": 8, "08lx": 8, "02x": 2, "x": 8,
+                  "04lx": 4, "04x": 4, "c": 1}
+
+    def filled(self, body, head):
+        """(widest, parseable) texts of one format string: every conversion at its widest (a flag, which
+        the firmware prints as unsigned(bool), at one digit), and every field at a value its grammar row
+        accepts (flags 1, hex f, signed negative, dir t)."""
+        from s2_evidence import GRAMMAR, _compile
+        types = {}
+        for row in GRAMMAR:
+            if head.startswith(row.head) or row.head.startswith(head):
+                for name, (_, convert, _) in _compile(row.fields).items():
+                    types.setdefault(name, convert.__name__)
+        conversion = re.compile(r"(?:(\w+)=)?%([0-9]*l{0,2}[udxsc])")
+
+        def fill(match, widest):
+            # A conversion right after "name=" is that field; one inside a compound value (the
+            # subindex of object=, the later bytes of data=) continues the field before it.
+            name, spec = match.group(1), match.group(2)
+            kind = types.get(name, "") if name else ""
+            width = 64 if spec == "s" else self.SPEC_WIDTH[spec]
+            if widest:
+                value = "9" * (1 if kind == "_flag" else width)
+            else:
+                value = ("1" if kind == "_flag" else "t" if spec in "cs" else
+                         "-" + "9" * (width - 1) if spec in ("d", "ld") else
+                         "f" * width if "x" in spec else "9" * width)
+            return (name + "=" if name else "") + value
+        widest = conversion.sub(lambda m: fill(m, True), body)
+        parseable = conversion.sub(lambda m: fill(m, False), body)
+        return widest, parseable
+
+    def test_commissioning_lines_are_in_the_grammar_and_fit(self):
+        """Every D, K and H record line, filled to its widest, fits its 320-byte buffer, and filled with
+        valid values parses through the grammar with no unknown field (the firmware's own strings)."""
+        from s2_evidence import parse_line
+        header = (REPOSITORY / "examples/s2_bench/CommunicationBench.h").read_text(encoding="utf-8")
+        discovery_header = (REPOSITORY / "examples/s2_bench/DiscoveryBench.h").read_text(encoding="utf-8")
+        capacity = int(re.search(r"COMMUNICATION_LINE = (\d+)", header).group(1))
+        self.assertEqual(capacity, int(re.search(r"DISCOVERY_BENCH_LINE = (\d+)", discovery_header).group(1)))
+        heads = r"(?:DISC|COMM|HB|RESULT|END discovery|END comm|END heartbeat)"
+        expected = {"DISC", "DISC_T", "DISC_PROBE", "DISC_ID", "DISC_SELECT", "COMM", "COMM_NETWORK", "COMM_NODE",
+                    "COMM_PDO", "COMM_MAP", "HB", "HB_PREP", "RESULT", "END"}
+        found = set()
+        for path in ("DiscoveryBench.cpp", "CommunicationBench.cpp", "BenchTerminal.cpp"):
+            source = (REPOSITORY / "examples/s2_bench" / path).read_text(encoding="utf-8")
+            for body in {self.literal(m) for m in re.findall(r'"(' + heads + r'[ _](?:[^"]|"\s*")*?)\\n"', source)}:
+                head = body.split("=")[0].rsplit(" ", 1)[0] + " "
+                widest, parseable = self.filled(body, head)
+                self.assertNotIn("%", widest, body)
+                self.assertLess(len(widest) + 1, capacity, body)  # Newline; vsnprintf's terminator fits too.
+                record = parse_line(1, parseable)
+                self.assertEqual((record.status, record.extra), ("parsed", {}), (body, record.reason))
+                found.add(record.kind)
+        self.assertEqual(found, expected)
+
+    def test_bench_terminal_lines_match_main(self):
+        """The D, K and H records print RESULT and TRAFFIC lines exactly as main.cpp does."""
+        main = (REPOSITORY / "examples/s2_bench/main/main.cpp").read_text(encoding="utf-8")
+        bench = (REPOSITORY / "examples/s2_bench/BenchTerminal.cpp").read_text(encoding="utf-8")
+        pattern = r'"RESULT (.*?)\\n"\s*,'
+        self.assertEqual(self.literal(re.search(pattern, bench, re.S).group(1)),
+                         self.literal(re.search(pattern, main, re.S).group(1)))
+        frame = r'"%s k=%u (.*?)epoch=%lu'
+        self.assertEqual(self.literal(re.search(frame, bench, re.S).group(1)),
+                         self.literal(re.search(frame, main, re.S).group(1)))
+        for suffix in (" ctrl=%u", " rec=%u", " txk=%u txr=%lu txf=%lu"):
+            self.assertIn(suffix, main)
+            self.assertIn(suffix, bench)
+
+    def test_commissioning_console_lines_parse(self):
+        """main.cpp's D, K and H admission, refusal and release lines are grammar rows of their kinds."""
+        from s2_evidence import parse_line
+        main = (REPOSITORY / "examples/s2_bench/main/main.cpp").read_text(encoding="utf-8")
+        for literal, kind in (("DISC admitted mode=%u seconds=%lu select=%u expect=%u", "ADMITTED"),
+                              ("DISC refused reason=%s", "REFUSED"),
+                              ("COMM admitted node=%u groups=18 uploads=95", "ADMITTED"),
+                              ("HB admitted node=%u raw=%u", "ADMITTED"),
+                              ("DISC record released", "RELEASED"), ("DISC release refused", "RELEASE_REFUSED"),
+                              ("COMM record released", "RELEASED"), ("COMM release refused", "RELEASE_REFUSED"),
+                              ("HB record released", "RELEASED"), ("HB release refused", "RELEASE_REFUSED"),
+                              ("NETWORK refused reason=discovery", "REFUSED")):
+            self.assertIn(literal, self.literal(main), literal)
+            _, parseable = self.filled(literal, literal)
+            record = parse_line(1, parseable)
+            self.assertEqual((record.status, record.kind), ("parsed", kind), literal)
+        # The runner knows each of them: refusals end a plan, releases match their record, admissions
+        # are the checked starts of their commands.
+        for line in ("DISC refused", "DISC release refused", "COMM refused", "COMM release refused", "HB refused",
+                     "HB release refused", "NETWORK refused"):
+            self.assertIn(line, pdo.REFUSALS)
+        self.assertLessEqual({"DISC record released", "COMM record released", "HB record released"},
+                             set(pdo.RELEASE_LINES.values()))
+        self.assertEqual([pdo.CHECKED[c][0] for c in "DKH"], ["DISC admitted", "COMM admitted", "HB admitted"])
+        # The K and H refusals share one format string; both kinds parse.
+        self.assertIn(r'"%s refused reason=%s; no work\n"', main)
+        self.assertIn('reads ? "COMM" : "HB"', main)
+        for text in ("COMM refused reason=unresolved; no work", "HB refused reason=service; no work"):
+            self.assertEqual(parse_line(1, text).kind, "REFUSED")
+
+    def test_heap_line_fits_and_parses(self):
+        """The M line (main.cpp heapLine): totals, at most four regions, the reservation and the arena,
+        at their widest within the 320-byte response, and parsed by the grammar's HEAP row."""
+        from s2_evidence import parse_line
+        main = (REPOSITORY / "examples/s2_bench/main/main.cpp").read_text(encoding="utf-8")
+        body = re.search(r'void heapLine\(.*?\n}\n', main, re.S).group(0)
+        parts = [self.literal(m) for m in re.findall(r'"((?:HEAP | r%u| reserved)(?:[^"]|"\s*")*?)"', body)]
+        self.assertEqual(len(parts), 3, parts)
+        head, region, tail = parts
+        self.assertIn("CAPACITY = 4", main[main.index("struct HeapRegions"):])
+        regions = "".join(region.replace("%u", str(i), 1) for i in range(4))
+        line = head + regions + tail.replace(r"\n", "")
+        widest = re.sub(r"%0?2?l?[ux]", lambda m: "f" * 8 if "x" in m.group(0) else "9" * 10, line)
+        self.assertNotIn("%", widest)
+        self.assertLess(len(widest) + 2, 320)  # Newline and vsnprintf's terminator.
+        record = parse_line(1, widest.replace("reserved=ffffffff", "reserved=1f"))
+        self.assertEqual((record.status, record.kind, record.extra), ("parsed", "HEAP", {}), record.reason)
+        self.assertIn("M", pdo.SINGLE_BYTES)
+
+    def test_commissioning_records_gate_every_other_command(self):
+        """While a D, K or H record is held, main.cpp admits nothing else: every single-byte admission,
+        the trial, soak and capture lines and the N, R, W, E lines (behind one guard) check it. The
+        download dispatcher knows only the H record: D and K never download."""
+        main = (REPOSITORY / "examples/s2_bench/main/main.cpp").read_text(encoding="utf-8")
+        lines_start = main.index("} else if (pdoCollecting) {")
+        soak_start = main.index("} else if (soakCollecting) {")
+        trial = main[main.index("if (trialCollecting) {"):lines_start]
+        collected = main[lines_start:soak_start]
+        single = main[soak_start:]
+        self.assertIn("!commissionHeld", trial)
+        capture = collected[collected.index("parsed.kind == E::PdoCommandKind::CAPTURE) {"):
+                            collected.index("} else if (captureBlock) {")]
+        self.assertIn("!commissionHeld", capture)
+        guard = collected.index("} else if (soakActive || trialHeld || commissionHeld) {")
+        for kind in ("CONFIGURE", "NMT", "DISCOVER", "COMMUNICATION"):
+            self.assertLess(guard, collected.index("parsed.kind == E::PdoCommandKind::%s" % kind), kind)
+        self.assertIn("!commissionHeld", single[:single.index("} else if (command == 'X') {")])  # The soak.
+        accepted = re.findall(r"const bool accepted =(.*?);", single, re.S)
+        self.assertEqual(len(accepted), 5)  # v/b, m, h/j, q/w and 1..4.
+        for expression in accepted:
+            self.assertIn("!commissionHeld", expression)
+        dispatch = main[main.index("preflight.check = ["):main.index("firmware.setPreflight(preflight);")]
+        for producer in ("RawEvidence", "PdoExperiment", "HeartbeatCommission"):
+            self.assertIn("get<E::%s>" % producer, dispatch)
+        self.assertNotIn("CommunicationReads", dispatch)
+        self.assertNotIn("DiscoveryBench", dispatch)
 
 
 class AnalyzeTest(unittest.TestCase):

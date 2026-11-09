@@ -3,9 +3,11 @@
 
 run: validates the recorded USB identity, opens only that port (neither EN nor BOOT is driven),
 pings, refuses unless the image speaks the lines the plan uses (PONG pdo=1: N, P, R, W; pdo=2 adds
-E; pdo=3 adds C, the bounded silent capture) with no soak, trial, watch or capture held, then sends
-the plan's steps in order and captures every byte to rx.bin. A step sends one console command (a
-single byte, or an N, P, R, W, E, C, S line of examples/s2_bench/PdoCommand.h and the soak) and
+E; pdo=3 adds C, the bounded silent capture; pdo=4 adds D, K and H: the discovery scan, the typed
+communication reads and the guarded heartbeat commissioning) with no soak, trial, watch or capture
+held, then sends the plan's steps in order and captures every byte to rx.bin. A step sends one
+console command (a single byte, or an N, P, R, W, E, C, D, K, H, S line of
+examples/s2_bench/PdoCommand.h and the soak) and
 waits for its expected reply; a refusal or a missing reply ends the plan. The plan is the
 only source of device commands: nothing is retried, replayed or added, and no NMT, write or stop
 is sent on the plan's behalf. If the plan ends early while a watch runs, only "P0" is sent, and
@@ -15,7 +17,8 @@ the drives were left in, Operational included, is recorded and reported, not rep
 analyze: replays rx.bin offline through the s2_evidence grammar and reports, per received ID, the
 watch's frames and on-device statistics, every NMT request with its TX completion time, the first
 and last frame of each ID around each NMT request, heartbeat states, every PDO record read or
-write with its raw values, and every capture record with its frames per ID. Times are the S2's monotonic microseconds: a frame's hi is its ISR clock
+write with its raw values, every capture record with its frames per ID, and every D, K and H
+record with its header and typed lines. Times are the S2's monotonic microseconds: a frame's hi is its ISR clock
 sample at enqueue, an upper bound, never an exact bus timestamp. A watched frame is not a qualified
 PDO sample.
 
@@ -48,32 +51,42 @@ REFUSALS = ("PDO_LINE refused", "PDO_READ refused", "PDO_WRITE refused", "PDO_CO
             "NMT refused", "NMT release refused", "RELEASE refused", "PDO release refused", "SOAK_REFUSED",
             "TRIAL_REFUSED", "UNKNOWN command", "HEARTBEAT refused", "PDO refused", "IDENTITY refused",
             "CAN start refused", "DUMP unavailable", "OUTPUT_FORMAT_ERROR", "CAP refused",
-            "CAP_STOP refused", "CAP release refused")
-LINE_COMMANDS = ("N", "P", "R", "W", "E", "C", "S")
+            "CAP_STOP refused", "CAP release refused", "DISC refused", "COMM refused", "HB refused",
+            "DISC release refused", "COMM release refused", "HB release refused", "NETWORK refused")
+LINE_COMMANDS = ("N", "P", "R", "W", "E", "C", "D", "K", "H", "S")
 # The PDO line letters each image protocol (PONG pdo=) serves. An older image answers an unknown
 # letter as single-byte commands: E1,100 there would start a node-1 identity read, and C1,10,64 the
 # same through its digits. Neither is ever sent to an image that does not serve it.
-PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC")}
+# pdo=4 adds D, K and H; on a pdo=3 image "K1" would be UNKNOWN then a node-1 identity read.
+PDO_PROTOCOLS = {"1": frozenset("NPRW"), "2": frozenset("NPRWE"), "3": frozenset("NPRWEC"),
+                 "4": frozenset("NPRWECDKH")}
+PDO_LETTERS = "NPRWECDKH"
 # q, w (NMT Pre-operational) and m (the fixed TPDO1 map experiment) are not offered: their terminals
 # are not checked here. NMT goes through N lines.
-SINGLE_BYTES = set("cpsrdnhjX34")
+# M (pdo=4) prints one HEAP line: internal heap totals and regions; it sends nothing on CAN.
+SINGLE_BYTES = set("cpsrdnhjX34M")
 # The admission line and end line of every command whose firmware terminal decides whether later
 # steps may follow, keyed by the command itself, never by the plan's own expect text.
 CHECKED = {"N": ("NMT admitted", "NMT request"), "R": ("PDO_READ admitted", "END raw"),
            "W": ("PDO_WRITE admitted", "END raw"), "E": ("PDO_CONFIG admitted", "END PDO"),
            "h": ("HEARTBEAT experiment admitted", "END raw"),
            "j": ("HEARTBEAT experiment admitted", "END raw"), "3": ("IDENTITY admitted", "END raw"),
-           "4": ("IDENTITY admitted", "END raw"), "C": ("CAP admitted", "END capture")}
+           "4": ("IDENTITY admitted", "END raw"), "C": ("CAP admitted", "END capture"),
+           "D": ("DISC admitted", "END discovery"), "K": ("COMM admitted", "END comm"),
+           "H": ("HB admitted", "END heartbeat")}
 NMT_NAMES = {1: "start", 2: "stop", 0x80: "pre-operational"}
 # The record each command leaves held, and the reply of the r that releases it. The bench firmware
 # admits R, W, E, h, j, 3, 4 and m only with no NMT result and no PDO record held, and N only with
-# no record of any kind held (examples/s2_bench/main/main.cpp, each command's accepted condition).
+# no record of any kind held; while a D, K or H record is held it admits nothing but p, s, n, d and r
+# (examples/s2_bench/main/main.cpp, each command's accepted condition).
 # The 2026-11-06 replay plans stopped twice: once expecting the wrong release line after E, once
 # leaving node 2 Operational because an N's result was never released before the next N.
 HOLDS = {"R": "raw", "W": "raw", "h": "raw", "j": "raw", "3": "raw", "4": "raw", "E": "pdo", "N": "nmt",
-         "C": "capture"}
+         "C": "capture", "D": "discovery", "K": "comm", "H": "heartbeat"}
 RELEASE_LINES = {"raw": "RELEASED record", "pdo": "PDO record released", "nmt": "NMT result released",
-                 "capture": "CAP record released"}
+                 "capture": "CAP record released", "discovery": "DISC record released",
+                 "comm": "COMM record released", "heartbeat": "HB record released"}
+DISCOVERY_MODES = {"o": 0, "p": 1, "i": 2}  # Passive observation, one probe, nine identity uploads.
 
 
 def capture_stop(text):
@@ -87,6 +100,31 @@ def capture_plan(text):
     if text[:1] != "C" or len(fields) != 3 or not all(f.isdigit() for f in fields):
         return None
     return tuple(int(f) for f in fields)
+
+
+def discovery_plan(text):
+    """(mode, seconds, select, expect) of a D line, or None when it is not one the firmware admits."""
+    fields = text[1:].split(",")
+    if text[:1] != "D" or len(fields) != 4 or fields[0] not in DISCOVERY_MODES or \
+            not all(f.isdigit() for f in fields[1:]):
+        return None
+    mode = DISCOVERY_MODES[fields[0]]
+    seconds, select, expect = (int(f) for f in fields[1:])
+    if not 1 <= seconds <= 60 or select > 2 or expect > 1 or (expect and mode != 2):
+        return None
+    return mode, seconds, select, expect
+
+
+def line_problem(text):
+    """Why a D, K or H line is not one the firmware admits, or None. Checked before anything is sent:
+    an H line names prompt 38's one reviewed value, raw 1000, and no reverse transition exists."""
+    if text[0] == "D" and discovery_plan(text) is None:
+        return "%r is not D<o|p|i>,<seconds 1..60>,<select 0..2>,<expect 0|1, 1 only with i>" % text
+    if text[0] == "K" and text not in ("K1", "K2"):
+        return "%r is not K1 or K2" % text
+    if text[0] == "H" and text not in ("H1,1000", "H2,1000"):
+        return "%r is not H1,1000 or H2,1000: only raw 0 to raw 1000 is reviewed" % text
+    return None
 
 
 class SessionError(RuntimeError):
@@ -117,7 +155,9 @@ def check_plan(plan):
                 if text not in SINGLE_BYTES:
                     raise SessionError("step %d: %r is not a reviewed single-byte command" % (number, text))
             elif text[0] not in LINE_COMMANDS or any(c in text for c in "\r\n") or not text.isascii():
-                raise SessionError("step %d: %r is not an N, P, R, W, E or S line" % (number, text))
+                raise SessionError("step %d: %r is not an N, P, R, W, E, C, D, K, H or S line" % (number, text))
+            elif line_problem(text):
+                raise SessionError("step %d: %s" % (number, line_problem(text)))
             if not isinstance(step.get("expect"), str) or not step["expect"]:
                 raise SessionError("step %d: a send needs the reply it expects" % number)
         elif "wait_s" not in step:
@@ -139,6 +179,11 @@ def check_plan(plan):
             if plan and step.get("end_timeout_s", DEFAULT_TIMEOUT_S) <= plan[1]:
                 raise SessionError("step %d: a %d s capture needs end_timeout_s above %d" %
                                    (number, plan[1], plan[1]))
+            # A discovery record can end only at its window; a passive one always does.
+            scan = discovery_plan(step["send"]) if step["send"][0] == "D" else None
+            if scan and step.get("end_timeout_s", DEFAULT_TIMEOUT_S) <= scan[1]:
+                raise SessionError("step %d: a %d s discovery needs end_timeout_s above %d" %
+                                   (number, scan[1], scan[1]))
         if "require" in step:
             check_requirements(number, step["require"])
         held = check_release(number, step, held)
@@ -315,6 +360,12 @@ def terminal_problem(step, lines):
         return config_problem(text, parsed)
     if command == "C":
         return capture_problem(text, parsed)
+    if command == "D":
+        return discovery_problem(text, parsed)
+    if command == "K":
+        return comm_problem(text, parsed)
+    if command == "H":
+        return heartbeat_problem(text, parsed)
     if command == "N":
         nmts = [r for r in parsed if r.kind == "NMT"]
         if len(nmts) != 1:
@@ -401,6 +452,122 @@ def capture_problem(text, parsed):
     if len(rows["CAP_F"]) != record["stored"] or rows["CAP_END"][0]["stored"] != record["stored"] or \
             [f["i"] for f in rows["CAP_F"]] != list(range(record["stored"])):
         return "capture_frames_differ"
+    return None
+
+
+def discovery_problem(text, parsed):
+    """Check one D record: the scan the line asked for, both nodes settled without cancellation,
+    interface change, refused progression or unresolved route, and the host selection it asked for,
+    which sends nothing. Passive mode sends nothing and a silent node is a legitimate NO_RESPONSE
+    (heartbeat disabled); a probe or identity scan needs every upload successful and both nodes
+    PRESENCE or GENERIC_IDENTITY, with EXPECTATION_MATCH when the line compares the fixture identity.
+    Success is an evidenced responder or raw identity, never a model, firmware or motor fact."""
+    mode, seconds, select, expect = discovery_plan(text)
+    headers = [r.values for r in parsed if r.kind == "DISC"]
+    targets = [r.values for r in parsed if r.kind == "DISC_T"]
+    selections = [r.values for r in parsed if r.kind == "DISC_SELECT"]
+    ends = [r for r in parsed if r.kind == "END" and r.raw.startswith("END discovery")]
+    results = [r.values for r in parsed if r.kind == "RESULT"]
+    if len(headers) != 1 or len(targets) != 2 or len(selections) != 1 or len(ends) != 1:
+        return "discovery_record_unparsed"
+    header = headers[0]
+    if (header["mode"], header["seconds"], header["targets"], header["completed"]) != (mode, seconds, 2, 2):
+        return "discovery_wrong_request"
+    if header["cancelled"] or header["changed"] or header["failed"] or header["lost"]:
+        return "discovery_interrupted"
+    if [t["node"] for t in targets] != [1, 2]:
+        return "discovery_wrong_targets"
+    if any(t["unresolved"] for t in targets) or header["unresolved"]:
+        return "discovery_unresolved"
+    if mode == 0:
+        if results or header["admitted"] or header["terminals"]:
+            return "discovery_passive_sent"
+        if any(t["outcome"] not in (1, 3) for t in targets):  # PRESENCE or NO_RESPONSE
+            return "discovery_passive_outcome"
+    else:
+        count = 2 if mode == 1 else 18
+        if len(results) != count or header["terminals"] != count or header["admitted"] != count:
+            return "discovery_results_incomplete"
+        if any(r.get("dir") != 0 or r["outcome"] != 0 for r in results):
+            return "discovery_service_failed"
+        wanted, confidence = (1, 1) if mode == 1 else (2, 3 if expect else 2)
+        for target in targets:
+            if target["outcome"] != wanted or target["confidence"] != confidence or not target["current"]:
+                return "discovery_outcome_%d" % target["outcome"]
+    selection = selections[0]
+    if selection["node"] != select:
+        return "discovery_wrong_selection"
+    if select and (not selection["attempted"] or not selection["selected"] or
+                   selection["tx0"] != selection["tx1"]):
+        return "discovery_selection_refused"
+    return None
+
+
+COMM_ORDER = ([("COMM_NETWORK", None, None), ("COMM_NODE", None, None)] +
+              [("COMM_PDO", "t", n) for n in range(1, 5)] + [("COMM_MAP", "t", n) for n in range(1, 5)] +
+              [("COMM_PDO", "r", n) for n in range(1, 5)] + [("COMM_MAP", "r", n) for n in range(1, 5)])
+
+
+def comm_problem(text, parsed):
+    """Check one K record: all eighteen typed groups of the sent node published in their fixed order,
+    95 successful uploads and no download among them. The values are raw stored settings: no route,
+    map, unit or active setting is established by a complete record."""
+    node = int(text[1:])
+    headers = [r.values for r in parsed if r.kind == "COMM"]
+    ends = [r for r in parsed if r.kind == "END" and r.raw.startswith("END comm")]
+    groups = [r for r in parsed if r.kind in ("COMM_NETWORK", "COMM_NODE", "COMM_PDO", "COMM_MAP")]
+    results = [r.values for r in parsed if r.kind == "RESULT"]
+    if len(headers) != 1 or len(ends) != 1:
+        return "comm_record_unparsed"
+    header = headers[0]
+    if header["node"] != node:
+        return "comm_wrong_node"
+    if header["failure"] != 0 or header["outcome"] != 1:
+        return "comm_failure_%s" % header["failure"]
+    if header["published"] != 18 or header["group"] != 18 or len(groups) != 18 or \
+            any(g.values["node"] != node for g in groups):
+        return "comm_groups_incomplete"
+    if [(g.kind, g.values.get("dir"), g.values.get("pdo")) for g in groups] != COMM_ORDER:
+        return "comm_groups_out_of_order"
+    if len(results) != 95 or header["terminals"] != 95 or any(r["outcome"] != 0 for r in results):
+        return "comm_results_incomplete"
+    if any(r.get("dir") != 0 for r in results):
+        return "comm_write_present"
+    return None
+
+
+def heartbeat_problem(text, parsed):
+    """Check one H record: the profile's own confirmed result on the sent node. Success is failure 0,
+    nothing lost, state SUCCEEDED with the write acknowledged, the migration done, readback raw 1000
+    matched and published without uncertainty; three RESULTs, 1017:00 upload of 0000, its download
+    and its upload of e803; and exactly one non-upload frame to the node, 2B 17 10 00 E8 03 00 00.
+    A stored readback is not active producer timing, persistence or a host-loss reaction."""
+    node = int(text[1:].split(",")[0])
+    headers = [r.values for r in parsed if r.kind == "HB"]
+    preparations = [r.values for r in parsed if r.kind == "HB_PREP"]
+    ends = [r for r in parsed if r.kind == "END" and r.raw.startswith("END heartbeat")]
+    results = [r.values for r in parsed if r.kind == "RESULT"]
+    if len(headers) != 1 or len(preparations) != 1 or len(ends) != 1:
+        return "heartbeat_record_unparsed"
+    header = dict(preparations[0], **headers[0])
+    if header["node"] != node:
+        return "heartbeat_wrong_node"
+    if header["failure"] != 0 or header["lost"] != 0 or ends[0].values.get("lost") != 0:
+        return "heartbeat_failure_%s" % header["failure"]
+    if (header["state"], header["ack"], header["matched"], header["published"], header["readback"],
+            header["raw"], header["uncertain"], header["migrated"]) != (4, 1, 1, 1, 1000, 1000, 0, 1):
+        return "heartbeat_not_confirmed"
+    if len(results) != 3 or header["terminals"] != 3 or any(r["outcome"] != 0 for r in results):
+        return "heartbeat_results_incomplete"
+    if [r["object"] for r in results] != [[0x1017, 0]] * 3 or [r.get("dir") for r in results] != [0, 1, 0]:
+        return "heartbeat_steps_differ"
+    if (results[0]["size"], results[0]["data"][:4], results[2]["size"], results[2]["data"][:4]) != \
+            (2, "0000", 2, "e803"):
+        return "heartbeat_values_differ"
+    writes = [r.values["data"] for r in parsed if r.kind == "TRAFFIC" and r.values.get("k") == 1 and
+              r.values.get("id") == 0x600 + node and not r.values["data"].startswith("40")]
+    if writes != ["2b171000e8030000"]:
+        return "heartbeat_write_bytes_differ"
     return None
 
 
@@ -513,7 +680,7 @@ def preflight(capture, steps=()):
     if found is None:
         return None, "no_ping"
     values = dict(word.split("=", 1) for word in found[1].split()[1:] if "=" in word)
-    letters = {step["send"][0] for step in steps if len(step.get("send", "")) > 1 and step["send"][0] in "NPRWEC"}
+    letters = {step["send"][0] for step in steps if len(step.get("send", "")) > 1 and step["send"][0] in PDO_LETTERS}
     if values.get("pdo") not in PDO_PROTOCOLS:
         return values, "image_without_pdo_lines"
     if not letters <= PDO_PROTOCOLS[values["pdo"]]:
@@ -727,6 +894,28 @@ def captures(records):
     return out
 
 
+COMMISSIONING_LINES = ("DISC_T", "DISC_ID", "DISC_PROBE", "DISC_SELECT", "COMM_NETWORK", "COMM_NODE", "COMM_PDO",
+                       "COMM_MAP", "HB_PREP")
+
+
+def commissioning(records):
+    """Each D, K and H record: its header and typed lines, in capture order. RESULT and TRAFFIC lines
+    stay in the capture; the typed values are raw observations, never interpreted settings."""
+    out, current = [], None
+    for record in records:
+        if record.status != "parsed":
+            continue
+        if record.kind in ("DISC", "COMM", "HB"):
+            current = {"kind": record.kind, "line": record.number, "header": dict(record.values), "lines": []}
+            out.append(current)
+        elif current is not None and record.kind in COMMISSIONING_LINES:
+            current["lines"].append(dict(record.values, kind=record.kind))
+        elif current is not None and record.kind == "END" and \
+                record.raw.startswith(("END discovery", "END comm", "END heartbeat")):
+            current = None
+    return out
+
+
 def analyze(directory):
     directory = Path(directory)
     data = (directory / "rx.bin").read_bytes()
@@ -772,6 +961,7 @@ def analyze(directory):
                          "txConfirmed": v["txConfirmed"], "completed": v["completed"],
                          "admitted": v.get("admitted")})
     report["captures"] = captures(records)
+    report["commissioning"] = commissioning(records)
     groups = _raw_records(records)
     maps = pdo_maps(groups)
     report["pdo_records"] = groups
@@ -870,6 +1060,10 @@ def main(argv=None):
                 print("  %s %s" % (ident, json.dumps(entry)))
         for nmt in report["nmt"]:
             print("nmt %s" % json.dumps(nmt))
+        for item in report["commissioning"]:
+            print("%s %s" % (item["kind"], json.dumps(item["header"])))
+            for entry in item["lines"]:
+                print("   %s" % json.dumps(entry))
         for group in report["pdo_records"]:
             print("record %s failure=%s" % (group["admitted"], group.get("header", {}).get("failure")))
             for result in group["results"]:

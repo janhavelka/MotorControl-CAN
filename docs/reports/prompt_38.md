@@ -185,3 +185,43 @@ lifecycle, not a generic configuration executor. No heap, SDK, I/O, hidden clock
 retry, model inference or persistence enters installed code. Broader mutation
 stays assigned to prompt 38 pending exact evidence; prompt 18 owns remapping and
 39 owns save/reset. This turn executes only prompt 38.
+
+## Bench integration (draft, not yet run on hardware)
+
+The S2 bench image with PONG `pdo=4` adds `K<node>` and `H<node>,1000`
+([hardware bench](../hardware_bench.md#discovery-communication-reads-and-heartbeat-commissioning)).
+`K` reads all eighteen typed groups of one node, 95 uploads, each group through
+`prepareCommunicationRead`, `nextCommunication`, `advanceCommunication` and `getCommunication`, every
+unqualified upload behind its own exact one-use grant. `H` runs `CommunicationContext` for the reviewed
+`1017:00` raw 0 to raw 1000 transition through the bench's download dispatcher: exact baseline,
+withdrawal of the producer interval and the node's PDO routes plus the profile notice before the
+download can leave, owner epoch migration after TX retirement, confirmation and publication. Only
+raw 1000 exists; the reverse transition has no reviewed workflow, so restoration is the operator's
+power cycle, verified by `K`.
+
+Integration found one contract gap, recorded here for decision rather than worked around silently:
+on an unconfirmed route with unknown exact NMT, `prepareCommunication` accepts the reviewed
+isolated experiment, but `CanBusOwner::advanceConfiguration` (through `SdoClient::advanceConfiguration`)
+refuses the migration unless the adapter reports `ordinarySdo`, which neither the granted baseline
+nor the granted write establishes. A host reproduction (the bench record without its precondition,
+over the real owner with an unconfirmed route) acknowledged the write and then ended in
+`CONFIGURATION` with `migrated=0` and uncertainty: an applied write that cannot be confirmed. The
+library's own owner test configures the channel as confirmed and so does not meet the case. The
+bench therefore refuses `H` before anything is sent unless the adapter already reports ordinary
+service (a fresh accepted `D` probe after any NMT intent provides it). Neither `Communication.h`
+nor `advanceConfiguration`'s Doxygen states this precondition.
+
+Host tests (`communication_bench`) cover the exact 95 upload frames in order, typed lines, a native
+abort mid-sequence (earlier groups kept, nothing after it), a lost reply (owner timeout, possible
+effects kept, route unresolved), a boot-up mid-read, a refused grant, and for `H` the exact three
+frames, the baseline mismatch refused before any write with dependent facts untouched, known
+ineligible NMT, a lost write acknowledgement, a readback mismatch, Operational or Pre-operational
+first heartbeats at the acknowledgement, the service precondition and a dispatcher that does not
+match (download closed unsent).
+
+A bench run would show, per node: the stored raw values of all 89 rows plus the six network fields
+(read effects still unknown), whether `1017:00` accepts the one write and reads back raw 1000, the
+exact frames, and with a `P` watch the resulting heartbeat period. It would not show active producer
+timing from the readback alone, persistence or restart behavior (still unknown per row), any
+host-loss reaction of the drive, a live route, map or sample from the stored words, the meaning of
+inhibit or event units (Q17), or any software restoration.
