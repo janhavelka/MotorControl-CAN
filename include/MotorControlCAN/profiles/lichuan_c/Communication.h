@@ -202,6 +202,12 @@ struct CommunicationResult {
  * @param[in] options Nonzero budgets; no identity/count width override or PDO selector.
  * @param[in] maximumAgeUs Nonzero inclusive baseline/NMT/result age cap.
  * @return Local validation only. No write permission, owner reservation, NMT or model is fabricated.
+ * Owner premise this profile cannot see: confirmation needs the application's owner to move its
+ * reservation to the next configuration epoch after the acknowledged write, and the reference
+ * adapter refuses that without current ordinary SDO service or with a pending NMT transition for
+ * the node (SdoClient::configurationEligible). Neither follows from the granted baseline or the
+ * write. Check it before the download is admitted: after a possible TX a refused migration leaves
+ * the write acknowledged, FAILED and uncertain, never confirmed.
  */
 Status prepareCommunication(CommunicationContext& output, const AxisReservation& reservation,
                             const CommunicationReview& review, const CommunicationRequest& request,
@@ -212,7 +218,8 @@ Status prepareCommunication(CommunicationContext& output, const AxisReservation&
  * @param[in,out] context AWAITING_CONFIRMATION only; failed operations cannot resume.
  * @param[in] live Actual same continuous reservation, not a stale copied lease.
  * @param[in] current Actual adapter target after owner.advanceConfiguration; exactly next config
- * epoch, frozen channel COB-IDs and unchanged node/binding epochs. Core cannot update owner storage.
+ * epoch, frozen channel COB-IDs and unchanged node/binding epochs. Core cannot update owner storage;
+ * that migration has its own premises (see prepareCommunication).
  * @param[in] nmt Current qualified Pre-operational or experiment's unknown serviceable state.
  * @param[in] nowUs Monotonic supplied time; original deadline and budgets remain unchanged.
  * @return Atomic status. Caller first releases native write result and establishes local retirement.

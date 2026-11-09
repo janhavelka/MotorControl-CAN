@@ -30,7 +30,11 @@ and transition/reset dependency rules before using these operations.
 must select it. Exact observed NMT, SDO service evidence, producer timing,
 requested state and controller TX remain independent. A reviewed non-changing
 probe can establish SDO service while heartbeat is disabled, without starting
-NMT or writing producer configuration automatically. Native NMT support is
+NMT or writing producer configuration automatically. Such service is not the
+whole premise of `advanceConfiguration`: an NMT intent's transition stays
+pending until a matching heartbeat or its own deadline, and blocks the
+migration meanwhile. `configurationEligible` reports these node premises before
+a settings download is admitted. Native NMT support is
 generic CANopen behavior; Lichuan command-specific firmware behavior is not
 hardware-qualified here.
 

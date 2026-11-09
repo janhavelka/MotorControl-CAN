@@ -231,7 +231,7 @@ add_test(NAME discovery_bench COMMAND discovery_bench_test)
 set_tests_properties(discovery_bench PROPERTIES TIMEOUT 30)
 add_executable(communication_bench_test communication_bench_test.cpp)
 target_sources(communication_bench_test PRIVATE ../examples/s2_bench/CommunicationBench.cpp
-               ../examples/s2_bench/BenchTerminal.cpp)
+               ../examples/s2_bench/DiscoveryBench.cpp ../examples/s2_bench/BenchTerminal.cpp)
 target_include_directories(communication_bench_test PRIVATE ../examples/s2_bench)
 target_link_libraries(communication_bench_test PRIVATE MotorControlCANProbeApp)
 strict_test(communication_bench_test)

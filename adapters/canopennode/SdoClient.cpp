@@ -131,24 +131,19 @@ bool SdoClient::valid(SdoRequestId id) const {
            id.generation != 0 && channels_[id.channel].generation == id.generation;
 }
 
-bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
-                                      const Binding& current, uint64_t now) {
+// A migration's node premises: the facts that hold or fail whatever the caller's own work is.
+// advanceConfiguration adds only idleness, so configurationEligible reports in advance exactly
+// what a migration would decide on them.
+bool SdoClient::configurationPremises(uint8_t slot, const Binding& previous, uint64_t now) const {
     if (slot >= CHANNELS || now < lastUs_ || nmtOccupied_ ||
         controllerState_ == ControllerState::BUS_OFF ||
         controllerState_ == ControllerState::RECOVERING ||
-        overlap(&previous, sizeof previous, this, sizeof *this) ||
-        overlap(&current, sizeof current, this, sizeof *this) ||
-        !validateBinding(previous) || !validateBinding(current) ||
-        previous.configurationGeneration == UINT32_MAX)
-        return false;
-    Binding expected = previous;
-    ++expected.configurationGeneration;
-    if (!sameBinding(expected, current) || !channels_[slot].configured ||
-        !sameBinding(channels_[slot].route.binding, previous))
+        !validateBinding(previous) || previous.configurationGeneration == UINT32_MAX ||
+        !channels_[slot].configured || !sameBinding(channels_[slot].route.binding, previous))
         return false;
     const int anchor = networkAnchor(slot);
     if (anchor < 0) return false;
-    NodeSnapshot& state = channels_[anchor].network;
+    const NodeSnapshot& state = channels_[anchor].network;
     ServiceEligibility eligibility;
     if (!sameBinding(state.route.binding, previous) || state.transitionPending ||
         !serviceEligibility(state, now, eligibility) || !eligibility.ordinarySdo)
@@ -160,10 +155,36 @@ bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
             continue;
         // A shared physical node with another logical/channel binding needs an
         // explicit effect-scope policy; do not guess which interpretation changed.
-        if (!sameBinding(channel.route.binding, previous) ||
-            channel.unresolved || channel.occupied || channel.cleanup ||
-            channel.awaiting || channel.handoffLive || channel.port.queueOccupied ||
-            channel.port.tx.bufferFull || channel.port.sendFault)
+        if (!sameBinding(channel.route.binding, previous) || channel.unresolved)
+            return false;
+    }
+    return true;
+}
+// Read-only, so the binding may be this adapter's own channel storage.
+bool SdoClient::configurationEligible(uint8_t slot, const Binding& binding, uint64_t now) const {
+    return configurationPremises(slot, binding, now);
+}
+
+bool SdoClient::advanceConfiguration(uint8_t slot, const Binding& previous,
+                                      const Binding& current, uint64_t now) {
+    if (overlap(&previous, sizeof previous, this, sizeof *this) ||
+        overlap(&current, sizeof current, this, sizeof *this) ||
+        !configurationPremises(slot, previous, now) || !validateBinding(current))
+        return false;
+    Binding expected = previous;
+    ++expected.configurationGeneration;
+    if (!sameBinding(expected, current))
+        return false;
+    const int anchor = networkAnchor(slot);
+    NodeSnapshot& state = channels_[anchor].network;
+    for (const Channel& channel : channels_) {
+        if (!channel.configured ||
+            channel.route.binding.endpoint.bus != previous.endpoint.bus ||
+            channel.route.binding.endpoint.address != previous.endpoint.address)
+            continue;
+        // Binding and quarantine are premises; idleness is the caller's finished work.
+        if (channel.occupied || channel.cleanup || channel.awaiting || channel.handoffLive ||
+            channel.port.queueOccupied || channel.port.tx.bufferFull || channel.port.sendFault)
             return false;
     }
 

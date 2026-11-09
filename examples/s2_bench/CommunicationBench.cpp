@@ -53,6 +53,12 @@ bool sameWork(const C::SdoTransfer& a, const C::SdoTransfer& b) {
 bool sameSequence(const SequenceId& a, const SequenceId& b) {
     return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
 }
+// Why beginSequence refused: another holder keeps this axis's reservation (on the bench an open
+// route AxisSession, which keeps it for the rest of the boot), or anything else.
+const char* sequenceRefusal(const CanBusOwner& owner, const M::Binding& binding) {
+    SequenceId held;
+    return owner.findSequence(binding, held) ? "reserved" : "busy";
+}
 char direction(L::CommunicationGroup g) {
     return g == L::CommunicationGroup::RPDO_COMMUNICATION || g == L::CommunicationGroup::RPDO_MAPPING
                ? 'r'
@@ -89,7 +95,7 @@ const char* CommunicationReads::begin(const CommunicationBenchRequest& r, uint64
         return "unresolved";
     SequenceId sequence;
     if (!owner_.beginSequence(channel->binding, COMMUNICATION_PRODUCER, now, sequence))
-        return "busy";
+        return sequenceRefusal(owner_, channel->binding);
     sequence_ = sequence;
     target_.channel = *channel;
     target_.nodeGeneration = node->route.generation;
@@ -383,11 +389,18 @@ bool HeartbeatCommission::current() const noexcept {
            owner_.sequence(sequence_);
 }
 
-bool HeartbeatCommission::serviceable(uint8_t s, uint64_t now) const noexcept {
-    // The adapter's own ordinary-service decision, which its epoch migration requires later.
+const char* HeartbeatCommission::migrationRefusal(uint8_t s, uint64_t now) const noexcept {
+    // The adapter's own decision on the node premises its epoch migration checks after the write.
+    // Ordinary service alone is not enough: an N line's pending transition refuses it too.
+    const C::SdoChannel* channel = services_.channel(s);
+    if (channel && services_.configurationEligible(s, channel->binding, now))
+        return nullptr;
+    // Only the console word below; the decision above is the adapter's.
     const C::NodeSnapshot* node = services_.node(s);
     C::ServiceEligibility eligibility;
-    return node && C::serviceEligibility(*node, now, eligibility) && eligibility.ordinarySdo;
+    if (!node || !C::serviceEligibility(*node, now, eligibility) || !eligibility.ordinarySdo)
+        return "service";
+    return node->transitionPending ? "transition" : "configuration";
 }
 
 void HeartbeatCommission::currentNmt(uint64_t now, L::CommunicationNmt& out) const noexcept {
@@ -421,12 +434,12 @@ const char* HeartbeatCommission::begin(const HeartbeatBenchRequest& r, uint64_t 
         return "route";
     if (services_.unresolved(s))
         return "unresolved";
-    // Without ordinary service the migration after an acknowledged write would be refused.
-    if (!serviceable(s, now))
-        return "service";
+    // Without its premises the migration after an acknowledged write would be refused.
+    if (const char* refusal = migrationRefusal(s, now))
+        return refusal;
     SequenceId sequence;
     if (!owner_.beginSequence(channel->binding, COMMUNICATION_PRODUCER, now, sequence))
-        return "busy";
+        return sequenceRefusal(owner_, channel->binding);
     const Sequence* held = owner_.sequence(sequence);
     if (!held || !owner_.beginOperation(sequence, r.id, r.deadlineUs, now)) {
         owner_.releaseSequence(sequence);
@@ -674,7 +687,7 @@ bool HeartbeatCommission::service(uint64_t now) noexcept {
             return true;
         }
         record_.nmt = nmt;
-        if (!serviceable(slot(), now)) {
+        if (migrationRefusal(slot(), now)) {
             finish(HeartbeatBenchFailure::ELIGIBILITY, now);
             return true;
         }
@@ -738,6 +751,11 @@ bool HeartbeatCommission::service(uint64_t now) noexcept {
             return true;
         }
         work = next.transfer;
+        // The last point at which a refused migration can still be avoided: nothing written yet.
+        if (work.direction == C::SdoDirection::DOWNLOAD && migrationRefusal(slot(), now)) {
+            finish(HeartbeatBenchFailure::ELIGIBILITY, now);
+            return true;
+        }
     }
     const uint32_t grant = record_.request.firstGrant + record_.attempted++;
     const bool granted =

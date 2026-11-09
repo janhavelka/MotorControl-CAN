@@ -194,7 +194,13 @@ handoff, the application withdraws effective producer confidence and dependent
 maps/reference/prepared work, then calls `noteCommunicationTransmission` to
 advance its actual configuration binding once. The ordinary owner retains the
 ACK, abort or uncertain failure. Release the native result and establish local
-TX retirement before `owner.advanceConfiguration`. Only an acknowledged write
+TX retirement before `owner.advanceConfiguration`. That migration also needs the
+adapter's node premises, which neither the granted baseline nor the write
+establishes: current ordinary SDO service and no pending NMT transition, among
+others. Check `SdoClient::configurationEligible` before the download is admitted;
+on 2026-11-09 a probe after a Pre-operational intent gave service while the
+intent's transition, unobservable at producer time 0, was still pending, and the
+applied write could not be confirmed. Only an acknowledged write
 allows explicit `prepareCommunicationConfirmation` at the actual next-epoch
 target; its single U16 readback also requires a reviewed upload grant. The
 original deadline cannot be renewed. Matching raw 1000 proves stored readback,
