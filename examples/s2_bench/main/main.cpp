@@ -1288,6 +1288,16 @@ void ownerTask(void*) {
                         const bool reads = parsed.kind == E::PdoCommandKind::COMMUNICATION;
                         const unsigned slot = parsed.node - 1;
                         const uint32_t operations = reads ? 18 : 2, fields = reads ? 95 : 3;
+                        // The channel grants only above its last grant, in authorization and in
+                        // operation identity: after a route (closed with x) both counters continue
+                        // from the channel's, which the route drew from its own higher range.
+                        uint32_t lastGrant = 0, lastOperation = 0;
+                        if (services.lastExperiment(uint8_t(slot), lastGrant, lastOperation)) {
+                            if (pdoGrant[slot] < lastGrant)
+                                pdoGrant[slot] = lastGrant;
+                            if (acquisition < lastOperation)
+                                acquisition = lastOperation;
+                        }
                         const uint64_t window = reads ? 15000000 : 5000000;
                         const char* refusal = "state";
                         if (controllerReady && !dumping && !networkDump && !nmtRequest.owner &&
@@ -1461,6 +1471,17 @@ void ownerTask(void*) {
                 pdoText[0] = char(command);
                 pdoLength = 1;
                 pdoCollectUs = firmware.platform().nowUs(now) ? now : 0;
+            } else if (command == 'x') {
+                // Close the idle route sessions (backlog S15), so that K, H and the raw and PDO
+                // experiments can reserve those nodes again in this boot. Sends nothing; not a stop.
+                // Its own reply in every state: no T line, PDO line or soak line contains an x.
+                uint8_t closed = 0;
+                const char* refusal = "state";
+                if (!captureBlock && !soakActive && !dumping && !networkDump && !nmtRequest.owner &&
+                    !record && !rawRecord && !pdoRecord && !commissionHeld)
+                    refusal = route ? route->closeSessions(closed) : "none";
+                E::formatSessionsLine(route, refusal, closed, output, sizeof output);
+                line(firmware, output);
             } else if (captureBlock && command != 'p' && command != 's' && command != 'n' &&
                        command != 'd' && command != 'r' && command != 'T' && command != '\r' &&
                        command != '\n') {

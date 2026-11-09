@@ -79,9 +79,11 @@ class CommunicationReads {
     CommunicationReads(const CommunicationReads&) = delete;
     CommunicationReads& operator=(const CommunicationReads&) = delete;
     /** Reserve the node's binding as producer 4; nothing is sent here.
-     * @return Null when admitted, else busy, invalid, route, unresolved or reserved: another
-     * holder keeps the axis's owner reservation, on the bench an open route AxisSession, which
-     * keeps it for the rest of the MCU boot. */
+     * @return Null when admitted, else busy, invalid, route, unresolved, grant or reserved. grant: the
+     * request's first operation or first grant is not above the channel's last experimental grant
+     * (SdoClient::lastExperiment), which a route may have drawn; main.cpp continues its counters
+     * from there. reserved: another holder keeps the axis's owner reservation, on the bench an open
+     * route AxisSession until the bench's session close (BenchRoute::closeSessions). */
     const char* begin(const CommunicationBenchRequest& request, uint64_t nowUs) noexcept;
     /** Consume at most one terminal and admit at most one next upload. @return False for
      * backward time or an owner release refusal. */
@@ -192,9 +194,10 @@ class HeartbeatCommission {
     HeartbeatCommission(const HeartbeatCommission&) = delete;
     HeartbeatCommission& operator=(const HeartbeatCommission&) = delete;
     /** Reserve the node's binding as producer 4; nothing is sent here.
-     * @return Null when admitted, else busy, invalid, value, route, unresolved, service,
-     * transition or configuration (a migration premise is missing, see the precondition above),
-     * or reserved (another holder keeps the axis's reservation, as for CommunicationReads). */
+     * @return Null when admitted, else busy, invalid, value, route, unresolved, grant (as for
+     * CommunicationReads), service, transition or configuration (a migration premise is missing, see
+     * the precondition above), or reserved (another holder keeps the axis's reservation, as for
+     * CommunicationReads). */
     const char* begin(const HeartbeatBenchRequest& request, uint64_t nowUs) noexcept;
     /** Consume at most one terminal and admit at most one next step. @return False for
      * backward time or an owner release refusal. */

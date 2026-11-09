@@ -40,7 +40,8 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | `061aa6f` | Verifier build-step bound raised to 600 s (a hang guard, not a budget) | Passed; the gcc build step took 182 s |
 | `9736e65` | CI and prompt 35-38 record | Passed |
 | `9e98ffb` | Native replays of the 2026-11-09 measurements | **Failed**, documentation step of both full jobs: Doxygen could not resolve two in-page heading anchors added to `docs/commissioning.md` (it makes no GitHub-style heading ids); build, contracts and package passed |
-| Next commit | Anchor fix: plain section references | See the next record |
+| `4247e59` | Anchor fix: plain section references | Passed, every job |
+| `4f15ac9` | Bench round 5 record (velocity run, backlog S16) | Passed |
 
 ## Originals: what exists and what is missing
 

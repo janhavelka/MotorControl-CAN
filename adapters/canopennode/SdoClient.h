@@ -254,6 +254,17 @@ public:
      * cancel any admitted request before ending an experiment. A consumed ID cannot be reused.
      */
     void clearUploadExperiment(uint8_t slot);
+    /** Report the last experimental grant this channel accepted, upload or download, so that an
+     * application with several grant producers on one channel can draw its next identities above
+     * it: a new grant needs a larger authorization identity and an operation identity that does not
+     * decrease (a larger step within the same operation). Grants nothing, renews nothing, no I/O.
+     * @param[in] slot Channel slot.
+     * @param[out] authorizationId Last accepted authorization identity; zero before the first grant.
+     * @param[out] operation That grant's operation identity; zero before the first grant.
+     * @return False for an invalid or unconfigured slot or an output inside this object, with both
+     * outputs unchanged.
+     */
+    bool lastExperiment(uint8_t slot, uint32_t& authorizationId, uint32_t& operation) const;
     /** Advance only a completed settings transaction's local configuration epoch.
      * Requires a usable SDO channel and current ordinary-service evidence (for
      * example a fresh Pre-operational heartbeat). An experimentally used channel

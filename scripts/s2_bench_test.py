@@ -167,6 +167,9 @@ class Board:
         self.trial = 0
         self.active = 1
         self.answer = None  # Text for the T line; default a complete record.
+        # The reply to x (BenchRoute::closeSessions through formatSessionsLine); None: an image without it.
+        self.sessions = ("SESSIONS closed node1=1 node2=0 kept1=60 kept2=00 motion=2; nothing sent; latest "
+                         "controlwords dropped; fences, trials and caps kept\n")
         self.closed = False
 
     @property
@@ -192,6 +195,8 @@ class Board:
             self.queue.extend(body.encode("ascii"))
         elif data == b"A":
             self.queue.extend(b"TRIAL_ABORTING; local only, no stop sent; a request on its way settles first\n")
+        elif data == b"x":
+            self.queue.extend((self.sessions or "UNKNOWN command; no action\n").encode("ascii"))
         return len(data)
 
     def close(self):
@@ -1446,6 +1451,61 @@ class BenchTest(unittest.TestCase):
         self.assertIn(status, (0, 1), err)
         self.assertEqual(operator.questions, [])
         self.assertEqual(self.meta()["operator"]["home_inputs_wired"]["typed"], bench.UNOBSERVED)
+
+    def test_close_sessions_reply_decides_the_status(self):
+        board = Board()
+        status, out, _ = self.run_main(["--command", "close-sessions", "--seconds", "1"], Backend(board))
+        self.assertEqual(status, 0)
+        # One byte, nothing else: no ping, no T line, no release.
+        self.assertEqual(board.writes, [b"x"])
+        meta = self.meta()
+        self.assertEqual((meta["tx_hex"], meta["reply_status"]), ("78", 0))
+        self.assertTrue(meta["reply"].startswith("SESSIONS closed node1=1 node2=0 kept1=60 "))
+        self.assertIn("SESSIONS closed", out)
+        report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
+        self.assertEqual(report.verdict, "control")
+        self.assertIn("SESSIONS_CLOSED", report.kinds)
+        # Refused, with nothing changed: 2.
+        self.clear_output()
+        board = Board()
+        board.sessions = "SESSIONS refused reason=record node1=0 node2=0; nothing sent, nothing else changed\n"
+        status, _, _ = self.run_main(["--command", "close-sessions", "--seconds", "1"], Backend(board))
+        self.assertEqual((status, self.meta()["reply_status"]), (2, 2))
+        report = evidence.replay_capture(self.output, manifest=self.output / "none.json")
+        self.assertEqual(report.verdict, "control")
+        self.assertIn("SESSIONS_REFUSED", report.kinds)
+        # An image without the command: no SESSIONS line, 1. A stale reply already waiting decides nothing.
+        self.clear_output()
+        board = Board()
+        board.sessions = None
+        board.queue.extend(b"SESSIONS closed node1=1 node2=1 kept1=00 kept2=00 motion=0; stale\n")
+        status, _, _ = self.run_main(["--command", "close-sessions", "--seconds", "1"], Backend(board))
+        self.assertEqual(status, 1)
+        self.assertEqual((self.meta()["reply"], self.meta()["reply_status"]), (None, 1))
+        self.assertEqual(board.writes, [b"x"])
+
+    def test_close_sessions_dry_run_and_grammar(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + ["--command", "close-sessions", "--dry-run"], Untouchable(), Clock(),
+                                Operator())
+        self.assertEqual(status, 0)
+        self.assertIn("send once: b'x'", out.getvalue())
+        self.assertIn("exit 0 on 'SESSIONS closed', 2 on 'SESSIONS refused', 1 on neither", out.getvalue())
+        self.assertFalse(self.output.exists())
+        self.assertEqual([name for name, byte in bench.COMMANDS.items() if byte == b"x"], ["close-sessions"])
+        for argv in (["--command", "close-sessions", "--node", "1"],
+                     ["--command", "close-sessions", "--campaign", str(self.ledger)]):
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.main(BASE + argv + ["--output", str(self.output)], Untouchable(), Clock(), Operator())
+        lines, _ = evidence.parse_bytes(
+            b"SESSIONS closed node1=1 node2=1 kept1=21 kept2=00 motion=12; nothing sent; latest controlwords "
+            b"dropped; fences, trials and caps kept\n"
+            b"SESSIONS refused reason=owner node1=1 node2=0; nothing sent; the sessions named stay closed\n")
+        self.assertEqual([(r.kind, r.status) for r in lines],
+                         [("SESSIONS_CLOSED", "parsed"), ("SESSIONS_REFUSED", "parsed")])
+        self.assertEqual(lines[0].values, {"node1": 1, "node2": 1, "kept1": 0x21, "kept2": 0, "motion": 12})
+        self.assertEqual(lines[1].values, {"reason": "owner", "node1": 1, "node2": 0})
 
     def test_single_byte_commands_unchanged(self):
         board = Board()

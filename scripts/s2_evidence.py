@@ -499,6 +499,12 @@ GRAMMAR = (
     Row("HEAP", "HEAP ", "response",
         "free:u largest:u minimum:u regions:u r0:s? r1:s? r2:s? r3:s? reserved:x arena:u arenaBytes:u",
         signals=(("health", "free"), ("health", "largest"))),
+    # x (backlog S15): the idle route sessions closed, or a refusal with nothing changed (reason record,
+    # state, busy, configuration, owner or none). Nothing is sent either way. kept1/kept2 are BenchRoute
+    # SessionKept bits, the facts that still refuse later work: 1 move fence, 2 clear block, 4 fault
+    # block, 8 velocity needs a stop, 16 home needs a stop, 32 motion written, 64 a 6060 write admitted.
+    Row("SESSIONS_CLOSED", "SESSIONS closed", "response", "node1:b node2:b kept1:x kept2:x motion:u"),
+    Row("SESSIONS_REFUSED", "SESSIONS refused", "response", "reason:s node1:b node2:b"),
     # n while a discovery scan runs: its passive evidence is the history the listing would drain.
     Row("REFUSED", "NETWORK refused", "refused", "reason:s"),
     Row("UNKNOWN_COMMAND", "UNKNOWN command", "response"),
@@ -545,6 +551,7 @@ EXPECTED = {
     "preop1": Expect("", "NMT Pre-operational admitted", 1, responses=("NMT",)),
     "preop2": Expect("", "NMT Pre-operational admitted", 2, responses=("NMT",)),
     "trial-abort": Expect(responses=("TRIAL_ABORTING", "TRIAL_ABORT_REFUSED")),
+    "close-sessions": Expect(responses=("SESSIONS_CLOSED", "SESSIONS_REFUSED")),
 }
 # Trial route commands: s2_bench.py sends a ping, then one T line; the node comes from request.json.
 # Ctrl-C during the route sends one local abort, so its response may appear too.

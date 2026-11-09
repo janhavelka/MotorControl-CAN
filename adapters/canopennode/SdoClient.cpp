@@ -270,6 +270,15 @@ bool SdoClient::authorizeExperiment(uint8_t slot, const SdoTransfer& input,
 void SdoClient::clearUploadExperiment(uint8_t slot) {
     if (slot < CHANNELS) channels_[slot].experimentArmed = false;
 }
+bool SdoClient::lastExperiment(uint8_t slot, uint32_t& authorizationId, uint32_t& operation) const {
+    if (slot >= CHANNELS || !channels_[slot].configured ||
+        overlap(&authorizationId, sizeof authorizationId, this, sizeof *this) ||
+        overlap(&operation, sizeof operation, this, sizeof *this)) return false;
+    const Channel& c = channels_[slot];
+    authorizationId = c.experimentAuthorization;
+    operation = c.experimentAuthorization ? c.experimentUpload.operation : 0;
+    return true;
+}
 bool SdoClient::experimentMatches(uint8_t slot, const SdoTransfer& work, uint64_t now,
                                   bool admitted) const {
     if (slot >= CHANNELS) return false;

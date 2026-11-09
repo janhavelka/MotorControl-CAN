@@ -137,11 +137,26 @@
  * no further velocity word leaves and no stop follows. The attendant's independent cutoff is the
  * control for anything still turning.
  *
- * Sessions stay open for the life of the firmware once a route has opened them: their history,
- * latest controlword and trial record must survive between routes. While one is open, routes that
- * take their own reservation on that node (RawEvidence, PdoExperiment) refuse. Grant identities
- * start at ROUTE_GRANT_BASE, above every other bench range, so a later DeviceEvidence grant on the
- * same channel is refused, which fails closed.
+ * Sessions stay open between routes once a route has opened them: their history, latest controlword
+ * and trial record must survive from one route to the next. While one is open it holds its axis's
+ * owner reservation, so everything that takes its own reservation on that node (RawEvidence,
+ * PdoExperiment, the K and H records) refuses. closeSessions is the explicit bench step that ends
+ * this between phases of one MCU boot (backlog S15): it closes only idle sessions, sends nothing and
+ * changes nothing on a drive. It is not a stop, release or disable. Closing drops each session's
+ * latest controlword, so a later route that needs one refuses as after an MCU restart (a REARM,
+ * POSITION, RELATIVE or MOVE with `control`, HOME with the session's `code=1 detail=3`). Everything
+ * that refuses later work survives in the stationary session object and here, as it would not
+ * across an MCU restart: the session's move fence, clear and fault blocks, needs-stop facts, motion
+ * write history and enable trials, and this object's mode write record, trial identity, caps and
+ * counters. The next route on that node reopens the same session object, which refuses the same way.
+ *
+ * Grant identities start at ROUTE_GRANT_BASE, above every other bench range. The channel grants an
+ * experiment only above its last grant, in authorization and in operation identity, whoever drew
+ * it (SdoClient::authorizeUploadExperiment), so each route grant also continues above the channel's
+ * last grant (SdoClient::lastExperiment), and begin raises the route's sessions above its last
+ * granted operation: after K or H the session's own numbering was below theirs, and the homing
+ * route's 2400 read was refused `why=grant` (trials 903 to 906). A later DeviceEvidence grant on
+ * the same channel is still refused, which fails closed.
  */
 #pragma once
 #include "FirmwareProbe.h"
@@ -604,6 +619,28 @@ struct RouteRecord {
      * before any service could admit its first write. */
     bool homeAdmitted = false;
 };
+/** BenchRoute::kept bits: facts that refuse later work and survive closeSessions. */
+enum SessionKept : uint8_t {
+    KEPT_MOVE_FENCE = 1,     ///< AxisSession::moveFenced: a trigger may have moved without an observed completion.
+    KEPT_CLEAR_BLOCK = 2,    ///< AxisSession::clearBlocked: a clear's value 1 may still be held.
+    KEPT_FAULT_BLOCK = 4,    ///< AxisSession::faultBlocked: work was withdrawn for a drive fault.
+    KEPT_VELOCITY_STOP = 8,  ///< AxisSession::velocityNeedsStop.
+    KEPT_HOME_STOP = 16,     ///< AxisSession::homeNeedsStop.
+    KEPT_WRITTEN = 32,       ///< AxisSession::motionHistoryWritten: the enable stays refused.
+    KEPT_MODE_WRITE = 64     ///< This object admitted a 6060 write on the node: MODE_ONE stays refused.
+};
+class BenchRoute;
+/** Format the console reply to the bench's session close (`x`), with its newline:
+ * `SESSIONS closed node1=.. node2=.. kept1=.. kept2=.. motion=..; ...` or
+ * `SESSIONS refused reason=.. node1=.. node2=..; ...`.
+ * @param route The route object, or null when none exists yet (no route ran this boot).
+ * @param refusal Null for a close, else the refusal token.
+ * @param closed closeSessions's mask.
+ * @param output Destination. @param size Its capacity; 192 bytes hold every line.
+ * @return False when the line does not fit; output is then empty when size is nonzero.
+ */
+bool formatSessionsLine(const BenchRoute* route, const char* refusal, uint8_t closed, char* output,
+                        size_t size) noexcept;
 /** One attended route at a time over borrowed sessions. Large and stationary; allocates nothing.
  * The caller places it, attaches one session per node before that node's first route, services the
  * firmware and then this object each turn, and prints records with formatLine.
@@ -662,6 +699,29 @@ class BenchRoute {
      * @return False while active, with nothing retained, or while local TX is outstanding.
      */
     bool release() noexcept;
+    /** Close every open, idle route session (backlog S15), so that its owner reservation returns and
+     * the K and H records, or the raw and PDO experiments, can reserve that node again in this boot.
+     * Sends nothing and changes nothing on a drive: AxisSession::close only, which releases the
+     * reservation the session took. It is not a stop, release or disable. Each closed session drops
+     * its latest controlword; a later route reopens the same session object, so its fences and
+     * write history refuse as before, and this object's trial identity, caps and counters stay.
+     * @param closed Set to the nodes this call closed, bit 0 node 1 and bit 1 node 2; zero on every
+     * refusal but "owner".
+     * @return Null when every open session closed, or none was open. Otherwise a static token, with
+     * nothing closed: "record" while a route record is held, active or terminal and unreleased;
+     * "state" while the firmware's own read is active or its request unreleased; "busy" while a
+     * session has a stop, enable, move, velocity, home or clear in progress, an admitted request or
+     * an unread result, or its node's local TX has not retired; "configuration" while a counter
+     * clear's or home's move of the owner to its new configuration epoch is still owed, which
+     * AxisSession::close would drop. "owner" if the owner refused a release after the checks;
+     * closed then names the sessions already closed.
+     */
+    const char* closeSessions(uint8_t& closed) noexcept;
+    /** What a session object and this object keep for a node across close and reopen, as SessionKept
+     * bits: the facts that refuse later work.
+     * @param node 1 or 2. @return Zero for an invalid node or one with no session attached.
+     */
+    uint8_t kept(unsigned node) const noexcept;
     /** @return Borrowed record from admission until release, or null. */
     const RouteRecord* record() const noexcept { return occupied_ ? &record_ : nullptr; }
     /** @return True from admission until the terminal. */
@@ -768,6 +828,8 @@ class BenchRoute {
     uint32_t emcyBaseline_[2] = {0, 0}; ///< Each node's emcyCount when this route last handled it.
     const char* endWhy_ = "none";
 
+    bool continueOperations(AxisSession& session, uint8_t slot, uint64_t nowUs) noexcept;
+    uint32_t nextGrant(uint8_t slot) const noexcept;
     AxisSession& axis() noexcept { return *sessions_[record_.plan.node - 1]; }
     const AxisSession& axis() const noexcept { return *sessions_[record_.plan.node - 1]; }
     uint8_t slot() const noexcept { return uint8_t(record_.plan.node - 1); }

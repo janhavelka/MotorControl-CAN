@@ -3,6 +3,7 @@
 // AxisSession, against a synthetic one-frame driver and two synthetic drives. Every value, word
 // response and movement here is manufactured by this fake: nothing shows what a CL86-C does.
 #include "BenchRoute.h"
+#include "CommunicationBench.h"
 #include <MotorControlCAN/profiles/lichuan_c/State.h>
 #include <cstdio>
 #include <cstdlib>
@@ -87,6 +88,7 @@ struct Drive {
     unsigned travelReads = 3; // moveReads set by a 001F.
     uint16_t silentIndex = 0; // No reply to this object (any direction).
     uint16_t silentWord = 0;  // With 6040: only this word goes unanswered.
+    unsigned silentSkip = 0;  // With silentIndex: this many requests to it are answered first.
     uint16_t abortIndex = 0;  // Abort 08000020 for this object.
     uint16_t lateIndex = 0;   // The first reply to this object is held in `late` for the test to send.
     uint16_t mismatchIndex = 0; // Replies to this object name the next subindex.
@@ -124,6 +126,8 @@ struct Drive {
     // records), two bytes of 0 against the EDS U8. countWidth 1 is the declared form instead.
     uint16_t limitEntries = 0, outputEntries = 0;
     unsigned countWidth = 2;
+    unsigned node = 0;          // This drive's node, set by the rig; the K line's 1014 and 1200 name it.
+    uint16_t heartbeatTime = 0; // 1017:00 as this fake stores it: written by the H line's download.
     uint16_t io[9] = {0x0f, 0x0101, 1, 2, 3, 0x0105, 0x0106, 0x0107, 0x0108};
     uint32_t digitalInputs = 0x00010000; // 60FD.
     bool lateHeld = false;
@@ -142,11 +146,23 @@ struct Drive {
         case 0x607d:
             return sub ? 4 : countWidth;
         case 0x1000: case 0x6064: case 0x606c: case 0x607a: case 0x60ff: case 0x6081: case 0x6083: case 0x6084:
-        case 0x60fd:
+        case 0x60fd: case 0x1005: case 0x1014:
             return 4;
+        case 0x1200:
+            return sub ? 4 : 1;
         default:
-            return 2;
+            break;
         }
+        // The K line's PDO records, at their EDS widths (LC_StepDriverCAN_V1.1.eds), as communication_bench
+        // transcribes them: communication :00 U8, :01 U32, :02 U8, :03 U16, :04 U8, :05 U16; mapping :00 U8,
+        // :01..04 U32.
+        if ((index >= 0x1400 && index <= 0x1403) || (index >= 0x1800 && index <= 0x1803)) {
+            const unsigned w[6] = {1, 4, 1, 2, 1, 2};
+            return sub < 6 ? w[sub] : 2;
+        }
+        if ((index >= 0x1600 && index <= 0x1603) || (index >= 0x1a00 && index <= 0x1a03))
+            return sub ? 4 : 1;
+        return 2;
     }
     uint32_t value(uint16_t index, uint8_t sub) {
         switch (index) {
@@ -187,14 +203,31 @@ struct Drive {
         case 0x6081: return rpm;
         case 0x6083: return rampUp;
         case 0x6084: return rampDown;
-        case 0x1017: return 0;
+        case 0x1017: return heartbeatTime;
+        case 0x1005: return 0x80;
+        case 0x1014: return 0x80 + node;
+        case 0x1200: return sub == 0 ? 2 : sub == 1 ? 0x600 + node : 0x580 + node;
         case 0x2400: return sub < 9 ? io[sub] : 0x100u + sub;
         case 0x2202: return limitSelector;
         case 0x607d: return sub == 0 ? limitEntries : sub == 1 ? uint32_t(limitMinimum) : uint32_t(limitMaximum);
         case 0x60fd: return digitalInputs;
         case 0x60fe: return sub == 0 ? outputEntries : 0;
-        default: return index >= 0x2401 && index <= 0x2520 ? uint32_t(index & 0xff) : 0;
+        default:
+            break;
         }
+        // The K line's PDO records, as communication_bench's fake stores them.
+        const unsigned n = (index & 0xff) % 4;
+        if ((index & 0xff00) == 0x1400 || (index & 0xff00) == 0x1800) {
+            const uint32_t base = (index & 0xff00) == 0x1800 ? 0x180 : 0x200;
+            const uint32_t v[6] = {5, (n ? 0x80000000u : 0) + base + 0x100 * n + node, 255,
+                                   index == 0x1800 ? 100u : 0u, 0, 0};
+            return sub < 6 ? v[sub] : 0;
+        }
+        if ((index & 0xff00) == 0x1a00 && n == 0) {
+            const uint32_t v[5] = {3, 0x60410010, 0x60610008, 0x60640020, 0};
+            return sub < 5 ? v[sub] : 0;
+        }
+        return index >= 0x2401 && index <= 0x2520 ? uint32_t(index & 0xff) : 0;
     }
     // Returns false for no reply.
     bool answer(const M::Frame& request, M::Frame& reply) {
@@ -203,8 +236,11 @@ struct Drive {
         const uint16_t word = uint16_t(request.data[4] | uint16_t(request.data[5]) << 8);
         if (writesOnly && request.data[0] == 0x40)
             return answer2(request, reply);
-        if (index == silentIndex && (index != 0x6040 || !silentWord || word == silentWord))
-            return false;
+        if (index == silentIndex && (index != 0x6040 || !silentWord || word == silentWord)) {
+            if (!silentSkip)
+                return false;
+            --silentSkip;
+        }
         if (index && index == lateIndex && !lateHeld) {
             // Acts on the request, but its reply waits for the test: a late reply.
             lateIndex = 0;
@@ -299,6 +335,8 @@ struct Drive {
                 position = 0; // This fake's counter clear.
             } else if (index == 0x2400 && sub < 9) {
                 io[sub] = word;
+            } else if (index == 0x1017 && !sub) {
+                heartbeatTime = word;
             } else if (index == 0x607a) {
                 positionTarget = signedValue;
             } else if (index == 0x6081) {
@@ -411,6 +449,9 @@ struct Rig {
     E::AxisSession one, two;
     E::BenchRoute route;
     E::RouteWork routeWork;
+    // The K and H records of the same image, on the same owner and services; idle unless a test begins one.
+    E::CommunicationReads comm;
+    E::HeartbeatCommission commission;
     const C::SdoTransfer* externalWord = nullptr; // Explicit additional test producer, scoped below.
     unsigned samples = 0;
     static void sample(void* context, E::RouteResources& output) {
@@ -431,7 +472,8 @@ struct Rig {
     // work: attach RouteWork, as the firmware does on the first route that needs it.
     explicit Rig(bool work = true)
         : firmware(services, driver.callbacks(), console.callbacks()), one(firmware.owner()),
-          two(firmware.owner()), route(firmware, services, hooks(this)) {
+          two(firmware.owner()), route(firmware, services, hooks(this)), comm(firmware.owner(), services),
+          commission(firmware.owner(), services) {
         E::DownloadPreflight check;
         check.context = this;
         check.check = [](void* context, O::SequenceId sequence, const C::SdoTransfer& transfer,
@@ -443,10 +485,13 @@ struct Rig {
             C::SdoTransfer other = transfer;
             other.data[0] ^= 1;
             CHECK(!r.route.preflight(sequence, other, now));
-            return r.route.preflight(sequence, transfer, now);
+            // main.cpp's dispatcher: the routes, then the H record, the one other download producer here.
+            return r.route.preflight(sequence, transfer, now) || r.commission.preflight(sequence, transfer, now);
         };
         firmware.setPreflight(check);
         driver.console = &console;
+        driver.drives[0].node = 1;
+        driver.drives[1].node = 2;
         E::FirmwareConfig config;
         config.configured = true;
         config.controller.txPin = 17;
@@ -476,10 +521,13 @@ struct Rig {
         CHECK(!work || (route.attachWork(routeWork) && !route.attachWork(routeWork)));
         CHECK(!route.attach(1, two));
     }
+    // main.cpp's order: the firmware turn, the K and H records, then the route.
     void turn() {
         console.now += 1000;
         driver.deliver();
         firmware.service();
+        CHECK(comm.service(firmware.owner().lastTimeUs()));
+        CHECK(commission.service(firmware.owner().lastTimeUs()));
         route.service(firmware.owner().lastTimeUs());
     }
     void turns(unsigned count) {
@@ -4073,6 +4121,343 @@ void testVelocityHomePlan() {
     r->release();
     CHECK(std::strcmp(r->start(homeLine(1, trial)), "budget") == 0);
 }
+// ------------------------------------------------------------- S15: closing route sessions, grants
+// main.cpp's K and H counters (acquisition, pdoGrant) as it continues them before each K or H line: from
+// the channel's last experimental grant, which a route may have drawn from its own higher range.
+struct MainCounters {
+    uint32_t acquisition = 1, pdoGrant[2] = {10000, 10000};
+    void follow(const Rig& r, unsigned node) {
+        uint32_t grant = 0, operation = 0;
+        CHECK(r.services.lastExperiment(uint8_t(node - 1), grant, operation));
+        if (pdoGrant[node - 1] < grant)
+            pdoGrant[node - 1] = grant;
+        if (acquisition < operation)
+            acquisition = operation;
+    }
+    E::CommunicationBenchRequest reads(const Rig& r, unsigned node) const {
+        E::CommunicationBenchRequest k;
+        k.id = acquisition + 1;
+        k.node = uint8_t(node);
+        k.firstGrant = pdoGrant[node - 1] + 1;
+        k.deadlineUs = r.console.now + 15000000;
+        return k;
+    }
+    E::HeartbeatBenchRequest heartbeat(const Rig& r, unsigned node) const {
+        E::HeartbeatBenchRequest h;
+        h.id = acquisition + 1;
+        h.node = uint8_t(node);
+        h.producerTimeRaw = 1000;
+        h.firstGrant = pdoGrant[node - 1] + 1;
+        h.deadlineUs = r.console.now + 5000000;
+        return h;
+    }
+};
+// The K line as main.cpp runs it, to its terminal and release.
+E::CommunicationBenchFailure runReads(Rig& r, MainCounters& m, unsigned node) {
+    m.follow(r, node);
+    const char* refusal = r.comm.begin(m.reads(r, node), r.console.now);
+    if (refusal)
+        std::fprintf(stderr, "K refused: %s\n", refusal);
+    CHECK(!refusal);
+    m.acquisition += 18;
+    m.pdoGrant[node - 1] += 95;
+    for (unsigned i = 0; i < 40000 && !r.comm.record()->terminal; ++i)
+        r.turn();
+    const E::CommunicationBenchRecord& k = *r.comm.record();
+    CHECK(k.terminal);
+    const E::CommunicationBenchFailure failure = k.failure;
+    if (failure == E::CommunicationBenchFailure::NONE)
+        CHECK(k.published == 18 && k.terminalCount == 95 && k.grants >= 89);
+    r.turns(5);
+    CHECK(r.comm.release() && !r.comm.record());
+    return failure;
+}
+// The H line likewise; this fake's 1017:00 must read raw 0.
+E::HeartbeatBenchFailure runCommission(Rig& r, MainCounters& m, unsigned node) {
+    m.follow(r, node);
+    const char* refusal = r.commission.begin(m.heartbeat(r, node), r.console.now);
+    if (refusal)
+        std::fprintf(stderr, "H refused: %s\n", refusal);
+    CHECK(!refusal);
+    m.acquisition += 2;
+    m.pdoGrant[node - 1] += 3;
+    for (unsigned i = 0; i < 40000 && !r.commission.record()->terminal; ++i)
+        r.turn();
+    CHECK(r.commission.record()->terminal);
+    const E::HeartbeatBenchFailure failure = r.commission.record()->failure;
+    r.turns(5);
+    CHECK(r.commission.release() && !r.commission.record());
+    return failure;
+}
+uint8_t closeAll(Rig& r, const char* expected = nullptr) {
+    uint8_t closed = 0xff;
+    const char* refusal = r.route.closeSessions(closed);
+    if ((refusal == nullptr) != (expected == nullptr) || (refusal && std::strcmp(refusal, expected)))
+        std::fprintf(stderr, "close: %s, expected %s\n", refusal ? refusal : "closed", expected ? expected : "closed");
+    CHECK((refusal == nullptr) == (expected == nullptr) && (!refusal || std::strcmp(refusal, expected) == 0));
+    return closed;
+}
+std::string sessionsLine(const Rig& r, const char* refusal, uint8_t closed) {
+    char out[192];
+    CHECK(E::formatSessionsLine(&r.route, refusal, closed, out, sizeof out));
+    return out;
+}
+// A refusal word, null-safe: an admitted request (null) is never a refusal.
+bool refusedAs(const char* got, const char* word) { return got && std::strcmp(got, word) == 0; }
+bool reserved(Rig& r, unsigned node) {
+    O::SequenceId held;
+    return r.firmware.owner().findSequence(r.services.channel(uint8_t(node - 1))->binding, held);
+}
+// The close: refused while a record is held or a session has work in flight or an unread result, a
+// close itself sends nothing, and it returns the owner reservation.
+void testCloseRefusals() {
+    scenario = "close-refusals";
+    std::unique_ptr<Rig> r(new Rig);
+    uint32_t trial = 0;
+    r->turns(3);
+    // Nothing open: a close with nothing to do.
+    CHECK(closeAll(*r) == 0 && !r->one.isOpen() && !r->two.isOpen());
+    CHECK(sessionsLine(*r, nullptr, 0) ==
+          "SESSIONS closed node1=0 node2=0 kept1=00 kept2=00 motion=0; nothing sent; latest controlwords dropped; "
+          "fences, trials and caps kept\n");
+    // An active route, then its terminal record before release: refused, and the route goes on.
+    CHECK(!r->start("A1," + id(trial)));
+    r->turns(4);
+    CHECK(r->route.active() && closeAll(*r, "record") == 0 && r->one.isOpen());
+    finishRoute(*r);
+    CHECK(r->route.record()->failure == E::RouteFailure::NONE);
+    CHECK(closeAll(*r, "record") == 0 && r->one.isOpen() && reserved(*r, 1));
+    CHECK(sessionsLine(*r, "record", 0) ==
+          "SESSIONS refused reason=record node1=0 node2=0; nothing sent, nothing else changed\n");
+    r->release();
+    // Work admitted through the session and in flight, then its unread result: refused both times.
+    const uint32_t operation = r->one.beginOperation(r->console.now + 1000000, r->console.now);
+    CHECK(operation);
+    C::SdoTransfer t;
+    t.channel = r->services.channel(0) ? *r->services.channel(0) : C::SdoChannel();
+    t.operation = operation;
+    t.request = t.step = 1;
+    t.index = 0x1000;
+    t.size = 4;
+    t.readEffect = C::SdoReadEffect::ACCEPTED_UNQUALIFIED;
+    t.deadlineUs = r->console.now + 1000000;
+    t.queueTimeoutUs = t.responseTimeoutUs = 250000;
+    CHECK(r->one.admitPrepared(t, r->console.now) == O::BusAdmission::ACCEPTED);
+    CHECK(closeAll(*r, "busy") == 0 && r->one.isOpen());
+    r->turns(10);
+    CHECK(r->one.busy() && closeAll(*r, "busy") == 0 && r->one.isOpen());
+    C::SdoCompletion done;
+    CHECK(r->one.settle(done) && done.outcome == C::SdoOutcome::SUCCESS);
+    // Idle now: node 1 closes, its reservation returns, and nothing is sent then or afterwards.
+    const size_t sent = r->driver.requests.size();
+    CHECK(closeAll(*r) == 1 && !r->one.isOpen() && !reserved(*r, 1) && !r->one.latestControl());
+    r->turns(200);
+    CHECK(r->driver.requests.size() == sent);
+    CHECK(sessionsLine(*r, nullptr, 1) ==
+          "SESSIONS closed node1=1 node2=0 kept1=00 kept2=00 motion=0; nothing sent; latest controlwords dropped; "
+          "fences, trials and caps kept\n");
+    // Closed is closed: a second close has nothing to do. The trial identity still rises.
+    CHECK(closeAll(*r) == 0);
+    CHECK(std::strcmp(r->start("A1,1"), "trial") == 0 && r->driver.requests.size() == sent);
+    // The next route reopens the same session object on a new reservation.
+    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE && r->one.isOpen() && reserved(*r, 1));
+    r->release();
+    char tiny[16];
+    CHECK(!E::formatSessionsLine(&r->route, nullptr, 1, tiny, sizeof tiny) && !tiny[0]);
+    char none2[96];
+    CHECK(E::formatSessionsLine(nullptr, "none", 0, none2, sizeof none2) &&
+          std::strcmp(none2, "SESSIONS refused reason=none node1=0 node2=0; nothing sent, nothing else changed\n") == 0);
+}
+// What a close drops and keeps: the latest controlword goes, so HOME refuses as after an MCU restart; the
+// write history, mode record, trial identity, caps and counters stay with the session and route objects.
+void testCloseKeepsHistory() {
+    scenario = "close-keeps-history";
+    std::unique_ptr<Rig> r(new Rig);
+    documentedInputs(r->driver.drives[0]);
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    CHECK(r->route.motionAdmissions() == 2);
+    // With the session's acknowledged 000F the library judges the request: its closed gate refuses.
+    const E::RouteRecord& before = r->run(homeLine(1, trial));
+    CHECK(before.failure == E::RouteFailure::REFUSED && before.statusCode == 3 && before.statusDetail == 7);
+    r->release();
+    const size_t sent = r->driver.requests.size();
+    CHECK(closeAll(*r) == 1 && !r->one.latestControl() && !reserved(*r, 1));
+    CHECK(r->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE) && r->route.kept(2) == 0);
+    CHECK(sessionsLine(*r, nullptr, 1) ==
+          "SESSIONS closed node1=1 node2=0 kept1=60 kept2=00 motion=2; nothing sent; latest controlwords dropped; "
+          "fences, trials and caps kept\n");
+    r->turns(100);
+    CHECK(r->driver.requests.size() == sent);
+    // Every route that needs the latest word refuses before anything is sent, as after an MCU restart;
+    // the enable and mode 1 refuse on the kept history.
+    CHECK(std::strcmp(r->start(position(1, trial, 0, 16)), "control") == 0);
+    CHECK(std::strcmp(r->start(rearm(1, trial)), "control") == 0);
+    CHECK(std::strcmp(r->start(move(1, trial)), "control") == 0);
+    CHECK(std::strcmp(r->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800"), "history") == 0);
+    CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
+    CHECK(r->driver.requests.size() == sent && r->route.motionAdmissions() == 2);
+    // HOME reopens the session and now refuses on the missing controlword, never reserved.
+    const E::RouteRecord& after = r->run(homeLine(1, trial));
+    CHECK(after.failure == E::RouteFailure::REFUSED && std::strcmp(after.why, "home") == 0);
+    CHECK(after.statusCode == 1 && after.statusDetail == 3 && std::strstr(after.statusMessage, "latest controlword"));
+    CHECK(after.caseCount == 2 && after.terminalCount == 29 && r->downloadsFrom(sent) == 0);
+    r->release();
+    // The per-boot caps keep counting across closes: the third HOME on node 1 is the last.
+    CHECK(closeAll(*r) == 1);
+    CHECK(r->run(homeLine(1, trial)).caseCount == 3);
+    r->release();
+    CHECK(closeAll(*r) == 1);
+    CHECK(std::strcmp(r->start(homeLine(1, trial)), "budget") == 0 && r->route.motionAdmissions() == 2);
+    CHECK(std::strcmp(r->start("A1,2"), "trial") == 0);
+}
+// A drive-fault fence survives the close: the reopened session refuses the counter zero the same way.
+void testCloseKeepsFaultFence() {
+    scenario = "close-keeps-fault-fence";
+    std::unique_ptr<Rig> r(new Rig);
+    r->driver.drives[0].statusBits = true;
+    r->driver.drives[0].travelReads = 40;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    const size_t first = r->driver.requests.size();
+    CHECK(!r->start(move(1, trial)));
+    for (unsigned i = 0; i < 20000 && r->one.moveAction().phase != L::MovePhase::TRIGGER; ++i)
+        r->turn();
+    M::Frame emcy = frame(0x81, 8);
+    emcy.data[0] = 0x10;
+    emcy.data[1] = 0xff;
+    r->driver.push(emcy);
+    finishRoute(*r);
+    r->turns(500);
+    CHECK(r->route.record()->failure == E::RouteFailure::OBSERVATION && !triggerSent(*r, first));
+    r->release();
+    CHECK(r->one.faultBlocked());
+    CHECK(closeAll(*r) == 1 && (r->route.kept(1) & E::KEPT_FAULT_BLOCK) && r->one.faultBlocked());
+    const size_t sent = r->driver.requests.size();
+    const E::RouteRecord& z = r->run("Z1," + id(trial) + ",1,3000,500");
+    CHECK(z.failure == E::RouteFailure::REFUSED && std::strcmp(z.why, "clear") == 0 && z.statusPresent);
+    CHECK(std::strstr(z.statusMessage, "drive fault") && r->downloadsFrom(sent) == 0 && r->one.faultBlocked());
+    // An unconfirmed write: the 6060 reply is lost, its effect unknown. The idle session closes, and its write
+    // record stays; the route stays unresolved, so neither a route nor K can reserve the node again.
+    scenario = "close-keeps-uncertain-write";
+    std::unique_ptr<Rig> u(new Rig);
+    u->driver.drives[0].silentIndex = 0x6060;
+    trial = 0;
+    const E::RouteRecord& m = u->run("M1," + id(trial) + ",1,3,200");
+    CHECK(m.failure == E::RouteFailure::SERVICE && std::strcmp(m.why, "uncertain") == 0);
+    u->turns(400);
+    u->release();
+    CHECK(closeAll(*u) == 1 && u->route.kept(1) == (E::KEPT_WRITTEN | E::KEPT_MODE_WRITE) && !reserved(*u, 1));
+    const size_t after = u->driver.requests.size();
+    // The session reopens without a reservation, as AxisSession::open does on an unresolved route, and the
+    // route is refused; nothing reserves the node.
+    CHECK(refusedAs(u->start("A1," + id(trial)), "session") && u->services.unresolved(0) && !reserved(*u, 1));
+    MainCounters k;
+    k.follow(*u, 1);
+    CHECK(refusedAs(u->comm.begin(k.reads(*u, 1), u->console.now), "unresolved"));
+    u->turns(100);
+    CHECK(u->driver.requests.size() == after && u->downloadsFrom(0) == 1);
+}
+// A counter clear whose final 0 went unanswered: its 1 withdrew the coordinates and the owner's move to the
+// new configuration epoch is still owed, so the close refuses. After an ordinary counter clear the
+// session has moved itself, and the close and reopen stay on that epoch.
+void testCloseConfigurationOwed() {
+    scenario = "close-configuration-owed";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    uint32_t trial = 0;
+    CHECK(r->run("M1," + id(trial) + ",1,1,200").failure == E::RouteFailure::NONE);
+    r->release();
+    d.silentIndex = 0x2302;
+    d.silentSkip = 2; // 0 and 1 answered, the last 0 lost.
+    const E::RouteRecord& z = r->run("Z1," + id(trial) + ",1,3000,500");
+    CHECK(z.failure != E::RouteFailure::NONE && r->one.clearAction().coordinatesInvalidated);
+    r->turns(500);
+    r->release();
+    CHECK(!r->one.busy() && r->one.binding().configurationGeneration == 1);
+    CHECK(closeAll(*r, "configuration") == 0 && r->one.isOpen());
+    CHECK(sessionsLine(*r, "configuration", 0) ==
+          "SESSIONS refused reason=configuration node1=0 node2=0; nothing sent, nothing else changed\n");
+    scenario = "close-after-counter";
+    std::unique_ptr<Rig> ok(new Rig);
+    trial = 0;
+    CHECK(ok->run("M1," + id(trial) + ",1,1,200").failure == E::RouteFailure::NONE);
+    ok->release();
+    CHECK(ok->run("Z1," + id(trial) + ",1,3000,500").failure == E::RouteFailure::NONE);
+    ok->release();
+    CHECK(ok->one.binding().configurationGeneration == 2 && closeAll(*ok) == 1);
+    CHECK(ok->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+    CHECK(ok->one.binding().configurationGeneration == 2);
+}
+// The two 2026-11-09 limits on one boot: K and H after a route and a close, then routes after K and H. Every
+// producer continues above the channel's last grant (SdoClient::lastExperiment).
+void testCloseThenCommission() {
+    scenario = "close-then-commission";
+    std::unique_ptr<Rig> r(new Rig);
+    documentedInputs(r->driver.drives[0]);
+    MainCounters m;
+    uint32_t trial = 0;
+    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+    r->release();
+    // The measured first limit: the open session's reservation refuses K and H, and nothing is sent.
+    const size_t before = r->driver.requests.size();
+    m.follow(*r, 1);
+    CHECK(refusedAs(r->comm.begin(m.reads(*r, 1), r->console.now), "reserved"));
+    CHECK(refusedAs(r->commission.begin(m.heartbeat(*r, 1), r->console.now), "reserved"));
+    CHECK(closeAll(*r) == 1 && !reserved(*r, 1));
+    // The route's grants are above main.cpp's counters: K and H from those unfollowed counters are refused
+    // before they reserve or send anything, never at a first upload.
+    MainCounters stale;
+    CHECK(refusedAs(r->comm.begin(stale.reads(*r, 1), r->console.now), "grant"));
+    CHECK(refusedAs(r->commission.begin(stale.heartbeat(*r, 1), r->console.now), "grant"));
+    CHECK(!r->comm.record() && !r->commission.record() && !reserved(*r, 1) && r->driver.requests.size() == before);
+    // Followed, as main.cpp follows them: all eighteen groups, then the commissioning.
+    CHECK(runReads(*r, m, 1) == E::CommunicationBenchFailure::NONE);
+    CHECK(r->services.setProducerInterval(0, r->services.node(0)->route, 0, r->console.now));
+    const unsigned downloads = r->downloadsFrom(before);
+    CHECK(runCommission(*r, m, 1) == E::HeartbeatBenchFailure::NONE);
+    CHECK(r->driver.drives[0].heartbeatTime == 1000 && r->downloadsFrom(before) == downloads + 1);
+    CHECK(r->services.channel(0)->binding.configurationGeneration == 2);
+    // The measured second limit: a route after K and H continues above their grants. HOME's 2400 reads
+    // are granted, and the fresh session has no latest controlword.
+    const size_t mark = r->driver.requests.size();
+    const E::RouteRecord& h = r->run(homeLine(1, trial));
+    CHECK(h.failure == E::RouteFailure::REFUSED && std::strcmp(h.why, "home") == 0 && h.statusCode == 1 &&
+          h.statusDetail == 3 && h.terminalCount == 29 && r->downloadsFrom(mark) == 0);
+    size_t at = mark;
+    expectUploads(*r, at, 1, IDENTITY, 9);
+    expectUploads(*r, at, 1, IO_INPUTS, 9);
+    CHECK(r->one.binding().configurationGeneration == 2);
+    r->release();
+    // And back once more: close, K again from the route's higher grants, then a read route.
+    CHECK(closeAll(*r) == 1);
+    CHECK(runReads(*r, m, 1) == E::CommunicationBenchFailure::NONE);
+    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE);
+}
+// Trials 903 to 906 as measured: K first in the boot, then HOME. The route's session continues above K's
+// operations instead of being refused its first grant.
+void testHomeAfterReads() {
+    scenario = "home-after-reads";
+    std::unique_ptr<Rig> r(new Rig);
+    documentedInputs(r->driver.drives[0]);
+    MainCounters m;
+    uint32_t trial = 0;
+    r->turns(3);
+    CHECK(runReads(*r, m, 1) == E::CommunicationBenchFailure::NONE);
+    uint32_t grant = 0, operation = 0;
+    CHECK(r->services.lastExperiment(0, grant, operation) && grant > 10001 && operation > 1);
+    const size_t mark = r->driver.requests.size();
+    const E::RouteRecord& h = r->run(homeLine(1, trial));
+    CHECK(h.failure == E::RouteFailure::REFUSED && std::strcmp(h.why, "home") == 0 && h.statusCode == 1 &&
+          h.statusDetail == 3 && h.terminalCount == 29);
+    size_t at = mark;
+    expectUploads(*r, at, 1, IDENTITY, 9);
+    expectUploads(*r, at, 1, IO_INPUTS, 9);
+    for (unsigned i = 0; i < h.terminalCount; ++i)
+        CHECK(h.terminals[i].operation > operation);
+    // Node 2 kept its own channel's numbering: nothing of node 1's grants moved it.
+    CHECK(r->services.lastExperiment(1, grant, operation) && grant == 0 && operation == 0);
+}
 void writeTranscript(const char* path, bool all) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
@@ -5351,6 +5736,12 @@ int main(int argc, char** argv) {
     testVelocityFailures();
     testHome();
     testVelocityHomePlan();
+    testCloseRefusals();
+    testCloseKeepsHistory();
+    testCloseKeepsFaultFence();
+    testCloseConfigurationOwed();
+    testCloseThenCommission();
+    testHomeAfterReads();
     replayRouteBootR2c();
     replayRouteBootR4b();
     std::printf("bench_route: %u checks\n", checks);
