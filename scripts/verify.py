@@ -197,7 +197,9 @@ def main(argv=None):
                    "-DCMAKE_CXX_COMPILER=" + cxx, "-DCMAKE_MAKE_PROGRAM=" + ninja,
                    "-DPython3_EXECUTABLE=" + sys.executable, "-DCMAKE_C_FLAGS=" + flags,
                    "-DCMAKE_CXX_FLAGS=" + (flags + " -Werror").strip()])
-        runner.run("build", [cmake, "--build", build, "--parallel", "2"], timeout=240)
+        # A hang guard, not a performance budget: the ASan gcc build took 165 to 211 s on
+        # two-core CI runners in November 2026 and once exceeded 240 s with unchanged code.
+        runner.run("build", [cmake, "--build", build, "--parallel", "2"], timeout=600)
         inventory = runner.run("test_inventory", [ctest, "--test-dir", build, "--show-only=json-v1"])
         listing = runner.directory / "ctest_inventory.json"
         listing.write_text(inventory, encoding="utf-8")
