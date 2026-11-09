@@ -1,0 +1,98 @@
+{
+  "started_utc": "2026-11-09T14:45:55.738598+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "home",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 1006,
+  "plan": "prompt 36 homing admission",
+  "fields": [
+    1,
+    1006,
+    1,
+    24,
+    60,
+    6,
+    200,
+    0
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 1006 to confirm: ",
+      "typed": "ATTENDED 1006",
+      "accepted": true
+    },
+    "home_inputs_wired": {
+      "question": "Attendant: which DI terminals of node 1 are wired to a switch, as seen? Type NONE, or the terminals and switches: ",
+      "typed": "NONE",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "home",
+    "--node",
+    "1",
+    "--trial",
+    "1006",
+    "--method",
+    "24",
+    "--search-rpm",
+    "60",
+    "--creep-rpm",
+    "6",
+    "--ramp-ms",
+    "200",
+    "--offset",
+    "0",
+    "--campaign",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-p3536-campaign.jsonl",
+    "--seconds",
+    "30",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T1445Z-p3536-home24-node1-1006"
+  ],
+  "host_revision": "4247e5943135c0cf16996681ed4dacd2d6b42be5",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-p3536-campaign.jsonl",
+    "motion_total": 3,
+    "cases": {
+      "E1": 1,
+      "M1": 1,
+      "S1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544f312c313030362c312c32342c36302c362c3230302c302c4b61313463336366620a"
+  ],
+  "image": {
+    "base": "4247e5943135c0cf16996681ed4dacd2d6b42be5",
+    "elf": "6f89bc82fdd7fc4d6814c0be46d17e57263a39d5b966ab758d79ec219da8836b",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TO1,1006,1,24,60,6,200,0,Ka14c3cfb",
+  "tx_hex": "544f312c313030362c312c32342c36302c362c3230302c302c4b61313463336366620a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T14:45:58.637997+00:00"
+}

@@ -1,0 +1,8 @@
+PONG target=esp32s2 base=4247e5943135c0cf16996681ed4dacd2d6b42be5 elf=6f89bc82fdd7fc4d6814c0be46d17e57263a39d5b966ab758d79ec219da8836b sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=570872960 routes=7 trial=0 motion=6 pdo=4 watch=0 capture=0
+TRIAL admitted route=stop node=1 trial=1021 motion=7 case=3; finite typed route, no retry
+TRIAL id=1021 node=1 route=stop failure=3 why=uncertain lost=0 terminals=1 traffic=1 tail=0 tailLost=0 summaries=2 step=0 cycles=0 motion=7 case=3 unsettled=0 gap=3001 lossCancel=0
+TRIAL_PLAN route=stop node=1 trial=1021 attended=1 kind=2 deadline=2000 be=0 interval=250
+TRIAL_RES stack0=7592 stack1=7592 heap0=37616 heap1=37616 heapMin=33176 largest=21504 gap=3001 dropped=0 admission=0 started=570908736 completed=571164970 tec0=0 rec0=0 tec1=128 rec1=0
+RESULT op=44 req=44 oreq=313 step=1 object=2100:00 dir=0 outcome=3 ack=0 possible=1 uncertain=1 abort=00000000 cleanup=0 size=0 data=00000000 admitted=570913969 completed=571164970 ne=1 reason=0 st=4f node=1
+TRAFFIC k=1 p=570913969 id=601 ext=0 rtr=0 dlc=8 data=4000210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=289 txf=1 txc=0
+END trial terminals=1 traffic=1 tail=0 tailLost=0 lost=0; r=release

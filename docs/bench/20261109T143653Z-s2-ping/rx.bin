@@ -1,0 +1,1 @@
+PONG target=esp32s2 base=4247e5943135c0cf16996681ed4dacd2d6b42be5 elf=6f89bc82fdd7fc4d6814c0be46d17e57263a39d5b966ab758d79ec219da8836b sdk=5.5.5 running=0 active=0 silent=1 pinsReady=1 soak=0 t=0 routes=7 trial=0 motion=0 pdo=4 watch=0 capture=0
