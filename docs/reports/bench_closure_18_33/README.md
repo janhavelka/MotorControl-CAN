@@ -13,7 +13,7 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | [packet_5](packet_5.md) | Complete (`e8b449d`, `27903cb`; soak fix regression-tested on `f2c90ab`) | 28, 29 | Ran 2026-11-06: loss reproduced at 20 ms and placed after UART FIFO acceptance; attribution needs a GPIO43 capture |
 | [6](../../prompts/bench_closure_18_33/6_pdo_measurement.md) PDO measurement | [packet_6](packet_6.md) | Complete, with recorded deviations; runner fixes P1-P5 | 18, 29 | Ran 2026-11-06, both specimens ([report](../2026-11-06_pdo_stream.md)); NMT boundary rerun on `f2c90ab` ([record](packet_6.md#nmt-boundary-rerun-2026-11-06-1616z)) |
 | [7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md) Typed PDO subset | [packet_7](packet_7.md) | Complete (`f2c90ab`; replay record in the next commit) | 18 stays Partial | Replayed once on node 2 in both directions on `f2c90ab` |
-| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | [packet_8](packet_8.md) | Host part done (tests 28-30, `testPacket8Plan`, runner deadline check, [procedure](packet_8_procedure.md)); bench items 2-4 pending | 29, 31-33 stay Partial | Start baseline read 2026-11-07; motion needs a drive power cycle and an attendant's shaft observation |
+| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | [packet_8](packet_8.md) | Complete for items 1-5 (`18d6c2a` host part; campaign 2026-11-09); a quick stop interrupting a moving `005F` needs a later power-up | 29, 31-33 stay Partial | Attended campaign 2026-11-09 on `18d6c2a`: node 1 relative -100, node 2 base `ACTUAL`, HALT and quick stop from `005F`. HEAD `8293b3e` cannot allocate two sessions (open) |
 
 ## Remote CI
 
@@ -47,7 +47,7 @@ Each row names existing public behavior, then what is missing by kind and who ow
 | 30 Enable and release | Gated enable, run on both specimens; documentary decoder | Release API: no reviewed transition | Release transition and its consequences | Independent shaft or torque observation | Outside this continuation |
 | 31 Stop operations | HALT and quick stop operations; quick-stop standstill rule; run from `000F`, `010F`, `001F`, moving and no-predecessor states | None found | Stops from an acknowledged `005F`; velocity and homing stops | None for drive-report cases | Packet 8 (005F); prompts 35, 36 |
 | 32 Fault and reference | Alarm clear and counter zero through `AxisSession`; counter zero ran once on node 2 | None found | An alarm clear on a naturally present alarm | A naturally present alarm | Waits for a natural alarm; packet 8 for counter cases only if justified |
-| 33 Finite position | Absolute and relative lifecycles; node 1 relative base `ACTUAL`; moves run on both nodes; `validateMoveAdmission`; the drive-fault fence (`faultBlocked`) | None found after packet 2; a fault reported after the move ended sets no fence | Node 2's relative base; a negative relative move; stops from `005F` | None for drive-report cases | Packets 2, 8 |
+| 33 Finite position | Absolute and relative lifecycles; both nodes' relative base `ACTUAL` (409, 830); negative relative move (825); moves run on both nodes; `validateMoveAdmission`; the drive-fault fence (`faultBlocked`) | None found after packet 2; a fault reported after the move ended sets no fence | Node 2's relative base; a negative relative move; stops from `005F` | None for drive-report cases | Packets 2, 8 |
 
 ## Sibling audit
 

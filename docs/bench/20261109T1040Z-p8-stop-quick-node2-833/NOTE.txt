@@ -1,0 +1,3 @@
+The user power-cycled both drives before this session and was the attendant, answering in Claude dialogs. At about 10:22Z they answered: node 1 shaft HOLDING, node 2 shaft HOLDING (turned by hand after the power cycle, before anything was sent to the drives), and 'Yes, attending' to: will you be at the drives with the drive-power cutoff in hand during the campaign. The lead typed each 'ATTENDED <trial>' into s2_bench.py from that attendance answer, and for an enable the shaft answer the user gave for that node; the runner's after-capture questions got no input and read 'not recorded'. The user's observations after the steps are quoted below, verbatim.
+
+Typed by the lead: ATTENDED 833. Final check by hand at about 10:41Z: "1 HOLD, 2 FREE" (node 1 holding, node 2 free).

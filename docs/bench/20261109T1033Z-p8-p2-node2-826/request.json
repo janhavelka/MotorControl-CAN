@@ -1,0 +1,88 @@
+{
+  "started_utc": "2026-11-09T10:33:57.910434+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "mode1",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 826,
+  "plan": "packet 15 P2",
+  "fields": [
+    2,
+    826,
+    1,
+    5,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 2 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 826 to confirm: ",
+      "typed": "ATTENDED 826",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not recorded"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "mode1",
+    "--node",
+    "2",
+    "--trial",
+    "826",
+    "--cycles",
+    "5",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109-p8-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1033Z-p8-p2-node2-826"
+  ],
+  "host_revision": "18d6c2aefce844d8dcebf0d1e28ecfa782704bea",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-p8-campaign.jsonl",
+    "motion_total": 3,
+    "cases": {
+      "E1": 1,
+      "G1": 1,
+      "M1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544d322c3832362c312c352c3530302c4b37343536393065330a"
+  ],
+  "image": {
+    "base": "18d6c2aefce844d8dcebf0d1e28ecfa782704bea",
+    "elf": "765cec819ce3f65dbee9359ae80c3fc91e18a67000f7983448ecf12f939a6109",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TM2,826,1,5,500,K745690e3",
+  "tx_hex": "544d322c3832362c312c352c3530302c4b37343536393065330a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T10:34:04.632380+00:00"
+}

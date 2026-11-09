@@ -1,0 +1,95 @@
+{
+  "started_utc": "2026-11-09T10:34:58.791759+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "rearm",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 829,
+  "plan": "packet 19 rearm",
+  "fields": [
+    2,
+    829,
+    1,
+    2,
+    8,
+    1000
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 2 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 829 to confirm: ",
+      "typed": "ATTENDED 829",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not recorded"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "rearm",
+    "--node",
+    "2",
+    "--trial",
+    "829",
+    "--predecessor",
+    "position-halt",
+    "--cycles",
+    "8",
+    "--interval-ms",
+    "1000",
+    "--campaign",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109-p8-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1034Z-p8-rearm-halt-node2-829"
+  ],
+  "host_revision": "18d6c2aefce844d8dcebf0d1e28ecfa782704bea",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-p8-campaign.jsonl",
+    "motion_total": 7,
+    "cases": {
+      "E1": 1,
+      "E2": 1,
+      "G1": 1,
+      "M1": 1,
+      "M2": 1,
+      "P2": 1,
+      "S2": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5452322c3832392c312c322c382c313030302c4b37326538313837330a"
+  ],
+  "image": {
+    "base": "18d6c2aefce844d8dcebf0d1e28ecfa782704bea",
+    "elf": "765cec819ce3f65dbee9359ae80c3fc91e18a67000f7983448ecf12f939a6109",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TR2,829,1,2,8,1000,K72e81873",
+  "tx_hex": "5452322c3832392c312c322c382c313030302c4b37326538313837330a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T10:35:11.452209+00:00"
+}
