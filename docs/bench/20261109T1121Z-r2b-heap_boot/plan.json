@@ -1,0 +1,30 @@
+{
+  "purpose": "Heap plan check on a freshly flashed pdo=4 image: the boot reservation (reserved=1f) and the regions before and after the local CAN start; nothing is sent on CAN by M.",
+  "authorization": "Standing bench authorization 2026-11-02 (docs/prompts/COMMON.md); heap reading and local CAN start only",
+  "steps": [
+    {
+      "send": "M",
+      "expect": "HEAP",
+      "note": "Expect reserved=1f arena=0 arenaBytes=23688"
+    },
+    {
+      "send": "c",
+      "expect": "CAN ready"
+    },
+    {
+      "send": "M",
+      "expect": "HEAP"
+    },
+    {
+      "wait_s": 1,
+      "require": [
+        {
+          "kind": "HEAP",
+          "match": {
+            "reserved": 31
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+PONG target=esp32s2 base=757f1cd2bddff7614edfbea3e58771f326e7ebcc elf=f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=73247973 routes=6 trial=0 motion=0 pdo=4 watch=0 capture=0
+COMM refused reason=busy; no work

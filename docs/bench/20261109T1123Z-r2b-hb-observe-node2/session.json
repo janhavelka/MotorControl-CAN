@@ -1,0 +1,132 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T11:23:30.616640+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hb_observe2.json",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1123Z-r2b-hb-observe-node2"
+  ],
+  "plan_file": "C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hb_observe2.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "4f12cfadc6af1b85a746676d29046405ce45a807f6a3a06050e59f5322ea026c"
+  },
+  "host_revision": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+    "elf": "f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "151019975",
+    "routes": "6",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T11:23:30.970855+00:00",
+      "monotonic": 267784.015,
+      "reply": "HB record released; configuration and uncertainty retained, producer interval stays withdrawn",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "P10",
+      "tx_hex": "5031300a",
+      "utc": "2026-11-09T11:23:30.983060+00:00",
+      "monotonic": 267784.031,
+      "reply": "PDOW admitted seconds=10; copies received frames, sends nothing",
+      "reply_line": 3,
+      "outcome": "answered"
+    },
+    {
+      "step": 3,
+      "note": "heartbeats from node 2 if 1017 now holds 1000",
+      "wait_s": 4,
+      "utc": "2026-11-09T11:23:30.998586+00:00",
+      "outcome": "waited"
+    },
+    {
+      "step": 4,
+      "note": "",
+      "sent": "P0",
+      "tx_hex": "50300a",
+      "utc": "2026-11-09T11:23:34.998029+00:00",
+      "monotonic": 267788.046,
+      "reply": "PDOW_STOPPING; final summaries follow",
+      "reply_line": 17,
+      "end": "PDOW_END n=15 t=155096984 reason=stop frames=8 printed=8 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0",
+      "end_line": 20,
+      "outcome": "answered"
+    },
+    {
+      "step": 5,
+      "note": "",
+      "sent": "n",
+      "tx_hex": "6e",
+      "utc": "2026-11-09T11:23:35.044239+00:00",
+      "monotonic": 267788.093,
+      "reply": "NETWORK node=1 epoch=1 state=127 qualified=1 producerKnown=0 ms=0 pending=0 observed=1 expired=0 exact=0 bounds=1 lo=154391140 hi=154391325 p=154391979 dropped=118",
+      "reply_line": 21,
+      "end": "END network; boot-up requires an actual observed00 frame; no inferred reset",
+      "end_line": 27,
+      "outcome": "answered"
+    },
+    {
+      "step": 6,
+      "note": "",
+      "sent": "K2",
+      "tx_hex": "4b320a",
+      "utc": "2026-11-09T11:23:35.142923+00:00",
+      "monotonic": 267788.187,
+      "reply": "COMM admitted node=2 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 28,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 143,
+      "outcome": "answered"
+    },
+    {
+      "step": 7,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T11:23:38.431972+00:00",
+      "monotonic": 267791.484,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 144,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-09T11:23:39.553929+00:00",
+  "bytes": 24920
+}

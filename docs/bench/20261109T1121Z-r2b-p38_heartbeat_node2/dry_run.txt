@@ -1,0 +1,16 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/b3738-plans/p38_heartbeat_node2.json: 14 steps; Prompt 38 bench integration, node 2: the guarded heartbeat commissioning through the profile (prepareCommunication, the noticed single 1017:00 download, owner advanceConfiguration, prepareCommunicationConfirmation, getCommunication): exact baseline raw 0, one write of raw 1000, exact readback raw 1000. Scope ISOLATED_EXPERIMENT. The accepted probe first gives the adapter the ordinary service evidence its epoch migration needs. No save, NMT reset or reverse transition; restoration is p38_restore_power_cycle.
+   1 {"send": "N2,p", "expect": "NMT admitted", "end": "NMT request", "end_timeout_s": 6, "note": "Pre-operational before the producer starts: a first heartbeat reporting Operational would refuse the confirmation after the write"}
+   2 {"send": "r", "expect": "NMT result released"}
+   3 {"send": "Dp,3,2,0", "expect": "DISC admitted", "end": "END discovery", "end_timeout_s": 10, "note": "Accepted, ungranted probe after the NMT intent: ordinary service evidence for both nodes"}
+   4 {"send": "r", "expect": "DISC record released"}
+   5 {"send": "K2", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 40, "note": "Typed baseline of the node's communication settings, 1017 included"}
+   6 {"send": "r", "expect": "COMM record released"}
+   7 {"send": "P15", "expect": "PDOW admitted", "note": "Watch the producer start: 0x702 frames"}
+   8 {"send": "H2,1000", "expect": "HB admitted", "end": "END heartbeat", "end_timeout_s": 15, "require": [{"kind": "COMM_NETWORK", "where": {"node": 2}, "match": {"producer": 0}}, {"kind": "DISC_T", "where": {"node": 2}, "match": {"outcome": 1, "current": 1}}]}
+   9 {"send": "r", "expect": "HB record released"}
+  10 {"wait_s": 5, "note": "About five heartbeats expected in the watch (2026-11-06: 1000.795 ms period)"}
+  11 {"send": "n", "expect": "NETWORK", "end": "END network", "end_timeout_s": 5, "note": "Node state from its heartbeat; producerKnown stays 0: a stored readback is not active timing"}
+  12 {"send": "K2", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 40}
+  13 {"send": "r", "expect": "COMM record released"}
+  14 {"wait_s": 8, "note": "Lets the 15 s watch end by itself with its PDOW_END summary", "require": [{"kind": "COMM_NETWORK", "where": {"node": 2}, "match": {"producer": 1000}}]}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dryb-p38_heartbeat_node2; touches nothing now

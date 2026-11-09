@@ -1,0 +1,111 @@
+{
+  "purpose": "Prompt 38 bench integration, node 2: the guarded heartbeat commissioning through the profile (prepareCommunication, the noticed single 1017:00 download, owner advanceConfiguration, prepareCommunicationConfirmation, getCommunication): exact baseline raw 0, one write of raw 1000, exact readback raw 1000. Scope ISOLATED_EXPERIMENT. The accepted probe first gives the adapter the ordinary service evidence its epoch migration needs. No save, NMT reset or reverse transition; restoration is p38_restore_power_cycle.",
+  "authorization": "Standing bench authorization 2026-11-02 (docs/prompts/COMMON.md): finite reviewed bench work on the two CL86-C nodes; no save, no NMT reset, no motion; one 1017:00 write of raw 1000 on node 2 only",
+  "steps": [
+    {
+      "send": "N2,p",
+      "expect": "NMT admitted",
+      "end": "NMT request",
+      "end_timeout_s": 6,
+      "note": "Pre-operational before the producer starts: a first heartbeat reporting Operational would refuse the confirmation after the write"
+    },
+    {
+      "send": "r",
+      "expect": "NMT result released"
+    },
+    {
+      "send": "Dp,3,2,0",
+      "expect": "DISC admitted",
+      "end": "END discovery",
+      "end_timeout_s": 10,
+      "note": "Accepted, ungranted probe after the NMT intent: ordinary service evidence for both nodes"
+    },
+    {
+      "send": "r",
+      "expect": "DISC record released"
+    },
+    {
+      "send": "K2",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40,
+      "note": "Typed baseline of the node's communication settings, 1017 included"
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    },
+    {
+      "send": "P15",
+      "expect": "PDOW admitted",
+      "note": "Watch the producer start: 0x702 frames"
+    },
+    {
+      "send": "H2,1000",
+      "expect": "HB admitted",
+      "end": "END heartbeat",
+      "end_timeout_s": 15,
+      "require": [
+        {
+          "kind": "COMM_NETWORK",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "producer": 0
+          }
+        },
+        {
+          "kind": "DISC_T",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "outcome": 1,
+            "current": 1
+          }
+        }
+      ]
+    },
+    {
+      "send": "r",
+      "expect": "HB record released"
+    },
+    {
+      "wait_s": 5,
+      "note": "About five heartbeats expected in the watch (2026-11-06: 1000.795 ms period)"
+    },
+    {
+      "send": "n",
+      "expect": "NETWORK",
+      "end": "END network",
+      "end_timeout_s": 5,
+      "note": "Node state from its heartbeat; producerKnown stays 0: a stored readback is not active timing"
+    },
+    {
+      "send": "K2",
+      "expect": "COMM admitted",
+      "end": "END comm",
+      "end_timeout_s": 40
+    },
+    {
+      "send": "r",
+      "expect": "COMM record released"
+    },
+    {
+      "wait_s": 8,
+      "note": "Lets the 15 s watch end by itself with its PDOW_END summary",
+      "require": [
+        {
+          "kind": "COMM_NETWORK",
+          "where": {
+            "node": 2
+          },
+          "match": {
+            "producer": 1000
+          }
+        }
+      ]
+    }
+  ]
+}

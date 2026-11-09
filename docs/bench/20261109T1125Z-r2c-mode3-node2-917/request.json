@@ -1,0 +1,89 @@
+{
+  "started_utc": "2026-11-09T11:25:56.738716+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "mode3",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 917,
+  "plan": "prompt 35 released mode 3",
+  "fields": [
+    2,
+    917,
+    1,
+    2,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "I will not be rpesent - do all the tests yourself, if you move motors read how they moved, dont ask me.",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 2 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "unattended: not observed"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "mode3",
+    "--node",
+    "2",
+    "--trial",
+    "917",
+    "--cycles",
+    "2",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109-r2-campaign.jsonl",
+    "--unattended-waiver",
+    "I will not be rpesent - do all the tests yourself, if you move motors read how they moved, dont ask me.",
+    "--seconds",
+    "30",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1125Z-r2c-mode3-node2-917"
+  ],
+  "host_revision": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-r2-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {
+      "O1": 3,
+      "O2": 3
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544e322c3931372c312c322c3530302c4b38376435313961380a"
+  ],
+  "image": {
+    "base": "757f1cd2bddff7614edfbea3e58771f326e7ebcc",
+    "elf": "f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TN2,917,1,2,500,K87d519a8",
+  "tx_hex": "544e322c3931372c312c322c3530302c4b38376435313961380a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T11:26:00.651487+00:00"
+}

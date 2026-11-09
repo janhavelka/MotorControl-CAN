@@ -1,0 +1,9 @@
+plan C:/Users/Honza/AppData/Local/Temp/claude/7a9e2316d506a34f/1ad24d78-b127-4f86-8571-4006da894f8f/scratchpad/hb_observe.json: 7 steps; After the failed H1,1000 (write acknowledged, epoch migration refused, uncertain): release the held HB record, then observe only: the network listing (does node 1 now send heartbeats?) and node 1's typed communication reads (what 1017 holds). Nothing is written or retried.
+   1 {"send": "r", "expect": "HB record released"}
+   2 {"send": "P10", "expect": "PDOW admitted"}
+   3 {"wait_s": 4, "note": "heartbeats from node 1 if 1017 now holds 1000"}
+   4 {"send": "P0", "expect": "PDOW_STOPPING", "end": "PDOW_END", "end_timeout_s": 20}
+   5 {"send": "n", "expect": "NETWORK", "end": "END network", "end_timeout_s": 5}
+   6 {"send": "K1", "expect": "COMM admitted", "end": "END comm", "end_timeout_s": 60}
+   7 {"send": "r", "expect": "COMM record released"}
+would write C:\Users\Honza\Documents\Projects\MotorControl-CAN\.build\dry-hbo; touches nothing now

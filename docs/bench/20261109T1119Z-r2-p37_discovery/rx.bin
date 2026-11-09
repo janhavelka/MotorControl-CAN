@@ -1,0 +1,50 @@
+PONG target=esp32s2 base=757f1cd2bddff7614edfbea3e58771f326e7ebcc elf=f35c3c0142008143f4f54506a54d280c356179b1fe15c009a789c6a1942fdb96 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=65474975 routes=6 trial=0 motion=0 pdo=4 watch=0 capture=0
+DISC admitted mode=0 seconds=5 select=0 expect=0; uploads only, selection sends nothing; no retry
+DISC id=1 mode=0 seconds=5 targets=2 attempted=2 completed=2 admitted=0 terminals=0 occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=1 changed=0 failed=0 lost=0 gap=2000
+DISC_T node=1 slot=0 outcome=3 confidence=0 read=0 state=0 fields=0 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70572979
+DISC_T node=2 slot=1 outcome=3 confidence=0 read=0 state=0 fields=0 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70572979
+DISC_SELECT node=0 attempted=0 selected=0 current=0 tx0=0 tx1=0
+END discovery terminals=0 targets=2; selection sends nothing; r=release
+DISC record released; routes, epochs and quarantine unchanged
+DISC admitted mode=1 seconds=3 select=1 expect=0; uploads only, selection sends nothing; no retry
+DISC id=2 mode=1 seconds=3 targets=2 attempted=2 completed=2 admitted=2 terminals=2 occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=0 changed=0 failed=0 lost=0 gap=4100
+DISC_T node=1 slot=0 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70661981
+DISC_T node=2 slot=1 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70670993
+DISC_PROBE node=1 type=00040192
+DISC_PROBE node=2 type=00040192
+DISC_SELECT node=1 attempted=1 selected=1 current=1 tx0=46 tx1=46
+RESULT op=7 req=7 oreq=47 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70657981 completed=70661981 ne=1 reason=0 st=3f
+RESULT op=8 req=8 oreq=48 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70667981 completed=70670993 ne=1 reason=0 st=3f
+END discovery terminals=2 targets=2; selection sends nothing; r=release
+DISC record released; routes, epochs and quarantine unchanged
+DISC admitted mode=2 seconds=5 select=2 expect=1; uploads only, selection sends nothing; no retry
+DISC id=3 mode=2 seconds=5 targets=2 attempted=2 completed=2 admitted=18 terminals=18 occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=0 changed=0 failed=0 lost=0 gap=4157
+DISC_T node=1 slot=0 outcome=2 confidence=3 read=1 state=2 fields=9 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70892982
+DISC_T node=2 slot=1 outcome=2 confidence=3 read=1 state=2 fields=9 uncertain=0 hb=0 hbp=0 boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=70974990
+DISC_ID node=1 type=00040192 hw=c hww=1 sw=20 sww=1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200
+DISC_ID node=2 type=00040192 hw=c hww=1 sw=20 sww=1 entries=5 vendor=00001000 product=00000001 revision=00000000 model=0400 firmware=0200
+DISC_SELECT node=2 attempted=1 selected=1 current=1 tx0=64 tx1=64
+RESULT op=9 req=9 oreq=49 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70816981 completed=70820981 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=50 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=70826981 completed=70829984 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=51 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=70835981 completed=70838981 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=52 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=70844981 completed=70847981 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=53 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=70853981 completed=70856985 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=54 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=70862981 completed=70865981 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=55 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=70871981 completed=70874981 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=56 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=70880981 completed=70883983 ne=1 reason=0 st=3f
+RESULT op=9 req=9 oreq=57 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=70889981 completed=70892982 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=58 step=1 object=1000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=92010400 admitted=70899981 completed=70902990 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=59 step=2 object=1009:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=0c000000 admitted=70908981 completed=70911982 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=60 step=3 object=100a:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=20000000 admitted=70917981 completed=70920983 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=61 step=4 object=1018:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=05000000 admitted=70926981 completed=70929982 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=62 step=5 object=1018:01 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00100000 admitted=70935981 completed=70938982 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=63 step=6 object=1018:02 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=01000000 admitted=70944981 completed=70947989 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=64 step=7 object=1018:03 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=70953981 completed=70956988 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=65 step=8 object=2000:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00040000 admitted=70962981 completed=70965988 ne=1 reason=0 st=3f
+RESULT op=10 req=10 oreq=66 step=9 object=2001:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00020000 admitted=70971981 completed=70974990 ne=1 reason=0 st=3f
+END discovery terminals=18 targets=2; selection sends nothing; r=release
+DISC record released; routes, epochs and quarantine unchanged
+NETWORK node=1 epoch=1 state=0 qualified=0 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=0
+NETWORK node=2 epoch=1 state=0 qualified=0 producerKnown=0 ms=0 pending=0 observed=0 expired=0 exact=0 bounds=0 lo=0 hi=0 p=0 dropped=0
+END network; boot-up requires an actual observed00 frame; no inferred reset
+STATS running=1 inhibited=0 rx=64 tx=64 dropped=0 errors=0 flags=00000000 stackFree=8468 t=71567975 txRej=0 rxLost=0 unmatched=0 traceOver=56 ownerGap=5017 conRej=1750
