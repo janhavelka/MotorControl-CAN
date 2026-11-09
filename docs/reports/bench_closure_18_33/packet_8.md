@@ -1,6 +1,6 @@
 # Packet 8: finite relative moves and stops
 
-[Packet 8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md), host work on 2026-11-07 and the attended bench campaign on 2026-11-09 (below). Items 2 to 4 ran; one planned case, a quick stop interrupting a moving `005F`, needs a later drive power-up. Back to the [execution index](README.md); the bench plan is the [procedure](packet_8_procedure.md).
+[Packet 8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md), host work on 2026-11-07 and the attended bench campaign on 2026-11-09 (below). Items 2 to 4 ran; the last planned case, a quick stop interrupting a moving `005F`, and node 2's first production relative move ran on 2026-11-09 in [2026-11-09 round 4](../2026-11-09_bench_r4.md). Back to the [execution index](README.md); the bench plan is the [procedure](packet_8_procedure.md).
 
 ## Start state
 
@@ -24,8 +24,8 @@
 | --- | --- | --- |
 | 1 Bounded route support and plan | Met without new route code. One runner refusal added (below). Procedure written and dry-run checked | [procedure](packet_8_procedure.md); `bench_route_test.cpp` `testPacket8Plan`; `s2_bench.py` `check_bounds` |
 | 2 Node 1 negative relative move | Met 2026-11-09, trial 825: -100 at 6 rpm from an `ACTUAL` witness at 0, ended at -100 with acceptance and completion observed | [Campaign](#bench-campaign-2026-11-09) |
-| 3 Node 2 ACTUAL versus COMMANDED | Met 2026-11-09, trials 828 to 830: halted at 104 short of a commanded 600, rearmed without resuming, then +200 ended at 304 = 104 + 200, so node 2's base is `ACTUAL` (`COMMANDED` would give 800). One measurement on one firmware; no production relative move on node 2 ran in this boot | [Campaign](#bench-campaign-2026-11-09) |
-| 4 HALT and quick stop from `005F` | Met 2026-11-09: 832, a HALT interrupting node 1's moving relative move from its held `005F` with node 2 observed stationary; 833, a quick stop from node 2's acknowledged, stationary `005F`, which released the drive. A quick stop interrupting a moving `005F` remains for a later power-up (trial 905 in the procedure) | [Campaign](#bench-campaign-2026-11-09) |
+| 3 Node 2 ACTUAL versus COMMANDED | Met 2026-11-09, trials 828 to 830: halted at 104 short of a commanded 600, rearmed without resuming, then +200 ended at 304 = 104 + 200, so node 2's base is `ACTUAL` (`COMMANDED` would give 800). One measurement on one firmware; node 2's first production relative move with record 830 then ended at exactly +200 (trial 1110, [2026-11-09 round 4](../2026-11-09_bench_r4.md)) | [Campaign](#bench-campaign-2026-11-09) |
+| 4 HALT and quick stop from `005F` | Met 2026-11-09: 832, a HALT interrupting node 1's moving relative move from its held `005F` with node 2 observed stationary; 833, a quick stop from node 2's acknowledged, stationary `005F`, which released the drive. The quick stop interrupting a moving `005F` ran later the same day: trial 1109 in [2026-11-09 round 4](../2026-11-09_bench_r4.md), node 1 stopped at 259 and released, node 2 observed stationary | [Campaign](#bench-campaign-2026-11-09) |
 | 5 Unknown trigger, stop and counter consequences | Met as host timelines through the real owner; table below | `move_relative_test.cpp`, `alarm_clear_test.cpp`, `axis_session_test.cpp`, `bench_route_test.cpp` |
 | 6 Defects | None found in library or firmware. One runner gap fixed: a move deadline the library refuses was counted before the refusal | `scripts/s2_bench.py` |
 

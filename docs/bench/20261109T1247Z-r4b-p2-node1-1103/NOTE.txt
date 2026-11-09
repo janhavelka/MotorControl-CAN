@@ -1,0 +1,3 @@
+At about 12:43Z the user, present at the bench, answered in a Claude dialog: both drives power-cycled ('Cycled, HOLDING' for node 1, 'HOLDING' for node 2, felt after the power cycle and before anything was sent), and 'Moves unattended' with the description 'I'm here for the enables only; run the moves and stops under my waiver.'. The first reads of boot A and boot B showed the power-up state on both nodes (6041=8037, 6061=0, 2100=0001, 6064=0).
+
+Unattended under the user's waiver quoted above (stored verbatim with an approximate time in request.json); the observations an attendant would give are recorded as not observed. Motion is read from the drive's own reports only.

@@ -101,7 +101,7 @@ does not substitute for those remote matrix checks.
 
 ## Bench run, 2026-11-09
 
-The bench `home` route ran its 29 admission reads on both nodes and the library refused before any write (`code=1 detail=3`, no enable history in that MCU boot); both nodes assign DI0..2 functions 1, 2, 3 ([report](2026-11-09_bench_r2.md)). The CLOSED-gate refusal after an enable, and any homing motion, remain to be run.
+The bench `home` route ran its 29 admission reads on both nodes and the library refused before any write (`code=1 detail=3`, no enable history in that MCU boot); both nodes assign DI0..2 functions 1, 2, 3 ([report](2026-11-09_bench_r2.md)). After an enable the same day, both nodes refused at the CLOSED gate (`code=3 detail=7`), zero downloads ([round 4](2026-11-09_bench_r4.md)). Homing motion remains unqualified: no switch is known to be wired and the gate stays closed.
 
 ## Next physical evidence
 

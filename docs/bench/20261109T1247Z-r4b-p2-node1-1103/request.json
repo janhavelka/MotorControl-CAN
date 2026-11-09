@@ -1,0 +1,87 @@
+{
+  "started_utc": "2026-11-09T12:47:16.242083+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "mode1",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 1103,
+  "plan": "packet 15 P2",
+  "fields": [
+    1,
+    1103,
+    1,
+    5,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "unattended": true,
+      "waiver": "Moves unattended - I'm here for the enables only; run the moves and stops under my waiver. (user's dialog answer, 2026-11-09 12:4xZ)",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "unattended: not observed"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "mode1",
+    "--node",
+    "1",
+    "--trial",
+    "1103",
+    "--cycles",
+    "5",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109-r4-campaign.jsonl",
+    "--new-campaign",
+    "--unattended-waiver",
+    "Moves unattended - I'm here for the enables only; run the moves and stops under my waiver. (user's dialog answer, 2026-11-09 12:4xZ)",
+    "--seconds",
+    "60",
+    "--output",
+    "C:/Users/Honza/Documents/Projects/MotorControl-CAN/docs/bench/20261109T1247Z-r4b-p2-node1-1103"
+  ],
+  "host_revision": "627bb42d504ba50d387539a0993921689a7e2f59",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109-r4-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "544d312c313130332c312c352c3530302c4b34386135316237350a"
+  ],
+  "image": {
+    "base": "627bb42d504ba50d387539a0993921689a7e2f59",
+    "elf": "e9a0b2102743473351c5f63655d7077922c2e36e5ec9d40af7cf0b3d6f517852",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TM1,1103,1,5,500,K48a51b75",
+  "tx_hex": "544d312c313130332c312c352c3530302c4b34386135316237350a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T12:47:23.057722+00:00"
+}
