@@ -1,0 +1,77 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-09T16:01:37.474660+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\s16-plans\\s15_k1.json",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T1601Z-s16-k1-after-close"
+  ],
+  "plan_file": "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\s16-plans\\s15_k1.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "061bc35fd39c131ab6b5ac70b94241f95d20fd5fbce94e29d4de1e718055e8bf"
+  },
+  "host_revision": "faffa22e52737b92fba574ee5926f5e4448054b7",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "faffa22e52737b92fba574ee5926f5e4448054b7",
+    "elf": "c55bebab96dc2cf5b3fe69c4531216ff202e7b0dc152f87237f2f62a209d2eba",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "64468977",
+    "routes": "7",
+    "trial": "0",
+    "motion": "0",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "Typed communication reads of node 1; before close-sessions expected refused reason=reserved",
+      "sent": "K1",
+      "tx_hex": "4b310a",
+      "utc": "2026-11-09T16:01:37.814678+00:00",
+      "monotonic": 284471.171,
+      "reply": "COMM admitted node=1 groups=18 uploads=95; typed reads only, no write; no retry",
+      "reply_line": 2,
+      "end": "END comm terminals=95 groups=18; typed uploads only, nothing written; r=release",
+      "end_line": 117,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "sent": "r",
+      "tx_hex": "72",
+      "utc": "2026-11-09T16:01:41.038133+00:00",
+      "monotonic": 284474.39,
+      "reply": "COMM record released; channel uncertainty unchanged",
+      "reply_line": 118,
+      "outcome": "answered"
+    }
+  ],
+  "ended_utc": "2026-11-09T16:01:42.230779+00:00",
+  "bytes": 21512
+}

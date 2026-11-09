@@ -1,0 +1,22 @@
+{
+  "started_utc": "2026-11-09T16:01:29.186083+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "close-sessions",
+  "seconds": 4.0,
+  "reset": false,
+  "retry": false,
+  "tx_hex": "78",
+  "prefix_bytes": 0,
+  "reply": "SESSIONS closed node1=1 node2=1 kept1=00 kept2=00 motion=0; nothing sent; latest controlwords dropped; fences, trials and caps kept",
+  "reply_status": 0,
+  "status": "captured",
+  "ended_utc": "2026-11-09T16:01:33.240938+00:00"
+}

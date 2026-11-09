@@ -1,0 +1,71 @@
+{
+  "started_utc": "2026-11-09T16:01:17.800896+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-history",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 1302,
+  "plan": "packet 4 / packet 22 step 2",
+  "fields": [
+    2,
+    1302
+  ],
+  "operator": {
+    "fault_led_before": {
+      "question": "Fault LED of node 2 now, as seen (for example off, red, red blinking): ",
+      "typed": "off (relayed: the user reported both fault LEDs off at about 15:49Z, after the power-up)",
+      "accepted": true
+    },
+    "fault_led_after": {
+      "question": "Fault LED of node 2 now, as seen: ",
+      "typed": "not recorded"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-history",
+    "--node",
+    "2",
+    "--trial",
+    "1302",
+    "--fault-led",
+    "prompt",
+    "--seconds",
+    "30",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261109T1601Z-s16-history-node2-1302"
+  ],
+  "host_revision": "faffa22e52737b92fba574ee5926f5e4448054b7",
+  "host_dirty": false,
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5448322c313330322c4b66373032646539360a"
+  ],
+  "image": {
+    "base": "faffa22e52737b92fba574ee5926f5e4448054b7",
+    "elf": "c55bebab96dc2cf5b3fe69c4531216ff202e7b0dc152f87237f2f62a209d2eba",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TH2,1302,Kf702de96",
+  "tx_hex": "5448322c313330322c4b66373032646539360a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-09T16:01:19.247884+00:00"
+}

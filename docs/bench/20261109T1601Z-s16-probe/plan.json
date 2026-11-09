@@ -1,0 +1,17 @@
+{
+  "purpose": "s15_probe",
+  "authorization": "Standing bench authorization (docs/prompts/COMMON.md); the user present at the bench at 15:49Z on 2026-11-09, both drives powered up and HOLDING; reads only, no write",
+  "steps": [
+    {
+      "send": "Dp,3,1,0",
+      "expect": "DISC admitted",
+      "end": "END discovery",
+      "end_timeout_s": 10,
+      "note": "Configures the node routes in a fresh boot; one 1000 upload per node"
+    },
+    {
+      "send": "r",
+      "expect": "DISC record released"
+    }
+  ]
+}

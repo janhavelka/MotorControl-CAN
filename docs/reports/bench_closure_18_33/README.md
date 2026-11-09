@@ -42,6 +42,9 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | `9e98ffb` | Native replays of the 2026-11-09 measurements | **Failed**, documentation step of both full jobs: Doxygen could not resolve two in-page heading anchors added to `docs/commissioning.md` (it makes no GitHub-style heading ids); build, contracts and package passed |
 | `4247e59` | Anchor fix: plain section references | Passed, every job |
 | `4f15ac9` | Bench round 5 record (velocity run, backlog S16) | Passed |
+| `d96b646` | Bench session close and per-channel grants (S15) | Passed, every job |
+| `f8c4b31` | Velocity stop after an unconfirmed final enable (S16) | Passed |
+| `faffa22` | Bench fallback quick stop and runner alert (S16) | Passed |
 
 ## Originals: what exists and what is missing
 
