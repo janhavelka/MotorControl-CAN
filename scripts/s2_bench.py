@@ -20,6 +20,15 @@ start and stop and claims neither. No record of this fixture measured them, so -
 bounds for that scope. request.json and the send entry record the scope. It always needs the attendant
 with the independent cutoff in hand: --unattended-waiver refuses velocity.
 
+After a velocity record whose TRIAL_VELOCITY shows needs=1 (or fenced=1) and in which no stop left
+(TRIAL_STOP own=0 or exec=0, and no TRIAL_BEST_EFFORT with own=1 and a nonzero exec), the runner prints
+"ALERT: node N MAY BE RUNNING: no stop left; use the cutoff" to stderr at once, before the attendant's
+questions, and again at the end, keeps it in request.json as velocity_alert and exits 4 (backlog S16:
+trial 1009 left node 1 turning with nothing sent).
+
+A trial's exit status: 0 a complete record; 1 a damaged, unfinished or contradictory capture; 2 refused,
+nothing admitted; 3 a consistent record of a failure; 4 the velocity alert above, whatever else holds.
+
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
 One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
 is read until its result entry is written. Each entry carries its sequence number and the SHA-256 of
@@ -67,6 +76,8 @@ COMMANDS = {"ping": b"p", "start": b"c", "stats": b"s",
             "trial-abort": b"A", "close-sessions": b"x"}
 # Single-byte commands whose reply line decides the exit status: (prefix, status) in order; no such line is 1.
 REPLIES = {"close-sessions": (("SESSIONS closed ", 0), ("SESSIONS refused ", 2))}
+# A trial's exit status after a velocity record that may have left its node turning (velocity_alert).
+VELOCITY_ALERT_STATUS = 4
 # The recorded fixture, as in s2_soak.py and s2_flash.py. A changed fixture needs a reviewed edit.
 FIXTURE = {"port": "COM15", "usb_serial": "94A990398B40", "vid": 0x303A, "pid": 0x1002}
 BAUD = 115200
@@ -839,6 +850,41 @@ def pong_values(line):
     return dict(word.split("=", 1) for word in line.split()[1:] if "=" in word)
 
 
+def velocity_alert(command, fields, data):
+    """The attendant's alert after a velocity record, or None (backlog S16; trial 1009 left node 1 turning
+    with no stop sent). It fires when TRIAL_VELOCITY reports the run's needs-stop (needs=1) or the
+    session's (fenced=1) and no stop of this record left: TRIAL_STOP has own=0 or exec=0, and no
+    TRIAL_BEST_EFFORT has own=1 with a nonzero exec. A stop line the record lacks is a stop that did not
+    leave. Only lines between this trial's TRIAL header and its END count; data is after the prefix."""
+    if command != "velocity":
+        return None
+    node, trial = fields[0], fields[1]
+    header = "TRIAL id=%d node=%d route=velocity " % (trial, node)
+    velocity, stop, best = None, None, []
+    inside = False
+    for line in bytes(data).decode("utf8", errors="replace").splitlines():
+        if line.startswith(header):
+            inside = True
+        elif inside and line.startswith("END trial "):
+            break
+        elif inside:
+            values = pong_values(line)
+            if line.startswith("TRIAL_VELOCITY "):
+                velocity = values
+            elif line.startswith("TRIAL_STOP "):
+                stop = values
+            elif line.startswith("TRIAL_BEST_EFFORT "):
+                best.append(values)
+    if velocity is None or "1" not in (velocity.get("needs"), velocity.get("fenced")):
+        return None
+
+    def left(values):
+        return values is not None and values.get("own") == "1" and values.get("exec", "0") != "0"
+    if left(stop) or any(left(values) for values in best):
+        return None
+    return "node %d MAY BE RUNNING: no stop left; use the cutoff" % node
+
+
 def run_trial(args, fields, port, clock, meta, record=None):
     """Ping, check the image, send one line, capture to the record's END. Returns the stop reason.
     record, when given, is called just before the line is written; if it raises nothing is sent."""
@@ -1143,6 +1189,11 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                 capture, reason = run_trial(args, fields, port, clock, meta, record if campaign else None)
                 data = capture.data
                 meta["reason"] = reason
+                # Before the attendant's questions after the route: the cutoff may be needed now.
+                alert = velocity_alert(args.command, fields, data[meta["prefix_bytes"]:])
+                if alert:
+                    meta["velocity_alert"] = alert
+                    print("ALERT: " + alert, file=sys.stderr)
             else:
                 # Retain any already waiting output; never flush unseen evidence.
                 data.extend(port.read(port.in_waiting))
@@ -1186,7 +1237,11 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     import s2_evidence  # Imported here: s2_evidence imports this module's COMMANDS.
     report = s2_evidence.replay_capture(args.output, manifest=Path(args.output) / "absent.json")
     print("verdict:", report.verdict, "failure:", report.failure_name or report.failure, "reason:", meta["reason"])
-    # 2: nothing admitted; 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
+    # 4: a velocity record whose node may still turn, whatever else the record shows; 2: nothing admitted;
+    # 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
+    if meta.get("velocity_alert"):
+        print("ALERT: " + meta["velocity_alert"], file=sys.stderr)
+        return VELOCITY_ALERT_STATUS
     if meta["reason"] != "ended":
         return 1 if meta["reason"] == "no_end" else 2
     if report.verdict in ("incomplete", "inconsistent"):

@@ -34,7 +34,7 @@ def check_trial_transcript(path, every=False):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 30 if every else 26
+    wanted_count = 31 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
@@ -53,9 +53,20 @@ def check_trial_transcript(path, every=False):
         # the library refuses.
         lost = line.startswith("G2,13,")
         refused = line[0] == "O" or (line[0] == "V" and int(fields[3]) > 60)
-        wanted = "failed-evidence" if line.startswith("S1,7,") or lost or refused else "complete"
+        # Backlog S16: word 15's reply lost, then the route's fallback 000B after that failed terminal.
+        fallback = line.startswith("V1,9,")
+        wanted = "failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback else "complete"
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
+        if fallback and not (report.failure_name == "ACTION" and b" needs=1 fenced=1 " in body and
+                             body.count(b" data=2b4060000b000000 ") == 1 and
+                             b"TRIAL_STOP kind=2 path=2 " in body and b"TRIAL_BEST_EFFORT which=0 own=1 " in body):
+            problems.append("%s: not a failed velocity with the route's one fallback 000B" % line)
+        if fallback:
+            # Only stop work may follow a failed terminal: the same record with 000F in the 000B's place is not.
+            forged = body.replace(b" data=2b4060000b000000 ", b" data=2b4060000f000000 ")
+            if "result_after_failure" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
+                problems.append("%s: a 000F after the failed terminal was accepted" % line)
         if lost and not (report.failure_name == "EVIDENCE_LOSS" and b" lossCancel=1\n" in body):
             problems.append("%s: not an evidence loss with a local withdrawal" % line)
         if report.unknown or report.malformed or report.unknown_fields:
@@ -269,6 +280,29 @@ VELOCITY = ["--command", "velocity", "--node", "1", "--trial", "30", "--rpm", "6
             "--hardware-version", "0x12", "--software-version", "0x34", "--vendor-id", "0x300", "--product-code",
             "0x8605", "--revision", "0x10001", "--model-code", "0x86", "--firmware-code", "0x123"]
 VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,2000,18000,1,351,2,262546,18,52,768,34309,65537,134,291")
+# A velocity record's run and stop lines as BenchRoute prints them (test/bench_route_test.cpp's fallback
+# cases on its fake, never a measurement). STOP_NONE is trial 1009's: the run asked for its HALT and nothing
+# left. STOP_OWN is the run's own HALT after its acknowledged 000F; BEST_LEFT the route's fallback 000B.
+RUN_NEEDS = ("TRIAL_VELOCITY own=1 state=3 phase=5 outcome=12 first=12 int=0 setup=1 exec=3 completion=0 stop=7 "
+             "sexec=0 uncertain=1 effects=1 needs=1 fenced=1 running=0 cycles=2 polls=0 op=9 sop=0 rpm=6 code=1 "
+             "detail=4\n")
+RUN_DONE = RUN_NEEDS.replace(" needs=1 fenced=1 ", " needs=0 fenced=0 ")
+STOP_NONE = ("TRIAL_STOP kind=1 path=0 final=0 own=0 state=0 outcome=0 exec=0 completion=0 uncertain=0 effects=0 "
+             "pred=0000 documented=0 basis=0 observations=0 op=0\n")
+STOP_OWN = ("TRIAL_STOP kind=1 path=0 final=4 own=1 state=3 outcome=11 exec=1 completion=0 uncertain=1 effects=1 "
+            "pred=000f documented=0 basis=2 observations=3 op=10\n")
+STOP_FALLBACK = STOP_NONE.replace("kind=1 path=0 final=0 ", "kind=2 path=2 final=4 ")
+BEST_NONE = "TRIAL_BEST_EFFORT which=%d own=0 state=0 outcome=0 exec=0 admitted=0 effects=0 op=0\n"
+BEST_LEFT = "TRIAL_BEST_EFFORT which=0 own=1 state=3 outcome=11 exec=3 admitted=1 effects=1 op=11\n"
+
+
+def velocity_record(trial, *lines):
+    """record()'s velocity record with these summary lines after its plan and resources."""
+    text = record("velocity", 1, trial).replace(" summaries=2 ", " summaries=%d " % (2 + len(lines)))
+    head, end = text.split("END trial ")
+    return head + "".join(lines) + "END trial " + end
+
+
 HOME = ["--command", "home", "--node", "1", "--trial", "31", "--method", "24", "--search-rpm", "60", "--creep-rpm",
         "6", "--ramp-ms", "200", "--offset", "0"]
 MODE3 = ["--command", "mode3", "--node", "1", "--trial", "32", "--cycles", "2", "--interval-ms", "200"]
@@ -1408,6 +1442,64 @@ class BenchTest(unittest.TestCase):
             self.assertEqual(status, 2, err)
             self.assertIn("inconsistent send entry", err)
             self.assertEqual(board.writes, [])
+
+    def test_velocity_alert_reads_only_this_record(self):
+        fields = [1, 30]
+        alert = "node 1 MAY BE RUNNING: no stop left; use the cutoff"
+        for lines, wanted in (((RUN_NEEDS, STOP_NONE, BEST_NONE % 0, BEST_NONE % 1), alert),  # Trial 1009.
+                              ((RUN_NEEDS,), alert),  # No stop line: nothing shows a stop that left.
+                              ((RUN_NEEDS, STOP_FALLBACK, BEST_NONE % 0, BEST_NONE % 1), alert),  # Refused.
+                              ((RUN_NEEDS.replace(" needs=1 ", " needs=0 "), STOP_NONE), alert),  # Fenced only.
+                              ((RUN_NEEDS, STOP_NONE.replace(" own=0 ", " own=1 ")), alert),  # exec=0.
+                              ((RUN_NEEDS, STOP_OWN.replace(" own=1 ", " own=0 ")), alert),  # Another's stop.
+                              ((RUN_NEEDS, STOP_OWN, BEST_NONE % 0, BEST_NONE % 1), None),
+                              ((RUN_NEEDS, STOP_FALLBACK, BEST_LEFT, BEST_NONE % 1), None),
+                              ((RUN_DONE, STOP_NONE, BEST_NONE % 0), None)):
+            data = velocity_record(30, *lines).encode("ascii")
+            self.assertEqual(bench.velocity_alert("velocity", fields, data), wanted, lines)
+        # Another trial's record, a line after END and another route are not this record.
+        stale = velocity_record(29, RUN_NEEDS, STOP_NONE).encode("ascii")
+        self.assertIsNone(bench.velocity_alert("velocity", fields, stale))
+        after = velocity_record(30, STOP_OWN) + RUN_NEEDS
+        self.assertIsNone(bench.velocity_alert("velocity", fields, after.encode("ascii")))
+        self.assertIsNone(bench.velocity_alert("move", fields, velocity_record(30, RUN_NEEDS).encode("ascii")))
+        other = velocity_record(30, RUN_NEEDS).replace(" node=1 ", " node=2 ").encode("ascii")
+        self.assertEqual(bench.velocity_alert("velocity", [2, 30], other),
+                         "node 2 MAY BE RUNNING: no stop left; use the cutoff")
+        self.assertIn("exits 4", bench.__doc__)
+
+    def test_velocity_alert_reaches_the_attendant_first_and_exits_4(self):
+        board = Board()
+        # A record of the same trial already waiting before the ping is not this run's.
+        board.queue = bytearray(velocity_record(30, RUN_DONE, STOP_OWN).encode("ascii"))
+        board.answer = velocity_record(30, RUN_NEEDS, STOP_NONE, BEST_NONE % 0, BEST_NONE % 1)
+        out, err = io.StringIO(), io.StringIO()
+        seen = []
+
+        def ask(question):
+            seen.append((question, err.getvalue()))
+            return "turning" if question.startswith("Attendant: describe") else "ATTENDED 30"
+        argv = BASE + VELOCITY + ["--campaign", str(self.ledger), "--output", str(self.output)]
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            status = bench.main(argv, Backend(board), Clock(), ask)
+        self.assertEqual(status, 4, err.getvalue())
+        alert = "ALERT: node 1 MAY BE RUNNING: no stop left; use the cutoff\n"
+        shaft = [before for question, before in seen if question.startswith("Attendant: describe the node 1 shaft")]
+        self.assertEqual(len(shaft), 1)
+        self.assertIn(alert, shaft[0])  # Printed before the attendant is asked about the shaft.
+        self.assertEqual(err.getvalue().count(alert), 2)  # And again after the record's dump.
+        self.assertEqual(self.meta()["velocity_alert"], alert[len("ALERT: "):-1])
+        # A stop of this record left: no alert, and the ordinary status.
+        for lines in ((RUN_NEEDS, STOP_OWN, BEST_NONE % 0, BEST_NONE % 1),
+                      (RUN_NEEDS, STOP_FALLBACK, BEST_LEFT, BEST_NONE % 1)):
+            self.clear_output()
+            self.ledger.write_bytes(b"")
+            board = Board()
+            board.answer = velocity_record(30, *lines)
+            status, _, err_text = self.run_main(VELOCITY, Backend(board), Operator("ATTENDED 30", "none"))
+            self.assertNotEqual(status, 4, err_text)
+            self.assertNotIn("MAY BE RUNNING", err_text)
+            self.assertNotIn("velocity_alert", self.meta())
 
     def test_home_is_attended_counted_and_not_motion(self):
         board = Board()

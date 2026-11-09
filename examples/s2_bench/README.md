@@ -304,6 +304,10 @@ and it ends in `,K` and the CRC-32 of every byte before it, which the firmware c
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
 heap on first use and never freed; `PONG` gains `routes=7` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
-software bound, and the attendant's cutoff is the immediate control. Routes, prerequisites, records and the runner are in
+software bound, and the attendant's cutoff is the immediate control. A run that ends needing a stop
+with none of its own sent, as when word 15's reply is lost, gets one fallback QUICK_STOP (best-effort
+`000B` allowed) from the route before its record ends, unless a drive fault withdrew it; after a
+record whose run still needs a stop and in which no stop left, `s2_bench.py` prints
+`ALERT: node N MAY BE RUNNING` and exits 4 (backlog S16, trial 1009). Routes, prerequisites, records and the runner are in
 [hardware_bench.md](../../docs/hardware_bench.md#attended-bench-routes). `MotionPreview` stays an
 offline review artifact, and its `executionReady` stays false.
