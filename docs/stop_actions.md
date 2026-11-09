@@ -106,6 +106,7 @@ The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS report
 on both paths, with no traffic, because nothing establishes what `000B` does in those
 states. A running report keeps the stop available on the best-effort path, as this project's
 decision that a running motor should get the attempt. Prompt 35 adds the mode-3 row below; mode6 is the separately gated prompt36 row described below.
+After a finite velocity run, while `velocityNeedsStop()` holds, no idle report refuses either path: a report after a velocity word need not show it yet (bench trial 1009 read `6041=8033` after its acknowledged `000F` and was found running 37 s later). When the run's acknowledged `000F` is still the latest word, the sequenced path takes its `010F` or `000B` (`prepareVelocityStop`); its observation clears no fence.
 
 The word must be the application's actual latest acknowledged controlword, under a
 reservation acquired before that command. Fresh low bits 7 cannot reconstruct it. An

@@ -89,6 +89,13 @@ bool released(const VelocitySample& s) {
     return (s.monitor & MONITOR_RELEASED) && !(s.monitor & MONITOR_RUNNING) && !s.velocity &&
            (low == 0 || low == 1 || low == 3);
 }
+// The report an ordinary mode 3 stop admission needs (validateStop): enabled, running, no alarm or
+// release. Only a stop that followed such a report can show, by a later not-running report, that it
+// acted; after any other report the drive was not reported running before the stop either.
+bool runningReport(const VelocitySample& s, StatusLayout layout) {
+    return s.present && s.modeRaw == 3 && (s.statusword & STATUS_LOW_BITS) == STATUS_LOW_BITS &&
+           (s.monitor & MONITOR_RUNNING) && !(s.monitor & MONITOR_RELEASED) && clean(s, layout);
+}
 Status rateRange(const PreparedVelocityTarget& rate, const VelocityEvidence& e) {
     if (rate.rateBasis != NativeRateBasis::MOTOR_TURNS || rate.rateTime != TimeUnit::MINUTE ||
         rate.representation != NativeRepresentation::INTEGER)
@@ -863,21 +870,65 @@ void finishStop(VelocityContext& c, ActionOutcome outcome, ActionExecution execu
         failure(c, ActionOutcome::DEADLINE, now, "velocity stop processed after deadline", false);
         return;
     }
-    if (observed) {
+    const bool settles = observed && runningReport(c.latest, c.evidence.layout);
+    if (settles) {
         c.needsStop = false;
         c.completion = ActionCompletion::OBSERVED;
     }
     if (c.firstFailure != ActionOutcome::NONE)
         c.state = ActionState::FAILED;
-    else if (observed) {
+    else if (settles) {
         c.state = ActionState::SUCCEEDED;
         c.outcome = ActionOutcome::OBSERVED;
         c.status = Ok();
     } else
-        failure(c, outcome, now,
-                "finite velocity stop did not establish its controller observation", false);
+        failure(c, observed ? ActionOutcome::OBSERVATION_SCOPE : outcome, now,
+                observed ? "velocity stop observed without a running report before it"
+                         : "finite velocity stop did not establish its controller observation",
+                false);
     c.servicedUs = now;
     settleEffects(c);
+}
+bool sameTerminal(const CANOPEN::SdoCompletion& a, const CANOPEN::SdoCompletion& b) {
+    return CANOPEN::sameSdoWork(a.transfer, b.transfer) && a.outcome == b.outcome &&
+           a.nodeGeneration == b.nodeGeneration && a.admittedUs == b.admittedUs &&
+           a.completedUs == b.completedUs;
+}
+Status checkRunStop(const ActionContext& output, const VelocityContext& run,
+                    const AxisReservation& live, const ReadTarget& current,
+                    const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                    uint64_t now, uint64_t deadline, const ActionOptions& options) {
+    const void* inputs[] = {&run, &live, &current, &control, &options};
+    const size_t sizes[] = {sizeof run, sizeof live, sizeof current, sizeof control, sizeof options};
+    for (unsigned i = 0; i < 5; ++i)
+        if (overlaps(&output, sizeof output, inputs[i], sizes[i]))
+            return error(VelocityError::OVERLAP, "velocity stop preparation overlaps input");
+    Status s = currentContext(run, live, current, now);
+    if (!s)
+        return s;
+    if (kind > StopKind::QUICK_STOP || operation <= run.operation || deadline <= now ||
+        deadline > uint64_t(INT64_MAX) || !stopOptionsValid(options))
+        return error(VelocityError::ARGUMENT, "invalid velocity stop selection or budgets");
+    // The run's own requested stop keeps its kind and fixed deadline; a later explicit stop of an
+    // ended or withdrawn run is the application's own.
+    const bool requested = run.state == ActionState::ACTIVE && run.phase == VelocityPhase::STOPPING &&
+                           run.stopRequested && !run.stopOperation &&
+                           run.withdrawal == VelocityInterruption::NONE;
+    const bool ended = run.state == ActionState::FAILED ||
+                       (run.state == ActionState::ACTIVE && run.withdrawal != VelocityInterruption::NONE);
+    if ((!requested && !ended) ||
+        (requested && (kind != run.options.stopKind || deadline != run.deadlineUs ||
+                       now < run.stopRequestedUs)))
+        return error(VelocityError::STATE, "no velocity stop is outstanding for this run");
+    // Only after this run's acknowledged 000F, still the latest word: from 6 or 7, 010F would be the
+    // first enable-operation word, and no source gives a stop arrow from them.
+    const CANOPEN::SdoCompletion& last = run.commandHistory[2];
+    if (!run.needsStop || !(run.commandEvidenceMask & 4u) ||
+        last.outcome != CANOPEN::SdoOutcome::SUCCESS || controlWord(last.transfer) != 0x000f ||
+        !sameTerminal(control, last) || !acknowledgedControlWrite(control, run.reservation, now))
+        return error(VelocityError::STATE,
+                     "a velocity stop follows only this run's acknowledged 000F, still the latest word");
+    return Ok();
 }
 } // namespace
 Status advanceVelocityStop(VelocityContext& c, const ActionContext& stop, uint64_t now) noexcept {
@@ -920,6 +971,51 @@ Status advanceVelocityStop(VelocityContext& c, const BestEffortStop& stop, uint6
         return error(VelocityError::CORRELATION,
                      "best-effort stop does not belong to this velocity");
     finishStop(c, stop.outcome, stop.execution, false, stop.operation, stop.commandEvidence, now);
+    return Ok();
+}
+Status advanceVelocityStop(VelocityContext& c, ActionOutcome reason, uint64_t now) noexcept {
+    const Status s = stopShape(c, now);
+    if (!s)
+        return s;
+    if ((reason != ActionOutcome::INVALIDATED && reason != ActionOutcome::DEADLINE) ||
+        (reason == ActionOutcome::DEADLINE && now < c.deadlineUs))
+        return error(VelocityError::STATE, "invalid reason for an uncomposed velocity stop");
+    if (now >= c.deadlineUs)
+        reason = ActionOutcome::DEADLINE;
+    c.stopOutcome = reason;
+    failure(c, reason, now, "the run's requested stop could not be composed; none of it was sent",
+            false);
+    return Ok();
+}
+Status validateVelocityStop(const ActionContext& output, const VelocityContext& run,
+                            const AxisReservation& live, const ReadTarget& current,
+                            const CANOPEN::SdoCompletion& control, StopKind kind,
+                            uint32_t operation, uint64_t now, uint64_t deadline,
+                            const ActionOptions& options) noexcept {
+    return checkRunStop(output, run, live, current, control, kind, operation, now, deadline,
+                        options);
+}
+Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
+                           const AxisReservation& live, const ReadTarget& current,
+                           const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
+                           uint64_t now, uint64_t deadline, const ActionOptions& options) noexcept {
+    const Status s =
+        checkRunStop(output, run, live, current, control, kind, operation, now, deadline, options);
+    if (!s)
+        return s;
+    // prepareStop's mode 3 context, with no admission observation: the first cycle fills both.
+    new (static_cast<void*>(&output)) ActionContext();
+    output.reservation = run.reservation;
+    output.kind = kind;
+    output.stopModeRaw = 3;
+    output.predecessorWord = 0x000f;
+    output.predecessorBasis = PredecessorBasis::PROJECT_DECISION;
+    output.options = options;
+    output.operation = operation;
+    output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
+    output.deadlineUs = deadline;
+    output.state = ActionState::ACTIVE;
+    output.controlEvidence = control;
     return Ok();
 }
 } // namespace LICHUAN_C

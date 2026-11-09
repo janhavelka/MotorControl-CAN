@@ -647,6 +647,458 @@ void settingsSnapshotRetiresWithoutChangingGeneration() {
     CHECK(r.session.velocityAction().state == M::ActionState::SUCCEEDED);
     CHECK(r.axis.binding.configurationGeneration == generation);
 }
+// Trial 1009 (2026-11-09), replayed through the real owner and AxisSession. Every reply value below is
+// the retained capture's, in its order: docs/bench/20261109T1446Z-p3536-velocity-node1-1009/rx.txt,
+// RESULT lines 16 to 24 (identity, op 35), 25 to 33 (admission read, op 36) and 34 to 60 (the run, op
+// 37), and the later read-only route 1019 (docs/bench/20261109T1446Z-p3536-p1-node1-1019/rx.txt,
+// RESULT lines 9 to 15 and 22 to 28: 2100 0004, 6041 C437, 6064 3595 then 3604, 606C 5). The budgets are
+// BenchRoute::startVelocity's for that line (100 ms queue, 250 ms response, 2 s interval, six polls,
+// nine-field age, eight-service stop reserve, 10 ms between words, 12 s run, 18 s deadline). Host turns
+// replace the bench's clock, so only the order and the relative times are the bench's. What the drive
+// reports after a stop word was never measured: each case states its own assumption.
+namespace Replay1009 {
+struct Report {
+    uint16_t monitor, status;
+};
+const Report ADMISSION = {0x0011, 0x8050}; // Lines 27 and 30.
+const Report AFTER_6 = {0x0011, 0x8031};   // Lines 38 and 41.
+const Report AFTER_7 = {0x0001, 0x8033};   // Lines 46 and 49.
+const Report AFTER_15 = {0x0001, 0x8033};  // Lines 54 and 57: still word 7's report.
+const Report LATER = {0x0004, 0xc437};     // Route 1019, about 37 s later: running.
+const uint32_t QUEUE_US = 100000, RESPONSE_US = 250000;
+const uint64_t SERVICE_US = uint64_t(QUEUE_US) + RESPONSE_US, TICK_US = 1000;
+// The drive as captured. A stop word changes its report to afterStop, an assumption of each case.
+struct Drive {
+    Report report = ADMISSION;
+    Report afterStop = LATER;
+    bool later = false;           // Reporting LATER, with 606C 5 and 6064 rising as in 1019.
+    uint16_t muteWord = 0;        // This 6040 word is applied but its reply is lost.
+    uint16_t abortWord = 0;       // This 6040 word is refused with an SDO abort and not applied.
+    int32_t position = 0;
+    uint32_t positionReads = 0;
+    void become(const Report& r) {
+        report = r;
+        later = r.status == LATER.status && r.monitor == LATER.monitor;
+    }
+    bool respond(const M::Frame& sent, M::Frame& out) {
+        const uint16_t index = indexOf(sent);
+        const uint8_t sub = sent.data[3];
+        out = frame(0x581, 8);
+        out.data[1] = sent.data[1];
+        out.data[2] = sent.data[2];
+        out.data[3] = sub;
+        if (sent.data[0] != 0x40) {
+            const uint32_t value = valueOf(sent);
+            CHECK(index == 0x60ff || index == 0x6083 || index == 0x6084 || index == 0x6040);
+            if (index == 0x6040) {
+                CHECK(value == 6 || value == 7 || value == 15 || value == 0x010f || value == 0x000b);
+                if (value == abortWord) {
+                    out.data[0] = 0x80;
+                    out.data[4] = 0x22; // 08000022: data cannot be transferred in the present state.
+                    out.data[7] = 0x08;
+                    return true;
+                }
+                become(value == 6 ? AFTER_6 : value == 7 ? AFTER_7 : value == 15 ? AFTER_15 : afterStop);
+                if (value == muteWord)
+                    return false;
+            }
+            out.data[0] = 0x60;
+            return true;
+        }
+        uint32_t raw = 0;
+        unsigned size = 2;
+        switch (index) {
+        case 0x1000: raw = 0x00040192; size = 4; break;               // Line 16.
+        case 0x1009: raw = 0x0c; size = 1; break;                     // Line 17.
+        case 0x100a: raw = 0x20; size = 1; break;                     // Line 18.
+        case 0x1018:                                                  // Lines 19 to 22.
+            raw = !sub ? 5u : sub == 1 ? 0x1000u : sub == 2 ? 1u : 0u;
+            size = sub ? 4 : 1;
+            break;
+        case 0x2000: raw = 0x0400; break;                             // Line 23.
+        case 0x2001: raw = 0x0200; break;                             // Line 24.
+        case 0x1001: size = 1; break;                                 // Line 25.
+        case 0x603f: break;                                           // Line 26.
+        case 0x2100: raw = report.monitor; break;
+        case 0x2101: case 0x2102: break;
+        case 0x6041: raw = report.status; break;
+        case 0x6061: raw = 3; size = 1; break;
+        case 0x6064:
+            if (later)
+                position = 3595 + 9 * int32_t(positionReads++);
+            raw = uint32_t(position);
+            size = 4;
+            break;
+        case 0x606c: raw = uint32_t(later ? 5 : 0); size = 4; break;
+        default: CHECK(false);
+        }
+        out.data[0] = size == 1 ? 0x4f : size == 2 ? 0x4b : 0x43;
+        for (unsigned i = 0; i < 4; ++i)
+            out.data[4 + i] = uint8_t(raw >> (8 * i));
+        return true;
+    }
+};
+struct Bench {
+    C::SdoClient services;
+    Wire wire;
+    O::CanBusOwner owner;
+    E::AxisSession session;
+    Drive drive;
+    L::ReadContext identityRead, state, check;
+    L::IdentityObservation identity;
+    M::AxisConfig axis;
+    uint64_t now = 0;
+    unsigned served = 0, startFrame = 0;
+    Bench() : owner(services, wire.callbacks(), 73), session(owner) {
+        wire.session = &session;
+        wire.services = &services;
+        CHECK(services.configure(0, target().channel, true, true));
+        C::NetworkRoute network;
+        network.binding = target().channel.binding;
+        network.generation = 11;
+        network.heartbeatId = 0x701;
+        network.emcyId = 0x81;
+        CHECK(services.configureNetwork(0, network, C::NetworkObserver(), 0));
+    }
+    void turn(uint64_t at) {
+        now = at;
+        if (wire.rxRead == wire.rxWrite)
+            wire.rxRead = wire.rxWrite = 0;
+        for (; served < wire.sentCount; ++served) {
+            CHECK(!wire.pending[served] && wire.sent[served].id == 0x601);
+            M::Frame reply;
+            if (drive.respond(wire.sent[served], reply))
+                wire.push(reply, now, owner.controllerEpoch());
+        }
+        CHECK(owner.service(now, budget()));
+        session.service(now);
+    }
+    void step() { turn(now + TICK_US); }
+    L::ReadOptions service() const {
+        L::ReadOptions value;
+        value.queueTimeoutUs = QUEUE_US;
+        value.responseTimeoutUs = RESPONSE_US;
+        return value;
+    }
+    void read(L::ReadContext& into) {
+        for (unsigned guard = 0; into.state == M::ReadState::ACTIVE && guard < 30; ++guard) {
+            L::PreparedRead work;
+            CHECK(L::nextRead(into, now, work) && work.ready);
+            CHECK(session.admitPrepared(work.transfer, now) == O::BusAdmission::ACCEPTED);
+            step();
+            step();
+            C::SdoCompletion terminal;
+            CHECK(session.settle(terminal));
+            CHECK(L::advanceRead(into, terminal, now));
+        }
+        CHECK(into.state == M::ReadState::SUCCEEDED);
+    }
+    // A full read, as the route's STEP_STATE FULL: ERRORS, MONITORS, STATUS and FEEDBACK (blocks 1d).
+    void readState(L::ReadContext& into) {
+        const uint32_t operation = session.beginOperation(now + 20 * SERVICE_US, now);
+        CHECK(operation);
+        const uint8_t mask = uint8_t((1u << unsigned(L::StateBlock::ERRORS)) |
+                                     (1u << unsigned(L::StateBlock::MONITORS)) |
+                                     (1u << unsigned(L::StateBlock::STATUS)) |
+                                     (1u << unsigned(L::StateBlock::FEEDBACK)));
+        CHECK(L::prepareState(into, target(), operation, now, now + 20 * SERVICE_US, service(), mask));
+        read(into);
+    }
+    // Ops 35 and 36: identity with the specimens' one-byte 1009 and 100A, then the admission read.
+    void ready() {
+        CHECK(session.open(target(), L::SettingsModel::CL86_C, 1, now));
+        const uint32_t operation = session.beginOperation(now + 20 * SERVICE_US, now);
+        CHECK(operation);
+        L::ReadOptions widths = service();
+        widths.identityWidths = L::IdentityWidths::MEASURED_U8;
+        CHECK(L::prepareIdentity(identityRead, target(), operation, now, now + 20 * SERVICE_US, widths));
+        read(identityRead);
+        CHECK(L::getIdentity(identityRead, target(), now, 20 * SERVICE_US, identity));
+        readState(state);
+    }
+    M::Status start() {
+        axis.binding = session.binding();
+        axis.nativeRateBasis = M::NativeRateBasis::MOTOR_TURNS;
+        axis.nativeVelocityTime = M::TimeUnit::MINUTE;
+        L::VelocityEvidence evidence; // TRIAL_VELOCITY_EVIDENCE, line 8.
+        evidence.gate = L::VelocityGate::ATTENDED_EXPERIMENT;
+        evidence.record = 1009;
+        evidence.model = L::SettingsModel::CL86_C;
+        evidence.firmware.deviceType = 0x00040192;
+        evidence.firmware.hardwareVersion = 0x0c;
+        evidence.firmware.softwareVersion = 0x20;
+        evidence.firmware.vendorId = 0x1000;
+        evidence.firmware.productCode = 1;
+        evidence.firmware.revision = 0;
+        evidence.firmware.modelCode = 0x0400;
+        evidence.firmware.firmwareCode = 0x0200;
+        evidence.layout = L::StatusLayout::ZH86;
+        evidence.stopKind = L::StopKind::HALT;
+        evidence.maximumForwardRpm = 6;
+        M::FiniteVelocityRequest request; // TRIAL_PLAN, line 4.
+        request.velocity.value = M::Rational(6);
+        request.velocity.unit = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
+        request.velocity.configurationGeneration = axis.binding.configurationGeneration;
+        request.durationUs = 12000000;
+        L::VelocityProfile profile;
+        profile.rampUpTimeMs = profile.rampDownTimeMs = 200;
+        L::VelocityOptions options;
+        options.service = service();
+        options.pollIntervalUs = 2000000;
+        options.maxPolls = 6;
+        options.maximumAgeUs = 9 * SERVICE_US;
+        options.requiredStopBudgetUs = 8 * SERVICE_US;
+        options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
+        options.stopKind = L::StopKind::HALT;
+        startFrame = wire.sentCount;
+        return session.requestVelocity(state, identity, evidence, request, profile, axis, options,
+                                       now + 18000000, now);
+    }
+    // The run's downloads and cycles end once the session records a velocity terminal.
+    void runToTerminal() {
+        for (unsigned i = 0; i < 400000 && session.busy(); ++i)
+            step();
+        CHECK(!session.busy());
+    }
+    bool downloadAt(unsigned i, uint16_t index, uint32_t value, uint8_t command) const {
+        const M::Frame& f = wire.sent[i];
+        return i < wire.sentCount && f.id == 0x601 && f.dlc == 8 && f.data[0] == command &&
+               indexOf(f) == index && f.data[3] == 0 && valueOf(f) == value;
+    }
+    bool cycleAt(unsigned i) const {
+        const uint16_t order[] = {0x2100, 0x2101, 0x2102, 0x6041, 0x6061, 0x6064, 0x606c};
+        for (unsigned k = 0; k < 7; ++k)
+            if (i + k >= wire.sentCount || wire.sent[i + k].data[0] != 0x40 ||
+                indexOf(wire.sent[i + k]) != order[k])
+                return false;
+        return true;
+    }
+};
+// An explicit application stop with the route's budgets; the DEC-2 branch only when asked for.
+E::StopPolicy stopPolicy(const Bench& b, bool bestEffort) {
+    E::StopPolicy policy;
+    policy.options.service = b.service();
+    policy.options.observationIntervalUs = 2000000;
+    policy.options.maximumAgeUs = 9 * SERVICE_US;
+    policy.deadlineUs = b.now + 6000000;
+    policy.bestEffortDeadlineUs = bestEffort ? policy.deadlineUs : 0;
+    return policy;
+}
+// The captured run up to its terminal, as TX lines 115 to 193 sent it: 60FF 6, 6083 200, 6084 200,
+// then 6, 7 and 15, each followed by one seven-field cycle.
+void checkCapturedRun(const Bench& b) {
+    unsigned i = b.startFrame;
+    CHECK(b.downloadAt(i, 0x60ff, 6, 0x23) && b.downloadAt(i + 1, 0x6083, 200, 0x23) &&
+          b.downloadAt(i + 2, 0x6084, 200, 0x23));
+    i += 3;
+    const uint16_t words[] = {6, 7, 15};
+    for (uint16_t word : words) {
+        CHECK(b.downloadAt(i, 0x6040, word, 0x2b) && b.cycleAt(i + 1));
+        i += 8;
+    }
+    const L::VelocityContext& c = b.session.velocityAction();
+    // TRIAL_VELOCITY line 9 and TRIAL_VELOCITY_SAMPLE lines 11 and 12.
+    CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && c.evidence.record == 1009);
+    CHECK(c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+          c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+    CHECK(c.setup == M::ActionExecution::ACKNOWLEDGED && c.execution == M::ActionExecution::ACKNOWLEDGED);
+    CHECK(c.commandEvidenceMask == 7 && c.control.transfer.data[0] == 15 && !c.runningObserved);
+    CHECK(c.uncertain && c.effectsPossible && c.needsStop && c.observations == 3 && !c.runningPolls);
+    CHECK(c.status.code == M::Err::INVALID_CONFIG && c.status.detail == int32_t(M::VelocityError::STATE));
+    CHECK(c.rate.effectiveNative == 6 && c.stopDueUs == c.startedUs + 12000000 &&
+          c.deadlineUs == c.startedUs + 18000000);
+    CHECK(c.admission.present && !c.admission.cycle && c.admission.statusword == 0x8050 &&
+          c.admission.monitor == 0x0011 && c.admission.modeRaw == 3 && !c.admission.position &&
+          !c.admission.velocity);
+    CHECK(c.latest.present && c.latest.cycle == 3 && c.latest.statusword == 0x8033 &&
+          c.latest.monitor == 0x0001 && c.latest.modeRaw == 3 && !c.latest.position &&
+          !c.latest.velocity);
+    // The cycle that ended the run is outside every reviewed stop state: 6041 low bits 011, not
+    // 111, and 2100 running clear in mode 3. prepareStop refuses to follow the run's own acknowledged
+    // 000F from it, for either kind.
+    L::ActionOptions stop;
+    stop.service = b.service();
+    stop.observationIntervalUs = 2000000;
+    stop.maximumAgeUs = 9 * SERVICE_US;
+    static L::ActionContext probe;
+    const L::StopKind kinds[] = {L::StopKind::HALT, L::StopKind::QUICK_STOP};
+    for (L::StopKind kind : kinds)
+        CHECK(!L::validateStop(probe, c.reservation, b.session.velocityObservation(), c.control, kind,
+                               c.operation + 10, c.stopRequestedUs, c.deadlineUs, stop));
+}
+void trial1009StopsAfterTheLaggingEnable() {
+    // 0: the drive then reports what 1019 found 37 s later, running (the worst case: the HALT is never
+    // seen to act). 1: it keeps word 7's report after the HALT, as it did when the run failed.
+    for (unsigned variant = 0; variant < 2; ++variant) {
+        scenario = variant ? "trial 1009 replay, HALT then 8033/0001" : "trial 1009 replay, HALT then C437/0004";
+        Bench b;
+        b.drive.afterStop = variant ? AFTER_15 : LATER;
+        b.ready();
+        CHECK(b.start());
+        b.runToTerminal();
+        checkCapturedRun(b);
+        const L::VelocityContext& c = b.session.velocityAction();
+        if (c.stopExecution == M::ActionExecution::NOT_TRANSMITTED)
+            std::fprintf(stderr,
+                         "1009 replay: state=%u phase=%u first=%u int=%u stop=%u sexec=%u needs=%u "
+                         "fenced=%u path=%u sent=%u\n",
+                         unsigned(c.state), unsigned(c.phase), unsigned(c.firstFailure),
+                         unsigned(c.interruption), unsigned(c.stopOutcome), unsigned(c.stopExecution),
+                         unsigned(c.needsStop), unsigned(b.session.velocityNeedsStop()),
+                         unsigned(b.session.stopPath()), b.wire.sentCount - b.startFrame);
+        // The run's own HALT follows its acknowledged 000F at once: 2B 40 60 00 0F 01 00 00.
+        const unsigned halt = b.startFrame + 27;
+        CHECK(b.downloadAt(halt, 0x6040, 0x010f, 0x2b));
+        const uint8_t bytes[] = {0x2b, 0x40, 0x60, 0x00, 0x0f, 0x01, 0x00, 0x00};
+        for (unsigned k = 0; k < 8; ++k)
+            CHECK(b.wire.sent[halt].data[k] == bytes[k]);
+        // One stop word, then only the stop's MONITORS and STATUS cycles; nothing is resent.
+        unsigned downloads = 0, cycles = 0;
+        for (unsigned i = halt + 1; i < b.wire.sentCount; ++i) {
+            downloads += b.wire.sent[i].data[0] != 0x40;
+            cycles += indexOf(b.wire.sent[i]) == 0x2100;
+        }
+        CHECK(!downloads && cycles >= 1);
+        const L::ActionContext& s = b.session.stopAction(L::StopKind::HALT);
+        CHECK(s.operation == c.stopOperation && s.operation > c.operation && s.stopModeRaw == 3);
+        CHECK(s.predecessorWord == 0x000f && !s.predecessorDocumented &&
+              s.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION);
+        CHECK(s.startedUs == c.stopRequestedUs && s.deadlineUs == c.deadlineUs);
+        CHECK(s.execution == M::ActionExecution::ACKNOWLEDGED && s.observations == cycles);
+        // The record: the first failure kept, the stop sent and acknowledged, nothing settled.
+        CHECK(c.state == M::ActionState::FAILED && c.phase == L::VelocityPhase::STOPPING &&
+              c.stopRequested && c.interruption == M::VelocityInterruption::NONE);
+        CHECK(c.stopExecution == M::ActionExecution::ACKNOWLEDGED &&
+              c.completion == M::ActionCompletion::NOT_OBSERVED && c.needsStop && c.uncertain);
+        CHECK(b.session.velocityNeedsStop() && b.session.stopPath() == E::StopPath::FINISHED);
+        if (!variant) {
+            // Running throughout, so the HALT's observation never completes before the deadline.
+            CHECK(s.state == M::ActionState::FAILED && s.outcome == M::ActionOutcome::DEADLINE &&
+                  s.completion == M::ActionCompletion::NOT_OBSERVED);
+            CHECK(c.stopOutcome == M::ActionOutcome::DEADLINE && b.now >= c.deadlineUs);
+        } else {
+            // A not-running report from a drive that never reported running is no evidence that the
+            // HALT stopped anything: the stop's own record says what it saw, the run stays unsettled.
+            CHECK(s.state == M::ActionState::SUCCEEDED && s.outcome == M::ActionOutcome::OBSERVED &&
+                  s.observations == 1 && s.monitorObservation.monitor == 0x0001 &&
+                  s.statusObservation.statusword == 0x8033);
+            CHECK(c.stopOutcome == M::ActionOutcome::OBSERVED && b.now < c.deadlineUs);
+        }
+        // The fence holds: no new run, move or enable on this session.
+        b.readState(b.check);
+        CHECK(!b.start());
+        // The latest word is now the HALT's 010F, not the run's 000F: a second HALT has no
+        // predecessor and is refused, so the stop word is never sent twice.
+        const unsigned sent = b.wire.sentCount;
+        CHECK(b.session.latestControl() && b.session.latestControl()->transfer.data[0] == 0x0f &&
+              b.session.latestControl()->transfer.data[1] == 0x01);
+        CHECK(b.session.requestStop(L::StopKind::HALT, b.check, stopPolicy(b, false), b.now) ==
+              E::StopPath::NONE);
+        for (unsigned i = 0; i < 100; ++i)
+            b.step();
+        CHECK(b.wire.sentCount == sent && b.session.velocityNeedsStop());
+    }
+}
+// Local cancel is not a stop. Cancelled right after the acknowledged 000F, before its cycle finished,
+// the run ends CANCELLED with nothing more sent and the fence up. The application's own HALT then
+// follows that 000F even though a fresh read reports word 7's state (the stop prepareStop refuses),
+// and its not-running observation leaves the fence up: it followed no running report.
+void trial1009CancelledThenStoppedByTheApplication() {
+    scenario = "trial 1009 replay cancelled after word 15, then an explicit HALT";
+    Bench b;
+    b.drive.afterStop = AFTER_15;
+    b.ready();
+    CHECK(b.start());
+    for (unsigned i = 0; i < 100000 && b.session.velocityAction().commandEvidenceMask != 7; ++i)
+        b.step();
+    CHECK(b.session.velocityAction().commandEvidenceMask == 7 &&
+          b.session.velocityAction().commandHistory[2].protocolAcknowledged);
+    CHECK(b.session.cancelVelocity(b.now));
+    b.runToTerminal();
+    const L::VelocityContext& c = b.session.velocityAction();
+    CHECK(c.state == M::ActionState::FAILED && c.interruption == M::VelocityInterruption::CANCELLED &&
+          c.needsStop && b.session.velocityNeedsStop() && !c.stopRequested &&
+          c.stopExecution == M::ActionExecution::NOT_TRANSMITTED);
+    for (unsigned i = b.startFrame; i < b.wire.sentCount; ++i)
+        CHECK(!b.downloadAt(i, 0x6040, 0x010f, 0x2b) && !b.downloadAt(i, 0x6040, 0x000b, 0x2b));
+    const Saved<L::VelocityContext> cancelled(c);
+    b.readState(b.check);
+    const unsigned before = b.wire.sentCount;
+    CHECK(b.session.requestStop(L::StopKind::HALT, b.check, stopPolicy(b, false), b.now) ==
+          E::StopPath::CONFIRMED);
+    b.runToTerminal();
+    CHECK(b.downloadAt(before, 0x6040, 0x010f, 0x2b));
+    const L::ActionContext& s = b.session.stopAction(L::StopKind::HALT);
+    CHECK(s.state == M::ActionState::SUCCEEDED && s.completion == M::ActionCompletion::OBSERVED &&
+          s.predecessorWord == 0x000f && s.stopModeRaw == 3 && s.statusObservation.statusword == 0x8033);
+    CHECK(b.session.velocityNeedsStop());
+    cancelled.unchanged(b.session.velocityAction()); // A separate stop never rewrites the run.
+}
+// The same run with word 15's reply lost: the latest acknowledged word is 7, so a HALT (010F) would be
+// the first enable-operation word, and HALT allows no 000B substitute. No stop can be composed; the
+// run ends with its stop recorded as not composed, the fence up and nothing sent.
+void trial1009WithoutAcknowledgedFinalWordSignalsTheMissingStop() {
+    scenario = "trial 1009 replay with word 15's reply lost";
+    Bench b;
+    b.drive.muteWord = 15;
+    b.ready();
+    CHECK(b.start());
+    b.runToTerminal();
+    const L::VelocityContext& c = b.session.velocityAction();
+    const unsigned last = b.startFrame + 19;
+    CHECK(b.downloadAt(last, 0x6040, 15, 0x2b) && b.wire.sentCount == last + 1);
+    CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::SERVICE_TIMEOUT &&
+          c.execution == M::ActionExecution::UNKNOWN && c.commandEvidenceMask == 7);
+    CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && !c.stopOperation &&
+          c.interruption == M::VelocityInterruption::NONE);
+    CHECK(c.stopOutcome == M::ActionOutcome::INVALIDATED &&
+          c.stopExecution == M::ActionExecution::NOT_TRANSMITTED &&
+          c.completion == M::ActionCompletion::NOT_OBSERVED);
+    CHECK(c.needsStop && b.session.velocityNeedsStop() && !b.session.latestControl());
+    CHECK(b.session.stopPath() != E::StopPath::CONFIRMED && b.session.stopAction(L::StopKind::HALT).state ==
+                                                              M::ActionState::EMPTY);
+    // The unanswered 15 leaves the route unresolved, so only the DEC-2 branch remains: the application
+    // acts on the signal with an explicit QUICK_STOP of its own, never a HALT substitute.
+    const unsigned before = b.wire.sentCount;
+    const E::StopPath path =
+        b.session.requestStop(L::StopKind::QUICK_STOP, b.session.velocityObservation(), stopPolicy(b, true), b.now);
+    CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
+    b.runToTerminal();
+    CHECK(b.wire.sentCount == before + 1 && b.downloadAt(before, 0x6040, 0x000b, 0x2b));
+    CHECK(b.session.bestEffort().execution == M::ActionExecution::UNKNOWN && b.session.velocityNeedsStop());
+}
+// The same run with word 15 refused by an SDO abort: the route stays usable and the latest acknowledged
+// word is 7, so again no stop can be composed. A fresh read then reports word 7's state in mode 3; while
+// the fence stands that idle report no longer refuses the application's explicit DEC-2 000B.
+void trial1009WithRejectedFinalWordLetsTheApplicationStop() {
+    scenario = "trial 1009 replay with word 15 rejected";
+    Bench b;
+    b.drive.abortWord = 15;
+    b.ready();
+    CHECK(b.start());
+    b.runToTerminal();
+    const L::VelocityContext& c = b.session.velocityAction();
+    CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::PROTOCOL_REJECTED &&
+          c.execution == M::ActionExecution::REJECTED && c.needsStop && b.session.velocityNeedsStop());
+    CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && !c.stopOperation &&
+          c.stopOutcome == M::ActionOutcome::INVALIDATED &&
+          c.stopExecution == M::ActionExecution::NOT_TRANSMITTED);
+    CHECK(b.wire.sentCount == b.startFrame + 20 && !b.session.latestControl());
+    b.readState(b.check);
+    L::StateObservation monitors, status;
+    CHECK(L::getStateBlock(b.check, L::StateBlock::MONITORS, target(), b.now, 9 * SERVICE_US, monitors) &&
+          monitors.monitor == 0x0001);
+    CHECK(L::getStateBlock(b.check, L::StateBlock::STATUS, target(), b.now, 9 * SERVICE_US, status) &&
+          status.statusword == 0x8033 && status.modeRaw == 3);
+    const unsigned before = b.wire.sentCount;
+    CHECK(b.session.requestStop(L::StopKind::HALT, b.check, stopPolicy(b, false), b.now) == E::StopPath::NONE);
+    const E::StopPath path = b.session.requestStop(L::StopKind::QUICK_STOP, b.check, stopPolicy(b, true), b.now);
+    CHECK(path == E::StopPath::BEST_EFFORT);
+    b.runToTerminal();
+    CHECK(b.wire.sentCount == before + 1 && b.downloadAt(before, 0x6040, 0x000b, 0x2b));
+    CHECK(b.session.bestEffort().execution == M::ActionExecution::UNKNOWN && b.session.velocityNeedsStop());
+}
+} // namespace Replay1009
 } // namespace
 int main() {
     completeRunsKeepPreparationAnchor();
@@ -671,5 +1123,9 @@ int main() {
     lostStopAcknowledgementStaysUnknown();
     earlyStopReplyProcessedAtDeadlineCannotSucceed();
     settingsSnapshotRetiresWithoutChangingGeneration();
+    Replay1009::trial1009StopsAfterTheLaggingEnable();
+    Replay1009::trial1009WithoutAcknowledgedFinalWordSignalsTheMissingStop();
+    Replay1009::trial1009WithRejectedFinalWordLetsTheApplicationStop();
+    Replay1009::trial1009CancelledThenStoppedByTheApplication();
     std::printf("velocity owner: %u checks\n", checks);
 }

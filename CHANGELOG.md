@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Velocity stop after an unconfirmed final enable (backlog S16, 2026-11-09)
+
+- **Fixed (safety):** in bench trial 1009 the run asked for its HALT after the first cycle following its acknowledged `000F` still read `6041=8033`, but `AxisSession::requestStop` refused it (an idle mode 3 report, `validateStop`, no HALT best effort) and the session ended the run `INVALIDATED` with nothing sent; the motor then ran until the user opened the drive-power cutoff. Now, once the run's `000F` is acknowledged and still the latest word, that stop leaves at once whatever the drive reports: `010F` or `000B`, once, within the run's deadline (`prepareVelocityStop`). The same applies to a later explicit `requestStop` while `velocityNeedsStop()` holds.
+- **Changed:** such a stop is unqualified. `advanceVelocityStop` settles `needsStop` only after a running report, and a stop admitted on the `000F` alone never clears the fence.
+- **Changed:** a requested stop that cannot be composed is recorded (`stopOutcome`, `stopOperation` 0, `interruption` NONE), and `velocityNeedsStop()` is the documented signal to act. While it holds, an idle report no longer refuses either stop path.
+- **Added:** `validateVelocityStop`, `prepareVelocityStop`, `advanceVelocityStop(context, reason, now)`.
+- **Measured:** the first cycle after word 15 read `8033` in all 13 retained records; mode 1 read `8437` about 850 to 880 ms after the acknowledgement. No wait was added (backlog S17).
+- Tests: `velocity_owner` replays record 1009 value for value (it fails on the code that ran) and adds the lost, refused and cancelled variants; `velocity_test` library cases; seven mutants killed. `sizeof(AxisSession)` unchanged (35592 bytes on the S2). Not run on hardware.
+
 ### Bench session close and per-channel grants (backlog S15, 2026-11-09)
 
 - **Added:** bench console `x` (`s2_bench.py --command close-sessions`): `BenchRoute::closeSessions` closes every open idle route `AxisSession` and returns its owner reservation, so `K`, `H` and the raw and PDO experiments can reserve that node again in the same MCU boot. It sends nothing on CAN and is no stop, release or disable. Refused with nothing changed (`SESSIONS refused reason=record|state|busy|configuration|none`) while any record is held, a session has work in flight or an unread result, local TX has not retired, or a counter zero's or home's configuration-epoch move is still owed. Closing drops each session's latest controlword (later `position`, `relative`, `move` and `rearm` refuse `control`, `home` refuses `code=1 detail=3`, as after an MCU restart); the stationary session objects and `BenchRoute` keep every fence, write history, trial identity and per-boot cap (`kept1`/`kept2`). PONG and the T-line grammar are unchanged (`routes=7`). The runner exits 0 on `SESSIONS closed`, 2 on `SESSIONS refused` and 1 otherwise.

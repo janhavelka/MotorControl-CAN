@@ -782,8 +782,17 @@ void AxisSession::serviceVelocity(uint64_t now) noexcept {
         const StopPath path = requestStop(velocity_.options.stopKind, velocityObservation(), policy, now);
         requestingVelocityStop_ = false;
         if (path == StopPath::NONE) {
+            // Nothing of the stop was sent. The run records that, and velocityNeedsStop() stays: the
+            // application must stop the axis itself.
             scheduledVelocityStop_ = false;
-            endVelocity(M::VelocityInterruption::INVALIDATED, now);
+            if (!L::advanceVelocityStop(velocity_,
+                                        now >= velocity_.deadlineUs ? M::ActionOutcome::DEADLINE
+                                                                    : M::ActionOutcome::INVALIDATED,
+                                        now)
+                     .isOk())
+                endVelocity(M::VelocityInterruption::INVALIDATED, now);
+            else
+                afterVelocity();
         }
         return;
     }
@@ -1357,14 +1366,16 @@ bool AxisSession::freshlyIdle(const L::ReadContext& state, const StopPolicy& pol
            (!homeNeedsStop_ || monitors.window.earliestUs >= homeCommandAfterUs_);
 }
 // Fresh evidence that this drive is idle and outside the stop's states refuses both paths:
-// nothing establishes what 000B does in those states. A running report keeps the stop.
+// nothing establishes what 000B does in those states. A running report keeps the stop. So does a
+// velocity word that may still start the drive: a report after it need not show it yet (trial 1009:
+// 6041 still 8033 after the acknowledged 000F, running 37 s later), so no idle report refuses a stop
+// while that fence stands.
 bool AxisSession::stateRefuses(const L::ReadContext& state, const StopPolicy& policy,
                                uint64_t now) const noexcept {
     L::StateObservation monitors, status;
     const uint64_t age = policy.options.maximumAgeUs;
     if (!L::getStateBlock(state, L::StateBlock::MONITORS, target_, now, age, monitors) ||
-        (monitors.monitor & L::MONITOR_RUNNING) ||
-        (velocityNeedsStop_ && monitors.window.earliestUs < velocityCommandAfterUs_) ||
+        (monitors.monitor & L::MONITOR_RUNNING) || velocityNeedsStop_ ||
         (homeNeedsStop_ && monitors.window.earliestUs < homeCommandAfterUs_))
         return false;
     return (monitors.monitor & (L::MONITOR_ALARM | L::MONITOR_RELEASED)) ||
@@ -1407,12 +1418,6 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
     if (superseded_.owner && kind == L::StopKind::HALT)
         return StopPath::NONE; // Its context is still waiting for that terminal.
     withdrawIfStale();
-    // A known word with no stop arrow, such as enable word 6 or 7, refuses only on a fresh idle report.
-    // A fresh running report, or no fresh report, takes 000B, as the same word still in flight would.
-    if ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind) &&
-         freshlyIdle(state, policy, now)) ||
-        stateRefuses(state, policy, now))
-        return StopPath::NONE;
     const Sequence* s = usable() ? owner_.sequence(sequence_) : nullptr;
     const uint32_t last = s && s->operation > operation_ ? s->operation : operation_;
     // One sequenced stop, one fallback and one held stop can each need an identity.
@@ -1429,7 +1434,20 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
             ? L::validateStop(slot, reservation_, state, control_, kind, next, now, policy.deadlineUs,
                            policy.options)
             : M::Status(M::Err::INVALID_CONFIG, 0, "no latest controlword");
-    const bool sequenced = s && prepared.isOk();
+    // The finite run's own stop: its acknowledged 000F is still the latest word and no checked stop
+    // has settled it. A report after that word need not show it yet, so neither the drive's report
+    // nor its age refuses the stop that follows it; its result stays unqualified (unqualifiedStop_).
+    const bool own = s && !escalating && !prepared.isOk() && velocityNeedsStop_ && controlPresent_ &&
+                     L::validateVelocityStop(slot, velocity_, reservation_, reservation_.target, control_,
+                                             kind, next, now, policy.deadlineUs, policy.options)
+                         .isOk();
+    // A known word with no stop arrow, such as enable word 6 or 7, refuses only on a fresh idle report.
+    // A fresh running report, or no fresh report, takes 000B, as the same word still in flight would.
+    if (!own && ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind) &&
+                  freshlyIdle(state, policy, now)) ||
+                 stateRefuses(state, policy, now)))
+        return StopPath::NONE;
+    const bool sequenced = s && (prepared.isOk() || own);
     M::Generation node = 0;
     uint32_t sessions = 0;
     if (!sequenced &&
@@ -1443,10 +1461,14 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
         // Same values as the check above, and only the owner moved, so neither can refuse.
         if (escalating)
             L::prepareEscalation(slot, halt, next, now, policy.deadlineUs, policy.options);
+        else if (own)
+            L::prepareVelocityStop(slot, velocity_, reservation_, reservation_.target, control_, kind,
+                                   next, now, policy.deadlineUs, policy.options);
         else
             L::prepareStop(slot, reservation_, state, control_, kind, next, now, policy.deadlineUs,
                            policy.options);
     }
+    unqualifiedStop_ = own;
     if (escalating) {
         // Its in-flight request settles into its own context and holds the slot until then.
         L::ActionContext& old = stops_[static_cast<unsigned>(L::StopKind::HALT)];
@@ -1603,12 +1625,14 @@ void AxisSession::serviceConfirmed(uint64_t now) noexcept {
 void AxisSession::afterConfirmedEnd(uint64_t now) noexcept {
     const L::ActionContext& a = stops_[static_cast<unsigned>(activeKind_)];
     path_ = StopPath::FINISHED;
-    // This later stop may clear the admission fence, never the old velocity terminal.
-    if (a.state == M::ActionState::SUCCEEDED && a.completion == M::ActionCompletion::OBSERVED &&
-        a.startedUs >= velocity_.startedUs)
+    // This later stop may clear the admission fence, never the old velocity terminal. A stop admitted
+    // on the run's 000F alone had no fresh running report before it, so its not-running report clears
+    // nothing here; for the run's own requested stop, the run's settlement decides (afterVelocity).
+    const bool checked = !unqualifiedStop_ && a.state == M::ActionState::SUCCEEDED &&
+                         a.completion == M::ActionCompletion::OBSERVED;
+    if (checked && a.startedUs >= velocity_.startedUs)
         velocityNeedsStop_ = false;
-    if (a.state == M::ActionState::SUCCEEDED && a.completion == M::ActionCompletion::OBSERVED &&
-        a.startedUs >= homeCommandAfterUs_)
+    if (checked && a.startedUs >= homeCommandAfterUs_)
         homeNeedsStop_ = false;
     if (a.phase != L::ActionPhase::COMMAND || a.execution != M::ActionExecution::NOT_TRANSMITTED ||
         a.effectsPossible)
