@@ -13,7 +13,7 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | [5](../../prompts/bench_closure_18_33/5_console_diagnostics.md) Console diagnostics | [packet_5](packet_5.md) | Complete (`e8b449d`, `27903cb`; soak fix regression-tested on `f2c90ab`) | 28, 29 | Ran 2026-11-06: loss reproduced at 20 ms and placed after UART FIFO acceptance; attribution needs a GPIO43 capture |
 | [6](../../prompts/bench_closure_18_33/6_pdo_measurement.md) PDO measurement | [packet_6](packet_6.md) | Complete, with recorded deviations; runner fixes P1-P5 | 18, 29 | Ran 2026-11-06, both specimens ([report](../2026-11-06_pdo_stream.md)); NMT boundary rerun on `f2c90ab` ([record](packet_6.md#nmt-boundary-rerun-2026-11-06-1616z)) |
 | [7](../../prompts/bench_closure_18_33/7_typed_pdo_subset.md) Typed PDO subset | [packet_7](packet_7.md) | Complete (`f2c90ab`; replay record in the next commit) | 18 stays Partial | Replayed once on node 2 in both directions on `f2c90ab` |
-| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | [packet_8](packet_8.md) | Complete (`18d6c2a` host part; campaigns 2026-11-09 on `18d6c2a` and `627bb42`) | 29, 31-33 stay Partial | Attended campaign 2026-11-09 on `18d6c2a`: node 1 relative -100, node 2 base `ACTUAL`, HALT and quick stop from `005F`. the quick stop from a moving `005F` and node 2's production move followed ([round 4](../2026-11-09_bench_r4.md)); the two-session heap regression is fixed (`757f1cd`) |
+| [8](../../prompts/bench_closure_18_33/8_motion_stop_campaign.md) Motion and stop campaign | [packet_8](packet_8.md) | Complete (`18d6c2a` host part; campaigns 2026-11-09 on `18d6c2a` and `627bb42`) | 29, 31-33 stay Partial | Attended campaign 2026-11-09 on `18d6c2a`: node 1 relative -100, node 2 base `ACTUAL`, HALT and quick stop from `005F`. The quick stop from a moving `005F` and node 2's production move followed ([round 4](../2026-11-09_bench_r4.md)); the two-session heap regression is fixed (`757f1cd`) |
 
 ## Remote CI
 
@@ -29,6 +29,14 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | `f28035b` | Second checker fix | Passed, every job |
 | `a6e002d` | CI record | Passed |
 | `1805a77`, `1abb6aa` | Packet 4 and its smoke record | Passed |
+| `3353ed2`, `a04777e` | Smoke runner EN reset; packet 3 smoke record and packet 8 baseline | Passed |
+| `18d6c2a`, `b35849d` | Packet 8 host part and campaign record | Passed |
+| `757f1cd` | Bench integration of prompts 35 to 38 | Passed |
+| `f10fd05` | Unattended bench round record | **Failed**: the repository check found a report link to a misnamed evidence directory |
+| `ed8e86d` | Link fix | Passed |
+| `627bb42` | Heartbeat commissioning fix (backlog S14) | **Failed**, full gcc ASan job only: the build step exceeded the verifier's 240 s bound at [211/252]. The same library and test code passed on `374ad13`; that step took 165 to 211 s on the passing runs |
+| `374ad13`, `316d79b` | Hardware refusal record; attended round 4 record | Passed |
+| `061aa6f` | Verifier build-step bound raised to 600 s (a hang guard, not a budget) | See the next record |
 
 ## Originals: what exists and what is missing
 
@@ -45,9 +53,9 @@ Each row names existing public behavior, then what is missing by kind and who ow
 | 28 Firmware examples | S3 firmware; S2 special bench application; shared S2 IDF builds, target pin policy, application-owned silent control (packet 3) | Arduino S2: blocked by the pinned package's UART0 console | None | The S2 smoke check; GPIO18 and TXD levels across reset | Packet 3 |
 | 29 Device evidence | Typed and raw collectors, bench routes, soaks, PDO sessions, console-loss characterization | Independent console capture comparison; passive capture | Where console bytes are lost | Independent UART capture at GPIO43 | Packets 4, 5, 6, 8 |
 | 30 Enable and release | Gated enable, run on both specimens; documentary decoder | Release API: no reviewed transition | Release transition and its consequences | Independent shaft or torque observation | Outside this continuation |
-| 31 Stop operations | HALT and quick stop operations; quick-stop standstill rule; run from `000F`, `010F`, `001F`, moving and no-predecessor states | None found | Stops from an acknowledged `005F`; velocity and homing stops | None for drive-report cases | Packet 8 (005F); prompts 35, 36 |
+| 31 Stop operations | HALT and quick stop operations; quick-stop standstill rule; run from `000F`, `010F`, `001F`, moving and no-predecessor states | None found | Velocity and homing stops. Stops from `005F` measured on one firmware: HALT from a moving `005F` (832), quick stop from a moving `005F` (1109, releases the drive: `6041=4050`, `2100=0014`) and from a stationary `005F` (833) | None for drive-report cases | Prompts 35, 36 |
 | 32 Fault and reference | Alarm clear and counter zero through `AxisSession`; counter zero ran once on node 2 | None found | An alarm clear on a naturally present alarm | A naturally present alarm | Waits for a natural alarm; packet 8 for counter cases only if justified |
-| 33 Finite position | Absolute and relative lifecycles; both nodes' relative base `ACTUAL` (409, 830); negative relative move (825); moves run on both nodes; `validateMoveAdmission`; the drive-fault fence (`faultBlocked`) | None found after packet 2; a fault reported after the move ended sets no fence | Node 2's relative base; a negative relative move; stops from `005F` | None for drive-report cases | Packets 2, 8 |
+| 33 Finite position | Absolute and relative lifecycles; both nodes' relative base `ACTUAL` (409, 830); negative relative move (825); moves run on both nodes; `validateMoveAdmission`; the drive-fault fence (`faultBlocked`) | None found after packet 2; a fault reported after the move ended sets no fence | None for drive-report cases on this firmware: node 2's base `ACTUAL` (828 to 830, production move 1110), a negative relative move (825) and stops from `005F` (832, 833, 1109) were measured on 2026-11-09; other firmware and related models need their own evidence | None for drive-report cases | Packets 2, 8 (done) |
 
 ## Sibling audit
 
