@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Attended velocity experiment scope (prompt 35, 2026-11-09)
+
+- **Changed:** `VelocityGate::ATTENDED_EXPERIMENT` admits one finite mode 3 run whose start and stop it measures instead of claiming: `startQualified`, `stopQualified`, `modeChangeQualified` and `reverseQualified` must be false, the rate is at most `VELOCITY_EXPERIMENT_MAXIMUM_RPM` (60 rpm) and the duration at most `VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US` (20 s), both project policy; every other preparation, timing, stop, uncertainty and fault check is unchanged. The context keeps the gate, so a run under it is never published as qualification. `CLOSED` stays the default and `MEASURED` still needs both facts.
+- **Changed:** bench `velocity` (PONG `routes=7`): the `TV` line no longer carries the host's start and stop flags; the route opens the experiment from its attended flag and prints `gate=2 start=0 stop=0`. `s2_bench.py` speaks `routes=7` (older images are refused for every trial command), refuses `--start-qualified`/`--stop-qualified`, a rate over 60 rpm, a duration over 20000 ms and `--unattended-waiver` for velocity before sending, and records the scope in `request.json` and the send entry.
+- Tests: `velocity`, `velocity_owner`, `bench_route` and its transcript, runner tests; ten mutants killed.
+
 ### Attended bench round on `627bb42` (2026-11-09)
 
 - After a drive power cycle: heartbeat commissioning `1017` 0 to 1000 succeeded on both nodes with migration, readback and publication (S14 fixed on hardware); homing refused at its CLOSED gate after an enable on both nodes, zero downloads; a quick stop interrupted node 1's moving relative move from `005F` and released it at 259 with node 2 observed stationary; node 2's first production relative move with its own record 830 ended at exactly +200. Packet 8 complete. [Report](docs/reports/2026-11-09_bench_r4.md).

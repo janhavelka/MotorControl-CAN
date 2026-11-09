@@ -1,5 +1,6 @@
 /** @file Velocity.h
- * @brief Finite, explicitly qualified mode-3 velocity through the ordinary CAN owner.
+ * @brief Finite mode-3 velocity through the ordinary CAN owner, under a measured record or an
+ * explicit attended experiment scope.
  * No clocks, allocation, I/O, retries or implicit stops. All times are supplied monotonic
  * microseconds in 0..INT64_MAX; now >= deadline expires even for earlier received frames.
  * SPDX-License-Identifier: MIT
@@ -14,9 +15,23 @@ namespace MotorControlCAN {
 namespace LICHUAN_C {
 /** Capability evidence is explicit; manuals and simulated handshakes cannot open this gate. */
 enum class VelocityGate : uint8_t {
-    CLOSED,  ///< Default: no operation prepared.
-    MEASURED ///< Caller retains a selected-firmware record establishing the stated facts.
+    CLOSED,   ///< Default: no operation prepared.
+    MEASURED, ///< Caller retains a selected-firmware record establishing the stated facts.
+    /** One attended experiment that measures the mode 3 start and stop instead of claiming them.
+     * startQualified, stopQualified, modeChangeQualified and reverseQualified must all be false, so
+     * the drive must already report released and stationary in mode 3. The rate is at most
+     * VELOCITY_EXPERIMENT_MAXIMUM_RPM and the duration at most
+     * VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US. Every other check is unchanged. The attendant's
+     * independent power cutoff is the control the library cannot see. The context keeps this gate,
+     * so a run under it never reads as qualified, and a successful terminal qualifies nothing. */
+    ATTENDED_EXPERIMENT
 };
+/** Highest positive rate an ATTENDED_EXPERIMENT can state, in motor rpm. Project policy for an
+ * unmeasured start and stop; it says nothing about the drive. */
+constexpr uint32_t VELOCITY_EXPERIMENT_MAXIMUM_RPM = 60;
+/** Longest preparation-anchored duration an ATTENDED_EXPERIMENT can request, in microseconds.
+ * Project policy, as above; the setup budget must still fit inside it. */
+constexpr uint64_t VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US = 20000000;
 /** Exact raw identity tuple, not model autodetection or inferred firmware compatibility. */
 struct VelocityFirmware {
     uint32_t deviceType = 0;      ///< 1000 raw.
@@ -32,14 +47,14 @@ struct VelocityFirmware {
  * sequence is ZH86 PDF p13: mode3 observation, target/ramps, then 6/7/15. It never combines
  * EN86's conflicting enable-first sequence with this one. */
 struct VelocityEvidence {
-    VelocityGate gate = VelocityGate::CLOSED;     ///< Closed until independently established.
-    uint32_t record = 0;                          ///< Nonzero retained evidence identity.
+    VelocityGate gate = VelocityGate::CLOSED; ///< Closed until established, or an attended experiment.
+    uint32_t record = 0; ///< Nonzero retained evidence identity; for an experiment, its own record.
     SettingsModel model = SettingsModel::UNKNOWN; ///< Explicit selected model.
     VelocityFirmware firmware; ///< Must match the supplied acquired identity tuple.
     StatusLayout layout =
         StatusLayout::UNSPECIFIED;      ///< Qualified status dialect; not chosen by language.
-    bool startQualified = false;        ///< Released, target-before-enable sequence established.
-    bool stopQualified = false;         ///< Selected stop behavior established in mode3.
+    bool startQualified = false; ///< Released, target-before-enable sequence established; MEASURED only.
+    bool stopQualified = false;  ///< Selected stop behavior established in mode3; MEASURED only.
     StopKind stopKind = StopKind::HALT; ///< The stop kind established by this record.
     bool modeChangeQualified =
         false; ///< Mode change while released established; enabled changes always reject.
@@ -177,6 +192,8 @@ struct VelocityContext {
 /** Atomically prepare a finite selected-firmware run. All references are borrowed for the call.
  * Non-enabled stationary admission, exact identity, integer rpm, nonzero rate, supported ramps,
  * duration coverage and fixed stop budget are checked before publication. No I/O occurs.
+ * CLOSED, a MEASURED record without both start and stop facts, and an ATTENDED_EXPERIMENT that
+ * claims any qualification or exceeds its rate or duration bound are refused.
  * @param[out] output Candidate unchanged on failure. @param[in] reservation Continuous exclusion.
  * @param[in] current Current target. @param[in] state Fresh complete state read.
  * @param[in] identity Acquired raw identity. @param[in] evidence Explicit firmware evidence.

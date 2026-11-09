@@ -89,13 +89,16 @@
  *   enabled (Q11). The session's latest word recorded at admission must be unchanged at the write, as
  *   for RELEASED_QUICK. Never enables. Motion class.
  * - VELOCITY, prompt 35. A fresh identity read and full read, a check that the drive reports released
- *   and stationary in mode 3, then AxisSession::requestVelocity with VelocityEvidence built only from
- *   the host's line (record, status layout, the start and stop flags, stop kind, raw identity), never
- *   defaulted here. The line's own rpm is the qualified forward maximum; reverse and a mode change are
+ *   and stationary in mode 3, then AxisSession::requestVelocity under VelocityGate::ATTENDED_EXPERIMENT:
+ *   the run measures its mode 3 start and stop and claims neither, so startQualified and stopQualified
+ *   stay false and no line field can set them. The rest of VelocityEvidence comes only from the host's
+ *   line (record, status layout, stop kind, raw identity), never defaulted here. The line's own rpm is
+ *   the forward maximum, at most VELOCITY_EXPERIMENT_MAXIMUM_RPM, and the duration at most
+ *   VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US, both checked by the library; reverse and a mode change are
  *   never claimed, so the drive must already read mode 3 (MODE_THREE). The session writes 60FF, 6083,
  *   6084, then 6, 7, 15, runs its cycles and asks for its own stop at the preparation-anchored due time.
- *   An experiment scope, not a qualification: the library binds the host's statement and cannot check
- *   it. Motion class; its own stop counts against STOP as well.
+ *   The session's VelocityContext keeps the experiment gate: a successful run qualifies nothing. Motion
+ *   class; its own stop counts against STOP as well.
  * - HOME, prompt 36. A fresh identity read, IO_INPUT_CONFIGURATION (2400:00..08), a full read (2101
  *   with it) and DRIVER (2200, 2201), each as AxisSession::requestHome consumes it, then requestHome
  *   with a CLOSED HomeEvidence: no homing record exists for this fixture, so no line field can open the
@@ -231,12 +234,13 @@ struct RoutePlan {
      * move's interval, and never written. It must first read stationary: running and alarm clear, 606C 0. */
     uint8_t observer = 0;
     /** POSITION, RELATIVE: 6081, 0..3000 rpm (EN86/ZH86 p11). MOVE: 1..3000. VELOCITY: the positive 60FF
-     * target in motor rpm, 1..3000 (EN86/ZH86 p13), and the evidence's qualified forward maximum. */
+     * target in motor rpm, 1..3000 (EN86/ZH86 p13), and the evidence's forward maximum; the library
+     * refuses above VELOCITY_EXPERIMENT_MAXIMUM_RPM (60) for this attended experiment. */
     uint32_t rpm = 0;
     uint32_t rampUpMs = 0;   ///< POSITION, RELATIVE: 6083, 0..2000 ms (EN86/ZH86 p11). MOVE, VELOCITY: 1..2000.
     uint32_t rampDownMs = 0; ///< POSITION, RELATIVE: 6084, 0..2000 ms (EN86/ZH86 p11). MOVE, VELOCITY: 1..2000.
     /** MOVE: MoveEvidence::record, the nonzero identity of the host's reviewed measurement. VELOCITY:
-     * VelocityEvidence::record, the nonzero identity of the host's reviewed experiment record. */
+     * VelocityEvidence::record, the nonzero identity of this attended experiment's own record. */
     uint32_t record = 0;
     uint8_t acceptSource = 0;    ///< MOVE: MoveSignalSource of acceptance, 1 STATUSWORD or 2 MONITOR.
     uint16_t acceptMask = 0;     ///< MOVE: nonzero acceptance mask.
@@ -248,13 +252,12 @@ struct RoutePlan {
     /** MOVE and VELOCITY: raw identity of the record, compared exactly with the route's fresh identity
      * read by the library. */
     MotorControlCAN::LICHUAN_C::MoveFirmware firmware;
-    /** VELOCITY: FiniteVelocityRequest::durationUs in milliseconds, from the request; below deadlineMs. */
+    /** VELOCITY: FiniteVelocityRequest::durationUs in milliseconds, from the request; below deadlineMs. The
+     * library refuses above VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US (20000 ms) for this experiment. */
     uint32_t durationMs = 0;
     /** VELOCITY: VelocityEvidence::layout, the StatusLayout number 1 EN86, 2 ZH86 or 4 OP86: the
      * statusword dialect the run's alarm and running reports are read in. */
     uint8_t layout = 0;
-    bool startQualified = false; ///< VELOCITY: VelocityEvidence::startQualified as the host states it (Q03).
-    bool stopQualified = false;  ///< VELOCITY: VelocityEvidence::stopQualified as the host states it (Q12).
     uint8_t method = 0;          ///< HOME: Lichuan HomingMethod 17, 18, 24 or 29.
     uint32_t searchRpm = 0;      ///< HOME: 6099:01 search rate in motor rpm, 1..3000 (EN86/ZH86 p13).
     uint32_t creepRpm = 0;       ///< HOME: 6099:02 creep rate in motor rpm, 1..3000.
@@ -281,7 +284,7 @@ struct RoutePlan {
  * <observer>,<stopKind>,<stopAfter>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
  * `N<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `V<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<durationMs>,<intervalMs>,<deadlineMs>,<stopKind>,<record>,
- * <layout>,<start>,<stop>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>`;
+ * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>`;
  * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>` (one line each, at most
  * ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.

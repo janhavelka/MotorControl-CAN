@@ -4,6 +4,32 @@
 
 The bench `mode3` route wrote `6060=3` once on node 2 while it was released and stationary; `6061` read back 3 and nothing moved ([report](2026-11-09_bench_r2.md)): one Q11 data point. No velocity run: not unattended, and its start and stop qualification (Q03, Q12) is not established by any record.
 
+## Attended experiment scope, 2026-11-09
+
+The bench `velocity` route used to build a `MEASURED` `VelocityEvidence` from
+host flags (`--start-qualified 1 --stop-qualified 1 --record <its own trial>`),
+so the run would have been its own qualification record. That claim is
+withdrawn. `VelocityGate::ATTENDED_EXPERIMENT` now admits one finite run whose
+start and stop it measures: both flags, a mode change and a reverse range must
+be false, the rate is at most 60 rpm and the duration at most 20 s (project
+policy, `VELOCITY_EXPERIMENT_MAXIMUM_RPM` and
+`VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US`), and every other preparation,
+timing, stop, uncertainty and fault check is unchanged
+([guide](../velocity.md#attended-experiment-scope)). The context keeps the gate,
+so a successful run is recorded as an experiment, not as Q03/Q12 evidence.
+`CLOSED` stays the default and a `MEASURED` record still needs both facts.
+
+The route line (protocol 7) has no start or stop field; the firmware opens the
+experiment from the attended flag, as ENABLE does, and prints `gate=2 start=0
+stop=0`. `scripts/s2_bench.py` refuses `--start-qualified`/`--stop-qualified`,
+the bounds and `--unattended-waiver` for velocity before sending, and records
+the scope in `request.json` and the send entry. Tests: direct preparation
+(admission, retained gate, every claim, the bounds at and past their limits,
+unchanged refusals), the real-owner session run, the bench route and the runner;
+ten mutants of the new refusals were each caught. Prompt 35 stays **Partial**: a
+run under this scope is a measurement for review, and no physical run has
+happened yet.
+
 ## Scope
 
 The conditional finite velocity software and application owner integration are

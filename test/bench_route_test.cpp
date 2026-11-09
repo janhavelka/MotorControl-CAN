@@ -3369,15 +3369,15 @@ struct VelocitySpec {
     unsigned long duration = 12000, interval = 2000, deadline = 18000;
     unsigned kind = 1;
     unsigned long record = 351;
-    unsigned layout = 2, start = 1, stop = 1;
+    unsigned layout = 2;
     unsigned long dt = DEVICE_TYPE, hw = HARDWARE, sw = SOFTWARE, vid = VENDOR, pc = PRODUCT, rev = REVISION;
     unsigned long mc = MODEL, fc = FIRMWARE;
 };
 std::string velocityLine(unsigned node, uint32_t& trial, const VelocitySpec& v = VelocitySpec()) {
     char text[300];
-    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%u,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", node,
+    std::snprintf(text, sizeof text, "V%u,%s,%u,%u,%u,%u,%lu,%lu,%lu,%u,%lu,%u,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu", node,
                   id(trial).c_str(), v.attended, v.rpm, v.up, v.down, v.duration, v.interval, v.deadline, v.kind,
-                  v.record, v.layout, v.start, v.stop, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc);
+                  v.record, v.layout, v.dt, v.hw, v.sw, v.vid, v.pc, v.rev, v.mc, v.fc);
     return text;
 }
 std::string modeThreeLine(unsigned node, uint32_t& trial, unsigned cycles = 2, unsigned interval = 200,
@@ -3439,8 +3439,7 @@ void testParseVelocityHome() {
     CHECK(E::parseRouteCommand(velocity.data(), velocity.size(), p) && p.kind == E::RouteKind::VELOCITY);
     CHECK(p.trial == 7 && p.rpm == 6 && p.rampUpMs == 200 && p.rampDownMs == 200 && p.durationMs == 12000 &&
           p.intervalMs == 2000 && p.deadlineMs == 18000 && p.stopKind == 1 && p.record == 351 && p.layout == 2 &&
-          p.startQualified && p.stopQualified && p.firmware.deviceType == DEVICE_TYPE &&
-          p.firmware.firmwareCode == FIRMWARE);
+          p.firmware.deviceType == DEVICE_TYPE && p.firmware.firmwareCode == FIRMWARE);
     const std::string home = "O1,8,1,29,3000,1,2000,-1000000";
     CHECK(E::parseRouteCommand(home.data(), home.size(), p) && p.kind == E::RouteKind::HOME && p.method == 29 &&
           p.searchRpm == 3000 && p.creepRpm == 1 && p.homeRampMs == 2000 && p.offset == -1000000);
@@ -3491,12 +3490,14 @@ void testParseVelocityHome() {
         w.layout = layout;
         bad.push_back(velocityLine(1, trial, w));
     }
-    w = v;
-    w.start = 2;
-    bad.push_back(velocityLine(1, trial, w));
-    w = v;
-    w.stop = 2;
-    bad.push_back(velocityLine(1, trial, w));
+    // The protocol 6 line, with the host's start and stop flags after the layout: no field states either now.
+    {
+        const std::string current = velocityLine(1, trial, v);
+        size_t at = 0;
+        for (unsigned comma = 0; comma < 12; ++comma)
+            at = current.find(',', at) + 1;
+        bad.push_back(current.substr(0, at) + "1,1," + current.substr(at));
+    }
     w = v;
     w.hw = 65536;
     bad.push_back(velocityLine(1, trial, w));
@@ -3713,8 +3714,12 @@ void testVelocity() {
     CHECK(has(text, "route=velocity failure=0 why=none "));
     CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=5 attended=1 rpm=6 up=200 down=200 dur=12000 "
                     "interval=2000 deadline=18000 kind=1\n"));
-    CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 start=1 stop=1 kind=1 max=6 reverse=0 modeChange=0 "
-                    "dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123\n"));
+    CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 gate=2 start=0 stop=0 kind=1 max=6 reverse=0 "
+                    "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123\n"));
+    // The session's context keeps the experiment gate after success: the run qualified nothing.
+    CHECK(c.evidence.gate == L::VelocityGate::ATTENDED_EXPERIMENT && !c.evidence.startQualified &&
+          !c.evidence.stopQualified && !c.evidence.modeChangeQualified && !c.evidence.reverseQualified &&
+          c.evidence.maximumForwardRpm == 6 && c.evidence.record == 351);
     CHECK(has(text, "TRIAL_VELOCITY own=1 state=2 ") && has(text, " needs=0 fenced=0 running=1 "));
     CHECK(has(text, "TRIAL_VELOCITY_TIME started=") && has(text, " smask=7 cmask=7\n"));
     CHECK(has(text, "TRIAL_VELOCITY_SAMPLE which=0 present=1 cycle=0 status=8050 monitor=0011 mode=03 "));
@@ -3742,23 +3747,36 @@ void testVelocityRefusals() {
         E::RouteFailure failure;
         const char* why;
         int code, detail;
+        const char* message;
     };
     const Case cases[] = {
-        {"start-closed", [](VelocitySpec& v) { v.start = 0; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7},
-        {"stop-closed", [](VelocitySpec& v) { v.stop = 0; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7},
-        {"identity", [](VelocitySpec& v) { v.fc = FIRMWARE + 1; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7},
+        // The attended experiment's bounds: 60 rpm and 20000 ms, the library's, refused before any write.
+        {"experiment-rpm", [](VelocitySpec& v) { v.rpm = 61; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 1,
+         "an attended velocity experiment claims no qualification and stays slow"},
+        {"experiment-duration",
+         [](VelocitySpec& v) {
+             v.duration = 20001;
+             v.interval = 5000;
+             v.deadline = 26000;
+         },
+         nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4, "an attended velocity experiment is at most 20 s"},
+        {"identity", [](VelocitySpec& v) { v.fc = FIRMWARE + 1; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7,
+         nullptr},
         // Below 27 services at the route budgets plus two enable intervals: 9470 ms.
-        {"short", [](VelocitySpec& v) { v.duration = 9469; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4},
+        {"short", [](VelocitySpec& v) { v.duration = 9469; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4,
+         nullptr},
         // The stop reserve after due must exceed eight services: 2800 ms.
         {"reserve", [](VelocitySpec& v) { v.deadline = v.duration + 2800; }, nullptr, E::RouteFailure::REFUSED,
-         "velocity", 1, 4},
+         "velocity", 1, 4, nullptr},
         {"unreleased", nullptr, [](Drive& f) { f.monitor = 0x0001; f.status = 0x8437; }, E::RouteFailure::PREREQUISITE,
-         "unreleased", -1, 0},
-        {"mode", nullptr, [](Drive& f) { f.mode = 1; }, E::RouteFailure::PREREQUISITE, "mode", -1, 0},
-        {"running", nullptr, [](Drive& f) { f.monitor = 0x0015; }, E::RouteFailure::PREREQUISITE, "running", -1, 0},
+         "unreleased", -1, 0, nullptr},
+        {"mode", nullptr, [](Drive& f) { f.mode = 1; }, E::RouteFailure::PREREQUISITE, "mode", -1, 0, nullptr},
+        {"running", nullptr, [](Drive& f) { f.monitor = 0x0015; }, E::RouteFailure::PREREQUISITE, "running", -1, 0,
+         nullptr},
         {"fault-code", nullptr, [](Drive& f) { f.errorCode = 0x2310; }, E::RouteFailure::PREREQUISITE, "fault-code",
-         -1, 0},
-        {"status", nullptr, [](Drive& f) { f.status = 0x8057; }, E::RouteFailure::PREREQUISITE, "status", -1, 0},
+         -1, 0, nullptr},
+        {"status", nullptr, [](Drive& f) { f.status = 0x8057; }, E::RouteFailure::PREREQUISITE, "status", -1, 0,
+         nullptr},
     };
     for (const Case& k : cases) {
         scenario = k.name;
@@ -3779,6 +3797,8 @@ void testVelocityRefusals() {
               r->one.velocityAction().state == M::ActionState::EMPTY);
         if (k.code >= 0)
             CHECK(v.statusPresent && v.statusCode == k.code && v.statusDetail == k.detail);
+        if (k.message)
+            CHECK(std::strcmp(v.statusMessage, k.message) == 0);
         const std::string text = r->dump();
         CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 ") && !has(text, "TRIAL_VELOCITY own="));
         if (k.code >= 0)
@@ -4173,9 +4193,9 @@ void writeTranscript(const char* path, bool all) {
         releasedModeThree(k->driver.drives[0]);
         trial = 0;
         qualified(*k, trial);
-        VelocitySpec closed;
-        closed.start = 0;
-        const std::string refused = velocityLine(1, trial, closed);
+        VelocitySpec fast;
+        fast.rpm = 61; // Over the attended experiment's 60 rpm: the library refuses before any write.
+        const std::string refused = velocityLine(1, trial, fast);
         CHECK(k->run(refused).failure == E::RouteFailure::REFUSED);
         append(*k, refused);
     }

@@ -32,6 +32,32 @@ The session also requires the admission cycle to follow its latest write: a
 recent but contradicted pre-run released sample cannot admit another run after
 a halt left the drive enabled.
 
+### Attended experiment scope
+
+`VelocityGate::ATTENDED_EXPERIMENT` admits one finite run whose mode 3 start and
+stop are what the run measures, not facts it claims. It follows the existing
+experiment gates (`EnableGate::ATTENDED_EXPERIMENT`, the `ISOLATED_EXPERIMENT`
+scopes of the PDO and communication settings). Under it `startQualified`,
+`stopQualified`, `modeChangeQualified` and `reverseQualified` must all be false,
+so the drive must already report released and stationary in mode 3 and only a
+positive rate can be prepared. The rate is at most
+`VELOCITY_EXPERIMENT_MAXIMUM_RPM` (60 rpm) and the duration at most
+`VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US` (20 s). These two bounds are project
+policy for an unmeasured start and stop; they say nothing about the drive.
+`record` names the experiment's own retained record. Every other check is the
+same as for `MEASURED`: exact identity and dialect, released stationary mode 3
+admission, the ZH86 p13 order, duration coverage and stop reserve, the fixed
+deadlines, the run's own stop at due, retained uncertainty after a possible
+transmission, no retry and the checked fault path.
+
+A claim inside the experiment (either qualification flag, a mode change or a
+reverse range) is refused as `ARGUMENT`; a rate over the bound likewise, and a
+longer duration as `TIME`. A `MEASURED` record without both start and stop
+facts stays `UNSUPPORTED`/`CAPABILITY`, and `CLOSED` stays the default. The
+context keeps the gate it was prepared with: a run under the experiment never
+reads as qualified, and a successful terminal qualifies nothing by itself. The
+attendant's independent power cutoff is the control the library cannot see.
+
 The selected conditional sequence follows **ZH86 PDF p13**: mode 3, observe mode
 3, target/ramp writes, then `6,7,15`. **EN86 PDF p13** enables before parameters
 and refers to position trigger bits; the library does not combine those recipes.
@@ -119,7 +145,11 @@ The concrete context keeps owned summaries and service terminals.
 
 No retained record establishes mode3 startup, reverse operation or a mode3 stop
 on the connected CL86-C specimens. The following conditional prompt29 experiment
-can establish a narrow positive subset; it is not an automatic production run:
+can establish a narrow positive subset; it is not an automatic production run.
+The bench `velocity` route runs it under the attended experiment scope above
+([procedure](reports/bench_closure_18_33/velocity_homing_procedure.md)); only a
+reviewed record of that run, not the run itself, could later back a `MEASURED`
+gate for that firmware tuple:
 
 1. Retain fixture/software/raw identity, actual non-enabled stationary state,
    current mode, target/ramp values, I/O state, independent cutoff and shaft

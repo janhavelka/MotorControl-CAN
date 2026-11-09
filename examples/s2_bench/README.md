@@ -292,14 +292,15 @@ the other node observed), the `000B` and words `0006`/`0007` on an evidenced rel
 16 and 15), the `2202` and DI3 settings transactions (packets 12 and 13), the session's counter
 zero and alarm clear, and for prompts 35 and 36 one `6060:00=3` on a drive that reports itself
 released (`mode3`), the session's finite velocity run from released mode 3 with its own stop at the
-due time (`velocity`, evidence from the host's line only), and the reads `requestHome` consumes with
+due time (`velocity`, the library's attended experiment scope, which claims no start or stop
+qualification, with the rest of its evidence from the host's line only), and the reads `requestHome` consumes with
 its refusal before any write (`home`, gate always closed). The settings routes, `velocity`, `home` and
 an observed move use one more block, `RouteWork` (8432 bytes on the S2), allocated on first use like
 the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` gains `routes=6` (this line protocol), `trial` and
+heap on first use and never freed; `PONG` gains `routes=7` (this line protocol), `trial` and
 `motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
 software bound, and the attendant's cutoff is the immediate control. Routes, prerequisites, records and the runner are in
 [hardware_bench.md](../../docs/hardware_bench.md#attended-bench-routes). `MotionPreview` stays an
