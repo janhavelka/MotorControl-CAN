@@ -2894,6 +2894,30 @@ void BenchRoute::serviceAction(uint64_t now) noexcept {
             return;
         const L::VelocityContext& v = axis().velocityAction();
         record_.cycles = uint16_t(v.observations > UINT16_MAX ? UINT16_MAX : v.observations);
+        // Backlog S16 (trial 1009 left node 1 turning until the attendant opened the cutoff): a run whose
+        // own stop could not be composed, such as after word 15's reply was lost, ends with the session's
+        // needs-stop signal up and no stop of the run sent. The route acts on that signal once, before the
+        // record ends: a QUICK_STOP whatever the plan's kind, with the best-effort 000B allowed up to the
+        // same deadline, because a HALT has no best-effort path when the predecessor is unknown, and a 000B
+        // released both specimens on every measured occasion (trials 124, 208, 213, 413, 713, 833, 1005 and
+        // 1109, all in mode 1; none was measured in mode 3). The deadline is the plan's stop span after the
+        // duration, cut to the time left before the cutoff so that startStop never refuses it for that.
+        // A run withdrawn for the drive's own fault report keeps the EMCY policy: no stop follows it.
+        if (!stopAttempted_ && v.startedUs >= record_.velocityRequestedUs && axis().velocityNeedsStop() &&
+            v.stopExecution == M::ActionExecution::NOT_TRANSMITTED &&
+            v.interruption != M::VelocityInterruption::DRIVE_FAULT) {
+            const uint32_t span = record_.plan.deadlineMs - record_.plan.durationMs; // Validated positive.
+            const uint64_t left = cutoffUs_ > now ? (cutoffUs_ - now) / 1000 : 0;
+            const uint32_t ms = left < span ? uint32_t(left) : span;
+            if (!ms) {
+                // Nothing left to stop in: the record says so, and TRIAL_STOP shows that nothing left.
+                stopAttempted_ = true;
+                finish(RouteFailure::DEADLINE, "cutoff", now);
+                return;
+            }
+            startStop(2, ms, ms, record_.plan.intervalMs, axis().velocityObservation(), now);
+            return;
+        }
         if (endFailure_ != RouteFailure::NONE) {
             finish(endFailure_, endWhy_, now);
             return;

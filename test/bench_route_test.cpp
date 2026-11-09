@@ -113,6 +113,9 @@ struct Drive {
     int32_t endpoint = 0, commanded = 0;
     int32_t drift = 0; // Added to 6064 after each 6064 read: a shaft that turns between reads.
     uint16_t trapWord = 0, trapMonitor = 0; // 2100 bits set by this 6040 word.
+    // This 6040 word is acknowledged and changes nothing the fake reports, as trial 1009's 000F still
+    // read 8033 and 2100 0001 in the cycle after it. Off by default.
+    uint16_t staleWord = 0;
     // This fake's mode 3: 0007 to 000F starts the 60FF target, and reports it as 2100 running, 606C at
     // the target and, with spinBit, 6041 bit 14 (the ZH86 running bit); 010F and 000B end it. Off by
     // default, so every earlier suite keeps its fake. No drive's velocity behavior is claimed.
@@ -283,6 +286,8 @@ struct Drive {
             if (index == 0x6060) {
                 mode = request.data[4];
                 monitor = uint16_t(monitor | alarmAfterMode);
+            } else if (index == 0x6040 && staleWord && word == staleWord) {
+                lastWord = word;
             } else if (index == 0x6040) {
                 const uint16_t previous = lastWord;
                 lastWord = word;
@@ -3963,7 +3968,10 @@ void testVelocityFailures() {
     // Word 7 may have reached the drive: it needs a checked stop that no reviewed transition gives from 7.
     CHECK(vw.state == M::ActionState::FAILED && vw.needsStop && w->one.velocityNeedsStop());
     CHECK(wordsFrom(*w, 0, 1, 7) == 1 && wordsFrom(*w, 0, 1, 0x000f) == 0 && wordsFrom(*w, 0, 1, 0x010f) == 0);
-    w->dump();
+    // No stop of the run left, so the route's one fallback 000B did (backlog S16).
+    CHECK(vw.stopExecution == M::ActionExecution::NOT_TRANSMITTED && lw.stopRequested && lw.stopRequestKind == 2 &&
+          wordsFrom(*w, 0, 1, 0x000b) == 1);
+    CHECK(has(w->dump(), "TRIAL_BEST_EFFORT which=0 own=1 "));
 
     scenario = "velocity-no-running-bit";
     std::unique_ptr<Rig> n(new Rig);
@@ -3998,6 +4006,67 @@ void testVelocityFailures() {
     // Not withdrawn: the run reached its own stop and settled it.
     CHECK(l->one.velocityAction().state == M::ActionState::SUCCEEDED && wordsFrom(*l, 0, 1, 0x010f) == 1);
     CHECK(has(l->dump(), " lossCancel=0\n"));
+}
+// Backlog S16, after trial 1009: a run that ends needing a stop with none of its own sent gets the route's
+// one fallback QUICK_STOP before the record ends; a run whose own stop left gets nothing more.
+void testVelocityFallbackStop() {
+    const uint8_t quick[8] = {0x2b, 0x40, 0x60, 0, 0x0b, 0, 0, 0};
+    // Word 15's reply lost: no acknowledged 000F, so the run's HALT cannot be composed and has no
+    // best-effort path. The route's 000B follows the run's terminal, once.
+    scenario = "velocity-fallback-word15-lost";
+    std::unique_ptr<Rig> f(new Rig);
+    releasedModeThree(f->driver.drives[0]);
+    f->driver.drives[0].silentIndex = 0x6040;
+    f->driver.drives[0].silentWord = 0x000f;
+    uint32_t trial = 0;
+    qualified(*f, trial);
+    const size_t first = f->driver.requests.size();
+    const E::RouteRecord& lf = f->run(velocityLine(1, trial));
+    const L::VelocityContext& v = f->one.velocityAction();
+    CHECK(v.state == M::ActionState::FAILED && v.phase == L::VelocityPhase::STOPPING && v.stopRequested &&
+          !v.stopOperation && v.stopExecution == M::ActionExecution::NOT_TRANSMITTED &&
+          v.interruption == M::VelocityInterruption::NONE && v.needsStop);
+    CHECK(f->one.velocityNeedsStop()); // A 000B with no checked observation clears nothing.
+    CHECK(lf.failure == E::RouteFailure::ACTION && std::strcmp(lf.why, "velocity") == 0);
+    CHECK(lf.stopRequested && lf.stopRequestKind == 2 && lf.motionTotal == 2);
+    CHECK(wordsFrom(*f, first, 1, 0x000f) == 1 && wordsFrom(*f, first, 1, 0x010f) == 0 &&
+          wordsFrom(*f, first, 1, 0x000b) == 1);
+    const std::vector<M::Frame> sent = downloads(*f, first, 1);
+    CHECK(sent.size() == 7 && frameIs(sent[6], quick)); // 60FF, 6083, 6084, 6, 7, 15, then the 000B.
+    // Asked for after the run's terminal, with the plan's stop span after the duration as its deadline.
+    const L::BestEffortStop& b = f->one.bestEffort();
+    CHECK(b.state != M::ActionState::EMPTY && b.startedUs >= v.servicedUs && b.startedUs == lf.actionRequestedUs &&
+          b.deadlineUs == b.startedUs + 6000000 && b.execution != M::ActionExecution::NOT_TRANSMITTED);
+    const E::RouteTerminal* t = terminalOf(lf, 0x6040, b.operation);
+    CHECK(t && t->admittedUs >= v.servicedUs);
+    std::string text = f->dump();
+    CHECK(has(text, "route=velocity failure=10 why=velocity "));
+    CHECK(has(text, " sexec=0 ") && has(text, " needs=1 fenced=1 "));
+    CHECK(has(text, "TRIAL_STOP kind=2 path=2 ") && has(text, "TRIAL_BEST_EFFORT which=0 own=1 "));
+    if (std::getenv("ROUTE_DEBUG"))
+        std::fprintf(stderr, "%s", text.c_str());
+    f->turns(2000);
+    CHECK(wordsFrom(*f, first, 1, 0x000b) == 1); // Nothing more after the record ended.
+
+    // Trial 1009's shape: word 15 acknowledged, its cycle still word 7's report. The run's own HALT leaves
+    // from that 000F, so the route sends no second stop.
+    scenario = "velocity-fallback-own-halt";
+    std::unique_ptr<Rig> h(new Rig);
+    releasedModeThree(h->driver.drives[0]);
+    h->driver.drives[0].staleWord = 0x000f;
+    trial = 0;
+    qualified(*h, trial);
+    const E::RouteRecord& lh = h->run(velocityLine(1, trial));
+    const L::VelocityContext& vh = h->one.velocityAction();
+    CHECK(vh.state == M::ActionState::FAILED && vh.stopRequested && vh.stopOperation &&
+          vh.stopExecution == M::ActionExecution::ACKNOWLEDGED && vh.needsStop && h->one.velocityNeedsStop());
+    CHECK(lh.failure == E::RouteFailure::ACTION && std::strcmp(lh.why, "velocity") == 0 && !lh.stopRequested);
+    CHECK(wordsFrom(*h, 0, 1, 0x010f) == 1 && wordsFrom(*h, 0, 1, 0x000b) == 0);
+    text = h->dump();
+    CHECK(has(text, "TRIAL_STOP kind=1 path=0 ") && has(text, " own=1 ") &&
+          has(text, " pred=000f documented=0 ") && has(text, "TRIAL_BEST_EFFORT which=0 own=0 "));
+    h->turns(2000);
+    CHECK(wordsFrom(*h, 0, 1, 0x010f) == 1 && wordsFrom(*h, 0, 1, 0x000b) == 0);
 }
 // HOME: the reads requestHome consumes, then its refusal before any write; no motion weight.
 void testHome() {
@@ -4604,6 +4673,18 @@ void writeTranscript(const char* path, bool all) {
         const std::string refused = velocityLine(1, trial, fast);
         CHECK(k->run(refused).failure == E::RouteFailure::REFUSED);
         append(*k, refused);
+        // Backlog S16: word 15's reply lost, so the run's own stop cannot be composed, and the route's
+        // fallback 000B follows the failed terminal (trial 9 marks it for s2_bench_test.py).
+        std::unique_ptr<Rig> b(new Rig);
+        releasedModeThree(b->driver.drives[0]);
+        b->driver.drives[0].silentIndex = 0x6040;
+        b->driver.drives[0].silentWord = 0x000f;
+        trial = 0;
+        qualified(*b, trial);
+        trial = 8;
+        const std::string fallback = velocityLine(1, trial);
+        CHECK(b->run(fallback).failure == E::RouteFailure::ACTION && wordsFrom(*b, 0, 1, 0x000b) == 1);
+        append(*b, fallback);
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -5734,6 +5815,7 @@ int main(int argc, char** argv) {
     testVelocity();
     testVelocityRefusals();
     testVelocityFailures();
+    testVelocityFallbackStop();
     testHome();
     testVelocityHomePlan();
     testCloseRefusals();

@@ -97,8 +97,13 @@
  *   VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US, both checked by the library; reverse and a mode change are
  *   never claimed, so the drive must already read mode 3 (MODE_THREE). The session writes 60FF, 6083,
  *   6084, then 6, 7, 15, runs its cycles and asks for its own stop at the preparation-anchored due time.
- *   The session's VelocityContext keeps the experiment gate: a successful run qualifies nothing. Motion
- *   class; its own stop counts against STOP as well.
+ *   When the run ends still needing a stop with none of its own sent (velocityNeedsStop() with stop
+ *   execution NOT_TRANSMITTED, as when no stop can be composed after word 15's reply was lost; backlog
+ *   S16), the route sends one fallback QUICK_STOP through requestStop, best-effort 000B allowed, within
+ *   the plan's stop span after the duration and the cutoff, before the record ends; a run withdrawn for
+ *   a drive fault gets none. The session's VelocityContext keeps the experiment gate: a successful run
+ *   qualifies nothing. Motion class; its own stop counts against STOP as well, and the fallback, which
+ *   replaces a stop that never left, counts nothing more.
  * - HOME, prompt 36. A fresh identity read, IO_INPUT_CONFIGURATION (2400:00..08), a full read (2101
  *   with it) and DRIVER (2200, 2201), each as AxisSession::requestHome consumes it, then requestHome
  *   with a CLOSED HomeEvidence: no homing record exists for this fixture, so no line field can open the
@@ -822,7 +827,9 @@ class BenchRoute {
     bool occupied_ = false, pending_ = false, stepActive_ = false, readActive_ = false;
     bool singleAdmitted_ = false, actionStarted_ = false, abortRequested_ = false, emcyHandled_ = false;
     bool lossHandled_ = false;   ///< Lost evidence has decided the end and withdrawn active work.
-    bool stopAttempted_ = false; ///< MOVE: the planned stop was asked for, whatever its path.
+    /// MOVE: the planned stop was asked for, whatever its path. VELOCITY: the route's own fallback
+    /// QUICK_STOP after a run that ended needing a stop with none sent (backlog S16).
+    bool stopAttempted_ = false;
     bool modeAdmitted_[2] = {false, false};
     RouteFailure endFailure_ = RouteFailure::NONE; ///< Abort or EMCY, applied once work settles.
     uint32_t emcyBaseline_[2] = {0, 0}; ///< Each node's emcyCount when this route last handled it.

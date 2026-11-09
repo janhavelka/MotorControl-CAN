@@ -1077,6 +1077,23 @@ def _check_terminal(report, result, position, rows, previous):
 # entry slots its count leaves unread. Their steps rise with gaps; the header's terminal count still
 # shows a missing RESULT line.
 SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm"))
+# Backlog S16: a velocity record may hold stop work after its first failed terminal, the run's own stop
+# after a failure or the route's fallback QUICK_STOP after a run that ended needing a stop with none sent
+# (BenchRoute::serviceAction). Only a 6040 download of 010F or 000B and the stop cycle's MONITORS, STATUS
+# and FEEDBACK reads may follow it; anything else after a failure stays result_after_failure.
+STOP_AFTER_FAILURE_ROUTES = frozenset(("velocity",))
+_STOP_READS = frozenset(((0x2100, 0), (0x2101, 0), (0x2102, 0), (0x6041, 0), (0x6061, 0), (0x6064, 0),
+                         (0x606C, 0)))
+_STOP_WORDS = (bytes.fromhex("2b4060000f010000"), bytes.fromhex("2b4060000b000000"))
+
+
+def _stop_work(result, window):
+    """True for a stop word or a stop cycle read; a word that left must be 010F or 000B on the wire."""
+    values = result.values
+    target = tuple(values["object"])
+    if target == (0x6040, 0) and values.get("dir") == 1:
+        return window is None or bytes.fromhex(window["tx"].values["data"]) in _STOP_WORDS
+    return target in _STOP_READS and values.get("dir") == 0
 
 
 def _check_steps(report, results, gaps=False):
@@ -1227,7 +1244,9 @@ def _check_record(report, records, expect):
         _check_steps(report, own, header.kind == "TRIAL" and values.get("route") in SLOT_STEP_ROUTES)
         _check_epochs(report, records if len(nodes) == 1 else
                       [r for r in records if r.role != "terminal" or r.values.get("node", node) == each])
-        failure = _check_node_terminals(report, own, frames, each, rows if len(nodes) == 1 else None)
+        failure = _check_node_terminals(report, own, frames, each, rows if len(nodes) == 1 else None,
+                                        header.kind == "TRIAL" and
+                                        values.get("route") in STOP_AFTER_FAILURE_ROUTES)
         if each == node:
             terminal_failure = failure
     if report.trace_lost:
@@ -1251,8 +1270,9 @@ def _frame_node(record):
     return None
 
 
-def _check_node_terminals(report, results, frames, node, rows):
-    """One node's terminals against that node's own copied frames; returns its first failed terminal."""
+def _check_node_terminals(report, results, frames, node, rows, stop_after_failure=False):
+    """One node's terminals against that node's own copied frames; returns its first failed terminal.
+    stop_after_failure: the route may send stop work after a failed terminal (STOP_AFTER_FAILURE_ROUTES)."""
     windows = _windows(report, frames, node)
     cursor = 0
     previous = None
@@ -1261,7 +1281,9 @@ def _check_node_terminals(report, results, frames, node, rows):
         documented = _check_terminal(report, result, position, rows, previous)
         previous = result
         data = result.values
-        if terminal_failure is not None:
+        if terminal_failure is not None and not (
+                stop_after_failure and
+                _stop_work(result, windows[cursor] if data["possible"] and cursor < len(windows) else None)):
             report.error("result_after_failure", result.number)
         if data["outcome"] != 0:
             terminal_failure = result
