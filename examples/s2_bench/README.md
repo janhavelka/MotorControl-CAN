@@ -37,6 +37,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `p` / runner `ping` | Cached image/base/SDK identity and local startup facts |
 | `c` / `start` | One local CAN initialization attempt; lower S18 on success, no device request |
 | `s` / `stats` | Cached controller/owner counters and task stack high-water mark |
+| `M` | PONG `pdo=4`: one `HEAP` line, internal heap totals and regions, the boot reservation and the record arena's occupant (heap plan, below); sends nothing |
 | `1`, `2` / `identity1`, `identity2` | Typed nine-field identity plan, selecting `MEASURED_U8` because `DECLARED_U16` fails on these specimens |
 | `3`, `4` / `raw1`, `raw2` | Upload-only raw experiment on node 1/2, with the fixed 26-field inventory below |
 | `v`, `b` / `motion-readiness1`, `motion-readiness2` | Separate finite 30-field upload-only readiness inventory on node 1/2; no motion command |
@@ -56,12 +57,17 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `W<node>,<set>,<sub>,<baseline>,<value>` | One TPDO communication entry `1800+set:1/2/3/5`: exact read equal to baseline, one write, exact readback |
 | `E<node>,<0\|100>` | The supported TPDO1 event-timer change on node 1 or 2: `1800:05` from raw 100 to raw 0 or from raw 0 to raw 100, through the profile's typed lifecycle (below) |
 | `C<capture>,<seconds>,<frames>`, `C0` | One bounded silent capture, 1..600 s and 1..128 stored frames, with every transmission refused and S18 requested high; `C0` ends it early (below) |
+| `D<o\|p\|i>,<seconds>,<select>,<expect>` | Prompt 37: the library's `DiscoveryScan` over both configured nodes within a 1..60 s window, `o` passive (nothing sent), `p` one accepted `1000:00` probe per node, `i` nine accepted identity uploads per node; then host selection of node 1 or 2 (0 none), which sends nothing; `expect` 1 (with `i` only) compares the raw identity with the retained fixture identity (below) |
+| `K<node>` | Prompt 38: all eighteen typed communication read groups of node 1 or 2, 95 uploads with one reviewed grant each, no write (below) |
+| `H<node>,1000` | Prompt 38: the guarded `1017:00` commissioning on node 1 or 2, exact baseline raw 0, one write of raw 1000, epoch migration, exact readback; any other value is refused as syntax and no reverse transition exists (below) |
 
 While a soak runs, only `p`, `s`, `X` and a `P` watch line are served; anything else answers
 `SOAK_REFUSED reason=active` (an `N`, `R`, `W` or `E` line: `PDO_LINE refused reason=active`). While a route's record is held, only `p`, `s`, `d`, `r` and `A`
 are served; anything else answers `TRIAL_REFUSED reason=active`. While a capture collects, its record is held or its
 transmit gate stays closed, only `p`, `s`, `n`, `d`, `r` and `C0` are served; any other byte answers `CAP refused reason=active`
-(`held`, `closed`), any other line `PDO_LINE refused reason=capture`, and a soak or trial line `reason=capture`. A response that finds the console queue full waits in
+(`held`, `closed`), any other line `PDO_LINE refused reason=capture`, and a soak or trial line `reason=capture`. While a
+`D`, `K` or `H` record runs or is held, every acquisition, NMT, route, soak and capture is refused (`PDO_LINE refused
+reason=active` for a line); `p`, `s`, `d`, `r`, a `P` watch and, once a scan has ended, `n` are served. A response that finds the console queue full waits in
 one retained buffer, and no further command is taken until it has gone.
 
 ### PDO stream sessions
@@ -224,6 +230,40 @@ collects, its record is held or its gate is closed. The controller stays in norm
 software refused and received, never that the bus saw no ACK or TX from the S2. Lines, refusal reasons and limits are in
 [hardware_bench.md](../../docs/hardware_bench.md#silent-capture).
 
+### Discovery, communication reads and heartbeat commissioning
+
+PONG `pdo=4` adds three lines, each one held record released with `r` and printed after its terminal through the same
+dump path. [`DiscoveryBench`](DiscoveryBench.h) (`D`) runs the shared `DiscoveryScan` over the firmware's own `ProbeApp`,
+owner and service store with a zero owner budget, so the ordinary firmware turn stays the only owner progression; it copies
+each upload terminal and then makes the requested host selection through `ProbeApp::select`, which reads cached route facts
+only. [`CommunicationReads`](CommunicationBench.h) (`K`) reads `NETWORK`, `NODE_SETTING` and the sixteen PDO records in a
+fixed order, each group through `prepareCommunicationRead`, `nextCommunication`, `advanceCommunication` and
+`getCommunication`, with one exact reviewed upload grant per unqualified field (Q20) from the same increasing per-slot
+sequence as `R`, `W` and `E`. [`HeartbeatCommission`](CommunicationBench.h) (`H`) runs the profile's `CommunicationContext`
+for the reviewed `1017:00` raw 0 to raw 1000 transition (scope `ISOLATED_EXPERIMENT`) and is the only one of the three in
+the download dispatcher; it refuses with `reason=service` unless the adapter already reports ordinary service for the node,
+which an accepted `D` probe or identity scan after any `N` line provides. The three records are 5784, 9712 and 10168 bytes
+on S2 (pinned compiler, `sizeof`) and live in the shared record arena of the heap plan below. After `K` or `H` on a node the
+fixed-grant commands (`1`/`2`, `3`/`4`, `h`/`j`, `m`, `v`/`b`) fail on that node until the next MCU boot, as after `R`, `W`
+and `E`. Lines, refusal reasons, runner checks and plans are in
+[hardware_bench.md](../../docs/hardware_bench.md#discovery-communication-reads-and-heartbeat-commissioning).
+
+### Heap plan
+
+The S2 internal heap is a few regions, allocated first-fit; the one after `.bss` is the only one large enough for the
+route or a session. On 2026-11-09 the image at `8293b3e` refused a node-2 route after a node-1 one
+(`TRIAL_REFUSED reason=memory`): after `BenchRoute` (42624 bytes) and the first `AxisSession` (35592) the largest free
+block was 34816. [`BenchHeap.h`](BenchHeap.h) and `main.cpp` now (1) keep the raw, PDO, `D`, `K` and `H` collectors in one
+shared arena of 23688 bytes instead of static DRAM, as only one of them ever holds a record, which moves `_heap_start`
+from `0x3FFDDC20` to `0x3FFD2800` (that region from 123872 to 169984 bytes), and (2) reserve `BenchRoute`, both
+`AxisSession`s, the arena and `RouteWork` once at the start of the owner task, largest first, before the console,
+the controller or any command allocates. The first route then attaches both nodes' sessions and the work block from
+their reservations; a refused reservation falls back to the ordinary heap on first use, as before. The soak, watch and
+capture stay lazy. Replacing the arena's occupant restarts that collector's own last-identity check; the firmware's
+identities still increase. `M` prints one `HEAP` line: totals, each internal region as `start:size:free:largest` in
+allocation order, the reservation mask (bits route, session 1, session 2, arena, work) and the arena's occupant
+(0 none, 1 raw, 2 PDO, 3 `D`, 4 `K`, 5 `H`). It sends nothing.
+
 ## Communication soak
 
 `S` followed by `TRIAL,DURATION_S,INTERVAL_MS,SUMMARY_S,READS` and a line end starts one
@@ -246,13 +286,18 @@ and every `SOAK_GAP`.
 enable and stop, the isolated packet 19 position and packet 21 relative experiments, the rearm after
 a named predecessor, the packet 20 move (absolute, or relative on a measured base, optionally with
 the other node observed), the `000B` and words `0006`/`0007` on an evidenced released drive (packets
-16 and 15), the `2202` and DI3 settings transactions (packets 12 and 13) and the session's counter
-zero and alarm clear. The settings routes and an observed move use one more block, allocated on
-first use like the route's. The
+16 and 15), the `2202` and DI3 settings transactions (packets 12 and 13), the session's counter
+zero and alarm clear, and for prompts 35 and 36 one `6060:00=3` on a drive that reports itself
+released (`mode3`), the session's finite velocity run from released mode 3 with its own stop at the
+due time (`velocity`, evidence from the host's line only), and the reads `requestHome` consumes with
+its refusal before any write (`home`, gate always closed). The settings routes, `velocity`, `home` and
+an observed move use one more block, `RouteWork` (8432 bytes on the S2), allocated on first use like
+the route's. The
 line is drained whole each turn, because it can be longer than the platform's 64-byte input ring,
 and it ends in `,K` and the CRC-32 of every byte before it, which the firmware checks before parsing
 (`TRIAL_REFUSED reason=crc`). `BenchRoute` and one `AxisSession` per node are allocated from internal
-heap on first use and never freed; `PONG` gains `routes=5` (this line protocol), `trial` and
-`motion`. Routes, prerequisites, records and the runner are in
+heap on first use and never freed; `PONG` gains `routes=6` (this line protocol), `trial` and
+`motion`. While a velocity runs the firmware refuses `A`: its own stop at the due time is its only
+software bound, and the attendant's cutoff is the immediate control. Routes, prerequisites, records and the runner are in
 [hardware_bench.md](../../docs/hardware_bench.md#attended-bench-routes). `MotionPreview` stays an
 offline review artifact, and its `executionReady` stays false.

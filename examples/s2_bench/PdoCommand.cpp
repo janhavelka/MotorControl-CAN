@@ -104,6 +104,37 @@ bool parsePdoCommand(const char* text, size_t length, PdoCommand& output) noexce
             return false;
         result.frames = uint16_t(value);
         break;
+    case 'D':
+        // The mode letter, then the window, the host selection and the identity expectation.
+        result.kind = PdoCommandKind::DISCOVER;
+        if (text == end)
+            return false;
+        result.discovery = *text == 'o' ? 0 : *text == 'p' ? 1 : *text == 'i' ? 2 : 3;
+        if (result.discovery > 2)
+            return false;
+        ++text;
+        if (!comma(text, end) || !number(text, end, result.seconds) || result.seconds < 1 ||
+            result.seconds > 60 || !comma(text, end) || !number(text, end, value) || value > 2)
+            return false;
+        result.select = uint8_t(value);
+        if (!comma(text, end) || !number(text, end, value) || value > 1 ||
+            (value && result.discovery != 2))
+            return false;
+        result.expect = value != 0;
+        break;
+    case 'K':
+        result.kind = PdoCommandKind::COMMUNICATION;
+        if (!node(text, end, result.node))
+            return false;
+        break;
+    case 'H':
+        // Only the reviewed literal: 0 (a reverse transition), 500 and every other value refuse here.
+        result.kind = PdoCommandKind::HEARTBEAT;
+        if (!node(text, end, result.node) || !comma(text, end) || !number(text, end, value) ||
+            value != 1000)
+            return false;
+        result.producerTime = uint16_t(value);
+        break;
     default:
         return false;
     }

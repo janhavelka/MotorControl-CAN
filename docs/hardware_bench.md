@@ -390,6 +390,152 @@ check. If a plan stops while a capture collects, only `C0` is sent. The prefligh
 that reports `capture=1`, and `analyze` lists each capture's frames per identifier with their gaps
 on `hi`, leaving out `pre` and `post` frames.
 
+## Discovery, communication reads and heartbeat commissioning
+
+The bench image with PONG `pdo=4` integrates prompts 37 and 38 as three console lines
+([`PdoCommand.h`](../examples/s2_bench/PdoCommand.h)), each one record held until `r` and printed
+after its terminal. They run through the same owner, adapter and dispatcher as everything else. An
+older image reads `D`, `K` and `H` as unknown bytes followed by single-byte commands (`K1` would be
+a node-1 identity read), so `scripts/s2_pdo.py` sends them only to a `pdo=4` image. Host tests:
+`discovery_bench`, `communication_bench` and `pdo_command`; no bench run is recorded yet.
+
+**Entry, all three.** `c` has started the controller, and no dump, network listing, NMT result,
+raw, typed, PDO, route, soak, capture or other `D`/`K`/`H` record is held (`reason=state`, or
+`PDO_LINE refused reason=active` while a soak, route or one of these records is held). Each line
+first applies the bench premise to its routes (`ensureRoute`: exclusive, initially unused server
+session, not service confirmation). While one of these records runs or is held, every other
+acquisition, NMT, route, soak and capture is refused; `p`, `s`, `d`, `r`, a `P` watch and `n` stay
+served, `n` only once a scan has ended (`NETWORK refused reason=discovery`), because a running
+scan's passive evidence is the network history the listing drains.
+
+**`D<o|p|i>,<seconds>,<select>,<expect>`: discovery (prompt 37).**
+[`DiscoveryBench`](../examples/s2_bench/DiscoveryBench.h) builds one fixed `DiscoveryPlan`: both
+configured slots in node order at their current route and node epochs, CANopen on bus 0 at
+1 000 000 bit/s (the rate `c` configured, the scan's interface fact), 250 ms queue and response
+budgets, a 3 s evidence age and the window as the immutable deadline. `o` observes only (no
+service); `p` makes one accepted `1000:00` upload per node; `i` makes nine accepted identity uploads
+per node with `IdentityWidths::MEASURED_U8`, as both specimens answer `1009`/`100A` in one byte.
+`expect=1` (with `i` only) supplies the retained identity of both specimens (2026-11-04: `1018:01..03`
+= 1000/1/0, `2000` = 0400, `2001` = 0200) as caller evidence; a match is `EXPECTATION_MATCH`, never a
+model, firmware or motor fact, and a difference is `CONTRADICTORY_IDENTITY` or `UNSUPPORTED_FIRMWARE`.
+The scan gets a zero owner budget: the ordinary firmware turn alone receives, transmits and admits,
+and the scan consumes the terminal its read produced. The record therefore counts admitted uploads
+itself (`admitted`); the scan's own `servicesAdmitted` stays 0 here. After the scan completes, a
+nonzero `select` calls `ProbeApp::select` with that node's requested target, which checks cached
+route facts only (`tx0` equals `tx1`); after a boot-up during the window it refuses, as the node
+epoch has changed. A probe without a reply is finite: its route stays unresolved and its possible
+effects are kept; nothing is retried.
+
+```text
+DISC admitted mode=1 seconds=3 select=1 expect=0; uploads only, selection sends nothing; no retry
+DISC id=… mode=1 seconds=3 targets=2 attempted=2 completed=2 admitted=2 terminals=2 occupied=2 free=0 unresolved=0 drops=0 cancelled=0 deadline=0 changed=0 failed=0 lost=0 gap=…
+DISC_T node=1 slot=0 outcome=1 confidence=1 read=1 state=2 fields=1 uncertain=0 hb=… hbp=… boot=0 bootp=0 pdo=0 pdop=0 dup=0 unresolved=0 current=1 completed=…
+DISC_T node=2 …, DISC_PROBE node=1 type=00040192, DISC_PROBE node=2 type=00040192
+DISC_SELECT node=1 attempted=1 selected=1 current=1 tx0=… tx1=…
+RESULT … object=1000:00 dir=0 outcome=0 … (one per upload), END discovery terminals=2 targets=2; selection sends nothing; r=release
+```
+
+`outcome` is `DiscoveryOutcome` (1 presence, 2 generic identity, 3 no response, 4 protocol rejected,
+5 unsupported firmware, 6 contradictory identity, 8 local rejection, 9 invalidated), `confidence`
+`DiscoveryConfidence` (1 responder only, 2 raw identity, 3 expectation matched). `DISC_ID` prints
+the retained raw values of a completed identity read. Refusals: `DISC refused reason=` `state`,
+`route`, `memory`, `invalid`, `busy` or `scan` (the scan itself refused: stale or unresolved route,
+the app's read occupied, or an interface mismatch).
+
+**`K<node>`: typed communication reads (prompt 38).**
+[`CommunicationReads`](../examples/s2_bench/CommunicationBench.h) reads eighteen groups in a fixed
+order: `NETWORK` (`1005`, `1014`, `1017`, `1200:00..02`), `NODE_SETTING` (`2203`), TPDO1..4
+communication (`1800..1803:00..05`), TPDO1..4 mapping (`1A00..1A03:00..04`), RPDO1..4 communication
+and mapping (`1400..1403`, `1600..1603`), 95 uploads, every child and inactive slot included. Each
+group is one `CommunicationReadContext` through the profile's typed calls, published by
+`getCommunication`. Every unqualified upload gets its own exact one-use grant first, from the same
+increasing per-slot sequence as `R`, `W` and `E`; the read effects stay unknown (Q20). It holds
+producer 4 of the owner, waits for each TX's retirement before the next upload, has a 15 s deadline,
+and ends at the first failure with that terminal held; nothing is retried or written, and it is not
+in the download dispatcher. The record is `COMM` (failure, groups published, the failing group's
+read outcome, uncertainty and last refused profile call), the typed lines, one `RESULT` per upload
+and `END comm`:
+
+```text
+COMM_NETWORK node=1 sync=… emcy=… producer=… sdo=… cs=… sc=… lo=… hi=… skew=…
+COMM_NODE node=1 raw=…
+COMM_PDO node=1 dir=t pdo=1 entries=… cob=… type=… inhibit=… compat=… event=…
+COMM_MAP node=1 dir=t pdo=1 count=… w1=… w2=… w3=… w4=…
+```
+
+The values are raw stored words: `producer` is raw `1017` (milliseconds per CiA 301, not
+vendor-confirmed), `2203` is the stored node setting and not the active node or DIP position,
+`1200` and the COB-ID words are not adopted as routes, inhibit and event raw units stay Q17 gated,
+and a mapping count or word certifies no live map or sample. Refusals: `COMM refused reason=`
+`state`, `route`, `memory`, `invalid`, `busy` or `unresolved`.
+
+**`H<node>,1000`: guarded heartbeat commissioning (prompt 38).**
+[`HeartbeatCommission`](../examples/s2_bench/CommunicationBench.h) runs the profile's
+`CommunicationContext` for the one reviewed CL86-C transition, `1017:00` raw 0 to raw 1000, with
+scope `ISOLATED_EXPERIMENT` and the attestations fixture 20261102, identity record 20261104,
+procedure 38 and authorization 20261102. Any other value is refused by the parser and the runner;
+there is no reverse transition, save, NMT or reset. Steps, each with its own exact grant:
+
+1. Before anything is sent the adapter must report ordinary service for the node, because
+   `CanBusOwner::advanceConfiguration` needs it after the write and every step here is a granted
+   experiment that establishes none: a current qualified Pre-operational or Operational state, or
+   service evidence from an accepted ungranted upload. On this bench that is a `D` probe or identity
+   scan after any `N` line (`HB refused reason=service`; after admission `failure=13`). A known
+   current state other than Pre-operational ends the record before the baseline (`failure=8`).
+2. One exact U16 upload of `1017:00` under the actual NMT observation. `prepareCommunication`
+   refuses anything but a fresh exact raw 0 before any write (`failure=9`; `detail=6` is VALUE).
+3. The one download, `2B 17 10 00 E8 03 00 00`. Immediately after admission the node's producer
+   interval and PDO routes are withdrawn and `noteCommunicationTransmission` advances the
+   application epoch; the dispatcher's `preflight` then matches only this noticed download.
+4. After the acknowledgement, the released result and authoritative TX retirement, the owner moves
+   the route to the next configuration epoch; `prepareCommunicationConfirmation` arms the readback
+   at that epoch. A first heartbeat reporting Operational refuses it, leaving the acknowledged write
+   recorded and uncertain.
+5. One exact U16 readback upload; raw 1000 publishes the stored value with `getCommunication`.
+
+The record is `HB` (workflow result: state, outcomes, acknowledgement, possible effects,
+uncertainty, readback), `HB_PREP` (the NMT observation given to the profile, preparation, epoch
+migration, `cfg`, scope, restart and persistence both unknown, last refused profile call), three
+`RESULT`, the copied `TRAFFIC`/`TAIL` and `END heartbeat`. Failure numbers follow
+`HeartbeatBenchFailure`: 3 service, 8 NMT, 9 baseline, 10 configuration, 11 readback, 13
+eligibility. A lost acknowledgement leaves the write uncertain and the route unresolved; nothing is
+retried, rolled back or read back. Success shows that this node's stored `1017:00` read back raw 1000
+after one acknowledged write; it is not active producer timing, persistence or a host-loss reaction.
+The producer interval stays withdrawn after release (`n` shows `producerKnown=0`), and the heartbeat
+period is a separate measurement, for example with a `P` watch. Refusals: `HB refused reason=`
+`state`, `route`, `memory`, `invalid`, `value`, `busy`, `unresolved` or `service`.
+
+**Restoration.** No reviewed software transition returns `1017:00` to raw 0. On 2026-11-02 node 1
+read raw 0 again after one power cycle of the drive supply with no save; both nodes have read raw
+1000 since the 2026-11-06 session. The bench restoration is therefore the operator's power cycle,
+observed by a passive `D` window (`boot=1`, `current=0` on both nodes), followed by `N1,p` and
+`N2,p` (after an observed boot-up the owner holds Initializing and admits no SDO until an explicit
+NMT intent) and `K1`/`K2`, whose `COMM_NETWORK producer=0` confirms the stored value. If a power
+cycle leaves raw 1000, that is new persistence evidence, and no software restoration exists.
+
+**Runner.** `scripts/s2_pdo.py` checks every `D`, `K` and `H` line before sending: mode, window,
+selection and expectation of a `D` line (with `end_timeout_s` above its window), `K1`/`K2`, and
+exactly `H1,1000`/`H2,1000`. Each holds one record (`discovery`, `comm`, `heartbeat`) released only
+by its own `DISC`, `COMM` or `HB record released` line. Terminal checks: a `D` record completed both
+nodes without cancellation, interface change, refused progression or unresolved route; passive mode
+sent nothing and each node is presence or no response; probe and identity modes have every upload
+successful and both nodes presence or generic identity, with expectation matched when asked; the
+requested selection succeeded and sent nothing. A `K` record published all eighteen groups of the
+sent node in order, with 95 successful uploads and no download. An `H` record is the confirmed
+result described above with exactly one non-upload frame to the node, the write's bytes. `analyze`
+lists each record's header and typed lines. Run order for the first session: discovery (`o`, `p`,
+`i`), `K1`/`K2`, the power-cycle restoration while `producer` is nonzero, then per node `N<n>,p`,
+a `D` probe, `K<n>`, `H<n>,1000` gated on `producer=0`, a `P` watch, `n` and `K<n>` again.
+
+**Heap plan and `M`.** The same image changes the bench's memory layout
+([s2_bench README](../examples/s2_bench/README.md#heap-plan)): the raw, PDO, `D`, `K` and `H` collectors share one
+23688-byte arena instead of 46248 bytes of static DRAM, and `BenchRoute`, both `AxisSession`s, the arena and
+`RouteWork` are reserved once at boot, largest first. This answers the 2026-11-09 node-2 `TRIAL_REFUSED reason=memory`
+at `8293b3e`, where the region after `.bss` (123872 bytes) could no longer hold the route and two 35592-byte sessions.
+`M` prints `HEAP free=… largest=… minimum=… regions=… r0=start:size:free:largest … reserved=1f arena=… arenaBytes=23688`;
+`reserved=1f` means all five reservations were granted. A reading is a measurement of that boot, not a budget for
+others.
+
 ## Communication soak
 
 A finite, read-only soak of the two-drive bus, through the ordinary public path. It does not
@@ -560,10 +706,12 @@ on `2920479`, wrote and read back codes 1 and 0 on both nodes (trials 604 to 607
 `position` and `rearm` again at higher speeds. Each is
 a fixed table through the ordinary owner and an `AxisSession` opened with `ProbeApp::openAxis`:
 typed reads, the session's own `requestEnable`, `requestMove`, `requestMoveRelative`,
-`requestStop`, `requestCounterZero` and `requestClearAlarm`, the library's settings transactions
-(`prepareSoftLimitSettings`, `prepareIoSettings`) on the session's reservation, and caller-built
-transfers through `admitPrepared` only for the 6060 write, the position and relative experiments'
-writes, the rearm's `000F`, the `released-quick` `000B` and `word67`'s `0006` and `0007`. There is no
+`requestStop`, `requestCounterZero`, `requestClearAlarm`, `requestVelocity` and `requestHome`, the
+library's settings transactions (`prepareSoftLimitSettings`, `prepareIoSettings`) on the session's
+reservation, and caller-built transfers through `admitPrepared` only for the two 6060 writes (`mode1`,
+`mode3`), the position and relative experiments' writes, the rearm's `000F`, the `released-quick`
+`000B` and `word67`'s `0006` and `0007`. The prompt 35 and 36 routes (`mode3`, `velocity`, `home`)
+have not run on hardware. There is no
 raw sender, object selector or command language. Startup is passive. A route is refused while a
 soak runs or any other record is retained, and nothing else but `p`, `s`, `d`, `r` and `A` is served
 while its own record is held.
@@ -587,15 +735,18 @@ while its own record is held.
 | `io-di3` (packet 13 P2/P3) | `TJ<node>,<trial>,1,<case 1..4>` | A fresh `IO_INPUT_CONFIGURATION` read (`2400:00..08`) and a fresh `STATUS`/`MONITORS` read, then one complete `IoSettings` candidate through `prepareIoSettings` changing exactly one thing: case 1 `2400:05` (DI3 function) 0 to 7 (USER0), case 2 7 to 0, case 3 sets polarity bit 3 of `2400:01`, case 4 clears it; every other field and unknown polarity bit is the prior readback's. Its one write, the readback, then `2101` (MONITORS) and `60FD` (INPUTS) once (`TRIAL_INPUTS`). Packet 13 P4 (output `2400:0E`) stays unrouted. Not motion, as `settings-2202` | Before any write: the prior not in the state its case names (`why=di3`), another input holding an undocumented code a candidate cannot carry (`why=undocumented`), the library's refusal |
 | `counter-zero` | `TZ<node>,<trial>,1,<deadline>,<interval>` | A fresh `MONITORS`/`STATUS`/`FEEDBACK` read, then `requestCounterZero` with native position 0, this node's coordinate configuration and a witness that knows no position; the session writes `2B 02 23 00 00..`, `..01..`, `..00..`, moves its reservation to the new configuration epoch itself and reads until `6064` reads 0. Motion class: it moves the position reference | The library's refusal (`why=clear`), EMCY (`cancelClear` with `DRIVE_FAULT`), abort or lost evidence (`cancelClear`) |
 | `clear-alarm` | `TC<node>,<trial>,1,<deadline>,<interval>` | A fresh `ERRORS`/`ERROR_HISTORY`/`MONITORS`/`STATUS` read, refused unless `2100` reports the alarm (`why=no-alarm`), then `requestClearAlarm`: `2B 01 23 00 01..` then `..00..`, cycles of `MONITORS`/`STATUS` until the alarm reads clear, then `ERRORS` once. Nothing follows: no enable, controlword or resume. Motion class | As `counter-zero` |
+| `mode3` (prompt 35, Q11 released mode change) | `TN<node>,<trial>,1,<cycles>,<interval>` | Two fresh full reads, each with `2100` bit 4 released, running and alarm clear, `6041` low bits 000 or 001 (the released reports after `000B` and after word 6), mode 0 or 1, `606C` 0, `1001` and `603F` 0, and the same `6064` in both. The session's latest word at admission (`TRIAL_CONTROL`) must be unchanged when the write is offered. Then `2F 60 60 00 03 00 00 00` once through `admitPrepared` under its own grant, then 1..10 fresh cycles, the first with `1001`/`603F`, recorded and never judged. An enabled drive, the specimens' power-up report included (`8037`, `2100=0001`), is refused (`unreleased`): no source documents changing `6060` while enabled. Never enables. Any `6060` write, this one included, makes `mode1` refuse for the boot, and the mode 1 `enable` refuses after it | The check (`unreleased`, `status`, `mode`, `running`, `alarm`, `velocity`, `position`, the error reasons, `control`); after the write alarm, running, `606C` nonzero, a fault code, a failed terminal, EMCY. A lost reply leaves the route unresolved until an MCU restart |
+| `velocity` (prompt 35) | `TV<node>,<trial>,1,<rpm>,<up>,<down>,<duration>,<interval>,<deadline>,<kind>,<record>,<layout>,<start>,<stop>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>` | A fresh identity read (`1009`/`100A` one byte), a fresh full read and the route's check: released (`2100` bit 4), running and alarm clear, mode 3, low bits 000, 001 or 011, `606C` 0, `1001`/`603F` 0. Then `requestVelocity` with `VelocityEvidence` built only from the line: the record, layout (1 EN86, 2 ZH86, 4 OP86), `startQualified`, `stopQualified`, the stop kind (1 HALT, 2 QUICK_STOP) and the raw identity, which the library compares with the fresh read; the route adds the line's rpm as the qualified forward maximum and claims no reverse range and no mode change. The run's duration starts at that request; `maxPolls` is the fewest `<interval>` cycles covering it; the age cap covers nine fields and the stop reserve is eight services (2800 ms). The session writes `23 FF 60 00 <rpm>`, `23 83 60 00 <up>`, `23 84 60 00 <down>`, then `6`, `7`, `15` each after a fresh cycle that reports it, reads a cycle per interval and, at the due time, asks for its own stop: HALT `010F` or QUICK_STOP `000B` from the acknowledged `000F` with a fresh enabled, running mode 3 report. An experiment scope: the line's flags are the host's statement, which the library binds and cannot check. Motion class; its stop counts against `stop` too | The library's refusals before any write (`why=velocity`, `TRIAL_STATUS`); a run or stop failure (`why=velocity`, failure 10). A nonzero EMCY withdraws the run with `DRIVE_FAULT` and no stop follows. An abort is refused while the run is active, and lost evidence does not withdraw it: its own stop is its only software bound |
+| `home` (prompt 36) | `TO<node>,<trial>,1,<method>,<search rpm>,<creep rpm>,<ramp>,<offset>` | A fresh identity read, `IO_INPUT_CONFIGURATION` (`2400:00..08`), a fresh full read (`2101` with it) and `DRIVER` (`2200`, `2201`), each as `requestHome` consumes it, then `requestHome` with method 17, 18, 24 or 29 and a CLOSED `HomeEvidence`: no record of this fixture establishes a homing method, its wiring, direction, offset or a mode 6 enable, so no line field opens the gate. The library refuses before any write (`code=3 detail=7`, `homing needs exact selected-firmware qualification`); a session with no latest controlword refuses first (`code=1 detail=3`). Nothing is written, and an input is never reassigned. Attended, three per route and node, no motion weight | Expected: failure 11 `why=home`. A failed read ends it before the request |
 
 Every line also ends in an integrity field the table leaves out: `,K` and eight lowercase hexadecimal
 digits holding the CRC-32 (IEEE, as Python's `zlib.crc32`) of every byte from `T` up to that comma,
 for example `TA1,5,K62328164`. The firmware checks it before parsing and refuses a missing or
 mismatched field with `reason=crc`, because a digit corrupted in transit can still parse as another
-valid plan. `PONG routes=5` names this protocol (3 added the integrity field; 4 the rearm's
+valid plan. `PONG routes=6` names this protocol (3 added the integrity field; 4 the rearm's
 predecessor, the move's relative base and `TQ`, `TW`, `TL`; 5 `TD`, `TJ`, `TZ`, `TC` and the move's
-observer); the runner refuses any other value before sending, so an image that reports an earlier
-protocol takes no line from this runner.
+observer; 6 `TN`, `TV`, `TO`); the runner refuses any other value before sending, so an image that
+reports an earlier protocol takes no line from this runner.
 
 **Hold-back.** No route read or write starts once less than its queue and response budget (350 ms
 at the route budgets) remains before its operation deadline or the sixty-second route cutoff, for the
@@ -606,7 +757,9 @@ word and is exempt. The sessions' own actions follow the library's rule.
 
 `trial-abort` sends `A`: a local withdrawal, with no stop sent. A request on its way settles first,
 an active enable ends through `cancelEnable`, an active move through `cancelMove` and an active clear
-through `cancelClear`, and a stop in progress refuses it. The runner sends one `A` on Ctrl-C.
+through `cancelClear`, and a stop in progress refuses it. An active velocity refuses it too
+(`reason=velocity`): withdrawing it would suppress its own stop at the due time and send nothing
+instead. The runner sends one `A` on Ctrl-C.
 
 A relative `move` needs the base `relative` measures first: until a record shows what the drive adds
 a displacement to, `<relative base>` 1 or 2 is an unsupported claim, and the library only binds the
@@ -629,10 +782,12 @@ take one-use download grants and do not need it.
 **Every route** records its admission in `TRIAL admitted` and has a new trial identity, rising for
 the firmware's life; the host's trial log must never reissue one across boots. Motion routes
 (`mode1`, `enable`, `stop`, `position`, `rearm`, `move`, `released-quick`, `word67`, `relative`,
-`counter-zero`, `clear-alarm`) and the settings routes (`settings-2202`, `io-di3`) need the attended
-flag the runner sets only after the operator typed `ATTENDED <trial>`. Packet 22's campaign cap is
-enforced per boot at admission: at most twelve motion admissions, and three per route and node. A
-settings route has no motion weight; it counts three per route and node of its own. A planned stop inside `position`, `relative` or `move` counts against `stop` as well. Across boots the runner enforces the same caps
+`counter-zero`, `clear-alarm`, `mode3`, `velocity`), the settings routes (`settings-2202`, `io-di3`)
+and `home` need the attended flag the runner sets only after the operator typed `ATTENDED <trial>`.
+Packet 22's campaign cap is enforced per boot at admission: at most twelve motion admissions, and
+three per route and node. A settings route and `home` have no motion weight; each counts three per
+route and node of its own. A planned stop inside `position`, `relative` or `move`, and the stop a
+`velocity` always asks for itself, counts against `stop` as well. Across boots the runner enforces the same caps
 from the campaign ledger below. Every unqualified upload and every write of the route's own takes
 an exact one-use grant, numbered from 100000. Queue budgets are 100 ms and response budgets 250 ms,
 as host policy; with them the shortest enable deadline the library admits is 9.13 s. A plan whose
@@ -648,7 +803,9 @@ may have held an EMCY or a status report, so an active enable or move is also wi
 through `cancelEnable` or `cancelMove`, as an abort withdraws it, and the header shows
 `lossCancel=1`. Nothing is sent because of the loss: no stop, no rearm and no planned stop; the
 drive may still be moving, and the attendant's independent cutoff is the control. A trigger that may
-have left without an observed completion still fences later moves.
+have left without an observed completion still fences later moves. An active velocity is the
+exception: it is not withdrawn, because its own stop at the due time is its only software bound, and
+it runs to its own terminal (`lossCancel=0`).
 
 **Record capacity.** The firmware refuses a route as `capacity` when its polls could exceed 128
 terminals, and as `duration` when its steps could need more than 55 s; it does so after the host has
@@ -668,7 +825,13 @@ one at once and one per interval over the move's deadline and its planned stop's
 move fits only short deadlines or long intervals, for example a 6000 ms deadline at 2000 ms (103
 terminals); the move's own 10000 ms at 1000 ms does not. `settings-2202` takes 14, `io-di3` 28,
 `counter-zero` 10 plus 7 per cycle and `clear-alarm` 16 plus 5 per cycle, each with one cycle at once
-and one per interval to its deadline.
+and one per interval to its deadline. `mode3` takes 28 plus 7 per cycle after the first, `home` 29.
+`velocity` takes 45, plus 7 per running cycle (the fewest whose interval covers the duration), plus
+its stop over the rest of the deadline at the same interval: a 12000 ms run polled every 2000 ms
+with an 18000 ms deadline takes 118, and at 100 ms it does not fit. The library also refuses a
+velocity, after the firmware counted it, whose duration does not cover 27 setup services at the
+route budgets and two 10 ms enable intervals (under 9470 ms), or whose deadline leaves 2800 ms or
+less after the duration; the runner refuses both first.
 
 **Release after every route.** A route sent while a record is held is refused before its line, and the host still counts it.
 
@@ -723,6 +886,9 @@ TX report. Summaries:
 | `TRIAL_OBSERVER`, `TRIAL_OBSERVER_CHECK`, `TRIAL_OBSERVER_LAST`, `TRIAL_NODES` | A move's observer: its check, cycles, whether any read showed motion, the `6064` range, largest `606C`, `2100` of all cycles combined, an EMCY; its check and last reads; both nodes' copied RX frames and those dispatch did not accept, the service gap, and the interface's dropped, unmatched and lost counters at admission and terminal (a dropped frame has no node) |
 | `TRIAL_CLEAR`, `TRIAL_CLEAR_STEP`, `TRIAL_INCIDENT`, `TRIAL_BASELINE`, `TRIAL_EXTRA` | The session's clear context (kind, state, outcome, execution, completion, a 1 that may remain, withdrawn coordinates, `clearBlocked`), each write's terminal by slot, the alarm incident or the counter baseline, and the extra observation, raw |
 | `TRIAL_MOVE`, `TRIAL_MOVE_SAMPLE` | The session's `MoveContext`: state, final phase and phases seen, outcome, interruption, setup, trigger, completion and rearm execution, uncertainty, cycles, fence; then its admission, latest, acceptance, absence and completed samples, raw |
+| `TRIAL_VELOCITY_EVIDENCE` | `velocity`: the line's evidence exactly as received (record, layout, `start`, `stop`, stop kind, raw identity), the forward maximum the route adds (`max`, the line's rpm) and `reverse=0 modeChange=0` |
+| `TRIAL_VELOCITY`, `TRIAL_VELOCITY_TIME`, `TRIAL_VELOCITY_SAMPLE` | Once requested: the session's `VelocityContext` (state, phase, outcome, first failure, interruption, setup, enable and stop execution, completion, stop outcome, uncertainty, `needs` its own needs-stop, `fenced` the session's, `running` observed, all and running cycles, operations, effective rpm, status); its timeline (`started`, `due` = started plus the duration, never restarted, `deadline`, `stopAt` when its stop was asked for, `serviced`, the parameter and word evidence masks); its admission and latest samples, raw. Its stop is the `TRIAL_STOP` and `TRIAL_BEST_EFFORT` lines, `path=0` because the run asked for it, not the route |
+| `TRIAL_HOME` | `home`: the method, `gate=0` always, which reads were published (identity, the input mapping in `TRIAL_IO which=0`, the full read, `DRIVER`), `2101`, `2200`, `2201` raw, and `admitted`, always 0 |
 
 `failure` values: 0 none, 1 grant, 2 admission, 3 service, 4 correlation, 5 evidence loss,
 6 invalidated, 7 deadline, 8 prerequisite, 9 observation, 10 action, 11 refused, 12 aborted.
@@ -754,7 +920,13 @@ python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command settings
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command io-di3 --node 1 --trial 115 --di3-change function-user0 --fault-led prompt --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command counter-zero --node 1 --trial 116 --deadline-ms 3000 --interval-ms 500 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command clear-alarm --node 1 --trial 117 --deadline-ms 3000 --interval-ms 500 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command home --node 1 --trial 118 --method 24 --search-rpm 60 --creep-rpm 6 --ramp-ms 200 --offset 0 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command mode3 --node 1 --trial 119 --cycles 2 --interval-ms 500 --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
+python scripts/s2_bench.py --port COM15 --serial 94A990398B40 --command velocity --node 1 --trial 120 --rpm 6 --ramp-up-ms 200 --ramp-down-ms 200 --duration-ms 12000 --interval-ms 2000 --deadline-ms 18000 --kind halt --record RECORD --layout LAYOUT --start-qualified 0/1 --stop-qualified 0/1 --device-type RAW --hardware-version RAW --software-version RAW --vendor-id RAW --product-code RAW --revision RAW --model-code RAW --firmware-code RAW --campaign CAMPAIGN.jsonl --output NEW_DIRECTORY
 ```
+
+The prompt 35 and 36 procedure, with every value and the order the routes need, is
+[velocity_homing_procedure](reports/bench_closure_18_33/velocity_homing_procedure.md).
 
 `--predecessor` is `position-trigger`, `position-halt` or `relative-trigger` and is always required.
 `--soft-limit-code` is `limits-off` (0) or `after-homing` (1); `--di3-change` is `function-user0`,
@@ -764,15 +936,21 @@ question. `--observer` names the other node.
 `--move-base` is `absolute` (the default, as before), `actual`, whose witness is `--start-position`,
 or `commanded` with `--base-position`, the reviewed commanded position; for either relative base
 `--target` is the displacement.
+`velocity` takes `--kind halt|quick` for its own stop, `--layout en86|zh86|op86`, `--start-qualified`
+and `--stop-qualified` (0 or 1, never defaulted) and the move's identity arguments; `--duration-ms`
+must be below `--deadline-ms`. `home` takes `--method 17|18|24|29`, `--search-rpm`, `--creep-rpm`,
+`--ramp-ms` and `--offset`; it asks no shaft question, since it writes nothing. Both keep their request
+in `RouteWork` and are refused with `reason=memory` when that block cannot be allocated.
 
 The values are placeholders for review, not recommendations: P2 and P3 take theirs from P1's fresh
 reads, and the position values need packet 19's reviewed bounds. The move's evidence has no
 placeholder at all: every signal, rule and identity value comes from packet 19's reviewed
 measurement record, and without one the move stays unrun. Every route value is required; the
 runner refuses a missing one. Each command checks the recorded USB identity, pings, and refuses
-unless the image reports `routes=5` (the line protocol above), no soak, no held
+unless the image reports `routes=6` (the line protocol above), no soak, no held
 record and a started controller. It asks the
-operator to type the attended confirmation, the shaft observation for `enable` and the fault LED for
+operator to type the attended confirmation, the shaft observation for `enable`, for `home` which DI
+terminals are wired (recorded only: the route opens no gate whatever is typed), and the fault LED for
 `readiness-actions` and `readiness-history` with `--fault-led prompt` (both require `--fault-led`:
 they upload objects whose read effect is unqualified), and after the route a free-text shaft
 observation.
@@ -847,6 +1025,21 @@ settings contexts and the observer's read context take a block of their own, `Ro
 allocated once on the first settings route or observed move and never freed (`reason=memory` if it
 cannot be). The deepest stack chain measured on that tree is 5072 bytes as a lower bound, again a move
 request from `BenchRoute::service`.
+
+Protocol 6 (`mode3`, `velocity`, `home`) adds no heap block. It adds 64 bytes to `BenchRoute` (42624
+bytes on the S2 at `8293b3e`, 42688 with it: the plan's and record's new fields) and 528 to `RouteWork`
+(7904 to 8432: the velocity and home requests, which are borrowed only for their calls and are kept
+out of `BenchRoute`, the largest block the heap gives). `velocity` and `home` need `RouteWork` and
+allocate it on first use, as the settings routes do. Measured with the pinned compiler and the firmware
+gate's own compile flags for `BenchRoute.cpp`. `AxisSession` is 35592 bytes on the S2 since prompt 36,
+so `BenchRoute`, both sessions and `RouteWork` need about 122 KB of internal heap, in blocks of 43, 36,
+36 and 8 KB. On 2026-11-09 the `8293b3e` image refused the second node's session (`reason=memory`):
+after `BenchRoute` and one session the largest free block was 34816 bytes. That allocation order is
+being changed in `main.cpp`; until an image allocates every block, the prompt 35 and 36 procedure cannot
+run on node 2. `TRIAL_RES heap1` and `largest` report what is left; a `reason=memory` refusal is a stop
+condition. The deepest known chain with these routes is 5248 bytes at `-Os` (a move request from
+`BenchRoute::service`) and 5008 at `-Og` (`BenchRoute::startHome` into `prepareHome`), lower bounds
+inside the 6144-byte limit.
 
 **Not established.** Nothing here qualifies an enable, stop, move, scale or firmware. On one
 image, the least stack ever free during the routes was 8,492 of 12,288 bytes, during a moving

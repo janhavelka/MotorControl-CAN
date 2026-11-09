@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### S2 bench integration of prompts 35-38, and the heap fix (2026-11-09)
+
+- **Fixed:** at `8293b3e` a second node's route was refused `reason=memory`: `BenchRoute` (42624 bytes) plus two `AxisSession`s (35592 each) no longer fit the heap region after `.bss`. The raw, PDO, `D`, `K` and `H` collectors now share one 23688-byte arena instead of 46248 bytes of static DRAM, and the route, both sessions, the arena and the work block are reserved at boot, largest first. `M` prints the internal heap regions and `reserved=` (1f when all five were granted).
+- Line commands (PONG `pdo=4`): `D<o|p|i>,<seconds>,<select>,<expect>` runs the prompt 37 `DiscoveryScan` over both configured nodes through the firmware's own app and owner, then the requested host selection, which sends nothing; `K<node>` reads all eighteen prompt 38 typed communication groups (95 uploads, one reviewed grant each, no write); `H<node>,1000` runs the guarded `1017:00` raw 0 to raw 1000 commissioning with exact baseline, epoch migration and readback, refused before anything is sent unless the node has ordinary service evidence (the owner's configuration migration needs it; an undocumented precondition recorded for the library).
+- Routes (PONG `routes=6`): `mode3` (`TN`), one `6060=3` only on a drive reporting itself released and stationary in mode 0 or 1 on two fresh reads; `velocity` (`TV`), the library's finite velocity run from released mode 3 through `AxisSession::requestVelocity`, whose evidence comes only from the host line as an experiment scope; `home` (`TO`), the reads `requestHome` consumes and its refusal before any write with a CLOSED gate.
+- `s2_pdo.py` gates `D`/`K`/`H` on `pdo=4`, holds and releases their records and checks their terminals; `s2_bench.py` speaks `routes=6`, checks the library's velocity minima before sending, and accepts `--relayed-power-up-shaft FREE|HOLDING` with `--relayed-shaft-source TEXT` for an enable under `--unattended-waiver`: an observation the user made and reported, stored as relayed, never inferred from the drive.
+- Tests: `discovery_bench`, `communication_bench`, `bench_heap`, extended `bench_route` (mode3, velocity, home), runner and grammar tests; 31 mutants killed across both parts. Procedures: [velocity and homing](docs/reports/bench_closure_18_33/velocity_homing_procedure.md); plans for D/K/H in `docs/hardware_bench.md`.
+
 ### Packet 8 bench campaign (2026-11-09)
 
 - Attended, after a drive power cycle, on image `18d6c2a`: node 1 relative -100 at 6 rpm ended at -100 (825); node 2 halted at 104, rearmed without resuming, then +200 ended at 304, so its relative base is `ACTUAL` (828-830); a HALT interrupted node 1's moving relative move from `005F` with node 2 observed stationary (832); a quick stop from node 2's stationary `005F` released it (833). 12 of 12 campaign admissions, every record as planned.
