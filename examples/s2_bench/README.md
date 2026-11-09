@@ -51,6 +51,7 @@ until an explicit acquisition command. There is no retry or automatic recovery.
 | `X` / `soak-stop` | Stop a running soak after any started read settles |
 | `T...` / `scripts/s2_bench.py --command readiness-actions` and the other routes | One named attended route, below |
 | `A` / `trial-abort` | Withdraw the active route locally; sends no stop |
+| `x` / `close-sessions` | Close the idle route sessions so that `K`, `H` and the raw and PDO experiments can reserve their nodes again in this boot (backlog S15); sends nothing, no stop or disable; drops only the latest controlwords, keeps every fence, trial identity and cap |
 | `N<node>,<o\|p\|s>` / `scripts/s2_pdo.py` | One addressed NMT Start, Enter Pre-operational or Stop through the owner; resets are not offered |
 | `P<seconds>`, `P0` | Watch received frames for 1..600 s at the driver tap, or end the watch; sends nothing |
 | `R<node>,<t\|r>,<set>` | Nine uploads of one transmit or receive PDO set 0..3: communication `:01/:02/:03/:05`, mapping `:00..04` |
@@ -245,7 +246,8 @@ the download dispatcher; it refuses before anything is sent unless the node prem
 (`SdoClient::configurationEligible`): `reason=service` without ordinary service, which an accepted `D` probe or identity
 scan after any `N` line provides, and `reason=transition` while an `N` line's transition is pending, which at producer
 time 0 lasts its whole 5 s window. `K` and `H` refuse `reason=reserved` while an open route session keeps the axis's
-reservation, for the rest of the MCU boot. The three records are 5784, 9712 and 10168 bytes
+reservation, until `x` closes it, and `reason=grant` if their identities are not above the channel's last grant, from
+which the image continues them. The three records are 5784, 9712 and 10168 bytes
 on S2 (pinned compiler, `sizeof`) and live in the shared record arena of the heap plan below. After `K` or `H` on a node the
 fixed-grant commands (`1`/`2`, `3`/`4`, `h`/`j`, `m`, `v`/`b`) fail on that node until the next MCU boot, as after `R`, `W`
 and `E`. Lines, refusal reasons, runner checks and plans are in

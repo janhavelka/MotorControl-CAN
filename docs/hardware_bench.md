@@ -520,9 +520,13 @@ after one acknowledged write; it is not active producer timing, persistence or a
 The producer interval stays withdrawn after release (`n` shows `producerKnown=0`), and the heartbeat
 period is a separate measurement, for example with a `P` watch. Refusals: `HB refused reason=`
 `state`, `route`, `memory`, `invalid`, `value`, `busy`, `unresolved`, `service`, `transition`,
-`configuration` or `reserved`. `reserved`, for `K` too, means another holder keeps the axis's
-owner reservation: on this bench an open route `AxisSession`, which keeps it for the rest of the
-MCU boot, so run `K` and `H` before any `T` route of that node or after an EN reset.
+`configuration`, `grant` or `reserved`. `reserved`, for `K` too, means another holder keeps the
+axis's owner reservation: on this bench an open route `AxisSession`, which keeps it until the
+session close `x` (see the attended routes below). `grant`, for `K` too, means the request's first
+operation or first grant identity is not above the channel's last experimental grant
+(`SdoClient::lastExperiment`); the image continues both counters from there before each `K` and `H`
+line, because a route draws its grants from 100000 and its own operation numbering, so this refusal
+is a firmware fault, not an ordering rule.
 
 **Restoration.** No reviewed software transition returns `1017:00` to raw 0. On 2026-11-02 node 1
 read raw 0 again after one power cycle of the drive supply with no save; both nodes have read raw
@@ -545,8 +549,8 @@ result described above with exactly one non-upload frame to the node, the write'
 lists each record's header and typed lines. Run order for the first session: discovery (`o`, `p`,
 `i`), `K1`/`K2`, the power-cycle restoration while `producer` is nonzero, then per node `N<n>,p`,
 a wait of at least 5 s for that intent's window to end (no heartbeat at `producer=0`), a `D`
-probe, `K<n>`, `H<n>,1000` gated on `producer=0`, a `P` watch, `n` and `K<n>` again, all before
-any `T` route of the node in that MCU boot.
+probe, `K<n>`, `H<n>,1000` gated on `producer=0`, a `P` watch, `n` and `K<n>` again. After a `T`
+route of the node in the same MCU boot, release its record and send `x` first.
 
 **Heap plan and `M`.** The same image changes the bench's memory layout
 ([s2_bench README](../examples/s2_bench/README.md#heap-plan)): the raw, PDO, `D`, `K` and `H` collectors share one
@@ -777,6 +781,50 @@ sent left node 2's route unresolved until an MCU restart). The route then ends a
 (`why=cutoff`, or `why=operation` at an operation deadline) and nothing in flight. A `000B` is a stop
 word and is exempt. The sessions' own actions follow the library's rule.
 
+**Closing the route sessions (`x`, backlog S15).** A route opens its node's `AxisSession` and leaves
+it open, so that its latest controlword and history reach the next route. An open session keeps its
+axis's owner reservation, so `K`, `H`, the raw and the PDO experiments on that node are refused
+`reserved` until it closes. `close-sessions` sends `x`, which runs `BenchRoute::closeSessions`:
+
+```text
+SESSIONS closed node1=1 node2=0 kept1=60 kept2=00 motion=2; nothing sent; latest controlwords dropped; fences, trials and caps kept
+SESSIONS refused reason=busy node1=0 node2=0; nothing sent, nothing else changed
+```
+
+- **When.** Only when nothing is held or in flight. `state`: a soak, capture, dump, network listing,
+  NMT result or any raw, typed, PDO, `D`, `K` or `H` record is held, or the firmware's own read is
+  active. `record`: a route record is held, active or terminal; release it with `r` first. `busy`:
+  a session has a stop, enable, move, velocity, home or clear in progress, an admitted request or an
+  unread result, or its node's local TX has not retired. `configuration`: a counter zero's (or
+  home's) move of the owner to its new configuration epoch is still owed, for example after its last
+  write went unanswered; closing would drop it. `none`: no route has run in this boot. Every check
+  comes before the first close, so a refusal closes nothing (`owner`, the owner refusing a release
+  after the checks, names any session already closed).
+- **What it does.** `AxisSession::close` on every open session: it releases the reservation the
+  session took. It sends nothing on CAN and changes nothing on a drive. It is not a stop, release,
+  disable, NMT command or recovery, and an enabled drive stays enabled.
+- **What it drops.** Each session's latest acknowledged controlword. A later route that needs one
+  refuses as after an MCU restart: `position`, `relative`, `move` and `rearm` with
+  `reason=control`, `home` with the session's `code=1 detail=3`. `released-quick`, `word67` and
+  `mode3` record `prior=0`.
+- **What it keeps.** The session objects are stationary and the next route on that node reopens the
+  same one on a new reservation, so every fact that refuses later work survives, unlike across an EN
+  reset: the move fence, the clear and fault blocks, the velocity and home needs-stop facts, the
+  motion write history (`enable` stays refused `history`) and its enable trials. `BenchRoute` keeps
+  its trial identity, the per-boot motion, stop, settings and `home` counts and caps, and its record
+  of an admitted `6060` write (`mode1` stays refused). `kept1`/`kept2` print the `SessionKept` bits:
+  1 move fence, 2 clear block, 4 fault block, 8 velocity needs a stop, 16 home needs a stop, 32
+  motion written, 64 `6060` written. An unresolved route stays unresolved.
+
+Grants across producers. The channel grants an experiment only above its last grant, in authorization
+and in operation identity, whoever drew it. On 2026-11-09 a route after `K` was refused its first
+granted upload (`why=grant`, homing's `2400` read in trials 903 to 906): the route session's own
+operation numbering started below `K`'s. Each route now raises its sessions above the channel's last
+granted operation at admission and draws its grant identity above the channel's last one, and the
+image continues the `K` and `H` counters from the channel's last grant (above). The raw (`1` to `4`,
+`v`, `b`, `h`, `j`) and PDO (`R`, `W`, `E`, `m`) experiments do not follow yet: after a route on
+that node in the same boot their first granted upload is still refused, which fails closed.
+
 `trial-abort` sends `A`: a local withdrawal, with no stop sent. A request on its way settles first,
 an active enable ends through `cancelEnable`, an active move through `cancelMove` and an active clear
 through `cancelClear`, and a stop in progress refuses it. An active velocity refuses it too
@@ -811,7 +859,7 @@ three per route and node. A settings route and `home` have no motion weight; eac
 route and node of its own. A planned stop inside `position`, `relative` or `move`, and the stop a
 `velocity` always asks for itself, counts against `stop` as well. Across boots the runner enforces the same caps
 from the campaign ledger below. Every unqualified upload and every write of the route's own takes
-an exact one-use grant, numbered from 100000. Queue budgets are 100 ms and response budgets 250 ms,
+an exact one-use grant, numbered from 100000 or above the channel's last grant. Queue budgets are 100 ms and response budgets 250 ms,
 as host policy; with them the shortest enable deadline the library admits is 9.13 s. A plan whose
 polls could exceed the record (128 terminals) or the sixty-second cutoff is refused before anything
 is sent. Any failed terminal, lost reply, refused grant or admission, changed epoch, nonzero EMCY,

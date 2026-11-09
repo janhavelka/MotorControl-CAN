@@ -39,6 +39,14 @@ attendant's power-up shaft observation, and so is --fault-led prompt, unless tha
 made and is relayed: --relayed-power-up-shaft FREE|HOLDING with --relayed-shaft-source TEXT, the
 user's own report of the shaft as they felt it after the power-up and before anything was sent,
 with where and when they gave it. It is stored as relayed, never inferred from the drive.
+
+close-sessions sends one 'x': the firmware closes its idle route sessions, so that K, H and the raw and PDO
+experiments can reserve those nodes again in the same MCU boot (backlog S15). It sends nothing on CAN and
+is no stop, release or disable. It is refused, with nothing changed, while any record is held (release it
+with 'r' first) or a session has work in flight. The firmware's reply decides the exit status: 0 for
+"SESSIONS closed", 2 for "SESSIONS refused", 1 for no such line (an image without the command answers
+"UNKNOWN command"). Closing drops each session's latest controlword: a later route that needs one refuses
+as after an MCU restart, while fences, trial identities and the per-boot caps stay in the firmware.
 """
 import argparse
 from collections import Counter
@@ -56,7 +64,9 @@ COMMANDS = {"ping": b"p", "start": b"c", "stats": b"s",
             "dump": b"d", "release": b"r", "network": b"n",
             "heartbeat1": b"h", "heartbeat2": b"j", "preop1": b"q", "preop2": b"w", "tpdo1": b"m",
             "motion-readiness1": b"v", "motion-readiness2": b"b", "soak-stop": b"X",
-            "trial-abort": b"A"}
+            "trial-abort": b"A", "close-sessions": b"x"}
+# Single-byte commands whose reply line decides the exit status: (prefix, status) in order; no such line is 1.
+REPLIES = {"close-sessions": (("SESSIONS closed ", 0), ("SESSIONS refused ", 2))}
 # The recorded fixture, as in s2_soak.py and s2_flash.py. A changed fixture needs a reviewed edit.
 FIXTURE = {"port": "COM15", "usb_serial": "94A990398B40", "vid": 0x303A, "pid": 0x1002}
 BAUD = 115200
@@ -816,6 +826,15 @@ class Capture:
             raise RuntimeError("short command write; do not replay")
 
 
+def reply_line(command, data):
+    """The first reply line of a checked single-byte command and its exit status; (None, 1) without one."""
+    for line in bytes(data).decode("utf8", errors="replace").splitlines():
+        for prefix, status in REPLIES.get(command, ()):
+            if line.startswith(prefix):
+                return line, status
+    return None, 1
+
+
 def pong_values(line):
     return dict(word.split("=", 1) for word in line.split()[1:] if "=" in word)
 
@@ -930,6 +949,9 @@ def dry_run(args, fields):
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)
     else:
         print("  send once: %r, capture %s s" % (COMMANDS[args.command], args.seconds))
+        if args.command in REPLIES:
+            print("  exit " + ", ".join("%d on %r" % (status, prefix.strip()) for prefix, status in
+                                        REPLIES[args.command]) + ", 1 on neither")
     print("  write %s" % args.output)
 
 
@@ -1132,6 +1154,9 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                     data.extend(port.read(min(max(port.in_waiting, 1), 4096)))
                     if len(data) > 131072:
                         raise RuntimeError("bounded capture capacity exceeded")
+                if args.command in REPLIES:
+                    # Only bytes after the request: a stale reply already waiting decides nothing.
+                    meta["reply"], meta["reply_status"] = reply_line(args.command, data[meta["prefix_bytes"]:])
         finally:
             port.close()
         meta["status"] = "captured"
@@ -1157,7 +1182,7 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     print(bytes(data).decode("utf8", errors="replace"), end="")
     print("\nEvidence:", args.output)
     if not is_trial:
-        return 0
+        return meta.get("reply_status", 0)
     import s2_evidence  # Imported here: s2_evidence imports this module's COMMANDS.
     report = s2_evidence.replay_capture(args.output, manifest=Path(args.output) / "absent.json")
     print("verdict:", report.verdict, "failure:", report.failure_name or report.failure, "reason:", meta["reason"])

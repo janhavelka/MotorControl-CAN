@@ -213,6 +213,9 @@ node epoch, eligible controller/NMT state and no occupied transfer, cleanup,
 unresolved route or live handoff. The nonzero authorization serial increases
 per channel; operation IDs cannot decrease and steps within the same operation
 must increase. Clearing a grant does not allow its step to be authorized again.
+`lastExperiment(slot, authorizationId, operation)` reports the channel's last accepted grant, upload
+or download, so that an application whose producers draw grants on one channel from separate
+counters can continue above it; it grants and renews nothing.
 The application retains the actual fixture, authorization and finite experiment
 review under that serial; the adapter cannot authenticate those external facts.
 

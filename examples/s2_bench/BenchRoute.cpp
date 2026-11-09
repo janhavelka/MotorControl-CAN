@@ -767,6 +767,11 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     // A trigger that may have moved the drive without an observed completion fences new moves.
     if (plan.kind == RouteKind::MOVE && session->moveFenced())
         return "fenced";
+    // Last, so that a refusal above leaves every reservation's numbering as it was.
+    if (!continueOperations(*session, index, now) ||
+        (plan.kind == RouteKind::MOVE && plan.observer &&
+         !continueOperations(*sessions_[plan.observer - 1], uint8_t(plan.observer - 1), now)))
+        return "session";
     lastTrial_ = plan.trial;
     if (motion) {
         motionTotal_ = uint8_t(motionTotal_ + 1 + stop);
@@ -1284,6 +1289,95 @@ bool BenchRoute::release() noexcept {
     occupied_ = false;
     return true;
 }
+// The channel grants an experiment only above its last grant, in authorization identity and in operation
+// identity, whichever producer drew it (SdoClient::authorizeExperiment). K, H and the PDO lines draw theirs
+// from main.cpp's counters, so after them the session's own numbering can lie below the channel's: the
+// homing route's 2400 read was refused `why=grant` after K (trials 903 to 906). Raising the session's
+// reservation to the channel's last granted operation makes its next operation continue above it. An
+// owner operation with nothing admitted under it sends nothing.
+bool BenchRoute::continueOperations(AxisSession& session, uint8_t slot, uint64_t now) noexcept {
+    uint32_t authorization = 0, operation = 0;
+    const uint32_t next = session.nextOperation();
+    if (!next || !services_.lastExperiment(slot, authorization, operation))
+        return false;
+    return next > operation || firmware_.owner().beginOperation(session.sequence(), operation,
+                                                                now + uint64_t(ROUTE_CUTOFF_MS) * 1000, now);
+}
+// The next grant identity on a slot: above this object's last, and above the channel's last, which K, H
+// or a PDO line may have drawn from another range. Zero once exhausted.
+uint32_t BenchRoute::nextGrant(uint8_t slot) const noexcept {
+    uint32_t authorization = 0, operation = 0;
+    const uint32_t last =
+        services_.lastExperiment(slot, authorization, operation) && authorization > grant_ ? authorization : grant_;
+    return last == UINT32_MAX ? 0 : last + 1;
+}
+namespace {
+// A counter clear's 1, or a home's trigger, withdrew this axis's coordinates and moved its configuration
+// epoch on; the session moves the owner's reservation there itself once nothing of it is outstanding, and
+// until then it still reads on the clear's or home's original binding. AxisSession::close would drop that
+// owed move with the history, leaving the adapter on the old epoch, so a close waits for it.
+bool configurationOwed(const AxisSession& s) {
+    const L::ActionContext& clear = s.clearAction();
+    const L::HomeContext& home = s.homeAction();
+    return (clear.coordinatesInvalidated && M::sameBinding(s.binding(), clear.reservation.target.channel.binding)) ||
+           (home.coordinatesInvalidated && M::sameBinding(s.binding(), home.reservation.target.channel.binding));
+}
+} // namespace
+const char* BenchRoute::closeSessions(uint8_t& closed) noexcept {
+    closed = 0;
+    if (occupied_)
+        return "record";
+    // The firmware's own read can share a session's reservation (ProbeApp::openAxis adopts it).
+    if (firmware_.app().readContext().state != M::ReadState::EMPTY || firmware_.app().pendingRequest().owner)
+        return "state";
+    // Every check before the first close, so that a refusal closes nothing.
+    for (uint8_t slot = 0; slot < 2; ++slot) {
+        const AxisSession* s = sessions_[slot];
+        if (!s || !s->isOpen())
+            continue;
+        if (s->busy() || !firmware_.owner().localTxRetired(slot))
+            return "busy";
+        if (configurationOwed(*s))
+            return "configuration";
+    }
+    for (uint8_t slot = 0; slot < 2; ++slot) {
+        AxisSession* s = sessions_[slot];
+        if (!s || !s->isOpen())
+            continue;
+        if (!s->close())
+            return "owner";
+        closed = uint8_t(closed | 1u << slot);
+    }
+    return nullptr;
+}
+uint8_t BenchRoute::kept(unsigned node) const noexcept {
+    const AxisSession* s = session(node);
+    if (!s)
+        return 0;
+    return uint8_t((s->moveFenced() ? KEPT_MOVE_FENCE : 0) | (s->clearBlocked() ? KEPT_CLEAR_BLOCK : 0) |
+                   (s->faultBlocked() ? KEPT_FAULT_BLOCK : 0) | (s->velocityNeedsStop() ? KEPT_VELOCITY_STOP : 0) |
+                   (s->homeNeedsStop() ? KEPT_HOME_STOP : 0) | (s->motionHistoryWritten() ? KEPT_WRITTEN : 0) |
+                   (modeAdmitted_[node - 1] ? KEPT_MODE_WRITE : 0));
+}
+bool formatSessionsLine(const BenchRoute* route, const char* refusal, uint8_t closed, char* output,
+                        size_t size) noexcept {
+    if (!output || !size)
+        return false;
+    const unsigned one = closed & 1u, two = (closed >> 1) & 1u;
+    const int count =
+        refusal ? std::snprintf(output, size, "SESSIONS refused reason=%s node1=%u node2=%u; nothing sent%s\n", refusal,
+                                one, two, closed ? "; the sessions named stay closed" : ", nothing else changed")
+                : std::snprintf(output, size,
+                                "SESSIONS closed node1=%u node2=%u kept1=%02x kept2=%02x motion=%u; nothing sent; "
+                                "latest controlwords dropped; fences, trials and caps kept\n",
+                                one, two, route ? unsigned(route->kept(1)) : 0u, route ? unsigned(route->kept(2)) : 0u,
+                                route ? unsigned(route->motionAdmissions()) : 0u);
+    if (count < 0 || size_t(count) >= size) {
+        output[0] = 0;
+        return false;
+    }
+    return true;
+}
 // Consume this route's own terminal. False while it has not arrived.
 bool BenchRoute::settle(uint64_t now) noexcept {
     C::SdoCompletion done;
@@ -1667,14 +1761,14 @@ void BenchRoute::admit(const C::SdoTransfer& transfer, uint64_t now) noexcept {
     if ((!upload || transfer.readEffect == C::SdoReadEffect::UNQUALIFIED) &&
         !(grantedOperation_ == transfer.operation && grantedStep_ == transfer.step)) {
         L::ReadTarget target;
-        if (grant_ == UINT32_MAX || !currentTarget(target) ||
-            !(upload ? services_.authorizeUploadExperiment(slot(), transfer, target.nodeGeneration, grant_ + 1, now)
-                     : services_.authorizeDownloadExperiment(slot(), transfer, target.nodeGeneration, grant_ + 1,
-                                                             now))) {
+        const uint32_t grant = nextGrant(slot());
+        if (!grant || !currentTarget(target) ||
+            !(upload ? services_.authorizeUploadExperiment(slot(), transfer, target.nodeGeneration, grant, now)
+                     : services_.authorizeDownloadExperiment(slot(), transfer, target.nodeGeneration, grant, now))) {
             finish(RouteFailure::AUTHORIZATION, "grant", now);
             return;
         }
-        ++grant_;
+        grant_ = grant;
         grantedOperation_ = transfer.operation;
         grantedStep_ = transfer.step;
     }
@@ -2675,10 +2769,10 @@ void BenchRoute::serviceObserverRead(uint64_t now) noexcept {
     if (transfer.readEffect == C::SdoReadEffect::UNQUALIFIED &&
         !(observerGrantOperation_ == transfer.operation && observerGrantStep_ == transfer.step)) {
         const C::NodeSnapshot* node = services_.node(other);
-        if (grant_ == UINT32_MAX || !node ||
-            !services_.authorizeUploadExperiment(other, transfer, node->route.generation, grant_ + 1, now))
+        const uint32_t grant = nextGrant(other);
+        if (!grant || !node || !services_.authorizeUploadExperiment(other, transfer, node->route.generation, grant, now))
             return fail(RouteFailure::AUTHORIZATION, "grant");
-        ++grant_;
+        grant_ = grant;
         observerGrantOperation_ = transfer.operation;
         observerGrantStep_ = transfer.step;
     }

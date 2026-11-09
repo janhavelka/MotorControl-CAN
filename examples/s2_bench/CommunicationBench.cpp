@@ -59,6 +59,17 @@ const char* sequenceRefusal(const CanBusOwner& owner, const M::Binding& binding)
     SequenceId held;
     return owner.findSequence(binding, held) ? "reserved" : "busy";
 }
+// The channel grants an experiment only above its last grant, in authorization and in operation
+// identity, whoever drew it (SdoClient::authorizeUploadExperiment). A route's grants can be above
+// main.cpp's counters, which therefore continue from the channel's last grant; a request that does
+// not is refused before it reserves anything, rather than at its first upload.
+const char* grantRefusal(const C::SdoClient& services, uint8_t slot, uint32_t operation, uint32_t grant) {
+    uint32_t lastGrant = 0, lastOperation = 0;
+    return services.lastExperiment(slot, lastGrant, lastOperation) && operation > lastOperation &&
+                   grant > lastGrant
+               ? nullptr
+               : "grant";
+}
 char direction(L::CommunicationGroup g) {
     return g == L::CommunicationGroup::RPDO_COMMUNICATION || g == L::CommunicationGroup::RPDO_MAPPING
                ? 'r'
@@ -93,6 +104,8 @@ const char* CommunicationReads::begin(const CommunicationBenchRequest& r, uint64
     // An unresolved route admits nothing; refuse before reserving rather than fail at the first read.
     if (services_.unresolved(s))
         return "unresolved";
+    if (const char* refusal = grantRefusal(services_, s, r.id, r.firstGrant))
+        return refusal;
     SequenceId sequence;
     if (!owner_.beginSequence(channel->binding, COMMUNICATION_PRODUCER, now, sequence))
         return sequenceRefusal(owner_, channel->binding);
@@ -436,6 +449,9 @@ const char* HeartbeatCommission::begin(const HeartbeatBenchRequest& r, uint64_t 
         return "unresolved";
     // Without its premises the migration after an acknowledged write would be refused.
     if (const char* refusal = migrationRefusal(s, now))
+        return refusal;
+    // After the bench premises the operator acts on: a grant refusal is the image's own numbering.
+    if (const char* refusal = grantRefusal(services_, s, r.id, r.firstGrant))
         return refusal;
     SequenceId sequence;
     if (!owner_.beginSequence(channel->binding, COMMUNICATION_PRODUCER, now, sequence))

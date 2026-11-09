@@ -244,7 +244,9 @@ strict_test(bench_heap_test)
 add_test(NAME bench_heap COMMAND bench_heap_test)
 set_tests_properties(bench_heap PROPERTIES TIMEOUT 10)
 add_executable(bench_route_test bench_route_test.cpp)
-target_sources(bench_route_test PRIVATE ../examples/s2_bench/BenchRoute.cpp)
+# The K and H records too: they share the owner and the per-channel grants with the routes (S15).
+target_sources(bench_route_test PRIVATE ../examples/s2_bench/BenchRoute.cpp
+               ../examples/s2_bench/CommunicationBench.cpp ../examples/s2_bench/BenchTerminal.cpp)
 target_include_directories(bench_route_test PRIVATE ../examples/s2_bench)
 target_link_libraries(bench_route_test PRIVATE MotorControlCANFirmwareProbe)
 strict_test(bench_route_test)
