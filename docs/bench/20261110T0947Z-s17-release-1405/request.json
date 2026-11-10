@@ -1,0 +1,20 @@
+{
+  "started_utc": "2026-11-10T09:48:14.144951+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "release",
+  "seconds": 4.0,
+  "reset": false,
+  "retry": false,
+  "tx_hex": "72",
+  "prefix_bytes": 0,
+  "status": "captured",
+  "ended_utc": "2026-11-10T09:48:18.158143+00:00"
+}
