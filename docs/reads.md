@@ -92,6 +92,13 @@ installed supported model or firmware.
 | State: inputs (1) | `60FD` | U32 raw inputs; no assumed equivalence to `2101` bit layout. |
 | Configuration (6) | `1005`, `1014`, `1017`, `1200:00..02` | U32 SYNC/EMCY routes, U16 producer interval, U8 record count, U32 client/server SDO routes. Observations do not reconfigure routes. |
 | Velocity target (1) | `60FF:00` | Four raw bytes; `DriverObservation::velocityTargetRpm` gives the EDS I32 view in rpm. U32 manual claims remain conflicting, and negative raw values do not qualify reverse motion. |
+| Persistence action word (1) | `2300:00` | U16 `DriverObservation::persistenceRaw`, including unknown codes. No save completion, rearm, restart or durability inference. |
+
+The `PERSISTENCE` driver group uses `prepareDriverRead`, `nextDriver`,
+`advanceDriver` and checked `getDriver`. Its one exact two-byte upload stays
+`UNQUALIFIED` under Q20 and outside DEC-1. The yielded transfer requires the
+owner's exact one-use upload review even on a confirmed service route; it does
+not become an ordinary poll. The read does not execute a persistent action.
 
 The `HOMING` driver group adds `607C:00`, `6098:00`, `6099:00..02`, and
 `609A:00`, in that fixed order. Checked `getDriver` exposes six raw fields;

@@ -213,7 +213,8 @@ CANOPEN::SdoTransfer work(const ReadContext& c) {
     out.readEffect = object.readEffect == ReadEffect::ACCEPTED_UNQUALIFIED
                          ? CANOPEN::SdoReadEffect::ACCEPTED_UNQUALIFIED
                          : CANOPEN::SdoReadEffect::UNQUALIFIED;
-    out.requireUploadReview = pdoKind(c.kind) || c.kind == ReadKind::COMMUNICATION_NODE;
+    out.requireUploadReview = pdoKind(c.kind) || c.kind == ReadKind::COMMUNICATION_NODE ||
+                              c.kind == ReadKind::PERSISTENCE;
     out.deadlineUs = c.deadlineUs;
     out.queueTimeoutUs = c.options.queueTimeoutUs;
     out.responseTimeoutUs = c.options.responseTimeoutUs;

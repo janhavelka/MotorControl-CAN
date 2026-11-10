@@ -10084,7 +10084,13 @@
             ],
             "generation_type": "resolved"
           },
-          "read_owner_prompt": 39
+          "read_owner_prompt": 39,
+          "read_coverage": {
+            "documented": true,
+            "implemented": true,
+            "host_tested": true,
+            "hardware_qualified": false
+          }
         }
       ]
     },
@@ -20642,7 +20648,8 @@
           "Q15"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 39 implements conditional prepareSave/prepareFactoryRestore, one U16 2300 write, retained native outcome/uncertainty and explicit verifyPersistence using independent current-route typed reads. No automatic retry, zero rearm, restart, guessed defaults or rollback. Application ConfigurationRestore re-applies only recorded 6081/6083/6084 via the existing Settings engine. See docs/commissioning.md and test/persistence_test.cpp. Full saved set, restart/rearm, flash completion/endurance, factory effects and physical qualification remain Q15; whole-function coverage is not claimed."
     },
     {
       "key": "restore_factory_parameters",
@@ -20680,7 +20687,8 @@
           "Q15"
         ],
         "write_policy": "qualification_required"
-      }
+      },
+      "implementation_scope": "Prompt 39 implements conditional prepareSave/prepareFactoryRestore, one U16 2300 write, retained native outcome/uncertainty and explicit verifyPersistence using independent current-route typed reads. No automatic retry, zero rearm, restart, guessed defaults or rollback. Application ConfigurationRestore re-applies only recorded 6081/6083/6084 via the existing Settings engine. See docs/commissioning.md and test/persistence_test.cpp. Full saved set, restart/rearm, flash completion/endurance, factory effects and physical qualification remain Q15; whole-function coverage is not claimed."
     },
     {
       "key": "fault_reset_controlword",

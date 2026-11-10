@@ -1,5 +1,15 @@
 # Requirement coverage after pure CAN/SDO checks
 
+Prompt39 adds the `2300` typed U16 read (192 total read shapes), conditional
+`prepareSave`/`prepareFactoryRestore` and explicit `verifyPersistence`. Native
+command outcomes remain immutable while independent readback can report survival
+of three fields after an externally evidenced power cycle. Application
+`captureConfiguration`/`prepareConfigurationRestore` reuses the existing settings
+engine for `6081/6083/6084`, retaining partial effects without rollback or save.
+See [report39](reports/prompt_39.md) and [commissioning](commissioning.md). Q15
+keeps full persistence scope/rearm/restart/effects unqualified; Q20 still gates
+the new upload. No hardware or CLI coverage is claimed.
+
 Prompt38 adds all 89 assigned PDO/2203 read rows (191 total read shapes) and one conditional heartbeat setting (14 conditional setting rows). Mandatory exact acquisition grants remain separate from confirmed channel serviceability. [Commissioning](commissioning.md#explicit-communication-commissioning) records the supported workflow and blocked node/route/bitrate/persistence scope. No new hardware qualification is claimed.
 
 Prompt37 adds implemented-profile inventory, checked minimal probe projection,

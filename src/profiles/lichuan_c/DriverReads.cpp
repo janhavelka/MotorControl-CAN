@@ -10,6 +10,7 @@ const Address driver[] = {{0x2200, 0}, {0x2201, 0}};
 const Address softLimits[] = {{0x2202, 0}, {0x607d, 0}, {0x607d, 1}, {0x607d, 2}};
 const Address motionParameters[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}};
 const Address velocityTarget[] = {{0x60ff, 0}};
+const Address persistence[] = {{0x2300, 0}};
 const Address homing[] = {{0x607c, 0}, {0x6098, 0}, {0x6099, 0},
                           {0x6099, 1}, {0x6099, 2}, {0x609a, 0}};
 const Address ioInputs[] = {{0x2400, 0}, {0x2400, 1}, {0x2400, 2}, {0x2400, 3}, {0x2400, 4},
@@ -41,6 +42,8 @@ const GroupPlan groups[] = {
     {DriverGroup::VELOCITY_TARGET, ReadKind::VELOCITY_TARGET, GroupFamily::DRIVER, noTuning,
      velocityTarget, length(velocityTarget)},
     {DriverGroup::HOMING, ReadKind::HOMING, GroupFamily::DRIVER, noTuning, homing, length(homing)},
+    {DriverGroup::PERSISTENCE, ReadKind::PERSISTENCE, GroupFamily::DRIVER, noTuning, persistence,
+     length(persistence)},
     {DriverGroup::IO_INPUT_CONFIGURATION, ReadKind::IO_INPUT_CONFIGURATION, GroupFamily::IO,
      noTuning, ioInputs, length(ioInputs)},
     {DriverGroup::IO_OUTPUT_CONFIGURATION, ReadKind::IO_OUTPUT_CONFIGURATION, GroupFamily::IO,
@@ -131,6 +134,9 @@ Status getDriver(const DriverContext& c, const ReadTarget& target, uint64_t now,
         break;
     case DriverGroup::VELOCITY_TARGET:
         candidate.velocityTargetRpm = signed32(v[0].raw);
+        break;
+    case DriverGroup::PERSISTENCE:
+        candidate.persistenceRaw = uint16_t(v[0].raw);
         break;
     case DriverGroup::HOMING:
         candidate.homeOffsetRaw = signed32(v[0].raw);

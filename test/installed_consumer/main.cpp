@@ -7,6 +7,7 @@
 #include <MotorControlCAN/profiles/lichuan_c/Communication.h>
 #include <MotorControlCAN/profiles/lichuan_c/IoSettings.h>
 #include <MotorControlCAN/profiles/lichuan_c/Homing.h>
+#include <MotorControlCAN/profiles/lichuan_c/Persistence.h>
 #include <MotorControlCAN/profiles/lichuan_c/Objects.h>
 #include <MotorControlCAN/profiles/lichuan_c/Pdo.h>
 #include <MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h>
@@ -20,6 +21,18 @@
 
 int main() {
     using namespace MotorControlCAN;
+    // Exported persistence requires explicit prerequisites and never emits startup work.
+    static LICHUAN_C::PersistenceContext persistence;
+    static const LICHUAN_C::PersistencePrerequisites missingPersistence;
+    const LICHUAN_C::AxisReservation missingReservation;
+    const LICHUAN_C::PersistenceReview missingReview;
+    const LICHUAN_C::ReadTarget missingTarget;
+    const LICHUAN_C::ReadOptions missingOptions;
+    if (LICHUAN_C::prepareSave(persistence, missingReservation, missingTarget, missingReview,
+                             missingPersistence, 1, 1, 0, 100, missingOptions, 10) ||
+        persistence.state != LICHUAN_C::PersistenceState::EMPTY || persistence.attempts != 0 ||
+        persistence.completeSavedSet != LICHUAN_C::PersistenceRequirement::UNKNOWN)
+        return 91;
     LICHUAN_C::CommunicationReadContext communication;
     LICHUAN_C::ReadTarget communicationTarget;
     communicationTarget.channel.binding.logicalAxisId = 1;

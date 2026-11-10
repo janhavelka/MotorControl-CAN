@@ -149,10 +149,35 @@ class LedgerTests(unittest.TestCase):
             entry(data, key)["read_owner_prompt"] = 36
             self.reject(data, "outside the reviewed Prompt 36 homing read scope")
 
+    def test_persistence_read_scope_does_not_qualify_effects_or_generic_writes(self):
+        row = entry(LEDGER, "0x2300:00")
+        self.assertEqual(row["read_coverage"], dict(documented=True, implemented=True,
+                                                    host_tested=True, hardware_qualified=False))
+        self.assertFalse(row["coverage"]["implemented"])
+        self.assertEqual(row["review"]["read_effect"], "not_established")
+        self.assertEqual(row["review"]["write_policy"], "qualification_required")
+        self.assertIn("Q15", row["review"]["gate_ids"])
+        self.assertIn("Q20", row["review"]["gate_ids"])
+        self.assertNotIn("read_disposition", row)
+        for key in ("0x2203:00", "0x2301:00", "0x607A:00"):
+            data = self.changed()
+            entry(data, key)["read_owner_prompt"] = 39
+            self.reject(data, "outside the reviewed Prompt 39 persistence read scope")
+        for native in (dict(eds_code="0x0005", name="U8", width_bytes=1, signed=False),
+                       dict(eds_code="0x0003", name="I16", width_bytes=2, signed=True),
+                       dict(eds_code="0x0007", name="U32", width_bytes=4, signed=False)):
+            data = self.changed()
+            entry(data, "0x2300:00")["type"] = native
+            self.reject(data, "requires the reviewed Prompt 39 U16 RW native read shape")
+        for access in ("RO", "WO"):
+            data = self.changed()
+            entry(data, "0x2300:00")["access_reviewed"] = access
+            self.reject(data, "read owner")
+
     def test_read_coverage_cannot_widen_scope_or_claim_hardware(self):
         coverage = dict(documented=True, implemented=True, host_tested=True,
                         hardware_qualified=False)
-        for key in ("0x6040:00", "0x2400:09", "0x607A:00", "0x2300:00"):
+        for key in ("0x6040:00", "0x2400:09", "0x607A:00"):
             data = self.changed()
             entry(data, key)["read_coverage"] = coverage.copy()
             self.reject(data, "read coverage requires a reviewed implemented-group")

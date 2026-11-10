@@ -110,7 +110,9 @@ actual scope and remaining gates. Finite velocity has a conditional lifecycle
 and owner stop integration; selected-firmware startup, reverse and stop evidence
 remain gated. Homing has a conditional method-specific lifecycle, explicit mode-6
 enable/interrupt integration and checked reference publication; input, direction,
-offset and completion qualification remain gated. Release and persistence families remain pending. Communication has typed raw reads
+offset and completion qualification remain gated. Release remains pending. Persistence has conditional
+`prepareSave`/`prepareFactoryRestore`, one-attempt stepping and independent `verifyPersistence`;
+complete saved scope, restart/rearm and physical qualification remain gated. Communication has typed raw reads
 and one conditional heartbeat workflow; broader node/route mutation remains gated.
 Retain `state`, `outcome`, `status`, `execution`, `completion`,
 `uncertain` and operation-specific evidence in the concrete contexts where

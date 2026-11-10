@@ -229,7 +229,7 @@ void allRowsAndRealOwner() {
         }
     CHECK(seen == 30);
     const Field excluded[] = {{0x6040, 0, 2, 0}, {0x6060, 0, 1, 0}, {0x1018, 4, 4, 0},
-                              {0x1003, 5, 4, 0}, {0x2300, 0, 2, 0}, {0x1400, 6, 1, 0},
+                              {0x1003, 5, 4, 0}, {0x2300, 1, 2, 0}, {0x1400, 6, 1, 0},
                               {0x1600, 5, 1, 0}, {0x2203, 1, 2, 0}, {0x2521, 0, 2, 0},
                               {0x60f4, 0, 4, 0}};
     L::ReadDescriptor d = {};
@@ -871,7 +871,7 @@ C::PdoMapEvidence mapEvidence() {
     return e;
 }
 // Every readable descriptor is swept, so an extra accepted row cannot go unnoticed. The generator
-// test pins the table at 191 rows; finding all 191 proves no row lies outside this finite range.
+// test pins the table at 192 rows; finding all 192 proves no row lies outside this finite range.
 void acceptedListIsExact() {
     unsigned readable = 0, effective = 0;
     for (uint32_t index = 0x1000; index <= 0x6fff; ++index)
@@ -885,7 +885,7 @@ void acceptedListIsExact() {
                                           : L::ReadEffect::UNQUALIFIED));
             effective += d.readEffect == L::ReadEffect::ACCEPTED_UNQUALIFIED;
         }
-    CHECK(readable == 191 && effective == 16);
+    CHECK(readable == 192 && effective == 16);
     for (const Address& address : acceptedReads) {
         L::ReadDescriptor d = {};
         CHECK(L::readDescriptor(address.index, address.subindex, d));
@@ -895,7 +895,7 @@ void acceptedListIsExact() {
     // rows, or are ordinary settings that keep their existing disposition.
     const Address never[] = {{0x603f, 0}, {0x1001, 0}, {0x1003, 0}, {0x1003, 1}, {0x1003, 2},
                              {0x1003, 3}, {0x1003, 4}, {0x60fd, 0}, {0x1005, 0}, {0x1017, 0},
-                             {0x2200, 0}, {0x2500, 0}};
+                             {0x2200, 0}, {0x2300, 0}, {0x2500, 0}};
     for (const Address& address : never) {
         L::ReadDescriptor d = {};
         CHECK(L::readDescriptor(address.index, address.subindex, d));

@@ -1,5 +1,12 @@
 # Executable backlog
 
+Prompt39 implements conditional one-attempt save/factory restore, independent
+reconciliation and three-field host re-application ([report](reports/prompt_39.md)).
+Remaining Q15 work is device evidence: exact specimen saved-field scope, rearm,
+restart/route behavior, interrupted flash effects and qualified backup/recovery.
+The new `2300` read remains Q20 reviewed acquisition. No broader settings or
+communication gaps moved into this prompt; no factory reset is a test setup.
+
 Prompt38 delivers the 89 read rows, C-09 firmware guard and the reviewed heartbeat workflow. Its remaining node/SYNC/EMCY/SDO-route mutation needs exact-firmware activation/reply-route evidence under Q16; per-row restart/persistence remain unknown. Keep this work assigned to 38, independently of prompt18 remapping and prompt39 save/reset. See [commissioning](commissioning.md#explicit-communication-commissioning).
 
 Prompt37's [finite discovery software](commissioning.md) is implemented: installed

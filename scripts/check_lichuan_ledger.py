@@ -66,6 +66,15 @@ def read_owner_errors(entry):
         return [label + "must be an integer prompt in 1..50 or null"]
     if not readable:
         return [label + "requires a nonreserved readable source entry"]
+    if owner == 39:
+        if (entry.get("key") != "0x2300:00" or entry.get("index") != 0x2300 or
+                entry.get("subindex") != 0 or entry.get("owner_prompt") != 39 or
+                entry.get("role") != "value"):
+            return [label + "outside the reviewed Prompt 39 persistence read scope"]
+        if (entry.get("type") != dict(eds_code="0x0006", name="U16", width_bytes=2, signed=False) or
+                entry.get("access_eds") != "RW" or entry.get("access_reviewed") != "RW"):
+            return [label + "requires the reviewed Prompt 39 U16 RW native read shape"]
+        return []
     if owner == 38:
         index, sub = entry.get("index"), entry.get("subindex")
         communication = (type(index) is int and
@@ -182,7 +191,7 @@ def read_coverage_errors(entry):
     if any(type(v) is not bool for v in value.values()):
         return [label + "must be boolean"]
     errors = []
-    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35, 36, 38) or read_owner_errors(entry):
+    if entry.get("read_owner_prompt") not in (19, 20, 21, 22, 35, 36, 38, 39) or read_owner_errors(entry):
         errors.append(label + "requires a reviewed implemented-group read")
     if value["documented"] is not True:
         errors.append(label + "must retain documented source evidence")

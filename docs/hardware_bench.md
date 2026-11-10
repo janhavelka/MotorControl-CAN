@@ -69,10 +69,52 @@ one-based PDF pages. The independent page review is recorded in
 | EN86 pp9-10 | SW6/7 choices 125/250/500/1000 kbit/s; SW8 ON connects 120 ohms | 1 Mbit/s works on this fixture; total installed resistance remains unmeasured. EDS also advertises 50 kbit/s without a documented DIP choice |
 | EN86 p3 | CL encoder specification 1000 lines; OL entry N/A | Does not establish actual-position units, quadrature conversion or command-pulse scale |
 | OP86 pp3/10 | Cover says 86C; internal headers say 57C and p3 pin table says RS485 despite CAN labels | Preserve source inconsistency; do not substitute its labels for an inspected fixture |
+| EN86/ZH86 p4; OP86 p3; manufacturer page | Panel artwork and product page say 30-110 VDC / 20-80 VAC | Conflicts with both rows below; not a merged allowable range |
+| EN86/ZH86 p3 | Specification tables say 36-110 VDC / 18-80 VAC | Use the actual nameplate and applicable manufacturer confirmation |
+| EN86/ZH86 pp6-7; OP86 p5 | Power terminal/wiring says 24-50 VDC | Does not resolve the higher-voltage panel/specification claims |
+| OP86 p5, p9 | CL57-C/OL57-C body says locked at power-up; the position procedure later says 6/7/15 enables the motor | CL86-C applicability unconfirmed; independently observe every boot/restart and capture `2100`/`6041` before commands |
 
 The three-way supply disagreement inside each manual is an unresolved Q19
 fixture prerequisite. No voltage is selected from those conflicting ranges.
 Use the actual nameplate and applicable manufacturer evidence.
+
+## Persistence evidence and restart boundaries
+
+The [commissioning order and persistence guide](commissioning.md) distinguishes
+save parameters (`2300:00=2`), restore factory settings (`2300:00=1`) and host
+re-application of recorded configuration. Original EN86/ZH86 PDF p15 documents
+the save SDO and gives homing speed, ramps and homing mode as examples. Their
+p18 tables and EDS `[2300]` establish the U16 action; EDS RW/PDO flags and default
+zero establish no completion or harmless-read guarantee. The `2300` upload is
+outside DEC-1 and needs an explicit reviewed acquisition.
+
+No retained source establishes a save completion delay, endurance, complete
+saved set, rearm write, reply-before/after-flash ordering, factory activation
+timing or guaranteed communication route after factory restore. In particular,
+whether heartbeat `1017`, node `2203` or PDO maps are saved remains unknown.
+Count each possible save attempt in the application record, including a lost
+reply; never automatically replay it. A successful SDO response is protocol
+acknowledgement, not proof of flash completion or survival through restart.
+
+There is no documented vendor restart command. The manuals' alarm wording
+about restart does not define one. Here a restart means an actual user drive
+power cycle, or an independently gated NMT service whose parameter-reload
+effect is unknown. An MCU reboot does not prove a drive restart. Capture the
+power-cycle evidence, times, raw traffic, actual route and fresh identity/state
+and field readbacks. A field matching after that cycle establishes survival only
+with an unchanged recorded post-cycle route/configuration epoch and independent
+evidence excluding intervening configuration writes from every producer. Values
+re-applied after restart are not survival evidence. This neither identifies the whole
+saved set nor changes an earlier uncertain write into an acknowledged one.
+
+Factory restore needs a reviewed backup and independently established route
+back before live use. No factory-default dump or factory-reset bench setup is
+provided. If a reply is lost, preserve the possible effect and channel quarantine;
+use explicit current-route reconciliation with real retirement evidence. A host
+epoch alone cannot retire a delayed same-ID reply or qualify a PDO sample.
+No save/factory-restore hardware sequence or physical persistence qualification
+is established by prompt 39's host tests. Earlier no-save power-cycle reversions
+above remain observations of those particular cycles.
 
 ## Finite acquisition and interpretation
 
