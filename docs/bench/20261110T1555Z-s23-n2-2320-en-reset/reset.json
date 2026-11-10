@@ -1,0 +1,9 @@
+{
+  "tool": "en_reset (lead scratch script, copied here)",
+  "started_utc": "2026-11-10T15:55:45.799991+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "via": "RTS asserted 0.1 s, DTR deasserted",
+  "reason": "Fresh MCU boot: repeatability on node 2 at 60 rpm",
+  "captured_bytes": 365
+}

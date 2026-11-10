@@ -1,0 +1,10 @@
+ESP-ROM:esp32s2-rc4-20191025
+Build:Oct 25 2019
+rst:0x1 (POWERON),boot:0xa (SPI_FAST_FLASH_BOOT)
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3ffe5110,len:0x4f8
+load:0x4004a000,len:0x8a4
+load:0x4004e000,len:0x2b08
+entry 0x4004a11c
+S2_BENCH ready; UART115200; CAN disabled; p=ping c=start s=stats 3/4=raw v/b=motion-reads S=soak X=soak-stop T=trial A=trial-abort

@@ -1,0 +1,133 @@
+PONG target=esp32s2 base=e935f67479aecf89433204e1c39e2cfbfc7a18d6 elf=9172b4ad4d4aa5ccf5fdf3b36cf0a66d6d7881315578262f2a8f12316787dda2 sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=115580997 routes=8 trial=0 motion=5 pdo=4 watch=0 capture=0
+TRIAL admitted route=rearm node=2 trial=2407 motion=6 case=2; finite typed route, no retry
+TRIAL id=2407 node=2 route=rearm failure=0 why=none lost=0 terminals=31 traffic=93 tail=0 tailLost=0 summaries=5 step=3 cycles=3 motion=6 case=2 unsettled=0 gap=4002 lossCancel=0
+TRIAL_PLAN route=rearm node=2 trial=2407 attended=1 pred=1 cycles=3 interval=500
+TRIAL_RES stack0=6680 stack1=6680 heap0=37264 heap1=37264 heapMin=32824 largest=20480 gap=4002 dropped=0 admission=0 started=115618775 completed=116741000 tec0=0 rec0=0 tec1=0 rec1=0
+TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0001 6041=9437 6061=01 6064=2500 606c=0
+TRIAL_LAST passed=1 blocks=1c 1001=00 603f=0000 2100=0001 6041=8437 6061=01 6064=2500 606c=0
+TRIAL_REARM pword=001f predop=36 predus=88611000 latest=1 word=000f latestop=47
+RESULT op=46 req=46 oreq=369 step=1 object=1001:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=00000000 admitted=115624002 completed=115627000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=370 step=2 object=603f:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=115631002 completed=115634000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=371 step=3 object=2100:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=115638002 completed=115641000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=372 step=4 object=2101:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=115645002 completed=115648000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=373 step=5 object=2102:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=115652002 completed=115655000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=374 step=6 object=6041:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=37940000 admitted=115659002 completed=115662000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=375 step=7 object=6061:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=115666002 completed=115669000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=376 step=8 object=6064:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=c4090000 admitted=115673002 completed=115676000 ne=1 reason=0 st=3f node=2
+RESULT op=46 req=46 oreq=377 step=9 object=606c:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=115680002 completed=115683000 ne=1 reason=0 st=3f node=2
+RESULT op=47 req=47 oreq=378 step=1 object=6040:00 dir=1 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=0 data=00000000 admitted=115689002 completed=115692000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=379 step=1 object=2100:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=115696002 completed=115699000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=380 step=2 object=2101:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=115703002 completed=115706000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=381 step=3 object=2102:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=115710002 completed=115713000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=382 step=4 object=6041:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=37840000 admitted=115717002 completed=115720000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=383 step=5 object=6061:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=115724002 completed=115727000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=384 step=6 object=6064:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=c4090000 admitted=115731002 completed=115734000 ne=1 reason=0 st=3f node=2
+RESULT op=48 req=48 oreq=385 step=7 object=606c:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=115738002 completed=115741000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=386 step=1 object=2100:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=116196002 completed=116199000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=387 step=2 object=2101:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=116203002 completed=116206000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=388 step=3 object=2102:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=116210002 completed=116213000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=389 step=4 object=6041:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=37840000 admitted=116217002 completed=116220000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=390 step=5 object=6061:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=116224002 completed=116227000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=391 step=6 object=6064:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=c4090000 admitted=116231002 completed=116234000 ne=1 reason=0 st=3f node=2
+RESULT op=49 req=49 oreq=392 step=7 object=606c:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=116238002 completed=116241000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=393 step=1 object=2100:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=01000000 admitted=116696002 completed=116699000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=394 step=2 object=2101:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=116703002 completed=116706000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=395 step=3 object=2102:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=00000000 admitted=116710002 completed=116713000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=396 step=4 object=6041:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=2 data=37840000 admitted=116717002 completed=116720000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=397 step=5 object=6061:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=1 data=01000000 admitted=116724002 completed=116727000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=398 step=6 object=6064:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=c4090000 admitted=116731002 completed=116734000 ne=1 reason=0 st=3f node=2
+RESULT op=50 req=50 oreq=399 step=7 object=606c:00 dir=0 outcome=0 ack=1 possible=1 uncertain=0 abort=00000000 cleanup=0 size=4 data=00000000 admitted=116738002 completed=116741000 ne=1 reason=0 st=3f node=2
+TRAFFIC k=1 p=115624002 id=602 ext=0 rtr=0 dlc=8 data=4001100000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=368 txf=1 txc=1
+TRAFFIC k=2 p=115627000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=368 txf=1 txc=1
+TRAFFIC k=0 p=115627000 id=582 ext=0 rtr=0 dlc=8 data=4f01100000000000 ok=1 exact=0 t=0 bounds=1 lo=115624277 hi=115626297 epoch=1
+TRAFFIC k=1 p=115631002 id=602 ext=0 rtr=0 dlc=8 data=403f600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=369 txf=1 txc=1
+TRAFFIC k=2 p=115634000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=369 txf=1 txc=1
+TRAFFIC k=0 p=115634000 id=582 ext=0 rtr=0 dlc=8 data=4b3f600000000000 ok=1 exact=0 t=0 bounds=1 lo=115631275 hi=115633287 epoch=1
+TRAFFIC k=1 p=115638002 id=602 ext=0 rtr=0 dlc=8 data=4000210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=370 txf=1 txc=1
+TRAFFIC k=2 p=115641000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=370 txf=1 txc=1
+TRAFFIC k=0 p=115641000 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=115638277 hi=115640249 epoch=1
+TRAFFIC k=1 p=115645002 id=602 ext=0 rtr=0 dlc=8 data=4001210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=371 txf=1 txc=1
+TRAFFIC k=2 p=115648000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=371 txf=1 txc=1
+TRAFFIC k=0 p=115648000 id=582 ext=0 rtr=0 dlc=8 data=4b01210000000000 ok=1 exact=0 t=0 bounds=1 lo=115645277 hi=115647139 epoch=1
+TRAFFIC k=1 p=115652002 id=602 ext=0 rtr=0 dlc=8 data=4002210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=372 txf=1 txc=1
+TRAFFIC k=2 p=115655000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=372 txf=1 txc=1
+TRAFFIC k=0 p=115655000 id=582 ext=0 rtr=0 dlc=8 data=4b02210000000000 ok=1 exact=0 t=0 bounds=1 lo=115652275 hi=115654156 epoch=1
+TRAFFIC k=1 p=115659002 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=373 txf=1 txc=1
+TRAFFIC k=2 p=115662000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=373 txf=1 txc=1
+TRAFFIC k=0 p=115662000 id=582 ext=0 rtr=0 dlc=8 data=4b41600037940000 ok=1 exact=0 t=0 bounds=1 lo=115659277 hi=115661142 epoch=1
+TRAFFIC k=1 p=115666002 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=374 txf=1 txc=1
+TRAFFIC k=2 p=115669000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=374 txf=1 txc=1
+TRAFFIC k=0 p=115669000 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 exact=0 t=0 bounds=1 lo=115666277 hi=115668126 epoch=1
+TRAFFIC k=1 p=115673002 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=375 txf=1 txc=1
+TRAFFIC k=2 p=115676000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=375 txf=1 txc=1
+TRAFFIC k=0 p=115676000 id=582 ext=0 rtr=0 dlc=8 data=43646000c4090000 ok=1 exact=0 t=0 bounds=1 lo=115673277 hi=115675145 epoch=1
+TRAFFIC k=1 p=115680002 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=376 txf=1 txc=1
+TRAFFIC k=2 p=115683000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=376 txf=1 txc=1
+TRAFFIC k=0 p=115683000 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 exact=0 t=0 bounds=1 lo=115680277 hi=115682139 epoch=1
+TRAFFIC k=1 p=115689002 id=602 ext=0 rtr=0 dlc=8 data=2b4060000f000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=377 txf=1 txc=1
+TRAFFIC k=2 p=115692000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=377 txf=1 txc=1
+TRAFFIC k=0 p=115692000 id=582 ext=0 rtr=0 dlc=8 data=6040600000000000 ok=1 exact=0 t=0 bounds=1 lo=115689277 hi=115691386 epoch=1
+TRAFFIC k=1 p=115696002 id=602 ext=0 rtr=0 dlc=8 data=4000210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=378 txf=1 txc=1
+TRAFFIC k=2 p=115699000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=378 txf=1 txc=1
+TRAFFIC k=0 p=115699000 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=115696271 hi=115698138 epoch=1
+TRAFFIC k=1 p=115703002 id=602 ext=0 rtr=0 dlc=8 data=4001210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=379 txf=1 txc=1
+TRAFFIC k=2 p=115706000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=379 txf=1 txc=1
+TRAFFIC k=0 p=115706000 id=582 ext=0 rtr=0 dlc=8 data=4b01210000000000 ok=1 exact=0 t=0 bounds=1 lo=115703277 hi=115705182 epoch=1
+TRAFFIC k=1 p=115710002 id=602 ext=0 rtr=0 dlc=8 data=4002210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=380 txf=1 txc=1
+TRAFFIC k=2 p=115713000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=380 txf=1 txc=1
+TRAFFIC k=0 p=115713000 id=582 ext=0 rtr=0 dlc=8 data=4b02210000000000 ok=1 exact=0 t=0 bounds=1 lo=115710279 hi=115712144 epoch=1
+TRAFFIC k=1 p=115717002 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=381 txf=1 txc=1
+TRAFFIC k=2 p=115720000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=381 txf=1 txc=1
+TRAFFIC k=0 p=115720000 id=582 ext=0 rtr=0 dlc=8 data=4b41600037840000 ok=1 exact=0 t=0 bounds=1 lo=115717279 hi=115719184 epoch=1
+TRAFFIC k=1 p=115724002 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=382 txf=1 txc=1
+TRAFFIC k=2 p=115727000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=382 txf=1 txc=1
+TRAFFIC k=0 p=115727000 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 exact=0 t=0 bounds=1 lo=115724277 hi=115726142 epoch=1
+TRAFFIC k=1 p=115731002 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=383 txf=1 txc=1
+TRAFFIC k=2 p=115734000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=383 txf=1 txc=1
+TRAFFIC k=0 p=115734000 id=582 ext=0 rtr=0 dlc=8 data=43646000c4090000 ok=1 exact=0 t=0 bounds=1 lo=115731279 hi=115733182 epoch=1
+TRAFFIC k=1 p=115738002 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=384 txf=1 txc=1
+TRAFFIC k=2 p=115741000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=384 txf=1 txc=1
+TRAFFIC k=0 p=115741000 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 exact=0 t=0 bounds=1 lo=115738279 hi=115740172 epoch=1
+TRAFFIC k=1 p=116196002 id=602 ext=0 rtr=0 dlc=8 data=4000210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=385 txf=1 txc=1
+TRAFFIC k=2 p=116199000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=385 txf=1 txc=1
+TRAFFIC k=0 p=116199000 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=116196275 hi=116198185 epoch=1
+TRAFFIC k=1 p=116203002 id=602 ext=0 rtr=0 dlc=8 data=4001210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=386 txf=1 txc=1
+TRAFFIC k=2 p=116206000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=386 txf=1 txc=1
+TRAFFIC k=0 p=116206000 id=582 ext=0 rtr=0 dlc=8 data=4b01210000000000 ok=1 exact=0 t=0 bounds=1 lo=116203279 hi=116205146 epoch=1
+TRAFFIC k=1 p=116210002 id=602 ext=0 rtr=0 dlc=8 data=4002210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=387 txf=1 txc=1
+TRAFFIC k=2 p=116213000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=387 txf=1 txc=1
+TRAFFIC k=0 p=116213000 id=582 ext=0 rtr=0 dlc=8 data=4b02210000000000 ok=1 exact=0 t=0 bounds=1 lo=116210279 hi=116212131 epoch=1
+TRAFFIC k=1 p=116217002 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=388 txf=1 txc=1
+TRAFFIC k=2 p=116220000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=388 txf=1 txc=1
+TRAFFIC k=0 p=116220000 id=582 ext=0 rtr=0 dlc=8 data=4b41600037840000 ok=1 exact=0 t=0 bounds=1 lo=116217279 hi=116219169 epoch=1
+TRAFFIC k=1 p=116224002 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=389 txf=1 txc=1
+TRAFFIC k=2 p=116227000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=389 txf=1 txc=1
+TRAFFIC k=0 p=116227000 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 exact=0 t=0 bounds=1 lo=116224279 hi=116226130 epoch=1
+TRAFFIC k=1 p=116231002 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=390 txf=1 txc=1
+TRAFFIC k=2 p=116234000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=390 txf=1 txc=1
+TRAFFIC k=0 p=116234000 id=582 ext=0 rtr=0 dlc=8 data=43646000c4090000 ok=1 exact=0 t=0 bounds=1 lo=116231281 hi=116233168 epoch=1
+TRAFFIC k=1 p=116238002 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=391 txf=1 txc=1
+TRAFFIC k=2 p=116241000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=391 txf=1 txc=1
+TRAFFIC k=0 p=116241000 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 exact=0 t=0 bounds=1 lo=116238277 hi=116240136 epoch=1
+TRAFFIC k=1 p=116696002 id=602 ext=0 rtr=0 dlc=8 data=4000210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=392 txf=1 txc=1
+TRAFFIC k=2 p=116699000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=392 txf=1 txc=1
+TRAFFIC k=0 p=116699000 id=582 ext=0 rtr=0 dlc=8 data=4b00210001000000 ok=1 exact=0 t=0 bounds=1 lo=116696277 hi=116698143 epoch=1
+TRAFFIC k=1 p=116703002 id=602 ext=0 rtr=0 dlc=8 data=4001210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=393 txf=1 txc=1
+TRAFFIC k=2 p=116706000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=393 txf=1 txc=1
+TRAFFIC k=0 p=116706000 id=582 ext=0 rtr=0 dlc=8 data=4b01210000000000 ok=1 exact=0 t=0 bounds=1 lo=116703277 hi=116705177 epoch=1
+TRAFFIC k=1 p=116710002 id=602 ext=0 rtr=0 dlc=8 data=4002210000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=394 txf=1 txc=1
+TRAFFIC k=2 p=116713000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=394 txf=1 txc=1
+TRAFFIC k=0 p=116713000 id=582 ext=0 rtr=0 dlc=8 data=4b02210000000000 ok=1 exact=0 t=0 bounds=1 lo=116710279 hi=116712182 epoch=1
+TRAFFIC k=1 p=116717002 id=602 ext=0 rtr=0 dlc=8 data=4041600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=395 txf=1 txc=1
+TRAFFIC k=2 p=116720000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=395 txf=1 txc=1
+TRAFFIC k=0 p=116720000 id=582 ext=0 rtr=0 dlc=8 data=4b41600037840000 ok=1 exact=0 t=0 bounds=1 lo=116717279 hi=116719133 epoch=1
+TRAFFIC k=1 p=116724002 id=602 ext=0 rtr=0 dlc=8 data=4061600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=396 txf=1 txc=1
+TRAFFIC k=2 p=116727000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=396 txf=1 txc=1
+TRAFFIC k=0 p=116727000 id=582 ext=0 rtr=0 dlc=8 data=4f61600001000000 ok=1 exact=0 t=0 bounds=1 lo=116724279 hi=116726167 epoch=1
+TRAFFIC k=1 p=116731002 id=602 ext=0 rtr=0 dlc=8 data=4064600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=397 txf=1 txc=1
+TRAFFIC k=2 p=116734000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=397 txf=1 txc=1
+TRAFFIC k=0 p=116734000 id=582 ext=0 rtr=0 dlc=8 data=43646000c4090000 ok=1 exact=0 t=0 bounds=1 lo=116731279 hi=116733171 epoch=1
+TRAFFIC k=1 p=116738002 id=602 ext=0 rtr=0 dlc=8 data=406c600000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=398 txf=1 txc=1
+TRAFFIC k=2 p=116741000 id=0 ext=0 rtr=0 dlc=0 data=0000000000000000 ok=1 exact=0 t=0 bounds=0 lo=0 hi=0 epoch=1 txk=0 txr=398 txf=1 txc=1
+TRAFFIC k=0 p=116741000 id=582 ext=0 rtr=0 dlc=8 data=436c600000000000 ok=1 exact=0 t=0 bounds=1 lo=116738279 hi=116740189 epoch=1
+END trial terminals=31 traffic=93 tail=0 tailLost=0 lost=0; r=release
