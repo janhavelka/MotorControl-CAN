@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench round 12 on `e935f67`: repeatability on powered drives (2026-11-10)
+
+- Four series, both nodes, 6, 30 and 60 rpm: three cycles each of an absolute move to +A and a relative move by -2A, between re-enables from the previous quick stop's release. All 23 completed arrivals landed exactly on target in counts, absolute and relative alike, with no drift; re-energize pulls 0 to -4 counts. `606C` read 5 to 7 while moving at a commanded 6 rpm. Persistence (prompt 39) was not tested: save and factory restore are outside this campaign's authorization. [Report](docs/reports/2026-11-10_bench_r12.md).
+
 ### Bench round 11 on `e935f67`: no resume after a re-enable, negative moves on both nodes (2026-11-10)
 
 - Measured, drives powered, no power cycle: a re-enable from the latched release a moving quick stop left did **not** resume the interrupted move (node 1, 2201 to 2203: still at -2020 10 s later); the latch cleared at word 7 on both nodes with a -3 count pull. Negative relative (-3000, -4000 at 60 rpm) and absolute (-6000 at 45, -1000 at 60 rpm over 30,740 counts) moves completed exactly; HALT and quick stop while moving negative completed on both nodes with nearly identical counts; a rearm after a HALT did not resume (node 2, 2228). [Report](docs/reports/2026-11-10_bench_r11.md).
