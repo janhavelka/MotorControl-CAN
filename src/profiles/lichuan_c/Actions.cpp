@@ -44,6 +44,12 @@ const uint16_t ENABLE_LOW_BITS[3] = {1, 3, 7};
 // 0x31 (trial 1782, mode 3: 8050 to 8031; trial 308, mode 1: 4050 to 4031). They are compared only after
 // a power-up start, whose reports keep them (8037, 8031, 8033). No meaning is assigned to either bit.
 constexpr uint16_t RELEASED_START_STATUS_BITS = 0x0060;
+// 6041 bits 0..6 of every measured release: low bits 000 with bits 4 and 6 set (8050, C050, 4050).
+constexpr uint16_t RELEASED_PATTERN_MASK = 0x007f, RELEASED_PATTERN = 0x0050;
+// 6041 bit 14, which read set exactly while 2100 running stayed latched beside the release (4050 with
+// 0014 in trials 308 and 2109, C050 with 0015 in 1742 and 1924) and cleared with it at word 7 (308: 4031
+// to 0033; 1742: C031 to 8033). ZH86 and OP86 call it running; no meaning is assigned to it here.
+constexpr uint16_t RELEASED_LATCH_STATUS_BIT = 0x4000;
 bool releasedStart(const EnableEvidence& e) { return e.start == EnableStart::RELEASED_BY_RECORDED_STOP; }
 ReadTarget expectedTarget(const ActionContext& c) {
     ReadTarget target = c.reservation.target;
@@ -270,21 +276,43 @@ bool enableScopeHolds(const ActionContext& c) {
     // Bit 10 changes with the enable state itself on node 1 (STATUS_EN86_ZERO_SPEED), and 606C below
     // already requires zero velocity, so comparing it would end every enable at its first word.
     constexpr uint16_t lowBits = STATUS_LOW_BITS | STATUS_EN86_ZERO_SPEED;
-    constexpr uint16_t released = MONITOR_RELEASED;
     const StateObservation& status = c.statusObservation;
     const StateObservation& monitors = c.monitorObservation;
-    // From a release, word 7 energizes the drive and its position report then moves to the drive's
-    // internal command: before the first cycle in mode 3 (trials 1742..1862), over about half a second in
-    // mode 1 (trial 308). So only word 6's cycles, still released, must repeat the admission 6064. Each
-    // step keeps what its cycle reported.
-    const bool fromRelease = releasedStart(c.enable.evidence);
-    const uint16_t ignored = fromRelease ? uint16_t(lowBits | RELEASED_START_STATUS_BITS) : lowBits;
-    const bool positionHeld = !fromRelease || c.commandCursor == 0;
-    return status.modeRaw == c.enable.evidence.modeRaw &&
-           ((status.statusword ^ c.enable.startStatusword) & uint16_t(~ignored)) == 0 &&
-           ((monitors.monitor ^ c.enable.startMonitor) & uint16_t(~released)) == 0 &&
-           (!positionHeld || c.extraObservation.actualPosition == c.enable.startPosition) &&
+    const EnableRecord& e = c.enable;
+    if (!releasedStart(e.evidence))
+        return status.modeRaw == e.evidence.modeRaw &&
+               ((status.statusword ^ e.startStatusword) & uint16_t(~lowBits)) == 0 &&
+               ((monitors.monitor ^ e.startMonitor) & uint16_t(~MONITOR_RELEASED)) == 0 &&
+               c.extraObservation.actualPosition == e.startPosition && c.extraObservation.actualVelocity == 0;
+    // From a release. The latch a moving quick stop leaves, 2100 running and 6041 bit 14 set beside the
+    // release, may persist through word 6's cycles, as in trials 308 and 1742, or clear there; from word 7's
+    // cycles on both must read clear. Neither may appear where the start report had it clear.
+    const bool latchMayPersist = c.commandCursor == 0;
+    const uint16_t statusLatch = latchMayPersist ? uint16_t(e.startStatusword & RELEASED_LATCH_STATUS_BIT) : 0;
+    const uint16_t monitorLatch = latchMayPersist ? uint16_t(e.startMonitor & MONITOR_RUNNING) : 0;
+    constexpr uint16_t statusIgnored = lowBits | RELEASED_START_STATUS_BITS | RELEASED_LATCH_STATUS_BIT;
+    constexpr uint16_t monitorIgnored = MONITOR_RELEASED | MONITOR_RUNNING;
+    // 6064: word 6's cycles, still released, repeat the admission. Word 7 energizes the drive and its
+    // position report moves to the drive's internal command (mode 3: -6 to +12 counts in trials 1742 to
+    // 1862; mode 1: 1187 to 1194 to 1180 over half a second in trial 308), so word 7's cycles are not
+    // compared; word 15 follows only once that report held still (finishCycle). From word 15 on, every
+    // cycle must repeat word 7's accepted 6064: a change is motion after word 15, whatever it heads for.
+    const bool positionHolds =
+        c.commandCursor == 1 ||
+        c.extraObservation.actualPosition == (c.commandCursor == 0 ? e.startPosition : e.steps[1].position);
+    return status.modeRaw == e.evidence.modeRaw &&
+           ((status.statusword ^ e.startStatusword) & uint16_t(~statusIgnored)) == 0 &&
+           (status.statusword & RELEASED_LATCH_STATUS_BIT & uint16_t(~statusLatch)) == 0 &&
+           ((monitors.monitor ^ e.startMonitor) & uint16_t(~monitorIgnored)) == 0 &&
+           (monitors.monitor & MONITOR_RUNNING & uint16_t(~monitorLatch)) == 0 && positionHolds &&
            c.extraObservation.actualVelocity == 0;
+}
+// After a released start: a cycle of word 15 reported 6064 away from word 7's accepted value or 606C
+// nonzero. The drive retains its 607A target (an interrupted move's, too), and whether words 6, 7 and 15
+// resume it is unmeasured, so the caller is told to stop the drive.
+bool movedAfterWordFifteen(const ActionContext& c) {
+    return releasedStart(c.enable.evidence) && c.commandCursor == 2 &&
+           (c.extraObservation.actualPosition != c.enable.steps[1].position || c.extraObservation.actualVelocity);
 }
 // A word was observed; keep its evidence and schedule the next one. A step that reached the cutoff
 // waits here, and the caller's next advance settles DEADLINE.
@@ -340,6 +368,11 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const int32_t previousVelocity = c.extraObservation.actualVelocity;
     // In mode 3 both compared cycles must report the release; read before this cycle replaces it.
     const bool previousReleased = previousFeedback && (c.monitorObservation.monitor & MONITOR_RELEASED);
+    // An enable's word 7 after a release compares this cycle with the one before it, when that one also
+    // followed the word's acknowledgement.
+    const bool previousAfterCommand =
+        c.extraObservation.fieldCount != 0 && c.statusObservation.window.earliestUs >= lastCommandUs;
+    const uint16_t previousStatus = c.statusObservation.statusword;
     if (!cycleBlock(c, StateBlock::STATUS, target, now, lastCommandUs) ||
         !cycleBlock(c, StateBlock::MONITORS, target, now, lastCommandUs) ||
         (feedback && !cycleBlock(c, StateBlock::FEEDBACK, target, now, lastCommandUs))) {
@@ -408,11 +441,20 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
         outsideScope = !enableScopeHolds(c);
         done = (c.statusObservation.statusword & STATUS_LOW_BITS) == ENABLE_LOW_BITS[c.commandCursor] &&
                (c.commandCursor + 1u < commandCount(c) || (monitor & MONITOR_RELEASED) == 0);
+        // From a release, word 15 waits until word 7's report holds still: two cycles in a row after
+        // word 7, each with low bits 011, and the same 6064. Word 15's cycles are then held to that 6064.
+        // Trial 2102 sent word 15 after one such cycle (15257), and its report moved on to 15260 in word
+        // 15's cycles; whether word 7's pull or word 15 moved it is unknown.
+        if (c.commandCursor == 1 && releasedStart(c.enable.evidence))
+            done = done && previousAfterCommand && (previousStatus & STATUS_LOW_BITS) == ENABLE_LOW_BITS[1] &&
+                   previousPosition == c.extraObservation.actualPosition;
         break;
     }
     if (outsideScope)
         fail(c, ActionOutcome::OBSERVATION_SCOPE, now,
-             "drive report outside this action's supported observation scope");
+             movedAfterWordFifteen(c) ? "6064 or 606C changed after word 15 from a release: the drive may be "
+                                        "moving to a retained target; stop it"
+                                      : "drive report outside this action's supported observation scope");
     else if (done && enabling(c)) {
         if (!anotherStepAvailable && c.commandCursor + 1u < commandCount(c))
             fail(c, ActionOutcome::ITERATION_EXHAUSTED, now, "action service identity exhausted");
@@ -748,18 +790,23 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
                       "mode6 enable needs its own selected-firmware evidence");
     const uint16_t monitor = uint16_t(raw(state, StateBlock::MONITORS, 0));
     constexpr uint16_t ignored = MONITOR_RELEASED | MONITOR_HOMING_COMPLETE;
-    const uint16_t allowed = mode == 6 ? uint16_t(ignored | MONITOR_POSITION_COMPLETE) : ignored;
-    if ((monitor & uint16_t(~allowed)) != (mode == 6 ? 0 : MONITOR_POSITION_COMPLETE))
+    // A release a recorded stop left may hold the in-place bit either way, and running latched beside the
+    // release, as a quick stop during a mode 1 move leaves it (2100=0014, trial 2109; 0015, trial 1924).
+    // Alarm, both soft limits and every undocumented bit stay clear.
+    const uint16_t allowed = mode == 6     ? uint16_t(ignored | MONITOR_POSITION_COMPLETE)
+                             : fromRelease ? uint16_t(ignored | MONITOR_POSITION_COMPLETE | MONITOR_RUNNING)
+                                           : ignored;
+    if ((monitor & uint16_t(~allowed)) != (mode == 6 || fromRelease ? 0 : MONITOR_POSITION_COMPLETE))
         return error(ActionError::STATE, "enable monitor is outside the reviewed stationary scope");
     if (mode == 6 && (!(monitor & MONITOR_RELEASED) ||
                       (raw(state, StateBlock::STATUS, 0) & STATUS_LOW_BITS) == STATUS_LOW_BITS))
         return error(ActionError::STATE, "mode6 enable requires a non-enabled released start");
     const uint16_t statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
-    // The released standstill a recorded stop left: 2100 released and 6041 low bits 000, on top of the
-    // monitor rule above, which keeps running clear and the in-place bit set.
-    if (fromRelease && (!(monitor & MONITOR_RELEASED) || (statusword & STATUS_LOW_BITS)))
+    // The released standstill a recorded stop left: 2100 released, and 6041 bits 0..6 the pattern of
+    // every measured release, 0x50 (low bits 000); bits 14 and 15 as reported.
+    if (fromRelease && (!(monitor & MONITOR_RELEASED) || (statusword & RELEASED_PATTERN_MASK) != RELEASED_PATTERN))
         return error(ActionError::STATE,
-                     "a released-by-recorded-stop enable needs 2100 released and 6041 low bits 000");
+                     "a released-by-recorded-stop enable needs 2100 released and 6041 bits 0..6 0x50");
     if (statusword != evidence.reviewedStatusword)
         return error(ActionError::STATE, "6041 differs from the reviewed word");
     // The manual pairs 111 with an enabled drive, and 2100 then reads enabled. Both specimens report

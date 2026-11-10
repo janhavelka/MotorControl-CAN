@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Recorded-stop enable from the latched release; the route's own stop after word 15 (2026-11-10)
+
+- **Changed:** `EnableStart::RELEASED_BY_RECORDED_STOP` also admits the latched release a moving quick stop leaves (mode 1, attended experiment): `2100` released with running set or clear and in place either way (alarm, soft limits, undocumented bits clear), `6041` bits 0..6 `0x50` (now required for every released start), `606C` 0. The latch (`2100` running, `6041` bit 14) may stay or clear in word 6's cycles and must be clear from word 7 on (cleared in trials 308 and 1742). `6064` repeats the start in word 6's cycles. Word 15 waits until two cycles after word 7 report `011` with the same `6064`. From word 15 on every cycle must repeat that `6064` with `606C` 0, otherwise `OBSERVATION_SCOPE` with a message telling the caller to stop: the drive retains the interrupted move's target, and whether words 6, 7 and 15 resume it is unmeasured. The in-place bit may not change. `NO_MOTION_WRITE_RECORDED` is unchanged.
+- **Bench:** a start 2 `TE` line that fails by itself once word 15 may have reached the drive gets one route `QUICK_STOP` at once (1500 ms, cycles 500 ms, best effort to the same deadline). Every start 2 plan reserves it (31 terminals, 1500 ms), with no motion weight; `10000,800` is now refused as `capacity`, use `10000,1250`. Protocol stays `routes=8`. Runner `ALERT: node N MAY BE MOVING` and exit 4 when no stop left; `s2_evidence.py` accepts that stop work. S2 sizes unchanged. Tests: `enable_action`, `bench_route` (latched start, follow-up stop, lost word 15, latch kept, node 2 chain), runner and transcript; 13 mutants killed. Not run on hardware.
+
 ### Conditional persistence workflows (prompt 39, 2026-11-10)
 
 - Added distinct typed save and factory-restore contexts: one explicit `2300`

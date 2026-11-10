@@ -123,7 +123,11 @@ struct Drive {
     int32_t endpoint = 0, commanded = 0;
     int32_t drift = 0; // Added to 6064 after each 6064 read: a shaft that turns between reads.
     uint16_t trapWord = 0, trapMonitor = 0; // 2100 bits set by this 6040 word.
-    uint16_t latchWord = 0; // This 6040 word clears 2100 running (in mode 1 word 7 cleared it: trial 308).
+    // This 6040 word clears the latch, 2100 running and 6041 bit 14 (word 7 cleared both in trials 308 and
+    // 1742: 4031/0014 to 0033/0000, C031/0015 to 8033/0001).
+    uint16_t latchWord = 0;
+    uint16_t stepWord = 0; // This 6040 word adds stepBy to 6064: a drive that moves after the word.
+    int32_t stepBy = 0;
     // This 6040 word is acknowledged and changes nothing the fake reports, as trial 1009's 000F still
     // read 8033 and 2100 0001 in the cycle after it. Off by default.
     uint16_t staleWord = 0;
@@ -344,8 +348,12 @@ struct Drive {
                     position += pullAtWord7;
                 if (trapWord && word == trapWord)
                     monitor = uint16_t(monitor | trapMonitor);
-                if (latchWord && word == latchWord)
+                if (latchWord && word == latchWord) {
                     monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
+                    status = uint16_t(status & ~0x4000u);
+                }
+                if (stepWord && word == stepWord)
+                    position += stepBy;
                 const bool trigger = word == 0x001f || word == 0x005f;
                 if (trigger)
                     monitor = uint16_t(monitor | monitorAfterTrigger);
@@ -5010,13 +5018,18 @@ void testReleasedModeOneChain() {
     CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
     // Start 2 carries the released report's FREE; HOLDING contradicts it and is refused by the parser.
     E::RoutePlan plan;
-    const std::string holding = "E1,99,1,2,2,32848,5000,6,10000,800";
+    const std::string holding = "E1,99,1,2,2,32848,5000,6,10000,1250";
     CHECK(!E::parseRouteCommand(holding.data(), holding.size(), plan));
+    // Start 2 reserves its own stop's terminals: 10000/800, enough for start 1, no longer fits the record.
+    for (const char* tight : {"E1,99,1,2,1,32848,5000,6,10000,800", "E1,99,1,2,1,32848,5000,6,10000,1100"}) {
+        const char* why = r->start(tight);
+        CHECK(why && std::strcmp(why, "capacity") == 0);
+    }
 
     scenario = "released-enable";
     r->heartbeat(1);
     first = r->driver.requests.size();
-    const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,800");
+    const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1250");
     CHECK(e.failure == E::RouteFailure::NONE && e.enableRequested);
     const L::ActionContext& c = r->one.enableAction();
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
@@ -5036,6 +5049,8 @@ void testReleasedModeOneChain() {
         const uint8_t bytes[8] = {0x2b, 0x40, 0x60, 0, uint8_t(w), 0, 0, 0};
         CHECK(download(r->driver.requests[at++], 1, bytes));
         expectUploads(*r, at, 1, IMAGE, 7);
+        if (w == 7)
+            expectUploads(*r, at, 1, IMAGE, 7); // Word 15 waits for a second cycle of word 7's report.
     }
     CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 3);
     CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 0x0f);
@@ -5043,6 +5058,7 @@ void testReleasedModeOneChain() {
     CHECK(has(text, "TRIAL_PLAN route=enable node=1 trial=3 attended=1 start=2 shaft=1 status=8050 pt=5000 vt=6 "));
     CHECK(has(text, " s0=8050 m0=0011 p0=15256\n"));
     CHECK(has(text, "TRIAL_ENABLE_STEP word=7 present=1 status=8033 monitor=0001 position=15261 velocity=0 "));
+    CHECK(!has(text, "TRIAL_STOP ") && e.cycles == 0 && e.motionTotal == 2); // No stop, no stop weight.
     r->release();
 
     // A negative relative move under ACTUAL: its start and witness are the fresh 6064 after the enable.
@@ -5081,6 +5097,173 @@ void testReleasedModeOneChain() {
     const std::vector<M::Frame> positionWrites = downloads(*r, first, 1);
     CHECK(positionWrites.size() == 5 && frameIs(positionWrites[0], absolute) && frameIs(positionWrites[4], trigger));
     CHECK(has(r->dump(), "TRIAL_PLAN route=position node=1 trial=6 attended=1 sp=13261 target=-1000 "));
+}
+// 2026-11-10 after round 10: the latched release a moving quick stop leaves. Node 1 as trial 2109 read it
+// after move 2108's quick stop (2100=0014, 6041=4050, mode 1, -2017, 606C 0; 607A -2000, the move's relative
+// displacement from -1522, its internal target -3522; 60FF 45);
+// what the words do then is this fake's, after trials 308 and 1742, and the +11 word 7 pull is this test's.
+void latchedModeOne(Drive& d) {
+    releasedDrive(d);
+    d.monitor = 0x0014;
+    d.status = 0x4050;
+    d.releasePattern = true;
+    d.position = -2017;
+    d.positionTarget = -2000;
+    d.velocityTarget = 45;
+    d.latchWord = 7;
+    d.pullAtWord7 = 11;
+}
+const char* const LATCHED_ENABLE = ",1,2,1,16464,-2000,45,10000,1250"; // 16464 is 0x4050.
+// One read route of this boot first: its bounded SDO replies qualify the service the enable's words need
+// (eligibility), as MODE_ONE does in the chain above, and the drive's state stays as set.
+void readFirst(Rig& r, uint32_t& trial, unsigned node) {
+    CHECK(r.run("A" + std::to_string(node) + "," + id(trial)).failure == E::RouteFailure::NONE);
+    r.release();
+    r.heartbeat(node);
+}
+void testReleasedLatchedEnable() {
+    {   // Word 7 clears the latch, its report holds still, word 15 completes the enable; no stop follows.
+        scenario = "latched-enable";
+        std::unique_ptr<Rig> r(new Rig);
+        latchedModeOne(r->driver.drives[0]);
+        uint32_t trial = 0;
+        readFirst(*r, trial, 1);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& e = r->run("E1," + id(trial) + LATCHED_ENABLE);
+        CHECK(e.failure == E::RouteFailure::NONE && e.enableRequested && !e.stopRequested);
+        const L::ActionContext& c = r->one.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.enable.startMonitor == 0x0014 &&
+              c.enable.positionTarget == -2000);
+        const std::string text = r->dump();
+        CHECK(has(text, " s0=4050 m0=0014 p0=-2017\n"));
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=6 present=1 status=4031 monitor=0014 position=-2017 velocity=0 "));
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=7 present=1 status=0033 monitor=0000 position=-2006 velocity=0 "));
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=15 present=1 status=0037 monitor=0000 position=-2006 velocity=0 "));
+        CHECK(!has(text, "TRIAL_STOP ") && r->downloadsFrom(first) == 3 && wordsFrom(*r, first, 1, 0x000b) == 0);
+    }
+    {   // Motion after word 15 toward the retained target: the enable fails, and the route's own QUICK_STOP
+        // follows the acknowledged 000F at once, once. The drive released (this fake's 000B), so it settles.
+        scenario = "latched-enable-moves";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        latchedModeOne(d);
+        d.stepWord = 15;
+        d.stepBy = -40;
+        uint32_t trial = 0;
+        readFirst(*r, trial, 1);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& e = r->run("E1," + id(trial) + LATCHED_ENABLE);
+        CHECK(e.failure == E::RouteFailure::ACTION && std::strcmp(e.why, "enable") == 0);
+        CHECK(e.enableRequested && e.stopRequested && e.stopRequestKind == 2 && e.motionTotal == 1);
+        const L::ActionContext& c = r->one.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+              std::strstr(c.status.msg, "after word 15") && c.commandEvidenceMask == 7);
+        const L::ActionContext& s = r->one.stopAction(L::StopKind::QUICK_STOP);
+        CHECK(s.state == M::ActionState::SUCCEEDED && s.predecessorWord == 0x000f);
+        const std::vector<M::Frame> sent = downloads(*r, first, 1);
+        const uint8_t quickStop[8] = {0x2b, 0x40, 0x60, 0, 0x0b, 0, 0, 0};
+        CHECK(sent.size() == 4 && frameIs(sent[3], quickStop) && wordsFrom(*r, first, 1, 15) == 1);
+        const std::string text = r->dump();
+        CHECK(has(text, "TRIAL_ENABLE own=1 state=3 outcome=") && has(text, " s0=4050 m0=0014 p0=-2017\n"));
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=15 present=0 status=0000 monitor=0000 position=0 velocity=0 "
+                        "history=1 outcome=0 ack=1 possible=1 uncertain=0\n"));
+        CHECK(has(text, "TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 ") && has(text, " pred=000f "));
+        CHECK(has(text, "TRIAL_BEST_EFFORT which=0 own=0 "));
+        CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 0x0b);
+    }
+    {   // Word 15's reply lost: no report follows it, so the stop goes without one, as the DEC-2 000B.
+        scenario = "latched-enable-lost-15";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        latchedModeOne(d);
+        d.silentIndex = 0x6040;
+        d.silentWord = 15;
+        uint32_t trial = 0;
+        readFirst(*r, trial, 1);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& e = r->run("E1," + id(trial) + LATCHED_ENABLE);
+        CHECK(e.failure == E::RouteFailure::ACTION && e.stopRequested &&
+              e.stopPathRequested == uint8_t(E::StopPath::BEST_EFFORT));
+        CHECK(wordsFrom(*r, first, 1, 15) == 1 && wordsFrom(*r, first, 1, 0x000b) == 1);
+        CHECK(has(r->dump(), "TRIAL_BEST_EFFORT which=0 own=1 "));
+    }
+    {   // The latch kept at word 7: the enable ends in word 7's cycle, word 15 unsent, and nothing follows.
+        scenario = "latched-enable-kept";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        latchedModeOne(d);
+        d.latchWord = 0;
+        uint32_t trial = 0;
+        readFirst(*r, trial, 1);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& e = r->run("E1," + id(trial) + LATCHED_ENABLE);
+        CHECK(e.failure == E::RouteFailure::ACTION && std::strcmp(e.why, "enable") == 0 && !e.stopRequested);
+        const L::ActionContext& c = r->one.enableAction();
+        CHECK(c.commandEvidenceMask == 3 && c.statusObservation.statusword == 0x4033 &&
+              c.monitorObservation.monitor == L::MONITOR_RUNNING);
+        CHECK(r->downloadsFrom(first) == 2 && wordsFrom(*r, first, 1, 15) == 0 && wordsFrom(*r, first, 1, 0x000b) == 0);
+        const std::string text = r->dump();
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=7 present=0 ") && !has(text, "TRIAL_STOP "));
+        CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 7);
+    }
+    {   // Refused before any write: an alarm, 606C nonzero, a 6064 that moves in word 6's cycle (after the
+        // words began, so the enable ends at word 6), and the enable in mode 3.
+        struct Case {
+            uint16_t monitor;
+            int32_t velocity;
+            uint8_t mode;
+            bool sixMoves;
+        };
+        const Case cases[] = {{0x001c, 0, 1, false}, {0x0014, -30, 1, false}, {0x0014, 0, 3, false},
+                              {0x0014, 0, 1, true}};
+        for (const Case& k : cases) {
+            scenario = "latched-enable-refused";
+            std::unique_ptr<Rig> r(new Rig);
+            Drive& d = r->driver.drives[0];
+            latchedModeOne(d);
+            d.monitor = k.monitor;
+            d.velocity = k.velocity;
+            d.mode = k.mode;
+            if (k.sixMoves) {
+                d.stepWord = 6;
+                d.stepBy = 1;
+            }
+            uint32_t trial = 0;
+            readFirst(*r, trial, 1);
+            const size_t first = r->driver.requests.size();
+            const E::RouteRecord& e = r->run("E1," + id(trial) + LATCHED_ENABLE);
+            if (k.sixMoves) {
+                CHECK(e.failure == E::RouteFailure::ACTION && !e.stopRequested && r->downloadsFrom(first) == 1);
+                continue;
+            }
+            CHECK(e.failure == E::RouteFailure::REFUSED && std::strcmp(e.why, "enable") == 0 && !e.enableRequested);
+            CHECK(r->downloadsFrom(first) == 0 && e.statusPresent && e.statusDetail == int32_t(M::ActionError::STATE));
+        }
+    }
+    {   // Node 2 as trial 1924 read it (0015, C050, mode 3, 33743, 607A 5000, 60FF 30): MODE_ONE's released start
+        // admits the latch,
+        // then the enable from mode 1 completes with word 7's 8033/0001, as in trial 1742.
+        scenario = "latched-node2";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[1];
+        releasedModeThreeKept(d, 33743);
+        d.monitor = 0x0015;
+        d.status = 0xc050;
+        d.latchWord = 7;
+        d.velocityTarget = 30;
+        uint32_t trial = 0;
+        const E::RouteRecord& m = r->run("M2," + id(trial) + ",1,4,200");
+        CHECK(m.failure == E::RouteFailure::NONE && m.checkPassed && d.mode == 1);
+        CHECK(has(r->dump(), "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=c050 6061=01 6064=33743 "));
+        r->release();
+        r->heartbeat(2);
+        const E::RouteRecord& e = r->run("E2," + id(trial) + ",1,2,1,49232,5000,30,10000,1250"); // 49232 is 0xC050.
+        CHECK(e.failure == E::RouteFailure::NONE && !e.stopRequested);
+        const std::string text = r->dump();
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=6 present=1 status=c031 monitor=0015 position=33743 "));
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=7 present=1 status=8033 monitor=0001 position=33743 "));
+        CHECK(has(text, "TRIAL_ENABLE_STEP word=15 present=1 status=8037 monitor=0001 position=33743 "));
+    }
 }
 // MODE_ONE's released start refuses before any write, and its cycles end on what they do not repeat.
 void testReleasedModeOneRefusals() {
@@ -5165,7 +5348,7 @@ void testReleasedModeOneRefusals() {
         r->driver.drives[0].mode = 3;
         r->heartbeat(1);
         const size_t first = r->driver.requests.size();
-        const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,800");
+        const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1250");
         CHECK(e.failure == E::RouteFailure::REFUSED && std::strcmp(e.why, "enable") == 0 && !e.enableRequested);
         CHECK(r->downloadsFrom(first) == 0 && e.statusPresent && e.statusDetail == int32_t(M::ActionError::STATE));
     }
@@ -5352,7 +5535,7 @@ void writeTranscript(const char* path, bool all) {
         CHECK(k1->run(back).failure == E::RouteFailure::NONE);
         append(*k1, back);
         k1->heartbeat(1);
-        const std::string kept = "E1," + id(trial) + ",1,2,1,32848,5000,6,10000,800";
+        const std::string kept = "E1," + id(trial) + ",1,2,1,32848,5000,6,10000,1250";
         CHECK(k1->run(kept).failure == E::RouteFailure::NONE);
         append(*k1, kept);
         MoveSpec down;
@@ -5366,6 +5549,26 @@ void writeTranscript(const char* path, bool all) {
         const std::string below = position(1, trial, 13261, -1000);
         CHECK(k1->run(below).failure == E::RouteFailure::NONE);
         append(*k1, below);
+        // After round 10: the latched release trial 2109 read, and an enable that fails after word 15 with
+        // the route's own QUICK_STOP after it: trial 21 on a reported move (the sequenced 000B after 000F),
+        // trial 22 with word 15's reply lost (a failed terminal, then the DEC-2 000B with no report).
+        for (unsigned silent = 0; silent < 2; ++silent) {
+            std::unique_ptr<Rig> k2(new Rig);
+            Drive& d = k2->driver.drives[0];
+            latchedModeOne(d);
+            if (silent) {
+                d.silentIndex = 0x6040;
+                d.silentWord = 15;
+            } else {
+                d.stepWord = 15;
+                d.stepBy = -40;
+            }
+            trial = 19 + silent;
+            readFirst(*k2, trial, 1);
+            const std::string moved = "E1," + id(trial) + LATCHED_ENABLE;
+            CHECK(k2->run(moved).failure == E::RouteFailure::ACTION && k2->route.record()->stopRequested);
+            append(*k2, moved);
+        }
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -6506,6 +6709,7 @@ int main(int argc, char** argv) {
     testVelocityTargetFailures();
     testVelocityTargetRefusals();
     testReleasedModeOneChain();
+    testReleasedLatchedEnable();
     testReleasedModeOneRefusals();
     testCloseRefusals();
     testCloseKeepsHistory();

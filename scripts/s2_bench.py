@@ -26,8 +26,13 @@ After a velocity record whose TRIAL_VELOCITY shows needs=1 (or fenced=1) and in 
 questions, and again at the end, keeps it in request.json as velocity_alert and exits 4 (backlog S16:
 trial 1009 left node 1 turning with nothing sent).
 
+The same alert, "ALERT: node N MAY BE MOVING: the enable failed after word 15 and no stop left; use the
+cutoff", follows a released-start enable record (start 2) whose enable did not succeed after its word 15 may
+have reached the drive (TRIAL_ENABLE_STEP word=15 history=1 possible=1) and from which no stop left; it is
+kept as enable_alert. The firmware's own QUICK_STOP after such a failure is what normally leaves.
+
 A trial's exit status: 0 a complete record; 1 a damaged, unfinished or contradictory capture; 2 refused,
-nothing admitted; 3 a consistent record of a failure; 4 the velocity alert above, whatever else holds.
+nothing admitted; 3 a consistent record of a failure; 4 either alert above, whatever else holds.
 
 Motion routes also need --campaign: a JSON-lines ledger the operator names, which outlives MCU boots.
 One invocation at a time holds it, through an exclusive lock file next to it from before the ledger
@@ -54,12 +59,17 @@ baseline, checked as before. Mode 3 is the released standstill a recorded stop l
 released with 6041 bits 0..6 0x50, then one 6060=1 and cycles until 6061 reads 1; never 6040. An enable then
 takes --released-by-recorded-stop RECORD instead of --no-motion-write-recorded (exactly one of them): RECORD is
 the evidence directory of this node's record whose QUICK_STOP this application saw settle (header failure=0,
-TRIAL_STOP kind=2 own=1 state=2), which the runner checks, also in --dry-run. The flag also states that nothing but
-one acknowledged 6060=1 reached the drive after that record, which no runner check can show across boots: the
+TRIAL_STOP kind=2 own=1 state=2): a stop record, or a move, position, relative or velocity record whose own
+quick stop settled, as move 2108's did. The runner checks it, also in --dry-run. The flag also states that nothing
+but one acknowledged 6060=1 reached the drive after that record, which no runner check can show across boots: the
 operator types it only from that record and every ledger since. Its line carries start 2 and shaft FREE, read from
 the released start report at the user's instruction of 2026-11-10 ("do not ask if holding or not, read it") and
 never felt, so no shaft question is asked. It is refused with --unattended-waiver and with a relayed shaft: word 7
-moves the rotor to the drive's internal command with no bound known.
+moves the rotor to the drive's internal command with no bound known. The library also admits the running latch a
+moving quick stop leaves (2100=0014 or 0015), which must clear by word 7; word 15 waits for word 7's report to
+hold still, and a 6064 or 606C change after word 15 fails the enable, after which the firmware sends its own
+QUICK_STOP. Start 2 reserves that stop's terminals and time, so its line needs an interval above 1111 ms at a
+10000 ms deadline (10000/1250 is 122 terminals of 128).
 
 velocity-target (ledger gate Q03) writes one 60FF value, --value -3000..3001, to a drive that reports
 itself released at standstill in mode 3 on two fresh reads, and only after an acknowledged write reads 60FF
@@ -208,6 +218,11 @@ CAMPAIGN_PER_CASE = 3
 SHAFT = {"FREE": 1, "HOLDING": 2}
 # The enable line's start field (BenchRoute.cpp START, EnableStart in Actions.h).
 ENABLE_STARTS = {"NO_MOTION_WRITE_RECORDED": 1, "RELEASED_BY_RECORDED_STOP": 2}
+# Start 2's own QUICK_STOP after a failure once word 15 may have reached the drive (BenchRoute.cpp
+# ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS): record 2108's planned stop budget, application policy. Every start 2
+# line reserves its terminals and time, so 10000/800, which fits start 1, is refused as capacity.
+ENABLE_STOP_MS = 1500
+ENABLE_STOP_INTERVAL_MS = 500
 # A released start's shaft basis, stored instead of a typed answer: the drive's own released report.
 RELEASED_SHAFT_BASIS = ("read from the drive's released start report (2100 bit 4 set: the power stage is off) at the "
                         "user's instruction of 2026-11-10, 'do not ask if holding or not, read it'; never felt")
@@ -505,8 +520,12 @@ def plan_bounds(command, fields):
     if command == "velocity-target":
         return 9 + 9 + 1 + 1 + 9, 0  # Two full reads, the 60FF write, its upload, one more full read.
     if command == "enable":
-        deadline, interval = fields[8:10]
-        return 9 + 2 + 3 + 7 * (3 + deadline // interval), deadline
+        start, deadline, interval = fields[3], fields[8], fields[9]
+        # Start 2 reserves the route's own QUICK_STOP after a failure once word 15 may have left.
+        stop = start == ENABLE_STARTS["RELEASED_BY_RECORDED_STOP"]
+        return (9 + 2 + 3 + 7 * (3 + deadline // interval) +
+                (_stop_terminals(ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS) if stop else 0),
+                deadline + (ENABLE_STOP_MS if stop else 0))
     if command == "stop":
         deadline, best, interval = fields[4:7]
         return 5 + _stop_terminals(deadline, interval), max(deadline, best)
@@ -980,6 +999,44 @@ def velocity_alert(command, fields, data):
     return "node %d MAY BE RUNNING: no stop left; use the cutoff" % node
 
 
+def enable_alert(command, fields, data):
+    """The attendant's alert after a released-start enable record (start 2, 2026-11-10), or None. It fires
+    when TRIAL_ENABLE reports this record's enable not SUCCEEDED (own=1, state other than 2) after its word 15
+    may have reached the drive (TRIAL_ENABLE_STEP word=15 history=1 possible=1), and no stop of this record
+    left, read as velocity_alert reads it. The drive retains its 607A target, an interrupted move's too, and may
+    then be enabled and moving to it. Only lines between this trial's TRIAL header and its END count."""
+    if command != "enable" or fields[3] != ENABLE_STARTS["RELEASED_BY_RECORDED_STOP"]:
+        return None
+    node, trial = fields[0], fields[1]
+    header = "TRIAL id=%d node=%d route=enable " % (trial, node)
+    enable, fifteen, stop, best = None, None, None, []
+    inside = False
+    for line in bytes(data).decode("utf8", errors="replace").splitlines():
+        if line.startswith(header):
+            inside = True
+        elif inside and line.startswith("END trial "):
+            break
+        elif inside:
+            values = pong_values(line)
+            if line.startswith("TRIAL_ENABLE "):
+                enable = values
+            elif line.startswith("TRIAL_ENABLE_STEP ") and values.get("word") == "15":
+                fifteen = values
+            elif line.startswith("TRIAL_STOP "):
+                stop = values
+            elif line.startswith("TRIAL_BEST_EFFORT "):
+                best.append(values)
+    if enable is None or fifteen is None or enable.get("own") != "1" or enable.get("state") == "2" or \
+            (fifteen.get("history"), fifteen.get("possible")) != ("1", "1"):
+        return None
+
+    def left(values):
+        return values is not None and values.get("own") == "1" and values.get("exec", "0") != "0"
+    if left(stop) or any(left(values) for values in best):
+        return None
+    return "node %d MAY BE MOVING: the enable failed after word 15 and no stop left; use the cutoff" % node
+
+
 def run_trial(args, fields, port, clock, meta, record=None):
     """Ping, check the image, send one line, capture to the record's END. Returns the stop reason.
     record, when given, is called just before the line is written; if it raises nothing is sent."""
@@ -1084,9 +1141,15 @@ def dry_run(args, fields):
                 print("  would refuse before sending: %s" % error)
             print("  the operator states that nothing but one acknowledged 6060=1 reached the drive since that "
                   "record; no check here can show it")
-            print("  library: mode 1, 2100 released, 6041 low bits 000, 606C 0; 6041 bits 5 and 6 may change; 6064 "
-                  "compared only in word 6's cycles: word 7 moves the rotor to the drive's internal command, no "
-                  "bound known; success claims no position continuity, so read the start of the next move fresh")
+            print("  library: mode 1, 2100 released (in place either way, running latched admitted), 6041 bits 0..6 "
+                  "0x50, 606C 0; 6041 bits 5 and 6 may change; the latch (2100 running, 6041 bit 14) must clear "
+                  "by word 7; 6064 repeats in word 6's cycles, is free in word 7's (word 7 moves the rotor to the "
+                  "drive's internal command, no bound known) and word 15 waits until two word 7 cycles read the "
+                  "same 6064; any 6064 or 606C change after word 15 fails; success claims no position continuity, "
+                  "so read the start of the next move fresh")
+            print("  route: if the enable fails once word 15 may have reached the drive, one QUICK_STOP follows at "
+                  "once (%d ms, cycles every %d ms, best effort to the same deadline); reserved in the bounds "
+                  "above, never counted as motion" % (ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS))
             print("  no shaft question: field 5 is FREE, %s" % RELEASED_SHAFT_BASIS)
         elif args.command == "enable":
             print("  require the attendant to type FREE or HOLDING; it replaces the 0 in field 5 below")
@@ -1341,10 +1404,12 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
                 data = capture.data
                 meta["reason"] = reason
                 # Before the attendant's questions after the route: the cutoff may be needed now.
-                alert = velocity_alert(args.command, fields, data[meta["prefix_bytes"]:])
-                if alert:
-                    meta["velocity_alert"] = alert
-                    print("ALERT: " + alert, file=sys.stderr)
+                body = data[meta["prefix_bytes"]:]
+                for key, check in (("velocity_alert", velocity_alert), ("enable_alert", enable_alert)):
+                    alert = check(args.command, fields, body)
+                    if alert:
+                        meta[key] = alert
+                        print("ALERT: " + alert, file=sys.stderr)
             else:
                 # Retain any already waiting output; never flush unseen evidence.
                 data.extend(port.read(port.in_waiting))
@@ -1388,10 +1453,11 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
     import s2_evidence  # Imported here: s2_evidence imports this module's COMMANDS.
     report = s2_evidence.replay_capture(args.output, manifest=Path(args.output) / "absent.json")
     print("verdict:", report.verdict, "failure:", report.failure_name or report.failure, "reason:", meta["reason"])
-    # 4: a velocity record whose node may still turn, whatever else the record shows; 2: nothing admitted;
-    # 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
-    if meta.get("velocity_alert"):
-        print("ALERT: " + meta["velocity_alert"], file=sys.stderr)
+    # 4: a velocity or released-start enable record whose node may still move, whatever else the record shows;
+    # 2: nothing admitted; 1: damaged, unfinished or contradictory; 3: a consistent record of a failure.
+    alert = meta.get("velocity_alert") or meta.get("enable_alert")
+    if alert:
+        print("ALERT: " + alert, file=sys.stderr)
         return VELOCITY_ALERT_STATUS
     if meta["reason"] != "ended":
         return 1 if meta["reason"] == "no_end" else 2

@@ -402,6 +402,13 @@ bool stopPolicyValid(const RoutePlan& p, unsigned cycles) {
 unsigned stopTerminals(uint32_t deadlineMs, uint32_t intervalMs) {
     return 1 + 7 * (1 + deadlineMs / intervalMs) + 2; // Word, cycles, a held best-effort pair.
 }
+// ENABLE start 2 (RELEASED_BY_RECORDED_STOP): the QUICK_STOP the route sends itself once the enable failed
+// after its word 15 may have reached the drive, which then may be enabled and moving to a retained 607A
+// target. Application policy, not a drive timing: the planned stop budget record 2108's quick stop
+// completed in (sd=1500, si=500), with the best-effort 000B allowed to the same deadline. Every start 2
+// plan reserves its terminals and time, used or not.
+constexpr uint32_t ENABLE_STOP_MS = 1500, ENABLE_STOP_INTERVAL_MS = 500;
+bool enableStopPlanned(const RoutePlan& p) { return p.kind == RouteKind::ENABLE && p.start == 2; }
 uint64_t stopSpanUs(const RoutePlan& p);
 unsigned terminalBound(const RoutePlan& p) {
     switch (p.kind) {
@@ -419,7 +426,8 @@ unsigned terminalBound(const RoutePlan& p) {
         // 6060 write, then a full first cycle and image cycles.
         return 15 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
     case RouteKind::ENABLE:
-        return 9 + 2 + 3 + 7 * (3 + p.deadlineMs / p.intervalMs);
+        return 9 + 2 + 3 + 7 * (3 + p.deadlineMs / p.intervalMs) +
+               (enableStopPlanned(p) ? stopTerminals(ENABLE_STOP_MS, ENABLE_STOP_INTERVAL_MS) : 0);
     case RouteKind::STOP:
         return 5 + stopTerminals(p.deadlineMs, p.intervalMs);
     case RouteKind::POSITION:
@@ -494,6 +502,7 @@ uint32_t durationBound(const RoutePlan& p) {
     const uint32_t stop = uint32_t(stopSpanUs(p) / 1000);
     switch (p.kind) {
     case RouteKind::ENABLE:
+        return p.deadlineMs + (enableStopPlanned(p) ? ENABLE_STOP_MS : 0);
     case RouteKind::COUNTER_ZERO:
     case RouteKind::CLEAR_ALARM:
     case RouteKind::VELOCITY:
@@ -2393,7 +2402,10 @@ void BenchRoute::startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffor
             finish(RouteFailure::REFUSED, "stop", now);
         return;
     }
-    record_.actionRequestedUs = now;
+    // An enable's own stop keeps the enable's request time: the stop and its fallback start after it, so
+    // TRIAL_ENABLE, TRIAL_STOP and TRIAL_BEST_EFFORT all still read as this record's own.
+    if (!record_.enableRequested)
+        record_.actionRequestedUs = now;
     record_.stopRequested = true;
     actionStarted_ = true;
 }
@@ -3147,7 +3159,33 @@ void BenchRoute::serviceAction(uint64_t now) noexcept {
     const uint64_t at = record_.actionRequestedUs;
     if (record_.enableRequested) {
         const L::ActionContext& c = axis().enableAction();
-        const bool ok = c.startedUs >= at && c.state == M::ActionState::SUCCEEDED;
+        const bool own = c.startedUs >= at;
+        const bool ok = own && c.state == M::ActionState::SUCCEEDED;
+        // Start 2: an enable that failed by itself once its word 15 may have reached the drive leaves a
+        // drive that may be enabled and moving to the 607A target it retains (an interrupted move's, too),
+        // for instance after a 6064 or 606C change in word 15's cycle. The route asks once for a QUICK_STOP,
+        // at once; the session takes the sequenced 000B after the acknowledged 000F or the DEC-2 000B, or
+        // refuses on a fresh idle report outside the stop's states.
+        // An abort or EMCY ended the route above and sends no stop, as everywhere. Its deadline is cut to
+        // the time left before the cutoff, as the velocity's own stop is.
+        if (!ok && own && !stopAttempted_ && enableStopPlanned(record_.plan) && (c.commandEvidenceMask & 4u) &&
+            c.commandHistory[2].effectPossible) {
+            const uint64_t left = cutoffUs_ > now ? (cutoffUs_ - now) / 1000 : 0;
+            const uint32_t ms = left < ENABLE_STOP_MS ? uint32_t(left) : ENABLE_STOP_MS;
+            if (!ms) {
+                stopAttempted_ = true;
+                finish(RouteFailure::DEADLINE, "cutoff", now);
+                return;
+            }
+            // After an acknowledged 000F the enable's last cycle followed it, so the session judges the
+            // drive by it. Without that acknowledgement every report is older than word 15: the session is
+            // given none, so it takes the DEC-2 000B instead of trusting a report of the drive before it.
+            const bool acknowledged = c.commandHistory[2].outcome == C::SdoOutcome::SUCCESS;
+            if (!acknowledged)
+                L::resetRead(context_.read);
+            startStop(2, ms, ms, ENABLE_STOP_INTERVAL_MS, acknowledged ? c.read : context_.read, now);
+            return;
+        }
         finish(ok ? RouteFailure::NONE : RouteFailure::ACTION, ok ? "none" : "enable", now);
         return;
     }

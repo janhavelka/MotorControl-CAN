@@ -1099,6 +1099,9 @@ SLOT_STEP_ROUTES = frozenset(("settings-2202", "io-di3", "clear-alarm"))
 # (BenchRoute::serviceAction). Only a 6040 download of 010F or 000B and the stop cycle's MONITORS, STATUS
 # and FEEDBACK reads may follow it; anything else after a failure stays result_after_failure.
 STOP_AFTER_FAILURE_ROUTES = frozenset(("velocity",))
+# The same for a released-start enable (TRIAL_PLAN start=2, 2026-11-10): the route's own QUICK_STOP after the
+# enable failed once word 15 may have reached the drive, word 15's own failed terminal included.
+STOP_AFTER_FAILURE_STARTS = {"enable": 2}
 _STOP_READS = frozenset(((0x2100, 0), (0x2101, 0), (0x2102, 0), (0x6041, 0), (0x6061, 0), (0x6064, 0),
                          (0x606C, 0)))
 _STOP_WORDS = (bytes.fromhex("2b4060000f010000"), bytes.fromhex("2b4060000b000000"))
@@ -1254,6 +1257,12 @@ def _check_record(report, records, expect):
     # terminals are matched to that node's own frames, steps and epochs. The record's outcome follows
     # its own node; the observer's failures stay listed.
     nodes = sorted({result.values.get("node", node) for result in results} | {node})
+    route = values.get("route")
+    plan = next((r for r in records if r.kind == "TRIAL_PLAN" and r.status == "parsed"), None)
+    stop_after_failure = header.kind == "TRIAL" and (
+        route in STOP_AFTER_FAILURE_ROUTES or
+        (route in STOP_AFTER_FAILURE_STARTS and plan is not None and
+         plan.values.get("start") == STOP_AFTER_FAILURE_STARTS[route]))
     terminal_failure = None
     for each in nodes:
         own = [result for result in results if result.values.get("node", node) == each]
@@ -1262,8 +1271,7 @@ def _check_record(report, records, expect):
         _check_epochs(report, records if len(nodes) == 1 else
                       [r for r in records if r.role != "terminal" or r.values.get("node", node) == each])
         failure = _check_node_terminals(report, own, frames, each, rows if len(nodes) == 1 else None,
-                                        header.kind == "TRIAL" and
-                                        values.get("route") in STOP_AFTER_FAILURE_ROUTES)
+                                        stop_after_failure)
         if each == node:
             terminal_failure = failure
     if report.trace_lost:
