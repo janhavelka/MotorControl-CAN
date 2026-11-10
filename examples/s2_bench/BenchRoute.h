@@ -37,7 +37,18 @@
  *   attendant's shaft observation. The firmware never supplies an observation itself. Start 2,
  *   EnableStart::RELEASED_BY_RECORDED_STOP, carries shaft 1 (FREE): the basis is the released start
  *   report, read from the drive at the user's instruction of 2026-11-10, never felt, and the library
- *   does not consult it for a released start.
+ *   does not consult it for a released start. The library admits the running latch a moving quick stop
+ *   leaves, which must clear by word 7, holds word 15 until word 7's report reads still, and fails on a
+ *   6064 or 606C change after word 15. When a start 2 enable fails by itself once its word 15 may have
+ *   reached the drive (TRIAL_ENABLE_STEP word=15 history=1 possible=1), the route asks the session for
+ *   one QUICK_STOP at once: deadline and best-effort deadline 1500 ms, cycles every 500 ms (record
+ *   2108's planned stop budget), cut to the cutoff; TRIAL_STOP and TRIAL_BEST_EFFORT show it. After an
+ *   acknowledged 000F it passes the enable's last cycle, so the session sequences 000B on a report with
+ *   low bits 111, takes the DEC-2 000B on a running one and refuses on an idle one outside the stop's
+ *   states; without that acknowledgement it passes no report, and the session takes the DEC-2 000B.
+ *   Every start 2 plan reserves that stop's terminals and time. The stop is a reaction, not a planned
+ *   trial, so it adds no motion weight. A failure before word 15 (the latch still reported at word 7)
+ *   sends nothing more: the drive is then switched on.
  * - STOP, packet 15 P4 and packet 16. A fresh MONITORS/STATUS read, then AxisSession::requestStop
  *   with the host's kind and policy. The path taken and every context it wrote are reported.
  * - POSITION, packet 19. An application-local isolated experiment, not a move engine: a fresh read,
@@ -148,7 +159,8 @@
  * COUNTER_ZERO, CLEAR_ALARM, MODE_THREE, VELOCITY), every settings route, HOME and VELOCITY_TARGET needs an attended flag
  * that the host sets only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion
  * routes and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside
- * POSITION, RELATIVE or MOVE, and VELOCITY's own stop, counts as one more. These caps restart with the
+ * POSITION, RELATIVE or MOVE, and VELOCITY's own stop, counts as one more; a start 2 ENABLE's own stop
+ * after a failure does not, so no cap can refuse it. These caps restart with the
  * MCU: scripts/s2_bench.py keeps the campaign's count across boots. Any failed terminal, lost reply, grant or admission refusal,
  * changed epoch, nonzero EMCY from the node, lost evidence or local abort ends the route and keeps
  * its evidence; nothing is retried, enabled, cleared, zeroed, restored or switched to another mode,
@@ -232,7 +244,8 @@ struct RoutePlan {
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
     /** ENABLE: the host's record, 1 EnableStart::NO_MOTION_WRITE_RECORDED or 2
-     * EnableStart::RELEASED_BY_RECORDED_STOP. */
+     * EnableStart::RELEASED_BY_RECORDED_STOP. Start 2 also reserves the route's own QUICK_STOP after a
+     * failure once word 15 may have reached the drive. */
     uint8_t start = 0;
     /** ENABLE: shaft observation, 1 FREE or 2 HOLDING. Start 1: the attendant's typed observation. Start 2:
      * always 1, read from the released start report, never felt. */
@@ -581,7 +594,8 @@ struct RouteRecord {
     bool stopRequested = false;     ///< requestStop returned a path other than NONE.
     uint8_t stopRequestKind = 0;    ///< StopKind asked for.
     uint8_t stopPathRequested = 0;  ///< StopPath requestStop returned.
-    uint64_t actionRequestedUs = 0; ///< When the enable or stop was requested.
+    /** When the enable or stop was requested; an ENABLE route's own stop keeps the enable's time. */
+    uint64_t actionRequestedUs = 0;
     bool emcy = false;              ///< A nonzero EMCY of this node was copied.
     uint8_t emcyData[8] = {};       ///< Its bytes.
     bool moveRequested = false;     ///< MOVE: requestMove accepted; AxisSession::moveAction holds it.

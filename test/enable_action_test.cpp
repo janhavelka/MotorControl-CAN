@@ -94,7 +94,16 @@ struct FakeDrive {
     // 6041 bits 0..6 from 0x50 to 0x31 with 2100 still released, word 7 gave 0x33 and cleared 2100
     // released, word 15 gave 0x37. Mode 1 is this fake's assumption, not a measurement.
     bool releasedPattern = false;
+    // This word clears the latch a moving quick stop left, 2100 running and 6041 bit 14, as word 7 did in
+    // trials 308 (4031/0014 to 0033/0000) and 1742 (C031/0015 to 8033/0001); zero keeps it. With
+    // unlatchStatus false only 2100 running clears.
+    uint16_t unlatchWord = 0;
+    bool unlatchStatus = true;
     unsigned words = 0, targetReads = 0;
+    // Once this many enable words have arrived, the driftRead-th 6064 read after that (1 the first) adds
+    // driftChange first: a position report that moves on a later cycle, as word 7's did in trial 308.
+    unsigned driftWord = 0, driftRead = 0, driftReads = 0;
+    int32_t driftChange = 0;
     // Applied when this many enable words have arrived; zero means never.
     unsigned changeAfterWord = 0;
     uint16_t monitorChange = 0, statusChange = 0;
@@ -147,6 +156,11 @@ bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
                     drive.status = uint16_t((drive.status & ~0x0060u) | 0x0020u);
                 if (drive.releasedPattern && word == 7)
                     drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_RELEASED);
+                if (drive.unlatchWord && word == drive.unlatchWord) {
+                    drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_RUNNING);
+                    if (drive.unlatchStatus)
+                        drive.status = uint16_t(drive.status & ~0x4000u);
+                }
             }
             if (drive.changeAfterWord && drive.words == drive.changeAfterWord)
                 drive.apply();
@@ -187,6 +201,8 @@ bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
         size = 1;
         break;
     case 0x6064:
+        if (drive.driftWord && drive.words >= drive.driftWord && ++drive.driftReads == drive.driftRead)
+            drive.position += drive.driftChange;
         raw = uint32_t(drive.position);
         size = 4;
         break;
@@ -1810,18 +1826,57 @@ void releasedByRecordedStop() {
         CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x0f);
         quiet(r);
     }
-    {   // A position report that moves again after word 15's cycle is not judged either: no continuity.
+    {   // Word 7's report that moves on: word 15 waits until two cycles in a row repeat one 6064, and word
+        // 7's step keeps the second of them (+5 at the word, +2 more on its second cycle).
         Rig r;
         releasedDrive(r.drive, -40);
-        r.drive.changeAfterWord = 3;
-        r.drive.positionChange = -3;
+        r.drive.changeAfterWord = 2;
+        r.drive.positionChange = 5;
+        r.drive.driftWord = 2;
+        r.drive.driftRead = 2;
+        r.drive.driftChange = 2;
         L::ReadContext state;
         admittedRig(r, state);
         CHECK(r.request(state, releasedEvidence()).isOk());
         r.finishEnable();
         const L::ActionContext& c = r.a.enableAction();
         CHECK(c.state == M::ActionState::SUCCEEDED && c.enable.startPosition == -40 &&
-              c.enable.steps[1].position == -40 && c.enable.steps[2].position == -43);
+              c.enable.steps[0].position == -40 && c.enable.steps[1].position == -33 &&
+              c.enable.steps[2].position == -33);
+        // Word 6's cycle, word 7's three (-35, then -33 twice, the accepted one at least two intervals after
+        // the word) and word 15's.
+        CHECK(c.observations == 5 &&
+              c.enable.steps[1].earliestUs >= c.commandHistory[1].completedUs + 2 * options().observationIntervalUs);
+        quiet(r);
+    }
+    {   // A position report that moves after word 15 ends the sequence, which tells the caller to stop:
+        // the drive may be enabled and moving to its retained target. The acknowledged 000F is the latest
+        // word, and the enable's own last cycle (low bits 111, not released) admits the QUICK_STOP.
+        const int32_t changes[][2] = {{-3, 0}, {1, 0}, {0, 30}, {0, -1}};
+        for (const auto& k : changes) {
+            Rig r;
+            releasedDrive(r.drive, -40);
+            r.drive.changeAfterWord = 3;
+            r.drive.positionChange = k[0];
+            r.drive.velocityChange = k[1];
+            L::ReadContext state;
+            admittedRig(r, state);
+            CHECK(r.request(state, releasedEvidence()).isOk());
+            r.finishEnable();
+            const L::ActionContext& c = r.a.enableAction();
+            CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+            CHECK(std::strstr(c.status.msg, "after word 15") && std::strstr(c.status.msg, "stop it"));
+            CHECK(c.commandEvidenceMask == 7 && c.enable.steps[1].present && !c.enable.steps[2].present);
+            CHECK(c.extraObservation.actualPosition == -40 + k[0] && c.extraObservation.actualVelocity == k[1]);
+            CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x0f);
+            E::StopPolicy policy;
+            policy.options = options();
+            policy.deadlineUs = r.now + 20000;
+            const unsigned from = r.wire.sentCount;
+            CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, c.read, policy, r.now) == E::StopPath::CONFIRMED);
+            r.steps(4);
+            CHECK(r.wire.sentCount > from && wordAt(r, from, 0x000b));
+        }
     }
     {   // NO_MOTION_WRITE_RECORDED keeps its rules on the same start: bits 5 and 6 end it at word 6.
         Rig r;
@@ -1895,19 +1950,28 @@ void releasedByRecordedStop() {
         int32_t velocity;
         uint16_t errorCode;
     };
+    const uint16_t latched = uint16_t(L::MONITOR_RELEASED | L::MONITOR_RUNNING); // 0014, trial 2109.
     const Start starts[] = {
         {1, POWER_UP_STATUS, 1, 0, 0},                                            // Enabled report.
         {1, RELEASED_STATUS, 1, 0, 0},                                            // 2100 not released.
+        {uint16_t(1 | L::MONITOR_RUNNING), 0xc050, 1, 0, 0},                      // Running, not released.
         {RELEASED_MONITOR, 0x8051, 1, 0, 0},                                      // Low bits 001.
         {RELEASED_MONITOR, 0x8053, 1, 0, 0},
         {RELEASED_MONITOR, 0x8057, 1, 0, 0},
-        {uint16_t(RELEASED_MONITOR | L::MONITOR_RUNNING), 0xc050, 1, 0, 0},       // Running latched.
+        {RELEASED_MONITOR, 0x8040, 1, 0, 0},                                      // Not the 0x50 pattern.
+        {latched, 0x4070, 1, 0, 0},
+        {latched, 0x4058, 1, 0, 0},                                               // Bit 3, an alarm in ZH86.
         {uint16_t(RELEASED_MONITOR | L::MONITOR_ALARM), RELEASED_STATUS, 1, 0, 0}, // Alarm.
+        {uint16_t(latched | L::MONITOR_ALARM), 0x4050, 1, 0, 0},
+        {uint16_t(latched | L::MONITOR_POSITIVE_SOFT_LIMIT), 0x4050, 1, 0, 0},     // Soft limits.
+        {uint16_t(RELEASED_MONITOR | L::MONITOR_NEGATIVE_SOFT_LIMIT), RELEASED_STATUS, 1, 0, 0},
+        {uint16_t(latched | 0x0080), 0x4050, 1, 0, 0},                            // Undocumented bit.
         {RELEASED_MONITOR, RELEASED_STATUS, 1, 1, 0},                             // Moving.
         {RELEASED_MONITOR, RELEASED_STATUS, 1, -1, 0},
+        {latched, 0x4050, 1, -30, 0},                                             // 606C nonzero, latched.
         {RELEASED_MONITOR, RELEASED_STATUS, 3, 0, 0},                             // Mode 3.
+        {uint16_t(latched | 1), 0xc050, 3, 0, 0},                                 // 1924's report, mode 3.
         {RELEASED_MONITOR, RELEASED_STATUS, 0, 0, 0},
-        {L::MONITOR_RELEASED, RELEASED_STATUS, 1, 0, 0},                          // Not in place.
         {RELEASED_MONITOR, RELEASED_STATUS, 1, 0, 0xff05},
     };
     for (const Start& k : starts) {
@@ -1971,6 +2035,194 @@ void releasedByRecordedStop() {
     }
 }
 
+// 12b. The latched release a moving quick stop leaves, from the captured reports: 2109 (node 1 after the
+// quick stop of move 2108: 2100=0014, 6041=4050, mode 1, 6064 -2017, 606C 0; 607A -2000, the move's relative
+// displacement from -1522, so its internal target was -3522; 60FF 45) and 1924
+// (node 2 after a halted-state quick stop: 0015, C050, mode 3, 33743). What the words then do is this
+// fake's, after trials 308 and 1742; the +11 word 7 pull is this test's number.
+const uint16_t LATCHED_STATUS = 0x4050, LATCHED_MONITOR = uint16_t(L::MONITOR_RELEASED | L::MONITOR_RUNNING);
+void latchedDrive(FakeDrive& d) {
+    d.status = LATCHED_STATUS;
+    d.monitor = LATCHED_MONITOR;
+    d.mode = 1;
+    d.position = -2017;
+    d.positionTarget = -2000;
+    d.velocityTarget = 45;
+    d.releasedPattern = true;
+    d.unlatchWord = 7;
+    d.changeAfterWord = 2; // Word 7's pull.
+    d.positionChange = 11;
+}
+L::EnableEvidence latchedEvidence(uint16_t status = LATCHED_STATUS) {
+    L::EnableEvidence e = evidence(status, -2000, 45);
+    e.start = L::EnableStart::RELEASED_BY_RECORDED_STOP;
+    e.powerUpShaft = L::ShaftObservation::NONE;
+    return e;
+}
+void latchedRelease() {
+    {   // 2109's report: word 7 clears the latch, its report holds still, and word 15 completes the enable.
+        Rig r;
+        latchedDrive(r.drive);
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, latchedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED && !c.uncertain);
+        CHECK(c.enable.startStatusword == 0x4050 && c.enable.startMonitor == 0x0014 &&
+              c.enable.startPosition == -2017 && c.enable.positionTarget == -2000);
+        // Word 6: the latch persists, still released, at the start's 6064.
+        CHECK(c.enable.steps[0].statusword == 0x4031 && c.enable.steps[0].monitor == 0x0014 &&
+              c.enable.steps[0].position == -2017);
+        // Word 7: 0033/0000 as in trial 308, the latch gone, the report pulled and held for two cycles.
+        CHECK(c.enable.steps[1].statusword == 0x0033 && c.enable.steps[1].monitor == 0 &&
+              c.enable.steps[1].position == -2006);
+        CHECK(c.enable.steps[2].statusword == 0x0037 && c.enable.steps[2].monitor == 0 &&
+              c.enable.steps[2].position == -2006 && c.enable.steps[2].velocity == 0);
+        CHECK(wordsFrom(r, r.startFrame) == 3 && downloadsFrom(r, r.startFrame) == 3 && r.drive.mode == 1);
+        CHECK(r.drive.positionTarget == -2000); // Read and compared, never written.
+        quiet(r);
+    }
+    {   // The latch may also clear in word 6's cycle.
+        Rig r;
+        latchedDrive(r.drive);
+        r.drive.unlatchWord = 6;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, latchedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.enable.steps[0].monitor == L::MONITOR_RELEASED &&
+              c.enable.steps[0].statusword == 0x0031);
+    }
+    {   // 1924's report in mode 3 is refused for the enable, before any traffic; after the one 6060=1 the
+        // same latched release (in place too) is admitted, and word 7 gives 8033/0001 as in trial 1742.
+        Rig r;
+        latchedDrive(r.drive);
+        r.drive.status = 0xc050;
+        r.drive.monitor = uint16_t(LATCHED_MONITOR | L::MONITOR_POSITION_COMPLETE);
+        r.drive.mode = 3;
+        r.drive.position = 33743;
+        r.drive.changeAfterWord = 0;
+        L::ReadContext state;
+        admittedRig(r, state);
+        L::EnableEvidence three = latchedEvidence(0xc050);
+        three.modeRaw = 3;
+        CHECK(r.request(state, three).detail == int32_t(M::ActionError::ARGUMENT)); // Mode 3: no enable here.
+        const M::Status reviewed = r.request(state, latchedEvidence(0xc050)); // Mode 1 reviewed, 3 reported.
+        CHECK(reviewed.code == M::Err::INVALID_CONFIG && reviewed.detail == int32_t(M::ActionError::STATE));
+        CHECK(r.a.enableAction().state == M::ActionState::EMPTY && r.wire.sentCount == r.startFrame);
+        r.writeThrough(0x6060, 1, 1);
+        CHECK(r.drive.mode == 1 && !r.a.motionHistoryWritten());
+        r.readState(state);
+        CHECK(r.request(state, latchedEvidence(0xc050)).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.enable.startMonitor == 0x0015);
+        CHECK(c.enable.steps[0].statusword == 0xc031 && c.enable.steps[0].monitor == 0x0015);
+        CHECK(c.enable.steps[1].statusword == 0x8033 && c.enable.steps[1].monitor == 0x0001 &&
+              c.enable.steps[1].position == 33743);
+        CHECK(c.enable.steps[2].statusword == 0x8037 && c.enable.steps[2].monitor == 0x0001);
+    }
+    {   // The latch kept at word 7: the sequence ends in word 7's cycle, word 15 unsent, with that cycle kept.
+        // The drive is then switched on, reporting running. Nothing in the library stops it; a stop request
+        // after word 7 has no sequenced arrow and takes the best-effort 000B only when the policy allows it.
+        for (unsigned statusOnly = 0; statusOnly < 2; ++statusOnly) {
+            Rig r;
+            latchedDrive(r.drive);
+            if (statusOnly)
+                r.drive.unlatchStatus = false; // 2100 running clears, 6041 bit 14 stays.
+            else
+                r.drive.unlatchWord = 0;
+            L::ReadContext state;
+            admittedRig(r, state);
+            CHECK(r.request(state, latchedEvidence()).isOk());
+            r.finishEnable();
+            const L::ActionContext& c = r.a.enableAction();
+            CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+            CHECK(!std::strstr(c.status.msg, "after word 15"));
+            CHECK(wordsFrom(r, r.startFrame) == 2 && c.commandEvidenceMask == 3 && c.enable.steps[0].present &&
+                  !c.enable.steps[1].present);
+            CHECK(c.statusObservation.statusword == 0x4033 &&
+                  c.monitorObservation.monitor == (statusOnly ? 0 : L::MONITOR_RUNNING) &&
+                  c.extraObservation.actualPosition == -2006);
+            if (statusOnly)
+                continue;
+            CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 7);
+            E::StopPolicy policy;
+            policy.options = options();
+            policy.deadlineUs = r.now + 20000;
+            CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, c.read, policy, r.now) == E::StopPath::NONE);
+            quiet(r, 4);
+            policy.deadlineUs = r.now + 20000;
+            policy.bestEffortDeadlineUs = r.now + 30000;
+            const unsigned from = r.wire.sentCount;
+            CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, c.read, policy, r.now) == E::StopPath::BEST_EFFORT);
+            r.steps(4);
+            CHECK(r.wire.sentCount == from + 1 && wordAt(r, from, 0x000b));
+        }
+    }
+    {   // Motion after word 15 toward the interrupted move's -3522: the enable fails and tells the caller to stop.
+        Rig r;
+        latchedDrive(r.drive);
+        r.drive.driftWord = 3;
+        r.drive.driftRead = 1;
+        r.drive.driftChange = -40;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, latchedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(std::strstr(c.status.msg, "after word 15") && c.enable.steps[1].position == -2006 &&
+              c.extraObservation.actualPosition == -2046 && c.commandEvidenceMask == 7);
+        E::StopPolicy policy;
+        policy.options = options();
+        policy.deadlineUs = r.now + 20000;
+        const unsigned from = r.wire.sentCount;
+        CHECK(r.a.requestStop(L::StopKind::QUICK_STOP, c.read, policy, r.now) == E::StopPath::CONFIRMED);
+        r.steps(4);
+        CHECK(wordAt(r, from, 0x000b));
+    }
+    // Every other change still ends a latched start, each at its word: 6064 moving or 606C nonzero in
+    // word 6's cycle, the in-place bit appearing, an alarm, a soft limit, a latch that comes back.
+    struct Change {
+        unsigned word;
+        uint16_t monitor, status;
+        int32_t position, velocity;
+    };
+    const Change changes[] = {
+        {1, 0, 0, 1, 0},
+        {1, 0, 0, -1, 0},
+        {1, 0, 0, 0, 1},
+        {2, 0, 0, 0, -1},                                   // 606C during word 7's pull.
+        {2, L::MONITOR_POSITION_COMPLETE, 0, 0, 0},
+        {3, L::MONITOR_POSITION_COMPLETE, 0, 0, 0},         // In place after word 15: a target reached.
+        {2, L::MONITOR_ALARM, 0, 0, 0},
+        {1, L::MONITOR_NEGATIVE_SOFT_LIMIT, 0, 0, 0},
+        {3, L::MONITOR_RUNNING, 0, 0, 0},                   // Running again after word 15.
+        {3, 0, 0x4000, 0, 0},
+        {1, 0, 0x8000, 0, 0},
+    };
+    for (const Change& k : changes) {
+        Rig r;
+        latchedDrive(r.drive);
+        r.drive.changeAfterWord = k.word;
+        r.drive.monitorChange = k.monitor;
+        r.drive.statusChange = k.status;
+        r.drive.positionChange = k.position;
+        r.drive.velocityChange = k.velocity;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, latchedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(wordsFrom(r, r.startFrame) == k.word && c.commandEvidenceMask == uint8_t((1u << k.word) - 1u));
+        quiet(r);
+    }
+}
+
 #define RUN(name)                                                                                  \
     do {                                                                                           \
         scenario = #name;                                                                          \
@@ -1991,6 +2243,7 @@ void allScenarios() {
     RUN(stopAfterEachStep);
     RUN(sessionHistory);
     RUN(releasedByRecordedStop);
+    RUN(latchedRelease);
     RUN(directLifecycle);
 }
 } // namespace

@@ -38,7 +38,7 @@ def check_trial_transcript(path, every=False):
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 37 if every else 26
+    wanted_count = 39 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
@@ -61,8 +61,12 @@ def check_trial_transcript(path, every=False):
         fallback = line.startswith("V1,9,")
         # Gate Q03: the fake refuses the 3001 range probe with the value range's abort.
         ranged = line[0] == "F" and fields[3] == "3001"
-        wanted = ("failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback or ranged
-                  else "complete")
+        # After round 10: a released-start enable from the latched release that fails after word 15, then the
+        # route's own QUICK_STOP: 21 on a reported move, the sequenced 000B; 22 with word 15's reply lost, a
+        # failed terminal and the DEC-2 000B after it.
+        enable_stop = line.startswith(("E1,21,", "E1,22,"))
+        wanted = ("failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback or ranged or
+                  enable_stop else "complete")
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
         if fallback and not (report.failure_name == "ACTION" and b" needs=1 fenced=1 " in body and
@@ -74,6 +78,19 @@ def check_trial_transcript(path, every=False):
             forged = body.replace(b" data=2b4060000b000000 ", b" data=2b4060000f000000 ")
             if "result_after_failure" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
                 problems.append("%s: a 000F after the failed terminal was accepted" % line)
+        if enable_stop:
+            path = b"TRIAL_STOP kind=2 path=1 " if line.startswith("E1,21,") else b"TRIAL_STOP kind=2 path=2 "
+            if not (report.failure_name == "ACTION" and body.count(b" data=2b4060000b000000 ") == 1 and
+                    path in body and b" start=2 shaft=1 " in body and
+                    b"TRIAL_ENABLE_STEP word=15 present=0 " in body):
+                problems.append("%s: not a failed released enable with the route's one 000B" % line)
+            if line.startswith("E1,22,"):
+                # Only stop work may follow word 15's failed terminal: a 000F in the 000B's place is not.
+                forged = body.replace(b" data=2b4060000b000000 ", b" data=2b4060000f000000 ")
+                if "result_after_failure" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
+                    problems.append("%s: a 000F after the failed terminal was accepted" % line)
+            elif report.failed:
+                problems.append("%s: a failed terminal where none was planned" % line)
         if lost and not (report.failure_name == "EVIDENCE_LOSS" and b" lossCancel=1\n" in body):
             problems.append("%s: not an evidence loss with a local withdrawal" % line)
         if report.unknown or report.malformed or report.unknown_fields:
@@ -666,10 +683,10 @@ class BenchTest(unittest.TestCase):
 
     def test_released_start_enable_reads_its_shaft_basis_from_the_drive(self):
         released = ["--command", "enable", "--node", "1", "--trial", "12", "--status", "0x8050", "--position-target",
-                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "800"]
+                    "5000", "--velocity-target", "6", "--deadline-ms", "10000", "--interval-ms", "1250"]
         record_dir = self.stop_record()
         argv = released + ["--released-by-recorded-stop", str(record_dir)]
-        line = signed("TE1,12,1,2,1,32848,5000,6,10000,800")
+        line = signed("TE1,12,1,2,1,32848,5000,6,10000,1250")
         args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
         self.assertEqual(bench.encode(args.command, fields).decode("ascii"), line)
         # Exactly one start record; the flag belongs to enable; no waiver and no relayed shaft with it.
@@ -733,6 +750,107 @@ class BenchTest(unittest.TestCase):
             bench.main(BASE + released + ["--released-by-recorded-stop", str(bad_records[2]), "--dry-run",
                                           "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
         self.assertIn("would refuse before sending: released-by-recorded-stop", out.getvalue())
+
+    def test_released_start_reserves_its_stop_and_reads_retained_stop_records(self):
+        # Start 2 reserves the route's own QUICK_STOP (31 terminals, 1500 ms), as BenchRoute's terminalBound and
+        # durationBound count it (test/bench_route_test.cpp pins 10000/800 and 10000/1100 as capacity there).
+        def bounds(start, deadline, interval):
+            return bench.plan_bounds("enable", [1, 7, 1, start, 1, 0x4050, -2000, 45, deadline, interval])
+        self.assertEqual(bounds(1, 10000, 800), (14 + 7 * 15, 10000))  # Start 1 unchanged.
+        self.assertEqual(bounds(2, 10000, 800), (14 + 7 * 15 + 31, 11500))
+        self.assertEqual(bounds(2, 10000, 1250), (14 + 7 * 11 + 31, 11500))
+        for interval, fits in ((1100, False), (1112, True), (1250, True)):
+            fields = [1, 7, 1, 2, 1, 0x4050, -2000, 45, 10000, interval]
+            if fits:
+                bench.check_bounds("enable", fields)
+            else:
+                with self.assertRaises(bench.Refused):
+                    bench.check_bounds("enable", fields)
+        # The retained records the lead names: move 2108, whose own quick stop settled after the move was
+        # cancelled, and stop 1923, the halted-state quick stop. Both are this application's settled stops.
+        bench_dir = Path(__file__).resolve().parent.parent / "docs" / "bench"
+        for name, node, command, trial in (("20261110T1407Z-s21-c1-move-quick-node1-2108", 1, "move", 2108),
+                                           ("20261110T1408Z-s20-c12-stop-quick-node2-1923", 2, "stop", 1923)):
+            self.assertEqual(bench.check_stop_record(bench_dir / name, node),
+                             {"directory": str(bench_dir / name), "command": command, "trial": trial})
+            with self.assertRaises(bench.Refused):
+                bench.check_stop_record(bench_dir / name, 3 - node)  # Another node's record.
+        # A velocity record whose own QUICK_STOP settled counts as well; its HALT, as in velocity 1922, does not.
+        quick = self.stop_record("velocity-quick", command="velocity", trial=1990)
+        self.assertEqual(bench.check_stop_record(quick, 1)["command"], "velocity")
+        with self.assertRaises(bench.Refused):
+            bench.check_stop_record(bench_dir / "20261110T1408Z-s20-c12-velocity-node2-1922", 2)
+        # A move record whose stop was a HALT, or whose quick stop did not settle, does not.
+        for stop in ("TRIAL_STOP kind=1 path=1 final=4 own=1 state=2 outcome=1",
+                     "TRIAL_STOP kind=2 path=1 final=4 own=1 state=3 outcome=11"):
+            bad = self.stop_record("move-%s" % stop[16], command="move", trial=1991, stop=stop)
+            with self.assertRaises(bench.Refused):
+                bench.check_stop_record(bad, 1)
+        # The dry run states the latch, the still word 7, the post-15 rule and the route's own stop.
+        out = io.StringIO()
+        argv = ["--command", "enable", "--node", "1", "--trial", "2110", "--status", "0x4050", "--position-target",
+                "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250",
+                "--released-by-recorded-stop", str(bench_dir / "20261110T1407Z-s21-c1-move-quick-node1-2108")]
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + argv + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(), Operator())
+        self.assertIn("start 2 RELEASED_BY_RECORDED_STOP: move trial 2108 of node 1 records a settled quick stop",
+                      out.getvalue())
+        self.assertIn("running latched admitted", out.getvalue())
+        self.assertIn("any 6064 or 606C change after word 15 fails", out.getvalue())
+        self.assertIn("one QUICK_STOP follows at once (1500 ms, cycles every 500 ms", out.getvalue())
+        self.assertIn("at most 122 terminals of 128 and 11500 ms", out.getvalue())
+        self.assertIn(signed("TE1,2110,1,2,1,16464,-2000,45,10000,1250").strip(), out.getvalue())
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bench.main(BASE + argv[:-3] + ["800", argv[-2], argv[-1], "--dry-run", "--campaign", str(self.ledger)],
+                       Untouchable(), Clock(), Operator())
+        self.assertIn("would refuse before sending: capacity", out.getvalue())
+
+    def test_enable_alert_after_word_15_without_a_stop(self):
+        fields = [1, 30, 1, 2, 1, 0x4050, -2000, 45, 10000, 1250]
+        failed = ("TRIAL_ENABLE own=1 state=3 outcome=9 exec=1 completion=0 uncertain=1 effects=1 mask=07 cursor=2 "
+                  "observations=4 op=5 pt=-2000 vt=45 s0=4050 m0=0014 p0=-2017\n")
+        sent = ("TRIAL_ENABLE_STEP word=15 present=0 status=0000 monitor=0000 position=0 velocity=0 history=1 "
+                "outcome=0 ack=1 possible=1 uncertain=0\n")
+        unsent = sent.replace(" history=1 outcome=0 ack=1 possible=1 ", " history=0 outcome=255 ack=0 possible=0 ")
+        stop = ("TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 exec=1 completion=1 uncertain=0 effects=1 "
+                "pred=000f documented=0 basis=3 observations=1 op=6\n")
+        alert = "node 1 MAY BE MOVING: the enable failed after word 15 and no stop left; use the cutoff"
+
+        def enable_record(trial, *lines):
+            text = record("enable", 1, trial).replace(" summaries=2 ", " summaries=%d " % (2 + len(lines)))
+            head, end = text.split("END trial ")
+            return (head + "".join(lines) + "END trial " + end).encode("ascii")
+        for lines, wanted in (((failed, sent), alert),  # No stop line: nothing shows a stop that left.
+                              ((failed, sent, STOP_NONE, BEST_NONE % 0, BEST_NONE % 1), alert),
+                              ((failed, sent, STOP_FALLBACK, BEST_NONE % 0, BEST_NONE % 1), alert),
+                              ((failed, sent, stop, BEST_NONE % 0, BEST_NONE % 1), None),
+                              ((failed, sent, STOP_FALLBACK, BEST_LEFT, BEST_NONE % 1), None),
+                              ((failed, unsent), None),  # Word 15 never left: the drive is at most switched on.
+                              ((failed.replace(" state=3 ", " state=2 "), sent), None),  # Succeeded.
+                              ((failed.replace(" own=1 ", " own=0 "), sent), None)):  # Another record's enable.
+            self.assertEqual(bench.enable_alert("enable", fields, enable_record(30, *lines)), wanted, lines)
+        # Start 1 has no route stop and no alert; another trial's record is not this one.
+        start1 = list(fields)
+        start1[3] = 1
+        self.assertIsNone(bench.enable_alert("enable", start1, enable_record(30, failed, sent)))
+        self.assertIsNone(bench.enable_alert("enable", fields, enable_record(29, failed, sent)))
+        self.assertIsNone(bench.enable_alert("velocity", fields, enable_record(30, failed, sent)))
+        # A run: the alert reaches the attendant before the questions after the route, and the exit is 4.
+        record_dir = self.stop_record()
+        board = Board()
+        board.answer = enable_record(30, failed, sent).decode("ascii")
+        argv = BASE + ["--command", "enable", "--node", "1", "--trial", "30", "--status", "0x4050", "--position-target",
+                       "-2000", "--velocity-target", "45", "--deadline-ms", "10000", "--interval-ms", "1250",
+                       "--released-by-recorded-stop", str(record_dir), "--campaign", str(self.ledger),
+                       "--output", str(self.output)]
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+            status = bench.main(argv, Backend(board), Clock(), Operator("ATTENDED 30", "no movement", "HOLDING"))
+        self.assertEqual(status, 4, err.getvalue())
+        self.assertEqual(err.getvalue().count("ALERT: " + alert + "\n"), 2)
+        self.assertEqual(self.meta()["enable_alert"], alert)
+        self.assertNotIn("velocity_alert", self.meta())
 
     def test_mode1_line_unchanged_and_its_released_start_bound(self):
         argv = ["--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "4", "--interval-ms", "200"]

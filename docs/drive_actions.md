@@ -150,21 +150,45 @@ Each of these is this project's decision, not a vendor statement.
   drive last left released by a stop whose settlement it observed (a `QUICK_STOP` that settled on the
   released report or standstill, the quick stop of a halted drive included), and no write after that
   stop but one acknowledged `6060=1`. The library cannot check it either. It admits mode 1 only, under
-  `EnableGate::ATTENDED_EXPERIMENT`, from the released standstill: `2100` released with the in-place bit
-  and every other monitor rule above, `6041` low bits `000`, `606C` zero. The sequence is the same, with
-  two measured differences. `6041` bits 5 and 6 may change, because from every release so far word 6 moved
-  bits 0..6 from `0x50` to `0x31` (trial 1782 in mode 3, `8050` to `8031`; trial 308 in mode 1, `4050` to
-  `4031`). And `6064` must repeat the admission value only in word 6's cycles: word 7 energizes the drive,
-  and its position report moves to the drive's internal command (mode 3: -6 to +12 counts in trials 1742
-  to 1862; mode 1: 1187 to 1194 to 1180 in trial 308). No bound on that move is known, so none is claimed
-  or applied. The record keeps `6064` before word 6 and in each word's cycle, success claims no position
-  continuity, and a later move takes its start position from a fresh read. `606C` zero and `2100` running
-  clear still hold in every cycle. A start report of a release with running latched, as a quick stop
-  during a mode 1 move can leave (trial 213), is refused. The shaft observation is not consulted for a
-  released start; the bench records `FREE` from the released report at the user's instruction of
-  2026-11-10 ("do not ask if holding or not, read it"), never felt. `NO_MOTION_WRITE_RECORDED` keeps every
-  rule it had. The session still refuses after any write of its own, so this start serves an enable in a
-  new MCU boot, or after a mode route's `6060=1`.
+  `EnableGate::ATTENDED_EXPERIMENT`, from a released standstill: `2100` released, alarm, both soft limits
+  and every undocumented bit clear, the in-place bit set or clear and `2100` running set or clear; `6041`
+  bits 0..6 `0x50`, the pattern of every measured release (low bits `000`), bits 14 and 15 as reported;
+  `1001`, `603F` and `606C` zero. Running set beside the release is the latch a quick stop during a move
+  leaves: node 1 read `2100=0014`, `6041=4050`, -2017 after the quick stop of move 2108 (trial 2109, the
+  target -3522 not reached), node 2 `0015`, `C050` in mode 3 after a halted-state quick stop (trial 1924).
+  `6041` bit 14 read set exactly while the latch was. The sequence is the same, with these differences,
+  each measured from released starts on one firmware or chosen for them here:
+  - `6041` bits 5 and 6 may change: from every release so far word 6 moved bits 0..6 from `0x50` to
+    `0x31` (trial 1782 in mode 3, `8050` to `8031`; trial 308 in mode 1, `4050` to `4031`).
+  - The latch, `2100` running and `6041` bit 14, may stay or clear in word 6's cycles and must read clear
+    in every cycle from word 7 on. Word 7 cleared it in trial 308 (`4031`/`0014` to `0033`/`0000`, mode 1)
+    and trial 1742 (`C031`/`0015` to `8033`/`0001`, mode 3). A latch still reported then ends the sequence
+    in word 7's cycle, word 15 unsent, with that cycle kept in the context's observations. The drive is
+    then switched on and may hold torque; no word 15 reached it, and no record has a switched-on drive
+    move (trial 308 stayed switched on). No stop has a sequenced arrow from word 7: a stop request on a
+    fresh running report takes the DEC-2 `000B` only when the policy allows a best effort, and is refused
+    on a fresh idle one. No other `2100` bit, the in-place bit included, may change.
+  - `6064` must repeat the admission value in word 6's cycles, released. Word 7 energizes the drive and its
+    position report moves to the drive's internal command (mode 3: -6 to +12 counts in trials 1742 to
+    1862; mode 1: 1187 to 1194 to 1180 over half a second in trial 308, +1 in trial 2102). No bound on that
+    move is known, so word 7's cycles are not compared. Word 15 waits instead until two cycles in a row
+    after word 7 report low bits `011` and the same `6064`; the second is word 7's accepted cycle. Trial
+    2102 sent word 15 after one such cycle (15257), and its report moved on to 15260 in word 15's cycles;
+    which word moved it is unknown.
+  - From word 15 on every cycle must repeat word 7's accepted `6064` with `606C` zero. The drive keeps its
+    target, an interrupted move's included (after trial 2108 `607A` read -2000, the relative displacement
+    from -1522, so that move's target was -3522), and whether words 6, 7 and 15 resume it is unmeasured;
+    a `000F` rearm after a HALT did not (trials 829 and 2107). A change ends the sequence with `OBSERVATION_SCOPE` and a status message that says so; the drive
+    may then be enabled and moving, so the caller requests a `QUICK_STOP` at once. After an acknowledged
+    word 15 that stop follows the session's `000F` (the library's mode 1 arrow: a fresh report with low
+    bits `111`, released and alarm clear, running either way).
+
+  The record keeps `6064` before word 6 and in each word's accepted cycle, success claims no position
+  continuity across word 7, and a later move takes its start position from a fresh read. The shaft
+  observation is not consulted for a released start; the bench records `FREE` from the released report at
+  the user's instruction of 2026-11-10 ("do not ask if holding or not, read it"), never felt.
+  `NO_MOTION_WRITE_RECORDED` keeps every rule it had. The session still refuses after any write of its
+  own, so this start serves an enable in a new MCU boot, or after a mode route's `6060=1`.
 - **Each word waits for its report.** An acknowledgement and an elapsed interval establish nothing,
   so the next word needs the previous word's documented low bits in a fresh cycle.
 - **Spacing is at least 10 ms from the acknowledgement.** `ENABLE_WORD_INTERVAL_US` is the admitted
@@ -215,7 +239,7 @@ action. `6040` is a whole-word write, never a read-modify-write.
 | Enable in mode 0 | Any | Undefined mode | None | None | The mode byte | None | Refused | None |
 | Enable in mode 6 | Non-enabled released, stationary and exact reviewed evidence | `modeRaw=6`, `homingEnableQualified`, ordinary explicit trial evidence | 6/7/15 with spacing | Fresh mode6 state after each ACK | No automatic home trigger | Retained action outcome | Conditional; see [homing](homing.md) | No reference published |
 | Enable from `000F` or after a stop | Latest word `000F`, `000B` or `010F` in this session | Any | None | None | None | None | Refused, and never writing 6 merely to "reset" | A word from 15 back to 6 has no documented meaning here |
-| Enable from a release a recorded stop left | Session clean; the application's record shows the settled stop and nothing after it but an acknowledged `6060=1`; fresh released standstill in mode 1 | Mode 1, reviewed targets | 6, 7, 15 as above | As above | As above, except `6041` bits 5 and 6, and `6064` compared only in word 6's cycles | As above | As above | Attended experiment only. Word 7 moves the position report to the drive's internal command, with no bound known; no continuity is claimed |
+| Enable from a release a recorded stop left | Session clean; the application's record shows the settled stop and nothing after it but an acknowledged `6060=1`; fresh released standstill in mode 1, in place either way, the running latch of a moving quick stop admitted (`0014`/`4050`, trial 2109) | Mode 1, reviewed targets; an interrupted move's `607A` retained | 6, 7, 15 as above; word 15 only after two still cycles of word 7's report | As above | As above, except `6041` bits 5 and 6; the latch (`2100` running, `6041` bit 14) may stay only in word 6's cycles; `6064` repeats the start in word 6's cycles, is free in word 7's, and must repeat word 7's accepted value from word 15 on | As above | As above. A change after word 15 ends it with a message to stop the drive: the caller requests a `QUICK_STOP` at once | Attended experiment only. Word 7 moves the position report to the drive's internal command, with no bound known; no continuity is claimed. Whether word 15 resumes a retained target is unmeasured |
 | Stop during the sequence | Acknowledged 6 or 7 | Unchanged | A fresh idle report: no word, since DEC-8 has no arrow from them. A fresh running report, or none: best-effort `000B`, as for the same word still in flight | `000B` path: [stop guide](stop_actions.md) | The stop's own | The stop's own | The enable ends either way. Use the independent cutoff | Unknown |
 | Stop after `000F` | Acknowledged 15 | Unchanged | `010F` or `000B` with a fresh cycle after the acknowledgement, otherwise best-effort `000B` | [Stop guide](stop_actions.md) | [Stop guide](stop_actions.md) | Stop's own | The enable ends, and any word in flight settles into it | Unknown |
 

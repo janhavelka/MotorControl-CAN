@@ -60,8 +60,10 @@
  * it (2026-11-03). At word 7 the drive reports itself energized again, and its position report
  * returned to its last commanded value (trial 308, 2026-11-04; the shaft was not observed).
  * EnableStart::RELEASED_BY_RECORDED_STOP admits an attended enable from the released standstill a
- * recorded stop left, with no power cycle; it records the word 7 position move and claims no
- * position continuity. Read docs/drive_actions.md for the full table.
+ * recorded stop left, with no power cycle, the running latch of a moving quick stop included; it
+ * records the word 7 position move, claims no continuity across it, and fails on any position or
+ * velocity change after word 15, which the caller must answer with a stop. Read
+ * docs/drive_actions.md for the full table.
  * Preparation and advancement validate first, then write the caller's context in place,
  * so no call copies a context onto the stack and a refused call changes nothing. Keep
  * contexts in static or owner storage, never in task locals.
@@ -181,18 +183,39 @@ enum class EnableStart : uint8_t {
      * that stop, apart from one acknowledged 6060 selecting this explicitly reviewed mode. A statement
      * the library cannot check, and not proof that the drive holds no pending curve.
      *
-     * Mode 1 only. The start report must be the released standstill: 2100 released, with the in-place
-     * bit and every other monitor rule as for a power-up start, 6041 low bits 000 and 606C zero. Words 6,
-     * 7 and 15 and their reports follow as for NO_MOTION_WRITE_RECORDED, with two differences measured
-     * from released starts on one firmware. 6041 bits 5 and 6 may change: from every release so far the
-     * word 6 cycle moved bits 0..6 from 0x50 to 0x31 (trial 1782 in mode 3, 8050 to 8031; trial 308 in
-     * mode 1, 4050 to 4031). And 6064 must repeat the admission value only in word 6's cycles: word 7
-     * energizes the drive, and its position report then moves to the drive's internal command (mode 3:
-     * -6 to +12 counts in trials 1742 to 1862; mode 1: 1187 to 1194 to 1180 in trial 308). No bound on
-     * that move is known, so none is claimed or applied. EnableRecord keeps 6064 at admission and in each
-     * word's accepted cycle, and success claims no position continuity: a later move needs its start
-     * position from a fresh read. 606C must still read zero and 2100 running must stay clear in every
-     * cycle. Admitted only under EnableGate::ATTENDED_EXPERIMENT. */
+     * Mode 1 only, under EnableGate::ATTENDED_EXPERIMENT only. The start report must be a released
+     * standstill: 2100 released, alarm, both soft limits and every undocumented bit clear, the in-place
+     * bit set or clear, 2100 running set or clear; 6041 bits 0..6 0x50, the pattern of every measured
+     * release (low bits 000), bits 14 and 15 as reported; 1001, 603F and 606C zero. Running set beside
+     * the release is the latch a quick stop during a mode 1 move leaves (2100=0014, 6041=4050, trial
+     * 2109 after 2108; 2100=0015, 6041=C050 in mode 3, trial 1924), and 6041 bit 14 was set exactly while
+     * it was latched.
+     *
+     * Words 6, 7 and 15 follow as for NO_MOTION_WRITE_RECORDED, with these differences, each measured
+     * from released starts on one firmware or chosen for them here.
+     * - 6041 bits 5 and 6 may change: from every release so far the word 6 cycle moved bits 0..6 from
+     *   0x50 to 0x31 (trial 1782 in mode 3, 8050 to 8031; trial 308 in mode 1, 4050 to 4031).
+     * - The latch, 2100 running and 6041 bit 14, may stay as admitted or clear in word 6's cycles, and
+     *   must read clear in every cycle from word 7 on: word 7 cleared it in trials 308 (4031/0014 to
+     *   0033/0000) and 1742 (C031/0015 to 8033/0001). A latch still reported then ends the sequence,
+     *   word 15 unsent, with the drive switched on and that cycle kept in the observations. No other
+     *   2100 bit, the in-place bit included, may change.
+     * - 6064 must repeat the admission value in word 6's cycles. Word 7 energizes the drive and its
+     *   position report moves to the drive's internal command (mode 3: -6 to +12 counts in trials 1742 to
+     *   1862; mode 1: 1187 to 1194 to 1180 over half a second in trial 308, +1 in trial 2102), with no
+     *   bound known, so word 7's cycles are not compared. Word 15 waits instead until two cycles in a
+     *   row after word 7 report low bits 011 and the same 6064; that cycle is word 7's accepted one.
+     * - From word 15 on, every cycle must repeat word 7's accepted 6064, with 606C zero. The drive
+     *   retains its target, an interrupted move's included (after trial 2108 607A read -2000, the
+     *   relative displacement from -1522, so that move's target was -3522), and whether words 6, 7
+     *   and 15 resume it is unmeasured (a 000F rearm after a HALT did not, trials 829 and 2107). A
+     *   change ends the sequence with ActionOutcome::OBSERVATION_SCOPE and a status message saying
+     *   so; the drive may then be moving and enabled, so the caller requests a QUICK_STOP at once.
+     *   After an acknowledged word 15 the session's latest controlword is that 000F, which a stop
+     *   follows (prepareStop needs a fresh report with low bits 111, not released and no alarm).
+     *
+     * EnableRecord keeps 6064 at admission and in each word's accepted cycle. Success claims no position
+     * continuity across word 7: a later move takes its start position from a fresh read. */
     RELEASED_BY_RECORDED_STOP
 };
 /** The attendant's own observation of the shaft after power-up, before any word. The library cannot
@@ -246,19 +269,24 @@ struct EnableStepRecord {
 struct EnableRecord {
     EnableEvidence evidence;      ///< Copied caller evidence.
     /** Admission 6041; bits other than 0..2 and 10 must not change during the sequence, nor, after a
-     * RELEASED_BY_RECORDED_STOP start, bits 5 and 6. */
+     * RELEASED_BY_RECORDED_STOP start, bits other than 0..2, 5, 6, 10 and 14; bit 14 may then only clear,
+     * and must from word 7 on. */
     uint16_t startStatusword = 0;
-    uint16_t startMonitor = 0;    ///< Admission 2100; bits other than released must not change.
-    /** Admission 6064, read before word 6. Any later raw difference ends the sequence; after a
-     * RELEASED_BY_RECORDED_STOP start only a difference in word 6's cycles does, and steps keep the
-     * position each later word's cycle reported. */
+    /** Admission 2100; bits other than released must not change. After a RELEASED_BY_RECORDED_STOP
+     * start running may also clear, and must from word 7 on. */
+    uint16_t startMonitor = 0;
+    /** Admission 6064, read before word 6. Any later raw difference ends the sequence. After a
+     * RELEASED_BY_RECORDED_STOP start a difference ends it in word 6's cycles, none is judged in word 7's,
+     * and from word 15 on a difference from steps[1].position does. */
     int32_t startPosition = 0;
     uint8_t targetCursor = 0;     ///< Current upload: 0 is 607A, 1 is 60FF.
     bool positionTargetKnown = false; ///< positionTarget holds an acquired value.
     bool velocityTargetKnown = false; ///< velocityTarget holds an acquired value.
     int32_t positionTarget = 0;   ///< 607A as read before the first word; history, not intent.
     int32_t velocityTarget = 0;   ///< 60FF as read before the first word; history, not intent.
-    EnableStepRecord steps[3];    ///< Accepted observation after words 6, 7 and 15.
+    /** Accepted observation after words 6, 7 and 15. After a RELEASED_BY_RECORDED_STOP start, word 7's
+     * is the second of the two still cycles word 15 waited for. */
+    EnableStepRecord steps[3];
 };
 /** Caller-owned concrete action context. Serialize access; do not edit active fields.
  * Histories are inspectable after terminal and survive failure. Inputs are borrowed
@@ -539,8 +567,10 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * enable; 6041 equal to the reviewed word; 1001, 603F and 606C zero. Mode 0, 3 and 6 are refused.
  * Low bits 111 with released clear, the manual's enabled pattern and the specimens' power-up
  * report, are refused unless evidence.powerUpShaft records an attended observation. A
- * RELEASED_BY_RECORDED_STOP start also needs 2100 released and low bits 000, and its sequence
- * compares 6064 only through word 6's cycles and ignores 6041 bits 5 and 6 (EnableStart).
+ * RELEASED_BY_RECORDED_STOP start instead needs 2100 released, with in-place and running either way
+ * and the other bits as above, and 6041 bits 0..6 0x50; its sequence differs as EnableStart lists:
+ * the latch must clear by word 7, word 15 waits for word 7's report to hold still, and 6064 or 606C
+ * changing after word 15 fails with a status message telling the caller to stop the drive.
  * @param[in] evidence Explicit gate, trial, reservation, operation, expiry, start history, shaft
  * observation and exact reviewed values, copied. A closed gate returns UNSUPPORTED; anything else
  * missing or mismatched returns INVALID_CONFIG, and a RELEASED_BY_RECORDED_STOP start with a mode
