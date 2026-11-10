@@ -1,0 +1,93 @@
+{
+  "started_utc": "2026-11-10T11:01:23.387406+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "stop",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 1704,
+  "plan": "packet 15 P4 / packet 16",
+  "fields": [
+    1,
+    1704,
+    1,
+    2,
+    2000,
+    0,
+    250
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 1704 to confirm: ",
+      "typed": "ATTENDED 1704",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not recorded"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "stop",
+    "--node",
+    "1",
+    "--trial",
+    "1704",
+    "--kind",
+    "quick",
+    "--deadline-ms",
+    "2000",
+    "--best-effort-ms",
+    "0",
+    "--interval-ms",
+    "250",
+    "--campaign",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110-s20-c1-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110T1101Z-s20-c1-stop-quick-node1-1704"
+  ],
+  "host_revision": "a3c5fa401e6e17b7f70b56b8b575715a73772192",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110-s20-c1-campaign.jsonl",
+    "motion_total": 2,
+    "cases": {
+      "E1": 1,
+      "M1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5453312c313730342c312c322c323030302c302c3235302c4b39623031333961320a"
+  ],
+  "image": {
+    "base": "a3c5fa401e6e17b7f70b56b8b575715a73772192",
+    "elf": "8ddb192bdf43ce81c5e827aba0580526ee9bddfa9102226d9fa06ed72af010fb",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TS1,1704,1,2,2000,0,250,K9b0139a2",
+  "tx_hex": "5453312c313730342c312c322c323030302c302c3235302c4b39623031333961320a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-10T11:01:24.771266+00:00"
+}

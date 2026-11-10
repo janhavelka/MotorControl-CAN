@@ -1,0 +1,36 @@
+PONG target=esp32s2 base=a3c5fa401e6e17b7f70b56b8b575715a73772192 elf=8ddb192bdf43ce81c5e827aba0580526ee9bddfa9102226d9fa06ed72af010fb sdk=5.5.5 running=1 active=1 silent=0 pinsReady=1 soak=0 t=1052556975 routes=7 trial=0 motion=12 pdo=4 watch=0 capture=0
+PDOW admitted seconds=25; copies received frames, sends nothing
+PDOW_BEGIN n=0 t=1052594971 seconds=25 ring=32 ids=16
+PDOW_SUM n=1 t=1053593975 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=2 t=1054593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=3 t=1055593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=4 t=1056593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=5 t=1057593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=6 t=1058593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=7 t=1059593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=8 t=1060593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_SUM n=9 t=1061593973 frames=0 printed=0 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=0
+PDOW_F n=10 t=1062322977 id=702 ext=0 rtr=0 dlc=1 data=00 timed=1 exact=0 lo=1062322161 hi=1062322838 gap=0
+PDOW_F n=11 t=1062366067 id=701 ext=0 rtr=0 dlc=1 data=00 timed=1 exact=0 lo=1062365159 hi=1062365989 gap=0
+PDOW_SUM n=12 t=1062593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_ID n=13 t=1062595973 id=702 ext=0 count=1 first=1062322838 last=1062322838 minGap=0 maxGap=0 meanGap=0 sdGap=0 changes=0 dlc=1 data=00
+PDOW_ID n=14 t=1062597974 id=701 ext=0 count=1 first=1062365989 last=1062365989 minGap=0 maxGap=0 meanGap=0 sdGap=0 changes=0 dlc=1 data=00
+PDOW_SUM n=15 t=1063593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=16 t=1064593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=17 t=1065593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=18 t=1066593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=19 t=1067593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=20 t=1068593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=21 t=1069593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=22 t=1070593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=23 t=1071593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=24 t=1072593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_ID n=25 t=1072595973 id=702 ext=0 count=1 first=1062322838 last=1062322838 minGap=0 maxGap=0 meanGap=0 sdGap=0 changes=0 dlc=1 data=00
+PDOW_ID n=26 t=1072597974 id=701 ext=0 count=1 first=1062365989 last=1062365989 minGap=0 maxGap=0 meanGap=0 sdGap=0 changes=0 dlc=1 data=00
+PDOW_SUM n=27 t=1073593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=28 t=1074593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=29 t=1075593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_SUM n=30 t=1076593972 frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0 ids=2
+PDOW_ID n=31 t=1077593972 id=702 ext=0 count=1 first=1062322838 last=1062322838 minGap=0 maxGap=0 meanGap=0 sdGap=0 changes=0 dlc=1 data=00
+PDOW_ID n=32 t=1077595976 id=701 ext=0 count=1 first=1062365989 last=1062365989 minGap=0 maxGap=0 meanGap=0 sdGap=0 changes=0 dlc=1 data=00
+PDOW_END n=33 t=1077597977 reason=duration frames=2 printed=2 unprinted=0 tapDropped=0 untimed=0 sdo=0 idOverflow=0
