@@ -390,11 +390,12 @@ void waitFor(VelocityContext& c, VelocityObservation purpose, uint64_t now, uint
     c.stepStartedUs = c.eligibleUs;
 }
 // Word 7's report still showing after word 15 (trials 1009 and 1308: 6041 8033, 2100 0001), with no
-// sign of torque release, running, speed or travel since admission. mode 3 and clean are checked first.
-bool pendingReport(const VelocityContext& c, const VelocitySample& s) {
+// sign of torque release, running, speed or travel since word 7's cycle (word7Position). Word 7 itself
+// may move 6064 before any observation: re-energizing pulled node 2's rotor from 8412 and from 8419 to
+// 8424, the same in word 15's first cycle (trials 1742 and 1762). mode 3 and clean are checked first.
+bool pendingReport(const VelocitySample& s, int32_t word7Position) {
     return (s.statusword & STATUS_LOW_BITS) == 3 &&
-           !(s.monitor & (MONITOR_RELEASED | MONITOR_RUNNING)) && !s.velocity &&
-           s.position == c.admission.position;
+           !(s.monitor & (MONITOR_RELEASED | MONITOR_RUNNING)) && !s.velocity && s.position == word7Position;
 }
 // Another final-enable cycle fits the window: eligible one spacing from now, at most the window after
 // word 15's acknowledgement, before stop due, within the window's cycle count.
@@ -424,6 +425,9 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     // pollIntervalUs consume the running budget used to validate duration coverage.
     if (c.observation == VelocityObservation::RUNNING)
         ++c.runningPolls;
+    // Before word 15's first cycle replaces it, latest is word 7's cycle; every later window cycle equals
+    // pendingFirst, which equalled it.
+    const int32_t word7Position = c.enablePending ? c.pendingFirst.position : c.latest.position;
     c.latest = s;
     StatusIndications interpreted;
     interpretStatusword(s.statusword, c.evidence.layout, interpreted);
@@ -486,7 +490,7 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
         // Inside the enable report window word 7's report is not yet a failure (S17); every other
         // report, and the last one the window admits, fails as without a window.
         const bool pending = c.observation == VelocityObservation::ENABLE &&
-                             c.options.enableWindowUs && pendingReport(c, s);
+                             c.options.enableWindowUs && pendingReport(s, word7Position);
         if (pending) {
             if (!c.enablePending)
                 c.pendingFirst = s;
@@ -987,6 +991,20 @@ bool releaseStandstill(const VelocityContext& run, StopKind kind, const ActionOp
 }
 // The halted report a settled velocity HALT left on both specimens (trials 1507, 1613, 1706).
 constexpr uint16_t HALTED_STATUSWORD = 0x9437, HALTED_MONITOR = MONITOR_POSITION_COMPLETE;
+Status haltedReport(const ReadContext& state, const ReadTarget& target, uint64_t after, uint64_t now,
+                    uint64_t age) {
+    StateObservation status, monitors, feedback;
+    const bool withFeedback = (state.blockMask & (1u << unsigned(StateBlock::FEEDBACK))) != 0;
+    if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
+        !getStateBlock(state, StateBlock::STATUS, target, now, age, status) ||
+        !getStateBlock(state, StateBlock::MONITORS, target, now, age, monitors) ||
+        status.window.earliestUs < after || monitors.window.earliestUs < after ||
+        status.statusword != HALTED_STATUSWORD || status.modeRaw != 3 || monitors.monitor != HALTED_MONITOR ||
+        (withFeedback && (!getStateBlock(state, StateBlock::FEEDBACK, target, now, age, feedback) ||
+                          feedback.window.earliestUs < after || feedback.actualVelocity != 0)))
+        return error(VelocityError::STATE, "needs a fresh report of exactly 6041 9437, 2100 0001, mode 3");
+    return Ok();
+}
 Status checkHaltedStop(const ActionContext& output, const VelocityContext& run, const AxisReservation& live,
                        const ReadTarget& current, const ReadContext& state,
                        const CANOPEN::SdoCompletion& control, uint32_t operation, uint64_t now,
@@ -1009,15 +1027,9 @@ Status checkHaltedStop(const ActionContext& output, const VelocityContext& run, 
     if (!acknowledgedControlWrite(control, run.reservation, now) || controlWord(control.transfer) != 0x010f ||
         control.transfer.operation != run.stopOperation || !sameTerminal(control, run.stopEvidence))
         return error(VelocityError::STATE, "the latest word must be that run's own acknowledged 010F");
-    StateObservation status, monitors;
-    if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
-        state.startedUs < live.acquiredUs ||
-        !getStateBlock(state, StateBlock::STATUS, live.target, now, options.maximumAgeUs, status) ||
-        !getStateBlock(state, StateBlock::MONITORS, live.target, now, options.maximumAgeUs, monitors) ||
-        status.window.earliestUs < control.completedUs || monitors.window.earliestUs < control.completedUs ||
-        status.statusword != HALTED_STATUSWORD || status.modeRaw != 3 || monitors.monitor != HALTED_MONITOR)
-        return error(VelocityError::STATE, "needs a fresh report of exactly 6041 9437, 2100 0001, mode 3");
-    return Ok();
+    if (state.startedUs < live.acquiredUs)
+        return error(VelocityError::STATE, "the halted report predates this reservation");
+    return haltedReport(state, live.target, control.completedUs, now, options.maximumAgeUs);
 }
 Status checkRunStop(const ActionContext& output, const VelocityContext& run,
                     const AxisReservation& live, const ReadTarget& current,
@@ -1141,6 +1153,10 @@ Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
     output.controlEvidence = control;
     output.standstillObserving = releaseStandstill(run, kind, options);
     return Ok();
+}
+Status validateHaltedVelocityReport(const ReadContext& state, const ReadTarget& current, uint64_t after,
+                                    uint64_t now, uint64_t maximumAgeUs) noexcept {
+    return haltedReport(state, current, after, now, maximumAgeUs);
 }
 Status validateHaltedVelocityQuickStop(const ActionContext& output, const VelocityContext& run,
                                        const AxisReservation& live, const ReadTarget& current,

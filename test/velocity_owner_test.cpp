@@ -1454,6 +1454,125 @@ void explicitQuickStopAfterARunningReportClearsTheFence() {
     CHECK(!b.session.velocityNeedsStop());
     cancelled.unchanged(b.session.velocityAction());
 }
+// After an MCU restart node 1 still reads halted (trial 1707's report: 6041 9437, 2100 0001, mode 3, 606C
+// 0) with no controlword history in this boot. Only the attendant's flagged QUICK_STOP with a best-effort
+// deadline takes one DEC-2 000B; it never succeeds, clears nothing and is not repeated. Everything else is
+// refused with nothing sent.
+void haltedAfterRestartTakesOneBestEffortStop() {
+    scenario = "S18: halted after an MCU restart";
+    const Cycle halted = {0x0001, 0x9437, 3, 1131, 0};
+    // A running report, and an enabled one in mode 1, keep their own best-effort path (stateRefuses), so
+    // they are not among these.
+    const Cycle others[] = {{0x0009, 0x9437, 3, 1131, 0}, {0x0011, 0x9437, 3, 1131, 0},
+                            {0x0001, 0x9033, 3, 1131, 0}, {0x0001, 0x9437, 3, 1131, 2}};
+    for (const Cycle& k : others) {
+        ScriptBench b;
+        b.drive.start = k;
+        b.ready();
+        E::StopPolicy flagged = stopPolicy(b, true);
+        flagged.attendedExperiment = true;
+        const unsigned before = b.wire.sentCount;
+        CHECK(b.session.requestStop(L::StopKind::QUICK_STOP, b.state, flagged, b.now) == E::StopPath::NONE);
+        CHECK(b.wire.sentCount == before);
+    }
+    ScriptBench b;
+    b.drive.start = halted;
+    b.ready();
+    CHECK(!b.session.latestControl() && !b.session.motionHistoryWritten());
+    E::StopPolicy flagged = stopPolicy(b, true);
+    flagged.attendedExperiment = true;
+    E::StopPolicy noBestEffort = stopPolicy(b, false);
+    noBestEffort.attendedExperiment = true;
+    const unsigned before = b.wire.sentCount;
+    CHECK(b.session.requestStop(L::StopKind::QUICK_STOP, b.state, stopPolicy(b, true), b.now) == E::StopPath::NONE);
+    CHECK(b.session.requestStop(L::StopKind::HALT, b.state, flagged, b.now) == E::StopPath::NONE);
+    CHECK(b.session.requestStop(L::StopKind::QUICK_STOP, b.state, noBestEffort, b.now) == E::StopPath::NONE);
+    CHECK(b.wire.sentCount == before);
+    const E::StopPath path = b.session.requestStop(L::StopKind::QUICK_STOP, b.state, flagged, b.now);
+    CHECK(path == E::StopPath::BEST_EFFORT || path == E::StopPath::HELD);
+    b.runToTerminal();
+    CHECK(b.wire.sentCount == before + 1 && b.downloadAt(before, 0x6040, 0x000b, 0x2b));
+    CHECK(b.session.bestEffort().state == M::ActionState::FAILED &&
+          b.session.bestEffort().execution == M::ActionExecution::UNKNOWN && !b.session.velocityNeedsStop() &&
+          b.session.stopAction(L::StopKind::QUICK_STOP).state == M::ActionState::EMPTY);
+    // Its own write ends the exception: the same fresh halted report now refuses a second 000B.
+    E::StopPolicy again = stopPolicy(b, true);
+    again.attendedExperiment = true;
+    CHECK(b.session.motionHistoryWritten() &&
+          b.session.requestStop(L::StopKind::QUICK_STOP, b.state, again, b.now) == E::StopPath::NONE);
+    CHECK(b.wire.sentCount == before + 1);
+    // Any write of this object in this boot ends the exception too, with no controlword and a fresh
+    // halted report after that write.
+    ScriptBench w;
+    w.drive.start = halted;
+    w.ready();
+    C::SdoTransfer t;
+    t.channel = target().channel;
+    t.operation = t.request = w.session.beginOperation(w.now + 20 * SERVICE_US, w.now);
+    t.step = 1;
+    t.direction = C::SdoDirection::DOWNLOAD;
+    t.index = 0x6083;
+    t.size = 4;
+    t.data[0] = 200;
+    t.deadlineUs = w.now + 20 * SERVICE_US;
+    t.queueTimeoutUs = QUEUE_US;
+    t.responseTimeoutUs = RESPONSE_US;
+    CHECK(t.operation && w.session.admitPrepared(t, w.now) == O::BusAdmission::ACCEPTED);
+    w.step();
+    w.step();
+    C::SdoCompletion written;
+    CHECK(w.session.settle(written) && written.outcome == C::SdoOutcome::SUCCESS);
+    CHECK(w.session.motionHistoryWritten() && !w.session.latestControl());
+    w.readState(w.check);
+    E::StopPolicy late = stopPolicy(w, true);
+    late.attendedExperiment = true;
+    const unsigned sent = w.wire.sentCount;
+    CHECK(w.session.requestStop(L::StopKind::QUICK_STOP, w.check, late, w.now) == E::StopPath::NONE &&
+          w.wire.sentCount == sent);
+}
+// Trials 1742 (from 2100 0015, 6041 C050 at 8412) and 1762 (from 0011/8050 at 8419), node 2 on 2026-11-10
+// (docs/bench/20261110T1134Z-s20-c3-velocity-node2-1742, 20261110T1135Z-s20-c4-velocity-node2-1762), as
+// captured up to word 15's first cycle: word 6's cycle repeated the admission 6064 (1742 with the latch
+// still set, C031), word 7's read 0001/8033 at 8424 and word 15's first cycle 8033 at 8424, 606C 0. Both
+// failed there against the admission and sent their own 000B. From word 15's second cycle on (one more
+// pending cycle, the enable report, running, the stop) the reports are assumptions. A third variant moves
+// 6064 after word 7 and must still fail with the run's own stop, which the drive answers as in 1742.
+void trials1742And1762PassTheWindowAfterWord7sPull() {
+    const Cycle starts[2][3] = {
+        {{0x0015, 0xc050, 3, 8412, 0}, {0x0015, 0xc031, 3, 8412, 0}, {0x0001, 0x8033, 3, 8424, 0}},
+        {{0x0011, 0x8050, 3, 8419, 0}, {0x0011, 0x8031, 3, 8419, 0}, {0x0001, 0x8033, 3, 8424, 0}}};
+    const Cycle running[3] = {{0x0004, 0xc437, 3, 8500, 30}, {0x0004, 0xc437, 3, 10500, 30},
+                              {0x0004, 0xc437, 3, 12500, 30}};
+    const Cycle stop[2] = {{0x0014, 0xc050, 3, 14000, 0}, {0x0015, 0xc050, 3, 14000, 0}};
+    const Cycle answered[1] = {{0x0001, 0x8050, 3, 8425, 0}}; // 1742's stop cycle: 2100 0001, 6041 8050.
+    for (unsigned k = 0; k < 3; ++k) {
+        scenario = k == 0 ? "S18 window: trial 1742" : k == 1 ? "S18 window: trial 1762" : "S18 window: moved after 7";
+        const Cycle* start = starts[k == 0 ? 0 : 1];
+        ScriptBench b;
+        planS18(b, k == 0 ? 1742 : 1762, 30, running, k == 2 ? answered : stop, k == 2 ? 1 : 2);
+        b.drive.start = start[0];
+        b.drive.after6 = start[1];
+        b.drive.after7 = start[2];
+        b.drive.pending = start[2];
+        if (k == 2)
+            b.drive.pending.position = 8425;
+        b.ready();
+        CHECK(b.start());
+        b.runToTerminal();
+        const L::VelocityContext& c = b.session.velocityAction();
+        CHECK(c.admission.position == start[0].position && c.commandEvidenceMask == 7);
+        if (k < 2) {
+            CHECK(c.state == M::ActionState::SUCCEEDED && c.enablePending == 2 && c.pendingFirst.position == 8424 &&
+                  c.enableReport.present && c.runningObserved && !b.session.velocityNeedsStop());
+        } else {
+            CHECK(c.state == M::ActionState::FAILED && !c.enablePending && c.latest.position == 8425 &&
+                  c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+                  std::strcmp(c.status.msg, "final enable state is not confirmed") == 0);
+            CHECK(c.stopExecution == M::ActionExecution::ACKNOWLEDGED && wordsSent(b, b.startFrame, 0x000b) == 1 &&
+                  c.needsStop && b.session.velocityNeedsStop());
+        }
+    }
+}
 // S16's stop on the 000F alone: word 15 never reported within the window, so no running report came before
 // the run's QUICK_STOP. A released report then ends the stop outside its scope and the fence holds.
 void unqualifiedQuickStopKeepsTheFence() {
@@ -1507,5 +1626,7 @@ int main() {
     Replay1009::quickStopWithoutStandstillStaysFenced();
     Replay1009::unqualifiedQuickStopKeepsTheFence();
     Replay1009::explicitQuickStopAfterARunningReportClearsTheFence();
+    Replay1009::haltedAfterRestartTakesOneBestEffortStop();
+    Replay1009::trials1742And1762PassTheWindowAfterWord7sPull();
     std::printf("velocity owner: %u checks\n", checks);
 }

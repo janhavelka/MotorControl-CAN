@@ -48,7 +48,13 @@ without a power cycle. `prepareHaltedVelocityQuickStop` composes one `000B` only
 `AxisSession` takes it only with `StopPolicy::attendedExperiment`. No source or record says what `000B`
 does there. The stop reads FEEDBACK from its first cycle and completes only on the released standstill
 above; a not-running report alone completes nothing, because the drive was idle before it. Its result is
-unqualified and clears no fence. Host-tested only.
+unqualified and clears no fence. After an MCU restart the session has no controlword, so that path is
+closed. With the same flag, no latest word and no write of the session object in the boot other than a
+mode selection, a fresh report of exactly that halted state (`validateHaltedVelocityReport`: 6041 9437,
+2100 0001, mode 3, and 606C 0 when the read holds FEEDBACK) lets a QUICK_STOP take the DEC-2 best-effort
+`000B` where the idle report would refuse; `bestEffortDeadlineUs` must allow it. It never succeeds, may
+leave the route unresolved until the next restart, clears no fence, and the session's own write ends
+the exception. Host-tested only.
 
 ## Reviewed transitions
 

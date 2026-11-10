@@ -71,6 +71,8 @@ struct Rig {
     bool latched = false;
     uint16_t latchedMonitor = 0x0015, latchedStatus = 0xc050, latchClearedBy = 7;
     int32_t latchedPosition = 5608, creep = 0, latchedVelocity = 0;
+    // Added to 6064 from word 7's cycle on: re-energizing pulled the rotor (trials 1742, 1762).
+    int32_t pull = 0;
     uint64_t now = START;
     Rig() {
         target.channel.binding.logicalAxisId = 17;
@@ -144,8 +146,9 @@ struct Rig {
                    : !control    ? latchedMonitor
                    : latch       ? 0x0015u
                                  : L::MONITOR_RELEASED;
-        if (index == 0x6064 && latched)
-            return uint32_t(latchedPosition + (control ? creep : 0));
+        if (index == 0x6064)
+            return uint32_t((latched ? latchedPosition + (control ? creep : 0) : 0) +
+                            (control == 7 || control == 15 ? pull : 0));
         if (index == 0x606c)
             return control == 15 ? uint32_t(request.velocity.value.numerator < 0 ? -120 : 120)
                    : latched && !control ? uint32_t(latchedVelocity)
@@ -935,7 +938,7 @@ void enableWindowContradicted() {
               r.context.observation == L::VelocityObservation::ENABLE);
         switch (k) {
         case 0: r.lagVelocity = 2; break;     // 606C moving.
-        case 1: r.lagPosition = 1; break;     // 6064 left the admission's.
+        case 1: r.lagPosition = 1; break;     // 6064 left word 7's cycle's.
         case 2: r.lagMonitor = 0x0011; break; // Released again.
         case 3: r.lagMonitor = 0x0005; break; // 2100 running without the enable.
         case 4: r.lagStatus = 0x8031; break;  // Low bits 001.
@@ -1331,17 +1334,22 @@ void latchedReleaseAdmitsAVelocityStart() {
               c.latest.position == 5609 && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE);
     }
 }
-// MONITORS and STATUS read now: what a stop admission judges.
-void readStopState(Rig& r, L::ReadContext& into, const Report& report) {
+// MONITORS and STATUS read now: what a stop admission judges; with feedback, 6064 and 606C too.
+void readStopState(Rig& r, L::ReadContext& into, const Report& report, bool feedback = false) {
     const uint8_t blocks =
-        uint8_t((1u << unsigned(L::StateBlock::MONITORS)) | (1u << unsigned(L::StateBlock::STATUS)));
+        uint8_t((1u << unsigned(L::StateBlock::MONITORS)) | (1u << unsigned(L::StateBlock::STATUS)) |
+                (feedback ? 1u << unsigned(L::StateBlock::FEEDBACK) : 0u));
     CHECK(L::prepareState(into, r.target, 1, r.now, r.now + 100000, r.options.service, blocks));
     while (into.state == M::ReadState::ACTIVE) {
         L::PreparedRead p;
         CHECK(L::nextRead(into, r.now, p) && p.ready);
         const uint16_t index = p.transfer.index;
-        const uint32_t value = index == 0x2100 ? report.monitor : index == 0x6041 ? report.status
-                               : index == 0x6061 ? report.mode : 0u;
+        const uint32_t value = index == 0x2100   ? report.monitor
+                               : index == 0x6041 ? report.status
+                               : index == 0x6061 ? report.mode
+                               : index == 0x6064 ? uint32_t(report.position)
+                               : index == 0x606c ? uint32_t(report.velocity)
+                                                 : 0u;
         CHECK(L::advanceRead(into, reply(p.transfer, r.now, r.now + 1, value), r.now + 1));
         r.now += 100;
     }
@@ -1417,12 +1425,74 @@ void haltedVelocityQuickStop() {
         run.unchanged(r.context); // The finished run is never rewritten.
     }
 }
+// The exact halted report, judged alone (validateHaltedVelocityReport): what the attendant's best-effort
+// 000B after an MCU restart, and the experiment stop after a run's own HALT, both require.
+void haltedReportRule() {
+    Rig r;
+    static L::ReadContext state;
+    const uint64_t age = 1000000;
+    readStopState(r, state, HALTED);
+    CHECK(L::validateHaltedVelocityReport(state, r.target, 0, r.now, age));
+    CHECK(!L::validateHaltedVelocityReport(state, r.target, r.now, r.now, age)); // Before the latest write.
+    CHECK(!L::validateHaltedVelocityReport(state, r.target, 0, r.now + age + 1000, age)); // Stale.
+    L::ReadTarget other = r.target;
+    ++other.nodeGeneration;
+    CHECK(!L::validateHaltedVelocityReport(state, other, 0, r.now, age));
+    const Report reports[] = {{0x0005, 0x9437, 3, 0, 0},  // Running.
+                              {0x0009, 0x9437, 3, 0, 0},  // Alarm.
+                              {0x0011, 0x9437, 3, 0, 0},  // Released.
+                              {0x0001, 0x9037, 3, 0, 0},  // Another 6041.
+                              {0x0001, 0x9437, 1, 0, 0},  // Mode 1.
+                              {0x0001, 0x8437, 3, 0, 0}}; // Mode 1's enabled report, in mode 3.
+    for (const Report& k : reports) {
+        readStopState(r, state, k);
+        CHECK(!L::validateHaltedVelocityReport(state, r.target, 0, r.now, age));
+    }
+    // With FEEDBACK in the read's plan, 606C must read zero.
+    readStopState(r, state, HALTED, true);
+    CHECK(L::validateHaltedVelocityReport(state, r.target, 0, r.now, age));
+    const Report moving = {0x0001, 0x9437, 3, 1131, 2};
+    readStopState(r, state, moving, true);
+    CHECK(!L::validateHaltedVelocityReport(state, r.target, 0, r.now, age));
+}
+// Trials 1742 and 1762 (node 2): word 6's cycle repeated the admission 6064 (8412 from 2100 0015, and 8419
+// from 0011), word 7's read 8424 both times, and so did word 15's first cycle, 8033 with 606C 0. Against the
+// admission both failed there; against word 7's cycle they wait in the window and run. A 6064 change after
+// word 7 still fails, with the run's stop requested.
+void windowReferenceIsWord7sCycle() {
+    for (unsigned k = 0; k < 3; ++k) {
+        Rig r;
+        window(r);
+        r.lagCycles = 2;
+        r.runningStatus = 0xc437;
+        r.latched = k == 0;
+        r.latchedPosition = 8412;
+        r.pull = k == 0 ? 12 : 5;
+        const int32_t word7 = (k == 0 ? 8412 : 0) + r.pull;
+        r.lagPosition = k == 2 ? word7 + 1 : word7;
+        r.acquireInitial();
+        CHECK(r.prepare());
+        serveUntil(r, true);
+        const L::VelocityContext& c = r.context;
+        if (k < 2) {
+            CHECK(c.state == M::ActionState::ACTIVE && c.runningObserved && c.enablePending == 2 &&
+                  c.pendingFirst.position == word7 && c.pendingLast.position == word7 &&
+                  c.admission.position == word7 - r.pull && c.firstFailure == M::ActionOutcome::NONE);
+        } else {
+            CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && c.needsStop && !c.enablePending &&
+                  c.latest.position == word7 + 1 && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+                  std::strcmp(c.status.msg, "final enable state is not confirmed") == 0);
+        }
+    }
+}
 } // namespace
 int main() {
+    windowReferenceIsWord7sCycle();
     quickStopSettlesOnReleasedStandstill();
     releasedStandstillStaysNarrow();
     latchedReleaseAdmitsAVelocityStart();
     haltedVelocityQuickStop();
+    haltedReportRule();
     enableWindowAdmission();
     enableWindowThenRunning();
     enableWindowExpires();

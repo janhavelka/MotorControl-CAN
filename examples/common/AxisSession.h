@@ -35,7 +35,8 @@ struct StopPolicy {
      * refused. A stop proved never sent by a controller fault still waits under deadlineUs. */
     uint64_t bestEffortDeadlineUs = 0;
     /** The attendant's opt-in to the one experiment QUICK_STOP of a drive a velocity run's own HALT
-     * left halted (validateHaltedVelocityQuickStop, backlog S18). False keeps every idle refusal. */
+     * left halted (validateHaltedVelocityQuickStop, backlog S18), or, with no controlword history in
+     * this boot, to the best-effort 000B on exactly that halted report. False keeps every idle refusal. */
     bool attendedExperiment = false;
 };
 /** The application session of one axis over the sole owner. It keeps the history
@@ -232,7 +233,12 @@ class AxisSession {
      * With policy.attendedExperiment, a QUICK_STOP of a drive that an attended velocity run's own HALT
      * left halted (its acknowledged 010F still the latest word, a fresh report of exactly 6041 9437,
      * 2100 0001, mode 3) sends one 000B (validateHaltedVelocityQuickStop) where the idle report would
-     * otherwise refuse. Its result is unqualified and clears no fence.
+     * otherwise refuse. Its result is unqualified and clears no fence. With the same flag, no latest
+     * controlword and no write of this object in this boot but a mode selection (motionHistoryWritten()
+     * false, as after an MCU restart), exactly that halted report
+     * (validateHaltedVelocityReport) lets a QUICK_STOP take the best-effort 000B when
+     * policy.bestEffortDeadlineUs allows it; that path never succeeds, may leave the route unresolved
+     * until a restart, and clears no fence.
      */
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,

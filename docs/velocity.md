@@ -39,8 +39,9 @@ power-up. Admission takes that latch only in mode 3, only together with the rele
 bits 000, alarm clear and 606C zero. Word 6's cycle may still show the latch and must then read
 the admission's 6064: the second fresh report of one standstill before any enabling word. From
 word 7's cycle on the latch must be clear, as word 7 cleared it in mode 1 (trial 308,
-`6041=0033`, `2100=0000`); otherwise the prefix fails with the run's stop requested. That word 7
-clears the latch in mode 3 is not measured.
+`6041=0033`, `2100=0000`); otherwise the prefix fails with the run's stop requested. In mode 3
+this was measured once, on node 2 (trial 1742): word 6's cycle still read `2100=0015`, `6041=C031`
+at the admission's 8412, and word 7's read `2100=0001`.
 
 ### Attended experiment scope
 
@@ -225,7 +226,10 @@ stays enabled and halted in mode 3 (`6041=9437`, `2100=0001`), which no velocity
 and the idle-report rule refuses a QUICK_STOP from (trial 1707). For the attended experiment only,
 `prepareHaltedVelocityQuickStop` sends one unqualified `000B` from exactly that report while the
 run's own `010F` is still the latest word ([stop actions](stop_actions.md)); it completes only on the
-released standstill and clears no fence. Host-tested only: no record shows what `000B` does there.
+released standstill and clears no fence. After an MCU restart that `010F` is gone, so with the same
+flag, no controlword and no write of this session object in the boot, exactly that report lets a
+QUICK_STOP take the best-effort `000B` instead; it never succeeds and may leave the route unresolved
+until the next restart. Host-tested only: no record shows what `000B` does there.
 
 ## Trial 1009 (2026-11-09)
 
@@ -294,7 +298,14 @@ arrives within it.
 
 Inside the window, a final-enable cycle that still shows word 7's report exactly
 (mode 3, clean, `6041` low bits 011, `2100` released and running clear, `606C` 0,
-`6064` the admission sample's) schedules another cycle `enableSpacingUs` later. It
+`6064` word 7's cycle's) schedules another cycle `enableSpacingUs` later. The reference was the
+admission sample until 2026-11-10: on node 2 word 7 itself moved 6064, from 8412 and from 8419 to
+8424 (trials 1742 and 1762; word 6's cycles still read the admission's value), and word 15's first
+cycle read 8033 at 8424 with `606C` 0, so both runs failed there and sent their own `000B`. Word 7
+re-energizes the drive, which in mode 1 also returned the position report to its last commanded value
+(trial 308). No bound on that pull is claimed; any change after word 7's cycle still fails. Word 7's
+6064 is in the record's RESULT lines (the run's 6064 read after the second `6040` download) and, once a
+window cycle passed, in `pendingFirst` (`TRIAL_VELOCITY_SAMPLE which=2`). It
 does so only when that cycle becomes eligible at most `enableWindowUs` after the
 acknowledgement and before stop due. Any other report fails as without a window,
 with the run's own stop requested (the S16 path), and so does the last such report

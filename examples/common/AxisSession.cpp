@@ -1449,9 +1449,18 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                                                            state, control_, next, now, policy.deadlineUs,
                                                            policy.options)
                             .isOk();
+    // The same experiment with no controlword history in this boot, as after an MCU restart: no latest
+    // word and no write of this object but a mode selection (motionWritten_), so no stop can be
+    // sequenced. On exactly the halted report the DEC-2 000B goes where the idle report would refuse;
+    // that result never succeeds or clears a fence, and this stop's own write ends the exception.
+    const bool haltedUnknown = !controlPresent_ && !motionWritten_ && !escalating && policy.attendedExperiment &&
+                               kind == L::StopKind::QUICK_STOP &&
+                               L::validateHaltedVelocityReport(state, target_, lastWriteUs_, now,
+                                                               policy.options.maximumAgeUs)
+                                   .isOk();
     // A known word with no stop arrow, such as enable word 6 or 7, refuses only on a fresh idle report.
     // A fresh running report, or no fresh report, takes 000B, as the same word still in flight would.
-    if (!own && !halted &&
+    if (!own && !halted && !haltedUnknown &&
         ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind) &&
           freshlyIdle(state, policy, now)) ||
          stateRefuses(state, policy, now)))
