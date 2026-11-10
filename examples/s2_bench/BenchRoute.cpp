@@ -441,9 +441,11 @@ unsigned terminalBound(const RoutePlan& p) {
         return 9 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
     case RouteKind::VELOCITY:
         // Identity and full read; 60FF, 6083, 6084; 6, 7, 15, each followed by one seven-field cycle; at
-        // most maxPolls running cycles; then the session's stop over the rest of the deadline at the same
-        // interval. The drive already reads mode 3, so no mode write or mode cycle.
-        return 9 + 9 + 3 + 3 + 7 * 3 + 7 * velocityPolls(p) + stopTerminals(p.deadlineMs - p.durationMs, p.intervalMs);
+        // most ROUTE_VELOCITY_WINDOW_CYCLES more after 15 inside the enable report window; at most maxPolls
+        // running cycles; then the session's stop over the rest of the deadline at the same interval. The
+        // drive already reads mode 3, so no mode write or mode cycle.
+        return 9 + 9 + 3 + 3 + 7 * 3 + 7 * ROUTE_VELOCITY_WINDOW_CYCLES + 7 * velocityPolls(p) +
+               stopTerminals(p.deadlineMs - p.durationMs, p.intervalMs);
     case RouteKind::HOME:
         // Identity, IO_INPUT_CONFIGURATION (2400:00..08), the full read and DRIVER (2200, 2201). No write.
         return 9 + 9 + 9 + 2;
@@ -2355,6 +2357,9 @@ void BenchRoute::startVelocity(uint64_t now) noexcept {
     options.requiredStopBudgetUs = 8 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
     options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
     options.stopKind = evidence.stopKind;
+    // The attended experiment's chosen enable report window (S17), the application's bounded wait.
+    options.enableWindowUs = uint64_t(ROUTE_VELOCITY_WINDOW_MS) * 1000;
+    options.enableSpacingUs = uint64_t(ROUTE_VELOCITY_SPACING_MS) * 1000;
     const uint64_t deadline = now + uint64_t(p.deadlineMs) * 1000;
     if (deadline > cutoffUs_) {
         finish(RouteFailure::REFUSED, "deadline", now);
@@ -3037,8 +3042,9 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
 // ------------------------------------------------------------------------------------- records
 // TRIAL_MOVE_SAMPLE lines: admission, latest, acceptance, absence and completed.
 constexpr unsigned MOVE_SAMPLES = 5;
-// TRIAL_VELOCITY_SAMPLE lines: admission and latest.
-constexpr unsigned VELOCITY_SAMPLES = 2;
+// TRIAL_VELOCITY_SAMPLE lines: admission, latest, the first and last cycle that still showed word 7's
+// report inside the enable report window, and the cycle that reported the enable.
+constexpr unsigned VELOCITY_SAMPLES = 5;
 unsigned BenchRoute::summaryCount() const noexcept {
     const RouteRecord& r = record_;
     unsigned count = 2 + r.firstPresent + r.checkPresent + (r.last.blocks != 0) + r.historyPresent + r.emcy +
@@ -3061,9 +3067,10 @@ unsigned BenchRoute::summaryCount() const noexcept {
     // HOME: its input mapping as TRIAL_IO, then TRIAL_HOME.
     if (r.plan.kind == RouteKind::HOME)
         count += 2;
-    // VELOCITY: the host's evidence; once requested, the run, its timing and two kept samples.
+    // VELOCITY: the host's evidence; once requested, the run, its timing, its enable report window and
+    // five kept samples.
     if (r.plan.kind == RouteKind::VELOCITY)
-        count += 1 + (r.velocityRequested ? 2 + VELOCITY_SAMPLES : 0);
+        count += 1 + (r.velocityRequested ? 3 + VELOCITY_SAMPLES : 0);
     if (r.plan.kind == RouteKind::MOVE)
         count += 1 + (r.moveRequested ? 1 + MOVE_SAMPLES : 0);
     if (r.enableRequested)
@@ -3432,8 +3439,25 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                            static_cast<unsigned long long>(v.stopRequestedUs),
                            static_cast<unsigned long long>(v.servicedUs), unsigned(v.setupEvidenceMask),
                            unsigned(v.commandEvidenceMask));
+            if (!index--) {
+                // The enable report window as the run used it, and word 15's acknowledgement time (0 while
+                // none): with which=3 and which=4 below it brackets the time to the enable report.
+                const bool acknowledged = (v.commandEvidenceMask & 4u) &&
+                                          v.commandHistory[2].outcome == C::SdoOutcome::SUCCESS;
+                return put(out, size,
+                           "TRIAL_VELOCITY_WINDOW window=%llu spacing=%llu cycles=%lu pending=%lu ack=%llu\n",
+                           static_cast<unsigned long long>(v.options.enableWindowUs),
+                           static_cast<unsigned long long>(v.options.enableSpacingUs),
+                           static_cast<unsigned long>(v.options.enableWindowUs
+                                                          ? v.options.enableWindowUs / v.options.enableSpacingUs
+                                                          : 0),
+                           static_cast<unsigned long>(v.enablePending),
+                           static_cast<unsigned long long>(acknowledged ? v.commandHistory[2].completedUs : 0));
+            }
             if (index < VELOCITY_SAMPLES) {
-                const L::VelocitySample& s = index ? v.latest : v.admission;
+                const L::VelocitySample* const samples[VELOCITY_SAMPLES] = {&v.admission, &v.latest, &v.pendingFirst,
+                                                                            &v.pendingLast, &v.enableReport};
+                const L::VelocitySample& s = *samples[index];
                 return put(out, size,
                            "TRIAL_VELOCITY_SAMPLE which=%u present=%u cycle=%lu status=%04x monitor=%04x mode=%02x "
                            "position=%ld velocity=%ld lo=%llu hi=%llu\n",

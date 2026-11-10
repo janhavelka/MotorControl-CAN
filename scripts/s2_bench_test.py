@@ -113,7 +113,8 @@ def check_trial_transcript(path, every=False):
             problems.append("%s: no refusal, input mapping or home summary" % line)
         if line[0] == "O" and (b" dir=1 " in body or b" gate=0 " not in body):
             problems.append("%s: a home record with a download or an open gate" % line)
-        run = {"TRIAL_VELOCITY", "TRIAL_VELOCITY_TIME", "TRIAL_VELOCITY_SAMPLE", "TRIAL_STOP", "TRIAL_BEST_EFFORT"}
+        run = {"TRIAL_VELOCITY", "TRIAL_VELOCITY_TIME", "TRIAL_VELOCITY_WINDOW", "TRIAL_VELOCITY_SAMPLE", "TRIAL_STOP",
+               "TRIAL_BEST_EFFORT"}
         if line[0] == "V" and not ({"TRIAL_CHECK", "TRIAL_VELOCITY_EVIDENCE"} |
                                    ({"TRIAL_STATUS"} if refused else run)) <= kinds:
             problems.append("%s: no check, evidence or velocity summary" % line)
@@ -275,11 +276,11 @@ MOVE_LINE = signed(MOVE_BODY + ",0,0,0,0,0")
 # A velocity line's evidence: this test's numbers, the same as test/bench_route_test.cpp's fake, never a
 # measurement. No start or stop flag: the line runs as the library's attended experiment.
 VELOCITY = ["--command", "velocity", "--node", "1", "--trial", "30", "--rpm", "6", "--ramp-up-ms", "200",
-            "--ramp-down-ms", "200", "--duration-ms", "12000", "--interval-ms", "2000", "--deadline-ms", "18000",
+            "--ramp-down-ms", "200", "--duration-ms", "12000", "--interval-ms", "5000", "--deadline-ms", "15500",
             "--kind", "halt", "--record", "351", "--layout", "zh86", "--device-type", "0x00040192",
             "--hardware-version", "0x12", "--software-version", "0x34", "--vendor-id", "0x300", "--product-code",
             "0x8605", "--revision", "0x10001", "--model-code", "0x86", "--firmware-code", "0x123"]
-VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,2000,18000,1,351,2,262546,18,52,768,34309,65537,134,291")
+VELOCITY_LINE = signed("TV1,30,1,6,200,200,12000,5000,15500,1,351,2,262546,18,52,768,34309,65537,134,291")
 # A velocity record's run and stop lines as BenchRoute prints them (test/bench_route_test.cpp's fallback
 # cases on its fake, never a measurement). STOP_NONE is trial 1009's: the run asked for its HALT and nothing
 # left. STOP_OWN is the run's own HALT after its acknowledged 000F; BEST_LEFT the route's fallback 000B.
@@ -1264,7 +1265,7 @@ class BenchTest(unittest.TestCase):
         quick = list(VELOCITY)
         quick[quick.index("--kind") + 1] = "quick"
         quick[quick.index("--layout") + 1] = "op86"
-        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,2000,18000,2,351,4,262546,18,52,768,34309,65537,134,291")
+        cases[tuple(quick)] = signed("TV1,30,1,6,200,200,12000,5000,15500,2,351,4,262546,18,52,768,34309,65537,134,291")
         for method in (17, 18, 29):
             argv = list(HOME)
             argv[argv.index("--method") + 1] = str(method)
@@ -1331,7 +1332,10 @@ class BenchTest(unittest.TestCase):
             args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
             return bench.plan_bounds(args.command, fields)
         # The numbers test/bench_route_test.cpp pins against BenchRoute's own bounds.
-        self.assertEqual(bounds(VELOCITY), (118, 18000))
+        # Backlog S17: six window cycles, three running cycles and a stop span shorter than one interval.
+        self.assertEqual(bounds(VELOCITY), (9 + 9 + 3 + 3 + 21 + 7 * 6 + 7 * 3 + 10, 15500))
+        self.assertEqual(bounds(VELOCITY)[0], 118)
+        self.assertEqual(bench.VELOCITY_WINDOW_CYCLES, 6)
         self.assertEqual(bounds(MODE3), (35, 400))
         self.assertEqual(bounds(HOME), (29, 0))
         dense = list(VELOCITY)
@@ -1343,12 +1347,17 @@ class BenchTest(unittest.TestCase):
             argv[argv.index("--duration-ms") + 1] = str(duration)
             argv[argv.index("--deadline-ms") + 1] = str(deadline)
             return argv
-        # The library refuses a duration under 27 services at 100 + 250 ms and two 10 ms enable intervals,
-        # and a deadline that leaves 2800 ms or less after it, both after the firmware counted the line
-        # (test/bench_route_test.cpp testVelocityRefusals): refused here, unsent and uncounted.
-        for argv, reason in ((velocity(9469, 18000), "velocity duration: 9469 ms"),
+        # The library refuses a duration under 27 services at 100 + 250 ms, the 2000 ms enable report window
+        # and two 10 ms enable intervals, and a deadline that leaves 2800 ms or less after it, both after the
+        # firmware counted the line (test/bench_route_test.cpp testVelocityRefusals): refused here, unsent and
+        # uncounted. 1308's line (2000 ms interval, 18000 ms deadline) no longer fits the record with the
+        # window: 45 + 42 + 42 + 31 = 160 terminals.
+        old = list(velocity(12000, 18000))
+        old[old.index("--interval-ms") + 1] = "2000"
+        self.assertEqual(bounds(old)[0], 160)
+        for argv, reason in ((velocity(11469, 15500), "velocity duration: 11469 ms"),
                              (velocity(12000, 14800), "velocity deadline: 14800 ms leaves 2800 ms"),
-                             (dense, "capacity")):
+                             (dense, "capacity"), (old, "capacity: this plan can produce 160 terminals")):
             self.clear_output()
             board = Board()
             operator = Operator("ATTENDED 30", "none")
@@ -1358,7 +1367,7 @@ class BenchTest(unittest.TestCase):
             self.assertEqual((board.writes, operator.questions), ([], []))
             self.assertFalse(self.output.exists())
             self.assertEqual(self.ledger.read_bytes(), b"")
-        for argv in (velocity(9470, 18000), velocity(12000, 14801)):
+        for argv in (velocity(11470, 15500), velocity(12000, 14801), velocity(15000, 19999)):
             args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
             bench.check_bounds(args.command, fields)  # No refusal.
         out = io.StringIO()
@@ -1366,6 +1375,7 @@ class BenchTest(unittest.TestCase):
             bench.main(BASE + velocity(9000, 18000) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(),
                        Clock(), Operator())
         self.assertIn("would refuse before sending: velocity duration: 9000 ms", out.getvalue())
+        self.assertIn("enable report window 2000 ms, cycles 300 ms apart, at most 6 more after word 15", out.getvalue())
         self.assertIn("VelocityEvidence gate ATTENDED_EXPERIMENT, startQualified 0, stopQualified 0", out.getvalue())
 
     def test_velocity_experiment_bounds_and_attendant(self):
@@ -1376,9 +1386,11 @@ class BenchTest(unittest.TestCase):
             return argv
         # The attended experiment's bounds, the library's: 60 rpm and 20000 ms. The library would refuse
         # them only after the firmware counted the line, so they are refused here, unsent and uncounted.
+        # With the enable report window (S17) no duration over 15000 ms fits the record at the longest
+        # interval, so the 20000 ms bound is reached as capacity first.
         for argv, reason in ((changed(rpm=61), "velocity rpm: 61 is over the ATTENDED_EXPERIMENT scope's 60 rpm"),
                              (changed(duration_ms=20001, deadline_ms=26000, interval_ms=5000),
-                              "velocity duration: 20001 ms is over the ATTENDED_EXPERIMENT scope's 20000 ms")):
+                              "capacity: this plan can produce 139 terminals")):
             self.clear_output()
             board = Board()
             operator = Operator("ATTENDED 30", "none")
@@ -1388,7 +1400,7 @@ class BenchTest(unittest.TestCase):
             self.assertEqual((board.writes, operator.questions), ([], []))
             self.assertFalse(self.output.exists())
             self.assertEqual(self.ledger.read_bytes(), b"")
-        for argv in (changed(rpm=60), changed(duration_ms=20000, deadline_ms=26000, interval_ms=5000)):
+        for argv in (changed(rpm=60), changed(duration_ms=15000, deadline_ms=18000, interval_ms=5000)):
             args, fields = bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
             bench.check_bounds(args.command, fields)  # No refusal at the bounds themselves.
         # Nobody at the bench is no option: the attendant's cutoff is the only control the run lacks.

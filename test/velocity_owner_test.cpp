@@ -674,6 +674,9 @@ struct Drive {
     bool later = false;           // Reporting LATER, with 606C 5 and 6064 rising as in 1019.
     uint16_t muteWord = 0;        // This 6040 word is applied but its reply is lost.
     uint16_t abortWord = 0;       // This 6040 word is refused with an SDO abort and not applied.
+    // Backlog S17: after word 15, report AFTER_15 for this many cycles, then LATER. 0 keeps AFTER_15.
+    unsigned enableAfterCycles = 0, pendingCycles = 0;
+    const Report* afterEnable = &LATER;
     int32_t position = 0;
     uint32_t positionReads = 0;
     void become(const Report& r) {
@@ -699,6 +702,7 @@ struct Drive {
                     return true;
                 }
                 become(value == 6 ? AFTER_6 : value == 7 ? AFTER_7 : value == 15 ? AFTER_15 : afterStop);
+                pendingCycles = value == 15 ? enableAfterCycles : 0;
                 if (value == muteWord)
                     return false;
             }
@@ -729,7 +733,12 @@ struct Drive {
             raw = uint32_t(position);
             size = 4;
             break;
-        case 0x606c: raw = uint32_t(later ? 5 : 0); size = 4; break;
+        case 0x606c:
+            raw = uint32_t(later ? 5 : 0);
+            size = 4;
+            if (pendingCycles && !--pendingCycles)
+                become(*afterEnable);
+            break;
         default: CHECK(false);
         }
         out.data[0] = size == 1 ? 0x4f : size == 2 ? 0x4b : 0x43;
@@ -749,6 +758,9 @@ struct Bench {
     M::AxisConfig axis;
     uint64_t now = 0;
     unsigned served = 0, startFrame = 0;
+    // Backlog S17: BenchRoute's VELOCITY options with its enable report window (2000 ms, cycles 300 ms
+    // apart) and the plan that fits the record with it: 12 s at 5 s intervals, three polls, 15.5 s.
+    bool windowed = false;
     Bench() : owner(services, wire.callbacks(), 73), session(owner) {
         wire.session = &session;
         wire.services = &services;
@@ -850,9 +862,15 @@ struct Bench {
         options.requiredStopBudgetUs = 8 * SERVICE_US;
         options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
         options.stopKind = L::StopKind::HALT;
+        if (windowed) {
+            options.pollIntervalUs = 5000000;
+            options.maxPolls = 3;
+            options.enableWindowUs = 2000000;
+            options.enableSpacingUs = 300000;
+        }
         startFrame = wire.sentCount;
         return session.requestVelocity(state, identity, evidence, request, profile, axis, options,
-                                       now + 18000000, now);
+                                       now + (windowed ? 15500000 : 18000000), now);
     }
     // The run's downloads and cycles end once the session records a velocity terminal.
     void runToTerminal() {
@@ -1098,6 +1116,89 @@ void trial1009WithRejectedFinalWordLetsTheApplicationStop() {
     CHECK(b.wire.sentCount == before + 1 && b.downloadAt(before, 0x6040, 0x000b, 0x2b));
     CHECK(b.session.bestEffort().execution == M::ActionExecution::UNKNOWN && b.session.velocityNeedsStop());
 }
+// Backlog S17 through the owner and AxisSession, with BenchRoute's window. The lag below is an
+// assumption of each case: no record has measured when this firmware reports the enable in mode 3.
+const Report HALTED = {0x0001, 0x9437}; // Routes 1309 and 1310 after trial 1308: enabled, halted.
+// The words, then word 15's cycle and the window's further cycles; returns the frame after them.
+unsigned checkWindowFrames(const Bench& b, uint32_t windowCycles) {
+    unsigned i = b.startFrame;
+    CHECK(b.downloadAt(i, 0x60ff, 6, 0x23) && b.downloadAt(i + 1, 0x6083, 200, 0x23) &&
+          b.downloadAt(i + 2, 0x6084, 200, 0x23));
+    i += 3;
+    const uint16_t words[] = {6, 7, 15};
+    for (uint16_t word : words) {
+        CHECK(b.downloadAt(i, 0x6040, word, 0x2b) && b.cycleAt(i + 1));
+        i += 8;
+    }
+    for (uint32_t k = 0; k < windowCycles; ++k, i += 7)
+        CHECK(b.cycleAt(i));
+    return i;
+}
+// 1308's 8033/0001 for three cycles after word 15, then C437/0004 with 606C 5: the run waits inside
+// the window, runs, sends its HALT at due and settles it, because a running report preceded it.
+void windowWaitsForTheEnableReport() {
+    scenario = "S17 window: 8033/0001 for three cycles, then C437/0004";
+    Bench b;
+    b.windowed = true;
+    b.drive.enableAfterCycles = 3;
+    b.drive.afterStop = HALTED;
+    b.ready();
+    CHECK(b.start());
+    b.runToTerminal();
+    const L::VelocityContext& c = b.session.velocityAction();
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
+          c.completion == M::ActionCompletion::OBSERVED && c.firstFailure == M::ActionOutcome::NONE);
+    CHECK(c.runningObserved && !c.needsStop && !b.session.velocityNeedsStop());
+    CHECK(c.enablePending == 3 && c.pendingFirst.cycle == 3 && c.pendingFirst.statusword == 0x8033 &&
+          c.pendingLast.cycle == 5 && c.pendingLast.monitor == 0x0001 && c.enableReport.cycle == 6 &&
+          c.enableReport.statusword == 0xc437 && c.enableReport.monitor == 0x0004 && c.enableReport.velocity == 5);
+    const uint64_t ack = c.commandHistory[2].completedUs;
+    CHECK(c.pendingLast.earliestUs >= c.pendingFirst.latestUs + 2 * 300000 &&
+          c.enableReport.earliestUs >= c.pendingLast.latestUs + 300000 && c.enableReport.earliestUs - ack <= 2000000);
+    // The words; after word 15's cycle two more still pending and the enable report's; the running
+    // cycles; then one HALT at or after due.
+    unsigned i = checkWindowFrames(b, 3);
+    unsigned running = 0;
+    for (; b.cycleAt(i); i += 7)
+        ++running;
+    CHECK(running == c.runningPolls && c.runningPolls >= 1 && c.runningPolls <= 3);
+    CHECK(b.downloadAt(i, 0x6040, 0x010f, 0x2b));
+    const L::ActionContext& s = b.session.stopAction(L::StopKind::HALT);
+    CHECK(s.operation == c.stopOperation && s.state == M::ActionState::SUCCEEDED &&
+          s.startedUs >= c.stopDueUs && s.deadlineUs == c.deadlineUs);
+    unsigned downloads = 0;
+    for (unsigned k = i + 1; k < b.wire.sentCount; ++k)
+        downloads += b.wire.sent[k].data[0] != 0x40;
+    CHECK(!downloads);
+}
+// 8033/0001 to the end of the window: one HALT, at the cycle after which no further one fits; it
+// settles nothing, as in trial 1308, and the fence holds.
+void windowExpiresWithOneHalt() {
+    scenario = "S17 window: 8033/0001 to the end of the window";
+    Bench b;
+    b.windowed = true;
+    b.drive.afterStop = AFTER_15;
+    b.ready();
+    CHECK(b.start());
+    b.runToTerminal();
+    const L::VelocityContext& c = b.session.velocityAction();
+    CHECK(c.state == M::ActionState::FAILED && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+          std::strcmp(c.status.msg, "final enable not reported within its window") == 0);
+    CHECK(c.enablePending >= 2 && c.enablePending <= 2000000 / 300000 + 1 && !c.enableReport.present &&
+          c.observations == 2 + c.enablePending && !c.runningPolls);
+    const uint64_t ack = c.commandHistory[2].completedUs;
+    CHECK(c.pendingLast.earliestUs - ack <= 2000000 + SERVICE_US && c.stopRequestedUs + 300000 - ack > 2000000);
+    const unsigned halt = checkWindowFrames(b, c.enablePending - 1);
+    CHECK(b.downloadAt(halt, 0x6040, 0x010f, 0x2b));
+    unsigned downloads = 0;
+    for (unsigned k = halt + 1; k < b.wire.sentCount; ++k)
+        downloads += b.wire.sent[k].data[0] != 0x40;
+    CHECK(!downloads);
+    CHECK(c.stopExecution == M::ActionExecution::ACKNOWLEDGED && c.stopOutcome == M::ActionOutcome::OBSERVED &&
+          c.completion == M::ActionCompletion::NOT_OBSERVED && c.needsStop && b.session.velocityNeedsStop());
+    std::fprintf(stderr, "S17 window expiry: %u window cycles, HALT %llu us after word 15's acknowledgement\n",
+                 unsigned(c.enablePending), static_cast<unsigned long long>(c.stopRequestedUs - ack));
+}
 } // namespace Replay1009
 } // namespace
 int main() {
@@ -1124,6 +1225,8 @@ int main() {
     earlyStopReplyProcessedAtDeadlineCannotSucceed();
     settingsSnapshotRetiresWithoutChangingGeneration();
     Replay1009::trial1009StopsAfterTheLaggingEnable();
+    Replay1009::windowWaitsForTheEnableReport();
+    Replay1009::windowExpiresWithOneHalt();
     Replay1009::trial1009WithoutAcknowledgedFinalWordSignalsTheMissingStop();
     Replay1009::trial1009WithRejectedFinalWordLetsTheApplicationStop();
     Replay1009::trial1009CancelledThenStoppedByTheApplication();

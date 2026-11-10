@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Final-enable report window for the attended velocity experiment (backlog S17, 2026-11-09)
+
+- **Added:** `VelocityOptions::enableWindowUs` and `enableSpacingUs` (default 0: today's one-cycle rule), an application-bounded wait for the enable report after word 15, admitted only under `VelocityGate::ATTENDED_EXPERIMENT` and documented as the application's wait, not a device timing. Inside the window a cycle still showing word 7's exact report (mode 3, clean, low bits 011, not released, not running, `606C` 0, `6064` unchanged) schedules another one; any other report, and the last cycle the window admits, fails with the run's own stop as before (S16). The window counts in the setup budget and the observation bound. New context fields `enablePending`, `pendingFirst`, `pendingLast`, `enableReport`.
+- **Bench:** every velocity run uses a 2000 ms window with cycles 300 ms apart, the attended experiment's chosen budget; the line grammar stays protocol 7. The record adds `TRIAL_VELOCITY_WINDOW` and samples `which=2..4`. The plan bound adds 42 terminals, so a 2000 ms interval with an 18000 ms deadline no longer fits; the procedure uses 12000/5000/15500 ms (118 terminals) and the duration floor is 11470 ms. `AxisSession` grows 35592 to 35736 bytes and `RouteWork` 8432 to 8448 on the S2.
+- Tests: `velocity_test` admission, window, expiry and six contradiction cases; `velocity_owner` replays of the 1308 shape with the window (runs and settles) and to expiry (one HALT); `bench_route` window record and the old plan refused as capacity; runner bound tests. Eleven mutants killed. Host-tested only.
+
 ### Bench round 6 on `faffa22` (2026-11-09)
 
 - S15 and S16 checked on hardware in one boot. S15: `K1` refused `reserved` after two history routes, `close-sessions` sent nothing (`tx` unchanged), then `K1` admitted with all 95 grants, and homing after `K` read all 29 objects before its intended `code=1 detail=3`. S16: node 1's velocity start again ended unconfirmed one cycle after word 15 (`8033`), and the run's own HALT left 58 ms after word 15; later reads found the drive enabled, halted and stationary. `1003:00=0` on both nodes with both fault LEDs reported off. The shaft was not watched during the velocity check. [Report](docs/reports/2026-11-09_bench_r6.md).

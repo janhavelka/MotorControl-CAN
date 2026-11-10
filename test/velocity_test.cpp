@@ -59,6 +59,11 @@ struct Rig {
     uint8_t mode = 3;
     uint16_t control = 0;
     bool lag = false; // After 15, keep word 7's report, as trial 1009's drive did (6041 8033, 2100 0001).
+    // After 15, keep word 7's report for this many cycles, then report the enable (backlog S17).
+    unsigned lagCycles = 0;
+    // The lagging report, changeable between cycles; the enable report's 6041.
+    uint16_t lagStatus = 0x8033, lagMonitor = 0x0001, runningStatus = 0x4007;
+    int32_t lagPosition = 0, lagVelocity = 0;
     uint64_t now = START;
     Rig() {
         target.channel.binding.logicalAxisId = 17;
@@ -117,10 +122,14 @@ struct Rig {
     uint32_t value(uint16_t index) const {
         if (index == 0x6061)
             return mode;
-        if (lag && control == 15)
-            return index == 0x6041 ? 0x8033u : index == 0x2100 ? 0x0001u : 0u;
+        if ((lag || lagCycles) && control == 15)
+            return index == 0x6041   ? lagStatus
+                   : index == 0x2100 ? lagMonitor
+                   : index == 0x6064 ? uint32_t(lagPosition)
+                   : index == 0x606c ? uint32_t(lagVelocity)
+                                     : 0u;
         if (index == 0x6041)
-            return control == 15 ? 0x4007u : control == 7 ? 3u : 1u;
+            return control == 15 ? runningStatus : control == 7 ? 3u : 1u;
         if (index == 0x2100)
             return control == 15 ? L::MONITOR_RUNNING : L::MONITOR_RELEASED;
         if (index == 0x606c)
@@ -203,6 +212,9 @@ struct Rig {
         CHECK(L::advanceVelocity(context, observation, live, target,
                                  reply(work.transfer, now, now + 1, value(work.transfer.index)),
                                  now + 1));
+        if (work.transfer.direction == C::SdoDirection::UPLOAD && work.transfer.index == 0x606c &&
+            control == 15 && lagCycles)
+            --lagCycles;
         now += 100;
     }
     void reachRunning() {
@@ -745,6 +757,183 @@ void runStop(Rig& r, L::ActionContext& stop, uint16_t monitor, uint16_t status) 
 }
 // The stop that follows the run's own acknowledged final 000F, from any report (trial 1009, where the
 // fresh-state admission refused it and nothing was sent), and the record of a stop never composed.
+// Backlog S17: an explicit final-enable report window, the application's bounded wait, admitted only
+// under ATTENDED_EXPERIMENT. 100 ms with cycles 20 ms apart: at most five cycles more.
+void window(Rig& r, uint64_t length = 100000, uint64_t spacing = 20000) {
+    experiment(r);
+    r.options.enableWindowUs = length;
+    r.options.enableSpacingUs = spacing;
+}
+void refusedWindow(Rig& r, M::VelocityError detail) {
+    r.context.operation = 0xbeef;
+    const Saved<L::VelocityContext> before(r.context);
+    const M::Status s = r.prepare();
+    CHECK(!s && s.code == M::Err::INVALID_CONFIG && s.detail == int32_t(detail));
+    before.unchanged(r.context);
+}
+void enableWindowAdmission() {
+    {
+        // Outside the experiment no record establishes the lag, so a window is refused.
+        Rig r;
+        r.options.enableWindowUs = 100000;
+        r.options.enableSpacingUs = 20000;
+        refusedWindow(r, M::VelocityError::ARGUMENT);
+        CHECK(std::strcmp(r.prepare().msg, "an enable report window belongs to an attended velocity experiment") ==
+              0);
+        r.options.enableWindowUs = r.options.enableSpacingUs = 0;
+        CHECK(r.prepare()); // The same record without a window.
+    }
+    struct Bad {
+        uint64_t length, spacing, duration;
+    };
+    const Bad bad[] = {
+        {0, 20000, DURATION},       // A spacing without a window.
+        {100000, 0, DURATION},      // A window without a spacing.
+        {100000, 100001, DURATION}, // Spacing beyond the window.
+        {170000, 10000, DURATION},  // 17 cycles, over the 16.
+        // Longer than any experiment.
+        {L::VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US + 16, L::VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US / 16 + 1,
+         L::VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US},
+        {480000, 30000, DURATION}, // 27 services, the window and two word intervals exceed 500 ms.
+    };
+    for (const Bad& b : bad) {
+        Rig r;
+        window(r, b.length, b.spacing);
+        r.request.durationUs = b.duration;
+        refusedWindow(r, M::VelocityError::TIME);
+    }
+    {
+        // The largest admitted shapes: 16 cycles, and a window that leaves exactly the two word intervals:
+        // 5400 us of setup services, 474600 us of window and 2 x 10000 us make the 500000 us duration.
+        Rig r;
+        window(r, 160000, 10000);
+        CHECK(r.prepare());
+        Rig edge;
+        window(edge, 474600, 474600 / 16);
+        CHECK(edge.prepare());
+        Rig over;
+        window(over, 474601, 474601 / 16);
+        refusedWindow(over, M::VelocityError::TIME);
+    }
+}
+// Serve until the context requests its own stop, ends, or (when asked) reports running.
+void serveUntil(Rig& r, bool running) {
+    for (unsigned step = 0; step < 2000 && r.context.phase != L::VelocityPhase::STOPPING &&
+                            r.context.state == M::ActionState::ACTIVE && !(running && r.context.runningObserved);
+         ++step)
+        r.serveOne();
+}
+// Trial 1308's shape with a window: 8033/0001 for three cycles after 15, then C437/0004 with 606C
+// positive. The run waits, runs, requests its HALT at due and settles it, because a running report
+// preceded the stop.
+void enableWindowThenRunning() {
+    Rig r;
+    window(r);
+    r.lagCycles = 3;
+    r.runningStatus = 0xc437;
+    CHECK(r.prepare());
+    serveUntil(r, true);
+    const L::VelocityContext& c = r.context;
+    CHECK(c.state == M::ActionState::ACTIVE && c.runningObserved && c.needsStop && !c.stopRequested);
+    CHECK(c.enablePending == 3 && c.pendingFirst.present && c.pendingFirst.cycle == 3 &&
+          c.pendingFirst.statusword == 0x8033 && c.pendingLast.cycle == 5 && c.pendingLast.monitor == 0x0001);
+    CHECK(c.enableReport.present && c.enableReport.cycle == 6 && c.enableReport.statusword == 0xc437 &&
+          c.enableReport.velocity == 120 && c.observations == 6 && !c.runningPolls);
+    const uint64_t ack = c.commandHistory[2].completedUs;
+    CHECK(c.pendingFirst.earliestUs >= ack && c.pendingLast.earliestUs >= c.pendingFirst.latestUs + 2 * 20000 &&
+          c.enableReport.earliestUs >= c.pendingLast.latestUs + 20000 && c.enableReport.earliestUs - ack <= 100000);
+    // Running cycles then follow as without a window.
+    while (r.context.runningPolls < 3)
+        r.serveOne();
+    CHECK(r.context.runningObserved && r.context.state == M::ActionState::ACTIVE &&
+          r.context.observations == 6 + r.context.runningPolls);
+    // A context whose window count was overstated is refused, as is a window under another gate.
+    L::VelocityContext forged = r.context;
+    L::PreparedVelocity work;
+    forged.enablePending = 100000 / 20000 + 2;
+    CHECK(!L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
+    forged = r.context;
+    forged.evidence.gate = L::VelocityGate::MEASURED;
+    forged.evidence.startQualified = forged.evidence.stopQualified = true;
+    CHECK(!L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
+    forged = r.context;
+    forged.observations = forged.runningPolls + 3 + 100000 / 20000 + 1;
+    CHECK(!L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
+    forged.observations = forged.runningPolls + 3 + 100000 / 20000;
+    CHECK(L::nextVelocity(forged, r.observation, r.live, r.target, r.now, work));
+    bool stop = false;
+    r.now = r.context.stopDueUs;
+    CHECK(L::serviceVelocity(r.context, r.live, r.target, r.now, false, stop));
+    CHECK(stop && r.context.stopRequested && r.context.phase == L::VelocityPhase::STOPPING);
+    static L::ActionContext halt;
+    CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, r.context.commandHistory[2],
+                                 L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
+    runStop(r, halt, 0x0001, 0x9437);
+    CHECK(halt.state == M::ActionState::SUCCEEDED && halt.completion == M::ActionCompletion::OBSERVED);
+    CHECK(L::advanceVelocityStop(r.context, halt, r.now));
+    CHECK(r.context.state == M::ActionState::SUCCEEDED && r.context.outcome == M::ActionOutcome::OBSERVED &&
+          r.context.completion == M::ActionCompletion::OBSERVED && !r.context.needsStop &&
+          r.context.firstFailure == M::ActionOutcome::NONE);
+}
+// 8033 to the end of the window: each cycle waits one spacing; the cycle after which no further one
+// fits requests the run's own stop, once, and nothing more is yielded.
+void enableWindowExpires() {
+    Rig r;
+    window(r);
+    r.lag = true;
+    CHECK(r.prepare());
+    unsigned stops = 0;
+    for (unsigned step = 0; step < 2000 && r.context.state == M::ActionState::ACTIVE &&
+                            r.context.phase != L::VelocityPhase::STOPPING;
+         ++step) {
+        r.serveOne();
+        stops += r.context.stopRequested;
+    }
+    const L::VelocityContext& c = r.context;
+    const uint64_t ack = c.commandHistory[2].completedUs;
+    CHECK(stops == 1 && c.state == M::ActionState::ACTIVE && c.phase == L::VelocityPhase::STOPPING &&
+          c.stopRequested && c.needsStop && !c.runningObserved && !c.enableReport.present);
+    CHECK(c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE &&
+          std::strcmp(c.status.msg, "final enable not reported within its window") == 0);
+    // Cycles 0..4 fit 100 ms at about 20.7 ms each; a sixth would be eligible after the window.
+    CHECK(c.enablePending == 5 && c.observations == 2 + c.enablePending && c.pendingLast.cycle == c.observations &&
+          c.pendingLast.earliestUs - ack <= 100000 && c.servicedUs + 20000 - ack > 100000);
+    CHECK(c.stopRequestedUs == c.servicedUs && c.latest.cycle == c.pendingLast.cycle);
+    L::PreparedVelocity work;
+    CHECK(L::nextVelocity(c, r.observation, r.live, r.target, r.now + 1000, work) && !work.ready && !work.observe);
+    // The run's stop follows its acknowledged 000F as without a window.
+    static L::ActionContext halt;
+    CHECK(L::prepareVelocityStop(halt, r.context, r.live, r.target, r.context.commandHistory[2],
+                                 L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
+}
+// Inside the window any other report fails at once with the run's own stop requested.
+void enableWindowContradicted() {
+    for (unsigned k = 0; k < 6; ++k) {
+        Rig r;
+        window(r);
+        r.lag = true;
+        CHECK(r.prepare());
+        for (unsigned step = 0; step < 2000 && !r.context.enablePending; ++step)
+            r.serveOne();
+        CHECK(r.context.enablePending == 1 && r.context.phase == L::VelocityPhase::WAITING &&
+              r.context.observation == L::VelocityObservation::ENABLE);
+        switch (k) {
+        case 0: r.lagVelocity = 2; break;     // 606C moving.
+        case 1: r.lagPosition = 1; break;     // 6064 left the admission's.
+        case 2: r.lagMonitor = 0x0011; break; // Released again.
+        case 3: r.lagMonitor = 0x0005; break; // 2100 running without the enable.
+        case 4: r.lagStatus = 0x8031; break;  // Low bits 001.
+        default: r.lagMonitor = 0x0009; break; // Alarm.
+        }
+        serveUntil(r, false);
+        const L::VelocityContext& c = r.context;
+        CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && c.needsStop && c.enablePending == 1 &&
+              c.observations == 4 && !c.enableReport.present);
+        CHECK(c.firstFailure == (k == 5 ? M::ActionOutcome::DRIVE_FAULT : M::ActionOutcome::OBSERVATION_SCOPE));
+        if (k < 5)
+            CHECK(std::strcmp(c.status.msg, "final enable state is not confirmed") == 0);
+    }
+}
 void runStopFollowsTheAcknowledgedFinalWord() {
     {
         Rig r;
@@ -869,6 +1058,10 @@ void runStopFollowsTheAcknowledgedFinalWord() {
 }
 } // namespace
 int main() {
+    enableWindowAdmission();
+    enableWindowThenRunning();
+    enableWindowExpires();
+    enableWindowContradicted();
     runStopFollowsTheAcknowledgedFinalWord();
     attendedExperimentScope();
     exactPollCoverageIncludesTheWholeDuration();

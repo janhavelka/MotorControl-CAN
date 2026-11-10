@@ -97,6 +97,13 @@
  *   VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US, both checked by the library; reverse and a mode change are
  *   never claimed, so the drive must already read mode 3 (MODE_THREE). The session writes 60FF, 6083,
  *   6084, then 6, 7, 15, runs its cycles and asks for its own stop at the preparation-anchored due time.
+ *   Every run sets the library's final-enable report window (backlog S17) to the experiment's chosen
+ *   budget, ROUTE_VELOCITY_WINDOW_MS with cycles ROUTE_VELOCITY_SPACING_MS apart: while word 7's report
+ *   still shows after word 15, another seven-field cycle follows, up to ROUTE_VELOCITY_WINDOW_CYCLES
+ *   more, and the record keeps the first and last such cycle and the one that reported the enable
+ *   (TRIAL_VELOCITY_WINDOW, TRIAL_VELOCITY_SAMPLE which=2..4) beside every cycle's RESULT lines. The
+ *   window's cycles count in the plan's terminal bound, and the library adds the window to the setup
+ *   time the duration must cover, so with the route budgets the duration must be at least 11470 ms.
  *   When the run ends still needing a stop with none of its own sent (velocityNeedsStop() with stop
  *   execution NOT_TRANSMITTED, as when no stop can be composed after word 15's reply was lost; backlog
  *   S16), the route sends one fallback QUICK_STOP through requestStop, best-effort 000B allowed, within
@@ -390,6 +397,15 @@ enum {
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
     ROUTE_OPERATION_US = 5000000, ///< Deadline of one read or write operation, clamped to the cutoff.
+    /** VELOCITY's final-enable report window, VelocityOptions::enableWindowUs in milliseconds (backlog
+     * S17): the attended experiment's chosen budget, about twice the 850 to 880 ms mode 1 lag of
+     * 2026-11-09, never a drive timing. */
+    ROUTE_VELOCITY_WINDOW_MS = 2000,
+    /** VELOCITY's spacing between window cycles, VelocityOptions::enableSpacingUs in milliseconds: the
+     * smallest whose six extra cycles let a 12 s run at 5 s intervals fit ROUTE_TERMINALS. */
+    ROUTE_VELOCITY_SPACING_MS = 300,
+    /** Most extra seven-field cycles the window adds: ROUTE_VELOCITY_WINDOW_MS / ROUTE_VELOCITY_SPACING_MS. */
+    ROUTE_VELOCITY_WINDOW_CYCLES = ROUTE_VELOCITY_WINDOW_MS / ROUTE_VELOCITY_SPACING_MS,
     /** Longest request text after `T` the firmware collects, integrity field included; a longer one
      * is refused. The longest move line with its field is 220 bytes. */
     ROUTE_LINE = 256
