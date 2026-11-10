@@ -49,6 +49,13 @@ made and is relayed: --relayed-power-up-shaft FREE|HOLDING with --relayed-shaft-
 user's own report of the shaft as they felt it after the power-up and before anything was sent,
 with where and when they gave it. It is stored as relayed, never inferred from the drive.
 
+velocity-target (ledger gate Q03) writes one 60FF value, --value -3000..3001, to a drive that reports
+itself released at standstill in mode 3 on two fresh reads, and only after an acknowledged write reads 60FF
+back raw and the state once more. It never writes 6040, 6060 or another object and never enables. It is
+attended and counted like the settings routes, three per node, with no motion weight. 3001 is one above
+EN86/ZH86 p13's 0..3000 rpm: it shows whether the drive range-checks the value before any negative one is
+sent. The runner refuses a value outside that range before anything is sent.
+
 close-sessions sends one 'x': the firmware closes its idle route sessions, so that K, H and the raw and PDO
 experiments can reserve those nodes again in the same MCU boot (backlog S15). It sends nothing on CAN and
 is no stop, release or disable. It is refused, with nothing changed, while any record is held (release it
@@ -109,6 +116,9 @@ TRIALS = {
     # Prompt 36: the reads requestHome consumes and its refusal before any write. Nothing is written, so it
     # has the settings routes' attended class: three per route and node, no motion weight.
     "home": ("O", False, "prompt 36 homing admission"),
+    # Ledger gate Q03: one 60FF write and its readback on a drive that reports itself released in mode 3.
+    # The drive stays released, so it has the settings routes' attended class too.
+    "velocity-target": ("F", False, "gate Q03 60FF encoding probe"),
 }
 # Read routes whose read effect on the drive is unknown, so an attendant may watch the fault LED before
 # and after: --fault-led prompt asks, unobserved records that nobody looked.
@@ -116,14 +126,15 @@ FAULT_LED_ROUTES = ("readiness-actions", "readiness-history", "settings-2202", "
 # Attended routes that are not motion: one send counts one case, never motion weight. The two settings
 # writes, and home, which writes nothing. Their send entries carry "settings": 1, the ledger's name for
 # this class since the settings routes, kept so that earlier ledgers still read.
-SETTINGS_ROUTES = ("settings-2202", "io-di3", "home")
+SETTINGS_ROUTES = ("settings-2202", "io-di3", "home", "velocity-target")
 SETTINGS_LETTERS = frozenset(TRIALS[command][0] for command in SETTINGS_ROUTES)
 # PONG routes= of the line protocol this runner speaks: 3 added the CRC-32 field, 4 the rearm's
 # predecessor, the move's relative base and the Q, W and L routes, 5 the D and J settings routes, the
 # Z and C clears and the move's observer node, 6 the N, V and O routes of prompts 35 and 36, 7 the V line
-# without the host's start and stop flags, which the firmware runs as the library's attended experiment.
-# Any other image would misread the line, so it is refused before anything is sent.
-ROUTE_PROTOCOL = 7
+# without the host's start and stop flags, which the firmware runs as the library's attended experiment, 8
+# the F route (gate Q03's 60FF probe). Any other image would misread the line, so it is refused before
+# anything is sent.
+ROUTE_PROTOCOL = 8
 MOTION_ROUTES = frozenset(letter for letter, motion, _ in TRIALS.values() if motion)
 # Routes whose line ends in a planned-stop tail of five fields, the first its kind.
 STOP_ROUTES = ("position", "relative", "move")
@@ -135,6 +146,9 @@ ALWAYS_STOP_LETTERS = frozenset(TRIALS[command][0] for command in ALWAYS_STOP_RO
 LAYOUTS = {"en86": 1, "zh86": 2, "op86": 4}
 # Lichuan homing methods with an 86C sequence (EN86/ZH86 p13-15); numbers are profile-local.
 HOME_METHODS = (17, 18, 24, 29)
+# velocity-target's value (BenchRoute.cpp PROBE_VALUE): EN86/ZH86 p13's 0..3000 rpm, its negation, and 3001,
+# one above it, the range probe. No rate, unit or direction is claimed for any value.
+VELOCITY_TARGET_RANGE = (-3000, 3001)
 # The first entry's predecessor digest.
 LEDGER_GENESIS = "0" * 64
 STOP_KINDS = {"halt": 1, "quick": 2}
@@ -340,6 +354,8 @@ def trial_line(args, parser):
         if args.di3_change is None:
             parser.error("--di3-change is required for this route (%s)" % ", ".join(DI3_CHANGES))
         fields += [1, DI3_CHANGES[args.di3_change]]
+    elif args.command == "velocity-target":
+        fields += [1, _within(parser, "value", args.value, *VELOCITY_TARGET_RANGE)]
     elif args.command in ("counter-zero", "clear-alarm"):
         fields += [1, _within(parser, "deadline-ms", args.deadline_ms, 1, 55000),
                    _within(parser, "interval-ms", args.interval_ms, 10, 10000)]
@@ -400,6 +416,8 @@ def trial_line(args, parser):
     if args.command != "home" and any(getattr(args, name) is not None for name in
                                       ("method", "search_rpm", "creep_rpm", "ramp_ms", "offset")):
         parser.error("--method, --search-rpm, --creep-rpm, --ramp-ms and --offset belong to home")
+    if args.command != "velocity-target" and args.value is not None:
+        parser.error("--value belongs to velocity-target")
     if args.command not in FAULT_LED_ROUTES and args.fault_led is not None:
         parser.error("--fault-led belongs to %s" % " and ".join(FAULT_LED_ROUTES))
     if args.command in FAULT_LED_ROUTES and args.fault_led is None:
@@ -456,6 +474,8 @@ def plan_bounds(command, fields):
                 _stop_terminals(deadline - duration, interval), deadline)
     if command == "home":
         return 9 + 9 + 9 + 2, 0  # Identity, 2400:00..08, the full read, 2200 and 2201. No write.
+    if command == "velocity-target":
+        return 9 + 9 + 1 + 1 + 9, 0  # Two full reads, the 60FF write, its upload, one more full read.
     if command == "enable":
         deadline, interval = fields[8:10]
         return 9 + 2 + 3 + 7 * (3 + deadline // interval), deadline
@@ -995,6 +1015,15 @@ def dry_run(args, fields):
         if args.command == "home":
             print("  ask the attendant which DI terminals are wired (recorded only); the route's HomeEvidence is "
                   "CLOSED, so the library refuses before any write")
+        if args.command == "velocity-target":
+            written = (fields[3] & 0xFFFFFFFF).to_bytes(4, "little")
+            print("  gate Q03, 60FF encoding: refused before any write unless two fresh full reads both report "
+                  "released standstill in mode 3 (2100 bit 4, alarm clear, 6041 low bits 000, 606C 0, 1001 and 603F "
+                  "0, the same 6064; 2100 running admitted latched)")
+            print("  then one download 23 FF 60 00 %s (value %d, four bytes two's complement); only if it is "
+                  "acknowledged one 60FF upload, kept raw, and one more full read that must report the same "
+                  "standstill; an abort or lost reply ends there; never 6040, 6060 or another object, no enable, "
+                  "no retry" % (" ".join("%02X" % byte for byte in written), fields[3]))
         if args.command == "velocity":
             weight, _ = motion_weight(args.command, fields)
             print("  VelocityEvidence gate %s, startQualified 0, stopQualified 0: the run measures its start and "
@@ -1052,6 +1081,9 @@ def arguments(argv):
     home.add_argument("--creep-rpm", type=int, help="6099:02 motor rpm, 1..3000")
     home.add_argument("--ramp-ms", type=int, help="609A ms, 1..2000")
     home.add_argument("--offset", type=int, help="607C native offset, -1000000..1000000")
+    probe = parser.add_argument_group("velocity-target: gate Q03's one 60FF write on a released mode 3 drive")
+    probe.add_argument("--value", type=int, help="The signed 60FF value, %d..%d; 3001 is the range probe" %
+                       VELOCITY_TARGET_RANGE)
     move = parser.add_argument_group("move: the reviewed measurement record's evidence, never defaulted")
     for name in ("accept", "complete"):
         move.add_argument("--%s-source" % name, choices=sorted(SIGNAL_SOURCES))

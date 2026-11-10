@@ -83,12 +83,13 @@ static_assert(unsigned(L::MoveSignalSource::STATUSWORD) == 1 && unsigned(L::Move
 const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "enable", "stop",    "position", "rearm",  "move", "history",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
-                             "counter-zero", "clear-alarm", "mode3", "velocity", "home"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::HOME) + 1, "one name per route");
+                             "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::VELOCITY_TARGET) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
-// MODE_THREE changes the drive's mode and VELOCITY runs the motor. HOME writes nothing: not motion.
+// MODE_THREE changes the drive's mode and VELOCITY runs the motor. HOME writes nothing and VELOCITY_TARGET
+// writes one target to a released drive: not motion.
 bool isMotion(RouteKind kind) {
     return (kind >= RouteKind::MODE_ONE && kind <= RouteKind::MOVE) ||
            (kind >= RouteKind::RELEASED_QUICK && kind <= RouteKind::RELATIVE) || kind == RouteKind::COUNTER_ZERO ||
@@ -97,9 +98,14 @@ bool isMotion(RouteKind kind) {
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
 bool isSettings(RouteKind kind) { return kind == RouteKind::SETTINGS_2202 || kind == RouteKind::IO_DI3; }
 // Attended routes without motion weight, each with its own row of settingsCases_: the two settings
-// writes, and HOME, which reads what requestHome consumes and is refused before any write. -1 for others.
+// writes, HOME, which reads what requestHome consumes and is refused before any write, and VELOCITY_TARGET,
+// one 60FF write to a drive that reports itself released. -1 for others.
 int attendedCase(RouteKind kind) {
-    return kind == RouteKind::SETTINGS_2202 ? 0 : kind == RouteKind::IO_DI3 ? 1 : kind == RouteKind::HOME ? 2 : -1;
+    return kind == RouteKind::SETTINGS_2202 ? 0
+           : kind == RouteKind::IO_DI3      ? 1
+           : kind == RouteKind::HOME        ? 2
+           : kind == RouteKind::VELOCITY_TARGET ? 3
+                                                : -1;
 }
 // The two isolated experiments that write 607A, 6081, 6083, 6084 and a trigger themselves.
 bool writesPosition(RouteKind kind) { return kind == RouteKind::POSITION || kind == RouteKind::RELATIVE; }
@@ -160,6 +166,9 @@ constexpr Range RPM = {0, 3000}, RAMP_MS = {0, 2000}, MOVE_RPM = {1, 3000}, MOVE
 // VELOCITY's StatusLayout numbers, 1 EN86 to 4 OP86 (routePlanValid refuses 3, ZH57). HOME's Lichuan
 // methods lie in 17..29; routePlanValid admits only the four with an 86C sequence (EN86/ZH86 p13-15).
 constexpr Range LAYOUT = {1, 4}, METHOD = {17, 29};
+// VELOCITY_TARGET's 60FF value: p13's documentary 0..3000 rpm, its negation, and 3001, one above it, the
+// range probe (gate Q03). Wider values decide nothing more and are refused.
+constexpr Range PROBE_VALUE = {-3000, 3001};
 // One fixed field list per route letter, in flash and in line order. The parser stores each field
 // through it and routePlanValid reads the same fields back, so both judge the same ranges.
 constexpr Field READ_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL)};
@@ -269,6 +278,9 @@ constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(t
                                  ROUTE_FIELD(attended, FLAG),      ROUTE_FIELD(method, METHOD),
                                  ROUTE_FIELD(searchRpm, MOVE_RPM), ROUTE_FIELD(creepRpm, MOVE_RPM),
                                  ROUTE_FIELD(homeRampMs, MOVE_RAMP_MS), ROUTE_FIELD(offset, TARGET)};
+// VELOCITY_TARGET: the one signed value; nothing else on the line is written.
+constexpr Field PROBE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+                                  ROUTE_FIELD(velocityValue, PROBE_VALUE)};
 #undef ROUTE_FIELD
 struct Grammar {
     char letter;
@@ -296,8 +308,9 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'C', RouteKind::CLEAR_ALARM, CLEAR_FIELDS, countOf(CLEAR_FIELDS)},
                                 {'N', RouteKind::MODE_THREE, MODE_FIELDS, countOf(MODE_FIELDS)},
                                 {'V', RouteKind::VELOCITY, VELOCITY_FIELDS, countOf(VELOCITY_FIELDS)},
-                                {'O', RouteKind::HOME, HOME_FIELDS, countOf(HOME_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::HOME), "one grammar per route");
+                                {'O', RouteKind::HOME, HOME_FIELDS, countOf(HOME_FIELDS)},
+                                {'F', RouteKind::VELOCITY_TARGET, PROBE_FIELDS, countOf(PROBE_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::VELOCITY_TARGET), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -449,6 +462,9 @@ unsigned terminalBound(const RoutePlan& p) {
     case RouteKind::HOME:
         // Identity, IO_INPUT_CONFIGURATION (2400:00..08), the full read and DRIVER (2200, 2201). No write.
         return 9 + 9 + 9 + 2;
+    case RouteKind::VELOCITY_TARGET:
+        // Two full reads, the 60FF write, its upload, one more full read.
+        return 9 + 9 + 1 + 1 + 9;
     default:
         return ROUTE_TERMINALS + 1;
     }
@@ -707,8 +723,8 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     if (settings && settingsCases_[settingsCase][index] + 1u > ROUTE_SETTINGS_PER_CASE)
         return "budget";
     // HOME keeps its input mapping, state read and request in RouteWork, as a settings route keeps its
-    // prior; VELOCITY keeps its request there, off BenchRoute's own block.
-    if ((settings || plan.kind == RouteKind::VELOCITY) && !work_)
+    // prior; VELOCITY keeps its request there, off BenchRoute's own block. VELOCITY_TARGET needs none.
+    if ((isSettings(plan.kind) || plan.kind == RouteKind::HOME || plan.kind == RouteKind::VELOCITY) && !work_)
         return "memory";
     if (terminalBound(plan) > ROUTE_TERMINALS)
         return "capacity";
@@ -768,6 +784,11 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
         return "control";
     // A trigger that may have moved the drive without an observed completion fences new moves.
     if (plan.kind == RouteKind::MOVE && session->moveFenced())
+        return "fenced";
+    // A new 60FF value would become the target of anything still running, whatever a later report shows
+    // (trial 1009 read idle after its 000F and ran): not while the session holds such a fact.
+    if (plan.kind == RouteKind::VELOCITY_TARGET && (session->velocityNeedsStop() || session->homeNeedsStop() ||
+                                                   session->moveFenced() || session->faultBlocked()))
         return "fenced";
     // Last, so that a refusal above leaves every reservation's numbering as it was.
     if (!continueOperations(*session, index, now) ||
@@ -869,6 +890,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     r.velocityRequestedUs = 0;
     r.homeIdentity = r.homeDriverPresent = r.homeAdmitted = false;
     r.homeDirection = r.homeSubdivision = 0;
+    r.probeWritten = r.probeAcknowledged = r.probeUncertain = r.probeReadPresent = false;
+    r.probeOutcome = r.probeSize = r.probeAfter = 0;
+    r.probeAbort = 0;
+    std::memset(r.probeRead, 0, sizeof r.probeRead);
     // Older copies belong to earlier work; this record starts with an empty owner trace.
     for (unsigned i = 0; i < MotorControlCANOwner::CanBusOwner::TRACE_CAPACITY && owner.takeDiagnostic(diagnostic_);
          ++i) {
@@ -968,10 +993,17 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                 {STEP_HOME_STATE, FULL},
                                 {STEP_GROUP, uint8_t(L::DriverGroup::DRIVER)},
                                 {STEP_HOME, 0}};
+    // Two fresh full reads of the released mode 3 standstill, the one 60FF write, then, only once it is
+    // acknowledged, its upload and one more full read, judged against the check's.
+    static const Step velocityTarget[] = {{STEP_STATE, FULL},           {STEP_SECOND, FULL},
+                                          {STEP_CHECK_TARGET, 0},       {STEP_TARGET_WRITE, 0},
+                                          {STEP_SINGLE, 2},             {STEP_STATE, FULL},
+                                          {STEP_CHECK_TARGET_AFTER, 0}, {STEP_END, 0}};
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
-                                  modeThree, velocity, home};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::HOME) + 1, "one table per route");
+                                  modeThree, velocity, home, velocityTarget};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::VELOCITY_TARGET) + 1,
+                  "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
     steps_ = plan.kind == RouteKind::MOVE ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
                                           : tables[unsigned(plan.kind)];
@@ -1394,6 +1426,14 @@ bool BenchRoute::settle(uint64_t now) noexcept {
         finish(RouteFailure::CORRELATION, "terminal", now);
         return true;
     }
+    if (steps_[stepIndex_].kind == STEP_TARGET_WRITE) {
+        // The probe's own result, whatever it is: an abort code is the measurement.
+        record_.probeWritten = true;
+        record_.probeOutcome = uint8_t(done.outcome);
+        record_.probeAcknowledged = done.protocolAcknowledged;
+        record_.probeUncertain = done.effectUncertain;
+        record_.probeAbort = done.abortCode;
+    }
     if (steps_[stepIndex_].kind == STEP_SETTINGS) {
         // The transaction consumes every terminal of its own, failures included, and decides what follows.
         RouteWork& w = *work_;
@@ -1426,7 +1466,7 @@ bool BenchRoute::settle(uint64_t now) noexcept {
             writtenOperation_ = t.operation;
             writtenUs_ = done.completedUs;
         }
-        if (kind == STEP_MODE_WRITE || kind == STEP_WORD_WRITE || subStep_ == 5)
+        if (kind == STEP_MODE_WRITE || kind == STEP_WORD_WRITE || kind == STEP_TARGET_WRITE || subStep_ == 5)
             nextStep(now);
         return true;
     }
@@ -1435,6 +1475,12 @@ bool BenchRoute::settle(uint64_t now) noexcept {
             record_.targetReadPresent = true;
             record_.targetRead = int32_t(uint32_t(done.data[0]) | uint32_t(done.data[1]) << 8 |
                                          uint32_t(done.data[2]) << 16 | uint32_t(done.data[3]) << 24);
+        }
+        // VELOCITY_TARGET's readback, raw: which bytes the drive holds is the question, not their sign.
+        if (record_.plan.kind == RouteKind::VELOCITY_TARGET && t.index == 0x60ff) {
+            record_.probeReadPresent = true;
+            record_.probeSize = done.size;
+            std::memcpy(record_.probeRead, done.data, sizeof record_.probeRead);
         }
         readDone(now);
         return true;
@@ -1491,7 +1537,8 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_CHECK_MOVE:
     case STEP_CHECK_RELEASED:
     case STEP_CHECK_MODE_THREE:
-    case STEP_CHECK_VELOCITY: {
+    case STEP_CHECK_VELOCITY:
+    case STEP_CHECK_TARGET: {
         record_.checkPresent = true;
         record_.check = record_.last;
         const char* why = step.kind == STEP_CHECK_MODE         ? checkMode()
@@ -1500,6 +1547,7 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
                           : step.kind == STEP_CHECK_MOVE       ? checkMove()
                           : step.kind == STEP_CHECK_MODE_THREE ? checkModeThree()
                           : step.kind == STEP_CHECK_VELOCITY   ? checkVelocity()
+                          : step.kind == STEP_CHECK_TARGET     ? checkVelocityTarget()
                                                                : checkReleased();
         record_.checkPassed = why == nullptr;
         if (why)
@@ -1511,11 +1559,22 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_MODE_WRITE:
     case STEP_POSITION_WRITES:
     case STEP_WORD_WRITE:
+    case STEP_TARGET_WRITE:
         if (!stepActive_ && !startWrite(now))
             return;
         stepActive_ = true;
         serviceWrite(now);
         return;
+    case STEP_CHECK_TARGET_AFTER: {
+        // The check's verdict stays the check's; this read is judged against it.
+        const char* why = checkTargetAfter();
+        record_.probeAfter = why ? 2 : 1;
+        if (why)
+            finish(RouteFailure::OBSERVATION, why, now);
+        else
+            nextStep(now);
+        return;
+    }
     case STEP_ENABLE:
         startEnable(now);
         return;
@@ -1826,6 +1885,15 @@ bool BenchRoute::writeTransfer(C::SdoTransfer& output) const noexcept {
         t.index = 0x6060;
         t.size = 1;
         value = p.kind == RouteKind::MODE_THREE ? 3 : 1;
+    } else if (steps_[stepIndex_].kind == STEP_TARGET_WRITE) {
+        // 23 FF 60 00 and the line's value in four bytes, two's complement: EDS [60FF] and EN86/ZH86 p17
+        // declare I32, p13 U32, and both are these four bytes. 60FF has no generated declaration while the
+        // claims conflict (gate Q03). One write, never a second.
+        if (subStep_)
+            return false;
+        t.index = 0x60ff;
+        t.size = 4;
+        value = uint32_t(p.velocityValue);
     } else if (steps_[stepIndex_].kind == STEP_WORD_WRITE) {
         const uint8_t word = steps_[stepIndex_].arg;
         if (subStep_ || word >= sizeof WORDS / sizeof WORDS[0])
@@ -2094,6 +2162,53 @@ const char* BenchRoute::checkVelocity() const noexcept {
     if (s.velocity)
         return "velocity";
     return nullptr;
+}
+// VELOCITY_TARGET's report of one read: the released mode 3 standstill a velocity run starts from, with
+// 1001 and 603F zero and low bits 000 only, so nothing is switched on while the target changes. 2100
+// running may stay latched after a moving quick stop (2100=0015, 6041=C050, reads 1514 and 1608), as
+// checkVelocity and the velocity admission admit it with low bits 000.
+const char* BenchRoute::checkTargetState(const RouteSnapshot& s) const noexcept {
+    if ((s.blocks & FULL) != FULL)
+        return "snapshot";
+    if (s.errorRegister)
+        return "error-register";
+    if (s.errorCode)
+        return "fault-code";
+    if (s.monitor & L::MONITOR_ALARM)
+        return "alarm";
+    if (!(s.monitor & L::MONITOR_RELEASED))
+        return "unreleased";
+    const uint16_t low = uint16_t(s.statusword & L::STATUS_LOW_BITS);
+    if ((s.monitor & L::MONITOR_RUNNING) && low)
+        return "running";
+    if (low)
+        return "status";
+    if (s.mode != 3)
+        return "mode";
+    if (s.velocity)
+        return "velocity";
+    return nullptr;
+}
+// Both fresh reads report that standstill at one 6064, and the latest word recorded at admission is still
+// the latest, as for MODE_THREE: another writer since would make the reads stale.
+const char* BenchRoute::checkVelocityTarget() const noexcept {
+    if (const char* why = predecessor(STEP_TARGET_WRITE))
+        return why;
+    if (!record_.firstPresent)
+        return "snapshot";
+    const RouteSnapshot* const reads[] = {&record_.first, &record_.check};
+    for (const RouteSnapshot* s : reads)
+        if (const char* why = checkTargetState(*s))
+            return why;
+    if (record_.first.position != record_.check.position)
+        return "position";
+    return nullptr;
+}
+// The read after the readback: still that standstill, at the check's 6064.
+const char* BenchRoute::checkTargetAfter() const noexcept {
+    if (const char* why = checkTargetState(record_.last))
+        return why;
+    return record_.last.position != record_.check.position ? "position" : nullptr;
 }
 // The acknowledged latest word of a finished record of this object on that node, as the host named
 // it: 1 POSITION's 001F, 2 that record's planned HALT 010F, 3 RELATIVE's 005F. Its operation and
@@ -3056,7 +3171,10 @@ unsigned BenchRoute::summaryCount() const noexcept {
                      r.statusPresent;
     // TRIAL_REARM, or TRIAL_CONTROL; then TRIAL_BASE.
     if (r.plan.kind == RouteKind::REARM || r.plan.kind == RouteKind::RELEASED_QUICK || r.plan.kind == RouteKind::WORD67 ||
-        r.plan.kind == RouteKind::MODE_THREE)
+        r.plan.kind == RouteKind::MODE_THREE || r.plan.kind == RouteKind::VELOCITY_TARGET)
+        count += 1;
+    // VELOCITY_TARGET: its write, readback and the read after it.
+    if (r.plan.kind == RouteKind::VELOCITY_TARGET)
         count += 1;
     if (r.plan.kind == RouteKind::RELATIVE || (r.plan.kind == RouteKind::MOVE && r.plan.relativeBase))
         count += 1;
@@ -3099,6 +3217,10 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        static_cast<unsigned long>(p.rampUpMs), static_cast<unsigned long>(p.rampDownMs),
                        static_cast<unsigned long>(p.durationMs), static_cast<unsigned long>(p.intervalMs),
                        static_cast<unsigned long>(p.deadlineMs), unsigned(p.stopKind));
+        case RouteKind::VELOCITY_TARGET:
+            return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u value=%ld\n", routeName(p.kind),
+                       unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended),
+                       static_cast<long>(p.velocityValue));
         case RouteKind::HOME:
             return put(out, size,
                        "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u method=%u search=%lu creep=%lu ramp=%lu "
@@ -3242,7 +3364,8 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    static_cast<unsigned long long>(r.rearmFollowsUs), unsigned(latest != nullptr), latestWord,
                    static_cast<unsigned long>(latest ? latest->transfer.operation : 0));
     }
-    if ((p.kind == RouteKind::RELEASED_QUICK || p.kind == RouteKind::WORD67 || p.kind == RouteKind::MODE_THREE) &&
+    if ((p.kind == RouteKind::RELEASED_QUICK || p.kind == RouteKind::WORD67 || p.kind == RouteKind::MODE_THREE ||
+         p.kind == RouteKind::VELOCITY_TARGET) &&
         !index--) {
         // What the session knew at admission, which may be nothing, and the latest word after the route.
         return put(out, size,
@@ -3250,6 +3373,24 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                    unsigned(r.priorPresent), unsigned(r.priorWord), static_cast<unsigned long>(r.priorOperation),
                    static_cast<unsigned long long>(r.priorUs), unsigned(latest != nullptr), latestWord,
                    static_cast<unsigned long>(latest ? latest->transfer.operation : 0));
+    }
+    if (p.kind == RouteKind::VELOCITY_TARGET && !index--) {
+        // The value as written, the download's terminal (outcome 255 while none settled), the upload's raw
+        // bytes and whether they are the written ones, and the verdict on the read after it. Raw only: what
+        // the bytes mean for the drive's signedness is the reviewer's, from the procedure's table.
+        const uint32_t raw = uint32_t(p.velocityValue);
+        const uint8_t* b = r.probeRead;
+        const bool match = r.probeReadPresent && r.probeSize == 4 && b[0] == uint8_t(raw) &&
+                           b[1] == uint8_t(raw >> 8) && b[2] == uint8_t(raw >> 16) && b[3] == uint8_t(raw >> 24);
+        return put(out, size,
+                   "TRIAL_VELOCITY_TARGET value=%ld tx=%02x%02x%02x%02x written=%u outcome=%u ack=%u uncertain=%u "
+                   "abort=%08lx read=%u size=%u data=%02x%02x%02x%02x match=%u after=%u\n",
+                   static_cast<long>(p.velocityValue), unsigned(raw & 0xffu), unsigned((raw >> 8) & 0xffu),
+                   unsigned((raw >> 16) & 0xffu), unsigned(raw >> 24), unsigned(r.probeWritten),
+                   r.probeWritten ? unsigned(r.probeOutcome) : 255u, unsigned(r.probeAcknowledged),
+                   unsigned(r.probeUncertain), static_cast<unsigned long>(r.probeAbort),
+                   unsigned(r.probeReadPresent), unsigned(r.probeSize), unsigned(b[0]), unsigned(b[1]),
+                   unsigned(b[2]), unsigned(b[3]), unsigned(match), unsigned(r.probeAfter));
     }
     if ((p.kind == RouteKind::RELATIVE || (p.kind == RouteKind::MOVE && p.relativeBase)) && !index--) {
         // The base the displacement meets: the 607A uploaded before the writes, this object's record of

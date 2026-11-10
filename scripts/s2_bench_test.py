@@ -18,23 +18,26 @@ PONG = "PONG target=esp32s2 base=%s elf=%s sdk=v5.5.5 running=1 active=%d silent
 NAMES = {"A": "readiness-actions", "I": "readiness-io", "U": "readiness-tuning", "M": "mode1", "E": "enable",
          "S": "stop", "P": "position", "R": "rearm", "G": "move", "H": "readiness-history",
          "Q": "released-quick", "W": "word67", "L": "relative", "D": "settings-2202", "J": "io-di3",
-         "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home"}
+         "Z": "counter-zero", "C": "clear-alarm", "N": "mode3", "V": "velocity", "O": "home",
+         "F": "velocity-target"}
 ROUTES = {"A": "actions", "I": "io", "U": "tuning", "M": "mode1", "E": "enable", "S": "stop", "P": "position",
           "R": "rearm", "G": "move", "H": "history", "Q": "released-quick", "W": "word67", "L": "relative",
           "D": "settings-2202", "J": "io-di3", "Z": "counter-zero", "C": "clear-alarm", "N": "mode3",
-          "V": "velocity", "O": "home"}
-# Protocol 6's routes. `bench_route_test --transcript` prints the earlier ones only; `--transcript-all` adds
-# these, which scripts/s2_evidence.py reads once its grammar names them (see check_trial_transcript).
-NEW_LETTERS = frozenset("NVO")
+          "V": "velocity", "O": "home", "F": "velocity-target"}
+# Protocol 6's routes and protocol 8's F. `bench_route_test --transcript` prints the earlier ones only;
+# `--transcript-all` adds these, which scripts/s2_evidence.py reads once its grammar names them (see
+# check_trial_transcript).
+NEW_LETTERS = frozenset("NVOF")
 
 
 def check_trial_transcript(path, every=False):
     """Every record the real BenchRoute prints must parse whole, with its expected verdict. every: the
-    transcript of --transcript-all, which also holds protocol 6's mode3, velocity and home records."""
+    transcript of --transcript-all, which also holds protocol 6's mode3, velocity and home records and protocol
+    8's velocity-target records."""
     data = Path(path).read_bytes()
     problems = []
     parts = data.split(b"=== ")[1:]
-    wanted_count = 31 if every else 26
+    wanted_count = 33 if every else 26
     if len(parts) < wanted_count:
         problems.append("expected %d records, found %d" % (wanted_count, len(parts)))
     letters = {part[:1].decode("ascii") for part in parts}
@@ -55,7 +58,10 @@ def check_trial_transcript(path, every=False):
         refused = line[0] == "O" or (line[0] == "V" and int(fields[3]) > 60)
         # Backlog S16: word 15's reply lost, then the route's fallback 000B after that failed terminal.
         fallback = line.startswith("V1,9,")
-        wanted = "failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback else "complete"
+        # Gate Q03: the fake refuses the 3001 range probe with the value range's abort.
+        ranged = line[0] == "F" and fields[3] == "3001"
+        wanted = ("failed-evidence" if line.startswith("S1,7,") or lost or refused or fallback or ranged
+                  else "complete")
         if report.verdict != wanted or report.family != "TRIAL":
             problems.append("%s: %s %s %s" % (line, report.verdict, report.family, report.errors[:3]))
         if fallback and not (report.failure_name == "ACTION" and b" needs=1 fenced=1 " in body and
@@ -109,6 +115,8 @@ def check_trial_transcript(path, every=False):
             problems.append("%s: no history summary" % line)
         if line[0] == "N" and not {"TRIAL_FIRST", "TRIAL_CHECK", "TRIAL_CONTROL"} <= kinds:
             problems.append("%s: no first read, check or control summary" % line)
+        if line[0] == "F":
+            problems += _check_target_record(line, fields, body, meta, report, ranged)
         if line[0] == "O" and not {"TRIAL_STATUS", "TRIAL_IO", "TRIAL_HOME"} <= kinds:
             problems.append("%s: no refusal, input mapping or home summary" % line)
         if line[0] == "O" and (b" dir=1 " in body or b" gate=0 " not in body):
@@ -135,6 +143,37 @@ def check_trial_transcript(path, every=False):
             counts = [w["actual"] for w in report.widths if w["object"] == "607d:00"]
             if counts != [2, 2]:
                 problems.append("%s: 607D:00 widths %s" % (line, counts))
+    return problems
+
+
+def _check_target_record(line, fields, body, meta, report, ranged):
+    """One velocity-target record of the transcript: its summaries, its one 60FF download on the wire, and a
+    summary that names other bytes or a readback after the abort is refused as differing from the record."""
+    problems = []
+    kinds = set(report.kinds)
+    if not {"TRIAL_FIRST", "TRIAL_CHECK", "TRIAL_LAST", "TRIAL_CONTROL", "TRIAL_VELOCITY_TARGET"} <= kinds:
+        problems.append("%s: no first read, check, last read, control or target summary" % line)
+    if not report.inventory_checked:
+        problems.append("%s: fixed inventory not checked" % line)
+    # Only the one 60FF download on the wire: never 6040, 6060 or another object.
+    written = (int(fields[3]) & 0xFFFFFFFF).to_bytes(4, "little").hex().encode("ascii")
+    sent = [r.values["data"] for r in report.records if r.kind == "TRAFFIC" and r.status == "parsed" and
+            r.values["k"] == evidence.TX and 0x600 < r.values["id"] <= 0x67F]
+    downloads = [data for data in sent if data[:2] not in ("40", "80")]
+    if downloads != ["23ff6000" + written.decode("ascii")]:
+        problems.append("%s: not exactly one 60FF download of its value: %s" % (line, downloads))
+    summary = b"TRIAL_VELOCITY_TARGET value=%s tx=%s written=1 " % (fields[3].encode("ascii"), written)
+    if summary not in body:
+        problems.append("%s: no summary of its write" % line)
+    if ranged and not (report.failure_name == "SERVICE" and b" outcome=1 ack=0 uncertain=1 abort=06090030 read=0 "
+                       b"size=0 data=00000000 match=0 after=0\n" in body and b" object=60ff:00 dir=0 " not in body):
+        problems.append("%s: not an aborted write with no readback" % line)
+    if not ranged and b" read=1 size=4 data=%s match=1 after=1\n" % written not in body:
+        problems.append("%s: not an acknowledged write with its readback" % line)
+    forged = (body.replace(b" abort=06090030 read=0 ", b" abort=06090031 read=0 ") if ranged else
+              body.replace(b" data=%s match=1 " % written, b" data=00000000 match=1 "))
+    if "velocity_target_differs_from_record" not in {item["code"] for item in evidence.replay_bytes(forged, meta).errors}:
+        problems.append("%s: a summary that differs from the record was accepted" % line)
     return problems
 
 
@@ -855,8 +894,8 @@ class BenchTest(unittest.TestCase):
                                      ("velocity", VELOCITY, "ATTENDED 30"),
                                      ("readiness-io", ["--command", "readiness-io", "--node", "1", "--trial", "30"],
                                       None)):
-            # Older images, protocol 6's among them, and one this runner does not know.
-            for routes in (1, 2, 3, 4, 5, 6, 8):
+            # Older images, protocol 7's among them, and one this runner does not know.
+            for routes in (1, 2, 3, 4, 5, 6, 7, 9):
                 self.clear_output()
                 board = Board()
                 board.routes = routes
@@ -1555,6 +1594,80 @@ class BenchTest(unittest.TestCase):
         self.assertIn(status, (0, 1), err)
         self.assertEqual(operator.questions, [])
         self.assertEqual(self.meta()["operator"]["home_inputs_wired"]["typed"], bench.UNOBSERVED)
+
+    def test_velocity_target_line_bounds_dry_run_and_campaign(self):
+        def probe(value, node="1", trial="50"):
+            return ["--command", "velocity-target", "--node", node, "--trial", trial, "--value", str(value)]
+        # The firmware's grammar (BenchRoute.cpp PROBE_FIELDS): node, trial, attended and the signed value.
+        for value, line in ((3001, "TF1,50,1,3001"), (-6, "TF1,50,1,-6"), (6, "TF1,50,1,6"), (-3000, "TF1,50,1,-3000"),
+                            (0, "TF1,50,1,0")):
+            args, fields = bench.arguments(BASE + probe(value) + LEDGER + ["--output", "x"])
+            self.assertEqual(bench.encode(args.command, fields).decode("ascii"), signed(line))
+            self.assertEqual(bench.plan_bounds(args.command, fields), (29, 0))
+            self.assertEqual(bench.motion_weight(args.command, fields), (0, 0))
+        # Outside -3000..3001, missing, or on another route: refused by the parser, nothing created.
+        for argv in (probe(3002), probe(-3001), probe(2 ** 31), ["--command", "velocity-target", "--node", "1",
+                                                                     "--trial", "50"],
+                     MODE3 + ["--value", "6"], probe(6) + ["--fault-led", "prompt"], probe(6, node="3")):
+            with self.assertRaises(SystemExit, msg=argv), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + argv + LEDGER + ["--output", "x"])
+        err = io.StringIO()
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(err):
+            bench.arguments(BASE + probe(3002) + LEDGER + ["--output", "x"])
+        self.assertIn("--value must be -3000..3001", err.getvalue())
+        # Attended and counted like the settings routes: the campaign is required.
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+            bench.arguments(BASE + probe(6) + ["--output", "x"])
+        # The dry run touches nothing and states the bytes and the reads.
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = bench.main(BASE + probe(-6) + ["--dry-run", "--campaign", str(self.ledger)], Untouchable(), Clock(),
+                                Operator())
+        self.assertEqual(status, 0)
+        text = out.getvalue()
+        for part in ("require the operator to type: ATTENDED 50", "at most 29 terminals of 128 and 0 ms",
+                     "two fresh full reads both report released standstill in mode 3",
+                     "one download 23 FF 60 00 FA FF FF FF (value -6, four bytes two's complement)",
+                     "only if it is acknowledged one 60FF upload", "never 6040, 6060 or another object",
+                     "routes=8", repr(signed("TF1,50,1,-6").encode("ascii"))):
+            self.assertIn(part, text)
+        self.assertFalse(self.output.exists())
+        self.assertEqual(self.ledger.read_bytes(), b"")
+        # One send: the attended confirmation only, a settings entry with no motion weight, then the record.
+        board = Board()
+        operator = Operator("ATTENDED 50")
+        status, _, err_text = self.run_main(probe(3001), Backend(board), operator)
+        self.assertIn(status, (0, 1), err_text)  # The synthetic record has no terminals.
+        self.assertEqual(board.writes, [b"p", signed("TF1,50,1,3001").encode()])
+        self.assertEqual(len(operator.questions), 1)
+        self.assertEqual(self.meta()["plan"], "gate Q03 60FF encoding probe")
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(e["route"], e["motion"], e["stop"], e.get("settings")) for e in send], [("F", 0, 0, 1)])
+        # Three per node across boots, never toward the twelve motion admissions; node 2 has its own count.
+        self.write_ledger([dict(send_entry("F", 1, n, 0), settings=1) for n in (1, 2, 3)] +
+                          [send_entry("M", 1, n) for n in range(4, 16)])
+        self.clear_output()
+        board = Board()
+        status, _, err_text = self.run_main(probe(6, trial="60"), Backend(board), Operator("ATTENDED 60"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("velocity-target admissions on node 1, the cap is 3", err_text)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        status, _, err_text = self.run_main(probe(6, node="2", trial="60"), Backend(Board()), Operator("ATTENDED 60"))
+        self.assertIn(status, (0, 1), err_text)  # Twelve motion admissions do not count against it.
+        # An F send without its settings mark is an inconsistent entry.
+        self.ledger.write_bytes(chain([send_entry("F", 1, 4, 0)]))
+        board = Board()
+        status, _, err_text = self.run_main(position(1, 20), Backend(board), Operator("ATTENDED 20"))
+        self.assertEqual(status, 2, err_text)
+        self.assertIn("inconsistent send entry", err_text)
+        # An image that speaks protocol 7 takes no F line.
+        self.ledger.write_bytes(b"")
+        self.clear_output()
+        board = Board()
+        board.routes = 7
+        status, _, err_text = self.run_main(probe(6, trial="70"), Backend(board), Operator("ATTENDED 70"))
+        self.assertEqual((status, board.writes, self.meta()["reason"]), (2, [b"p"], "image_route_version"))
 
     def test_close_sessions_reply_decides_the_status(self):
         board = Board()

@@ -909,11 +909,11 @@ void ownerTask(void*) {
     // The trial request is the other multi-byte command: `T` then text up to a line end. It is
     // drained whole each turn, because it can be longer than the platform's 64-byte input ring; a
     // move line is the longest, within E::ROUTE_LINE with its integrity field. A longer one is
-    // refused whole, never cut. `routes=7` in PONG names this line protocol: the CRC-32 field (3), the
+    // refused whole, never cut. `routes=8` in PONG names this line protocol: the CRC-32 field (3), the
     // rearm's predecessor, the move's relative base and the Q, W and L routes (4), then the D and J
     // settings routes and the move's observer node (5), then the N, V and O routes of prompts 35 and
     // 36 (6), then the V line without the host's start and stop flags, run as the library's attended
-    // experiment (7).
+    // experiment (7), then the F route, gate Q03's one 60FF write and readback on a released drive (8).
     E::BenchRoute* route = nullptr;
     // The arena's current occupant, refreshed each turn and after each acquisition. D and K never
     // download, so the dispatcher below asks only for the raw, PDO and H collectors: a download of
@@ -1680,7 +1680,7 @@ void ownerTask(void*) {
                     formatLine(hash + i * 2, 3, "%02x", unsigned(app->app_elf_sha256[i]));
                 formatLine(output, sizeof(output),
                            "PONG target=esp32s2 base=%s elf=%s sdk=%s running=%u active=%u "
-                           "silent=%u pinsReady=%u soak=%u t=%llu routes=7 trial=%u motion=%u pdo=4 "
+                           "silent=%u pinsReady=%u soak=%u t=%llu routes=8 trial=%u motion=%u pdo=4 "
                            "watch=%u capture=%u\n",
                            MOTORCONTROLCAN_SOURCE_REVISION, hash, app->idf_ver,
                            unsigned(firmware.running()), unsigned(controllerReady),

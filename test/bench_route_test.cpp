@@ -89,11 +89,15 @@ struct Drive {
     uint16_t silentIndex = 0; // No reply to this object (any direction).
     uint16_t silentWord = 0;  // With 6040: only this word goes unanswered.
     unsigned silentSkip = 0;  // With silentIndex: this many requests to it are answered first.
-    uint16_t abortIndex = 0;  // Abort 08000020 for this object.
+    uint16_t abortIndex = 0;  // Abort abortCode for this object.
+    uint32_t abortCode = 0x08000020; // The abort code the fake sends: 08000020 unless a test names another.
     uint16_t lateIndex = 0;   // The first reply to this object is held in `late` for the test to send.
     uint16_t mismatchIndex = 0; // Replies to this object name the next subindex.
     uint16_t alarmAfterMode = 0; // 2100 bits set once 6060 has been written.
     uint16_t monitorAfterTrigger = 0; // 2100 bits set by a 001F.
+    uint16_t monitorAfterTarget = 0;  // 2100 bits set by a 60FF download.
+    int32_t stepAfterTarget = 0;      // Added to 6064 by a 60FF download: a shaft that moved with the write.
+    unsigned targetStore = 0; // 0 a 60FF download stores its four bytes; 1 it stores 3000 for anything above.
     // 1003 as this fake reports it: a count and five raw words, chosen by each test, not any drive's.
     uint8_t historyCount = 0;
     uint32_t history[5] = {};
@@ -297,8 +301,8 @@ struct Drive {
         }
         if (index == abortIndex && !(writesOnly && upload)) {
             reply.data[0] = 0x80;
-            reply.data[4] = 0x20;
-            reply.data[7] = 0x08;
+            for (unsigned i = 0; i < 4; ++i)
+                reply.data[4 + i] = uint8_t(abortCode >> (8 * i));
             return true;
         }
         if (!upload) {
@@ -353,7 +357,9 @@ struct Drive {
                     velocity = 0;
                 }
             } else if (index == 0x60ff) {
-                velocityTarget = signedValue;
+                velocityTarget = targetStore == 1 && signedValue > 3000 ? 3000 : signedValue;
+                monitor = uint16_t(monitor | monitorAfterTarget);
+                position += stepAfterTarget;
             } else if (index == 0x2202) {
                 limitSelector = word;
             } else if (index == 0x2301 && word == 1) {
@@ -4647,6 +4653,304 @@ void testHomeAfterReads() {
     // Node 2 kept its own channel's numbering: nothing of node 1's grants moved it.
     CHECK(r->services.lastExperiment(1, grant, operation) && grant == 0 && operation == 0);
 }
+// ------------------------------------------------------------- gate Q03: the 60FF encoding probe
+std::string targetLine(unsigned node, uint32_t& trial, long value, unsigned attended = 1) {
+    return "F" + std::to_string(node) + "," + id(trial) + "," + std::to_string(attended) + "," + std::to_string(value);
+}
+// This fake released and stationary in mode 3 with 2100 running latched, as a moving quick stop left both
+// specimens (2100=0015, 6041=C050).
+void latchedModeThree(Drive& d) {
+    releasedModeThree(d);
+    d.monitor = 0x0015;
+}
+// Every download to `node` from `first` is the one 60FF write, at most once: never 6040, 6060 or another.
+bool onlyTarget(const Rig& r, size_t first, unsigned node) {
+    const std::vector<M::Frame> sent = downloads(r, first, node);
+    for (const M::Frame& f : sent)
+        if (f.data[0] != 0x23 || indexOf(f) != 0x60ff || f.data[3] != 0)
+            return false;
+    return sent.size() <= 1 && downloads(r, first, 3 - node).empty();
+}
+void testParseVelocityTarget() {
+    scenario = "parse-velocity-target";
+    // Appended after HOME: every earlier route keeps the number its records were printed with.
+    CHECK(unsigned(E::RouteKind::HOME) == 20 && unsigned(E::RouteKind::VELOCITY_TARGET) == 21);
+    CHECK(std::strcmp(E::routeName(E::RouteKind::VELOCITY_TARGET), "velocity-target") == 0);
+    E::RoutePlan p;
+    for (long value : {-3000L, -6L, 0L, 6L, 3000L, 3001L}) {
+        uint32_t t = 4;
+        const std::string line = targetLine(2, t, value);
+        CHECK(E::parseRouteCommand(line.data(), line.size(), p) && p.kind == E::RouteKind::VELOCITY_TARGET &&
+              p.node == 2 && p.trial == 5 && p.attended && p.velocityValue == value);
+    }
+    const char* const bad[] = {"F1,5,1,-3001", "F1,5,1,3002",  "F1,5,1,2147483647", "F1,5,1,-2147483648",
+                               "F1,5,1,4294967290", "F1,5,1",  "F1,5,1,6,0",        "F1,5,2,6",
+                               "F1,5,1,+6",   "F1,5,1,--6",    "F1,5,1,6.0",        "F0,5,1,6",
+                               "F3,5,1,6",    "F1,0,1,6",      "f1,5,1,6",          "F1,5,1,",
+                               "F1,5,1,-",    "F1,5,-1,6"};
+    for (const char* text : bad) {
+        E::RoutePlan untouched;
+        if (E::parseRouteCommand(text, std::strlen(text), untouched))
+            std::fprintf(stderr, "accepted: %s\n", text);
+        CHECK(!E::parseRouteCommand(text, std::strlen(text), untouched));
+        CHECK(untouched.kind == E::RouteKind::NONE && untouched.trial == 0);
+    }
+    // A plan built in code is judged as the parser judges a line, before anything is admitted.
+    const std::string line = "F1,9,1,3001";
+    CHECK(E::parseRouteCommand(line.data(), line.size(), p) && E::routePlanValid(p));
+    std::unique_ptr<Rig> r(new Rig);
+    for (int32_t value : {3002, -3001, INT32_MIN}) {
+        E::RoutePlan built = p;
+        built.velocityValue = value;
+        CHECK(!E::routePlanValid(built) && std::strcmp(r->route.begin(built, r->console.now), "plan") == 0);
+    }
+    CHECK(r->driver.requests.empty() && !r->route.record());
+}
+// The acknowledged write: two released reads, the one 60FF download, its upload and one more full read,
+// nothing else, with the uploaded bytes kept raw. The fake stores whatever it is sent; nothing here shows
+// what a drive does with a negative or out-of-range value.
+void testVelocityTarget() {
+    scenario = "velocity-target";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    latchedModeThree(d);
+    d.position = 6761;
+    uint32_t trial = 0;
+    CHECK(std::strcmp(r->start(targetLine(1, trial, -6, 0)), "unattended") == 0);
+    // Neither eligibility nor RouteWork is needed: the write is the route's own, under its own grant.
+    std::unique_ptr<Rig> bare(new Rig(false));
+    latchedModeThree(bare->driver.drives[0]);
+    uint32_t bareTrial = 0;
+    CHECK(bare->run(targetLine(1, bareTrial, 6)).failure == E::RouteFailure::NONE);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& v = r->run(targetLine(1, trial, -6));
+    CHECK(v.failure == E::RouteFailure::NONE && v.checkPassed && v.firstPresent && v.cycles == 0);
+    CHECK(v.probeWritten && v.probeOutcome == uint8_t(C::SdoOutcome::SUCCESS) && v.probeAcknowledged &&
+          !v.probeUncertain && v.probeAbort == 0 && v.probeReadPresent && v.probeSize == 4 && v.probeAfter == 1);
+    const uint8_t negative[4] = {0xfa, 0xff, 0xff, 0xff};
+    CHECK(!std::memcmp(v.probeRead, negative, 4) && d.velocityTarget == -6);
+    // Settings class: attended, counted on its own row, no motion weight.
+    CHECK(v.motionTotal == 0 && v.caseCount == 1 && r->route.motionAdmissions() == 0);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t write[8] = {0x23, 0xff, 0x60, 0, 0xfa, 0xff, 0xff, 0xff};
+    CHECK(download(r->driver.requests[at++], 1, write));
+    CHECK(upload(r->driver.requests[at++], 1, 0x60ff));
+    expectUploads(*r, at, 1, FULL, 9);
+    CHECK(at == r->driver.requests.size() && onlyTarget(*r, first, 1) && v.terminalCount == 29);
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL id=2 node=1 route=velocity-target failure=0 why=none "));
+    CHECK(has(text, "TRIAL_PLAN route=velocity-target node=1 trial=2 attended=1 value=-6\n"));
+    CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=8050 6061=03 6064=6761 "
+                    "606c=0\n"));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=8050 6061=03 6064=6761 "
+                    "606c=0\n"));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0015 6041=8050 6061=03 6064=6761 "
+                    "606c=0\n"));
+    CHECK(has(text, "TRIAL_CONTROL prior=0 pword=0000 pop=0 pus=0 latest=0 "));
+    CHECK(has(text, "TRIAL_VELOCITY_TARGET value=-6 tx=faffffff written=1 outcome=0 ack=1 uncertain=0 abort=00000000 "
+                    "read=1 size=4 data=faffffff match=1 after=1\n"));
+    CHECK(has(text, " object=60ff:00 dir=1 outcome=0 ack=1 ") && has(text, " object=60ff:00 dir=0 outcome=0 ack=1 ") &&
+          has(text, " size=4 data=faffffff "));
+    r->release();
+    // The write is this session's own: the enable refuses after it in this boot.
+    CHECK(std::strcmp(r->start("E1," + id(trial) + ",1,1,1,32823,5000,120,10000,800"), "history") == 0);
+    // 6, the restore, and 3001, which this fake stores unchecked: its own bytes and readback.
+    const struct {
+        long value;
+        uint8_t bytes[4];
+        const char* line;
+    } more[] = {{6, {6, 0, 0, 0}, "value=6 tx=06000000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000 read=1 "
+                                  "size=4 data=06000000 match=1 after=1\n"},
+                {3001, {0xb9, 0x0b, 0, 0}, "value=3001 tx=b90b0000 written=1 outcome=0 ack=1 uncertain=0 "
+                                           "abort=00000000 read=1 size=4 data=b90b0000 match=1 after=1\n"}};
+    for (const auto& m : more) {
+        const size_t mark = r->driver.requests.size();
+        const E::RouteRecord& w = r->run(targetLine(1, trial, m.value));
+        const uint8_t frame[8] = {0x23, 0xff, 0x60, 0, m.bytes[0], m.bytes[1], m.bytes[2], m.bytes[3]};
+        const std::vector<M::Frame> sent = downloads(*r, mark, 1);
+        CHECK(w.failure == E::RouteFailure::NONE && sent.size() == 1 && frameIs(sent[0], frame) &&
+              onlyTarget(*r, mark, 1) && d.velocityTarget == m.value);
+        CHECK(has(r->dump(), (std::string("TRIAL_VELOCITY_TARGET ") + m.line).c_str()));
+        r->release();
+    }
+    // Three per route and node, counted at admission, apart from HOME's row and from motion.
+    CHECK(std::strcmp(r->start(targetLine(1, trial, 6)), "budget") == 0);
+    const E::RouteRecord& h = r->run(homeLine(1, trial));
+    CHECK(h.failure == E::RouteFailure::REFUSED && h.caseCount == 1);
+    r->release();
+    const size_t mark = r->driver.requests.size();
+    const E::RouteRecord& two = r->run(targetLine(2, trial, 6)); // Node 2 reads its power-up report: enabled.
+    CHECK(two.failure == E::RouteFailure::PREREQUISITE && std::strcmp(two.why, "unreleased") == 0 &&
+          two.caseCount == 1 && downloads(*r, mark, 2).empty() && r->route.motionAdmissions() == 0);
+    // A drive that clamps on write (this fake's choice): the readback is kept as read and does not match.
+    scenario = "velocity-target-clamp";
+    std::unique_ptr<Rig> c(new Rig);
+    latchedModeThree(c->driver.drives[0]);
+    c->driver.drives[0].targetStore = 1;
+    trial = 0;
+    const E::RouteRecord& k = c->run(targetLine(1, trial, 3001));
+    CHECK(k.failure == E::RouteFailure::NONE && k.probeReadPresent && k.probeRead[0] == 0xb8 && k.probeRead[1] == 0x0b);
+    CHECK(has(c->dump(), " tx=b90b0000 written=1 outcome=0 ack=1 uncertain=0 abort=00000000 read=1 size=4 "
+                         "data=b80b0000 match=0 after=1\n"));
+}
+// An abort (here the value range's 06090030) or a lost reply ends the route at that terminal: no readback,
+// no further read, no second write. The library keeps a server-aborted download's effect uncertain, as it
+// keeps every unconfirmed write's; this fake's refused value leaves its target as it was.
+void testVelocityTargetFailures() {
+    scenario = "velocity-target-abort";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    latchedModeThree(d);
+    d.abortIndex = 0x60ff;
+    d.abortCode = 0x06090030;
+    d.writesOnly = true;
+    uint32_t trial = 0;
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& a = r->run(targetLine(1, trial, 3001));
+    CHECK(a.failure == E::RouteFailure::SERVICE && std::strcmp(a.why, "uncertain") == 0 && a.checkPassed);
+    CHECK(a.probeWritten && a.probeOutcome == uint8_t(C::SdoOutcome::SERVER_ABORT) && !a.probeAcknowledged &&
+          a.probeUncertain && a.probeAbort == 0x06090030 && !a.probeReadPresent && a.probeAfter == 0);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    expectUploads(*r, at, 1, FULL, 9);
+    const uint8_t write[8] = {0x23, 0xff, 0x60, 0, 0xb9, 0x0b, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, write) && at == r->driver.requests.size());
+    CHECK(a.terminalCount == 19 && d.velocityTarget == 120 && onlyTarget(*r, first, 1));
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL_VELOCITY_TARGET value=3001 tx=b90b0000 written=1 outcome=1 ack=0 uncertain=1 "
+                    "abort=06090030 read=0 size=0 data=00000000 match=0 after=0\n"));
+    CHECK(has(text, " object=60ff:00 dir=1 outcome=1 ack=0 ") && has(text, " abort=06090030 "));
+    r->turns(500);
+    CHECK(r->driver.requests.size() == at);
+    r->release();
+    // A server abort leaves nothing unresolved: the next line starts from its own fresh reads.
+    const size_t next = r->driver.requests.size();
+    const E::RouteRecord& b = r->run(targetLine(1, trial, -6));
+    CHECK(b.failure == E::RouteFailure::SERVICE && b.probeAbort == 0x06090030 && downloads(*r, next, 1).size() == 1);
+    CHECK(b.caseCount == 2 && onlyTarget(*r, next, 1));
+    r->release();
+
+    scenario = "velocity-target-lost";
+    std::unique_ptr<Rig> l(new Rig);
+    latchedModeThree(l->driver.drives[0]);
+    l->driver.drives[0].silentIndex = 0x60ff;
+    l->driver.drives[0].writesOnly = true;
+    trial = 0;
+    const E::RouteRecord& q = l->run(targetLine(1, trial, -6));
+    CHECK(q.failure == E::RouteFailure::SERVICE && std::strcmp(q.why, "uncertain") == 0);
+    CHECK(q.probeWritten && q.probeUncertain && !q.probeAcknowledged && !q.probeReadPresent && q.probeAfter == 0);
+    CHECK(l->downloadsFrom(0) == 1 && onlyTarget(*l, 0, 1));
+    CHECK(has(l->dump(), " written=1 outcome=3 ack=0 uncertain=1 abort=00000000 read=0 "));
+    l->turns(400);
+    CHECK(l->route.release());
+    // The lost reply leaves the route unresolved until an MCU restart: nothing more on that node.
+    CHECK(std::strcmp(l->start(targetLine(1, trial, 6)), "session") == 0 && l->downloadsFrom(0) == 1);
+
+    // After the readback, a read that no longer reports the check's standstill ends the route there.
+    struct After {
+        const char* why;
+        void (*apply)(Drive&);
+    };
+    const After afters[] = {{"alarm", [](Drive& f) { f.monitorAfterTarget = L::MONITOR_ALARM; }},
+                            {"position", [](Drive& f) { f.stepAfterTarget = 3; }}};
+    for (const After& x : afters) {
+        scenario = x.why;
+        std::unique_ptr<Rig> s(new Rig);
+        latchedModeThree(s->driver.drives[0]);
+        x.apply(s->driver.drives[0]);
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(targetLine(1, t, 6));
+        CHECK(y.failure == E::RouteFailure::OBSERVATION && std::strcmp(y.why, x.why) == 0 && y.checkPassed);
+        CHECK(y.probeAcknowledged && y.probeReadPresent && y.probeAfter == 2 && y.terminalCount == 29);
+        CHECK(onlyTarget(*s, 0, 1) && has(s->dump(), " match=1 after=2\n"));
+    }
+}
+// Refused before the write, with nothing sent: each prerequisite on the two fresh reads, a changed latest
+// word, and a session that may still have work running.
+void testVelocityTargetRefusals() {
+    struct Case {
+        const char* why;
+        void (*apply)(Drive&);
+    };
+    const Case cases[] = {
+        {"unreleased", [](Drive& f) { f.monitor = 0x0001; f.status = 0x8437; }}, // Enabled in mode 3.
+        {"unreleased", [](Drive& f) { f.monitor = 0x0005; }},                    // Running without release.
+        {"unreleased", [](Drive& f) { f.monitor = 0x0001; f.status = 0x9437; }}, // Halted after a HALT.
+        {"running", [](Drive& f) { f.status = 0x8031; }},     // Latched running, switched on (low bits 001).
+        {"status", [](Drive& f) { f.monitor = 0x0011; f.status = 0x8031; }}, // Released, switched on.
+        {"status", [](Drive& f) { f.monitor = 0x0011; f.status = 0x8033; }},
+        {"mode", [](Drive& f) { f.mode = 1; }},
+        {"mode", [](Drive& f) { f.mode = 0; }},
+        {"velocity", [](Drive& f) { f.velocity = 1; }},
+        {"velocity", [](Drive& f) { f.velocity = -1; }},
+        {"position", [](Drive& f) { f.drift = 1; }}, // Moving between the two reads.
+        {"alarm", [](Drive& f) { f.monitor = uint16_t(0x0015 | L::MONITOR_ALARM); }},
+        {"error-register", [](Drive& f) { f.errorRegister = 1; }},
+        {"fault-code", [](Drive& f) { f.errorCode = 0x2310; }},
+    };
+    for (const Case& c : cases) {
+        scenario = c.why;
+        std::unique_ptr<Rig> s(new Rig);
+        latchedModeThree(s->driver.drives[0]);
+        c.apply(s->driver.drives[0]);
+        uint32_t t = 0;
+        const E::RouteRecord& y = s->run(targetLine(1, t, 6));
+        if (std::strcmp(y.why, c.why) != 0)
+            std::fprintf(stderr, "velocity-target %s: %s\n", c.why, y.why);
+        CHECK(y.failure == E::RouteFailure::PREREQUISITE && std::strcmp(y.why, c.why) == 0 && !y.checkPassed);
+        CHECK(s->downloadsFrom(0) == 0 && !y.probeWritten && y.motionTotal == 0 && y.caseCount == 1);
+        CHECK(has(s->dump(), " written=0 outcome=255 ack=0 uncertain=0 abort=00000000 read=0 size=0 "));
+    }
+    // Released without the running latch is the same standstill.
+    scenario = "velocity-target-unlatched";
+    std::unique_ptr<Rig> u(new Rig);
+    releasedModeThree(u->driver.drives[0]);
+    uint32_t trial = 0;
+    CHECK(u->run(targetLine(1, trial, 6)).failure == E::RouteFailure::NONE && u->downloadsFrom(0) == 1);
+
+    // Another writer between the check and the write: the word recorded at admission is not the latest.
+    scenario = "velocity-target-predecessor";
+    std::unique_ptr<Rig> w(new Rig);
+    latchedModeThree(w->driver.drives[0]);
+    trial = 0;
+    const size_t mark = w->driver.requests.size();
+    CHECK(!w->start(targetLine(1, trial, 6)));
+    for (unsigned i = 0; i < 20000 && w->route.active() && w->route.record()->step < 3; ++i)
+        w->turn();
+    CHECK(w->route.active() && w->route.record()->checkPassed && w->downloadsFrom(mark) == 0);
+    ownWord(*w, 0x000b);
+    finishRoute(*w);
+    CHECK(w->route.record()->failure == E::RouteFailure::PREREQUISITE &&
+          std::strcmp(w->route.record()->why, "control") == 0 && !w->route.record()->probeWritten);
+    CHECK(w->downloadsFrom(mark) == 1 && w->driver.drives[0].velocityTarget == 120); // Only the other writer's word.
+
+    // A session holding a fact that refuses later work refuses the write before any read: here a move
+    // withdrawn for a drive fault (faultBlocked), as in testCloseKeepsFaultFence, on a session still usable.
+    scenario = "velocity-target-fenced";
+    std::unique_ptr<Rig> f(new Rig);
+    f->driver.drives[0].statusBits = true;
+    f->driver.drives[0].travelReads = 40;
+    trial = 0;
+    enabled(*f, trial);
+    CHECK(!f->start(move(1, trial)));
+    for (unsigned i = 0; i < 20000 && f->one.moveAction().phase != L::MovePhase::TRIGGER; ++i)
+        f->turn();
+    M::Frame emcy = frame(0x81, 8);
+    emcy.data[0] = 0x10;
+    emcy.data[1] = 0xff;
+    f->driver.push(emcy);
+    finishRoute(*f);
+    f->turns(500);
+    f->release();
+    CHECK(f->one.faultBlocked());
+    latchedModeThree(f->driver.drives[0]); // Whatever the drive now reports, the session's fact decides.
+    const size_t before = f->driver.requests.size();
+    CHECK(refusedAs(f->start(targetLine(1, trial, 6)), "fenced") && f->driver.requests.size() == before);
+    // Unattended is refused before anything too.
+    CHECK(refusedAs(f->start(targetLine(1, trial, 6, 0)), "unattended") && f->driver.requests.size() == before);
+}
 void writeTranscript(const char* path, bool all) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
@@ -4805,6 +5109,20 @@ void writeTranscript(const char* path, bool all) {
         const std::string fallback = velocityLine(1, trial);
         CHECK(b->run(fallback).failure == E::RouteFailure::ACTION && wordsFrom(*b, 0, 1, 0x000b) == 1);
         append(*b, fallback);
+        // Gate Q03's probe on a released mode 3 fake: an acknowledged -6 with its readback, then a 3001 this
+        // fake refuses with the value range's abort, which ends the record with no readback.
+        std::unique_ptr<Rig> g(new Rig);
+        latchedModeThree(g->driver.drives[0]);
+        trial = 0;
+        const std::string accepted = targetLine(1, trial, -6);
+        CHECK(g->run(accepted).failure == E::RouteFailure::NONE);
+        append(*g, accepted);
+        g->driver.drives[0].abortIndex = 0x60ff;
+        g->driver.drives[0].abortCode = 0x06090030;
+        g->driver.drives[0].writesOnly = true;
+        const std::string ranged = targetLine(1, trial, 3001);
+        CHECK(g->run(ranged).failure == E::RouteFailure::SERVICE);
+        append(*g, ranged);
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -5940,6 +6258,10 @@ int main(int argc, char** argv) {
     testVelocityEnableWindow();
     testHome();
     testVelocityHomePlan();
+    testParseVelocityTarget();
+    testVelocityTarget();
+    testVelocityTargetFailures();
+    testVelocityTargetRefusals();
     testCloseRefusals();
     testCloseKeepsHistory();
     testCloseKeepsFaultFence();
