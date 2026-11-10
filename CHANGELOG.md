@@ -4,6 +4,7 @@
 
 ### Bench `velocity-target` probe for the 60FF encoding (Q03, 2026-11-10)
 
+- **Measured on hardware** (node 2, image `96896a8`): `60FF=3001`, above the documented 0..3000 rpm, was acknowledged and read back 3001, so the drive does not range-check at that bound; `-6` was therefore not sent, and `6` was restored. The encoding stays undecided; reverse stays blocked.
 - **Added:** bench route `velocity-target` (`TF<node>,<trial>,1,<value>`, PONG `routes=8`). On a node whose two fresh full reads report the released mode 3 standstill (`2100` released, `6041` low bits 000, `606C` 0, `1001`/`603F` 0, the same `6064`; running latched admitted), it sends one expedited `60FF` download of a signed value -3000..3001 (two's complement) under its own grant; only after its acknowledgement one granted raw `60FF` upload and one more full read that must report the same standstill. An abort or lost reply ends the route at that terminal with its abort code kept. It never writes `6040`, `6060` or another object, never enables or retries, and refuses a fenced session. New record line `TRIAL_VELOCITY_TARGET`, checked by `s2_evidence.py`. Attended, three per node, no motion weight. `s2_bench.py --command velocity-target --value N`; the runner now speaks only `routes=8`, every protocol 7 line unchanged. S2 `BenchRoute` 42688 to 42720 bytes. Tests: `bench_route` (writes, readbacks, abort, lost reply, 14 refusals, no 6040 ever), runner and transcript; seven mutants killed.
 
 ### Bench chain on `cb7941c` and `17df4a4` (2026-11-10)
