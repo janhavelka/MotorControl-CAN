@@ -94,11 +94,13 @@ struct VelocityOptions {
      * establishes when the enable report follows in mode 3. So it is admitted only under
      * VelocityGate::ATTENDED_EXPERIMENT, the run that measures it; any other gate refuses it. While the
      * window lasts, a final-enable cycle that still shows word 7's report exactly (mode 3, clean, low bits
-     * 011, 2100 released and running clear, 606C 0, 6064 the admission's) schedules another one
+     * 011, 2100 released and running clear, 606C 0, 6064 word 7's cycle's) schedules another one
      * enableSpacingUs later, as long as that one is eligible at most enableWindowUs after the
      * acknowledgement and before stop due. Any other report fails as without a window, as does the last
      * such report the window admits; both request the run's own stop. The window adds at most
-     * enableWindowUs to the setup time the duration must cover. */
+     * enableWindowUs to the setup time the duration must cover. The 6064 reference is word 7's cycle,
+     * not the admission: word 7 pulled node 2's rotor 12 and 5 counts before any observation (trials
+     * 1742, 1762); no bound on that pull is claimed. */
     uint64_t enableWindowUs = 0;
     /** Delay after a window cycle that still shows word 7's report before the next, in microseconds.
      * 0 without a window; with one, 1..enableWindowUs, and enableWindowUs / enableSpacingUs at most
@@ -378,13 +380,23 @@ Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
                            const AxisReservation& live, const ReadTarget& current,
                            const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                            uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
+/** Check a fresh report of exactly the halted state a settled velocity HALT leaves (backlog S18):
+ * complete ordinary SDO STATUS and MONITORS reading 6041 9437, 2100 0001 (in place, not running, not
+ * released, no alarm) and mode 3, each block beginning at or after afterUs. When the read's plan holds
+ * FEEDBACK, it must be fresh too and 606C must read zero. Trials 1507, 1613 and 1706 left that state.
+ * @param[in] state Read to judge. @param[in] current Target it must belong to.
+ * @param[in] afterUs Earliest admissible field time, such as the caller's latest write.
+ * @param[in] nowUs Judging time. @param[in] maximumAgeUs Freshness bound of every judged block.
+ * @return OK for exactly that report; nothing is written. */
+Status validateHaltedVelocityReport(const ReadContext& state, const ReadTarget& current, uint64_t afterUs,
+                                    uint64_t nowUs, uint64_t maximumAgeUs) noexcept;
 /** Check the attended experiment's quick stop of a drive a velocity run's own HALT left halted,
  * changing nothing (backlog S18). After a settled HALT both specimens stay enabled and halted in
  * mode 3 (6041 9437, 2100 0001: trials 1507, 1613 and 1706), and nothing else leaves that state
  * without a power cycle. No source or record says what 000B does there, so this one 000B is an
  * experiment: the run must have run under ATTENDED_EXPERIMENT and ended SUCCEEDED with its HALT
  * acknowledged and observed, its acknowledged 010F must still be the latest word, and a fresh report
- * after that word must read exactly 6041 9437, 2100 0001 and mode 3. The stop reads FEEDBACK from its
+ * after that word must be exactly the halted one (validateHaltedVelocityReport). The stop reads FEEDBACK from its
  * first cycle and completes only on a released standstill: two released cycles in a row with 6041
  * low bits 000, 606C zero and 6064 unchanged. A not-running report alone completes nothing, because
  * the drive was idle before the stop.
