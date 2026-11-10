@@ -112,6 +112,12 @@ struct Drive {
     // 2100 bit 4 follows the words as this fake chooses: set by 0006 and 000B, cleared by 0007 and 000F;
     // a 000B also clears the low bits. Off by default, so every earlier suite keeps its fake.
     bool releaseWords = false;
+    // 6041 bits 5 and 6 as one firmware's releases showed them (trials 1704, 1782, 1883): 0006, 0007 and
+    // 000F set bit 5 and clear bit 6 (0x50 to 0x31), 000B sets bit 6 and clears bit 5. Off by default.
+    bool releasePattern = false;
+    int32_t pullAtWord7 = 0;  // Added to 6064 by a 0007: the position report moving to an internal command.
+    bool ignoreMode = false;  // A 6060 download is acknowledged and changes nothing the fake reports.
+    int32_t stepAfterMode = 0; // Added to 6064 by a 6060 download.
     // A 005F moves by 607A from the actual position, or from the last commanded endpoint.
     bool relativeCommanded = false;
     int32_t endpoint = 0, commanded = 0;
@@ -310,8 +316,10 @@ struct Drive {
             const int32_t signedValue = int32_t(uint32_t(request.data[4]) | uint32_t(request.data[5]) << 8 |
                                                 uint32_t(request.data[6]) << 16 | uint32_t(request.data[7]) << 24);
             if (index == 0x6060) {
-                mode = request.data[4];
+                if (!ignoreMode)
+                    mode = request.data[4];
                 monitor = uint16_t(monitor | alarmAfterMode);
+                position += stepAfterMode;
             } else if (index == 0x6040 && staleWord && word == staleWord) {
                 lastWord = word;
             } else if (index == 0x6040) {
@@ -328,6 +336,12 @@ struct Drive {
                     monitor = uint16_t(monitor | L::MONITOR_RELEASED);
                 if (releaseWords && (word == 7 || word == 15))
                     monitor = uint16_t(monitor & ~L::MONITOR_RELEASED);
+                if (releasePattern && (word == 6 || word == 7 || word == 15))
+                    status = uint16_t((status & ~0x0060u) | 0x0020u);
+                if (releasePattern && word == 0x000b)
+                    status = uint16_t((status & ~0x0060u) | 0x0040u);
+                if (word == 7)
+                    position += pullAtWord7;
                 if (trapWord && word == trapWord)
                     monitor = uint16_t(monitor | trapMonitor);
                 if (latchWord && word == latchWord)
@@ -2038,7 +2052,8 @@ void testPredecessorAtAdmission() {
     std::unique_ptr<Rig> m(new Rig);
     first = m->driver.requests.size();
     CHECK(!m->start("M1,1,1,1,200"));
-    for (unsigned i = 0; i < 20000 && m->route.active() && m->route.record()->step < 6; ++i)
+    // Step 7 is the 6060 write: the power-up start skips the released start's second read (step 5).
+    for (unsigned i = 0; i < 20000 && m->route.active() && m->route.record()->step < 7; ++i)
         m->turn();
     CHECK(m->route.active() && m->route.record()->checkPassed && m->downloadsFrom(first) == 0);
     ownWord(*m, 0x0006);
@@ -4951,6 +4966,210 @@ void testVelocityTargetRefusals() {
     // Unattended is refused before anything too.
     CHECK(refusedAs(f->start(targetLine(1, trial, 6, 0)), "unattended") && f->driver.requests.size() == before);
 }
+// ------------------------------------- 2026-11-10: back to mode 1 position work with the drives powered
+// This fake as a recorded quick stop left it in mode 3, kept powered: released at standstill (2100=0011,
+// 6041=8050), the 0x50 release pattern following the words. Every value is this test's own.
+void releasedModeThreeKept(Drive& d, int32_t position) {
+    releasedModeThree(d);
+    d.spins = false;
+    d.releasePattern = true;
+    d.statusBits = true;
+    d.position = position;
+    d.velocityTarget = 6;
+}
+// MODE_ONE's released start, then ENABLE with RELEASED_BY_RECORDED_STOP, whose word 7 moves the position
+// report, then a negative relative MOVE and a negative absolute POSITION, each from its own fresh read.
+void testReleasedModeOneChain() {
+    scenario = "released-mode1";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    releasedModeThreeKept(d, 15256);
+    d.pullAtWord7 = 5;
+    uint32_t trial = 0;
+    size_t first = r->driver.requests.size();
+    const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,4,200");
+    CHECK(m.failure == E::RouteFailure::NONE && m.firstPresent && m.checkPassed && m.cycles == 1);
+    CHECK(m.terminalCount == 15 + 9 + 1 + 9 && d.mode == 1);
+    size_t at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    const Address rest[] = {{0x6081, 0}, {0x6083, 0}, {0x6084, 0}, {0x1017, 0}, {0x607a, 0}, {0x60ff, 0}};
+    expectUploads(*r, at, 1, rest, 6);
+    expectUploads(*r, at, 1, FULL, 9); // The released start's second read, before the check.
+    const uint8_t modeOne[8] = {0x2f, 0x60, 0x60, 0, 1, 0, 0, 0};
+    CHECK(download(r->driver.requests[at++], 1, modeOne));
+    expectUploads(*r, at, 1, FULL, 9); // One cycle: it already reads 6061=1.
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 1);
+    CHECK(downloads(*r, first, 1).size() == 1 && indexOf(downloads(*r, first, 1)[0]) == 0x6060); // Never 6040.
+    CHECK(!r->one.motionHistoryWritten() && !r->one.latestControl());
+    std::string text = r->dump();
+    CHECK(has(text, "TRIAL_FIRST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=15256 "));
+    CHECK(has(text, "TRIAL_CHECK passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=03 6064=15256 "));
+    CHECK(has(text, "TRIAL_LAST passed=1 blocks=1d 1001=00 603f=0000 2100=0011 6041=8050 6061=01 6064=15256 "));
+    r->release();
+    // The 6060=1 refuses a second MODE_ONE in this boot, as at power-up.
+    CHECK(std::strcmp(r->start("M1," + id(trial) + ",1,1,200"), "history") == 0);
+    // Start 2 carries the released report's FREE; HOLDING contradicts it and is refused by the parser.
+    E::RoutePlan plan;
+    const std::string holding = "E1,99,1,2,2,32848,5000,6,10000,800";
+    CHECK(!E::parseRouteCommand(holding.data(), holding.size(), plan));
+
+    scenario = "released-enable";
+    r->heartbeat(1);
+    first = r->driver.requests.size();
+    const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,800");
+    CHECK(e.failure == E::RouteFailure::NONE && e.enableRequested);
+    const L::ActionContext& c = r->one.enableAction();
+    CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+    CHECK(c.enable.evidence.start == L::EnableStart::RELEASED_BY_RECORDED_STOP &&
+          c.enable.evidence.powerUpShaft == L::ShaftObservation::FREE);
+    CHECK(c.enable.startStatusword == 0x8050 && c.enable.startMonitor == 0x0011 && c.enable.startPosition == 15256);
+    CHECK(c.enable.steps[0].statusword == 0x8031 && c.enable.steps[0].monitor == 0x0011 &&
+          c.enable.steps[0].position == 15256);
+    CHECK(c.enable.steps[1].statusword == 0x8033 && c.enable.steps[1].monitor == 0x0001 &&
+          c.enable.steps[1].position == 15261);
+    CHECK(c.enable.steps[2].statusword == 0x8037 && c.enable.steps[2].position == 15261);
+    at = first;
+    expectUploads(*r, at, 1, FULL, 9);
+    CHECK(upload(r->driver.requests[at++], 1, 0x607a) && upload(r->driver.requests[at++], 1, 0x60ff));
+    const uint16_t words[] = {6, 7, 15};
+    for (uint16_t w : words) {
+        const uint8_t bytes[8] = {0x2b, 0x40, 0x60, 0, uint8_t(w), 0, 0, 0};
+        CHECK(download(r->driver.requests[at++], 1, bytes));
+        expectUploads(*r, at, 1, IMAGE, 7);
+    }
+    CHECK(at == r->driver.requests.size() && r->downloadsFrom(first) == 3);
+    CHECK(r->one.latestControl() && r->one.latestControl()->transfer.data[0] == 0x0f);
+    text = r->dump();
+    CHECK(has(text, "TRIAL_PLAN route=enable node=1 trial=3 attended=1 start=2 shaft=1 status=8050 pt=5000 vt=6 "));
+    CHECK(has(text, " s0=8050 m0=0011 p0=15256\n"));
+    CHECK(has(text, "TRIAL_ENABLE_STEP word=7 present=1 status=8033 monitor=0001 position=15261 velocity=0 "));
+    r->release();
+
+    // A negative relative move under ACTUAL: its start and witness are the fresh 6064 after the enable.
+    scenario = "released-move-relative";
+    MoveSpec stale;
+    stale.rel = 1;
+    stale.sp = stale.base = 15256; // The position before the enable: no continuity is claimed.
+    stale.target = -2000;
+    stale.rpm = 30;
+    first = r->driver.requests.size();
+    const E::RouteRecord& x = r->run(move(1, trial, stale));
+    CHECK(x.failure == E::RouteFailure::PREREQUISITE && std::strcmp(x.why, "position") == 0 && !x.moveRequested);
+    CHECK(r->downloadsFrom(first) == 0);
+    r->release();
+    MoveSpec rel = stale;
+    rel.sp = rel.base = 15261;
+    first = r->driver.requests.size();
+    const E::RouteRecord& g = r->run(move(1, trial, rel));
+    CHECK(g.failure == E::RouteFailure::NONE && g.witnessBasis == 1 && g.witnessPosition == 15261);
+    const L::MoveContext& k = r->one.moveAction();
+    CHECK(k.state == M::ActionState::SUCCEEDED && k.parameters.targetNative == -2000 &&
+          k.parameters.target.endpointNative == 13261 && d.position == 13261);
+    const uint8_t displacement[8] = {0x23, 0x7a, 0x60, 0, 0x30, 0xf8, 0xff, 0xff};
+    const uint8_t relativeTrigger[8] = {0x2b, 0x40, 0x60, 0, 0x5f, 0, 0, 0};
+    const std::vector<M::Frame> moveWrites = downloads(*r, first, 1);
+    CHECK(moveWrites.size() == 6 && frameIs(moveWrites[0], displacement) && frameIs(moveWrites[4], relativeTrigger));
+    r->release();
+
+    // A negative absolute POSITION from the move's endpoint, after the move's own rearm.
+    scenario = "released-position-negative";
+    first = r->driver.requests.size();
+    const E::RouteRecord& p = r->run(position(1, trial, 13261, -1000));
+    CHECK(p.failure == E::RouteFailure::NONE && d.position == -1000);
+    const uint8_t absolute[8] = {0x23, 0x7a, 0x60, 0, 0x18, 0xfc, 0xff, 0xff};
+    const uint8_t trigger[8] = {0x2b, 0x40, 0x60, 0, 0x1f, 0, 0, 0};
+    const std::vector<M::Frame> positionWrites = downloads(*r, first, 1);
+    CHECK(positionWrites.size() == 5 && frameIs(positionWrites[0], absolute) && frameIs(positionWrites[4], trigger));
+    CHECK(has(r->dump(), "TRIAL_PLAN route=position node=1 trial=6 attended=1 sp=13261 target=-1000 "));
+}
+// MODE_ONE's released start refuses before any write, and its cycles end on what they do not repeat.
+void testReleasedModeOneRefusals() {
+    struct Case {
+        uint16_t monitor, status;
+        int32_t velocity, drift;
+        uint16_t errorCode;
+        uint8_t errorRegister;
+        const char* why;
+    };
+    const Case cases[] = {
+        {0x0001, 0x8050, 0, 0, 0, 0, "unreleased"},
+        {0x0011, 0x8051, 0, 0, 0, 0, "status"},  // Low bits 001.
+        {0x0011, 0x8010, 0, 0, 0, 0, "status"},  // Not the 0x50 pattern.
+        {0x0011, 0x8058, 0, 0, 0, 0, "status"},  // Bit 3, an alarm in ZH86.
+        {0x0011, 0x8070, 0, 0, 0, 0, "status"},
+        {0x0019, 0x8050, 0, 0, 0, 0, "alarm"},
+        {0x0011, 0x8050, 1, 0, 0, 0, "velocity"},
+        {0x0011, 0x8050, 0, 1, 0, 0, "position"}, // 6064 differs between the two reads.
+        {0x0011, 0x8050, 0, 0, 0xff05, 0, "fault-code"},
+        {0x0011, 0x8050, 0, 0, 0, 1, "error-register"},
+    };
+    for (const Case& k : cases) {
+        scenario = k.why;
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        releasedModeThreeKept(d, 700);
+        d.monitor = k.monitor;
+        d.status = k.status;
+        d.velocity = k.velocity;
+        d.drift = k.drift;
+        d.errorCode = k.errorCode;
+        d.errorRegister = k.errorRegister;
+        uint32_t trial = 0;
+        const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
+        CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, k.why) == 0);
+        CHECK(m.firstPresent && !m.checkPassed && r->downloadsFrom(0) == 0 && d.mode == 3);
+        CHECK(m.terminalCount == 15 + 9);
+    }
+    struct After {
+        uint16_t monitor, status;
+        uint16_t alarmAfterMode;
+        int32_t stepAfterMode;
+        bool ignoreMode;
+        E::RouteFailure failure;
+        const char* why;
+        unsigned cycles;
+    };
+    const After after[] = {
+        {0x0015, 0xc050, 0, 0, false, E::RouteFailure::NONE, "none", 1},  // Latched with the release: admitted.
+        {0x0011, 0x8050, L::MONITOR_RUNNING, 0, false, E::RouteFailure::OBSERVATION, "running", 1},
+        {0x0011, 0x8050, L::MONITOR_ALARM, 0, false, E::RouteFailure::OBSERVATION, "alarm", 1},
+        {0x0011, 0x8050, 0, 3, false, E::RouteFailure::OBSERVATION, "position", 1},
+        {0x0011, 0x8050, 0, 0, true, E::RouteFailure::OBSERVATION, "mode", 3}, // 6061 never reads 1.
+    };
+    for (const After& k : after) {
+        scenario = k.why;
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        releasedModeThreeKept(d, -300);
+        d.monitor = k.monitor;
+        d.status = k.status;
+        d.alarmAfterMode = k.alarmAfterMode;
+        d.stepAfterMode = k.stepAfterMode;
+        d.ignoreMode = k.ignoreMode;
+        uint32_t trial = 0;
+        const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
+        CHECK(m.failure == k.failure && std::strcmp(m.why, k.why) == 0 && m.checkPassed && m.cycles == k.cycles);
+        CHECK(r->downloadsFrom(0) == 1 && downloads(*r, 0, 1).size() == 1 && indexOf(downloads(*r, 0, 1)[0]) == 0x6060);
+    }
+    {   // A released start in mode 1 is no MODE_ONE case: the power-up check refuses it after one read.
+        scenario = "released-mode1-start";
+        std::unique_ptr<Rig> r(new Rig);
+        releasedModeThreeKept(r->driver.drives[0], 0);
+        r->driver.drives[0].mode = 1;
+        uint32_t trial = 0;
+        const E::RouteRecord& m = r->run("M1," + id(trial) + ",1,3,200");
+        CHECK(m.failure == E::RouteFailure::PREREQUISITE && std::strcmp(m.why, "mode") == 0 && !m.firstPresent);
+        CHECK(m.terminalCount == 15 && r->downloadsFrom(0) == 0);
+        // And the released enable in mode 3, before any mode change, is the library's refusal: no write.
+        r->release();
+        r->driver.drives[0].mode = 3;
+        r->heartbeat(1);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& e = r->run("E1," + id(trial) + ",1,2,1,32848,5000,6,10000,800");
+        CHECK(e.failure == E::RouteFailure::REFUSED && std::strcmp(e.why, "enable") == 0 && !e.enableRequested);
+        CHECK(r->downloadsFrom(first) == 0 && e.statusPresent && e.statusDetail == int32_t(M::ActionError::STATE));
+    }
+}
 void writeTranscript(const char* path, bool all) {
     std::unique_ptr<Rig> r(new Rig);
     r->driver.drives[1].statusBits = true;
@@ -5123,6 +5342,30 @@ void writeTranscript(const char* path, bool all) {
         const std::string ranged = targetLine(1, trial, 3001);
         CHECK(g->run(ranged).failure == E::RouteFailure::SERVICE);
         append(*g, ranged);
+        // A drive kept powered (2026-11-10): MODE_ONE's released start, the enable from it, whose word 7
+        // moves the position report, then a negative relative move and a negative absolute POSITION.
+        std::unique_ptr<Rig> k1(new Rig);
+        releasedModeThreeKept(k1->driver.drives[0], 15256);
+        k1->driver.drives[0].pullAtWord7 = 5;
+        trial = 0;
+        const std::string back = "M1," + id(trial) + ",1,4,200";
+        CHECK(k1->run(back).failure == E::RouteFailure::NONE);
+        append(*k1, back);
+        k1->heartbeat(1);
+        const std::string kept = "E1," + id(trial) + ",1,2,1,32848,5000,6,10000,800";
+        CHECK(k1->run(kept).failure == E::RouteFailure::NONE);
+        append(*k1, kept);
+        MoveSpec down;
+        down.rel = 1;
+        down.sp = down.base = 15261;
+        down.target = -2000;
+        down.rpm = 30;
+        const std::string negative = move(1, trial, down);
+        CHECK(k1->run(negative).failure == E::RouteFailure::NONE);
+        append(*k1, negative);
+        const std::string below = position(1, trial, 13261, -1000);
+        CHECK(k1->run(below).failure == E::RouteFailure::NONE);
+        append(*k1, below);
     }
     std::FILE* file = std::fopen(path, "wb");
     CHECK(file);
@@ -6262,6 +6505,8 @@ int main(int argc, char** argv) {
     testVelocityTarget();
     testVelocityTargetFailures();
     testVelocityTargetRefusals();
+    testReleasedModeOneChain();
+    testReleasedModeOneRefusals();
     testCloseRefusals();
     testCloseKeepsHistory();
     testCloseKeepsFaultFence();

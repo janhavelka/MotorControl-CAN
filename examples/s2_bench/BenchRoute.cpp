@@ -46,6 +46,10 @@ static_assert(INPUTS_STATE == (1u << unsigned(L::StateBlock::MONITORS) | 1u << u
 constexpr uint64_t SETTINGS_AGE_US = 14 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
 // IO_DI3 changes DI3: 2400:05 is its function (group field 5), and bit 3 of 2400:01 its polarity.
 constexpr unsigned DI3 = 3;
+// 6041 bits 0..6 of every measured release: 0x50, low bits 000 with bits 4 and 6 set (8050 at the end of
+// trials 1704, 1883 and 1903; C050 in the checks of 1862 and 1902; 4050 in trial 308's, after 213).
+// MODE_ONE's released start requires it.
+constexpr uint16_t RELEASED_PATTERN_MASK = 0x007f, RELEASED_PATTERN = 0x0050;
 // 1003:00 is one byte and each entry four, as the typed read declares them.
 static_assert(L::OBJECT_1003_00.widthBytes == 1 && L::OBJECT_1003_01.widthBytes == 4,
               "history widths follow the generated declarations");
@@ -157,7 +161,8 @@ constexpr Range ACTION_MS = {1, 55000}, OPTIONAL_MS = {0, 55000}, ACTION_INTERVA
 constexpr Range U16 = {0, UINT16_MAX}, MASK = {1, UINT16_MAX}, U32 = {0, UINT32_MAX}, SOURCE = {1, 2};
 constexpr Range TARGET = {-1000000, 1000000}, CYCLE_MS = {20, 5000}, STOP_KIND = {0, 2};
 constexpr Range STOP_AFTER = {0, 16}, STOP_INTERVAL = {0, 10000}, MODE_CYCLES = {1, 10};
-constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 1}, SHAFT = {1, 2}, KIND = {1, 2};
+// ENABLE's start: 1 NO_MOTION_WRITE_RECORDED, 2 RELEASED_BY_RECORDED_STOP (EnableStart).
+constexpr Range MODE_INTERVAL = {100, 5000}, CYCLES = {1, 16}, START = {1, 2}, SHAFT = {1, 2}, KIND = {1, 2};
 constexpr Range WORD_CYCLES = {1, 4}, PREDECESSOR = {1, 3}, RELATIVE_BASE = {0, 2};
 // 2202 codes 0 and 1 only (EN86/ZH86 p18); the EDS default 10 is not a documented code. DI3 cases 1..4.
 constexpr Range LIMIT_CODE = {0, 1}, DI3_CASE = {1, 4}, OBSERVER = {0, 2};
@@ -410,7 +415,9 @@ unsigned terminalBound(const RoutePlan& p) {
         // The full read, 1003:00 and at most four entries (a larger count fails the read), 1001 and 603F.
         return 9 + 1 + 4 + 2;
     case RouteKind::MODE_ONE:
-        return 15 + 1 + 9 + 7u * (p.cycles - 1u);
+        // The reads of READ_ACTIONS less its image, a second full read when the first reports mode 3, the
+        // 6060 write, then a full first cycle and image cycles.
+        return 15 + 9 + 1 + 9 + 7u * (p.cycles - 1u);
     case RouteKind::ENABLE:
         return 9 + 2 + 3 + 7 * (3 + p.deadlineMs / p.intervalMs);
     case RouteKind::STOP:
@@ -555,6 +562,10 @@ bool routePlanValid(const RoutePlan& p) noexcept {
             return false;
     }
     switch (p.kind) {
+    case RouteKind::ENABLE:
+        // A released start's shaft basis is the released report itself, so the line carries FREE: read
+        // from the drive at the user's instruction of 2026-11-10, never felt. HOLDING would contradict it.
+        return p.start != 2 || p.shaft == 1;
     case RouteKind::STOP:
         return !p.bestEffortMs || p.bestEffortMs >= p.deadlineMs;
     case RouteKind::POSITION:
@@ -923,11 +934,14 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                   {STEP_TUNING, uint8_t(L::TuningGroup::EDS_GAINS)},
                                   {STEP_STATE, IMAGE},
                                   {STEP_END, 0}};
+    // A drive that reports mode 3 in the first read is read a second time before the check: the released
+    // mode 3 standstill must repeat. The power-up start (mode 0) skips that read.
     static const Step mode[] = {{STEP_STATE, FULL},
                                 {STEP_GROUP, uint8_t(L::DriverGroup::MOTION_PARAMETERS)},
                                 {STEP_SINGLE, 0},
                                 {STEP_SINGLE, 1},
                                 {STEP_SINGLE, 2},
+                                {STEP_SECOND_RELEASED, FULL},
                                 {STEP_CHECK_MODE, 0},
                                 {STEP_MODE_WRITE, 0},
                                 {STEP_OBSERVE, 0}};
@@ -1506,22 +1520,28 @@ void BenchRoute::nextStep(uint64_t now) noexcept {
 }
 void BenchRoute::advanceStep(uint64_t now) noexcept {
     const Step& step = steps_[stepIndex_];
+    // MODE_ONE: only a first read of mode 3 asks for the released start's second read.
+    if (step.kind == STEP_SECOND_RELEASED && !readActive_ && record_.last.mode != 3) {
+        nextStep(now);
+        return;
+    }
     switch (step.kind) {
     case STEP_STATE:
     case STEP_SECOND:
+    case STEP_SECOND_RELEASED:
     case STEP_HOME_STATE:
     case STEP_GROUP:
     case STEP_PRIOR:
     case STEP_TUNING:
     case STEP_SINGLE:
     case STEP_IDENTITY: {
-        const uint8_t mode = step.kind == STEP_STATE || step.kind == STEP_SECOND || step.kind == STEP_HOME_STATE
-                                 ? READ_STATE
+        const bool second = step.kind == STEP_SECOND || step.kind == STEP_SECOND_RELEASED;
+        const uint8_t mode = step.kind == STEP_STATE || second || step.kind == STEP_HOME_STATE ? READ_STATE
                              : step.kind == STEP_GROUP || step.kind == STEP_PRIOR ? READ_GROUP
                              : step.kind == STEP_TUNING                        ? READ_TUNING
                              : step.kind == STEP_IDENTITY                      ? READ_IDENTITY
                                                                                : READ_SINGLE;
-        if (!readActive_ && step.kind == STEP_SECOND) {
+        if (!readActive_ && second) {
             // The read before this one is the first of the pair; the check judges both.
             record_.first = record_.last;
             record_.firstPresent = true;
@@ -1997,6 +2017,9 @@ const char* BenchRoute::checkMode() const noexcept {
     const RouteSnapshot& s = record_.last;
     if (const char* why = predecessor(STEP_MODE_WRITE))
         return why;
+    // A first read of mode 3 took the second read: the released start, judged on both.
+    if (record_.firstPresent)
+        return checkModeOneReleased();
     if ((s.blocks & FULL) != FULL)
         return "snapshot";
     if (s.errorRegister)
@@ -2011,6 +2034,57 @@ const char* BenchRoute::checkMode() const noexcept {
         return "velocity";
     if (s.mode != 0)
         return "mode"; // The packet 11 baseline read mode 0; anything else changed since.
+    return nullptr;
+}
+// MODE_ONE from the released mode 3 standstill a recorded stop left, with the drives kept powered
+// (2026-11-10), on both fresh reads: 2100 bit 4 released and alarm clear, 6041 bits 0..6 the release
+// pattern 0x50, mode 3, 606C 0, 1001 and 603F 0, and the same 6064. 2100 running may stay latched with
+// that release, as a moving quick stop leaves it (2100=0015, reads 1514 and 1608). The mode changes on
+// no drive that reports itself enabled (Q11), as for MODE_THREE.
+const char* BenchRoute::checkModeOneReleased() const noexcept {
+    const RouteSnapshot* const reads[] = {&record_.first, &record_.check};
+    for (const RouteSnapshot* s : reads) {
+        if ((s->blocks & FULL) != FULL)
+            return "snapshot";
+        if (s->errorRegister)
+            return "error-register";
+        if (s->errorCode)
+            return "fault-code";
+        if (s->monitor & L::MONITOR_ALARM)
+            return "alarm";
+        if (!(s->monitor & L::MONITOR_RELEASED))
+            return "unreleased";
+        if ((s->statusword & RELEASED_PATTERN_MASK) != RELEASED_PATTERN)
+            return "status";
+        if (s->mode != 3)
+            return "mode";
+        if (s->velocity)
+            return "velocity";
+    }
+    if (record_.first.position != record_.check.position)
+        return "position";
+    return nullptr;
+}
+// One cycle after a released start's 6060=1: still released (2100 bit 4, 6041 low bits 000), 606C 0 and
+// the check's 6064, in mode 3 or already 1, and 2100 running set only if the check read it latched. Bits
+// above 6041 bit 2 are not judged here: bit 10 followed the mode change at power-up (8037 to 8437).
+const char* BenchRoute::checkModeOneCycle(const RouteSnapshot& s) const noexcept {
+    if ((s.blocks & 1u) && s.errorRegister)
+        return "error-register";
+    if ((s.blocks & 1u) && s.errorCode)
+        return "fault-code";
+    if (!(s.monitor & L::MONITOR_RELEASED))
+        return "unreleased";
+    if (s.statusword & L::STATUS_LOW_BITS)
+        return "status";
+    if ((s.monitor & L::MONITOR_RUNNING) && !(record_.check.monitor & L::MONITOR_RUNNING))
+        return "running";
+    if (s.velocity)
+        return "velocity";
+    if (s.position != record_.check.position)
+        return "position";
+    if (s.mode != 1 && s.mode != 3)
+        return "mode";
     return nullptr;
 }
 // A fresh full read of an idle, enabled-looking drive in mode 1, from POSITION's prerequisite list.
@@ -2249,7 +2323,9 @@ void BenchRoute::startEnable(uint64_t now) noexcept {
     evidence.reservation.acquiredUs = live->acquiredUs;
     evidence.operation = axis().nextOperation();
     evidence.expiresUs = now + 1000000;
-    evidence.start = p.start == 1 ? L::EnableStart::NO_MOTION_WRITE_RECORDED : L::EnableStart::UNKNOWN;
+    evidence.start = p.start == 1   ? L::EnableStart::NO_MOTION_WRITE_RECORDED
+                     : p.start == 2 ? L::EnableStart::RELEASED_BY_RECORDED_STOP
+                                    : L::EnableStart::UNKNOWN;
     evidence.powerUpShaft = p.shaft == 1   ? L::ShaftObservation::FREE
                             : p.shaft == 2 ? L::ShaftObservation::HOLDING
                                            : L::ShaftObservation::NONE;
@@ -3112,8 +3188,12 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
     const RouteSnapshot& s = record_.last;
     const RoutePlan& p = record_.plan;
     const char* why = nullptr;
+    // MODE_ONE after a released start: its check took two reads (firstPresent).
+    const bool releasedModeOne = p.kind == RouteKind::MODE_ONE && record_.firstPresent;
     if (s.monitor & L::MONITOR_ALARM)
         why = "alarm";
+    else if (releasedModeOne)
+        why = checkModeOneCycle(s);
     else if (p.kind == RouteKind::MODE_ONE || p.kind == RouteKind::MODE_THREE) {
         // P2's abort list, and MODE_THREE's: alarm, 2100 running or nonzero 606C; and a fault after the write.
         if ((s.blocks & 1u) && s.errorRegister)
@@ -3133,6 +3213,14 @@ void BenchRoute::observeDone(uint64_t now) noexcept {
     // and no planned stop or further cycle is asked for here.
     if (endFailure_ != RouteFailure::NONE)
         return;
+    // The released start's readback: cycles until 6061 reads 1, at most the stated number.
+    if (releasedModeOne && (s.mode == 1 || record_.cycles >= p.cycles)) {
+        if (s.mode == 1)
+            finish(RouteFailure::NONE, "none", now);
+        else
+            finish(RouteFailure::OBSERVATION, "mode", now);
+        return;
+    }
     if (writesPosition(p.kind) && p.stopKind && record_.cycles == p.stopAfter) {
         startStop(p.stopKind, p.stopDeadlineMs, p.bestEffortMs, p.stopIntervalMs, context_.read, now);
         return;

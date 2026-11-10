@@ -23,10 +23,21 @@
  *   1003 upload is unqualified and takes its own one-use grant. No writes; the values are kept raw
  *   and never interpreted. Last in RouteKind, so earlier route numbers and records are unchanged.
  * - MODE_ONE, packet 15 P2. The READ_ACTIONS reads, a prerequisite check, one 6060:00=1 through
- *   AxisSession::admitPrepared, then the stated number of fresh cycles. Never enables.
+ *   AxisSession::admitPrepared, then the stated number of fresh cycles. Never enables. Two starts,
+ *   chosen by the first read's mode, both in a session with no write or controlword in this boot. Mode 0,
+ *   the power-up baseline: the check as packet 15 P2 states it, then the stated cycles, recorded. Mode 3,
+ *   the released standstill a recorded stop left with the drive kept powered (2026-11-10): a second
+ *   fresh full read, and both must report 2100 bit 4 released, alarm clear, 6041 bits 0..6 the release
+ *   pattern 0x50, mode 3, 606C 0, 1001 and 603F 0 and the same 6064, with 2100 running admitted latched;
+ *   then the same one 6060=1, and cycles until one reads 6061=1, at most the stated number, each still
+ *   released with low bits 000, 606C 0 and the check's 6064, running only if the check read it latched.
+ *   No 6040 in either. The line is unchanged.
  * - ENABLE, packet 15 P3. A fresh ERRORS/MONITORS/STATUS/FEEDBACK read, then
- *   AxisSession::requestEnable with the host's trial, reviewed 6041, 607A and 60FF and the
- *   attendant's shaft observation. The firmware never supplies an observation itself.
+ *   AxisSession::requestEnable with the host's trial, start record, reviewed 6041, 607A and 60FF and the
+ *   attendant's shaft observation. The firmware never supplies an observation itself. Start 2,
+ *   EnableStart::RELEASED_BY_RECORDED_STOP, carries shaft 1 (FREE): the basis is the released start
+ *   report, read from the drive at the user's instruction of 2026-11-10, never felt, and the library
+ *   does not consult it for a released start.
  * - STOP, packet 15 P4 and packet 16. A fresh MONITORS/STATUS read, then AxisSession::requestStop
  *   with the host's kind and policy. The path taken and every context it wrote are reported.
  * - POSITION, packet 19. An application-local isolated experiment, not a move engine: a fresh read,
@@ -220,8 +231,12 @@ struct RoutePlan {
     uint8_t node = 0;                 ///< Node 1 or 2, adapter slot node - 1.
     uint32_t trial = 0;               ///< Nonzero trial identity; must rise for this object's life.
     bool attended = false; ///< Motion routes: the host's record of a typed attended confirmation.
-    uint8_t start = 0;     ///< ENABLE: 1 = EnableStart::NO_MOTION_WRITE_RECORDED, the host's record.
-    uint8_t shaft = 0;     ///< ENABLE: attendant's typed shaft observation, 1 FREE or 2 HOLDING.
+    /** ENABLE: the host's record, 1 EnableStart::NO_MOTION_WRITE_RECORDED or 2
+     * EnableStart::RELEASED_BY_RECORDED_STOP. */
+    uint8_t start = 0;
+    /** ENABLE: shaft observation, 1 FREE or 2 HOLDING. Start 1: the attendant's typed observation. Start 2:
+     * always 1, read from the released start report, never felt. */
+    uint8_t shaft = 0;
     uint16_t reviewedStatus = 0;        ///< ENABLE: exact reviewed 6041.
     int32_t reviewedPositionTarget = 0; ///< ENABLE: exact reviewed 607A, history and not intent.
     int32_t reviewedVelocityTarget = 0; ///< ENABLE: exact reviewed 60FF, history and not intent.
@@ -235,8 +250,9 @@ struct RoutePlan {
      * MoveOptions::observationIntervalUs, in milliseconds, and the observer's cycle spacing. VELOCITY:
      * VelocityOptions::pollIntervalUs in milliseconds, its stop's observation interval too. */
     uint32_t intervalMs = 0;
-    /** Fresh observation cycles: MODE_ONE and MODE_THREE 1..10; POSITION, RELATIVE, REARM and
-     * RELEASED_QUICK 1..16; WORD67 1..16 after its 0007. */
+    /** Fresh observation cycles: MODE_ONE and MODE_THREE 1..10, for MODE_ONE from a released mode 3 start
+     * the most it waits for 6061=1; POSITION, RELATIVE, REARM and RELEASED_QUICK 1..16; WORD67 1..16 after
+     * its 0007. */
     uint16_t cycles = 0;
     uint8_t wordCycles = 0;  ///< WORD67: fresh observation cycles after its 0006, 1..4.
     /** REARM: the acknowledged latest word the host expects it to follow on that node: 1 the 001F of a
@@ -343,8 +359,8 @@ bool parseRouteCommand(const char* text, size_t size, RoutePlan& output) noexcep
  * route uses within its stated range, a planned stop naming all of its policy and no stop naming
  * none, a move signal value within its mask, a nonzero relative displacement, and a move base that
  * is 0 when absolute and the start position for ACTUAL; a velocity duration below its deadline and a
- * layout other than 3 (ZH57, no 86C dialect); a home method of 17, 18, 24 or 29. Fields the route does
- * not use are not judged.
+ * layout other than 3 (ZH57, no 86C dialect); a home method of 17, 18, 24 or 29; an enable whose start 2
+ * (released by a recorded stop) carries shaft 1. Fields the route does not use are not judged.
  * @param plan Borrowed for this call.
  * @return True when parseRouteCommand could have produced these route fields.
  */
@@ -815,7 +831,10 @@ class BenchRoute {
         STEP_HOME,           ///< HOME: the session's home request, refused before any write.
         STEP_CHECK_TARGET,   ///< VELOCITY_TARGET's check of both reads: released standstill in mode 3.
         STEP_TARGET_WRITE,   ///< VELOCITY_TARGET: the one 60FF download.
-        STEP_CHECK_TARGET_AFTER ///< VELOCITY_TARGET: the read after the readback against the check.
+        STEP_CHECK_TARGET_AFTER, ///< VELOCITY_TARGET: the read after the readback against the check.
+        /** MODE_ONE: a second fresh state read, kept as STEP_SECOND keeps it, only when the first read
+         * reported mode 3; skipped otherwise. */
+        STEP_SECOND_RELEASED
     };
     struct Step {
         uint8_t kind;
@@ -913,6 +932,8 @@ class BenchRoute {
     bool writeTransfer(MotorControlCAN::CANOPEN::SdoTransfer& output) const noexcept;
     const char* predecessor(uint8_t write, uint8_t word = 0) const noexcept;
     const char* checkMode() const noexcept;
+    const char* checkModeOneReleased() const noexcept;
+    const char* checkModeOneCycle(const RouteSnapshot& snapshot) const noexcept;
     const char* checkIdle(const RouteSnapshot& snapshot) const noexcept;
     const char* checkPosition() const noexcept;
     const char* checkRearm() const noexcept;

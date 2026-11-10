@@ -40,6 +40,11 @@ bool oneMayRemain(const ActionContext& c) {
 // The documented word of each enable step and the low bits manuals show beside it.
 const uint16_t ENABLE_WORDS[3] = {6, 7, 15};
 const uint16_t ENABLE_LOW_BITS[3] = {1, 3, 7};
+// 6041 bits 5 and 6, which word 6 moved from every released report so far: bits 0..6 went from 0x50 to
+// 0x31 (trial 1782, mode 3: 8050 to 8031; trial 308, mode 1: 4050 to 4031). They are compared only after
+// a power-up start, whose reports keep them (8037, 8031, 8033). No meaning is assigned to either bit.
+constexpr uint16_t RELEASED_START_STATUS_BITS = 0x0060;
+bool releasedStart(const EnableEvidence& e) { return e.start == EnableStart::RELEASED_BY_RECORDED_STOP; }
 ReadTarget expectedTarget(const ActionContext& c) {
     ReadTarget target = c.reservation.target;
     if (c.coordinatesInvalidated)
@@ -268,10 +273,17 @@ bool enableScopeHolds(const ActionContext& c) {
     constexpr uint16_t released = MONITOR_RELEASED;
     const StateObservation& status = c.statusObservation;
     const StateObservation& monitors = c.monitorObservation;
+    // From a release, word 7 energizes the drive and its position report then moves to the drive's
+    // internal command: before the first cycle in mode 3 (trials 1742..1862), over about half a second in
+    // mode 1 (trial 308). So only word 6's cycles, still released, must repeat the admission 6064. Each
+    // step keeps what its cycle reported.
+    const bool fromRelease = releasedStart(c.enable.evidence);
+    const uint16_t ignored = fromRelease ? uint16_t(lowBits | RELEASED_START_STATUS_BITS) : lowBits;
+    const bool positionHeld = !fromRelease || c.commandCursor == 0;
     return status.modeRaw == c.enable.evidence.modeRaw &&
-           ((status.statusword ^ c.enable.startStatusword) & uint16_t(~lowBits)) == 0 &&
+           ((status.statusword ^ c.enable.startStatusword) & uint16_t(~ignored)) == 0 &&
            ((monitors.monitor ^ c.enable.startMonitor) & uint16_t(~released)) == 0 &&
-           c.extraObservation.actualPosition == c.enable.startPosition &&
+           (!positionHeld || c.extraObservation.actualPosition == c.enable.startPosition) &&
            c.extraObservation.actualVelocity == 0;
 }
 // A word was observed; keep its evidence and schedule the next one. A step that reached the cutoff
@@ -687,7 +699,7 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return Status(Err::UNSUPPORTED, static_cast<int32_t>(ActionError::STATE),
                       "enable is gated: not qualified and no pending-motion rule is known");
     if (evidence.gate > EnableGate::ATTENDED_EXPERIMENT ||
-        evidence.start > EnableStart::NO_MOTION_WRITE_RECORDED ||
+        evidence.start > EnableStart::RELEASED_BY_RECORDED_STOP ||
         evidence.powerUpShaft > ShaftObservation::HOLDING || !evidence.trial ||
         (evidence.modeRaw != 1 && evidence.modeRaw != 6) || !validReservation(r) || !operation ||
         deadline <= now || r.acquiredUs > now || !stopOptionsValid(options) ||
@@ -709,8 +721,13 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
         return error(ActionError::TIME, "enable evidence has expired");
     if (evidence.operation != operation)
         return error(ActionError::STATE, "enable evidence names another operation");
-    if (evidence.start != EnableStart::NO_MOTION_WRITE_RECORDED || !evidence.reviewed)
+    if (evidence.start == EnableStart::UNKNOWN || !evidence.reviewed)
         return error(ActionError::STATE, "enable needs the caller's start record and exact reviewed values");
+    // The gate is open here: a closed one returned UNSUPPORTED above, and the only other is the attended
+    // experiment, the one gate this start is defined for.
+    const bool fromRelease = releasedStart(evidence);
+    if (fromRelease && evidence.modeRaw != 1)
+        return error(ActionError::STATE, "a released-by-recorded-stop enable is a mode 1 experiment only");
     const uint64_t age = options.maximumAgeUs;
     ReadWindow window;
     const StateBlock blocks[] = {StateBlock::ERRORS, StateBlock::MONITORS, StateBlock::STATUS,
@@ -738,6 +755,11 @@ Status validateEnable(const ActionContext& output, const AxisReservation& r, con
                       (raw(state, StateBlock::STATUS, 0) & STATUS_LOW_BITS) == STATUS_LOW_BITS))
         return error(ActionError::STATE, "mode6 enable requires a non-enabled released start");
     const uint16_t statusword = uint16_t(raw(state, StateBlock::STATUS, 0));
+    // The released standstill a recorded stop left: 2100 released and 6041 low bits 000, on top of the
+    // monitor rule above, which keeps running clear and the in-place bit set.
+    if (fromRelease && (!(monitor & MONITOR_RELEASED) || (statusword & STATUS_LOW_BITS)))
+        return error(ActionError::STATE,
+                     "a released-by-recorded-stop enable needs 2100 released and 6041 low bits 000");
     if (statusword != evidence.reviewedStatusword)
         return error(ActionError::STATE, "6041 differs from the reviewed word");
     // The manual pairs 111 with an enabled drive, and 2100 then reads enabled. Both specimens report
