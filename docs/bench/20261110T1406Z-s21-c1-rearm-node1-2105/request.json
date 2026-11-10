@@ -1,0 +1,92 @@
+{
+  "started_utc": "2026-11-10T14:06:25.305762+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "rearm",
+  "seconds": 60.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 2105,
+  "plan": "packet 19 rearm",
+  "fields": [
+    1,
+    2105,
+    1,
+    1,
+    3,
+    500
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 1 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 2105 to confirm: ",
+      "typed": "ATTENDED 2105",
+      "accepted": true
+    },
+    "shaft_after": {
+      "question": "Attendant: describe the node 1 shaft now: movement, direction, approximate rotation against the mark, or NONE: ",
+      "typed": "not recorded"
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "rearm",
+    "--node",
+    "1",
+    "--trial",
+    "2105",
+    "--predecessor",
+    "position-trigger",
+    "--cycles",
+    "3",
+    "--interval-ms",
+    "500",
+    "--campaign",
+    "docs/bench/20261110-s21-c1-campaign.jsonl",
+    "--seconds",
+    "60",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110T1406Z-s21-c1-rearm-node1-2105"
+  ],
+  "host_revision": "b3994b9bd118ad0ff745d48f41f1a9817c139a6d",
+  "host_dirty": true,
+  "campaign": {
+    "path": "docs\\bench\\20261110-s21-c1-campaign.jsonl",
+    "motion_total": 4,
+    "cases": {
+      "E1": 1,
+      "G1": 1,
+      "M1": 1,
+      "P1": 1
+    },
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5452312c323130352c312c312c332c3530302c4b34323637613631350a"
+  ],
+  "image": {
+    "base": "b3994b9bd118ad0ff745d48f41f1a9817c139a6d",
+    "elf": "876f07d22b0b93c22853aa8bc286a42dc9b64ed6973b2b270e5c246c4e880fe7",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TR1,2105,1,1,3,500,K4267a615",
+  "tx_hex": "5452312c323130352c312c312c332c3530302c4b34323637613631350a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-10T14:06:29.278780+00:00"
+}

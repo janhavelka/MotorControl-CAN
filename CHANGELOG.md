@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench round 10 on `b3994b9`: negative position moves on powered drives (2026-11-10)
+
+- Node 1, no power cycle: the released 3-to-1 mode change and the recorded-stop enable worked (re-energize pull +1 count); relative -2000 at 30 rpm `SUCCEEDED`, absolute -1000 at 60 rpm exact, HALT and quick stop while moving negative completed, and a rearm after the HALT did not resume the target (as on node 2). `606C` read -30 and -60 while moving negative (signed); the rate factor is 0.992 in both directions. Negative velocity stays excluded. [Report](docs/reports/2026-11-10_bench_r10.md).
+
 ### Mode 1 again on powered drives: released 3-to-1 change and a recorded-stop enable start (2026-11-10)
 
 - **Added:** attended enable start `EnableStart::RELEASED_BY_RECORDED_STOP`. Under `EnableGate::ATTENDED_EXPERIMENT`, mode 1 only, from the released standstill a recorded stop left (`2100` released and in place, running and alarm clear, `6041` low bits 000, `606C` 0); the application states that it observed the stop's settlement and that nothing but one acknowledged `6060=1` was written since. Words 6, 7 and 15 run as before, except that `6041` bits 5 and 6 may change (`0x50` to `0x31`, trials 1782 and 308) and `6064` must repeat only in word 6's cycles: word 7 moves the position report to the drive's internal command, with no bound known. The record keeps `6064` before word 6 and for each word; success claims no position continuity. `NO_MOTION_WRITE_RECORDED` is unchanged.
