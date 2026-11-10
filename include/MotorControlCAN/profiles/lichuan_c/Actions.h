@@ -59,7 +59,9 @@
  * the manual pairs with an enabled drive, and both held torque then by hand checks: word 6 releases
  * it (2026-11-03). At word 7 the drive reports itself energized again, and its position report
  * returned to its last commanded value (trial 308, 2026-11-04; the shaft was not observed).
- * Read docs/drive_actions.md for the full table.
+ * EnableStart::RELEASED_BY_RECORDED_STOP admits an attended enable from the released standstill a
+ * recorded stop left, with no power cycle; it records the word 7 position move and claims no
+ * position continuity. Read docs/drive_actions.md for the full table.
  * Preparation and advancement validate first, then write the caller's context in place,
  * so no call copies a context onto the stack and a refused call changes nothing. Keep
  * contexts in static or owner storage, never in task locals.
@@ -171,10 +173,31 @@ enum class EnableStart : uint8_t {
     /** No 6040, target, ramp or other mode write reached this drive since its last power-up, as far
      * as this application's retained record can show, apart from one acknowledged 6060 selecting this explicitly reviewed mode. A
      * statement the library cannot check, and not proof that the drive holds no pending curve. */
-    NO_MOTION_WRITE_RECORDED
+    NO_MOTION_WRITE_RECORDED,
+    /** Attended experiment of 2026-11-10, for drives that stay powered between runs. The application's
+     * retained record states that this drive was last left released by a stop whose settlement this
+     * application observed (a QUICK_STOP that settled on the released report or standstill, the quick
+     * stop of a halted drive included), and that no 6040, target, ramp or other write reached it after
+     * that stop, apart from one acknowledged 6060 selecting this explicitly reviewed mode. A statement
+     * the library cannot check, and not proof that the drive holds no pending curve.
+     *
+     * Mode 1 only. The start report must be the released standstill: 2100 released, with the in-place
+     * bit and every other monitor rule as for a power-up start, 6041 low bits 000 and 606C zero. Words 6,
+     * 7 and 15 and their reports follow as for NO_MOTION_WRITE_RECORDED, with two differences measured
+     * from released starts on one firmware. 6041 bits 5 and 6 may change: from every release so far the
+     * word 6 cycle moved bits 0..6 from 0x50 to 0x31 (trial 1782 in mode 3, 8050 to 8031; trial 308 in
+     * mode 1, 4050 to 4031). And 6064 must repeat the admission value only in word 6's cycles: word 7
+     * energizes the drive, and its position report then moves to the drive's internal command (mode 3:
+     * -6 to +12 counts in trials 1742 to 1862; mode 1: 1187 to 1194 to 1180 in trial 308). No bound on
+     * that move is known, so none is claimed or applied. EnableRecord keeps 6064 at admission and in each
+     * word's accepted cycle, and success claims no position continuity: a later move needs its start
+     * position from a fresh read. 606C must still read zero and 2100 running must stay clear in every
+     * cycle. Admitted only under EnableGate::ATTENDED_EXPERIMENT. */
+    RELEASED_BY_RECORDED_STOP
 };
 /** The attendant's own observation of the shaft after power-up, before any word. The library cannot
- * check it. A start report matching the manual's enabled pattern needs one of the two values. */
+ * check it. A start report matching the manual's enabled pattern needs one of the two values. It is not
+ * consulted when the start report reads 2100 released, as every RELEASED_BY_RECORDED_STOP start does. */
 enum class ShaftObservation : uint8_t {
     NONE,   ///< Default: not observed. Refused when the start report matches the enabled pattern.
     FREE,   ///< Turned freely by hand: no holding torque observed.
@@ -222,9 +245,14 @@ struct EnableStepRecord {
 /** ENABLE history kept for inspection, including after failure. None of it is an interpretation. */
 struct EnableRecord {
     EnableEvidence evidence;      ///< Copied caller evidence.
-    uint16_t startStatusword = 0; ///< Admission 6041; bits other than 0..2 and 10 must not change during the sequence.
+    /** Admission 6041; bits other than 0..2 and 10 must not change during the sequence, nor, after a
+     * RELEASED_BY_RECORDED_STOP start, bits 5 and 6. */
+    uint16_t startStatusword = 0;
     uint16_t startMonitor = 0;    ///< Admission 2100; bits other than released must not change.
-    int32_t startPosition = 0;    ///< Admission 6064; any later raw difference ends the sequence.
+    /** Admission 6064, read before word 6. Any later raw difference ends the sequence; after a
+     * RELEASED_BY_RECORDED_STOP start only a difference in word 6's cycles does, and steps keep the
+     * position each later word's cycle reported. */
+    int32_t startPosition = 0;
     uint8_t targetCursor = 0;     ///< Current upload: 0 is 607A, 1 is 60FF.
     bool positionTargetKnown = false; ///< positionTarget holds an acquired value.
     bool velocityTargetKnown = false; ///< velocityTarget holds an acquired value.
@@ -510,10 +538,14 @@ Status validateEnable(const ActionContext& output, const AxisReservation& reserv
  * undocumented bit clear; 2100 released either way, because specimens read it clear before any
  * enable; 6041 equal to the reviewed word; 1001, 603F and 606C zero. Mode 0, 3 and 6 are refused.
  * Low bits 111 with released clear, the manual's enabled pattern and the specimens' power-up
- * report, are refused unless evidence.powerUpShaft records an attended observation.
+ * report, are refused unless evidence.powerUpShaft records an attended observation. A
+ * RELEASED_BY_RECORDED_STOP start also needs 2100 released and low bits 000, and its sequence
+ * compares 6064 only through word 6's cycles and ignores 6041 bits 5 and 6 (EnableStart).
  * @param[in] evidence Explicit gate, trial, reservation, operation, expiry, start history, shaft
  * observation and exact reviewed values, copied. A closed gate returns UNSUPPORTED; anything else
- * missing or mismatched returns INVALID_CONFIG.
+ * missing or mismatched returns INVALID_CONFIG, and a RELEASED_BY_RECORDED_STOP start with a mode
+ * other than 1 or a start report other than the released standstill returns it with
+ * ActionError::STATE.
  * @param[in] operation Nonzero identity unique while old owner work exists, equal to
  * evidence.operation.
  * @param[in] nowUs Nondecreasing monotonic microseconds, zero valid, before evidence.expiresUs.

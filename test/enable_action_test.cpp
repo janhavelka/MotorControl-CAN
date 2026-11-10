@@ -90,6 +90,10 @@ struct FakeDrive {
     // The bytes node 1 gave on 2026-11-03: word 6 released the motor (2100 bit 4) and cleared 6041 bit
     // 10. Words 7 and 15 here follow the hypothesis that energizing sets it again; not yet measured.
     bool measuredRelease = false;
+    // The bytes of a release measured on both specimens (trial 1782, mode 3, one firmware): word 6 moved
+    // 6041 bits 0..6 from 0x50 to 0x31 with 2100 still released, word 7 gave 0x33 and cleared 2100
+    // released, word 15 gave 0x37. Mode 1 is this fake's assumption, not a measurement.
+    bool releasedPattern = false;
     unsigned words = 0, targetReads = 0;
     // Applied when this many enable words have arrived; zero means never.
     unsigned changeAfterWord = 0;
@@ -139,6 +143,10 @@ bool replyTo(const M::Frame& sent, FakeDrive& drive, M::Frame& out) {
                 } else if (drive.measuredRelease && word == 15) {
                     drive.status = uint16_t(drive.status | L::STATUS_EN86_ZERO_SPEED);
                 }
+                if (drive.releasedPattern && (word == 6 || word == 7 || word == 15))
+                    drive.status = uint16_t((drive.status & ~0x0060u) | 0x0020u);
+                if (drive.releasedPattern && word == 7)
+                    drive.monitor = uint16_t(drive.monitor & ~L::MONITOR_RELEASED);
             }
             if (drive.changeAfterWord && drive.words == drive.changeAfterWord)
                 drive.apply();
@@ -505,8 +513,11 @@ void refusalsAreAtomic() {
     given.start = L::EnableStart::UNKNOWN;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
     given = fine;
-    given.start = static_cast<L::EnableStart>(2);
+    given.start = static_cast<L::EnableStart>(3); // The first value past RELEASED_BY_RECORDED_STOP.
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::ARGUMENT);
+    given = fine; // A released start against this enabled-looking power-up report.
+    given.start = L::EnableStart::RELEASED_BY_RECORDED_STOP;
+    refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
     given = fine;
     given.reviewed = false;
     refuses(good, state, given, operation, now, deadline, budgets, bad, M::ActionError::STATE);
@@ -1752,6 +1763,214 @@ void directLifecycle() {
     }
 }
 
+// 12. EnableStart::RELEASED_BY_RECORDED_STOP: the released standstill in mode 1 a recorded stop left, with
+// the drive kept powered. The bytes follow the release measured on one firmware (8050 with 2100=0011,
+// then 8031, 8033 with 2100 released clear and the position report moved, 8037); the mode is the fake's.
+const uint16_t RELEASED_STATUS = 0x8050;
+const uint16_t RELEASED_MONITOR = uint16_t(L::MONITOR_POSITION_COMPLETE | L::MONITOR_RELEASED);
+void releasedDrive(FakeDrive& d, int32_t position = 15256) {
+    d.status = RELEASED_STATUS;
+    d.monitor = RELEASED_MONITOR;
+    d.mode = 1;
+    d.position = position;
+    d.velocityTarget = 6;
+    d.releasedPattern = true;
+}
+L::EnableEvidence releasedEvidence(uint16_t status = RELEASED_STATUS) {
+    L::EnableEvidence e = evidence(status, 5000, 6);
+    e.start = L::EnableStart::RELEASED_BY_RECORDED_STOP;
+    e.powerUpShaft = L::ShaftObservation::NONE; // Not consulted: the start report reads released.
+    return e;
+}
+void releasedByRecordedStop() {
+    {   // The whole sequence: word 7 moves the position report by +5 and the enable still succeeds.
+        Rig r;
+        releasedDrive(r.drive);
+        r.drive.changeAfterWord = 2;
+        r.drive.positionChange = 5;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, releasedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED);
+        CHECK(c.execution == M::ActionExecution::ACKNOWLEDGED && !c.uncertain && c.commandEvidenceMask == 7);
+        CHECK(c.enable.evidence.start == L::EnableStart::RELEASED_BY_RECORDED_STOP);
+        CHECK(c.enable.startStatusword == RELEASED_STATUS && c.enable.startMonitor == RELEASED_MONITOR);
+        CHECK(c.enable.startPosition == 15256); // Before word 6.
+        CHECK(c.enable.steps[0].statusword == 0x8031 && c.enable.steps[0].monitor == RELEASED_MONITOR &&
+              c.enable.steps[0].position == 15256);
+        CHECK(c.enable.steps[1].statusword == 0x8033 && c.enable.steps[1].monitor == 1 &&
+              c.enable.steps[1].position == 15261); // After word 7: kept as reported, not judged.
+        CHECK(c.enable.steps[2].statusword == 0x8037 && c.enable.steps[2].monitor == 1 &&
+              c.enable.steps[2].position == 15261 && c.enable.steps[2].velocity == 0);
+        unsigned i = r.startFrame;
+        CHECK(uploadAt(r, i, 0x607a) && uploadAt(r, i + 1, 0x60ff) && wordAt(r, i + 2, 6));
+        CHECK(wordsFrom(r, r.startFrame) == 3 && downloadsFrom(r, r.startFrame) == 3 && r.drive.mode == 1);
+        CHECK(r.a.latestControl() && r.a.latestControl()->transfer.data[0] == 0x0f);
+        quiet(r);
+    }
+    {   // A position report that moves again after word 15's cycle is not judged either: no continuity.
+        Rig r;
+        releasedDrive(r.drive, -40);
+        r.drive.changeAfterWord = 3;
+        r.drive.positionChange = -3;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, releasedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.enable.startPosition == -40 &&
+              c.enable.steps[1].position == -40 && c.enable.steps[2].position == -43);
+    }
+    {   // NO_MOTION_WRITE_RECORDED keeps its rules on the same start: bits 5 and 6 end it at word 6.
+        Rig r;
+        releasedDrive(r.drive);
+        L::ReadContext state;
+        admittedRig(r, state);
+        L::EnableEvidence e = releasedEvidence();
+        e.start = L::EnableStart::NO_MOTION_WRITE_RECORDED;
+        CHECK(r.request(state, e).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(wordsFrom(r, r.startFrame) == 1 && c.enable.steps[0].present == false);
+    }
+    {   // And its position rule: the same word 7 move ends a power-up start at word 7.
+        Rig r;
+        r.drive.changeAfterWord = 2;
+        r.drive.positionChange = 5;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(wordsFrom(r, r.startFrame) == 2 && c.enable.steps[0].present && !c.enable.steps[1].present);
+    }
+    // Word 6's cycle is still released, so its 6064 must repeat the admission; every other rule holds at
+    // each word: other 6041 bits, 2100 bits, 606C, mode.
+    struct Change {
+        unsigned word;
+        uint16_t monitor, status;
+        int32_t position, velocity;
+        int mode;
+    };
+    const Change changes[] = {
+        {1, 0, 0, 1, 0, -1},                    // Position moved while released.
+        {1, 0, 0, -1, 0, -1},
+        {1, 0, 0x0010, 0, 0, -1},               // 6041 bit 4.
+        {2, 0, 0x0008, 0, 0, -1},               // Bit 3, an alarm in ZH86.
+        {2, 0, 0x4000, 0, 0, -1},               // Bit 14, running in ZH86 and OP86.
+        {3, 0, 0x8000, 0, 0, -1},               // Bit 15.
+        {2, L::MONITOR_RUNNING, 0, 0, 0, -1},   // Running while the report moves.
+        {2, 0, 0, 0, 1, -1},                    // 606C nonzero after word 7.
+        {3, 0, 0, 0, -1, -1},
+        {2, L::MONITOR_ALARM, 0, 0, 0, -1},
+        {3, L::MONITOR_POSITION_COMPLETE, 0, 0, 0, -1},
+        {2, 0, 0, 0, 0, 3},                     // Mode.
+    };
+    for (const Change& k : changes) {
+        Rig r;
+        releasedDrive(r.drive);
+        r.drive.changeAfterWord = k.word;
+        r.drive.monitorChange = k.monitor;
+        r.drive.statusChange = k.status;
+        r.drive.positionChange = k.position;
+        r.drive.velocityChange = k.velocity;
+        r.drive.modeChange = k.mode;
+        L::ReadContext state;
+        admittedRig(r, state);
+        CHECK(r.request(state, releasedEvidence()).isOk());
+        r.finishEnable();
+        const L::ActionContext& c = r.a.enableAction();
+        CHECK(c.state == M::ActionState::FAILED && c.outcome == M::ActionOutcome::OBSERVATION_SCOPE);
+        CHECK(wordsFrom(r, r.startFrame) == k.word && c.commandEvidenceMask == uint8_t((1u << k.word) - 1u));
+        quiet(r);
+    }
+    // Refused before any traffic: the gate, and every start report but the released standstill in mode 1.
+    struct Start {
+        uint16_t monitor, status;
+        uint8_t mode;
+        int32_t velocity;
+        uint16_t errorCode;
+    };
+    const Start starts[] = {
+        {1, POWER_UP_STATUS, 1, 0, 0},                                            // Enabled report.
+        {1, RELEASED_STATUS, 1, 0, 0},                                            // 2100 not released.
+        {RELEASED_MONITOR, 0x8051, 1, 0, 0},                                      // Low bits 001.
+        {RELEASED_MONITOR, 0x8053, 1, 0, 0},
+        {RELEASED_MONITOR, 0x8057, 1, 0, 0},
+        {uint16_t(RELEASED_MONITOR | L::MONITOR_RUNNING), 0xc050, 1, 0, 0},       // Running latched.
+        {uint16_t(RELEASED_MONITOR | L::MONITOR_ALARM), RELEASED_STATUS, 1, 0, 0}, // Alarm.
+        {RELEASED_MONITOR, RELEASED_STATUS, 1, 1, 0},                             // Moving.
+        {RELEASED_MONITOR, RELEASED_STATUS, 1, -1, 0},
+        {RELEASED_MONITOR, RELEASED_STATUS, 3, 0, 0},                             // Mode 3.
+        {RELEASED_MONITOR, RELEASED_STATUS, 0, 0, 0},
+        {L::MONITOR_RELEASED, RELEASED_STATUS, 1, 0, 0},                          // Not in place.
+        {RELEASED_MONITOR, RELEASED_STATUS, 1, 0, 0xff05},
+    };
+    for (const Start& k : starts) {
+        Rig r;
+        releasedDrive(r.drive);
+        r.drive.monitor = k.monitor;
+        r.drive.status = k.status;
+        r.drive.mode = k.mode;
+        r.drive.velocity = k.velocity;
+        r.drive.errorCode = k.errorCode;
+        L::ReadContext state;
+        admittedRig(r, state);
+        L::EnableEvidence e = releasedEvidence(k.status);
+        e.powerUpShaft = L::ShaftObservation::HOLDING; // No observation admits a start outside the rule.
+        const M::Status status = r.request(state, e);
+        CHECK(status.code == M::Err::INVALID_CONFIG && status.detail == int32_t(M::ActionError::STATE));
+        CHECK(r.a.enableAction().state == M::ActionState::EMPTY && r.wire.sentCount == r.startFrame);
+        quiet(r, 4);
+    }
+    {   // A closed gate refuses first; mode 6 refuses even with its own homing evidence.
+        Rig r;
+        releasedDrive(r.drive);
+        L::ReadContext state;
+        admittedRig(r, state);
+        L::EnableEvidence closed = releasedEvidence();
+        closed.gate = L::EnableGate::CLOSED;
+        CHECK(r.request(state, closed).code == M::Err::UNSUPPORTED);
+        Rig h;
+        releasedDrive(h.drive);
+        h.drive.mode = 6;
+        h.drive.monitor = L::MONITOR_RELEASED;
+        L::ReadContext homing;
+        admittedRig(h, homing);
+        L::EnableEvidence six = releasedEvidence();
+        six.modeRaw = 6;
+        six.homingEnableQualified = true;
+        CHECK(h.request(homing, six).detail == int32_t(M::ActionError::STATE));
+        six.start = L::EnableStart::NO_MOTION_WRITE_RECORDED; // The mode 6 start this report does admit.
+        CHECK(h.request(homing, six).isOk());
+    }
+    {   // The session's own record still decides: a write of this object refuses, a 6060=1 does not.
+        Rig r;
+        releasedDrive(r.drive);
+        r.drive.mode = 3;
+        L::ReadContext state;
+        r.open();
+        r.writeThrough(0x6060, 1, 1);
+        CHECK(r.drive.mode == 1 && !r.a.motionHistoryWritten());
+        r.readState(state);
+        CHECK(r.request(state, releasedEvidence()).isOk());
+        r.finishEnable();
+        CHECK(r.a.enableAction().state == M::ActionState::SUCCEEDED);
+        Rig w;
+        releasedDrive(w.drive);
+        w.open();
+        w.writeThrough(0x607a, 2, 1);
+        L::ReadContext after;
+        w.readState(after);
+        CHECK(w.a.motionHistoryWritten() && w.request(after, releasedEvidence()).detail == int32_t(M::ActionError::STATE));
+        CHECK(w.a.enableAction().state == M::ActionState::EMPTY);
+    }
+}
+
 #define RUN(name)                                                                                  \
     do {                                                                                           \
         scenario = #name;                                                                          \
@@ -1771,6 +1990,7 @@ void allScenarios() {
     RUN(lifecycleLoss);
     RUN(stopAfterEachStep);
     RUN(sessionHistory);
+    RUN(releasedByRecordedStop);
     RUN(directLifecycle);
 }
 } // namespace

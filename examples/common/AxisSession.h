@@ -251,7 +251,9 @@ class AxisSession {
      * @param[in] evidence Caller's explicit gate, trial, reservation, operation (use nextOperation),
      * expiry, start record, shaft observation and exact reviewed values. The session adds its own
      * record: it refuses after any write of its own other than 6060=1 or 6060=6, and it consumes each trial
-     * identity once, in rising order, for this object's life.
+     * identity once, in rising order, for this object's life. That holds for either start record: a
+     * RELEASED_BY_RECORDED_STOP start speaks only for the time before this object, so a stop this object
+     * admitted refuses it too, until a new object (an MCU restart) relies on the application's record.
      * @param[in] options Copied budgets, as prepareEnable requires.
      * @param[in] deadlineUs Immutable exclusive cutoff of the whole sequence.
      * @param[in] nowUs Nondecreasing supplied microseconds.

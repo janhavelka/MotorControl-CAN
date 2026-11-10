@@ -145,6 +145,26 @@ Each of these is this project's decision, not a vendor statement.
   time before this session existed. The library cannot check it. `AxisSession` adds what it can see
   and refuses after it has itself admitted any write other than an acknowledged `6060=1`, for the
   rest of that object's life, across close and open. A stop admitted on any path counts.
+- **A released start after a recorded stop** (2026-11-10, attended experiment only). With the drives kept
+  powered, `EnableStart::RELEASED_BY_RECORDED_STOP` states instead that the application's record shows this
+  drive last left released by a stop whose settlement it observed (a `QUICK_STOP` that settled on the
+  released report or standstill, the quick stop of a halted drive included), and no write after that
+  stop but one acknowledged `6060=1`. The library cannot check it either. It admits mode 1 only, under
+  `EnableGate::ATTENDED_EXPERIMENT`, from the released standstill: `2100` released with the in-place bit
+  and every other monitor rule above, `6041` low bits `000`, `606C` zero. The sequence is the same, with
+  two measured differences. `6041` bits 5 and 6 may change, because from every release so far word 6 moved
+  bits 0..6 from `0x50` to `0x31` (trial 1782 in mode 3, `8050` to `8031`; trial 308 in mode 1, `4050` to
+  `4031`). And `6064` must repeat the admission value only in word 6's cycles: word 7 energizes the drive,
+  and its position report moves to the drive's internal command (mode 3: -6 to +12 counts in trials 1742
+  to 1862; mode 1: 1187 to 1194 to 1180 in trial 308). No bound on that move is known, so none is claimed
+  or applied. The record keeps `6064` before word 6 and in each word's cycle, success claims no position
+  continuity, and a later move takes its start position from a fresh read. `606C` zero and `2100` running
+  clear still hold in every cycle. A start report of a release with running latched, as a quick stop
+  during a mode 1 move can leave (trial 213), is refused. The shaft observation is not consulted for a
+  released start; the bench records `FREE` from the released report at the user's instruction of
+  2026-11-10 ("do not ask if holding or not, read it"), never felt. `NO_MOTION_WRITE_RECORDED` keeps every
+  rule it had. The session still refuses after any write of its own, so this start serves an enable in a
+  new MCU boot, or after a mode route's `6060=1`.
 - **Each word waits for its report.** An acknowledgement and an elapsed interval establish nothing,
   so the next word needs the previous word's documented low bits in a fresh cycle.
 - **Spacing is at least 10 ms from the acknowledgement.** `ENABLE_WORD_INTERVAL_US` is the admitted
@@ -195,6 +215,7 @@ action. `6040` is a whole-word write, never a read-modify-write.
 | Enable in mode 0 | Any | Undefined mode | None | None | The mode byte | None | Refused | None |
 | Enable in mode 6 | Non-enabled released, stationary and exact reviewed evidence | `modeRaw=6`, `homingEnableQualified`, ordinary explicit trial evidence | 6/7/15 with spacing | Fresh mode6 state after each ACK | No automatic home trigger | Retained action outcome | Conditional; see [homing](homing.md) | No reference published |
 | Enable from `000F` or after a stop | Latest word `000F`, `000B` or `010F` in this session | Any | None | None | None | None | Refused, and never writing 6 merely to "reset" | A word from 15 back to 6 has no documented meaning here |
+| Enable from a release a recorded stop left | Session clean; the application's record shows the settled stop and nothing after it but an acknowledged `6060=1`; fresh released standstill in mode 1 | Mode 1, reviewed targets | 6, 7, 15 as above | As above | As above, except `6041` bits 5 and 6, and `6064` compared only in word 6's cycles | As above | As above | Attended experiment only. Word 7 moves the position report to the drive's internal command, with no bound known; no continuity is claimed |
 | Stop during the sequence | Acknowledged 6 or 7 | Unchanged | A fresh idle report: no word, since DEC-8 has no arrow from them. A fresh running report, or none: best-effort `000B`, as for the same word still in flight | `000B` path: [stop guide](stop_actions.md) | The stop's own | The stop's own | The enable ends either way. Use the independent cutoff | Unknown |
 | Stop after `000F` | Acknowledged 15 | Unchanged | `010F` or `000B` with a fresh cycle after the acknowledgement, otherwise best-effort `000B` | [Stop guide](stop_actions.md) | [Stop guide](stop_actions.md) | Stop's own | The enable ends, and any word in flight settles into it | Unknown |
 
