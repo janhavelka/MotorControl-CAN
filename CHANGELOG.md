@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench round 7 on `a3c5fa4` (2026-11-10)
+
+- S17 measured and the first complete velocity runs: on both nodes the mode 3 enable report came between 0.378 s and 0.728 s after word 15's acknowledgement; both ran at about 99 counts/s (5.95 rpm at 1000 counts per turn; `606C` read 5), counter-clockwise viewed facing the shaft end as the attendant watched, and both stopped with their own HALT at 1131 counts, reported halted (`9437`/`0001`). Node 2's run `SUCCEEDED` with no uncertainty; node 1's ended `DEADLINE` because its plan's 5000 ms interval left its stop one observation (procedure corrected to 4000/17000). The attendant described node 2 as "faster and quite sketchy" (not interpreted). [Report](docs/reports/2026-11-10_bench_r7.md).
+
 ### Final-enable report window for the attended velocity experiment (backlog S17, 2026-11-09)
 
 - **Added:** `VelocityOptions::enableWindowUs` and `enableSpacingUs` (default 0: today's one-cycle rule), an application-bounded wait for the enable report after word 15, admitted only under `VelocityGate::ATTENDED_EXPERIMENT` and documented as the application's wait, not a device timing. Inside the window a cycle still showing word 7's exact report (mode 3, clean, low bits 011, not released, not running, `606C` 0, `6064` unchanged) schedules another one; any other report, and the last cycle the window admits, fails with the run's own stop as before (S16). The window counts in the setup budget and the observation bound. New context fields `enablePending`, `pendingFirst`, `pendingLast`, `enableReport`.

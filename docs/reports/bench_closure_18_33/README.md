@@ -45,6 +45,8 @@ Execution of the [bench continuation](../../prompts/bench_closure_18_33/README.m
 | `d96b646` | Bench session close and per-channel grants (S15) | Passed, every job |
 | `f8c4b31` | Velocity stop after an unconfirmed final enable (S16) | Passed |
 | `faffa22` | Bench fallback quick stop and runner alert (S16) | Passed |
+| `81fc89e` | Bench round 6 record | Passed |
+| `a3c5fa4` | Final-enable report window (S17) | Passed |
 
 ## Originals: what exists and what is missing
 
