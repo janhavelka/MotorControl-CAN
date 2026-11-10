@@ -1,0 +1,3 @@
+At about 10:00Z on 2026-11-10 the user wrote: 'do the next tests, dont be so affraid - be much more autonomous, do not ask if holding or not, read it'. At about 10:35Z, asked to switch both drives on for a 30 rpm HALT run on node 1 and a 30 rpm quick-stop run on node 2, they answered 'Both on'. They were at the bench with the cutoff near; no shaft observation was asked for or given in this round. The lead typed the runner's ATTENDED confirmations from that presence; follow-up questions were answered 'not recorded'.
+
+Velocity 30 rpm, HALT. Shaft not observed (not asked); drive reports only.

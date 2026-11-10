@@ -1,0 +1,9 @@
+{
+  "tool": "en_reset (lead scratch script, copied here)",
+  "started_utc": "2026-11-10T10:36:02.354570+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "via": "RTS asserted 0.1 s, DTR deasserted",
+  "reason": "Fresh MCU boot for round 8: round 7's boot had used all 12 motion admissions",
+  "captured_bytes": 377
+}
