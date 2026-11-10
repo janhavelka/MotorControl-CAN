@@ -1,0 +1,78 @@
+{
+  "started_utc": "2026-11-10T12:32:00.149748+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "velocity-target",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 2,
+  "trial": 2001,
+  "plan": "gate Q03 60FF encoding probe",
+  "fields": [
+    2,
+    2001,
+    1,
+    3001
+  ],
+  "operator": {
+    "attended": {
+      "question": "Attendant at node 2 with the independent drive-power cutoff in hand and a shaft mark visible: type ATTENDED 2001 to confirm: ",
+      "typed": "ATTENDED 2001",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "velocity-target",
+    "--node",
+    "2",
+    "--trial",
+    "2001",
+    "--value",
+    "3001",
+    "--campaign",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110-q03-campaign.jsonl",
+    "--new-campaign",
+    "--seconds",
+    "30",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110T1232Z-q03-target-node2-2001"
+  ],
+  "host_revision": "96896a8a2f73759ad68f12237f24969a1f33b279",
+  "host_dirty": false,
+  "campaign": {
+    "path": "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110-q03-campaign.jsonl",
+    "motion_total": 0,
+    "cases": {},
+    "before": true
+  },
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5446322c323030312c312c333030312c4b65343937643263620a"
+  ],
+  "image": {
+    "base": "96896a8a2f73759ad68f12237f24969a1f33b279",
+    "elf": "7d370e6287d0361590ee07c5d48bdef2e6dd8a2133cf63dee62dd5b980efa52d",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TF2,2001,1,3001,Ke497d2cb",
+  "tx_hex": "5446322c323030312c312c333030312c4b65343937643263620a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-10T12:32:03.064598+00:00"
+}
