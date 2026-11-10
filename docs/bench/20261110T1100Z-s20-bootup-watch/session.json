@@ -1,0 +1,71 @@
+{
+  "command": "pdo-session",
+  "started_utc": "2026-11-10T11:00:01.714685+00:00",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "argv": [
+    "run",
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--plan",
+    "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\bootwatch\\plan.json",
+    "--output",
+    "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\bootwatch\\w019-110001"
+  ],
+  "plan_file": "C:\\Users\\Honza\\AppData\\Local\\Temp\\claude\\7a9e2316d506a34f\\1ad24d78-b127-4f86-8571-4006da894f8f\\scratchpad\\bootwatch\\plan.json",
+  "reset": false,
+  "retry": false,
+  "tools": {
+    "s2_pdo.py": "033efeee7e3cd6489a83fd8a1f37036eab84f266f9f3dc188e13a0f2417c0b13",
+    "s2_evidence.py": "3b0b8bb65fcc8d078959e81f8c695e60346f9d523b979b00ed1537693d9f704b"
+  },
+  "host_revision": "a3c5fa401e6e17b7f70b56b8b575715a73772192",
+  "host_dirty": false,
+  "pong": {
+    "target": "esp32s2",
+    "base": "a3c5fa401e6e17b7f70b56b8b575715a73772192",
+    "elf": "8ddb192bdf43ce81c5e827aba0580526ee9bddfa9102226d9fa06ed72af010fb",
+    "sdk": "5.5.5",
+    "running": "1",
+    "active": "1",
+    "silent": "0",
+    "pinsReady": "1",
+    "soak": "0",
+    "t": "1052556975",
+    "routes": "7",
+    "trial": "0",
+    "motion": "12",
+    "pdo": "4",
+    "watch": "0",
+    "capture": "0"
+  },
+  "reason": "completed",
+  "steps": [
+    {
+      "step": 1,
+      "note": "",
+      "sent": "P25",
+      "tx_hex": "5032350a",
+      "utc": "2026-11-10T11:00:02.113308+00:00",
+      "monotonic": 352776.703,
+      "reply": "PDOW admitted seconds=25; copies received frames, sends nothing",
+      "reply_line": 2,
+      "outcome": "answered"
+    },
+    {
+      "step": 2,
+      "note": "",
+      "wait_s": 26,
+      "utc": "2026-11-10T11:00:02.130342+00:00",
+      "outcome": "waited"
+    }
+  ],
+  "ended_utc": "2026-11-10T11:00:29.303489+00:00",
+  "bytes": 4081
+}

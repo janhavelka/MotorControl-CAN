@@ -1,0 +1,13 @@
+{
+  "purpose": "Passive wait for a drive boot-up frame; sends nothing on CAN",
+  "authorization": "Standing bench authorization; listen only",
+  "steps": [
+    {
+      "send": "P25",
+      "expect": "PDOW admitted"
+    },
+    {
+      "wait_s": 26
+    }
+  ]
+}
