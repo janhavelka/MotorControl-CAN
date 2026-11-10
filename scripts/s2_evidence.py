@@ -183,7 +183,7 @@ GRAMMAR = (
     Row("TRIAL_PLAN", "TRIAL_PLAN ", "summary",
         "route:s node:u trial:u attended:b cycles:u? interval:u? start:u? shaft:u? status:x? pt:i? vt:i? "
         "deadline:u? kind:u? be:u? sp:i? target:i? rpm:u? up:u? down:u? after:u? sd:u? si:u? pred:u? c6:u? "
-        "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i?"),
+        "rel:u? base:i? code:u? case:u? obs:u? dur:u? method:u? search:u? creep:u? ramp:u? offset:i? value:i?"),
     Row("TRIAL_RES", "TRIAL_RES ", "summary",
         "stack0:u stack1:u heap0:u heap1:u heapMin:u largest:u gap:u dropped:u admission:u started:u completed:u "
         "tec0:u? rec0:u? tec1:u? rec1:u?",
@@ -295,6 +295,12 @@ GRAMMAR = (
     # the cycle that reported the enable. Earlier records have neither.
     Row("TRIAL_VELOCITY_WINDOW", "TRIAL_VELOCITY_WINDOW ", "summary",
         "window:u spacing:u cycles:u pending:u ack:u"),
+    # velocity-target (protocol 8, ledger gate Q03): the line's value and its four bytes as written, the 60FF
+    # download's terminal (outcome 255 while none settled), the upload's raw bytes after an acknowledged
+    # download and whether they are the written ones, and the read after it (0 none, 1 the check's
+    # standstill, 2 not). Raw: what the bytes mean for the drive's signedness is the reviewer's.
+    Row("TRIAL_VELOCITY_TARGET", "TRIAL_VELOCITY_TARGET ", "summary",
+        "value:i tx:h written:b outcome:u ack:b uncertain:b abort:x read:b size:u data:h match:b after:u"),
     Row("END", "END trial ", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
     Row("RELEASED", "TRIAL record released", "response"),
     Row("RELEASE_REFUSED", "TRIAL release refused", "response"),
@@ -567,7 +573,8 @@ TRIAL_ROUTES = {"readiness-actions": "actions", "readiness-io": "io", "readiness
                 "rearm": "rearm", "move": "move", "readiness-history": "history",
                 "released-quick": "released-quick", "word67": "word67", "relative": "relative",
                 "settings-2202": "settings-2202", "io-di3": "io-di3", "counter-zero": "counter-zero",
-                "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home"}
+                "clear-alarm": "clear-alarm", "mode3": "mode3", "velocity": "velocity", "home": "home",
+                "velocity-target": "velocity-target"}
 for _command, _route in TRIAL_ROUTES.items():
     EXPECTED[_command] = Expect("TRIAL", "TRIAL admitted", 0, "trial_" + _route, _TRIAL_RESPONSES)
 
@@ -599,6 +606,9 @@ _TRIAL_IO = (_IMAGE + tuple((0x2400, sub, 2) for sub in range(9)) +
 _TRIAL_TUNING = _IMAGE + tuple((index, 0, 2) for index in range(0x2502, 0x2521)) + _IMAGE
 _ERRORS = ((0x1001, 0, 1), (0x603F, 0, 2))
 _HISTORY_ENTRIES = tuple((0x1003, subindex, 4) for subindex in range(1, 5))
+# velocity-target: two full reads, the 60FF download and, only after its acknowledgement, its upload and one
+# more full read. 60FF is four bytes under both of its claims (EDS I32, EN86/ZH86 p13 U32).
+_TRIAL_VELOCITY_TARGET = _FULL + _FULL + ((0x60FF, 0, 4), (0x60FF, 0, 4)) + _FULL
 
 
 def _trial_history(results):
@@ -625,6 +635,7 @@ INVENTORIES = {
     "trial_io": (_TRIAL_IO, (37,)),
     "trial_tuning": (_TRIAL_TUNING, (45,)),
     "trial_history": _trial_history,
+    "trial_velocity-target": (_TRIAL_VELOCITY_TARGET, (29,)),
 }
 
 
@@ -827,7 +838,7 @@ POSITIONAL = {"step_sequence", "wrong_object_for_step", "wrong_request_object", 
               "abort_differs_from_wire", "traffic_time_reversed", "record_order", "terminal_overlap",
               "end_differs_from_header", "failure_differs_from_terminal", "plan_size_not_in_inventory",
               "tx_before_admission", "reply_after_terminal", "wrong_direction", "history_differs_from_terminals",
-              "cleanup_differs_from_terminal"}
+              "cleanup_differs_from_terminal", "velocity_target_differs_from_record"}
 # Matching terminals to copied traffic. A record that itself reports lost=1 has an incomplete trace,
 # so these findings cannot accuse it: they stay listed as warnings. Its failure stays its own.
 TRACE_MATCHING = {"wrong_request_object", "stale_reply", "success_without_request", "success_without_reply",
@@ -1428,6 +1439,8 @@ def _check_trial(report, records, meta):
             report.error("plan_differs_from_header", summary.number)
         if summary.kind == "TRIAL_HISTORY":
             _check_history(report, summary, [r for r in records if r.role == "terminal" and r.status == "parsed"])
+        if summary.kind == "TRIAL_VELOCITY_TARGET":
+            _check_velocity_target(report, summary, records)
     requested = {"route": TRIAL_ROUTES.get(meta.get("command")), "node": meta.get("node"),
                  "trial": meta.get("trial")}
     for start in (r for r in records if r.role == "start" and r.kind == "ADMITTED" and "route" in r.values):
@@ -1458,6 +1471,54 @@ def _check_history(report, summary, results):
     if read != wanted:
         report.error("history_differs_from_terminals", summary.number,
                      "summary %s terminals %s" % (sorted(wanted.items()), sorted(read.items())))
+
+
+def _check_velocity_target(report, summary, records):
+    """TRIAL_VELOCITY_TARGET repeats the record's own evidence: the plan's value, the one 60FF request on the
+    wire, that download's terminal and the upload's bytes. A summary is never a second, different
+    observation, and an upload never follows a download that was not acknowledged."""
+    values = summary.values
+    parsed = [r for r in records if r.status == "parsed"]
+    plans = [r.values for r in parsed if r.kind == "TRIAL_PLAN" and "value" in r.values]
+    results = [r.values for r in parsed if r.role == "terminal" and tuple(r.values["object"]) == (0x60FF, 0)]
+    downloads = [v for v in results if v.get("dir") == 1]
+    uploads = [v for v in results if v.get("dir") == 0]
+    requests = [bytes.fromhex(r.values["data"]) for r in parsed if r.role in ("traffic", "tail") and
+                r.values["k"] == TX and 0x600 < r.values["id"] <= 0x67F and
+                bytes.fromhex(r.values["data"])[:4] == bytes.fromhex("23ff6000")]
+    problems = []
+    written = (values["value"] & 0xFFFFFFFF).to_bytes(4, "little")
+    if not plans or plans[0]["value"] != values["value"]:
+        problems.append("value differs from TRIAL_PLAN")
+    if bytes.fromhex(values["tx"]) != written:
+        problems.append("tx is not the value's four bytes")
+    if len(downloads) > 1 or len(requests) > 1:
+        problems.append("more than one 60FF download")
+    if any(request[4:8] != written for request in requests):
+        problems.append("the wire request is not the value")
+    if values["written"] != bool(downloads):
+        problems.append("written differs from the download terminals")
+    elif downloads:
+        download = downloads[0]
+        if (values["outcome"], values["ack"], values["uncertain"], values["abort"]) != (
+                download["outcome"], download["ack"], download["uncertain"], download["abort"]):
+            problems.append("download terminal differs")
+    elif values["outcome"] != 255:
+        problems.append("outcome without a download")
+    successful = [v for v in uploads if v["outcome"] == 0]
+    if uploads and not (downloads and downloads[0]["outcome"] == 0 and downloads[0]["ack"]):
+        problems.append("60FF upload after a download that was not acknowledged")
+    if values["read"] != bool(successful):
+        problems.append("read differs from the upload terminals")
+    elif successful:
+        upload = successful[0]
+        data = bytes.fromhex(upload["data"])[:upload["size"]]
+        if values["size"] != upload["size"] or bytes.fromhex(values["data"])[:values["size"]] != data:
+            problems.append("readback differs from the upload terminal")
+    if values["match"] != (bool(successful) and values["size"] == 4 and bytes.fromhex(values["data"]) == written):
+        problems.append("match differs from the bytes")
+    if problems:
+        report.error("velocity_target_differs_from_record", summary.number, "; ".join(problems))
 
 
 def _check_request(report, meta):

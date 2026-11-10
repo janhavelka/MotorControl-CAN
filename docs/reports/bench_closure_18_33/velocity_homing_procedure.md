@@ -2,6 +2,8 @@
 
 **Run on 2026-11-09 from 14:44Z on `4247e59` and stopped at line 1009** ([report](../2026-11-09_bench_r5.md)): node 1's velocity start ended unconfirmed and no stop was sent, so the motor ran until the user opened the cutoff (backlog S16). Do not send a velocity line again until S16 is fixed. The text below is the plan as written before that run.
 
+**Protocol 8 (2026-11-10).** The runner now speaks PONG `routes=8`, which adds the `velocity-target` line (the 60FF encoding probe at the end of this file), and refuses images that report `routes=7`. Every line of this file is unchanged and runs on a protocol 8 image; read `routes=7` below as `routes=8`.
+
 **S16 was fixed and checked in [round 6](../2026-11-09_bench_r6.md) (trial 1308).** The next velocity plan is the S17 measurement at the end of this file. Its lines replace lines 1009 and 1016 below: with the final-enable report window, a 2000 ms interval and an 18000 ms deadline no longer fit the record.
 
 Runnable plan for the attended routes `mode3`, `velocity` and `home` (line protocol 7, [hardware_bench](../../hardware_bench.md#attended-bench-routes)), written on 2026-11-09 against `8293b3e` plus the uncommitted route change that adds them, and revised the same day for protocol 7: the velocity lines run as the library's attended experiment and carry no start or stop flag. **Nothing here has been run.** Every command line below passed `python scripts/s2_bench.py ... --dry-run` with exit status 0 and the values shown; the dry runs touched no port, prompt or file. The same sequence, with the fake's own identity and reports, runs through the real `BenchRoute` in `test/bench_route_test.cpp` `testVelocityHomePlan`.
@@ -270,3 +272,38 @@ Stop conditions for this section, in addition to those above. Send nothing furth
 - More than one stop word in a velocity record, any `6040` word other than 6, 7, 15 and `010F`, `TRIAL_VELOCITY_WINDOW` absent, or `window` other than 2000000 (the wrong image).
 - Exit 1 or 2 on a line meant to run, any EMCY, alarm, `603F` or `1001` other than 0, `reason=memory` after 1402, `lost=1`, `unsettled=1`.
 - A shaft still turning 2 s after the velocity record ended, or anything the attendant cannot observe or reconcile with 6 rpm.
+
+## 60FF encoding probe (ledger gate Q03)
+
+Written on 2026-11-10 after [round 9](../2026-11-10_bench_r9.md). **Not run.** It needs an image with PONG `routes=8` (the `velocity-target` route, [hardware bench](../../hardware_bench.md)); the runner refuses any other. In that image `BenchRoute` is 42720 bytes on the S2 (32 more), `AxisSession` 35744 and `RouteWork` 8448.
+
+The question: EDS `[60FF]` and EN86/ZH86 p17 declare I32, p13 U32 0..3000 rpm ([Q03](../../device_conflicts.md)). If the drive takes the four bytes as unsigned, -6 is `FFFFFFFA` and could clamp to 3000 rpm once enabled, so no reverse run is sent until this is decided. The probe never enables: each line writes `60FF` once on a drive that reports itself released and reads it back.
+
+Before the first line: node 2 reports the released mode 3 standstill round 9 left it in (`2100=0011`, `6041=8050`, `6061=03`, `606C=0`, `6064` 28071 after cycle 11; `2100=0015` with running latched is admitted too); the route checks this on two fresh reads at one `6064` and refuses otherwise. Its `60FF` read `0f000000` (15) in [trial 1904](../../bench/20261110T1155Z-s20-c11-p1-node2-1904/), as cycle 11's run (trial 1902) wrote it. Send nothing else to node 2 between these lines, and release after each (`--command release`). The attendant confirms each line with the cutoff in hand; there is no shaft question, because the drive stays released. The ledger is created by line 1. These three lines use node 2's whole allowance: three `velocity-target` lines per node, no motion weight; against a scratch ledger the three were counted (`F2` 1, 2, 3) and a fourth refused (`the campaign holds 3 velocity-target admissions on node 2, the cap is 3`). Trials 2001 to 2003 lie above round 9's highest (1904, a read); in a later boot renumber them above that boot's highest, and dry-run again, because a new number changes the integrity field.
+
+```text
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command velocity-target --node 2 --trial 2001 --value 3001 --campaign docs\bench\YYYYMMDD-q03-campaign.jsonl --new-campaign --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-q03-target-node2-2001
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command velocity-target --node 2 --trial 2002 --value -6 --campaign docs\bench\YYYYMMDD-q03-campaign.jsonl --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-q03-target-node2-2002
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command velocity-target --node 2 --trial 2003 --value 6 --campaign docs\bench\YYYYMMDD-q03-campaign.jsonl --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-q03-target-node2-2003
+```
+
+Each line exited 0 with `--dry-run` and printed `require the operator to type: ATTENDED <trial>`, `at most 29 terminals of 128 and 0 ms of 55000`, its download (`23 FF 60 00 B9 0B 00 00`, `23 FF 60 00 FA FF FF FF`, `23 FF 60 00 06 00 00 00`), `send p; refuse unless PONG has routes=8 soak=0 trial=0 active=1 running=1`, and the line it sends once: `TF2,2001,1,3001,Ke497d2cb`, `TF2,2002,1,-6,Kcac48d18`, `TF2,2003,1,6,Kc62002bd`. `ping`, `stats` and `release` also exited 0. Against the absent ledger line 1 printed `motion_total 0` and lines 2 and 3 `would refuse: campaign ledger ... does not exist`, as expected before line 1 creates it.
+
+Reading each record's `TRIAL_VELOCITY_TARGET` line. The abort codes are CiA 301's; no Lichuan source lists which ones this drive sends.
+
+| Line | Record | Meaning | Next |
+| --- | --- | --- | --- |
+| 1, 3001 | `outcome=1 ... abort=06090030` (value range exceeded) or `06090031` (too high), `read=0`; exit 3 | The drive range-checks a written `60FF` | Line 2 |
+| 1 | `outcome=0 ack=1 ... data=b90b0000 match=1 after=1`; exit 0 | No range check at write: the encoding stays undecided, and the drive now holds 3001 as its target | Line 3 at once; not line 2 |
+| 1 | Acknowledged with other bytes (`match=0`, for example `b80b0000`) | The drive stores another value; decides nothing by itself | Line 3, then review |
+| 1 | Any other abort code (for example `08000020` or `08000022`) | Decides nothing | Stop and review |
+| 2, -6 | `outcome=0 ack=1 ... data=faffffff match=1 after=1`; exit 0 | With line 1's range abort: a signed range that admits -6 | Line 3 |
+| 2 | `outcome=1 ... abort=06090030` or `06090032` (too low); exit 3 | Negative targets are refused at write | Line 3 |
+| 2 | Acknowledged with other bytes, or another abort code | Decides nothing | Line 3, then review |
+| 3, 6 | `outcome=0 ack=1 ... data=06000000 match=1 after=1`; exit 0 | A small positive target the velocity runs have used is back in place | End |
+
+`uncertain=1` also appears with `outcome=1`: the library keeps every aborted download's effect unconfirmed, and the next line's two reads show the state. An aborted record ends at its download, with no readback and no further read.
+
+Stop conditions, in addition to those above: exit 1 or 2 on a line meant to run; a check refusal (failure 8, for example `why=unreleased` or `why=position`); `after=2`; a lost reply (`uncertain=1` with `outcome` other than 1, failure 3 `why=uncertain`), which leaves the route unresolved until an MCU restart, after which `readiness-actions` reads `60FF` before anything else; any download in a record other than its one `23 FF 60 00 ...`; any EMCY or alarm; any motion the attendant sees. Until line 3's `60FF=6` is on record, nothing on node 2 is enabled and no velocity line is sent. After any of these lines `enable` refuses on node 2 for the rest of that MCU boot: the write is the session's own.
+
+What it can establish, for this firmware and node 2 only: whether a written `60FF` is range-checked and whether -6 is accepted and stored as written. It does not establish what the drive does with a negative target once enabled (direction, rate, a clamp at run time), zero, other values, node 1 or another firmware. A signed write range is necessary for reverse operation, not sufficient: Q03 stays open and reverse stays gated.

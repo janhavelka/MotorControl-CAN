@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench `velocity-target` probe for the 60FF encoding (Q03, 2026-11-10)
+
+- **Added:** bench route `velocity-target` (`TF<node>,<trial>,1,<value>`, PONG `routes=8`). On a node whose two fresh full reads report the released mode 3 standstill (`2100` released, `6041` low bits 000, `606C` 0, `1001`/`603F` 0, the same `6064`; running latched admitted), it sends one expedited `60FF` download of a signed value -3000..3001 (two's complement) under its own grant; only after its acknowledgement one granted raw `60FF` upload and one more full read that must report the same standstill. An abort or lost reply ends the route at that terminal with its abort code kept. It never writes `6040`, `6060` or another object, never enables or retries, and refuses a fenced session. New record line `TRIAL_VELOCITY_TARGET`, checked by `s2_evidence.py`. Attended, three per node, no motion weight. `s2_bench.py --command velocity-target --value N`; the runner now speaks only `routes=8`, every protocol 7 line unchanged. S2 `BenchRoute` 42688 to 42720 bytes. Tests: `bench_route` (writes, readbacks, abort, lost reply, 14 refusals, no 6040 ever), runner and transcript; seven mutants killed.
+
 ### Bench chain on `cb7941c` and `17df4a4` (2026-11-10)
 
 - Velocity runs without power cycles on powered drives, one MCU boot per cycle: after the S18 changes, four runs in a row ending with a quick stop `SUCCEEDED` from the latched release on both nodes at 6, 15, 30 and 60 rpm. Measured: word 7 clears the latched running bit in mode 3 and re-energizing pulls the rotor to the drive's internal command (+12 to −6 counts, 0 after a power-up); a best-effort `000B` from the halted state released the drive; the rate is 0.992 times the command at every rate from 6 to 60 rpm. [Report](docs/reports/2026-11-10_bench_r9.md).

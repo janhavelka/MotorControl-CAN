@@ -116,13 +116,25 @@
  *   with a CLOSED HomeEvidence: no homing record exists for this fixture, so no line field can open the
  *   gate. The request is refused before any write, which is the route's whole result. Attended, with
  *   the settings routes' caps and no motion weight, because nothing can be written.
+ * - VELOCITY_TARGET, ledger gate Q03: how the drive takes a 60FF value (EDS and EN86/ZH86 p17 I32
+ *   against p13's U32 0..3000 rpm). Two fresh full reads that must both report the released mode 3
+ *   standstill a velocity run starts from: 2100 bit 4 set, alarm clear, 6041 low bits 000, mode 3, 606C
+ *   0, 1001 and 603F 0, the same 6064, with 2100 running admitted latched as the velocity admission
+ *   admits it. Then one 60FF download of the line's signed value through AxisSession::admitPrepared
+ *   under its own grant, `23 FF 60 00` and its four bytes in two's complement. Only once it is
+ *   acknowledged, one granted 60FF upload kept raw, then one more fresh full read that must report the
+ *   same standstill at the same 6064. An abort or a lost reply ends the route at that terminal with its
+ *   abort code kept, and nothing more is sent. Never 6040, 6060 or another object, never an enable, no
+ *   retry. The write is this session's own, so the enable refuses after it in this boot, and a session
+ *   that may still have work running (velocity, home or move fence, fault block) refuses it first.
+ *   Attended, with the settings routes' caps and no motion weight: the drive is released throughout.
  *
  * No route exchange starts once less than its queue and response budget remains before its operation
  * deadline or the route cutoff: the route then ends there with failure DEADLINE and nothing in flight.
  * A 000B is exempt, as a stop word.
  *
  * Every motion route (MODE_ONE, ENABLE, STOP, POSITION, REARM, MOVE, RELEASED_QUICK, WORD67, RELATIVE,
- * COUNTER_ZERO, CLEAR_ALARM, MODE_THREE, VELOCITY), every settings route and HOME needs an attended flag
+ * COUNTER_ZERO, CLEAR_ALARM, MODE_THREE, VELOCITY), every settings route, HOME and VELOCITY_TARGET needs an attended flag
  * that the host sets only after the operator typed a confirmation. At most ROUTE_MOTION_TOTAL motion
  * routes and ROUTE_MOTION_PER_CASE per route and node are admitted per boot; a planned stop inside
  * POSITION, RELATIVE or MOVE, and VELOCITY's own stop, counts as one more. These caps restart with the
@@ -198,7 +210,8 @@ enum class RouteKind : uint8_t {
     CLEAR_ALARM,    ///< AxisSession::requestClearAlarm, 2301 1, 0; `TC`. Motion class.
     MODE_THREE,     ///< Prompt 35, one 6060:00=3 on an evidenced released drive; `TN`. Motion class.
     VELOCITY,       ///< Prompt 35, AxisSession::requestVelocity from released mode 3; `TV`. Motion class.
-    HOME            ///< Prompt 36, AxisSession::requestHome's admission reads and refusal; `TO`. Attended.
+    HOME,           ///< Prompt 36, AxisSession::requestHome's admission reads and refusal; `TO`. Attended.
+    VELOCITY_TARGET ///< Gate Q03, one 60FF write and its readback on a released mode 3 drive; `TF`. Attended.
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -290,6 +303,10 @@ struct RoutePlan {
     uint32_t creepRpm = 0;       ///< HOME: 6099:02 creep rate in motor rpm, 1..3000.
     uint32_t homeRampMs = 0;     ///< HOME: 609A ramp time, 1..2000 ms.
     int32_t offset = 0;          ///< HOME: 607C native offset, -1000000..1000000; no unit claimed.
+    /** VELOCITY_TARGET: the signed 60FF value written once, -3000..3001: the documentary 0..3000 rpm
+     * (EN86/ZH86 p13), its negation, and 3001, one above it, to see whether the drive range-checks. No
+     * rate, unit or direction is claimed for any value, and the drive stays released. */
+    int32_t velocityValue = 0;
 };
 /** Parse the text after the `T` command byte: a route letter, then decimal fields separated by
  * commas, with a leading minus only on signed fields and nothing else:
@@ -312,8 +329,8 @@ struct RoutePlan {
  * `N<node>,<trial>,<attended>,<cycles>,<intervalMs>`;
  * `V<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<durationMs>,<intervalMs>,<deadlineMs>,<stopKind>,<record>,
  * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>`;
- * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>` (one line each, at most
- * ROUTE_LINE bytes).
+ * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>`;
+ * `F<node>,<trial>,<attended>,<value>` (one line each, at most ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
  * @param text Borrowed characters; no terminator required.
  * @param size Character count.
@@ -392,7 +409,8 @@ enum {
     ROUTE_TAIL = 16,            ///< Records copied after the terminal, until release.
     ROUTE_MOTION_TOTAL = 12,    ///< Motion admissions per boot (packet 22).
     ROUTE_MOTION_PER_CASE = 3,  ///< Motion admissions per route and node per boot (packet 22).
-    ROUTE_SETTINGS_PER_CASE = 3, ///< Settings and HOME admissions per route and node per boot; not motion.
+    /** Settings, HOME and VELOCITY_TARGET admissions per route and node per boot; not motion. */
+    ROUTE_SETTINGS_PER_CASE = 3,
     ROUTE_CUTOFF_MS = 60000,    ///< Route cutoff after admission (packet 22: sixty seconds a case).
     ROUTE_QUEUE_US = 100000,    ///< Queue budget per service, host policy.
     ROUTE_RESPONSE_US = 250000, ///< Response budget per service, host policy as for the soak.
@@ -639,6 +657,20 @@ struct RouteRecord {
     /** HOME: requestHome returned OK. It cannot with the closed gate; the route then withdraws it at once,
      * before any service could admit its first write. */
     bool homeAdmitted = false;
+    /** VELOCITY_TARGET: the 60FF download's terminal settled; the next four fields hold it. */
+    bool probeWritten = false;
+    uint8_t probeOutcome = 0;       ///< Its SdoOutcome.
+    bool probeAcknowledged = false; ///< The server acknowledged the download.
+    bool probeUncertain = false;    ///< Its effect is unconfirmed, as after a lost reply.
+    uint32_t probeAbort = 0;        ///< Its raw abort code, 0 without one.
+    /** VELOCITY_TARGET: the 60FF upload after the acknowledged download succeeded; the next two fields
+     * hold it raw. */
+    bool probeReadPresent = false;
+    uint8_t probeSize = 0;          ///< Uploaded byte count.
+    uint8_t probeRead[4] = {};      ///< The uploaded bytes as on the wire, least significant first.
+    /** VELOCITY_TARGET: 0 no full read after the readback was judged, 1 it reported the check's
+     * standstill, 2 it did not. */
+    uint8_t probeAfter = 0;
 };
 /** BenchRoute::kept bits: facts that refuse later work and survive closeSessions. */
 enum SessionKept : uint8_t {
@@ -780,7 +812,10 @@ class BenchRoute {
         STEP_CHECK_VELOCITY, ///< VELOCITY's check: released and stationary in mode 3.
         STEP_VELOCITY,       ///< VELOCITY: the session's velocity request.
         STEP_HOME_STATE,     ///< HOME: a full state read kept in RouteWork::observer.
-        STEP_HOME            ///< HOME: the session's home request, refused before any write.
+        STEP_HOME,           ///< HOME: the session's home request, refused before any write.
+        STEP_CHECK_TARGET,   ///< VELOCITY_TARGET's check of both reads: released standstill in mode 3.
+        STEP_TARGET_WRITE,   ///< VELOCITY_TARGET: the one 60FF download.
+        STEP_CHECK_TARGET_AFTER ///< VELOCITY_TARGET: the read after the readback against the check.
     };
     struct Step {
         uint8_t kind;
@@ -829,8 +864,9 @@ class BenchRoute {
     bool commandedKnown_[2] = {false, false}, commandedRelative_[2] = {false, false};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
     uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::HOME) + 1][2] = {};
-    // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME) and node.
-    uint8_t settingsCases_[3][2] = {};
+    // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET)
+    // and node.
+    uint8_t settingsCases_[4][2] = {};
     // MOVE with an observer: node B's reads, apart from the route's own on node A.
     bool observerPending_ = false, observerActive_ = false;
     MotorControlCAN::CANOPEN::SdoTransfer observerExpected_;
@@ -884,6 +920,9 @@ class BenchRoute {
     const char* checkReleased() const noexcept;
     const char* checkModeThree() const noexcept;
     const char* checkVelocity() const noexcept;
+    const char* checkTargetState(const RouteSnapshot& snapshot) const noexcept;
+    const char* checkVelocityTarget() const noexcept;
+    const char* checkTargetAfter() const noexcept;
     void startVelocity(uint64_t nowUs) noexcept;
     void startHome(uint64_t nowUs) noexcept;
     bool rearmable(uint8_t slot, const AxisSession& session, uint8_t predecessor) const noexcept;
