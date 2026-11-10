@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench round 11 on `e935f67`: no resume after a re-enable, negative moves on both nodes (2026-11-10)
+
+- Measured, drives powered, no power cycle: a re-enable from the latched release a moving quick stop left did **not** resume the interrupted move (node 1, 2201 to 2203: still at -2020 10 s later); the latch cleared at word 7 on both nodes with a -3 count pull. Negative relative (-3000, -4000 at 60 rpm) and absolute (-6000 at 45, -1000 at 60 rpm over 30,740 counts) moves completed exactly; HALT and quick stop while moving negative completed on both nodes with nearly identical counts; a rearm after a HALT did not resume (node 2, 2228). [Report](docs/reports/2026-11-10_bench_r11.md).
+
 ### Recorded-stop enable from the latched release; the route's own stop after word 15 (2026-11-10)
 
 - **Changed:** `EnableStart::RELEASED_BY_RECORDED_STOP` also admits the latched release a moving quick stop leaves (mode 1, attended experiment): `2100` released with running set or clear and in place either way (alarm, soft limits, undocumented bits clear), `6041` bits 0..6 `0x50` (now required for every released start), `606C` 0. The latch (`2100` running, `6041` bit 14) may stay or clear in word 6's cycles and must be clear from word 7 on (cleared in trials 308 and 1742). `6064` repeats the start in word 6's cycles. Word 15 waits until two cycles after word 7 report `011` with the same `6064`. From word 15 on every cycle must repeat that `6064` with `606C` 0, otherwise `OBSERVATION_SCOPE` with a message telling the caller to stop: the drive retains the interrupted move's target, and whether words 6, 7 and 15 resume it is unmeasured. The in-place bit may not change. `NO_MOTION_WRITE_RECORDED` is unchanged.
