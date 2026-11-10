@@ -1,0 +1,66 @@
+{
+  "started_utc": "2026-11-10T11:50:37.452396+00:00",
+  "port": "COM15",
+  "serial": "94A990398B40",
+  "usb": {
+    "port": "COM15",
+    "serial": "94A990398B40",
+    "vid": 12346,
+    "pid": 4098
+  },
+  "baud": 115200,
+  "command": "readiness-actions",
+  "seconds": 30.0,
+  "reset": false,
+  "retry": false,
+  "node": 1,
+  "trial": 1861,
+  "plan": "packet 15 P1",
+  "fields": [
+    1,
+    1861
+  ],
+  "operator": {
+    "fault_led_before": {
+      "typed": "unobserved",
+      "accepted": true
+    }
+  },
+  "argv": [
+    "--port",
+    "COM15",
+    "--serial",
+    "94A990398B40",
+    "--command",
+    "readiness-actions",
+    "--node",
+    "1",
+    "--trial",
+    "1861",
+    "--fault-led",
+    "unobserved",
+    "--seconds",
+    "30",
+    "--output",
+    "C:\\Users\\Honza\\Documents\\Projects\\MotorControl-CAN\\docs\\bench\\20261110T1150Z-s20-c9-p1-node1-1861"
+  ],
+  "host_revision": "17df4a4b64e4ffecc8f3ea5b8c0ab1f17e456176",
+  "host_dirty": false,
+  "prefix_bytes": 0,
+  "sent": [
+    "70",
+    "5441312c313836312c4b32373038663033360a"
+  ],
+  "image": {
+    "base": "17df4a4b64e4ffecc8f3ea5b8c0ab1f17e456176",
+    "elf": "3514fa6e5f52cb0f124a90c66c595c6e1af0db404196189bf6245622b012e5eb",
+    "sdk": "5.5.5",
+    "target": "esp32s2"
+  },
+  "line": "TA1,1861,K2708f036",
+  "tx_hex": "5441312c313836312c4b32373038663033360a",
+  "aborted": false,
+  "reason": "ended",
+  "status": "captured",
+  "ended_utc": "2026-11-10T11:50:39.657852+00:00"
+}
