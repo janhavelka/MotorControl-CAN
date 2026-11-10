@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench chain on `cb7941c` and `17df4a4` (2026-11-10)
+
+- Velocity runs without power cycles on powered drives, one MCU boot per cycle: after the S18 changes, four runs in a row ending with a quick stop `SUCCEEDED` from the latched release on both nodes at 6, 15, 30 and 60 rpm. Measured: word 7 clears the latched running bit in mode 3 and re-energizing pulls the rotor to the drive's internal command (+12 to −6 counts, 0 after a power-up); a best-effort `000B` from the halted state released the drive; the rate is 0.992 times the command at every rate from 6 to 60 rpm. [Report](docs/reports/2026-11-10_bench_r9.md).
+
 ### Quick stop in mode 3, latched-release start, halted-state experiment stop (backlog S18, 2026-11-10)
 
 - **Velocity window (S18):** the final-enable window compares `6064` with word 7's cycle, not the admission. On node 2 word 7 pulled the rotor from 8412 and 8419 to 8424 before any observation (trials 1742, 1762), so every run from a release failed at word 15's first cycle. Any change after word 7 still fails; no bound on the pull is claimed. In mode 3 word 7 cleared the running latch (1742).
