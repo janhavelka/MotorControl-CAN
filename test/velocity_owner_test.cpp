@@ -747,12 +747,13 @@ struct Drive {
         return true;
     }
 };
-struct Bench {
+// The drive type is a parameter so that the S18 replays can script their own reports.
+template <class D> struct BenchOf {
     C::SdoClient services;
     Wire wire;
     O::CanBusOwner owner;
     E::AxisSession session;
-    Drive drive;
+    D drive;
     L::ReadContext identityRead, state, check;
     L::IdentityObservation identity;
     M::AxisConfig axis;
@@ -761,7 +762,12 @@ struct Bench {
     // Backlog S17: BenchRoute's VELOCITY options with its enable report window (2000 ms, cycles 300 ms
     // apart) and the plan that fits the record with it: 12 s at 5 s intervals, three polls, 15.5 s.
     bool windowed = false;
-    Bench() : owner(services, wire.callbacks(), 73), session(owner) {
+    // Backlog S18: the record, stop kind and rate of the line, and the 4000 ms / 17000 ms plan when set.
+    uint32_t record = 1009;
+    L::StopKind kind = L::StopKind::HALT;
+    int64_t rpm = 6;
+    uint64_t pollUs = 0, deadlineAfterUs = 0;
+    BenchOf() : owner(services, wire.callbacks(), 73), session(owner) {
         wire.session = &session;
         wire.services = &services;
         CHECK(services.configure(0, target().channel, true, true));
@@ -786,6 +792,14 @@ struct Bench {
         session.service(now);
     }
     void step() { turn(now + TICK_US); }
+    // Empties the fake wire between the phases of one long session (S18); nothing may be outstanding.
+    void rewind() {
+        for (unsigned i = 0; i < wire.sentCount; ++i)
+            CHECK(!wire.pending[i]);
+        CHECK(served == wire.sentCount && wire.reportRead == wire.reportWrite && wire.rxRead == wire.rxWrite);
+        wire.sentCount = wire.reportRead = wire.reportWrite = wire.rxRead = wire.rxWrite = 0;
+        served = startFrame = 0;
+    }
     L::ReadOptions service() const {
         L::ReadOptions value;
         value.queueTimeoutUs = QUEUE_US;
@@ -834,7 +848,7 @@ struct Bench {
         axis.nativeVelocityTime = M::TimeUnit::MINUTE;
         L::VelocityEvidence evidence; // TRIAL_VELOCITY_EVIDENCE, line 8.
         evidence.gate = L::VelocityGate::ATTENDED_EXPERIMENT;
-        evidence.record = 1009;
+        evidence.record = record;
         evidence.model = L::SettingsModel::CL86_C;
         evidence.firmware.deviceType = 0x00040192;
         evidence.firmware.hardwareVersion = 0x0c;
@@ -845,10 +859,10 @@ struct Bench {
         evidence.firmware.modelCode = 0x0400;
         evidence.firmware.firmwareCode = 0x0200;
         evidence.layout = L::StatusLayout::ZH86;
-        evidence.stopKind = L::StopKind::HALT;
-        evidence.maximumForwardRpm = 6;
+        evidence.stopKind = kind;
+        evidence.maximumForwardRpm = uint32_t(rpm);
         M::FiniteVelocityRequest request; // TRIAL_PLAN, line 4.
-        request.velocity.value = M::Rational(6);
+        request.velocity.value = M::Rational(rpm);
         request.velocity.unit = M::VelocityUnit(M::PositionUnit::TURNS, M::TimeUnit::MINUTE);
         request.velocity.configurationGeneration = axis.binding.configurationGeneration;
         request.durationUs = 12000000;
@@ -861,16 +875,17 @@ struct Bench {
         options.maximumAgeUs = 9 * SERVICE_US;
         options.requiredStopBudgetUs = 8 * SERVICE_US;
         options.commandIntervalUs = L::ENABLE_WORD_INTERVAL_US;
-        options.stopKind = L::StopKind::HALT;
+        options.stopKind = kind;
         if (windowed) {
-            options.pollIntervalUs = 5000000;
+            options.pollIntervalUs = pollUs ? pollUs : 5000000;
             options.maxPolls = 3;
             options.enableWindowUs = 2000000;
             options.enableSpacingUs = 300000;
         }
         startFrame = wire.sentCount;
         return session.requestVelocity(state, identity, evidence, request, profile, axis, options,
-                                       now + (windowed ? 15500000 : 18000000), now);
+                                       now + (deadlineAfterUs ? deadlineAfterUs : windowed ? 15500000 : 18000000),
+                                       now);
     }
     // The run's downloads and cycles end once the session records a velocity terminal.
     void runToTerminal() {
@@ -892,8 +907,9 @@ struct Bench {
         return true;
     }
 };
+using Bench = BenchOf<Drive>;
 // An explicit application stop with the route's budgets; the DEC-2 branch only when asked for.
-E::StopPolicy stopPolicy(const Bench& b, bool bestEffort) {
+template <class B> E::StopPolicy stopPolicy(const B& b, bool bestEffort) {
     E::StopPolicy policy;
     policy.options.service = b.service();
     policy.options.observationIntervalUs = 2000000;
@@ -1199,6 +1215,263 @@ void windowExpiresWithOneHalt() {
     std::fprintf(stderr, "S17 window expiry: %u window cycles, HALT %llu us after word 15's acknowledgement\n",
                  unsigned(c.enablePending), static_cast<unsigned long long>(c.stopRequestedUs - ack));
 }
+// Backlog S18 through the owner and AxisSession: trials 1513 (node 2, 30 rpm) and 1607 (node 1, 60 rpm) on
+// 2026-11-10 (docs/bench/20261110T1038Z-s18-velocity-node2-1513 and 20261110T1043Z-s19-velocity-node1-1607,
+// with the later reads 1514 and 1608), replayed on this fixture's node 1 route with BenchRoute's plan for
+// those lines: 12 s, interval 4000 ms, three polls, deadline 17000 ms, the S17 window, QUICK_STOP. Each value
+// below is the capture's, except where marked: the stop's 6064 and 606C, which that stop did not read, and
+// every report of a later run or stop, which no record holds.
+struct Cycle {
+    uint16_t monitor, status;
+    uint8_t mode;
+    int32_t position, velocity;
+};
+// Every cycle begins with its 2100 read and takes one Cycle, chosen by the latest 6040 word and the cycles
+// read since it; a list repeats its last entry.
+struct ScriptDrive {
+    Cycle start = {0x0011, 0x8050, 3, 0, 0};  // TRIAL_CHECK of both trials.
+    Cycle after6 = {0x0011, 0x8031, 3, 0, 0}; // The cycle after word 6.
+    Cycle after7 = {0x0001, 0x8033, 3, 0, 0}; // After word 7.
+    Cycle pending = {0x0001, 0x8033, 3, 0, 0}; // After word 15, for pendingCycles cycles.
+    unsigned pendingCycles = 2;
+    const Cycle* running = nullptr; // After 15 and the pending cycles.
+    unsigned runningCount = 0;
+    const Cycle* quick = nullptr; // After 000B.
+    unsigned quickCount = 0;
+    const Cycle* halted = nullptr; // After 010F.
+    unsigned haltedCount = 0;
+    uint16_t word = 0;
+    unsigned cycles = 0;
+    Cycle current = start;
+    static Cycle pick(const Cycle* list, unsigned count, unsigned at) {
+        CHECK(list && count);
+        return list[at < count ? at : count - 1];
+    }
+    Cycle select() const {
+        switch (word) {
+        case 0: return start;
+        case 6: return after6;
+        case 7: return after7;
+        case 15: return cycles < pendingCycles ? pending : pick(running, runningCount, cycles - pendingCycles);
+        case 0x000b: return pick(quick, quickCount, cycles);
+        default: CHECK(word == 0x010f); return pick(halted, haltedCount, cycles);
+        }
+    }
+    bool respond(const M::Frame& sent, M::Frame& out) {
+        const uint16_t index = indexOf(sent);
+        const uint8_t sub = sent.data[3];
+        out = frame(0x581, 8);
+        out.data[1] = sent.data[1];
+        out.data[2] = sent.data[2];
+        out.data[3] = sub;
+        if (sent.data[0] != 0x40) {
+            CHECK(index == 0x60ff || index == 0x6083 || index == 0x6084 || index == 0x6040);
+            if (index == 0x6040) {
+                word = uint16_t(valueOf(sent));
+                cycles = 0;
+            }
+            out.data[0] = 0x60;
+            return true;
+        }
+        uint32_t raw = 0;
+        unsigned size = 2;
+        switch (index) {
+        case 0x1000: raw = 0x00040192; size = 4; break; // TRIAL_VELOCITY_EVIDENCE of both trials.
+        case 0x1009: raw = 0x0c; size = 1; break;
+        case 0x100a: raw = 0x20; size = 1; break;
+        case 0x1018:
+            raw = !sub ? 5u : sub == 1 ? 0x1000u : sub == 2 ? 1u : 0u;
+            size = sub ? 4 : 1;
+            break;
+        case 0x2000: raw = 0x0400; break;
+        case 0x2001: raw = 0x0200; break;
+        case 0x1001: size = 1; break;
+        case 0x603f: break;
+        case 0x2100:
+            current = select();
+            ++cycles;
+            raw = current.monitor;
+            break;
+        case 0x2101: case 0x2102: break;
+        case 0x6041: raw = current.status; break;
+        case 0x6061: raw = current.mode; size = 1; break;
+        case 0x6064: raw = uint32_t(current.position); size = 4; break;
+        case 0x606c: raw = uint32_t(current.velocity); size = 4; break;
+        default: CHECK(false);
+        }
+        out.data[0] = size == 1 ? 0x4f : size == 2 ? 0x4b : 0x43;
+        for (unsigned i = 0; i < 4; ++i)
+            out.data[4 + i] = uint8_t(raw >> (8 * i));
+        return true;
+    }
+};
+typedef BenchOf<ScriptDrive> ScriptBench;
+// The running cycles after word 15's two pending cycles: the enable report, then the two polls.
+const Cycle RUN_1513[3] = {{0x0004, 0xc437, 3, 88, 30}, {0x0004, 0xc437, 3, 2097, 30}, {0x0004, 0xc437, 3, 4105, 30}};
+const Cycle RUN_1607[3] = {{0x0004, 0xc437, 3, 179, 60}, {0x0004, 0xc437, 3, 4196, 60}, {0x0004, 0xc437, 3, 8214, 58}};
+// The stop: 2100 0014, 6041 C050, 6061 3 in its first cycle (op 30). Its 6064 and 606C are the later read's
+// (1514: 5608, 1608: 11219, both 606C 0), which also gives the second cycle (2100 0015, 6041 C050).
+const Cycle STOP_1513[2] = {{0x0014, 0xc050, 3, 5608, 0}, {0x0015, 0xc050, 3, 5608, 0}};
+const Cycle STOP_1607[2] = {{0x0014, 0xc050, 3, 11219, 0}, {0x0015, 0xc050, 3, 11219, 0}};
+void planS18(ScriptBench& b, uint32_t record, int64_t rpm, const Cycle* running, const Cycle* stop, unsigned stops) {
+    b.windowed = true;
+    b.record = record;
+    b.rpm = rpm;
+    b.kind = L::StopKind::QUICK_STOP;
+    b.pollUs = 4000000;
+    b.deadlineAfterUs = 17000000;
+    b.drive.running = running;
+    b.drive.runningCount = 3;
+    b.drive.quick = stop;
+    b.drive.quickCount = stops;
+}
+unsigned wordsSent(const ScriptBench& b, unsigned from, uint32_t word) {
+    unsigned count = 0;
+    for (unsigned i = from; i < b.wire.sentCount; ++i)
+        count += b.downloadAt(i, 0x6040, word, 0x2b);
+    return count;
+}
+// After the 000B: two seven-field cycles four seconds apart, then SUCCEEDED and no fence. The same power-up
+// then runs again from the latched release, its HALT leaves the drive halted, and the attendant's
+// experiment 000B from that halted state releases it. Those later reports are assumptions.
+void trials1513And1607SettleOnReleasedStandstill() {
+    for (unsigned trial = 0; trial < 2; ++trial) {
+        scenario = trial ? "S18 replay 1607" : "S18 replay 1513";
+        ScriptBench b;
+        planS18(b, trial ? 1607 : 1513, trial ? 60 : 30, trial ? RUN_1607 : RUN_1513, trial ? STOP_1607 : STOP_1513, 2);
+        b.ready();
+        CHECK(b.start());
+        b.runToTerminal();
+        const L::VelocityContext& c = b.session.velocityAction();
+        const L::ActionContext& s = b.session.stopAction(L::StopKind::QUICK_STOP);
+        CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
+              c.completion == M::ActionCompletion::OBSERVED && c.firstFailure == M::ActionOutcome::NONE);
+        CHECK(!c.needsStop && !b.session.velocityNeedsStop() && c.runningObserved && c.enablePending == 2 &&
+              c.enableReport.present && c.enableReport.statusword == 0xc437 && c.runningPolls == 2);
+        CHECK(s.operation == c.stopOperation && s.state == M::ActionState::SUCCEEDED &&
+              s.outcome == M::ActionOutcome::OBSERVED && s.observations == 2 && s.standstillObserving &&
+              s.predecessorWord == 0x000f && s.stopModeRaw == 3 && s.monitorObservation.monitor == 0x0015 &&
+              s.statusObservation.statusword == 0xc050 && s.extraObservation.actualPosition == (trial ? 11219 : 5608));
+        CHECK(s.startedUs >= c.stopDueUs && s.deadlineUs == c.deadlineUs);
+        // The 000B once, then exactly two seven-field cycles, the second at least 4 s after the first.
+        unsigned at = b.startFrame;
+        while (at < b.wire.sentCount && !b.downloadAt(at, 0x6040, 0x000b, 0x2b))
+            ++at;
+        CHECK(at < b.wire.sentCount && b.cycleAt(at + 1) && b.cycleAt(at + 8) && b.wire.sentCount == at + 15);
+        CHECK(wordsSent(b, b.startFrame, 0x000b) == 1 && !wordsSent(b, b.startFrame, 0x010f));
+        CHECK(s.extraObservation.window.earliestUs >= s.commandHistory[0].completedUs + 4000000);
+        // The same power-up runs again from 2100 0015, 6041 C050. Assumed: word 6's cycle keeps the latch,
+        // word 7's clears it (as word 7 did in mode 1, trial 308); the run then halts at due.
+        const int32_t at0 = trial ? 11219 : 5608;
+        const Cycle second[1] = {{0x0004, 0xc437, 3, at0 + 100, 30}};
+        const Cycle halted[1] = {{0x0001, 0x9437, 3, at0 + 300, 0}};
+        const Cycle after6 = {0x0015, 0x8031, 3, at0, 0}, after7 = {0x0001, 0x8033, 3, at0, 0};
+        b.drive.after6 = after6;
+        b.drive.after7 = b.drive.pending = after7;
+        b.drive.running = second;
+        b.drive.runningCount = 1;
+        b.drive.halted = halted;
+        b.drive.haltedCount = 1;
+        b.kind = L::StopKind::HALT;
+        b.rewind();
+        b.readState(b.state);
+        CHECK(b.start());
+        b.runToTerminal();
+        const L::VelocityContext& v = b.session.velocityAction();
+        CHECK(v.state == M::ActionState::SUCCEEDED && v.admission.monitor == 0x0015 &&
+              v.admission.statusword == 0xc050 && v.admission.position == at0 && !b.session.velocityNeedsStop());
+        // Halted and enabled in mode 3 after the run's own HALT. HALT and an unflagged QUICK_STOP stay
+        // refused by the idle report; the attendant's flagged QUICK_STOP sends one 000B, released here.
+        b.rewind();
+        b.readState(b.check);
+        const unsigned before = b.wire.sentCount;
+        CHECK(b.session.requestStop(L::StopKind::QUICK_STOP, b.check, stopPolicy(b, false), b.now) ==
+              E::StopPath::NONE);
+        E::StopPolicy flagged = stopPolicy(b, false);
+        flagged.attendedExperiment = true;
+        CHECK(b.session.requestStop(L::StopKind::HALT, b.check, flagged, b.now) == E::StopPath::NONE);
+        CHECK(b.wire.sentCount == before);
+        const Cycle released[2] = {{0x0010, 0x8050, 3, at0 + 300, 0}, {0x0011, 0x8050, 3, at0 + 300, 0}};
+        b.drive.quick = released;
+        b.drive.quickCount = 2;
+        CHECK(b.session.requestStop(L::StopKind::QUICK_STOP, b.check, flagged, b.now) == E::StopPath::CONFIRMED);
+        b.runToTerminal();
+        const L::ActionContext& q = b.session.stopAction(L::StopKind::QUICK_STOP);
+        CHECK(q.state == M::ActionState::SUCCEEDED && q.predecessorWord == 0x010f && q.standstillObserving &&
+              q.observations == 2 && wordsSent(b, before, 0x000b) == 1 && b.wire.sentCount == before + 15);
+        CHECK(!b.session.velocityNeedsStop() && b.session.velocityAction().state == M::ActionState::SUCCEEDED);
+    }
+}
+// The same run with a stop that shows no released standstill in its two cycles: the run stays fenced, and
+// nothing follows the one 000B.
+void quickStopWithoutStandstillStaysFenced() {
+    const Cycle cases[4][2] = {
+        {{0x0014, 0xc050, 3, 5600, 0}, {0x0015, 0xc050, 3, 5608, 0}}, // 6064 moved between the cycles.
+        {{0x0014, 0xc050, 3, 5608, 2}, {0x0015, 0xc050, 3, 5608, 0}}, // 606C nonzero.
+        {{0x0014, 0xc050, 3, 5608, 0}, {0x001d, 0xc050, 3, 5608, 0}}, // Alarm.
+        {{0x0014, 0xc050, 3, 5608, 0}, {0x0015, 0xc050, 1, 5608, 0}}, // Mode 1.
+    };
+    for (unsigned k = 0; k < 4; ++k) {
+        scenario = "S18 replay 1513 without a standstill";
+        ScriptBench b;
+        planS18(b, 1513, 30, RUN_1513, cases[k], 2);
+        b.ready();
+        CHECK(b.start());
+        b.runToTerminal();
+        const L::VelocityContext& c = b.session.velocityAction();
+        const L::ActionContext& s = b.session.stopAction(L::StopKind::QUICK_STOP);
+        CHECK(s.state == M::ActionState::FAILED && s.observations == 2 &&
+              s.outcome == (k < 2 ? M::ActionOutcome::DEADLINE : M::ActionOutcome::OBSERVATION_SCOPE));
+        CHECK(c.state == M::ActionState::FAILED && c.needsStop && b.session.velocityNeedsStop() &&
+              c.completion == M::ActionCompletion::NOT_OBSERVED && c.stopExecution == M::ActionExecution::ACKNOWLEDGED);
+        CHECK(wordsSent(b, b.startFrame, 0x000b) == 1);
+    }
+}
+// An explicit QUICK_STOP while velocityNeedsStop holds: the run is cancelled locally once running, and a
+// fresh read reports it running after its 000F, so the ordinary mode 3 admission takes the stop. The stop's
+// released standstill then clears the fence; the cancelled run keeps its own record.
+void explicitQuickStopAfterARunningReportClearsTheFence() {
+    scenario = "S18: explicit quick stop after a running report";
+    ScriptBench b;
+    planS18(b, 1513, 30, RUN_1513, STOP_1513, 2);
+    b.ready();
+    CHECK(b.start());
+    for (unsigned i = 0; i < 100000 && !b.session.velocityAction().runningObserved; ++i)
+        b.step();
+    CHECK(b.session.cancelVelocity(b.now));
+    b.runToTerminal();
+    CHECK(b.session.velocityNeedsStop() && b.session.velocityAction().state == M::ActionState::FAILED &&
+          !wordsSent(b, b.startFrame, 0x000b));
+    const Saved<L::VelocityContext> cancelled(b.session.velocityAction());
+    b.readState(b.check);
+    const unsigned before = b.wire.sentCount;
+    CHECK(b.session.requestStop(L::StopKind::QUICK_STOP, b.check, stopPolicy(b, false), b.now) ==
+          E::StopPath::CONFIRMED);
+    b.runToTerminal();
+    const L::ActionContext& s = b.session.stopAction(L::StopKind::QUICK_STOP);
+    CHECK(s.state == M::ActionState::SUCCEEDED && s.standstillObserving && s.observations == 2 &&
+          s.predecessorWord == 0x000f && wordsSent(b, before, 0x000b) == 1 && b.wire.sentCount == before + 15);
+    CHECK(!b.session.velocityNeedsStop());
+    cancelled.unchanged(b.session.velocityAction());
+}
+// S16's stop on the 000F alone: word 15 never reported within the window, so no running report came before
+// the run's QUICK_STOP. A released report then ends the stop outside its scope and the fence holds.
+void unqualifiedQuickStopKeepsTheFence() {
+    scenario = "S18: quick stop on the 000F alone";
+    ScriptBench b;
+    const Cycle released[1] = {{0x0011, 0x8050, 3, 0, 0}};
+    planS18(b, 1513, 30, RUN_1513, released, 1);
+    b.drive.pendingCycles = 100;
+    b.ready();
+    CHECK(b.start());
+    b.runToTerminal();
+    const L::VelocityContext& c = b.session.velocityAction();
+    const L::ActionContext& s = b.session.stopAction(L::StopKind::QUICK_STOP);
+    CHECK(std::strcmp(c.status.msg, "final enable not reported within its window") == 0 && !c.runningObserved);
+    CHECK(!s.standstillObserving && s.read.count == 5 && s.outcome == M::ActionOutcome::OBSERVATION_SCOPE &&
+          s.observations == 1 && wordsSent(b, b.startFrame, 0x000b) == 1);
+    CHECK(c.state == M::ActionState::FAILED && c.needsStop && b.session.velocityNeedsStop());
+}
 } // namespace Replay1009
 } // namespace
 int main() {
@@ -1230,5 +1503,9 @@ int main() {
     Replay1009::trial1009WithoutAcknowledgedFinalWordSignalsTheMissingStop();
     Replay1009::trial1009WithRejectedFinalWordLetsTheApplicationStop();
     Replay1009::trial1009CancelledThenStoppedByTheApplication();
+    Replay1009::trials1513And1607SettleOnReleasedStandstill();
+    Replay1009::quickStopWithoutStandstillStaysFenced();
+    Replay1009::unqualifiedQuickStopKeepsTheFence();
+    Replay1009::explicitQuickStopAfterARunningReportClearsTheFence();
     std::printf("velocity owner: %u checks\n", checks);
 }

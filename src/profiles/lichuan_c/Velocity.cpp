@@ -102,6 +102,13 @@ bool released(const VelocitySample& s) {
     return (s.monitor & MONITOR_RELEASED) && !(s.monitor & MONITOR_RUNNING) && !s.velocity &&
            (low == 0 || low == 1 || low == 3);
 }
+// The release a moving quick stop leaves, with 2100 running still latched: after trials 1513 and 1607
+// both specimens read 2100=0015, 6041=C050, mode 3, 606C 0 and 6064 still (reads 1514, 1608). Admitted
+// only in mode 3 and only with low bits 000; word 6's cycle must then repeat the admission's 6064.
+bool latchedRelease(const VelocitySample& s) {
+    return (s.monitor & MONITOR_RELEASED) && (s.monitor & MONITOR_RUNNING) && !s.velocity &&
+           !(s.statusword & STATUS_LOW_BITS);
+}
 // The report an ordinary mode 3 stop admission needs (validateStop): enabled, running, no alarm or
 // release. Only a stop that followed such a report can show, by a later not-running report, that it
 // acted; after any other report the drive was not reported running before the stop either.
@@ -205,7 +212,9 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
     Status s = sample(state, r, now, o.maximumAgeUs, r.acquiredUs, result.admission);
     if (!s)
         return s;
-    if (!clean(result.admission, e.layout) || !released(result.admission))
+    if (!clean(result.admission, e.layout) ||
+        (!released(result.admission) &&
+         !(latchedRelease(result.admission) && result.admission.modeRaw == 3)))
         return error(VelocityError::STATE, "velocity requires a fresh released stationary start");
     if (result.admission.modeRaw != 0 && result.admission.modeRaw != 1 &&
         result.admission.modeRaw != 3 && result.admission.modeRaw != 6)
@@ -445,8 +454,17 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
         // Word 6 must freshly report release. Word 7's low011 example does not establish
         // a torque/release guarantee: accept either release bit, but still require no running
         // indication and zero feedback before the independently qualified final enable.
-        const bool stationary = !(s.monitor & MONITOR_RUNNING) && !s.velocity;
-        if (!stationary || low != expected || (c.commandCursor == 0 && !released(s))) {
+        // A running latch admitted with the release (latchedRelease) may remain in word 6's cycle, and
+        // that cycle must repeat the admission's 6064: two fresh reports of one standstill before any
+        // enabling word. From word 7's cycle on the latch must be clear; in mode 1 word 7 cleared it
+        // (trial 308: 6041 0033, 2100 0000).
+        const bool latchedStart = (c.admission.monitor & MONITOR_RUNNING) != 0;
+        VelocitySample seen = s;
+        if (c.commandCursor == 0 && latchedStart)
+            seen.monitor = uint16_t(seen.monitor & ~MONITOR_RUNNING);
+        const bool stationary = !(seen.monitor & MONITOR_RUNNING) && !s.velocity;
+        if (!stationary || low != expected || (c.commandCursor == 0 && !released(seen)) ||
+            (c.commandCursor == 0 && latchedStart && s.position != c.admission.position)) {
             failure(c, ActionOutcome::OBSERVATION_SCOPE, now, "enable prefix not freshly confirmed",
                     true);
             return;
@@ -950,6 +968,57 @@ bool sameTerminal(const CANOPEN::SdoCompletion& a, const CANOPEN::SdoCompletion&
            a.nodeGeneration == b.nodeGeneration && a.admittedUs == b.admittedUs &&
            a.completedUs == b.completedUs;
 }
+// The run's own requested stop, not yet composed: its kind and deadline are the run's.
+bool ownStopRequested(const VelocityContext& run) {
+    return run.state == ActionState::ACTIVE && run.phase == VelocityPhase::STOPPING && run.stopRequested &&
+           !run.stopOperation && run.withdrawal == VelocityInterruption::NONE;
+}
+// Backlog S18: the run's own QUICK_STOP after a running report reads FEEDBACK from its first cycle and
+// may settle on a released standstill, as prepareStop's mode 3 admission does, when the age covers seven
+// fields. Trials 1513 (node 2, 30 rpm) and 1607 (node 1, 60 rpm): 28 ms after 000B, 2100=0014 and
+// 6041=C050 in mode 3, and later 0015 with 606C 0 and 6064 still. A stop on the 000F alone, or a later
+// explicit stop of an ended run, keeps the release outside its scope.
+bool coversCycle(const ActionOptions& o) {
+    return o.maximumAgeUs >= CYCLE_FIELDS * (uint64_t(o.service.queueTimeoutUs) + o.service.responseTimeoutUs);
+}
+bool releaseStandstill(const VelocityContext& run, StopKind kind, const ActionOptions& o) {
+    return kind == StopKind::QUICK_STOP && ownStopRequested(run) &&
+           runningReport(run.latest, run.evidence.layout) && coversCycle(o);
+}
+// The halted report a settled velocity HALT left on both specimens (trials 1507, 1613, 1706).
+constexpr uint16_t HALTED_STATUSWORD = 0x9437, HALTED_MONITOR = MONITOR_POSITION_COMPLETE;
+Status checkHaltedStop(const ActionContext& output, const VelocityContext& run, const AxisReservation& live,
+                       const ReadTarget& current, const ReadContext& state,
+                       const CANOPEN::SdoCompletion& control, uint32_t operation, uint64_t now,
+                       uint64_t deadline, const ActionOptions& options) {
+    const void* inputs[] = {&run, &live, &current, &state, &control, &options};
+    const size_t sizes[] = {sizeof run, sizeof live, sizeof current, sizeof state, sizeof control, sizeof options};
+    for (unsigned i = 0; i < 6; ++i)
+        if (overlaps(&output, sizeof output, inputs[i], sizes[i]))
+            return error(VelocityError::OVERLAP, "halted velocity stop preparation overlaps input");
+    Status s = currentContext(run, live, current, now);
+    if (!s)
+        return s;
+    if (operation <= run.operation || operation <= run.stopOperation || deadline <= now ||
+        deadline > uint64_t(INT64_MAX) || !stopOptionsValid(options) || !coversCycle(options))
+        return error(VelocityError::ARGUMENT, "invalid halted velocity stop identity or budgets");
+    if (run.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT || run.state != ActionState::SUCCEEDED ||
+        run.options.stopKind != StopKind::HALT || !run.stopOperation ||
+        run.stopExecution != ActionExecution::ACKNOWLEDGED || run.completion != ActionCompletion::OBSERVED)
+        return error(VelocityError::STATE, "only after an attended velocity run settled by its own HALT");
+    if (!acknowledgedControlWrite(control, run.reservation, now) || controlWord(control.transfer) != 0x010f ||
+        control.transfer.operation != run.stopOperation || !sameTerminal(control, run.stopEvidence))
+        return error(VelocityError::STATE, "the latest word must be that run's own acknowledged 010F");
+    StateObservation status, monitors;
+    if (state.source != ReadSource::SDO || state.state != ReadState::SUCCEEDED || state.uncertain ||
+        state.startedUs < live.acquiredUs ||
+        !getStateBlock(state, StateBlock::STATUS, live.target, now, options.maximumAgeUs, status) ||
+        !getStateBlock(state, StateBlock::MONITORS, live.target, now, options.maximumAgeUs, monitors) ||
+        status.window.earliestUs < control.completedUs || monitors.window.earliestUs < control.completedUs ||
+        status.statusword != HALTED_STATUSWORD || status.modeRaw != 3 || monitors.monitor != HALTED_MONITOR)
+        return error(VelocityError::STATE, "needs a fresh report of exactly 6041 9437, 2100 0001, mode 3");
+    return Ok();
+}
 Status checkRunStop(const ActionContext& output, const VelocityContext& run,
                     const AxisReservation& live, const ReadTarget& current,
                     const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
@@ -967,9 +1036,7 @@ Status checkRunStop(const ActionContext& output, const VelocityContext& run,
         return error(VelocityError::ARGUMENT, "invalid velocity stop selection or budgets");
     // The run's own requested stop keeps its kind and fixed deadline; a later explicit stop of an
     // ended or withdrawn run is the application's own.
-    const bool requested = run.state == ActionState::ACTIVE && run.phase == VelocityPhase::STOPPING &&
-                           run.stopRequested && !run.stopOperation &&
-                           run.withdrawal == VelocityInterruption::NONE;
+    const bool requested = ownStopRequested(run);
     const bool ended = run.state == ActionState::FAILED ||
                        (run.state == ActionState::ACTIVE && run.withdrawal != VelocityInterruption::NONE);
     if ((!requested && !ended) ||
@@ -1072,6 +1139,40 @@ Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
     output.deadlineUs = deadline;
     output.state = ActionState::ACTIVE;
     output.controlEvidence = control;
+    output.standstillObserving = releaseStandstill(run, kind, options);
+    return Ok();
+}
+Status validateHaltedVelocityQuickStop(const ActionContext& output, const VelocityContext& run,
+                                       const AxisReservation& live, const ReadTarget& current,
+                                       const ReadContext& state, const CANOPEN::SdoCompletion& control,
+                                       uint32_t operation, uint64_t now, uint64_t deadline,
+                                       const ActionOptions& options) noexcept {
+    return checkHaltedStop(output, run, live, current, state, control, operation, now, deadline, options);
+}
+Status prepareHaltedVelocityQuickStop(ActionContext& output, const VelocityContext& run,
+                                      const AxisReservation& live, const ReadTarget& current,
+                                      const ReadContext& state, const CANOPEN::SdoCompletion& control,
+                                      uint32_t operation, uint64_t now, uint64_t deadline,
+                                      const ActionOptions& options) noexcept {
+    const Status s = checkHaltedStop(output, run, live, current, state, control, operation, now, deadline, options);
+    if (!s)
+        return s;
+    new (static_cast<void*>(&output)) ActionContext();
+    output.reservation = run.reservation;
+    output.kind = StopKind::QUICK_STOP;
+    output.stopModeRaw = 3;
+    output.predecessorWord = 0x010f;
+    output.predecessorBasis = PredecessorBasis::PROJECT_DECISION;
+    output.options = options;
+    output.operation = operation;
+    output.startedUs = output.servicedUs = output.eligibleUs = output.stepStartedUs = now;
+    output.deadlineUs = deadline;
+    output.state = ActionState::ACTIVE;
+    output.controlEvidence = control;
+    // Only a released standstill completes it (Actions.cpp): the drive reported idle before 000B.
+    output.standstillObserving = true;
+    getStateBlock(state, StateBlock::STATUS, live.target, now, options.maximumAgeUs, output.statusObservation);
+    getStateBlock(state, StateBlock::MONITORS, live.target, now, options.maximumAgeUs, output.monitorObservation);
     return Ok();
 }
 } // namespace LICHUAN_C

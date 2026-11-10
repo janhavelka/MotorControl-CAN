@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Quick stop in mode 3, latched-release start, halted-state experiment stop (backlog S18, 2026-11-10)
+
+- **Velocity, quick stop in mode 3:** a QUICK_STOP that followed a running report now settles on a released standstill: the run's own stop when its latest cycle reported running, and one that `prepareStop` admits on a fresh running report after `000F`. It reads `6064`/`606C` from its first cycle and completes after two released cycles in a row with alarm clear, mode 3, `6041` low bits 000, `606C` 0 and `6064` unchanged; running latched is allowed (trials 1513 and 1607, reads 1514 and 1608). HALT, escalation, a stop on the run's `000F` alone and a five-field age budget are unchanged.
+- **Velocity admission** accepts, in mode 3 only, the release a moving quick stop leaves: `2100` running latched with the release, low bits 000, `606C` 0. Word 6's cycle must repeat `6064`, and the latch must be clear from word 7's cycle on (fails with the S16 stop otherwise).
+- **Attended experiment:** `validateHaltedVelocityQuickStop`/`prepareHaltedVelocityQuickStop` and `StopPolicy::attendedExperiment` allow one unqualified `000B` from a drive a velocity run's own HALT left at `9437`/`0001`, while that `010F` is still the latest word; it completes only on a released standstill and clears no fence (trial 1707 was refused without it).
+- **Bench:** `checkVelocity` admits that latch, and attended `stop` lines set the flag. No line-grammar or protocol change. S2 `AxisSession` 35736 to 35744 bytes.
+- Tests: `velocity_test`, `velocity_owner` (1513 and 1607 replays settle; a chained second run in one power-up), `bench_route` latched start; 13 mutants killed. Not run on hardware.
+
 ### Bench rounds 8 and 9 on `a3c5fa4` (2026-11-10)
 
 - Velocity at 30 and 60 rpm on both nodes, each ended by HALT on one node and by quick stop on the other. The enable report came in the same window cycle at every rate (+0.728 s); `6064` rose 0.992 times the commanded rate at 6, 30 and 60 rpm alike. HALT in mode 3: halted in place 4.04 s later, still enabled, 60 and 121 counts of travel; both HALT runs `SUCCEEDED`. Quick stop in mode 3, first measured: released with running latched 28 ms later, under about 10 ms of travel; the runs end `OBSERVATION_SCOPE` by the library's design (backlog S18). The enables' shaft basis was read from the drive's power-up report at the user's request, not felt. [Report](docs/reports/2026-11-10_bench_r8.md).

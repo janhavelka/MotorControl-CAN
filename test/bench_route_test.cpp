@@ -113,6 +113,7 @@ struct Drive {
     int32_t endpoint = 0, commanded = 0;
     int32_t drift = 0; // Added to 6064 after each 6064 read: a shaft that turns between reads.
     uint16_t trapWord = 0, trapMonitor = 0; // 2100 bits set by this 6040 word.
+    uint16_t latchWord = 0; // This 6040 word clears 2100 running (in mode 1 word 7 cleared it: trial 308).
     // This 6040 word is acknowledged and changes nothing the fake reports, as trial 1009's 000F still
     // read 8033 and 2100 0001 in the cycle after it. Off by default.
     uint16_t staleWord = 0;
@@ -325,6 +326,8 @@ struct Drive {
                     monitor = uint16_t(monitor & ~L::MONITOR_RELEASED);
                 if (trapWord && word == trapWord)
                     monitor = uint16_t(monitor | trapMonitor);
+                if (latchWord && word == latchWord)
+                    monitor = uint16_t(monitor & ~L::MONITOR_RUNNING);
                 const bool trigger = word == 0x001f || word == 0x005f;
                 if (trigger)
                     monitor = uint16_t(monitor | monitorAfterTrigger);
@@ -3845,6 +3848,34 @@ void testVelocity() {
     r->release();
     CHECK(std::strcmp(r->start("S1," + id(trial) + ",1,1,2000,0,200"), "budget") == 0);
 }
+// Backlog S18: the release a moving quick stop left, 2100 0015 with 6041 low bits 000 (reads 1514, 1608).
+// The route's check and the library admit it. With word 7 clearing the latch the run completes; with the
+// latch kept it fails at word 7's cycle, before word 15, and the route's fallback 000B follows.
+void testVelocityLatchedStart() {
+    for (unsigned clears = 0; clears < 2; ++clears) {
+        scenario = clears ? "velocity-latched-start" : "velocity-latched-kept";
+        std::unique_ptr<Rig> r(new Rig);
+        Drive& d = r->driver.drives[0];
+        releasedModeThree(d);
+        d.monitor = 0x0015;
+        d.latchWord = clears ? 7 : 0;
+        uint32_t trial = 0;
+        qualified(*r, trial);
+        const size_t first = r->driver.requests.size();
+        const E::RouteRecord& v = r->run(velocityLine(1, trial));
+        const L::VelocityContext& c = r->one.velocityAction();
+        CHECK(v.checkPassed && v.velocityRequested && c.admission.monitor == 0x0015 &&
+              c.admission.statusword == 0x8050);
+        if (clears) {
+            CHECK(v.failure == E::RouteFailure::NONE && c.state == M::ActionState::SUCCEEDED &&
+                  !r->one.velocityNeedsStop() && wordsFrom(*r, first, 1, 0x010f) == 1);
+        } else {
+            CHECK(v.failure == E::RouteFailure::ACTION && c.state == M::ActionState::FAILED &&
+                  c.commandCursor == 1 && r->one.velocityNeedsStop() && wordsFrom(*r, first, 1, 0x000f) == 0 &&
+                  wordsFrom(*r, first, 1, 7) == 1);
+        }
+    }
+}
 // Refused by the library or the route before any write, and recorded.
 void testVelocityRefusals() {
     struct Case {
@@ -3872,7 +3903,9 @@ void testVelocityRefusals() {
         {"unreleased", nullptr, [](Drive& f) { f.monitor = 0x0001; f.status = 0x8437; }, E::RouteFailure::PREREQUISITE,
          "unreleased", -1, 0, nullptr},
         {"mode", nullptr, [](Drive& f) { f.mode = 1; }, E::RouteFailure::PREREQUISITE, "mode", -1, 0, nullptr},
-        {"running", nullptr, [](Drive& f) { f.monitor = 0x0015; }, E::RouteFailure::PREREQUISITE, "running", -1, 0,
+        // A running latch passes only with the release and low bits 000 (S18, reads 1514 and 1608).
+        {"running", nullptr, [](Drive& f) { f.monitor = 0x0015; f.status = 0x8031; }, E::RouteFailure::PREREQUISITE,
+         "running", -1, 0,
          nullptr},
         {"fault-code", nullptr, [](Drive& f) { f.errorCode = 0x2310; }, E::RouteFailure::PREREQUISITE, "fault-code",
          -1, 0, nullptr},
@@ -5901,6 +5934,7 @@ int main(int argc, char** argv) {
     testModeThree();
     testVelocity();
     testVelocityRefusals();
+    testVelocityLatchedStart();
     testVelocityFailures();
     testVelocityFallbackStop();
     testVelocityEnableWindow();

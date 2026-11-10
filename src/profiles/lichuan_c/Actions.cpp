@@ -85,8 +85,10 @@ Status shape(const ActionContext& c, uint64_t now) {
           (c.commandCursor == 2 && !c.coordinatesInvalidated))) ||
         (c.actionKind != ActionKind::SET_DEVICE_POSITION && c.coordinatesInvalidated) ||
         (c.finalErrorRead && c.actionKind != ActionKind::CLEAR_ALARM) ||
-        (c.standstillObserving && (c.actionKind != ActionKind::STOP ||
-                                   c.kind != StopKind::QUICK_STOP || c.stopModeRaw != 1)) ||
+        (c.standstillObserving &&
+         (c.actionKind != ActionKind::STOP || c.kind != StopKind::QUICK_STOP ||
+          (c.stopModeRaw != 1 &&
+           (c.stopModeRaw != 3 || (c.predecessorWord != 0x000f && c.predecessorWord != 0x010f))))) ||
         c.valueOneMayRemain != (c.state == ActionState::FAILED && oneMayRemain(c)))
         return error(ActionError::STATE, "invalid action context or time");
     if (c.phase != ActionPhase::COMMAND && c.phase != ActionPhase::TARGETS &&
@@ -324,6 +326,8 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     const bool previousFeedback = c.standstillObserving && c.extraObservation.fieldCount != 0;
     const int32_t previousPosition = c.extraObservation.actualPosition;
     const int32_t previousVelocity = c.extraObservation.actualVelocity;
+    // In mode 3 both compared cycles must report the release; read before this cycle replaces it.
+    const bool previousReleased = previousFeedback && (c.monitorObservation.monitor & MONITOR_RELEASED);
     if (!cycleBlock(c, StateBlock::STATUS, target, now, lastCommandUs) ||
         !cycleBlock(c, StateBlock::MONITORS, target, now, lastCommandUs) ||
         (feedback && !cycleBlock(c, StateBlock::FEEDBACK, target, now, lastCommandUs))) {
@@ -348,20 +352,33 @@ void finishCycle(ActionContext& c, uint64_t now, bool anotherStepAvailable) {
     bool wantStandstill = false;
     switch (c.actionKind) {
     case ActionKind::STOP: {
-        // The one measured release: on both specimens, 000B from 000F and from 010F left 2100
+        // The measured release in mode 1: on both specimens, 000B from 000F and from 010F left 2100
         // released with 6041 low bits 000 (2026-11-03). A HALT holds torque, so a release stays
         // outside its scope. The release itself stays in monitorObservation for the caller.
         const bool released = (monitor & MONITOR_RELEASED) != 0;
         const bool lowZero = (c.statusObservation.statusword & STATUS_LOW_BITS) == 0;
-        outsideScope |= alarm ||
-                        (released && (c.stopModeRaw != 1 || c.kind != StopKind::QUICK_STOP || !lowZero));
+        // Mode 3 (backlog S18): a QUICK_STOP prepared with standstillObserving, which only one that
+        // followed a running report gets. Measured on both specimens, one firmware: 28 ms after 000B
+        // from a running run, 2100=0014 and 6041=C050 in mode 3 (trial 1513, node 2, 30 rpm; 1607,
+        // node 1, 60 rpm), and later 2100=0015, 6041=C050, 606C 0 and 6064 still (reads 1514, 1608).
+        const bool releaseScope = c.kind == StopKind::QUICK_STOP &&
+                                  (c.stopModeRaw == 1 || (c.stopModeRaw == 3 && c.standstillObserving));
+        outsideScope |= alarm || (released && (!releaseScope || !lowZero));
         // After 000B during a move the same release kept running set (standstillObserving). Two
         // cycles in a row must each read 606C zero, with 6064 unchanged between them.
         const bool latched = c.stopModeRaw == 1 && c.kind == StopKind::QUICK_STOP && running &&
                              released && lowZero;
-        done = !running || (latched && feedback && previousFeedback && previousVelocity == 0 &&
-                            c.extraObservation.actualVelocity == 0 &&
-                            c.extraObservation.actualPosition == previousPosition);
+        const bool still = feedback && previousFeedback && previousVelocity == 0 &&
+                           c.extraObservation.actualVelocity == 0 &&
+                           c.extraObservation.actualPosition == previousPosition;
+        done = !running || (latched && still);
+        // A mode 3 release never completes on one report, running set or clear: two released cycles in a
+        // row must show that standstill. After 010F (prepareHaltedVelocityQuickStop) the drive reported
+        // itself halted and idle before 000B, so a not-running report shows nothing; only the release does.
+        if (c.stopModeRaw == 3 && released)
+            done = previousReleased && still;
+        else if (c.stopModeRaw == 3 && c.standstillObserving && c.predecessorWord == 0x010f)
+            done = false;
         if (c.stopModeRaw == 6)
             done = !running && feedback && c.extraObservation.actualVelocity == 0;
         wantStandstill = latched && !c.standstillObserving && ageCoversCycle(c.options, 7);
@@ -442,6 +459,10 @@ void publishStop(ActionContext& output, const AxisReservation& r,
     output.deadlineUs = deadline;
     output.state = ActionState::ACTIVE;
     output.controlEvidence = control;
+    // Mode 3 is admitted only on a fresh running report after 000F (validateStop), so a later release
+    // at standstill shows that this 000B acted (S18). Escalation follows 010F, which no record covers.
+    output.standstillObserving = mode == 3 && kind == StopKind::QUICK_STOP &&
+                                 output.predecessorWord == 0x000f && ageCoversCycle(options, 7);
 }
 Status validateExplicit(const AxisReservation& r, const ReadContext& state, ActionKind kind,
                      uint32_t operation, uint64_t now, uint64_t deadline,
