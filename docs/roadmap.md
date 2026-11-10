@@ -103,7 +103,7 @@ blocked obligations under [COMMON](prompts/COMMON.md).
 | 36 | Homing | Partial: conditional methods 17/18/24/29, explicit mode6 enable/interrupt, six typed reads and checked reference publication. Firmware, switch, direction, offset and completion facts still need the [listed measurements](homing.md). |
 | 37 | Explicit discovery and binding | Complete: one implemented-profile inventory, checked probe, finite configured-target scans, passive observations and exact cached host selection. [Slot/timeout limits](commissioning.md); Q01/Q18/Q20 and physical evidence stay separate. |
 | 38 | Communication commissioning | 89 typed reads and conditional heartbeat workflow implemented; remaining node/route changes need Q16 firmware evidence. [Report](reports/prompt_38.md); no implicit persistence or guessed-route retry. |
-| 39 | Save/reset | Pending; no hidden persistence; retain uncertain effects |
+| 39 | Save/reset | Conditional one-attempt save/factory restore, raw 2300 read, independent reconciliation and three-field host re-application implemented. Q15 full effects/rearm/restart and hardware qualification remain pending; [report](reports/prompt_39.md). |
 | 40-42 | Strict CLI parser, typed device and motion routes | Pending; one shared app/inventory, exact units, cached versus refreshing routes and schema correlation |
 | 43-44 | Python session/parser and finite campaigns | Pending; offline/fake tests plus explicit connection and retained failure evidence; no uncertain-write replay |
 | 45-46 | Integrated faults and FieldCore-like/alternate-drive consumers | Pending; test real resumed settings/remap through owner and preserve framework independence |

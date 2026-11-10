@@ -1,7 +1,7 @@
 # Lichuan native driver settings
 
 The installed `MotorControlCAN::LICHUAN_C` API in
-`MotorControlCAN/profiles/lichuan_c/DriverSettings.h` implements three finite
+`MotorControlCAN/profiles/lichuan_c/DriverSettings.h` implements six finite
 typed driver **read** groups. The same `DriverContext` and lifecycle also serve
 four [I/O groups](io_settings.md) through checked `getIo` and five
 [control/tuning groups](tuning.md) through `getControl/getTuning`.
@@ -39,6 +39,15 @@ base-versus-maximum relationship is introduced here.
 
 ## Ordinary lifecycle
 
+`DriverGroup::PERSISTENCE` adds a separate one-field `2300:00` read owned by
+prompt 39. `getDriver` publishes its exact U16 in `persistenceRaw`; all values,
+including 0, 1, 2 and unknown codes, remain raw. The EDS lines 1310–1318 and
+EN86/ZH86 PDF page 18 agree on the U16 wire shape. Q20 stays open: this upload
+requires an exact one-use owner review even on a confirmed route and is outside
+the DEC-1 accepted list. Readback does not prove a completed save or factory
+restore, trigger rearm, restart behavior or persistence across a power cycle.
+The read lifecycle performs no write.
+
 `prepareDriverRead` copies the selected `DriverGroup` into a caller-owned
 `DriverContext`; `nextDriver` yields one owned upload, and `advanceDriver`
 consumes the actual owner's retained matching `SdoCompletion`. Inspect
@@ -63,7 +72,7 @@ Generic velocity and acceleration types retain their separate dimensions.
 
 The [compiled offline caller](../examples/driver_settings_preview/README.md)
 shows this lifecycle without CLI, controller or SDK. The registered
-`test/driver_settings_test.cpp` exercises all nine rows through a fake actual
+`test/driver_settings_test.cpp` exercises all seventeen driver rows through a fake actual
 service owner and checks negative/partial failure paths. Isolated installed and
 exported consumers use the same public API without ledger, Python, vendor PDFs,
 catalogue strings or CANopenNode. Intended CLI ownership is the future typed

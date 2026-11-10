@@ -16,8 +16,8 @@ This is documentary metadata in `MotorControlCAN::LICHUAN_C`. The EDS family has
 | Withheld declarations | 4 | Unresolved complete signed type, raw claims retained |
 | Excluded reserved entries | 4 | No descriptor or operation route |
 | Manual-only semantic items | 53 | Reviewed evidence, semantic functions pending |
-| Read shape descriptors | 191 | Prompt 19/20/21/22/35/36/38 source width/representation only; read effects remain unqualified |
-| Typed reads | 191 | Implemented scalar read rows; see separate read coverage, not whole-object support |
+| Read shape descriptors | 192 | Prompt 19/20/21/22/35/36/38/39 source width/representation only; read effects remain unqualified |
+| Typed reads | 192 | Implemented scalar read rows; see separate read coverage, not whole-object support |
 | Typed settings | 14 | Conditional scalar setting rows, not complete object permission; model/state scope below |
 | Actions | 0 | Assigned semantic prompts remain pending |
 | Workflows | 1 | Explicit typed heartbeat scope only; other workflow coverage stays in its owning report, never inferred from declarations |
@@ -312,7 +312,7 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | 0x2201:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2202:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 20 | 20 | yes/no/no/no | yes/yes/yes/no |
 | 0x2203:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 38 | 38 | yes/no/no/no | yes/yes/yes/no |
-| 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 39 | yes/no/no/no | not reported |
+| 0x2300:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 39 | 39 | yes/no/no/no | yes/yes/yes/no |
 | 0x2301:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 32 | yes/no/no/no | not reported |
 | 0x2302:00 | value | U16 / 2 / false | RW / RW | 1 / `null` (not stated) | resolved | 32 | 32 | yes/no/no/no | not reported |
 | 0x2400:00 | count | U16 / 2 / false | RO / RO | 0 / false | resolved | 21 | 21 | yes/no/no/no | yes/yes/yes/no |
@@ -3553,8 +3553,8 @@ Read ownership is separate from whole-object ownership. Only Prompt 19/20/21/22/
 | Conflicts | [] |
 | Owner prompt | 39 |
 | Read owner prompt | 39 |
-| Read representation | `null` (not stated) |
-| Read coverage D/I/H/Q | not reported |
+| Read representation | UNSIGNED |
+| Read coverage D/I/H/Q | yes/yes/yes/no |
 | Typed setting scope | `null` (not stated) |
 | Setting coverage D/I/H/Q | not reported |
 | Semantic coverage D/I/H/Q | yes/no/no/no |
@@ -6219,6 +6219,7 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "2300=2 explicit persistent action; SDO ACK does not prove durability.", "gate_ids": ["Q01", "Q15"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 39 implements conditional prepareSave/prepareFactoryRestore, one U16 2300 write, retained native outcome/uncertainty and explicit verifyPersistence using independent current-route typed reads. No automatic retry, zero rearm, restart, guessed defaults or rollback. Application ConfigurationRestore re-applies only recorded 6081/6083/6084 via the existing Settings engine. See docs/commissioning.md and test/persistence_test.cpp. Full saved set, restart/rearm, flash completion/endurance, factory effects and physical qualification remain Q15; whole-function coverage is not claimed. |
 
 ### restore_factory_parameters
 
@@ -6236,6 +6237,7 @@ Source-reviewed manual items retain their documentary claims and explicit implem
 | disposition | reviewed |
 | coverage | {"documented": true, "hardware_qualified": false, "host_tested": false, "implemented": false} |
 | review | {"decision": "2300=1 explicit factory reset; no implicit save/restart.", "gate_ids": ["Q01", "Q15"], "status": "complete", "write_policy": "qualification_required"} |
+| implementation_scope | Prompt 39 implements conditional prepareSave/prepareFactoryRestore, one U16 2300 write, retained native outcome/uncertainty and explicit verifyPersistence using independent current-route typed reads. No automatic retry, zero rearm, restart, guessed defaults or rollback. Application ConfigurationRestore re-applies only recorded 6081/6083/6084 via the existing Settings engine. See docs/commissioning.md and test/persistence_test.cpp. Full saved set, restart/rearm, flash completion/endurance, factory effects and physical qualification remain Q15; whole-function coverage is not claimed. |
 
 ### fault_reset_controlword
 

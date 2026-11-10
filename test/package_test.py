@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 HEADERS = {"MotorControlCAN/profiles/lichuan_c/Communication.h", "MotorControlCAN/Discovery.h", "MotorControlCAN/Status.h", "MotorControlCAN/Axis.h", "MotorControlCAN/Units.h", "MotorControlCAN/Endpoint.h",
            "MotorControlCAN/ActionOperation.h", "MotorControlCAN/MoveOperation.h", "MotorControlCAN/VelocityOperation.h", "MotorControlCAN/HomeOperation.h", "MotorControlCAN/profiles/lichuan_c/Actions.h",
            "MotorControlCAN/profiles/lichuan_c/Position.h", "MotorControlCAN/profiles/lichuan_c/Velocity.h", "MotorControlCAN/profiles/lichuan_c/Homing.h",
-           "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h",
+           "MotorControlCAN/profiles/lichuan_c/PdoConfiguration.h", "MotorControlCAN/profiles/lichuan_c/Persistence.h",
            "MotorControlCAN/can/Frame.h", "MotorControlCAN/canopen/Sdo.h",
            "MotorControlCAN/canopen/SdoTransfer.h", "MotorControlCAN/canopen/Network.h", "MotorControlCAN/Version.h",
            "MotorControlCAN/MotorControlCAN.h",
@@ -95,7 +95,7 @@ def check_package(args, work, summary):
     source = work / "exported source"
     expected = {"include/" + h for h in HEADERS} | {
         "src/profiles/lichuan_c/Communication.cpp", "src/profiles/lichuan_c/HeartbeatCommunication.cpp",
-        "src/profiles/lichuan_c/PdoConfiguration.cpp",
+        "src/profiles/lichuan_c/PdoConfiguration.cpp", "src/profiles/lichuan_c/Persistence.cpp",
         "src/canopen/SdoEvidence.h", "src/profiles/lichuan_c/ProfileEvidence.h", "src/profiles/lichuan_c/ReadPlan.h",
         "src/profiles/lichuan_c/DriverReads.cpp", "src/profiles/lichuan_c/Tuning.cpp",
         "src/ExactArithmetic.h", "src/canopen/PdoState.cpp",
@@ -157,7 +157,8 @@ def check_package(args, work, summary):
     copied = {
         "owner": ("adapters/owner", ["CanBusTypes.h", "CanBusOwner.h", "CanBusOwner.cpp", "CanBusDiagnostics.cpp", "OwnerCounters.h"]),
         "common": ("examples/common", ["AxisSession.h", "AxisSession.cpp", "ProbeApp.h", "ProbeApp.cpp", "ProbePlatform.h", "ProbePlatform.cpp",
-                    "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp"]),
+                    "DeviceEvidence.h", "DeviceEvidence.cpp", "DiscoveryScan.h", "DiscoveryScan.cpp",
+                    "ConfigurationRestore.h", "ConfigurationRestore.cpp"]),
         "native": ("examples/native_probe", ["FakeTransport.h", "FakeTransport.cpp", "main.cpp"]),
         "evidence": ("examples/device_evidence", ["main.cpp"]),
         "discovery": ("examples/discovery_preview", ["main.cpp"]),
@@ -188,7 +189,7 @@ target_link_libraries(adapter PUBLIC MotorControlCAN::MotorControlCAN stack)
 add_library(owner STATIC owner/CanBusOwner.cpp owner/CanBusDiagnostics.cpp)
 target_include_directories(owner PUBLIC owner)
 target_link_libraries(owner PUBLIC adapter)
-add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp)
+add_library(app STATIC common/AxisSession.cpp common/ProbeApp.cpp common/ProbePlatform.cpp common/DeviceEvidence.cpp common/DiscoveryScan.cpp common/ConfigurationRestore.cpp)
 target_include_directories(app PUBLIC common)
 target_link_libraries(app PUBLIC owner)
 add_executable(native_probe native/main.cpp native/FakeTransport.cpp)

@@ -43,7 +43,8 @@ enum class ReadKind : uint8_t {
     RPDO_COMMUNICATION,       ///< Six raw 1400..1403 fields; explicit pdoNumber selects one record.
     TPDO_COMMUNICATION,       ///< Six raw 1800..1803 fields, not confirmed live routing.
     RPDO_MAPPING,             ///< Five raw 1600..1603 fields, including all inactive slots.
-    TPDO_MAPPING              ///< Five raw 1A00..1A03 fields, not qualified map/sample evidence.
+    TPDO_MAPPING,             ///< Five raw 1A00..1A03 fields, not qualified map/sample evidence.
+    PERSISTENCE               ///< One raw 2300 U16 action word; exact one-use upload review required.
 };
 /** Independent state blocks, each with at most five source fields. */
 enum class StateBlock : uint8_t {

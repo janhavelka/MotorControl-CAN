@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Conditional persistence workflows (prompt 39, 2026-11-10)
+
+- Added distinct typed save and factory-restore contexts: one explicit `2300`
+  write, retained uncertain effects, fixed deadlines, no retry or hidden rearm.
+- Added separately reviewed raw U16 `2300` acquisition and explicit readback
+  reconciliation. Protocol success does not prove durable flash; independently
+  evidenced power-cycle readback records only the three observed matching fields.
+- Added application capture/re-application of recorded `6081/6083/6084` using the
+  existing settings lifecycle, preserving the original record and partial failures.
+  No rollback, guessed defaults or implicit persistence is provided.
+- Added native owner/consumer coverage and commissioning guidance. Firmware
+  saved scope, restart/rearm, factory effects and physical qualification stay open.
+
 ### Bench round 10 on `b3994b9`: negative position moves on powered drives (2026-11-10)
 
 - Node 1, no power cycle: the released 3-to-1 mode change and the recorded-stop enable worked (re-energize pull +1 count); relative -2000 at 30 rpm `SUCCEEDED`, absolute -1000 at 60 rpm exact, HALT and quick stop while moving negative completed, and a rearm after the HALT did not resume the target (as on node 2). `606C` read -30 and -60 while moving negative (signed); the rate factor is 0.992 in both directions. Negative velocity stays excluded. [Report](docs/reports/2026-11-10_bench_r10.md).

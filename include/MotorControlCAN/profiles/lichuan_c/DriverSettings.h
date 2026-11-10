@@ -25,7 +25,8 @@ enum class DriverGroup : uint8_t {
     TUNING_LOOP_GAINS,       ///< 250E..2519; use Tuning.h and getTuning.
     TUNING_EDS_GAINS,        ///< 251A..2520 raw words; no interpreted gain contract.
     VELOCITY_TARGET, ///< 60FF raw target word; EDS I32 rpm view, not qualified signed motion.
-    HOMING           ///< 607C,6098,6099:00..02,609A raw readback; no home/reference evidence.
+    HOMING,          ///< 607C,6098,6099:00..02,609A raw readback; no home/reference evidence.
+    PERSISTENCE      ///< 2300 raw action word; no durable-completion or rearm evidence.
 };
 /** Concrete caller-owned group lifecycle; terminal history survives until reuse. */
 struct DriverContext {
@@ -59,6 +60,7 @@ struct DriverObservation {
     uint32_t homeSearchSpeedRpm = 0; ///< HOMING: 6099:01 native U32 rpm, not permission to move.
     uint32_t homeCreepSpeedRpm = 0;  ///< HOMING: 6099:02 U32 rpm; table's "time" is editorial.
     uint32_t homeRampTimeMs = 0;     ///< HOMING: 609A U32 ms, zero/effect unqualified.
+    uint16_t persistenceRaw = 0;     ///< PERSISTENCE: 2300 U16, never proof of a completed save/reset.
     bool interpreted = false;        ///< Remains false; no scale/state/enforcement qualification.
     uint8_t fieldCount = 0;          ///< 1..6 fields in source order for the selected driver group.
     ReadProvenance fields[6];        ///< Owned per-object provenance, not an atomic snapshot.
@@ -73,8 +75,10 @@ struct DriverObservation {
  * @param[in] options Nonzero queue/response budgets, clamped by the owner. identityWidths stays
  * DECLARED_U16; countWidths may be MEASURED_U16 for SOFT_LIMITS and IO_OUTPUT_COMMAND only.
  * @param[in] group One declared finite native group; no 6060 upload or catalogue sweep.
- * VELOCITY_TARGET and HOMING are outside DEC-1 and remain UNQUALIFIED/Q20: request only as an
- * explicitly reviewed acquisition, not ordinary polling or an enable-prerequisite exemption.
+ * VELOCITY_TARGET, HOMING and PERSISTENCE are outside DEC-1 and remain UNQUALIFIED/Q20:
+ * request only as an explicitly reviewed acquisition, not ordinary polling or an
+ * enable-prerequisite exemption.
+ * PERSISTENCE requires the owner's exact one-use upload review even on a confirmed route.
  * @return OK prepares owned work only; errors preserve output with ReadError detail.
  */
 Status prepareDriverRead(DriverContext& output, const ReadTarget& target, uint32_t operation,

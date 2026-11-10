@@ -1,5 +1,13 @@
 # Live source and responsibility map
 
+## Persistence (prompt 39)
+
+| Responsibility | Declaration / implementation | Actual caller / test | Boundary |
+| --- | --- | --- | --- |
+| Save/factory intent and reconciliation | [Persistence.h](../include/MotorControlCAN/profiles/lichuan_c/Persistence.h), [Persistence.cpp](../src/profiles/lichuan_c/Persistence.cpp) | [Owner and lifecycle tests](../test/persistence_test.cpp), installed consumer | One U16 write, immutable terminal, separate fresh observations and per-field survival; no restart API |
+| Raw 2300 read | DriverSettings/Reads, DriverReads; reviewed ledger | [Driver tests](../test/driver_settings_test.cpp) | Exact U16, one-use Q20 review; no read-effect or durability inference |
+| Recorded host re-application | [ConfigurationRestore.h](../examples/common/ConfigurationRestore.h), matching source | [Restore tests](../test/configuration_restore_test.cpp) | Original provenance plus existing three-field Settings engine; partial writes, no rollback or save |
+
 ## Communication commissioning (prompt 38)
 
 | Responsibility | Declaration / implementation | Actual caller / test | Boundary |

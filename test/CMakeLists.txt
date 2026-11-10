@@ -557,6 +557,18 @@ strict_test(heartbeat_communication_test)
 add_test(NAME heartbeat_communication COMMAND heartbeat_communication_test)
 set_tests_properties(heartbeat_communication PROPERTIES TIMEOUT 30)
 
+add_executable(persistence_test persistence_test.cpp)
+target_link_libraries(persistence_test PRIVATE MotorControlCAN::CanBusOwner)
+strict_test(persistence_test)
+add_test(NAME persistence COMMAND persistence_test)
+set_tests_properties(persistence PROPERTIES TIMEOUT 30)
+
+add_executable(configuration_restore_test configuration_restore_test.cpp)
+target_link_libraries(configuration_restore_test PRIVATE MotorControlCANProbeApp)
+strict_test(configuration_restore_test)
+add_test(NAME configuration_restore COMMAND configuration_restore_test)
+set_tests_properties(configuration_restore PROPERTIES TIMEOUT 30)
+
 add_executable(discovery_scan_test discovery_scan_test.cpp)
 target_link_libraries(discovery_scan_test PRIVATE MotorControlCANProbeApp)
 strict_test(discovery_scan_test)

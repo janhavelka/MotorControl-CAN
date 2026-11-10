@@ -42,11 +42,17 @@ const Field velocity[] = {{0x60ff, 0, 4, 0xfffffff4}};
 const Field homing[] = {{0x607c, 0, 4, 0x80000000}, {0x6098, 0, 1, 0xff},
                         {0x6099, 0, 1, 0},          {0x6099, 1, 4, 3001},
                         {0x6099, 2, 4, 0xffffffff}, {0x609a, 0, 4, 2001}};
-const Field* const rows[] = {driver, limits, motion, velocity, homing};
-const unsigned counts[] = {2, 4, 3, 1, 6};
+const Field persistence[] = {{0x2300, 0, 2, 0xffff}};
+const Field* const rows[] = {driver, limits, motion, velocity, homing, persistence};
+const unsigned counts[] = {2, 4, 3, 1, 6, 1};
 const L::DriverGroup groups[] = {L::DriverGroup::DRIVER, L::DriverGroup::SOFT_LIMITS,
                                  L::DriverGroup::MOTION_PARAMETERS, L::DriverGroup::VELOCITY_TARGET,
-                                 L::DriverGroup::HOMING};
+                                 L::DriverGroup::HOMING, L::DriverGroup::PERSISTENCE};
+static_assert(static_cast<unsigned>(L::DriverGroup::HOMING) == 13 &&
+                  static_cast<unsigned>(L::DriverGroup::PERSISTENCE) == 14 &&
+                  static_cast<unsigned>(L::ReadKind::TPDO_MAPPING) == 22 &&
+                  static_cast<unsigned>(L::ReadKind::PERSISTENCE) == 23,
+              "new native groups preserve the existing enum identities");
 L::ReadTarget target() {
     L::ReadTarget t;
     t.channel.binding.logicalAxisId = 17;
@@ -125,6 +131,11 @@ C::SdoRequestId transmit(C::SdoClient& owner, const L::DriverContext& c, const F
     const L::PreparedRead repeated = next(c, now);
     CHECK(repeated.transfer.step == p.transfer.step);
     C::SdoRequestId id;
+    if (f.index == 0x2300) {
+        CHECK(p.transfer.requireUploadReview);
+        CHECK(!owner.admit(0, p.transfer, now, id));
+        CHECK(owner.authorizeUploadExperiment(0, p.transfer, 11, 1, now));
+    }
     CHECK(owner.admit(0, p.transfer, now, id));
     CHECK(owner.service(now));
     M::Frame tx;
@@ -140,7 +151,7 @@ C::SdoRequestId transmit(C::SdoClient& owner, const L::DriverContext& c, const F
 }
 void realOwnerGroups() {
     unsigned seen = 0;
-    for (unsigned g = 0; g < 5; ++g) {
+    for (unsigned g = 0; g < 6; ++g) {
         C::SdoClient owner;
         configure(owner);
         L::DriverContext c = prepared(g);
@@ -193,16 +204,79 @@ void realOwnerGroups() {
         else if (g == 3)
             CHECK(o.velocityTargetRpm == -12 && !o.interpreted &&
                   c.read.values[0].object.representation == L::ReadRepresentation::RAW);
-        else
+        else if (g == 4)
             CHECK(o.homeOffsetRaw == INT32_MIN && o.homeMethodRaw == 255 &&
                   o.homeSpeedEntries == 0 && o.homeSearchSpeedRpm == 3001 &&
                   o.homeCreepSpeedRpm == UINT32_MAX && o.homeRampTimeMs == 2001 && !o.interpreted);
+        else
+            CHECK(o.persistenceRaw == UINT16_MAX && !o.interpreted);
         L::PreparedRead done;
         done.ready = true;
         done.transfer.index = 0xbeef;
         CHECK(L::nextDriver(c, 12, done) && !done.ready && done.transfer.index == 0xbeef);
     }
-    CHECK(seen == 16);
+    CHECK(seen == 17);
+}
+void persistenceRead() {
+    {
+        L::DriverContext c = prepared(5);
+        const Saved<L::DriverContext> before(c);
+        for (unsigned choice = 0; choice < 3; ++choice) {
+            L::ReadOptions bad = options();
+            if (choice == 0)
+                bad.countWidths = L::CountWidths::MEASURED_U16;
+            else if (choice == 1)
+                bad.identityWidths = L::IdentityWidths::MEASURED_U8;
+            else
+                bad.pdoNumber = 1;
+            CHECK(!L::prepareDriverRead(c, target(), 19, 0, 1000, bad,
+                                       L::DriverGroup::PERSISTENCE));
+            before.unchanged(c);
+        }
+    }
+    // A raw action word is neither durable-completion nor trigger-rearm evidence.
+    for (uint32_t raw : {0u, 1u, 2u, 3u, 0x8000u, 0xffffu}) {
+        L::DriverContext c = prepared(5);
+        CHECK(c.read.kind == L::ReadKind::PERSISTENCE && c.read.count == 1);
+        const L::PreparedRead p = next(c, 0);
+        CHECK(p.transfer.index == 0x2300 && p.transfer.subindex == 0 && p.transfer.size == 2 &&
+              p.transfer.readEffect == C::SdoReadEffect::UNQUALIFIED &&
+              p.transfer.requireUploadReview);
+        const Saved<L::DriverContext> before(c);
+        for (unsigned width : {1u, 4u}) {
+            C::SdoCompletion wrong = success(c, raw, 0, 1);
+            wrong.size = uint8_t(width);
+            CHECK(!L::advanceDriver(c, wrong, 1));
+            before.unchanged(c);
+        }
+        C::SdoCompletion wrong = success(c, raw, 0, 1);
+        wrong.transfer.requireUploadReview = false;
+        CHECK(!L::advanceDriver(c, wrong, 1));
+        before.unchanged(c);
+        accept(c, raw, 1);
+        L::DriverObservation o;
+        CHECK(L::getDriver(c, target(), 1, 1, o));
+        CHECK(o.group == L::DriverGroup::PERSISTENCE && o.fieldCount == 1 &&
+              o.persistenceRaw == raw && !o.interpreted && o.fields[0].index == 0x2300);
+    }
+    for (bool confirmed : {false, true}) {
+        C::SdoClient owner;
+        CHECK(owner.configure(0, target().channel, confirmed, true));
+        C::NetworkRoute route;
+        route.binding = target().channel.binding;
+        route.generation = 11;
+        route.heartbeatId = 0x705;
+        route.emcyId = 0x85;
+        CHECK(owner.configureNetwork(0, route, C::NetworkObserver(), 0));
+        L::DriverContext c = prepared(5);
+        const L::PreparedRead p = next(c, 0);
+        C::SdoRequestId id;
+        CHECK(!owner.admit(0, p.transfer, 0, id));
+        C::SdoTransfer different = p.transfer;
+        different.subindex = 1;
+        CHECK(owner.authorizeUploadExperiment(0, different, 11, 1, 0));
+        CHECK(!owner.admit(0, p.transfer, 0, id));
+    }
 }
 void velocityTargetRead() {
     // The raw four-byte shape does not close signedness or read-effect gates.
@@ -316,7 +390,7 @@ void homingRead() {
     CHECK(!owner.admit(0, next(c, 0).transfer, 0, id));
 }
 void admissionAndPublication() {
-    for (unsigned g : {0u, 1u, 2u, 4u}) {
+    for (unsigned g : {0u, 1u, 2u, 4u, 5u}) {
         L::DriverContext c = prepared(g);
         const Saved<L::DriverContext> initial(c);
         for (unsigned bad = 0; bad < 8; ++bad) {
@@ -520,7 +594,7 @@ void partialFailures() {
         C::SdoOutcome::SERVER_ABORT, C::SdoOutcome::TIMEOUT, C::SdoOutcome::TRANSPORT_ERROR,
         C::SdoOutcome::REBOOT,       C::SdoOutcome::BUS_OFF, C::SdoOutcome::BINDING_INVALIDATED,
         C::SdoOutcome::CANCELLED};
-    for (unsigned g : {0u, 1u, 2u, 4u})
+    for (unsigned g : {0u, 1u, 2u, 4u, 5u})
         for (unsigned fail = 0; fail < counts[g]; ++fail)
             for (C::SdoOutcome failure : failures) {
                 L::DriverContext c = prepared(g);
@@ -552,7 +626,7 @@ void partialFailures() {
                 CHECK(!L::getDriver(c, target(), 20, 100, o));
                 prior.unchanged(o);
             }
-    for (unsigned g : {0u, 1u, 2u, 4u})
+    for (unsigned g : {0u, 1u, 2u, 4u, 5u})
         for (unsigned fail = 0; fail < counts[g]; ++fail) {
             C::SdoClient owner;
             configure(owner);
@@ -648,6 +722,7 @@ void rawDomainsAndTime() {
 } // namespace
 int main() {
     realOwnerGroups();
+    persistenceRead();
     velocityTargetRead();
     homingRead();
     admissionAndPublication();

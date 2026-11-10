@@ -1,4 +1,47 @@
-# Discovery and host binding
+# Commissioning, discovery and explicit persistence
+
+## Commissioning order
+
+1. Record the actual drive and motor labels, specimen identifiers, applicable
+   manual/EDS revisions and raw model/firmware identity. The retained manuals
+   do not identify their applicable firmware. A generic identity match does
+   not resolve that gap. Preserve the original record when later observations
+   differ; include the interface, node, bitrate, SDO routes, binding epochs,
+   acquisition times and source/procedure records.
+2. Establish the actual supply, transceiver, controller pins, CAN_H/CAN_L and
+   reference connection, bus topology and end termination. Use the drive
+   nameplate and applicable manufacturer confirmation for supply selection.
+   The conflicting documentary ranges and the actual fixture are recorded in
+   [the bench guide](hardware_bench.md#documentary-wiring-facts-not-fixture-settings).
+   RS bench wiring and product listing titles supply none of these facts.
+3. Treat every drive power-up or restart as a possible torque-state change.
+   Record independent shaft/torque observation and fresh `2100:00` and
+   `6041:00` before a command. A previous boot's observation, firmware upload,
+   controller restart or communication-ready label is insufficient. Observe
+   the I/O signals the chosen operation needs; an unconnected terminal can
+   still have a configured limit, origin, stop or enable function.
+4. Configure one application owner for the actual interface and explicit
+   routes, then select the host binding. Perform only the requested probe,
+   identity, state and configuration acquisitions below, preserving raw values
+   and Q20 upload review. Selection and discovery make no device changes.
+5. Review a complete, bounded candidate against the fresh observations and
+   the selected firmware's evidence. Make each configuration change explicitly
+   through its supported typed path. Inspect the retained service outcome and
+   fresh readback independently. Do not enable, clear a fault, start/reset NMT,
+   change I/O or save parameters merely to obtain a convenient starting state.
+6. Save parameters, restore factory settings or re-apply recorded configuration
+   only as a separately selected intent. Retire affected queued work through
+   the existing owner evidence path; invalidate dependent maps, references and
+   prepared work before publishing a new configuration. Recovery never resumes
+   old motion or re-enables the drive.
+
+The OP86 file's PDF p5 says the motor locks on power-up, but that page's body
+identifies CL57-C/OL57-C; applicability to CL86-C is unconfirmed. Its p9 describes
+enabling after controlwords 6, 7 and 15. Neither statement proves the current
+boot's physical state. Actual fixture observations remain scoped to their
+specimens and sessions in [the bench guide](hardware_bench.md#actual-fixture-record).
+
+## Discovery and host binding
 
 ## Slot and timeout design (prompt 37, before implementation)
 
@@ -287,3 +330,126 @@ The native suites replay these captures value for value: `communication_bench`
 replayed by `discovery_bench` (`replayDiscovery20261109`): passive found nothing at
 producer 0, the probe found both nodes, identity matched the retained 2026-11-04
 identity on both, and selection sent nothing.
+
+## Save parameters, restore factory settings and re-apply recorded configuration
+
+These are three separate intents. The original EN86/ZH86 PDF p15 and p18,
+EDS `[2300]` and their applicability limits are recorded in
+[the object facts](audit/LICHUAN_OBJECT_FACTS.md#node-setup-electrical-facts-and-persistence-prompts-37-39-47).
+The [public example](audit/LICHUAN_PUBLIC_IMPLEMENTATIONS.md) saves after zeroing;
+this library keeps reference/fault actions separate from persistence.
+
+| Intent | Public path and wire effect | What success establishes |
+| --- | --- | --- |
+| Save parameters | `prepareSave`, then one `2300:00` U16 download of 2 | Checked SDO acknowledgement only; flash completion and durability are separate unknowns |
+| Restore factory settings | `prepareFactoryRestore`, then one `2300:00` U16 download of 1 | Checked SDO acknowledgement only; no known complete defaults, activation timing or post-change route |
+| Re-apply recorded configuration | Explicit validated host settings writes from the retained record | Only the acknowledged/read-back fields of that sequence; partial failure remains possible |
+| Inspect action word | `prepareDriverRead` with `DriverGroup::PERSISTENCE`, `nextDriver`, `advanceDriver`, `getDriver` | Raw U16 `persistenceRaw`; no flash-busy, completion or rearm interpretation |
+
+`2300` is vendor-specific. It is NanoJ Control on Nanotec N5; maxon EPOS4
+rel13740 instead documents `1010/1011` save/load signatures. Those objects are
+absent in the Lichuan EDS. Neither manufacturer's command, timing, restore
+precondition or reset semantics applies here.
+
+### One explicit persistence attempt
+
+Use [Persistence.h](../include/MotorControlCAN/profiles/lichuan_c/Persistence.h)
+with the ordinary owner. Acquire continuous axis exclusion before acquiring
+the fresh identity, STATUS/MONITORS and `MOTION_PARAMETERS` prerequisites.
+Supply actual model/firmware, fixture, procedure and authorization records,
+finite queue/response budgets, age limit, immutable deadline and a nonzero
+application-maintained attempt ordinal. These are host admission requirements,
+not vendor guarantees of physical standstill or device timing. Factory restore
+also needs an external complete backup and an evidenced recommissioning-route
+plan; the three motion fields in this context are not that backup.
+
+`nextPersistence` yields one command. Immediately before possible handoff,
+withdraw dependent producer/map/reference/prepared-work confidence and call
+`notePersistenceTransmission` against the actual binding. Deliver the exact
+retained native terminal through `advancePersistence`. Keep queued/native work
+until its established retirement boundary; releasing a result or incrementing
+a host epoch does not prove retirement. Count every possible save attempt,
+including an unconfirmed one. No command writes zero afterward, saves twice,
+resets NMT, enables or produces a hidden verification read.
+
+`restart`, `rearm` and `completeSavedSet` retain `UNKNOWN`. Homing speed,
+ramps and homing mode are the manual's non-exhaustive saved-field examples;
+whether `1017`, `2203` or PDO maps are saved is undocumented. Flash time,
+endurance, reply ordering and reset activation are unknown. The SDO deadline
+is caller policy, not a flash-completion bound. The manuals document no vendor
+restart command; their alarm restart wording is undefined. Here restart means
+a user drive power cycle or a separately gated NMT service with unknown
+parameter-reload effects. An MCU reboot is neither.
+
+The raw action-word read is outside DEC-1. Even on an established channel it
+requires the owner's exact one-use reviewed upload grant. Reading zero, one
+or two does not confirm the requested action, establish flash completion or
+authorize replay.
+
+### Reconcile without replacing the original outcome
+
+A timeout, cancellation or transport failure after possible transmission can
+leave a save or factory restore applied. Preserve the original outcome, native
+error, possible effect, attempt count and channel quarantine. Do not retry the
+command, try a guessed route or declare a reset because the reply vanished.
+Reopening a channel requires the existing owner/Q18 retirement evidence.
+
+Acquire independent identity, state and motion-parameter reads through the
+ordinary current-route owner path. `verifyPersistence` checks their provenance,
+same specimen/model/firmware, route record, timing and current epochs. Keep the
+original `before` record, with its original identity/route/times, and distinguish
+the desired record from current observed fields and inferred persistent state.
+Live matching values establish only current readback. A separately evidenced
+actual drive power cycle followed by matching fresh reads can record survival
+of `6081`, `6083` and `6084` individually for SAVE. This additionally requires
+the recorded post-cycle route/epochs to remain unchanged and independent evidence
+excluding intervening configuration writes by every producer. A re-applied value
+does not establish survival; a quiet bus or local epoch alone cannot supply this
+external fact. That observation does not
+prove that this save caused survival, cover any other parameter or clear an
+earlier unknown execution. Factory restore never guesses defaults from EDS
+metadata or claims that unchanged fields prove restoration.
+
+For example, a lost save reply followed by matching reads remains an uncertain
+save with current matching fields. A power-cycle readback with `6081` matching
+and `6083` changed records survival only for matching fields; it does not mark
+the full configuration persistent. A factory-restore timeout followed by silence
+requires the reviewed route-back procedure and fresh observation; silence proves
+neither reset nor success. None of these paths re-enables or resumes old motion.
+
+### Re-apply a partial recorded configuration
+
+The supported host re-application is limited to the recorded position motion
+parameters `6081` profile velocity, `6083` acceleration time and `6084`
+deceleration time. It reuses the existing typed `DriverSettings` path and its
+fresh state, firmware and generation checks. The original record retains
+model/firmware, fixture, route and acquisition provenance. Validate the whole
+candidate before any download; a record is not permission to bypass current
+edit-state prerequisites. Other settings need their own existing typed APIs
+and evidence, independently requested.
+
+If `6081` is acknowledged and `6083` aborts or times out, retain the completed
+prefix and exact failing step. Do not send `6084`, reverse `6081`, auto-retry
+`6083` or save the partial result. Reconcile current values explicitly and
+choose any later write as a new reviewed intent. Re-application promises no
+transaction, rollback, complete configuration restoration or durability.
+
+`MotorControlCANExample::captureConfiguration` records the checked identity,
+model, fixture/firmware, timestamps and three fields in `ConfigurationRecord`.
+`prepareConfigurationRestore` requires an exact current-route review and fresh
+identity/edit-state evidence, then prepares the nested `settings` context.
+Use the ordinary `nextDriver`/`noteDriverTransmission`/`advanceDriver` path on
+that context, including the owner handoff guard and post-retirement epoch change.
+No second executor or receiver is involved. These application helpers live in
+`examples/common/ConfigurationRestore.h`; they are outside the installed core.
+
+Keep these caller-owned contexts in long-lived application storage. The pinned
+S2/S3 compiler measures `PersistenceContext` at 5496 bytes and
+`ConfigurationRestoreContext` at 4768 bytes; borrowed prerequisite/read contexts
+are additional storage. The core uses bounded per-observation temporaries and
+no heap. The strict target stack gate passes at `-Os` and `-Og`; its incomplete
+call-chain bounds do not replace firmware task high-water measurements.
+
+Host tests and Doxygen validate the software contract. No save or factory-restore
+hardware qualification follows from them; actual firmware effects and complete
+backup/route-back facts remain separately required for a live procedure.

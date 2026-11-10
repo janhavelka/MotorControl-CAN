@@ -63,6 +63,8 @@ SDK_ONLY = {
     "examples/probe_idf/main/main.cpp": "includes FreeRTOS headers through EspProbeMain.h",
 }
 CONTEXT_TYPES = (
+    ("PersistenceContext", "MotorControlCAN/profiles/lichuan_c/Persistence.h", "MotorControlCAN::LICHUAN_C::PersistenceContext"),
+    ("ConfigurationRestoreContext", "ConfigurationRestore.h", "MotorControlCANExample::ConfigurationRestoreContext"),
     ("ActionContext", "MotorControlCAN/profiles/lichuan_c/Actions.h", "MotorControlCAN::LICHUAN_C::ActionContext"),
     ("ReadContext", "MotorControlCAN/profiles/lichuan_c/Reads.h", "MotorControlCAN::LICHUAN_C::ReadContext"),
     ("BestEffortStop", "MotorControlCAN/profiles/lichuan_c/Actions.h", "MotorControlCAN::LICHUAN_C::BestEffortStop"),
