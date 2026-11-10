@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Bench rounds 8 and 9 on `a3c5fa4` (2026-11-10)
+
+- Velocity at 30 and 60 rpm on both nodes, each ended by HALT on one node and by quick stop on the other. The enable report came in the same window cycle at every rate (+0.728 s); `6064` rose 0.992 times the commanded rate at 6, 30 and 60 rpm alike. HALT in mode 3: halted in place 4.04 s later, still enabled, 60 and 121 counts of travel; both HALT runs `SUCCEEDED`. Quick stop in mode 3, first measured: released with running latched 28 ms later, under about 10 ms of travel; the runs end `OBSERVATION_SCOPE` by the library's design (backlog S18). The enables' shaft basis was read from the drive's power-up report at the user's request, not felt. [Report](docs/reports/2026-11-10_bench_r8.md).
+
 ### Bench round 7 on `a3c5fa4` (2026-11-10)
 
 - S17 measured and the first complete velocity runs: on both nodes the mode 3 enable report came between 0.378 s and 0.728 s after word 15's acknowledgement; both ran at about 99 counts/s (5.95 rpm at 1000 counts per turn; `606C` read 5), counter-clockwise viewed facing the shaft end as the attendant watched, and both stopped with their own HALT at 1131 counts, reported halted (`9437`/`0001`). Node 2's run `SUCCEEDED` with no uncertainty; node 1's ended `DEADLINE` because its plan's 5000 ms interval left its stop one observation (procedure corrected to 4000/17000). The attendant described node 2 as "faster and quite sketchy" (not interpreted). [Report](docs/reports/2026-11-10_bench_r7.md).
