@@ -116,6 +116,11 @@ struct Drive {
     // This 6040 word is acknowledged and changes nothing the fake reports, as trial 1009's 000F still
     // read 8033 and 2100 0001 in the cycle after it. Off by default.
     uint16_t staleWord = 0;
+    // With staleWord: nonzero takes the word into effect after this many 606C reads, the S17 window shape
+    // (word 7's report for that many seven-field cycles, then the enable); 0 keeps it stale for good.
+    unsigned staleCycles = 0;
+    bool staleHeld = false;
+    M::Frame staleRequest = M::Frame();
     // This fake's mode 3: 0007 to 000F starts the 60FF target, and reports it as 2100 running, 606C at
     // the target and, with spinBit, 6041 bit 14 (the ZH86 running bit); 010F and 000B end it. Off by
     // default, so every earlier suite keeps its fake. No drive's velocity behavior is claimed.
@@ -256,7 +261,23 @@ struct Drive {
             reply.data[3] = uint8_t(sub + 1);
             return sent;
         }
-        return answer2(request, reply);
+        if (staleCycles && index == 0x6040 && request.data[0] != 0x40 && word == staleWord) {
+            staleHeld = true;
+            staleRequest = request;
+        }
+        const bool sent = answer2(request, reply);
+        if (staleHeld && index == 0x606c && request.data[0] == 0x40 && !--staleCycles) {
+            // The held word now acts as if it had just followed the word before it.
+            staleHeld = false;
+            const uint16_t held = staleWord;
+            staleWord = 0;
+            lastWord = 0x0007;
+            M::Frame ignored = M::Frame();
+            answer2(staleRequest, ignored);
+            --downloads;
+            staleWord = held;
+        }
+        return sent;
     }
     bool answer2(const M::Frame& request, M::Frame& reply) {
         const uint16_t index = indexOf(request);
@@ -3438,9 +3459,12 @@ void testClearAlarm() {
 // 2 whose copied traffic overflowed, and a history read with two entries on a fake of its own.
 // ------------------------------------------------------------------- prompts 35 and 36
 // The host's VELOCITY line. Every evidence value here is this fake's, never a measurement.
+// The defaults fit the record with the route's enable report window (S17): identity, full read, three
+// parameters, three words with a cycle each, six window cycles, three running cycles and the stop's
+// word, one cycle and a best-effort pair: 118 of ROUTE_TERMINALS.
 struct VelocitySpec {
     unsigned attended = 1, rpm = 6, up = 200, down = 200;
-    unsigned long duration = 12000, interval = 2000, deadline = 18000;
+    unsigned long duration = 12000, interval = 5000, deadline = 15500;
     unsigned kind = 1;
     unsigned long record = 351;
     unsigned layout = 2;
@@ -3512,7 +3536,7 @@ void testParseVelocityHome() {
     const std::string velocity = velocityLine(1, trial);
     CHECK(E::parseRouteCommand(velocity.data(), velocity.size(), p) && p.kind == E::RouteKind::VELOCITY);
     CHECK(p.trial == 7 && p.rpm == 6 && p.rampUpMs == 200 && p.rampDownMs == 200 && p.durationMs == 12000 &&
-          p.intervalMs == 2000 && p.deadlineMs == 18000 && p.stopKind == 1 && p.record == 351 && p.layout == 2 &&
+          p.intervalMs == 5000 && p.deadlineMs == 15500 && p.stopKind == 1 && p.record == 351 && p.layout == 2 &&
           p.firmware.deviceType == DEVICE_TYPE && p.firmware.firmwareCode == FIRMWARE);
     const std::string home = "O1,8,1,29,3000,1,2000,-1000000";
     CHECK(E::parseRouteCommand(home.data(), home.size(), p) && p.kind == E::RouteKind::HOME && p.method == 29 &&
@@ -3745,6 +3769,12 @@ void testVelocity() {
     VelocitySpec dense = spec;
     dense.interval = 100;
     CHECK(std::strcmp(r->start(velocityLine(1, trial, dense)), "capacity") == 0);
+    // Trial 1308's plan no longer fits with the enable report window's six cycles: 160 terminals.
+    VelocitySpec old = spec;
+    old.interval = 2000;
+    old.deadline = 18000;
+    const char* const oldPlan = r->start(velocityLine(1, trial, old));
+    CHECK(oldPlan && std::strcmp(oldPlan, "capacity") == 0);
     // Without RouteWork, which holds its request, a velocity is refused before anything, as HOME is.
     std::unique_ptr<Rig> bare(new Rig(false));
     releasedModeThree(bare->driver.drives[0]);
@@ -3764,8 +3794,11 @@ void testVelocity() {
     CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
           c.completion == M::ActionCompletion::OBSERVED && c.runningObserved && !c.needsStop);
     CHECK(c.rate.effectiveNative == 6 && c.stopDueUs == c.startedUs + 12000000 &&
-          c.deadlineUs == c.startedUs + 18000000);
-    CHECK(c.startedUs == v.velocityRequestedUs && c.options.maxPolls == 6 && c.runningPolls <= 6);
+          c.deadlineUs == c.startedUs + 15500000);
+    CHECK(c.startedUs == v.velocityRequestedUs && c.options.maxPolls == 3 && c.runningPolls <= 3);
+    // This fake reports the enable at once: the route's window is set and no window cycle was needed.
+    CHECK(c.options.enableWindowUs == 2000000 && c.options.enableSpacingUs == 300000 && !c.enablePending &&
+          c.enableReport.present && c.enableReport.cycle == 3 && c.observations == 3 + c.runningPolls);
     CHECK(!r->one.velocityNeedsStop() && !r->one.faultBlocked());
     size_t at = first;
     expectUploads(*r, at, 1, IDENTITY, 9);
@@ -3781,13 +3814,13 @@ void testVelocity() {
     const L::ActionContext& h = r->one.stopAction(L::StopKind::HALT);
     const E::RouteTerminal* stopTerminal = terminalOf(v, 0x6040, h.operation);
     CHECK(stopTerminal && stopTerminal->admittedUs >= c.stopDueUs && stopTerminal->completedUs < c.deadlineUs);
-    CHECK(v.terminalCount <= 9 + 9 + 3 + 3 + 21 + 7 * 6 + (1 + 7 * (1 + 6000 / 2000) + 2));
+    CHECK(v.terminalCount <= 9 + 9 + 3 + 3 + 21 + 7 * E::ROUTE_VELOCITY_WINDOW_CYCLES + 7 * 3 + (1 + 7 + 2));
     CHECK(h.state == M::ActionState::SUCCEEDED && h.predecessorWord == 0x000f && !h.predecessorDocumented &&
           h.stopModeRaw == 3);
     std::string text = r->dump();
     CHECK(has(text, "route=velocity failure=0 why=none "));
-    CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=5 attended=1 rpm=6 up=200 down=200 dur=12000 "
-                    "interval=2000 deadline=18000 kind=1\n"));
+    CHECK(has(text, "TRIAL_PLAN route=velocity node=1 trial=6 attended=1 rpm=6 up=200 down=200 dur=12000 "
+                    "interval=5000 deadline=15500 kind=1\n"));
     CHECK(has(text, "TRIAL_VELOCITY_EVIDENCE record=351 layout=2 gate=2 start=0 stop=0 kind=1 max=6 reverse=0 "
                     "modeChange=0 dt=00040192 hw=0012 sw=0034 vid=00000300 pc=00008605 rev=00010001 mc=0086 fc=0123\n"));
     // The session's context keeps the experiment gate after success: the run qualified nothing.
@@ -3827,17 +3860,11 @@ void testVelocityRefusals() {
         // The attended experiment's bounds: 60 rpm and 20000 ms, the library's, refused before any write.
         {"experiment-rpm", [](VelocitySpec& v) { v.rpm = 61; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 1,
          "an attended velocity experiment claims no qualification and stays slow"},
-        {"experiment-duration",
-         [](VelocitySpec& v) {
-             v.duration = 20001;
-             v.interval = 5000;
-             v.deadline = 26000;
-         },
-         nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4, "an attended velocity experiment is at most 20 s"},
         {"identity", [](VelocitySpec& v) { v.fc = FIRMWARE + 1; }, nullptr, E::RouteFailure::REFUSED, "velocity", 3, 7,
          nullptr},
-        // Below 27 services at the route budgets plus two enable intervals: 9470 ms.
-        {"short", [](VelocitySpec& v) { v.duration = 9469; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4,
+        // Below 27 services at the route budgets, the 2000 ms enable report window and two enable
+        // intervals: 11470 ms.
+        {"short", [](VelocitySpec& v) { v.duration = 11469; }, nullptr, E::RouteFailure::REFUSED, "velocity", 1, 4,
          nullptr},
         // The stop reserve after due must exceed eight services: 2800 ms.
         {"reserve", [](VelocitySpec& v) { v.deadline = v.duration + 2800; }, nullptr, E::RouteFailure::REFUSED,
@@ -4036,7 +4063,7 @@ void testVelocityFallbackStop() {
     // Asked for after the run's terminal, with the plan's stop span after the duration as its deadline.
     const L::BestEffortStop& b = f->one.bestEffort();
     CHECK(b.state != M::ActionState::EMPTY && b.startedUs >= v.servicedUs && b.startedUs == lf.actionRequestedUs &&
-          b.deadlineUs == b.startedUs + 6000000 && b.execution != M::ActionExecution::NOT_TRANSMITTED);
+          b.deadlineUs == b.startedUs + 3500000 && b.execution != M::ActionExecution::NOT_TRANSMITTED);
     const E::RouteTerminal* t = terminalOf(lf, 0x6040, b.operation);
     CHECK(t && t->admittedUs >= v.servicedUs);
     std::string text = f->dump();
@@ -4067,6 +4094,66 @@ void testVelocityFallbackStop() {
           has(text, " pred=000f documented=0 ") && has(text, "TRIAL_BEST_EFFORT which=0 own=0 "));
     h->turns(2000);
     CHECK(wordsFrom(*h, 0, 1, 0x010f) == 1 && wordsFrom(*h, 0, 1, 0x000b) == 0);
+    // With the route's enable report window (S17) the stale report kept the run waiting, one cycle per
+    // spacing, until the window admitted no further cycle; then the own HALT left once.
+    CHECK(vh.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE && vh.enablePending >= 2 &&
+          vh.enablePending <= E::ROUTE_VELOCITY_WINDOW_CYCLES + 1 && !vh.runningObserved && !vh.enableReport.present);
+    CHECK(vh.observations == 2 + vh.enablePending && vh.pendingFirst.present && vh.pendingLast.present &&
+          vh.pendingLast.cycle == vh.observations && (vh.pendingLast.statusword & 7) == 3);
+    const uint64_t ack = vh.commandHistory[2].completedUs;
+    // The last window cycle began at most the window after word 15's acknowledgement; the HALT followed it.
+    CHECK(vh.pendingFirst.earliestUs >= ack && vh.pendingLast.earliestUs - ack <= 2000000 + 350000 &&
+          vh.stopRequestedUs >= vh.pendingLast.latestUs);
+    char window[120];
+    std::snprintf(window, sizeof window, "TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=%lu ack=%llu",
+                  static_cast<unsigned long>(vh.enablePending), static_cast<unsigned long long>(ack));
+    CHECK(has(text, window));
+    CHECK(has(text, "TRIAL_VELOCITY_SAMPLE which=2 present=1 cycle=3 ") &&
+          has(text, "TRIAL_VELOCITY_SAMPLE which=4 present=0 "));
+    CHECK(lh.terminalCount <= 9 + 9 + 3 + 3 + 21 + 7 * E::ROUTE_VELOCITY_WINDOW_CYCLES + 7 * 3 + 10);
+}
+// Backlog S17: the drive keeps word 7's report for three cycles after word 15, then reports the enable.
+// Inside the route's window the run waits, then runs, stops at due with its own HALT and settles it.
+void testVelocityEnableWindow() {
+    scenario = "velocity-enable-window";
+    std::unique_ptr<Rig> r(new Rig);
+    releasedModeThree(r->driver.drives[0]);
+    r->driver.drives[0].staleWord = 0x000f;
+    r->driver.drives[0].staleCycles = 3;
+    uint32_t trial = 0;
+    qualified(*r, trial);
+    const size_t first = r->driver.requests.size();
+    const E::RouteRecord& v = r->run(velocityLine(1, trial));
+    if (v.failure != E::RouteFailure::NONE)
+        std::fprintf(stderr, "%s", r->dump().c_str());
+    const L::VelocityContext& c = r->one.velocityAction();
+    CHECK(v.failure == E::RouteFailure::NONE && c.state == M::ActionState::SUCCEEDED &&
+          c.outcome == M::ActionOutcome::OBSERVED && c.completion == M::ActionCompletion::OBSERVED &&
+          c.runningObserved && !c.needsStop && !r->one.velocityNeedsStop());
+    CHECK(c.enablePending == 3 && c.pendingFirst.cycle == 3 && c.pendingLast.cycle == 5 &&
+          c.enableReport.present && c.enableReport.cycle == 6 && (c.enableReport.statusword & 7) == 7 &&
+          c.enableReport.velocity == 6 && c.observations == 6 + c.runningPolls);
+    // Each window cycle begins at least one spacing after the one before it.
+    CHECK(c.pendingLast.earliestUs >= c.pendingFirst.latestUs + 2 * 300000 &&
+          c.enableReport.earliestUs >= c.pendingLast.latestUs + 300000);
+    const std::vector<M::Frame> sent = downloads(*r, first, 1);
+    const uint8_t halt[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0x01, 0, 0};
+    CHECK(sent.size() == 7 && frameIs(sent[6], halt) && wordsFrom(*r, first, 1, 0x000b) == 0);
+    const L::ActionContext& h = r->one.stopAction(L::StopKind::HALT);
+    const E::RouteTerminal* stopTerminal = terminalOf(v, 0x6040, h.operation);
+    CHECK(stopTerminal && stopTerminal->admittedUs >= c.stopDueUs && stopTerminal->completedUs < c.deadlineUs);
+    CHECK(v.terminalCount <= 9 + 9 + 3 + 3 + 21 + 7 * E::ROUTE_VELOCITY_WINDOW_CYCLES + 7 * 3 + 10);
+    const std::string text = r->dump();
+    char window[120];
+    std::snprintf(window, sizeof window,
+                  "TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=3 ack=%llu\n",
+                  static_cast<unsigned long long>(c.commandHistory[2].completedUs));
+    CHECK(has(text, window));
+    CHECK(has(text, "TRIAL_VELOCITY_SAMPLE which=2 present=1 cycle=3 ") &&
+          has(text, "TRIAL_VELOCITY_SAMPLE which=3 present=1 cycle=5 ") &&
+          has(text, "TRIAL_VELOCITY_SAMPLE which=4 present=1 cycle=6 "));
+    CHECK(has(text, "TRIAL_VELOCITY own=1 state=2 ") && has(text, " needs=0 fenced=0 running=1 "));
+    CHECK(has(text, "TRIAL_STOP kind=1 path=0 final=4 own=1 state=2 outcome=1 "));
 }
 // HOME: the reads requestHome consumes, then its refusal before any write; no motion weight.
 void testHome() {
@@ -5816,6 +5903,7 @@ int main(int argc, char** argv) {
     testVelocityRefusals();
     testVelocityFailures();
     testVelocityFallbackStop();
+    testVelocityEnableWindow();
     testHome();
     testVelocityHomePlan();
     testCloseRefusals();

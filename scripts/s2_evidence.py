@@ -289,6 +289,12 @@ GRAMMAR = (
         "started:u due:u deadline:u stopAt:u serviced:u smask:x cmask:x"),
     Row("TRIAL_VELOCITY_SAMPLE", "TRIAL_VELOCITY_SAMPLE ", "summary",
         "which:u present:b cycle:u status:x monitor:x mode:x position:i velocity:i lo:u hi:u"),
+    # Backlog S17 (records from 2026-11-09 after trial 1310): the run's final-enable report window in
+    # microseconds, its most extra cycles, the cycles that still showed word 7's report and word 15's
+    # acknowledgement time; TRIAL_VELOCITY_SAMPLE which=2 and 3 are the first and last such cycle, which=4
+    # the cycle that reported the enable. Earlier records have neither.
+    Row("TRIAL_VELOCITY_WINDOW", "TRIAL_VELOCITY_WINDOW ", "summary",
+        "window:u spacing:u cycles:u pending:u ack:u"),
     Row("END", "END trial ", "end", "terminals:u traffic:u tail:u tailLost:b lost:b"),
     Row("RELEASED", "TRIAL record released", "response"),
     Row("RELEASE_REFUSED", "TRIAL release refused", "response"),

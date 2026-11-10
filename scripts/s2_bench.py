@@ -158,11 +158,18 @@ MOVE_SERVICE_STEPS = 13
 ROUTE_QUEUE_MS = 100
 ROUTE_RESPONSE_MS = 250
 # The library's velocity admission (Velocity.cpp) from released mode 3: the duration must exceed 27 setup
-# services at the routes' budgets and leave two 10 ms enable intervals (ENABLE_WORD_INTERVAL_US), so at least
-# 9470 ms; the deadline must leave more than the route's stop reserve, 8 services, 2800 ms, after it.
+# services at the routes' budgets and the route's enable report window, and leave two 10 ms enable intervals
+# (ENABLE_WORD_INTERVAL_US), so at least 11470 ms; the deadline must leave more than the route's stop reserve,
+# 8 services, 2800 ms, after it.
 VELOCITY_SETUP_STEPS = 27
 VELOCITY_WORD_MS = 10
 VELOCITY_STOP_STEPS = 8
+# Every velocity line's final-enable report window (backlog S17; BenchRoute.h ROUTE_VELOCITY_WINDOW_MS and
+# ROUTE_VELOCITY_SPACING_MS): the attended experiment's chosen budget, never a drive timing. After word 15
+# the run takes up to this many seven-field cycles more while word 7's report still shows.
+VELOCITY_WINDOW_MS = 2000
+VELOCITY_SPACING_MS = 300
+VELOCITY_WINDOW_CYCLES = VELOCITY_WINDOW_MS // VELOCITY_SPACING_MS
 # The scope every velocity line runs under (Velocity.h VelocityGate::ATTENDED_EXPERIMENT) and its bounds,
 # VELOCITY_EXPERIMENT_MAXIMUM_RPM and VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US: project policy for an
 # unmeasured start and stop, never a drive fact.
@@ -443,9 +450,10 @@ def plan_bounds(command, fields):
     if command == "velocity":
         duration, interval, deadline = fields[6:9]
         polls = -(-duration // interval)  # The library's maxPolls: the fewest cycles covering the duration.
-        # Identity, full read, 60FF 6083 6084, 6 7 15 with a cycle each, the running cycles, then the
-        # session's stop over the rest of the deadline at the same interval.
-        return (9 + 9 + 3 + 3 + 7 * 3 + 7 * polls + _stop_terminals(deadline - duration, interval), deadline)
+        # Identity, full read, 60FF 6083 6084, 6 7 15 with a cycle each, the enable report window's cycles,
+        # the running cycles, then the session's stop over the rest of the deadline at the same interval.
+        return (9 + 9 + 3 + 3 + 7 * 3 + 7 * VELOCITY_WINDOW_CYCLES + 7 * polls +
+                _stop_terminals(deadline - duration, interval), deadline)
     if command == "home":
         return 9 + 9 + 9 + 2, 0  # Identity, 2400:00..08, the full read, 2200 and 2201. No write.
     if command == "enable":
@@ -510,12 +518,14 @@ def check_bounds(command, fields):
         if duration > VELOCITY_EXPERIMENT_DURATION_MS:
             raise Refused("velocity duration: %d ms is over the %s scope's %d ms" %
                           (duration, VELOCITY_SCOPE, VELOCITY_EXPERIMENT_DURATION_MS))
-        setup = VELOCITY_SETUP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS) + 2 * VELOCITY_WORD_MS
+        setup = (VELOCITY_SETUP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS) + VELOCITY_WINDOW_MS +
+                 2 * VELOCITY_WORD_MS)
         reserve = VELOCITY_STOP_STEPS * (ROUTE_QUEUE_MS + ROUTE_RESPONSE_MS)
         if duration < setup:
-            raise Refused("velocity duration: %d ms does not cover the library's %d setup services at %d + %d ms "
-                          "and two %d ms enable intervals; it needs at least %d ms" %
-                          (duration, VELOCITY_SETUP_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, VELOCITY_WORD_MS, setup))
+            raise Refused("velocity duration: %d ms does not cover the library's %d setup services at %d + %d ms, "
+                          "the %d ms enable report window and two %d ms enable intervals; it needs at least %d ms" %
+                          (duration, VELOCITY_SETUP_STEPS, ROUTE_QUEUE_MS, ROUTE_RESPONSE_MS, VELOCITY_WINDOW_MS,
+                           VELOCITY_WORD_MS, setup))
         if deadline - duration <= reserve:
             raise Refused("velocity deadline: %d ms leaves %d ms after the duration; the stop reserve of %d services "
                           "needs over %d ms" % (deadline, deadline - duration, VELOCITY_STOP_STEPS, reserve))
@@ -990,6 +1000,10 @@ def dry_run(args, fields):
             print("  VelocityEvidence gate %s, startQualified 0, stopQualified 0: the run measures its start and "
                   "stop and claims neither; from this line: record %d, layout %d, stop kind %d (motion weight %d "
                   "with its own stop)" % (VELOCITY_SCOPE, fields[10], fields[11], fields[9], weight))
+            print("  enable report window %d ms, cycles %d ms apart, at most %d more after word 15 (backlog S17): "
+                  "the experiment's chosen budget, not a drive timing; the record's TRIAL_VELOCITY_WINDOW and "
+                  "TRIAL_VELOCITY_SAMPLE which=2..4 bracket the enable report" %
+                  (VELOCITY_WINDOW_MS, VELOCITY_SPACING_MS, VELOCITY_WINDOW_CYCLES))
         print("  send p; refuse unless PONG has routes=%d soak=0 trial=0 active=1 running=1" % ROUTE_PROTOCOL)
         print("  then send once: %r (%s)" % (encode(args.command, fields), plan))
         print("  capture until END trial or TRIAL_REFUSED, at most %s s; Ctrl-C sends one A" % args.seconds)

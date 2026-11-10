@@ -27,8 +27,21 @@ Status error(VelocityError detail, const char* message, Err code = Err::INVALID_
 uint64_t budget(const VelocityOptions& o, uint64_t count) {
     return count * (uint64_t(o.service.queueTimeoutUs) + o.service.responseTimeoutUs);
 }
+// The enable report window (S17): none, or a spacing of 1..window with a bounded cycle count.
+bool windowValid(const VelocityOptions& o) {
+    return !o.enableWindowUs
+               ? !o.enableSpacingUs
+               : o.enableSpacingUs && o.enableSpacingUs <= o.enableWindowUs &&
+                     o.enableWindowUs <= VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US &&
+                     o.enableWindowUs / o.enableSpacingUs <= VELOCITY_ENABLE_WINDOW_MAXIMUM_CYCLES;
+}
+// Extra final-enable cycles a valid window can schedule. Cycle j of the window is eligible no earlier
+// than j spacings after word 15's acknowledgement and no later than the window, so j <= window/spacing.
+uint32_t windowCycles(const VelocityOptions& o) {
+    return o.enableWindowUs ? uint32_t(o.enableWindowUs / o.enableSpacingUs) : 0;
+}
 bool optionsValid(const VelocityOptions& o) {
-    return o.service.queueTimeoutUs && o.service.responseTimeoutUs &&
+    return windowValid(o) && o.service.queueTimeoutUs && o.service.responseTimeoutUs &&
            o.service.identityWidths <= IdentityWidths::MEASURED_U8 &&
            o.service.countWidths <= CountWidths::MEASURED_U16 && o.pollIntervalUs &&
            o.maxPolls && o.pollIntervalUs <= uint64_t(INT64_MAX) / o.maxPolls &&
@@ -162,6 +175,11 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
                      "an attended velocity experiment claims no qualification and stays slow");
     if (experiment && request.durationUs > VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US)
         return error(VelocityError::TIME, "an attended velocity experiment is at most 20 s");
+    // Outside the experiment a window would claim that the enable report arrives within it; no
+    // record establishes that.
+    if (o.enableWindowUs && !experiment)
+        return error(VelocityError::ARGUMENT,
+                     "an enable report window belongs to an attended velocity experiment");
     static_assert(VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US == 20000000, "the message names 20 s");
     if (!validReservation(r) || !operation || !optionsValid(o) || r.acquiredUs > now ||
         now > uint64_t(INT64_MAX) || deadline > uint64_t(INT64_MAX) || deadline <= now ||
@@ -197,7 +215,9 @@ Status check(const VelocityContext& output, const AxisReservation& r, const Read
         return error(VelocityError::CAPABILITY,
                      "released mode change needs evidence for this exact source mode",
                      Err::UNSUPPORTED);
-    const uint64_t setup = budget(o, result.admission.modeRaw == 3 ? 27 : 35);
+    // The window's last cycle is eligible at most enableWindowUs after word 15's acknowledgement and
+    // has the first enable cycle's budget, so the window adds at most its own length.
+    const uint64_t setup = budget(o, result.admission.modeRaw == 3 ? 27 : 35) + o.enableWindowUs;
     if (setup >= request.durationUs || o.commandIntervalUs > (request.durationUs - setup) / 2)
         return error(VelocityError::TIME,
                      "duration cannot cover target/setup and enable observation budgets");
@@ -221,11 +241,14 @@ Status shape(const VelocityContext& c, uint64_t now) {
         c.interruption > VelocityInterruption::DEADLINE ||
         (c.evidence.gate != VelocityGate::MEASURED &&
          c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
+        (c.options.enableWindowUs && c.evidence.gate != VelocityGate::ATTENDED_EXPERIMENT) ||
         c.stopDueUs <= c.startedUs ||
         c.stopDueUs >= c.deadlineUs || c.deadlineUs > uint64_t(INT64_MAX) ||
         now > uint64_t(INT64_MAX) || c.servicedUs < c.startedUs || now < c.servicedUs ||
         c.runningPolls > c.options.maxPolls || c.runningPolls > c.observations ||
-        c.observations - c.runningPolls > (c.admission.modeRaw == 3 ? 3u : 4u))
+        c.observations - c.runningPolls >
+            (c.admission.modeRaw == 3 ? 3u : 4u) + windowCycles(c.options) ||
+        c.enablePending > (c.options.enableWindowUs ? windowCycles(c.options) + 1 : 0))
         return error(VelocityError::STATE, "invalid velocity context or processing time");
     return Ok();
 }
@@ -357,6 +380,21 @@ void waitFor(VelocityContext& c, VelocityObservation purpose, uint64_t now, uint
     c.eligibleUs = delay >= c.stopDueUs - now ? c.stopDueUs : now + delay;
     c.stepStartedUs = c.eligibleUs;
 }
+// Word 7's report still showing after word 15 (trials 1009 and 1308: 6041 8033, 2100 0001), with no
+// sign of torque release, running, speed or travel since admission. mode 3 and clean are checked first.
+bool pendingReport(const VelocityContext& c, const VelocitySample& s) {
+    return (s.statusword & STATUS_LOW_BITS) == 3 &&
+           !(s.monitor & (MONITOR_RELEASED | MONITOR_RUNNING)) && !s.velocity &&
+           s.position == c.admission.position;
+}
+// Another final-enable cycle fits the window: eligible one spacing from now, at most the window after
+// word 15's acknowledgement, before stop due, within the window's cycle count.
+bool windowAdmits(const VelocityContext& c, uint64_t now) {
+    const uint64_t spacing = c.options.enableSpacingUs;
+    return c.options.enableWindowUs && c.enablePending <= windowCycles(c.options) &&
+           now < c.stopDueUs && spacing < c.stopDueUs - now &&
+           now + spacing - c.commandHistory[2].completedUs <= c.options.enableWindowUs;
+}
 void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
     const uint64_t after = c.observation == VelocityObservation::MODE
                                ? c.modeEvidence.completedUs
@@ -427,10 +465,28 @@ void finishCycle(VelocityContext& c, const ReadContext& read, uint64_t now) {
         return;
     }
     if (low != STATUS_LOW_BITS || (s.monitor & MONITOR_RELEASED)) {
-        failure(c, ActionOutcome::OBSERVATION_SCOPE, now, "final enable state is not confirmed",
+        // Inside the enable report window word 7's report is not yet a failure (S17); every other
+        // report, and the last one the window admits, fails as without a window.
+        const bool pending = c.observation == VelocityObservation::ENABLE &&
+                             c.options.enableWindowUs && pendingReport(c, s);
+        if (pending) {
+            if (!c.enablePending)
+                c.pendingFirst = s;
+            c.pendingLast = s;
+            ++c.enablePending;
+            if (windowAdmits(c, now)) {
+                waitFor(c, VelocityObservation::ENABLE, now, c.options.enableSpacingUs);
+                return;
+            }
+        }
+        failure(c, ActionOutcome::OBSERVATION_SCOPE, now,
+                pending ? "final enable not reported within its window"
+                        : "final enable state is not confirmed",
                 true);
         return;
     }
+    if (c.observation == VelocityObservation::ENABLE)
+        c.enableReport = s;
     const bool moving = (s.monitor & MONITOR_RUNNING) &&
                         interpreted.running == StateIndication::YES &&
                         (c.rate.effectiveNative > 0 ? s.velocity > 0 : s.velocity < 0);

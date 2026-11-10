@@ -32,6 +32,10 @@ constexpr uint32_t VELOCITY_EXPERIMENT_MAXIMUM_RPM = 60;
 /** Longest preparation-anchored duration an ATTENDED_EXPERIMENT can request, in microseconds.
  * Project policy, as above; the setup budget must still fit inside it. */
 constexpr uint64_t VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US = 20000000;
+/** Most extra final-enable cycles one enable report window can schedule: enableWindowUs divided by
+ * enableSpacingUs, rounded down, may not exceed it. Project policy bounding the observation count and
+ * the setup budget; it says nothing about the drive. */
+constexpr uint32_t VELOCITY_ENABLE_WINDOW_MAXIMUM_CYCLES = 16;
 /** Exact raw identity tuple, not model autodetection or inferred firmware compatibility. */
 struct VelocityFirmware {
     uint32_t deviceType = 0;      ///< 1000 raw.
@@ -74,13 +78,32 @@ struct VelocityOptions {
     ReadOptions service; ///< Positive queue/response budgets for every transfer.
     uint64_t pollIntervalUs =
         0;                 ///< Maximum lateness after stop due; also delay between running cycles.
-    uint32_t maxPolls = 0; ///< Positive bound on interval-spaced running cycles; setup adds at most four.
+    /** Positive bound on interval-spaced running cycles; setup adds at most four, plus at most
+     * enableWindowUs / enableSpacingUs final-enable cycles with a window. */
+    uint32_t maxPolls = 0;
     uint64_t maximumAgeUs = 0; ///< Inclusive earliest-bound age cap for a seven-field cycle.
     uint64_t requiredStopBudgetUs =
         0; ///< Positive caller reserve after due, at least eight services.
     uint64_t commandIntervalUs =
         0; ///< At least 10000 us after each enable-word ACK before the next word.
     StopKind stopKind = StopKind::HALT; ///< Explicit independently qualified stop kind.
+    /** Final-enable report window in microseconds after word 15's acknowledgement (backlog S17). 0, the
+     * default, keeps the one-cycle rule: the first cycle after word 15 must report the enable. A nonzero
+     * window is the application's bounded wait, never a device timing: on 2026-11-09 the first cycle
+     * after word 15 read 6041 8033 in all 13 retained records of one firmware, and no record
+     * establishes when the enable report follows in mode 3. So it is admitted only under
+     * VelocityGate::ATTENDED_EXPERIMENT, the run that measures it; any other gate refuses it. While the
+     * window lasts, a final-enable cycle that still shows word 7's report exactly (mode 3, clean, low bits
+     * 011, 2100 released and running clear, 606C 0, 6064 the admission's) schedules another one
+     * enableSpacingUs later, as long as that one is eligible at most enableWindowUs after the
+     * acknowledgement and before stop due. Any other report fails as without a window, as does the last
+     * such report the window admits; both request the run's own stop. The window adds at most
+     * enableWindowUs to the setup time the duration must cover. */
+    uint64_t enableWindowUs = 0;
+    /** Delay after a window cycle that still shows word 7's report before the next, in microseconds.
+     * 0 without a window; with one, 1..enableWindowUs, and enableWindowUs / enableSpacingUs at most
+     * VELOCITY_ENABLE_WINDOW_MAXIMUM_CYCLES, the most extra cycles the window can add. */
+    uint64_t enableSpacingUs = 0;
 };
 /** Direct phases; there is one SDO engine and no internal motion scheduler. */
 enum class VelocityPhase : uint8_t {
@@ -188,13 +211,24 @@ struct VelocityContext {
     ActionOutcome stopOutcome = ActionOutcome::NONE;
     CANOPEN::SdoCompletion
         stopEvidence; ///< Retained stop command terminal, never motion confirmation.
+    /** Final-enable cycles that still showed word 7's report while an enable report window was set,
+     * including a last one that ended the run because the window admitted no further cycle: at most
+     * enableWindowUs / enableSpacingUs + 1. Always 0 without a window. */
+    uint32_t enablePending = 0;
+    VelocitySample pendingFirst; ///< First such cycle, present when enablePending is nonzero.
+    VelocitySample pendingLast;  ///< Latest such cycle, present when enablePending is nonzero.
+    /** The cycle that first reported the final enable (6041 low bits 111, 2100 released clear), with or
+     * without a window; absent while no cycle has. With the acknowledgement time of word 15
+     * (commandHistory[2].completedUs) and pendingLast, it brackets the time to the enable report. */
+    VelocitySample enableReport;
 };
 
 /** Atomically prepare a finite selected-firmware run. All references are borrowed for the call.
  * Non-enabled stationary admission, exact identity, integer rpm, nonzero rate, supported ramps,
  * duration coverage and fixed stop budget are checked before publication. No I/O occurs.
- * CLOSED, a MEASURED record without both start and stop facts, and an ATTENDED_EXPERIMENT that
- * claims any qualification or exceeds its rate or duration bound are refused.
+ * CLOSED, a MEASURED record without both start and stop facts, an ATTENDED_EXPERIMENT that
+ * claims any qualification or exceeds its rate or duration bound, and a nonzero enable report window
+ * under any gate but ATTENDED_EXPERIMENT are refused.
  * @param[out] output Candidate unchanged on failure. @param[in] reservation Continuous exclusion.
  * @param[in] current Current target. @param[in] state Fresh complete state read.
  * @param[in] identity Acquired raw identity. @param[in] evidence Explicit firmware evidence.

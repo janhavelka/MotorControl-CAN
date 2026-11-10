@@ -84,8 +84,8 @@ restarts it. The supplied `deadlineUs` remains fixed and must leave the checked
 caller stop reserve after due. Duration must be covered by `maxPolls *
 pollIntervalUs`, and all time arithmetic is checked within `0..INT64_MAX`.
 `maxPolls` bounds running observation cycles. The three enable confirmation
-cycles and optional mode confirmation have their own fixed bound and do not
-consume that allowance. `observations` retains the total cycle count;
+cycles, the optional mode confirmation and any final-enable window cycles (below)
+have their own fixed bound and do not consume that allowance. `observations` retains the total cycle count;
 `runningPolls` records the running subset. An accepted duration at the exact
 coverage limit must not stop early merely because setup required observations.
 
@@ -224,8 +224,8 @@ when the drive was running. So in mode 1 the drive reported operation enabled mo
 than 28 ms and at most about 880 ms after the acknowledgement; in mode 3 the time is
 not measured. The velocity sequence accepts only the first cycle after word 15, so
 on this firmware a run is expected to fail there, as 1009 did, and now ends with its
-own stop. No wait or window is assumed; one would be an explicit application bound,
-and choosing its value needs a mode 3 measurement of that time.
+own stop. No wait is assumed by default; the explicit window below exists only for
+the attended experiment that measures that time.
 
 What is documented, measured and qualified stays separate. Documented: ZH86 p13's
 order and the position-section arrows from `000F` to `010F` and `000B`. Measured, on
@@ -233,6 +233,48 @@ one specimen and one firmware: the report lag above, and that node 1 ran at abou
 the commanded rate after 1009's acknowledged `000F` with no stop sent. Not measured:
 what `010F` or `000B` does in mode 3, during or after that lag, and whether the drive
 honours a HALT sent before it reports operation enabled. Nothing here is qualified.
+
+## Final-enable report window (backlog S17)
+
+`VelocityOptions::enableWindowUs` and `enableSpacingUs` (both default 0) let an
+attended experiment wait a bounded time for the enable report after word 15
+instead of failing at the first cycle. The window is the application's bounded
+wait, not a device timing: no record establishes when this firmware reports the
+enable in mode 3, so preparation refuses a nonzero window under any gate but
+`ATTENDED_EXPERIMENT`. Outside the experiment the window would claim that the report
+arrives within it.
+
+| Field | Rule |
+| --- | --- |
+| `enableWindowUs` | 0 keeps the one-cycle rule exactly. Otherwise at most `VELOCITY_EXPERIMENT_MAXIMUM_DURATION_US`, measured from word 15's acknowledgement |
+| `enableSpacingUs` | 0 without a window; with one, 1 to `enableWindowUs`, and `enableWindowUs / enableSpacingUs` at most `VELOCITY_ENABLE_WINDOW_MAXIMUM_CYCLES` (16) |
+
+Inside the window, a final-enable cycle that still shows word 7's report exactly
+(mode 3, clean, `6041` low bits 011, `2100` released and running clear, `606C` 0,
+`6064` the admission sample's) schedules another cycle `enableSpacingUs` later. It
+does so only when that cycle becomes eligible at most `enableWindowUs` after the
+acknowledgement and before stop due. Any other report fails as without a window,
+with the run's own stop requested (the S16 path), and so does the last such report
+the window admits ("final enable not reported within its window"). A cycle that
+reports low bits 111 with `2100` released clear continues exactly as before:
+running evidence, `maxPolls` and the stop at due. `needsStop`, the session fence and
+the run's own stop after its acknowledged `000F` are unchanged.
+
+Bounds: the window adds at most `enableWindowUs / enableSpacingUs` cycles. Cycle `j`
+of the window is eligible no earlier than `j` spacings after the acknowledgement. The
+context shape check counts them in the setup observation bound, and
+`enablePending` is at most one more. The window's last cycle starts at most
+`enableWindowUs` after the acknowledgement and has the first enable cycle's
+budget, so preparation adds `enableWindowUs` to the setup time the duration must
+cover: 27 services (35 with a mode change), plus the window, plus two command
+intervals.
+
+Record: `enablePending` counts the cycles that still showed word 7's report;
+`pendingFirst` and `pendingLast` keep the first and last of them, and `enableReport`
+the cycle that first reported the enable, with or without a window. Together with
+word 15's acknowledgement (`commandHistory[2].completedUs`) they bracket the time to
+the enable report. The bench velocity route uses a 2000 ms window with cycles
+300 ms apart, the experiment's chosen budget ([hardware bench](hardware_bench.md)).
 
 ## Remaining specimen evidence
 

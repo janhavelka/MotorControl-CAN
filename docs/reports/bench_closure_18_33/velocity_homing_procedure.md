@@ -2,6 +2,8 @@
 
 **Run on 2026-11-09 from 14:44Z on `4247e59` and stopped at line 1009** ([report](../2026-11-09_bench_r5.md)): node 1's velocity start ended unconfirmed and no stop was sent, so the motor ran until the user opened the cutoff (backlog S16). Do not send a velocity line again until S16 is fixed. The text below is the plan as written before that run.
 
+**S16 was fixed and checked in [round 6](../2026-11-09_bench_r6.md) (trial 1308).** The next velocity plan is the S17 measurement at the end of this file. Its lines replace lines 1009 and 1016 below: with the final-enable report window, a 2000 ms interval and an 18000 ms deadline no longer fit the record.
+
 Runnable plan for the attended routes `mode3`, `velocity` and `home` (line protocol 7, [hardware_bench](../../hardware_bench.md#attended-bench-routes)), written on 2026-11-09 against `8293b3e` plus the uncommitted route change that adds them, and revised the same day for protocol 7: the velocity lines run as the library's attended experiment and carry no start or stop flag. **Nothing here has been run.** Every command line below passed `python scripts/s2_bench.py ... --dry-run` with exit status 0 and the values shown; the dry runs touched no port, prompt or file. The same sequence, with the fake's own identity and reports, runs through the real `BenchRoute` in `test/bench_route_test.cpp` `testVelocityHomePlan`.
 
 One lead holds the port. The user is the attendant: every motion line and every `home` line needs the typed `ATTENDED <trial>` with the independent drive-power cutoff in hand, and each enable needs the attendant's own felt shaft observation.
@@ -186,3 +188,83 @@ Against the absent ledger, 1003 printed `campaign ...: motion_total 0 ...; this 
 - A quick stop in mode 3 (`--kind quick`): the library's mode 3 stop scope refuses a reported release as its settlement, as it should until measured, so a `000B` that releases would end that run's stop `OBSERVATION_SCOPE`. It needs its own boot and review after this one.
 - Reverse, zero and other rates, a mode change by the library itself (`modeChangeQualified`), an enabled mode change, and any other firmware.
 - Homing beyond admission: switch wiring, polarity, a reviewed mode 6 enable, direction under `2200`, `607C` effects and completion need their own evidence and a separate route. The `home` route never opens its gate.
+
+## S17 measurement (next attended session)
+
+Written on 2026-11-09 for backlog S17, after [round 6](../2026-11-09_bench_r6.md). **Not run.** It needs an image built from the commit that adds the final-enable report window (PONG still `routes=7`: the `TV` line is unchanged, but this image runs every velocity line with the window and prints `TRIAL_VELOCITY_WINDOW`). An image without the window would run the line below without it and fail at the first cycle after word 15, as trial 1308 did. Check `base=` in the first ping against that commit. That image reserves 42688 bytes for `BenchRoute`, 35736 for each `AxisSession` and 8448 for `RouteWork` at boot (144 and 16 more than round 6's). The firmware's heap reply (the `M` byte, `HEAP ... reserved=`) must show `reserved=1f` if it is read; either way, `reason=memory` on 1401 stops the session, and on 1402 leaves node 1 only.
+
+Purpose: measure, in mode 3, the time from word 15's acknowledgement to the first enable report. The route waits for it inside the library's final-enable report window. That window is the experiment's chosen budget, not a drive timing: 2000 ms from the acknowledgement (about twice mode 1's 850 to 880 ms), one seven-field cycle at most every 300 ms after a cycle that still shows word 7's report, at most six cycles more. A report that shows anything else fails at once. The last cycle the window admits fails too if it still shows word 7's report. Each failure sends the run's own HALT from the acknowledged `000F`, as in 1308. The run keeps 6 rpm, 200 ms ramps, HALT and ZH86. The interval is 5000 ms and the deadline 15500 ms so that the window's cycles fit the record. That is 118 of 128 terminals: identity 9, full read 9, three parameters, three words with a cycle each, 42 window terminals, three running cycles and the stop's 10. The duration stays 12000 ms because the library needs at least 11470 ms: 27 services at 350 ms, the 2000 ms window and two 10 ms word intervals.
+
+Order: after a power-up of both drives with the attendant present (their supply, not the S2, and nothing sent meanwhile), node 1 only, then reads. Node 2 runs the same only if node 1's records are consistent, as listed below. Reset the S2 or confirm `motion=0` first. Trials 1401 to 1414 assume no ledger of this boot holds a trial at or above 1401. Renumbering changes the integrity field, so dry-run every changed line again. Release after every route (`--command release`, expected `RELEASED record; channel uncertainty unchanged`). The ledger is `docs\bench\YYYYMMDD-s17-campaign.jsonl`, created by `--new-campaign` on 1403 only. Replace `YYYYMMDD` and `HHMM` as in Fixed values above.
+
+```text
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command ping --output docs\bench\YYYYMMDDTHHMMZ-s17-ping
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command stats --output docs\bench\YYYYMMDDTHHMMZ-s17-stats
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 1 --trial 1401 --fault-led prompt --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-p1-node1-1401
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 2 --trial 1402 --fault-led prompt --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-p1-node2-1402
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command mode1 --node 1 --trial 1403 --cycles 5 --interval-ms 500 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --new-campaign --seconds 60 --output docs\bench\YYYYMMDDTHHMMZ-s17-p2-node1-1403
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command enable --node 1 --trial 1404 --status 0x8437 --position-target 5000 --velocity-target 120 --deadline-ms 10000 --interval-ms 800 --no-motion-write-recorded --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 60 --output docs\bench\YYYYMMDDTHHMMZ-s17-p3-node1-1404
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 1 --trial 1405 --kind quick --deadline-ms 2000 --best-effort-ms 0 --interval-ms 250 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-stop-quick-node1-1405
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command mode3 --node 1 --trial 1406 --cycles 2 --interval-ms 500 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-mode3-node1-1406
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command velocity --node 1 --trial 1407 --rpm 6 --ramp-up-ms 200 --ramp-down-ms 200 --duration-ms 12000 --interval-ms 5000 --deadline-ms 15500 --kind halt --record 1407 --layout zh86 --device-type 262546 --hardware-version 12 --software-version 32 --vendor-id 4096 --product-code 1 --revision 0 --model-code 1024 --firmware-code 512 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 60 --output docs\bench\YYYYMMDDTHHMMZ-s17-velocity-node1-1407
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 1 --trial 1408 --fault-led prompt --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-p1-node1-1408
+```
+
+Node 2 only if node 1's records are consistent:
+
+```text
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command mode1 --node 2 --trial 1409 --cycles 5 --interval-ms 500 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 60 --output docs\bench\YYYYMMDDTHHMMZ-s17-p2-node2-1409
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command enable --node 2 --trial 1410 --status 0x8437 --position-target 5000 --velocity-target 120 --deadline-ms 10000 --interval-ms 800 --no-motion-write-recorded --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 60 --output docs\bench\YYYYMMDDTHHMMZ-s17-p3-node2-1410
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command stop --node 2 --trial 1411 --kind quick --deadline-ms 2000 --best-effort-ms 0 --interval-ms 250 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-stop-quick-node2-1411
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command mode3 --node 2 --trial 1412 --cycles 2 --interval-ms 500 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-mode3-node2-1412
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command velocity --node 2 --trial 1413 --rpm 6 --ramp-up-ms 200 --ramp-down-ms 200 --duration-ms 12000 --interval-ms 5000 --deadline-ms 15500 --kind halt --record 1413 --layout zh86 --device-type 262546 --hardware-version 12 --software-version 32 --vendor-id 4096 --product-code 1 --revision 0 --model-code 1024 --firmware-code 512 --campaign docs\bench\YYYYMMDD-s17-campaign.jsonl --seconds 60 --output docs\bench\YYYYMMDDTHHMMZ-s17-velocity-node2-1413
+python scripts\s2_bench.py --port COM15 --serial 94A990398B40 --command readiness-actions --node 2 --trial 1414 --fault-led prompt --seconds 30 --output docs\bench\YYYYMMDDTHHMMZ-s17-p1-node2-1414
+```
+
+Every line above, with `ping`, `stats` and `release`, exited 0 with `--dry-run`. The lines sent once, as the dry runs printed them:
+
+| Line | Plan bound | Sent once |
+| --- | --- | --- |
+| 1401, 1402 | 22 terminals | `TA1,1401,K7848aed4`, `TA2,1402,K67d58dc0` |
+| 1403 | 53 terminals, 2500 ms | `TM1,1403,1,5,500,K39f2b737` |
+| 1404 | 119 terminals, 10000 ms; the attendant's FREE or HOLDING replaces field 5 | `TE1,1404,1,1,0,33847,5000,120,10000,800,Kbecd7774` |
+| 1405 | 71 terminals, 2000 ms | `TS1,1405,1,2,2000,0,250,Kdfef7551` |
+| 1406 | 35 terminals, 1000 ms | `TN1,1406,1,2,500,Kd0384411` |
+| 1407 | 118 terminals, 15500 ms | `TV1,1407,1,6,200,200,12000,5000,15500,1,1407,2,262546,12,32,4096,1,0,1024,512,Kc64646ef` |
+| 1408 | 22 terminals | `TA1,1408,K01941670` |
+| 1409 | 53 terminals, 2500 ms | `TM2,1409,1,5,500,Kd0bd1872` |
+| 1410 | 119 terminals, 10000 ms | `TE2,1410,1,1,0,33847,5000,120,10000,800,Ka3d4c2cd` |
+| 1411 | 71 terminals, 2000 ms | `TS2,1411,1,2,2000,0,250,Kf7667076` |
+| 1412 | 35 terminals, 1000 ms | `TN2,1412,1,2,500,K1e775bf8` |
+| 1413 | 118 terminals, 15500 ms | `TV2,1413,1,6,200,200,12000,5000,15500,1,1413,2,262546,12,32,4096,1,0,1024,512,K2093621c` |
+| 1414 | 22 terminals | `TA2,1414,K97ad19b4` |
+
+Each velocity dry run also printed `enable report window 2000 ms, cycles 300 ms apart, at most 6 more after word 15 (backlog S17)`. Without a ledger every counted line after 1403 printed `would refuse: campaign ledger ... does not exist`, as expected before 1403 creates it. The plan uses 12 motion admissions, the cap: M, E, S, N and V with its own stop on each node. Each node uses two stops of its three.
+
+Questions and expected records, per node:
+
+- Readiness (1401, 1402): the fault LED before and after; the power-up state `2100=0001 6041=8037 6061=00 6064=0 606c=0`, `607A` 5000, `60FF` 120. 1402 also allocates node 2's session before the velocity line allocates `RouteWork`. With `reason=memory`, continue with node 1 only.
+- mode1 (1403, 1409): `ATTENDED <trial>`; `TRIAL_LAST ... 6041=8437 6061=01`.
+- enable (1404, 1410): `ATTENDED <trial>`, then the attendant's felt shaft before the line (FREE or HOLDING; UNOBSERVED refuses it unsent) and after it. Expected words 6, 7, 15 acknowledged with `8031`/`0011`, `8033`/`0001`, `8437`/`0001`, and `TRIAL_ENABLE own=1 state=2 outcome=1`.
+- Quick stop from `000F` (1405, 1411): one `000B`, `TRIAL_STOP kind=2 path=1 final=4 own=1 state=2 outcome=1 ... pred=000f`, the release report `8050`/`0011` (trials 1005, 1306).
+- mode3 (1406, 1412): one `2F 60 60 00 03 00 00 00`, `TRIAL_LAST ... 2100=0011 6041=8050 6061=03`.
+- velocity (1407, 1413): `ATTENDED <trial>`, then a free-text shaft description against the mark: whether it turned, when, which way and when it stopped. Downloads `60FF=6`, `6083=200`, `6084=200`, words 6, 7, 15, then the HALT `2B 40 60 00 0F 01 00 00` once, never a second word. Expected record lines:
+  - `TRIAL_VELOCITY_WINDOW window=2000000 spacing=300000 cycles=6 pending=<n> ack=<us>`. `ack` is word 15's acknowledgement on the S2 clock and `pending` the cycles that still showed word 7's report, from 1 to 7. With about 50 ms per cycle on this bench at most 6 fit.
+  - `TRIAL_VELOCITY_SAMPLE which=2` and `which=3`: the first and last such cycle (`status=8033 monitor=0001 position=0 velocity=0`), with their `lo`/`hi` times.
+  - `which=4`: the cycle that first reported the enable, `present=0` if none did. The lag lies between `which=3 lo` and `which=4 hi`, each minus `ack`. Every cycle's `RESULT object=6041:00` line gives its own value and time.
+  - If the enable is reported inside the window, the run continues as in 1009's plan: running reports (`which=1` with `6041` bit 14 and `2100` bit 2 set, `606c` 6 if mode 3 reports as mode 1 does), the HALT at or after `due`, and `TRIAL_VELOCITY ... state=2 outcome=1 ... needs=0 fenced=0 running=1` if the HALT's observation shows `2100` running clear.
+  - If no enable is reported: `TRIAL_VELOCITY ... state=3 ... first=8 ... needs=1 fenced=1 running=0`, `TRIAL_STATUS` "final enable not reported within its window", and the HALT about 2 s after `ack` (`TRIAL_STOP kind=1 path=0 own=1 ... pred=000f`), as in 1308 but later.
+
+  Either way the result is the measurement, and nothing here is qualified.
+- Reads after (1408, 1414): `6041`, `2100`, `6064`, `606C` as found. 1308's drive was found enabled and halted (`9437`, `2100=0001`, `606C=0`).
+
+Node 1's records are consistent, so node 2 may follow, when all of these hold: 1403 to 1406 as expected; in 1407 one HALT left from the acknowledged `000F` with no second stop and no fallback `000B`; the runner exited 0 or 3, never 4; 1408 reads `606C=0` with `6064` unchanged since 1407's last sample; and the attendant saw no motion that the record cannot account for.
+
+Stop conditions for this section, in addition to those above. Send nothing further, keep every record, and open the cutoff if a drive may still be moving:
+
+- **The runner alert, exit 4** (`ALERT: ...`, `velocity_alert` in `request.json`): a velocity record whose run still needs a stop and in which no stop of the run left. Open the drive-power cutoff at once; nothing is retried.
+- A velocity record with `TRIAL_STOP kind=2` or `TRIAL_BEST_EFFORT which=0 own=1`: the route's fallback quick stop left because the run's own stop could not be composed.
+- Any `6064` change or nonzero `606C` in a window sample (`which=2`/`3`), or motion reported by the attendant before `which=4`'s cycle: the drive moved before it reported the enable.
+- More than one stop word in a velocity record, any `6040` word other than 6, 7, 15 and `010F`, `TRIAL_VELOCITY_WINDOW` absent, or `window` other than 2000000 (the wrong image).
+- Exit 1 or 2 on a line meant to run, any EMCY, alarm, `603F` or `1001` other than 0, `reason=memory` after 1402, `lost=1`, `unsettled=1`.
+- A shaft still turning 2 s after the velocity record ended, or anything the attendant cannot observe or reconcile with 6 rpm.
