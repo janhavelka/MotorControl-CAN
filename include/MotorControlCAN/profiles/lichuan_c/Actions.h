@@ -30,8 +30,11 @@
  * QUICK_STOP, and monitorObservation keeps the release: the drive reports itself released,
  * and no torque was observed. During a move the same release kept 2100 running set
  * (2026-11-04), so a QUICK_STOP then completes on standstill instead
- * (ActionContext::standstillObserving). Those release/feedback exceptions apply only in mode 1.
- * Mode 3 requires running, alarm and release clear by project policy, not firmware evidence. Other
+ * (ActionContext::standstillObserving). Those exceptions apply in mode 1, and in mode 3 only to a
+ * QUICK_STOP from 000F that followed a running report and whose maximumAgeUs covers seven fields
+ * (backlog S18, trials 1513 and 1607): it reads FEEDBACK from its first cycle, and a release completes
+ * it only after two released cycles in a row read 606C zero and 6064 unchanged, never on one report.
+ * Otherwise mode 3 requires running, alarm and release clear by project policy, not firmware evidence. Other
  * mode/alarm/release is outside the observation scope, not proof that physical stopping
  * failed. Other statusword dialect bits never decide completion. No observation read starts once
  * one exchange's queue and response budgets no longer fit before the deadline: the action then
@@ -248,12 +251,18 @@ struct ActionContext {
     bool predecessorDocumented = false; ///< STOP only: false for DEC-8 project-decision arrows.
     PredecessorBasis predecessorBasis = PredecessorBasis::NONE; ///< STOP only: which sources show it.
     bool finalErrorRead = false; ///< CLEAR_ALARM only: alarm reported clear; read ERRORS once.
-    /** Mode 1 QUICK_STOP only. Set when a cycle after the command reported 2100 released and 6041 low
+    /** QUICK_STOP only. Mode 1: set when a cycle after the command reported 2100 released and 6041 low
      * bits 000 with 2100 running still set, and options.maximumAgeUs covers a seven-field cycle.
      * Measured on 2026-11-04 (trial 213): after 000B during a 30 rpm move the drive released the
      * motor, which stopped within about 10 pulses, but kept running set while its target stayed
      * unreached. Every later cycle then also reads FEEDBACK, and two cycles in a row with 606C zero
-     * and 6064 unchanged complete the stop. Never cleared. */
+     * and 6064 unchanged complete the stop. Mode 3 (backlog S18): set at preparation for 000B from
+     * 000F after a running report, with the same age cover: prepareStop's fresh running admission, or
+     * prepareVelocityStop for a run's own stop whose latest cycle reported running. Every cycle reads
+     * FEEDBACK; a released cycle with low bits 000 stays in scope, and two such cycles in a row with
+     * 606C zero and 6064 unchanged complete the stop, running set or clear. Measured on 2026-11-10:
+     * 28 ms after 000B from a running mode 3 run both specimens read 2100=0014 and 6041=C050 (trials
+     * 1513, 1607), later 0015 with 606C 0 and 6064 still (reads 1514, 1608). Never cleared. */
     bool standstillObserving = false;
     ActionExecution execution =
         ActionExecution::NOT_TRANSMITTED; ///< Effecting command evidence only.
@@ -386,7 +395,9 @@ Status validateEscalation(const ActionContext& output, const ActionContext& runn
  * @param[in] nowUs Supplied nonwrapping monotonic microseconds, zero valid.
  * @param[in] deadlineUs Immutable exclusive future cutoff for command and observations.
  * @param[in] options Explicit nonzero caller service/observation/freshness policies. maximumAgeUs
- * must cover five fields at the queue plus response budgets, or no cycle could ever qualify.
+ * must cover five fields at the queue plus response budgets, or no cycle could ever qualify. A mode 3
+ * QUICK_STOP whose maximumAgeUs covers seven fields observes standstill from its first cycle
+ * (ActionContext::standstillObserving); with five it ends outside its scope on a release.
  * service.identityWidths must stay DECLARED_U16 and service.countWidths DECLARED_U8.
  * @return Local validation status only; emits no I/O and establishes no firmware qualification.
  */

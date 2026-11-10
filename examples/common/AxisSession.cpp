@@ -1441,13 +1441,22 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
                      L::validateVelocityStop(slot, velocity_, reservation_, reservation_.target, control_,
                                              kind, next, now, policy.deadlineUs, policy.options)
                          .isOk();
+    // S18: the attendant's one 000B of a drive the run's own HALT left halted, which the idle report
+    // below would refuse; no other route leaves that state. Unqualified, like the run's 000F stop.
+    const bool halted = s && !escalating && !prepared.isOk() && !own && policy.attendedExperiment &&
+                        kind == L::StopKind::QUICK_STOP && controlPresent_ &&
+                        L::validateHaltedVelocityQuickStop(slot, velocity_, reservation_, reservation_.target,
+                                                           state, control_, next, now, policy.deadlineUs,
+                                                           policy.options)
+                            .isOk();
     // A known word with no stop arrow, such as enable word 6 or 7, refuses only on a fresh idle report.
     // A fresh running report, or no fresh report, takes 000B, as the same word still in flight would.
-    if (!own && ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind) &&
-                  freshlyIdle(state, policy, now)) ||
-                 stateRefuses(state, policy, now)))
+    if (!own && !halted &&
+        ((controlPresent_ && !L::stopPredecessorAllowed(word(control_.transfer), kind) &&
+          freshlyIdle(state, policy, now)) ||
+         stateRefuses(state, policy, now)))
         return StopPath::NONE;
-    const bool sequenced = s && (prepared.isOk() || own);
+    const bool sequenced = s && (prepared.isOk() || own || halted);
     M::Generation node = 0;
     uint32_t sessions = 0;
     if (!sequenced &&
@@ -1464,11 +1473,14 @@ StopPath AxisSession::requestStop(L::StopKind kind, const L::ReadContext& state,
         else if (own)
             L::prepareVelocityStop(slot, velocity_, reservation_, reservation_.target, control_, kind,
                                    next, now, policy.deadlineUs, policy.options);
+        else if (halted)
+            L::prepareHaltedVelocityQuickStop(slot, velocity_, reservation_, reservation_.target, state,
+                                              control_, next, now, policy.deadlineUs, policy.options);
         else
             L::prepareStop(slot, reservation_, state, control_, kind, next, now, policy.deadlineUs,
                            policy.options);
     }
-    unqualifiedStop_ = own;
+    unqualifiedStop_ = own || halted;
     if (escalating) {
         // Its in-flight request settles into its own context and holds the slot until then.
         L::ActionContext& old = stops_[static_cast<unsigned>(L::StopKind::HALT)];

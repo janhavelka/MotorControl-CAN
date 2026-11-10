@@ -16,11 +16,39 @@ freezes `stopModeRaw=3`; later observations of another mode cannot complete it.
 manual gives it in its position section. Explicit running HALT-to-QUICK
 escalation retains that mode. Direct mode3 admission from other words is refused.
 
-The position-mode released/latched-running feedback fallback remains mode1-only.
-The finite [velocity operation](velocity.md) requires its own stop qualification,
+The position-mode released/latched-running feedback fallback stays mode 1 only, with one
+mode 3 exception for a QUICK_STOP from `000F` that followed a running report (backlog S18,
+below). The finite [velocity operation](velocity.md) requires its own stop qualification,
 closed by default; no connected specimen has supplied it yet. Controller-reported
 completion is not independent shaft standstill. When a velocity write could have
 started motion, an older idle cycle cannot establish that no stop is needed.
+
+**Released standstill in mode 3 (backlog S18), from drive reports.** On 2026-11-10 `000B` from a
+running mode 3 run, at 30 rpm on node 2 (trial 1513) and at 60 rpm on node 1 (trial 1607), read
+`2100=0014` (released, running latched), `6041=C050` and `6061=3` 28 ms later; later reads found
+`2100=0015`, `6041=C050`, `606C=0` and `6064` unchanged (1514, 1608). That stop context ended
+`OBSERVATION_SCOPE`, because a release was outside the mode 3 scope. A mode 3 QUICK_STOP now gets
+`standstillObserving` at preparation when it followed a running report and `maximumAgeUs` covers a
+seven-field cycle: `prepareStop`'s mode 3 admission (a fresh running report after `000F`), or
+`prepareVelocityStop` for the run's own requested stop when the run's latest cycle reported running.
+Every cycle then reads `6064` and `606C`. A released cycle with alarm clear, mode 3 and low bits `000`
+stays in scope, running set or clear, and two such cycles in a row with `606C` zero and `6064`
+unchanged complete the stop as `OBSERVED`. One released report never completes it. A cycle that is
+not released and not running still completes it as before. Not covered: HALT, an escalation from `010F`,
+a stop on the run's `000F` alone (S16) or after the run ended, a five-field age, and any other low bits;
+there a release still ends the stop outside its scope. With the bench plan (interval 4000 ms, deadline
+17000 ms for 12 s) the stop has two cycles, at the command and about 4 s later.
+
+**Quick stop of a halted velocity drive (backlog S18), an attended experiment.** After a settled HALT
+both drives stay enabled and halted in mode 3 (`6041=9437`, `2100=0001`: trials 1507, 1613, 1706). The
+idle-report rule refused a later QUICK_STOP there (trial 1707), and nothing else leaves that state
+without a power cycle. `prepareHaltedVelocityQuickStop` composes one `000B` only after an
+`ATTENDED_EXPERIMENT` run that ended `SUCCEEDED` with its own HALT acknowledged and observed, while that
+`010F` is still the latest word and a fresh report reads exactly `6041=9437`, `2100=0001`, mode 3.
+`AxisSession` takes it only with `StopPolicy::attendedExperiment`. No source or record says what `000B`
+does there. The stop reads FEEDBACK from its first cycle and completes only on the released standstill
+above; a not-running report alone completes nothing, because the drive was idle before it. Its result is
+unqualified and clears no fence. Host-tested only.
 
 ## Reviewed transitions
 
@@ -106,7 +134,7 @@ The sequenced path needs the frozen CL86-C/OL86-C model, and fresh STATUS report
 on both paths, with no traffic, because nothing establishes what `000B` does in those
 states. A running report keeps the stop available on the best-effort path, as this project's
 decision that a running motor should get the attempt. Prompt 35 adds the mode-3 row below; mode6 is the separately gated prompt36 row described below.
-After a finite velocity run, while `velocityNeedsStop()` holds, no idle report refuses either path: a report after a velocity word need not show it yet (bench trial 1009 read `6041=8033` after its acknowledged `000F` and was found running 37 s later). When the run's acknowledged `000F` is still the latest word, the sequenced path takes its `010F` or `000B` (`prepareVelocityStop`); its observation clears no fence.
+After a finite velocity run, while `velocityNeedsStop()` holds, no idle report refuses either path: a report after a velocity word need not show it yet (bench trial 1009 read `6041=8033` after its acknowledged `000F` and was found running 37 s later). When the run's acknowledged `000F` is still the latest word, the sequenced path takes its `010F` or `000B` (`prepareVelocityStop`); its observation clears no fence, except that the run's own requested stop settles the run when the run reported running before it (and, for QUICK_STOP, on the mode 3 released standstill above).
 
 The word must be the application's actual latest acknowledged controlword, under a
 reservation acquired before that command. Fresh low bits 7 cannot reconstruct it. An
@@ -291,10 +319,12 @@ On one firmware, judged from drive reports: `000B` from `000F` (124) and from `0
 709 at 300 rpm) and once on node 2 (828 at 6 rpm); `000B` from `001F` three times (213 on node 2 and
 413 on node 1 at 30 rpm, 713 on node 2 at about 100 rpm); `010F` from a moving `005F` (832, node 1);
 `000B` from a moving `005F` (1109, node 1) and from a stationary acknowledged one (833, node 2); and
-`000B` with no known predecessor on two states (307, 503). These are measurements, not a
-qualification: the `005F` rows stay project decisions (DEC-8) with no documented arrow. Stops from
-`003F` and `007F`, any other state, a moving `010F` to `000B` escalation, and velocity and homing
-modes need their own fixture evidence. See the
+`000B` with no known predecessor on two states (307, 503); in mode 3, `010F` from a running `000F`
+(1407, 1413, 1507, 1613) and `000B` from a running `000F` (1513 on node 2, 1607 on node 1). These are
+measurements, not a qualification: the `005F` and mode 3 rows stay project decisions (DEC-8) with no
+documented arrow. Stops from `003F` and `007F`, any other state, a moving `010F` to `000B` escalation,
+`000B` from a halted mode 3 drive, other rates and directions in mode 3, and homing need their own
+fixture evidence. See the
 [prompt 31 report](reports/prompt_31.md) for remaining obligations and checks,
 and the [evidence harness](device_conflicts.md) for acquisition prerequisites.
 

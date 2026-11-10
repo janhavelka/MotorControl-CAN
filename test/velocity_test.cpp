@@ -64,6 +64,13 @@ struct Rig {
     // The lagging report, changeable between cycles; the enable report's 6041.
     uint16_t lagStatus = 0x8033, lagMonitor = 0x0001, runningStatus = 0x4007;
     int32_t lagPosition = 0, lagVelocity = 0;
+    // Backlog S18: the admission reports the release a moving quick stop left, 2100 latchedMonitor (0015,
+    // running latched) with 6041 latchedStatus; 2100 0015 stays in the cycles of words below
+    // latchClearedBy. 6064 reads latchedPosition, plus creep from word 6's cycle on; 606C reads
+    // latchedVelocity at admission.
+    bool latched = false;
+    uint16_t latchedMonitor = 0x0015, latchedStatus = 0xc050, latchClearedBy = 7;
+    int32_t latchedPosition = 5608, creep = 0, latchedVelocity = 0;
     uint64_t now = START;
     Rig() {
         target.channel.binding.logicalAxisId = 17;
@@ -128,12 +135,21 @@ struct Rig {
                    : index == 0x6064 ? uint32_t(lagPosition)
                    : index == 0x606c ? uint32_t(lagVelocity)
                                      : 0u;
+        const bool latch = latched && control < latchClearedBy;
         if (index == 0x6041)
-            return control == 15 ? runningStatus : control == 7 ? 3u : 1u;
+            return control == 15 ? runningStatus : control == 7 ? 3u : control == 6 || !latched ? 1u : latchedStatus;
         if (index == 0x2100)
-            return control == 15 ? L::MONITOR_RUNNING : L::MONITOR_RELEASED;
+            return control == 15 ? L::MONITOR_RUNNING
+                   : !latched    ? L::MONITOR_RELEASED
+                   : !control    ? latchedMonitor
+                   : latch       ? 0x0015u
+                                 : L::MONITOR_RELEASED;
+        if (index == 0x6064 && latched)
+            return uint32_t(latchedPosition + (control ? creep : 0));
         if (index == 0x606c)
-            return control == 15 ? uint32_t(request.velocity.value.numerator < 0 ? -120 : 120) : 0u;
+            return control == 15 ? uint32_t(request.velocity.value.numerator < 0 ? -120 : 120)
+                   : latched && !control ? uint32_t(latchedVelocity)
+                                         : 0u;
         return 0;
     }
     void acquireInitial(uint64_t time = 200) {
@@ -1056,8 +1072,357 @@ void runStopFollowsTheAcknowledgedFinalWord() {
                                        L::StopKind::HALT, 43, r.now, DEADLINE, stopOptions(r)));
     }
 }
+// Backlog S18. One stop cycle as the drive reports it: 2100, 6041, 6061, 6064 and 606C.
+struct Report {
+    uint16_t monitor, status;
+    uint8_t mode;
+    int32_t position, velocity;
+};
+// The stop cycles of trials 1513 (node 2, 30 rpm) and 1607 (node 1, 60 rpm) in order. Each first cycle read
+// 2100 0014, 6041 C050 and 6061 3 28 ms after 000B. That stop read no 6064 or 606C, so both cycles take
+// those of the later reads 1514 and 1608 (2100 0015, 6041 C050, 6061 3, 606C 0), which give the second.
+const Report TRIAL_1513[2] = {{0x0014, 0xc050, 3, 5608, 0}, {0x0015, 0xc050, 3, 5608, 0}};
+const Report TRIAL_1607[2] = {{0x0014, 0xc050, 3, 11219, 0}, {0x0015, 0xc050, 3, 11219, 0}};
+const Report HALTED = {0x0001, 0x9437, 3, 1131, 0}; // After a settled HALT: trials 1507, 1613, 1706.
+// The bench plan gives the stop two cycles (4000 ms apart against 5000 ms after due). Here 300 ms apart
+// against the rig's 499 ms after due does the same. The age cap covers `fields` fields.
+L::ActionOptions planOptions(const Rig& r, uint64_t fields = 7) {
+    L::ActionOptions value = stopOptions(r);
+    value.observationIntervalUs = 300000;
+    value.maximumAgeUs = fields * (uint64_t(r.options.service.queueTimeoutUs) + r.options.service.responseTimeoutUs);
+    return value;
+}
+// Serves a prepared stop: cycle k answers with reports[k], the last repeated. At the deadline the caller's
+// DEADLINE ends it. With limit, serving ends once that many cycles completed and the stop waits.
+void runScripted(Rig& r, L::ActionContext& stop, const Report* reports, unsigned count, unsigned limit = 0) {
+    unsigned cycle = 0;
+    for (unsigned guard = 0; guard < 400 && stop.state == M::ActionState::ACTIVE; ++guard) {
+        if (limit && stop.observations >= limit && stop.phase == L::ActionPhase::WAITING)
+            return;
+        if (r.now >= stop.deadlineUs) {
+            CHECK(L::advanceAction(stop, r.live, r.target, M::ActionOutcome::DEADLINE, r.now));
+            break;
+        }
+        L::PreparedAction work;
+        CHECK(L::nextAction(stop, r.live, r.target, r.now, work));
+        if (!work.ready) {
+            r.now = work.eligibleUs > r.now ? work.eligibleUs : r.now + 100;
+            continue;
+        }
+        if (work.transfer.direction == C::SdoDirection::DOWNLOAD)
+            CHECK(L::noteActionTransmission(stop, r.live, r.target, r.now));
+        const uint16_t index = work.transfer.index;
+        if (index == 0x2100)
+            ++cycle;
+        const Report& k = reports[cycle && cycle <= count ? cycle - 1 : cycle ? count - 1 : 0];
+        const uint32_t value = index == 0x2100   ? k.monitor
+                               : index == 0x6041 ? k.status
+                               : index == 0x6061 ? k.mode
+                               : index == 0x6064 ? uint32_t(k.position)
+                               : index == 0x606c ? uint32_t(k.velocity)
+                                                 : 0u;
+        CHECK(L::advanceAction(stop, r.live, r.target, reply(work.transfer, r.now, r.now + 1, value), r.now + 1));
+        r.now += 100;
+    }
+    CHECK(stop.state != M::ActionState::ACTIVE);
+}
+void quickStopRun(Rig& r) {
+    experiment(r);
+    r.evidence.stopKind = r.options.stopKind = L::StopKind::QUICK_STOP;
+}
+// The run's own stop at due after a running report, as the session composes it on the 000F.
+void stopAtDue(Rig& r, L::ActionContext& stop, L::StopKind kind, const L::ActionOptions& o) {
+    r.reachRunning();
+    bool due = false;
+    CHECK(L::serviceVelocity(r.context, r.live, r.target, r.context.stopDueUs, false, due) && due);
+    r.now = r.context.stopDueUs;
+    CHECK(L::prepareVelocityStop(stop, r.context, r.live, r.target, r.context.commandHistory[2], kind, 43, r.now,
+                                 DEADLINE, o));
+}
+// A quick stop from a running mode 3 run settles on two released cycles in a row with 606C zero and 6064
+// unchanged, running latched or not; anything else leaves the run fenced.
+void quickStopSettlesOnReleasedStandstill() {
+    struct Case {
+        const char* name;
+        Report reports[2];
+        M::ActionOutcome outcome;
+        uint32_t observations;
+    };
+    const Case cases[] = {
+        {"1513", {TRIAL_1513[0], TRIAL_1513[1]}, M::ActionOutcome::OBSERVED, 2},
+        {"1607", {TRIAL_1607[0], TRIAL_1607[1]}, M::ActionOutcome::OBSERVED, 2},
+        {"6064 moves", {{0x0014, 0xc050, 3, 5600, 0}, {0x0015, 0xc050, 3, 5608, 0}}, M::ActionOutcome::DEADLINE, 2},
+        {"606C nonzero", {{0x0014, 0xc050, 3, 5608, 3}, {0x0015, 0xc050, 3, 5608, 0}}, M::ActionOutcome::DEADLINE, 2},
+        {"enabled first", {{0x0004, 0xc437, 3, 5608, 0}, {0x0015, 0xc050, 3, 5608, 0}}, M::ActionOutcome::DEADLINE, 2},
+        {"alarm", {{0x0014, 0xc050, 3, 5608, 0}, {0x001d, 0xc050, 3, 5608, 0}}, M::ActionOutcome::OBSERVATION_SCOPE, 2},
+        {"mode 1", {{0x0014, 0xc050, 3, 5608, 0}, {0x0015, 0xc050, 1, 5608, 0}}, M::ActionOutcome::OBSERVATION_SCOPE, 2},
+        {"low bits 001", {{0x0014, 0xc051, 3, 5608, 0}, {0x0015, 0xc050, 3, 5608, 0}},
+         M::ActionOutcome::OBSERVATION_SCOPE, 1},
+    };
+    for (const Case& k : cases) {
+        Rig r;
+        quickStopRun(r);
+        static L::ActionContext stop;
+        stopAtDue(r, stop, L::StopKind::QUICK_STOP, planOptions(r));
+        CHECK(stop.standstillObserving && stop.stopModeRaw == 3 && stop.predecessorWord == 0x000f);
+        L::PreparedAction command;
+        CHECK(L::nextAction(stop, r.live, r.target, r.now, command) && command.ready);
+        CHECK(command.transfer.index == 0x6040 && command.transfer.data[0] == 0x0b && command.transfer.data[1] == 0);
+        runScripted(r, stop, k.reports, 2);
+        if (stop.outcome != k.outcome || stop.observations != k.observations)
+            std::fprintf(stderr, "%s: outcome %u observations %u\n", k.name, unsigned(stop.outcome),
+                         unsigned(stop.observations));
+        CHECK(stop.outcome == k.outcome && stop.observations == k.observations && stop.read.count == 7 &&
+              stop.execution == M::ActionExecution::ACKNOWLEDGED);
+        CHECK(L::advanceVelocityStop(r.context, stop, r.now));
+        const L::VelocityContext& c = r.context;
+        if (k.outcome == M::ActionOutcome::OBSERVED) {
+            CHECK(stop.state == M::ActionState::SUCCEEDED && stop.completion == M::ActionCompletion::OBSERVED &&
+                  stop.monitorObservation.monitor == 0x0015 &&
+                  stop.extraObservation.actualPosition == k.reports[1].position);
+            CHECK(c.state == M::ActionState::SUCCEEDED && c.outcome == M::ActionOutcome::OBSERVED &&
+                  c.completion == M::ActionCompletion::OBSERVED && !c.needsStop &&
+                  c.firstFailure == M::ActionOutcome::NONE && c.stopOperation == 43);
+        } else {
+            CHECK(stop.state == M::ActionState::FAILED && stop.completion == M::ActionCompletion::NOT_OBSERVED);
+            CHECK(c.state == M::ActionState::FAILED && c.needsStop && c.uncertain &&
+                  c.completion == M::ActionCompletion::NOT_OBSERVED && c.stopOutcome == k.outcome);
+        }
+    }
+}
+// Only a QUICK_STOP from 000F after a running report, with a seven-field age, gets the rule.
+void releasedStandstillStaysNarrow() {
+    const Report released[1] = {{0x0015, 0xc050, 3, 0, 0}};
+    {
+        // S16: the run failed on word 7's report after 15 (trial 1009's shape), so no running report
+        // came before its QUICK_STOP, which then ends outside its scope on the release, fence kept.
+        Rig r;
+        r.evidence.stopKind = r.options.stopKind = L::StopKind::QUICK_STOP;
+        r.reachLaggingFailure();
+        static L::ActionContext stop;
+        CHECK(L::prepareVelocityStop(stop, r.context, r.live, r.target, r.context.commandHistory[2],
+                                     L::StopKind::QUICK_STOP, 43, r.now, DEADLINE, planOptions(r)));
+        CHECK(!stop.standstillObserving);
+        runScripted(r, stop, released, 1);
+        CHECK(stop.outcome == M::ActionOutcome::OBSERVATION_SCOPE && stop.observations == 1 && stop.read.count == 5);
+        CHECK(L::advanceVelocityStop(r.context, stop, r.now));
+        CHECK(r.context.state == M::ActionState::FAILED && r.context.needsStop &&
+              r.context.completion == M::ActionCompletion::NOT_OBSERVED);
+    }
+    {
+        // A HALT keeps its rule: a release is outside its scope.
+        Rig r;
+        experiment(r);
+        static L::ActionContext stop;
+        stopAtDue(r, stop, L::StopKind::HALT, planOptions(r));
+        CHECK(!stop.standstillObserving);
+        runScripted(r, stop, TRIAL_1513, 2);
+        CHECK(stop.outcome == M::ActionOutcome::OBSERVATION_SCOPE && stop.observations == 1);
+        CHECK(L::advanceVelocityStop(r.context, stop, r.now) && r.context.needsStop);
+    }
+    {
+        // A five-field age cap offers no standstill observation.
+        Rig r;
+        quickStopRun(r);
+        static L::ActionContext stop;
+        stopAtDue(r, stop, L::StopKind::QUICK_STOP, planOptions(r, 5));
+        CHECK(!stop.standstillObserving);
+        runScripted(r, stop, TRIAL_1513, 2);
+        CHECK(stop.outcome == M::ActionOutcome::OBSERVATION_SCOPE && stop.observations == 1);
+    }
+    {
+        // prepareStop's mode 3 admission is a fresh running report after 000F: the same rule from the
+        // first cycle, with a seven-field age only, and never for HALT.
+        for (unsigned variant = 0; variant < 3; ++variant) {
+            Rig r;
+            quickStopRun(r);
+            r.reachRunning();
+            L::ActionOptions use = stopOptions(r);
+            use.observationIntervalUs = 300000;
+            if (variant == 1)
+                use.maximumAgeUs = 5 * 200;
+            static L::ActionContext stop;
+            CHECK(L::prepareStop(stop, r.live, r.observation, r.context.commandHistory[2],
+                                 variant == 2 ? L::StopKind::HALT : L::StopKind::QUICK_STOP, 43, r.now, DEADLINE, use));
+            CHECK(stop.stopModeRaw == 3 && stop.standstillObserving == (variant == 0));
+            if (variant)
+                continue;
+            runScripted(r, stop, TRIAL_1607, 2);
+            CHECK(stop.state == M::ActionState::SUCCEEDED && stop.observations == 2);
+        }
+    }
+    {
+        // An escalation from a running mode 3 HALT follows 010F, which no record covers: old scope.
+        Rig r;
+        experiment(r);
+        r.reachRunning();
+        L::ActionOptions o = stopOptions(r);
+        o.observationIntervalUs = 300000;
+        static L::ActionContext halt, quick;
+        CHECK(L::prepareStop(halt, r.live, r.observation, r.context.commandHistory[2], L::StopKind::HALT, 43, r.now,
+                             DEADLINE, o));
+        const Report running[1] = {{0x0004, 0xc437, 3, 900, 30}};
+        runScripted(r, halt, running, 1, 1);
+        CHECK(halt.state == M::ActionState::ACTIVE && halt.observations == 1);
+        CHECK(L::prepareEscalation(quick, halt, 44, r.now, DEADLINE, o));
+        CHECK(quick.predecessorWord == 0x010f && !quick.standstillObserving);
+    }
+}
+// After a moving quick stop the drive reports 2100 0015 (running latched), 6041 C050: a run may start
+// there in mode 3, word 6's cycle repeating its 6064, with the latch clear from word 7's cycle on.
+void latchedReleaseAdmitsAVelocityStart() {
+    for (uint16_t clearedBy : {uint16_t(7), uint16_t(6)}) {
+        Rig r;
+        experiment(r);
+        r.latched = true;
+        r.latchClearedBy = clearedBy;
+        r.acquireInitial();
+        r.reachRunning();
+        const L::VelocityContext& c = r.context;
+        CHECK(c.admission.monitor == 0x0015 && c.admission.statusword == 0xc050 && c.admission.position == 5608 &&
+              c.observations >= 3 && c.firstFailure == M::ActionOutcome::NONE);
+    }
+    for (unsigned k = 0; k < 6; ++k) {
+        Rig r;
+        experiment(r);
+        r.latched = true;
+        switch (k) {
+        case 0: r.latchedStatus = 0xc051; break; // Low bits 001 with the latch.
+        case 1: r.latchedStatus = 0xc053; break; // 011.
+        case 2: r.latchedVelocity = 1; break;    // 606C moving.
+        case 3: r.latchedMonitor = 0x0005; break; // Running without the release.
+        case 4: r.latchedMonitor = 0x001d; break; // Alarm.
+        default:
+            // Mode 1, even with mode-change evidence: the latch is admitted in mode 3 only.
+            r.evidence.gate = L::VelocityGate::MEASURED;
+            r.evidence.startQualified = r.evidence.stopQualified = r.evidence.modeChangeQualified = true;
+            r.evidence.modeChangeFromRaw = 1;
+            r.mode = 1;
+            break;
+        }
+        r.acquireInitial();
+        r.reject();
+    }
+    {
+        // The latch still reported in word 7's cycle fails the prefix, with the run's stop requested.
+        Rig r;
+        experiment(r);
+        r.latched = true;
+        r.latchClearedBy = 15;
+        r.acquireInitial();
+        CHECK(r.prepare());
+        serveUntil(r, false);
+        const L::VelocityContext& c = r.context;
+        CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && c.needsStop && c.commandCursor == 1 &&
+              c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE && c.latest.monitor == 0x0015 &&
+              std::strcmp(c.status.msg, "enable prefix not freshly confirmed") == 0);
+    }
+    {
+        // 6064 moved between the admission and word 6's cycle: no second report of one standstill.
+        Rig r;
+        experiment(r);
+        r.latched = true;
+        r.creep = 1;
+        r.acquireInitial();
+        CHECK(r.prepare());
+        serveUntil(r, false);
+        const L::VelocityContext& c = r.context;
+        CHECK(c.phase == L::VelocityPhase::STOPPING && c.stopRequested && c.commandCursor == 0 &&
+              c.latest.position == 5609 && c.firstFailure == M::ActionOutcome::OBSERVATION_SCOPE);
+    }
+}
+// MONITORS and STATUS read now: what a stop admission judges.
+void readStopState(Rig& r, L::ReadContext& into, const Report& report) {
+    const uint8_t blocks =
+        uint8_t((1u << unsigned(L::StateBlock::MONITORS)) | (1u << unsigned(L::StateBlock::STATUS)));
+    CHECK(L::prepareState(into, r.target, 1, r.now, r.now + 100000, r.options.service, blocks));
+    while (into.state == M::ReadState::ACTIVE) {
+        L::PreparedRead p;
+        CHECK(L::nextRead(into, r.now, p) && p.ready);
+        const uint16_t index = p.transfer.index;
+        const uint32_t value = index == 0x2100 ? report.monitor : index == 0x6041 ? report.status
+                               : index == 0x6061 ? report.mode : 0u;
+        CHECK(L::advanceRead(into, reply(p.transfer, r.now, r.now + 1, value), r.now + 1));
+        r.now += 100;
+    }
+    CHECK(into.state == M::ReadState::SUCCEEDED);
+}
+// The attended experiment's one 000B of a drive the run's own HALT left halted (backlog S18).
+void haltedVelocityQuickStop() {
+    Rig r;
+    experiment(r);
+    static L::ActionContext halt, quick;
+    stopAtDue(r, halt, L::StopKind::HALT, planOptions(r));
+    runScripted(r, halt, &HALTED, 1);
+    CHECK(halt.state == M::ActionState::SUCCEEDED && L::advanceVelocityStop(r.context, halt, r.now));
+    CHECK(r.context.state == M::ActionState::SUCCEEDED && !r.context.needsStop);
+    const C::SdoCompletion control = halt.commandHistory[0];
+    const Saved<L::VelocityContext> run(r.context);
+    static L::ReadContext state, other;
+    readStopState(r, state, HALTED);
+    const L::ActionOptions o = planOptions(r);
+    const uint64_t deadline = r.now + 500000;
+    const Saved<L::ActionContext> before(quick);
+    CHECK(L::validateHaltedVelocityQuickStop(quick, r.context, r.live, r.target, state, control, 44, r.now,
+                                             deadline, o));
+    // Refused, with nothing written: budgets, identity, another word, another report or run.
+    CHECK(!L::validateHaltedVelocityQuickStop(quick, r.context, r.live, r.target, state, control, 44, r.now,
+                                              deadline, planOptions(r, 5)));
+    CHECK(!L::prepareHaltedVelocityQuickStop(quick, r.context, r.live, r.target, state, control, 43, r.now,
+                                             deadline, o));
+    CHECK(!L::prepareHaltedVelocityQuickStop(quick, r.context, r.live, r.target, state, r.context.commandHistory[2],
+                                             44, r.now, deadline, o));
+    CHECK(!L::prepareHaltedVelocityQuickStop(quick, r.context, r.live, r.target, r.observation, control, 44, r.now,
+                                             deadline, o)); // A running report from before the 010F.
+    const Report reports[] = {{0x0005, 0x9437, 3, 0, 0}, {0x0001, 0x9037, 3, 0, 0}, {0x0001, 0x9437, 1, 0, 0},
+                              {0x0011, 0x8050, 3, 0, 0}};
+    for (const Report& k : reports) {
+        readStopState(r, other, k);
+        CHECK(!L::prepareHaltedVelocityQuickStop(quick, r.context, r.live, r.target, other, control, 44, r.now,
+                                                 r.now + 500000, o));
+    }
+    readStopState(r, state, HALTED);
+    for (unsigned k = 0; k < 3; ++k) {
+        static L::VelocityContext forged;
+        forged = r.context;
+        if (k == 0)
+            forged.evidence.gate = L::VelocityGate::MEASURED;
+        else if (k == 1)
+            forged.state = M::ActionState::FAILED;
+        else
+            forged.options.stopKind = forged.evidence.stopKind = L::StopKind::QUICK_STOP;
+        CHECK(!L::prepareHaltedVelocityQuickStop(quick, forged, r.live, r.target, state, control, 44, r.now,
+                                                 r.now + 500000, o));
+    }
+    before.unchanged(quick);
+    // Released standstill completes it; staying halted completes nothing, to the deadline.
+    for (unsigned variant = 0; variant < 2; ++variant) {
+        readStopState(r, state, HALTED);
+        CHECK(L::prepareHaltedVelocityQuickStop(quick, r.context, r.live, r.target, state, control, 44 + variant,
+                                                r.now, r.now + 500000, o));
+        CHECK(quick.kind == L::StopKind::QUICK_STOP && quick.stopModeRaw == 3 && quick.predecessorWord == 0x010f &&
+              !quick.predecessorDocumented && quick.predecessorBasis == L::PredecessorBasis::PROJECT_DECISION &&
+              quick.standstillObserving && quick.monitorObservation.monitor == 0x0001);
+        L::PreparedAction command;
+        CHECK(L::nextAction(quick, r.live, r.target, r.now, command) && command.ready &&
+              command.transfer.data[0] == 0x0b && command.transfer.data[1] == 0);
+        const Report released[2] = {{0x0010, 0x8050, 3, 1131, 0}, {0x0011, 0x8050, 3, 1131, 0}};
+        if (variant)
+            runScripted(r, quick, &HALTED, 1);
+        else
+            runScripted(r, quick, released, 2);
+        CHECK(quick.state == (variant ? M::ActionState::FAILED : M::ActionState::SUCCEEDED) &&
+              quick.observations == 2 && quick.read.count == 7);
+        CHECK(quick.outcome == (variant ? M::ActionOutcome::DEADLINE : M::ActionOutcome::OBSERVED));
+        run.unchanged(r.context); // The finished run is never rewritten.
+    }
+}
 } // namespace
 int main() {
+    quickStopSettlesOnReleasedStandstill();
+    releasedStandstillStaysNarrow();
+    latchedReleaseAdmitsAVelocityStart();
+    haltedVelocityQuickStop();
     enableWindowAdmission();
     enableWindowThenRunning();
     enableWindowExpires();

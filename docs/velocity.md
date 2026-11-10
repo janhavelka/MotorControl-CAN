@@ -32,6 +32,16 @@ The session also requires the admission cycle to follow its latest write: a
 recent but contradicted pre-run released sample cannot admit another run after
 a halt left the drive enabled.
 
+One exception to "no running" (backlog S18): after a moving quick stop both specimens report
+their release with 2100 running still latched, `2100=0015`, `6041=C050`, mode 3, `606C=0` and
+`6064` still (reads 1514 and 1608), so without it no second run could start in the same
+power-up. Admission takes that latch only in mode 3, only together with the release, 6041 low
+bits 000, alarm clear and 606C zero. Word 6's cycle may still show the latch and must then read
+the admission's 6064: the second fresh report of one standstill before any enabling word. From
+word 7's cycle on the latch must be clear, as word 7 cleared it in mode 1 (trial 308,
+`6041=0033`, `2100=0000`); otherwise the prefix fails with the run's stop requested. That word 7
+clears the latch in mode 3 is not measured.
+
 ### Attended experiment scope
 
 `VelocityGate::ATTENDED_EXPERIMENT` admits one finite run whose mode 3 start and
@@ -117,9 +127,9 @@ section. This is project policy, not a manufacturer statement or a safety stop.
 No enabling preamble is sent. Direct mode3 stop from other words is refused;
 explicit running HALT-to-QUICK escalation uses the existing action path.
 
-The position-mode released/latched-running fallback is **not** reused for mode3.
-Successful mode3 settlement needs its own supported fresh state observation;
-service ACK alone is insufficient. An unresolved channel can take only the
+The position-mode release fallback is reused for mode 3 only for a QUICK_STOP that followed a
+running report, and only as its standstill rule (backlog S18, below). Successful mode3
+settlement needs its own supported fresh state observation; service ACK alone is insufficient. An unresolved channel can take only the
 explicit best-effort `000B` route under DEC-2, only when QUICK_STOP was selected:
 one transmission, execution
 `UNKNOWN`, no correlated reply, no automatic resend. A HALT request grants no
@@ -183,6 +193,39 @@ The session alternates two shared state-read buffers so a stop sees the last
 complete cycle, not a partial newer cycle. Starting a move or velocity operation
 reuses those buffers; retain a copy if an application needs older raw cycles.
 The concrete context keeps owned summaries and service terminals.
+
+### Quick stop in mode 3 and the next run (backlog S18)
+
+Measured on 2026-11-10 ([rounds 8 and 9](reports/2026-11-10_bench_r8.md)), drive reports on both
+specimens and one firmware: `000B` from a running run at 30 rpm (trial 1513, node 2) and 60 rpm
+(trial 1607, node 1) read `2100=0014` (released, running latched), `6041=C050`, `6061=3` 28 ms
+later, and the later reads 1514 and 1608 found `2100=0015`, `6041=C050`, `606C=0` with `6064`
+unchanged. Those runs ended `OBSERVATION_SCOPE`, uncertain and fenced, because the mode 3 stop
+scope refused a release.
+
+Now the run's own QUICK_STOP, when the run's latest cycle before the request was a running report
+(the `runningReport` rule above) and the stop's `maximumAgeUs` covers seven fields, reads 6064 and
+606C from its first cycle (`ActionContext::standstillObserving`). Two released cycles in a row with
+alarm clear, mode 3, low bits 000, 606C zero and 6064 unchanged complete it as `OBSERVED`, running
+latched or not, and the run then ends `SUCCEEDED` with `needsStop` clear. One released report never
+completes it, and a cycle that moved, read 606C nonzero, an alarm, another mode or other low bits
+leaves the run fenced as before. An explicit QUICK_STOP that `prepareStop` admits on a fresh running
+report after the run's `000F` follows the same rule and, once observed, clears `velocityNeedsStop`.
+A QUICK_STOP on the run's `000F` alone (S16, no running report before it, or after the run ended)
+keeps the old scope and never clears the fence, and HALT is unchanged.
+
+**After the release the drive is released:** torque was not observed, so treat a load the motor held
+as no longer held. With the bench plan (12 s, interval 4000 ms, deadline 17000 ms) the stop gets two
+cycles, at the command and about 4 s later; the route's terminal bound already counts seven fields per
+stop cycle (125 of 128), and its record and runner need no change. A plan with one stop cycle (such as
+interval 5000 ms with deadline 15500 ms) cannot settle a release and ends at its deadline.
+
+A run may then start from that latched release (admission above). After a settled HALT the drive
+stays enabled and halted in mode 3 (`6041=9437`, `2100=0001`), which no velocity admission accepts
+and the idle-report rule refuses a QUICK_STOP from (trial 1707). For the attended experiment only,
+`prepareHaltedVelocityQuickStop` sends one unqualified `000B` from exactly that report while the
+run's own `010F` is still the latest word ([stop actions](stop_actions.md)); it completes only on the
+released standstill and clears no fence. Host-tested only: no record shows what `000B` does there.
 
 ## Trial 1009 (2026-11-09)
 

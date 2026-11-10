@@ -228,7 +228,10 @@ struct VelocityContext {
  * duration coverage and fixed stop budget are checked before publication. No I/O occurs.
  * CLOSED, a MEASURED record without both start and stop facts, an ATTENDED_EXPERIMENT that
  * claims any qualification or exceeds its rate or duration bound, and a nonzero enable report window
- * under any gate but ATTENDED_EXPERIMENT are refused.
+ * under any gate but ATTENDED_EXPERIMENT are refused. The admission's 2100 running bit must be clear,
+ * except in mode 3 together with the release, 6041 low bits 000 and 606C zero: the latch a moving quick
+ * stop left on both specimens (2100 0015, 6041 C050; reads 1514 and 1608, backlog S18). Word 6's cycle
+ * must then repeat the admission's 6064, and from word 7's cycle on the latch must be clear.
  * @param[out] output Candidate unchanged on failure. @param[in] reservation Continuous exclusion.
  * @param[in] current Current target. @param[in] state Fresh complete state read.
  * @param[in] identity Acquired raw identity. @param[in] evidence Explicit firmware evidence.
@@ -322,7 +325,8 @@ Status serviceVelocity(VelocityContext& context, const AxisReservation& live,
  * (latest) reported the drive enabled and running in mode 3 with no alarm or release, the state an
  * ordinary mode 3 stop admission needs. Otherwise the drive was not reported running before the stop
  * either, so its not-running report shows nothing the stop did: the stop's own record keeps what it
- * saw, and this run keeps needsStop, completion NOT_OBSERVED and its first failure.
+ * saw, and this run keeps needsStop, completion NOT_OBSERVED and its first failure. After such a report
+ * a QUICK_STOP also completes on a released standstill (backlog S18; ActionContext::standstillObserving).
  * @param[in,out] context STOPPING operation. @param[in] stop Same route/kind/deadline, newer operation.
  * @param[in] nowUs Processing time. @return Local status; failed terminal is never rewritten. */
 Status advanceVelocityStop(VelocityContext& context, const ActionContext& stop,
@@ -360,7 +364,10 @@ Status validateVelocityStop(const ActionContext& output, const VelocityContext& 
                             const ActionOptions& options) noexcept;
 /** Prepare that stop in place as an ordinary mode 3 STOP ActionContext (predecessor 000F,
  * PROJECT_DECISION, not documented, no admission observation), for the same nextAction and
- * advanceAction path as prepareStop's. The run itself is not written.
+ * advanceAction path as prepareStop's. The run's own requested QUICK_STOP, when the run's latest cycle
+ * reported running and options.maximumAgeUs covers seven fields, sets standstillObserving: trials 1513
+ * and 1607 read 2100 0014, 6041 C050 28 ms after 000B, then 0015 with 606C 0 and 6064 still (backlog
+ * S18). Any other stop prepared here keeps a release outside its scope. The run itself is not written.
  * @param[out] output Unchanged on refusal. @param[in] run As validateVelocityStop.
  * @param[in] live As validateVelocityStop. @param[in] current As validateVelocityStop.
  * @param[in] control As validateVelocityStop. @param[in] kind As validateVelocityStop.
@@ -371,6 +378,45 @@ Status prepareVelocityStop(ActionContext& output, const VelocityContext& run,
                            const AxisReservation& live, const ReadTarget& current,
                            const CANOPEN::SdoCompletion& control, StopKind kind, uint32_t operation,
                            uint64_t nowUs, uint64_t deadlineUs, const ActionOptions& options) noexcept;
+/** Check the attended experiment's quick stop of a drive a velocity run's own HALT left halted,
+ * changing nothing (backlog S18). After a settled HALT both specimens stay enabled and halted in
+ * mode 3 (6041 9437, 2100 0001: trials 1507, 1613 and 1706), and nothing else leaves that state
+ * without a power cycle. No source or record says what 000B does there, so this one 000B is an
+ * experiment: the run must have run under ATTENDED_EXPERIMENT and ended SUCCEEDED with its HALT
+ * acknowledged and observed, its acknowledged 010F must still be the latest word, and a fresh report
+ * after that word must read exactly 6041 9437, 2100 0001 and mode 3. The stop reads FEEDBACK from its
+ * first cycle and completes only on a released standstill: two released cycles in a row with 6041
+ * low bits 000, 606C zero and 6064 unchanged. A not-running report alone completes nothing, because
+ * the drive was idle before the stop.
+ * @param[in] output Context prepareHaltedVelocityQuickStop would write; read only for overlap checks.
+ * @param[in] run The finished run. @param[in] live Current reservation, the run's.
+ * @param[in] current Target. @param[in] state Fresh complete SDO MONITORS and STATUS after control.
+ * @param[in] control The application's actual latest acknowledged 6040 terminal: the run's own 010F.
+ * @param[in] operation New identity above the run's stop. @param[in] nowUs Preparation time.
+ * @param[in] deadlineUs Exclusive cutoff. @param[in] options Stop budgets, as prepareStop's, with a
+ * maximumAgeUs covering seven fields.
+ * @return Exactly prepareHaltedVelocityQuickStop's status; all inputs unchanged. */
+Status validateHaltedVelocityQuickStop(const ActionContext& output, const VelocityContext& run,
+                                       const AxisReservation& live, const ReadTarget& current,
+                                       const ReadContext& state, const CANOPEN::SdoCompletion& control,
+                                       uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                                       const ActionOptions& options) noexcept;
+/** Prepare that stop in place as a mode 3 QUICK_STOP ActionContext (predecessor 010F,
+ * PROJECT_DECISION, not documented, standstillObserving set, the admission report retained), for the
+ * same nextAction and advanceAction path as prepareStop's. Its result is unqualified: an application
+ * must not let it clear any fence. The run itself is not written.
+ * @param[out] output Unchanged on refusal. @param[in] run As validateHaltedVelocityQuickStop.
+ * @param[in] live As validateHaltedVelocityQuickStop. @param[in] current As validateHaltedVelocityQuickStop.
+ * @param[in] state As validateHaltedVelocityQuickStop. @param[in] control As validateHaltedVelocityQuickStop.
+ * @param[in] operation As validateHaltedVelocityQuickStop. @param[in] nowUs As validateHaltedVelocityQuickStop.
+ * @param[in] deadlineUs As validateHaltedVelocityQuickStop.
+ * @param[in] options As validateHaltedVelocityQuickStop.
+ * @return Local status; no I/O. */
+Status prepareHaltedVelocityQuickStop(ActionContext& output, const VelocityContext& run,
+                                      const AxisReservation& live, const ReadTarget& current,
+                                      const ReadContext& state, const CANOPEN::SdoCompletion& control,
+                                      uint32_t operation, uint64_t nowUs, uint64_t deadlineUs,
+                                      const ActionOptions& options) noexcept;
 /** Retain an unconfirmed DEC-2 stop; it can never clear needsStop or prove completion.
  * @param[in,out] context STOPPING operation. @param[in] stop Distinct same-route stop.
  * @param[in] nowUs Processing time. @return Local status; no success can result. */

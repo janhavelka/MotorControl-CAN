@@ -34,6 +34,9 @@ struct StopPolicy {
      * unresolved route, at or after deadlineUs. Zero refuses that branch, so such a request is
      * refused. A stop proved never sent by a controller fault still waits under deadlineUs. */
     uint64_t bestEffortDeadlineUs = 0;
+    /** The attendant's opt-in to the one experiment QUICK_STOP of a drive a velocity run's own HALT
+     * left halted (validateHaltedVelocityQuickStop, backlog S18). False keeps every idle refusal. */
+    bool attendedExperiment = false;
 };
 /** The application session of one axis over the sole owner. It keeps the history
  * prepareStop cannot see. Every command this axis sends goes through admitPrepared, so
@@ -220,6 +223,16 @@ class AxisSession {
      * that word's own stop instead (validateVelocityStop): 010F or 000B, whatever the report says.
      * Its observation is unqualified: it never clears velocityNeedsStop(). The run's own stop at due
      * or after a failure takes this request too, with the run's kind and deadline.
+     *
+     * A QUICK_STOP that the fresh-state admission takes in mode 3 (a fresh running report after the
+     * run's 000F), or the run's own QUICK_STOP after a running report, also settles on a released
+     * standstill (backlog S18): two released cycles in a row with 606C zero and 6064 unchanged, which
+     * then clears velocityNeedsStop() as any checked stop does.
+     *
+     * With policy.attendedExperiment, a QUICK_STOP of a drive that an attended velocity run's own HALT
+     * left halted (its acknowledged 010F still the latest word, a fresh report of exactly 6041 9437,
+     * 2100 0001, mode 3) sends one 000B (validateHaltedVelocityQuickStop) where the idle report would
+     * otherwise refuse. Its result is unqualified and clears no fence.
      */
     StopPath requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                          const MotorControlCAN::LICHUAN_C::ReadContext& state,
@@ -687,7 +700,8 @@ class AxisSession {
     MotorControlCAN::Status velocityRefusal_;
     bool velocityNeedsStop_ = false, scheduledVelocityStop_ = false;
     // requestingVelocityStop_: the run's own requested stop is being composed. unqualifiedStop_: the
-    // current sequenced stop was admitted on the run's acknowledged 000F alone (validateVelocityStop).
+    // current sequenced stop was admitted on the run's acknowledged 000F alone (validateVelocityStop),
+    // or is the experiment 000B after the run's own HALT (validateHaltedVelocityQuickStop).
     bool requestingVelocityStop_ = false, unqualifiedStop_ = false;
     uint64_t velocityCommandAfterUs_ = 0;
     uint64_t lastWriteUs_ = 0; // New velocity state must postdate this session's writes.

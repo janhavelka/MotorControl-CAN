@@ -2081,9 +2081,12 @@ const char* BenchRoute::checkVelocity() const noexcept {
         return "alarm";
     if (!(s.monitor & L::MONITOR_RELEASED))
         return "unreleased";
-    if (s.monitor & L::MONITOR_RUNNING)
-        return "running";
     const uint16_t low = uint16_t(s.statusword & L::STATUS_LOW_BITS);
+    // After a moving quick stop the release keeps 2100 running latched (2100=0015, 6041=C050, reads 1514
+    // and 1608). The library admits that latch with low bits 000 in mode 3 only, and its word 6 cycle
+    // must repeat this 6064.
+    if ((s.monitor & L::MONITOR_RUNNING) && low != 0)
+        return "running";
     if (low != 0 && low != 1 && low != 3)
         return "status";
     if (s.mode != 3)
@@ -2174,6 +2177,8 @@ void BenchRoute::startStop(uint8_t kind, uint32_t deadlineMs, uint32_t bestEffor
     policy.options.maximumAgeUs = 7 * (uint64_t(ROUTE_QUEUE_US) + ROUTE_RESPONSE_US);
     policy.deadlineUs = now + uint64_t(deadlineMs) * 1000;
     policy.bestEffortDeadlineUs = bestEffortMs ? now + uint64_t(bestEffortMs) * 1000 : 0;
+    // An attended STOP line may take the one experiment 000B of a drive a velocity HALT left halted (S18).
+    policy.attendedExperiment = record_.plan.kind == RouteKind::STOP && record_.plan.attended;
     record_.stopRequestKind = kind;
     // A move keeps its own request time until the stop is under way; the stop is matched to its own.
     const bool duringMove = record_.moveRequested;
