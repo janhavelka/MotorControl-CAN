@@ -17,8 +17,8 @@ refuses that abort while a velocity runs: its own stop at the due time is its on
 A velocity line runs as the library's VelocityGate::ATTENDED_EXPERIMENT: the run measures its mode 3
 start and stop and claims neither. No record of this fixture measured them, so --start-qualified and
 --stop-qualified are refused, and so are a rate over 60 rpm and a duration over 20000 ms, the library's
-bounds for that scope. request.json and the send entry record the scope. It always needs the attendant
-with the independent cutoff in hand: --unattended-waiver refuses velocity.
+bounds for that scope. request.json and the send entry record the scope. It needs the attendant with the
+independent cutoff in hand: --unattended-waiver refuses velocity, unless --waiver-covers-motion (below).
 
 After a velocity record whose TRIAL_VELOCITY shows needs=1 (or fenced=1) and in which no stop left
 (TRIAL_STOP own=0 or exec=0, and no TRIAL_BEST_EFFORT with own=1 and a nonzero exec), the runner prints
@@ -54,6 +54,13 @@ made and is relayed: --relayed-power-up-shaft FREE|HOLDING with --relayed-shaft-
 user's own report of the shaft as they felt it after the power-up and before anything was sent,
 with where and when they gave it. It is stored as relayed, never inferred from the drive.
 
+--waiver-covers-motion, only with --unattended-waiver, states that the user's statement explicitly accepts
+enables and velocity runs with nobody at the bench and nobody holding the cutoff (2026-11-11: "do a full night
+soak without my attendance / You can do motion tests, speeding up, changing speed on the fly etc"). With it
+a velocity line and a released-by-recorded-stop enable are admitted unattended; the velocity scope and bounds,
+the S16 alerts and every other check are unchanged, and request.json and the send entry record it. A power-up
+enable still needs a relayed shaft: a waiver is not an observation.
+
 Drives kept powered (2026-11-10): mode1 decides its start from its first read. Mode 0 is the power-up
 baseline, checked as before. Mode 3 is the released standstill a recorded stop left: a second full read, both
 released with 6041 bits 0..6 0x50, then one 6060=1 and cycles until 6061 reads 1; never 6040. An enable then
@@ -65,7 +72,8 @@ but one acknowledged 6060=1 reached the drive after that record, which no runner
 operator types it only from that record and every ledger since. Its line carries start 2 and shaft FREE, read from
 the released start report at the user's instruction of 2026-11-10 ("do not ask if holding or not, read it") and
 never felt, so no shaft question is asked. It is refused with --unattended-waiver and with a relayed shaft: word 7
-moves the rotor to the drive's internal command with no bound known. The library also admits the running latch a
+moves the rotor to the drive's internal command with no bound known (admitted only with --waiver-covers-motion).
+The library also admits the running latch a
 moving quick stop leaves (2100=0014 or 0015), which must clear by word 7; word 15 waits for word 7's report to
 hold still, and a 6064 or 606C change after word 15 fails the enable, after which the firmware sends its own
 QUICK_STOP. Start 2 reserves that stop's terminals and time, so its line needs an interval above 1111 ms at a
@@ -830,6 +838,8 @@ def before_send(args, fields, ask, operator):
     attended = motion or args.command in SETTINGS_ROUTES
     if attended and args.unattended_waiver:
         operator["attended"] = {"unattended": True, "waiver": args.unattended_waiver, "accepted": True}
+        if args.waiver_covers_motion:
+            operator["attended"]["covers_motion"] = True
     elif attended:
         wanted = "ATTENDED %d" % trial
         ask_operator(ask, operator, "attended",
@@ -1257,6 +1267,9 @@ def arguments(argv):
                             "6060=1 reached the drive (stated, typed only from the record and the ledgers since)")
     trial.add_argument("--unattended-waiver", metavar="TEXT",
                        help="The user's own written acceptance of a trial with nobody at the bench, verbatim")
+    trial.add_argument("--waiver-covers-motion", action="store_true",
+                       help="with --unattended-waiver: the statement explicitly accepts unattended enables and "
+                            "velocity runs with nobody holding the cutoff; admits velocity and the recorded-stop enable")
     trial.add_argument("--relayed-power-up-shaft", choices=sorted(SHAFT),
                        help="enable under --unattended-waiver: the shaft as the user felt it after the power-up")
     trial.add_argument("--relayed-shaft-source", metavar="TEXT",
@@ -1271,18 +1284,20 @@ def arguments(argv):
             parser.error("--unattended-waiver belongs to trial commands")
         if not args.unattended_waiver.strip():
             parser.error("--unattended-waiver needs the user's statement")
-        if args.command == "enable" and args.released_by_recorded_stop is not None:
+        if args.command == "enable" and args.released_by_recorded_stop is not None and not args.waiver_covers_motion:
             parser.error("--unattended-waiver refuses a released-by-recorded-stop enable: word 7 moves the rotor to "
                          "the drive's internal command with no bound known, so the attendant with the independent "
                          "cutoff is its only control")
-        if args.command == "enable" and not args.relayed_power_up_shaft:
+        if args.command == "enable" and not args.relayed_power_up_shaft and args.released_by_recorded_stop is None:
             parser.error("--unattended-waiver refuses enable: its start report needs the attendant's power-up "
                          "shaft observation (relay one the user made with --relayed-power-up-shaft)")
         if args.fault_led == "prompt":
             parser.error("--unattended-waiver refuses --fault-led prompt: nobody can see the drive")
-        if args.command == "velocity":
+        if args.command == "velocity" and not args.waiver_covers_motion:
             parser.error("--unattended-waiver refuses velocity: its start and stop are unmeasured, so the attendant "
                          "with the independent drive-power cutoff in hand is its only control beyond its own stop")
+    if args.waiver_covers_motion and args.unattended_waiver is None:
+        parser.error("--waiver-covers-motion belongs to --unattended-waiver")
     if args.relayed_power_up_shaft or args.relayed_shaft_source is not None:
         if args.released_by_recorded_stop is not None:
             parser.error("--relayed-power-up-shaft is a power-up observation; a released-by-recorded-stop enable "
@@ -1392,6 +1407,8 @@ def capture_request(args, argv, fields, backend, clock, ask, usb, operator, camp
             entry["scope"] = VELOCITY_SCOPE
         if args.unattended_waiver:
             entry["unattended_waiver"] = args.unattended_waiver
+        if args.waiver_covers_motion:
+            entry["waiver_covers_motion"] = True
         if getattr(args, "start_record", None):
             entry["start_record"] = args.start_record["directory"]
         campaign.append(entry)

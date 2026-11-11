@@ -695,6 +695,7 @@ class BenchTest(unittest.TestCase):
                     ["--command", "mode1", "--node", "1", "--trial", "5", "--cycles", "3", "--interval-ms", "200",
                      "--released-by-recorded-stop", str(record_dir)],
                     argv + ["--unattended-waiver", "I am not there"],
+                    argv + ["--waiver-covers-motion"],
                     argv + ["--unattended-waiver", "I am not there", "--relayed-power-up-shaft", "FREE",
                             "--relayed-shaft-source", "dialog"],
                     argv + ["--relayed-power-up-shaft", "FREE", "--relayed-shaft-source", "dialog"]):
@@ -717,6 +718,20 @@ class BenchTest(unittest.TestCase):
                                                 "stated": "nothing but one acknowledged 6060=1 since"})
         send = [entry for entry in self.entries() if entry["event"] == "send"]
         self.assertEqual([entry.get("start_record") for entry in send], [str(record_dir)])
+        # A waiver that explicitly covers unattended motion admits it with no question; the after-route
+        # observations are stored as not observed.
+        self.clear_output()
+        self.ledger.write_bytes(b"")
+        board, operator = Board(), Operator()
+        waiver = "do a full night soak without my attendance"
+        status, out, _ = self.run_main(argv + ["--unattended-waiver", waiver, "--waiver-covers-motion"],
+                                       Backend(board), operator)
+        self.assertEqual(status, 0, out)
+        self.assertEqual((board.writes, operator.questions), ([b"p", line.encode()], []))
+        meta = self.meta()
+        self.assertEqual(meta["operator"]["attended"]["covers_motion"], True)
+        self.assertEqual(meta["operator"]["holding_after"]["typed"], bench.UNOBSERVED)
+        self.assertEqual(meta["operator"]["power_up_shaft"]["typed"], "FREE")
         # A record that does not show a settled quick stop of this node refuses before anything is sent.
         bad_records = [self.stop_record("other-node", node=2), self.stop_record("mode1", command="mode1"),
                        self.stop_record("failed", header=" failure=10 why=stop "),
@@ -1671,6 +1686,31 @@ class BenchTest(unittest.TestCase):
             bench.arguments(BASE + VELOCITY + ["--unattended-waiver", "I accept it unattended"] + LEDGER +
                             ["--output", "x"])
         self.assertIn("--unattended-waiver refuses velocity", err.getvalue())
+        # Unless the user's statement explicitly covers unattended motion (2026-11-11): then the line is
+        # admitted with the same scope and bounds, nobody is asked, and both records say so.
+        waiver = "do a full night soak without my attendance"
+        for bad in (VELOCITY + ["--waiver-covers-motion"], ["--command", "ping", "--waiver-covers-motion"]):
+            with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
+                bench.arguments(BASE + bad + LEDGER + ["--output", "x"])
+        self.clear_output()
+        board = Board()
+        status, _, err = self.run_main(changed(rpm=61) + ["--unattended-waiver", waiver, "--waiver-covers-motion"],
+                                       Backend(board), Operator())
+        self.assertEqual(status, 2, err)
+        self.assertIn("REFUSED: velocity rpm: 61 is over the ATTENDED_EXPERIMENT scope's 60 rpm", err)
+        self.assertEqual(board.writes, [])
+        self.clear_output()
+        self.ledger.write_bytes(b"")
+        operator = Operator()
+        status, _, err = self.run_main(VELOCITY + ["--unattended-waiver", waiver, "--waiver-covers-motion"],
+                                       Backend(Board()), operator)
+        self.assertIn(status, (0, 1), err)
+        self.assertEqual(operator.questions, [])
+        self.assertEqual(self.meta()["operator"]["attended"],
+                         {"unattended": True, "waiver": waiver, "accepted": True, "covers_motion": True})
+        send = [entry for entry in self.entries() if entry["event"] == "send"]
+        self.assertEqual([(entry.get("unattended_waiver"), entry.get("waiver_covers_motion"), entry.get("scope"))
+                          for entry in send], [(waiver, True, "ATTENDED_EXPERIMENT")])
         # The scope is recorded in request.json and in the send entry.
         self.clear_output()
         self.ledger.write_bytes(b"")
