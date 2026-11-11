@@ -29,8 +29,79 @@ unsigned checks = 0;
 template <class T> struct Saved {
     unsigned char bytes[sizeof(T)];
     explicit Saved(const T& value) { std::memcpy(bytes, &value, sizeof value); }
-    void unchanged(const T& value) const { CHECK(!std::memcmp(bytes, &value, sizeof value)); }
+    void unchanged(const T& value) const {
+        const unsigned char* current = reinterpret_cast<const unsigned char*>(&value);
+        for (size_t offset = 0; offset < sizeof value; ++offset) {
+            if (bytes[offset] != current[offset]) {
+                std::fprintf(
+                    stderr, "Saved object changed: size=%zu offset=%zu old=%02x new=%02x\n",
+                    sizeof value, offset, unsigned(bytes[offset]), unsigned(current[offset]));
+                CHECK(false);
+            }
+        }
+        CHECK(true);
+    }
 };
+bool sameHostFacts(const E::HostInterfaceFacts& a, const E::HostInterfaceFacts& b) {
+    return a.interfaceKnown == b.interfaceKnown && a.interfaceId == b.interfaceId &&
+           a.bitrateKnown == b.bitrateKnown && a.bitrateBitsPerSecond == b.bitrateBitsPerSecond;
+}
+bool sameIoStats(const E::ProbeIoStats& a, const E::ProbeIoStats& b) {
+    return a.inputDropped == b.inputDropped && a.outputRejected == b.outputRejected &&
+           a.outputWritten == b.outputWritten && a.inputUsed == b.inputUsed &&
+           a.outputUsed == b.outputUsed;
+}
+void valueCopiesComparePublicFields() {
+    E::HostInterfaceFacts a, b;
+    // Give independent object representations different fill bytes, then assign
+    // every public field. Padding has no place in a returned value's contract.
+    std::memset(static_cast<void*>(&a), 0x55, sizeof a);
+    std::memset(static_cast<void*>(&b), 0xaa, sizeof b);
+    a.interfaceKnown = b.interfaceKnown = true;
+    a.interfaceId = b.interfaceId = 0;
+    a.bitrateKnown = b.bitrateKnown = false;
+    a.bitrateBitsPerSecond = b.bitrateBitsPerSecond = 250000;
+    CHECK(sameHostFacts(a, b));
+    b.interfaceKnown = false;
+    CHECK(!sameHostFacts(a, b));
+    b.interfaceKnown = true;
+    b.interfaceId = 1;
+    CHECK(!sameHostFacts(a, b));
+    b.interfaceId = 0;
+    b.bitrateKnown = true;
+    CHECK(!sameHostFacts(a, b));
+    b.bitrateKnown = false;
+    b.bitrateBitsPerSecond = 500000;
+    CHECK(!sameHostFacts(a, b));
+    b.bitrateBitsPerSecond = 250000;
+    CHECK(sameHostFacts(a, b));
+
+    E::ProbeIoStats first, second;
+    std::memset(static_cast<void*>(&first), 0x55, sizeof first);
+    std::memset(static_cast<void*>(&second), 0xaa, sizeof second);
+    first.inputDropped = second.inputDropped = 8;
+    first.outputRejected = second.outputRejected = 2;
+    first.outputWritten = second.outputWritten = 32;
+    first.inputUsed = second.inputUsed = 64;
+    first.outputUsed = second.outputUsed = 4;
+    CHECK(sameIoStats(first, second));
+    ++second.inputDropped;
+    CHECK(!sameIoStats(first, second));
+    --second.inputDropped;
+    ++second.outputRejected;
+    CHECK(!sameIoStats(first, second));
+    --second.outputRejected;
+    ++second.outputWritten;
+    CHECK(!sameIoStats(first, second));
+    --second.outputWritten;
+    --second.inputUsed;
+    CHECK(!sameIoStats(first, second));
+    ++second.inputUsed;
+    ++second.outputUsed;
+    CHECK(!sameIoStats(first, second));
+    --second.outputUsed;
+    CHECK(sameIoStats(first, second));
+}
 struct Bytes {
     std::string input, output;
     size_t inputRead = 0;
@@ -253,7 +324,6 @@ void passiveRoutesAndGrammar() {
         reply(rig.command(std::string("@10 ") + passive[i]), true);
     CHECK(!rig.wire.fake.transmitCalls());
     const E::HostInterfaceFacts before = rig.app.hostInterfaceFacts();
-    const Saved<E::HostInterfaceFacts> facts(before);
     const char* invalid[] = {"reset",
                              "ping",
                              "ver",
@@ -321,7 +391,7 @@ void passiveRoutesAndGrammar() {
     E::HostWiringUse wiring;
     CHECK(rig.app.hostWiring(0, wiring) && wiring == E::HostWiringUse::UNKNOWN);
     const E::HostInterfaceFacts after = rig.app.hostInterfaceFacts();
-    facts.unchanged(after);
+    CHECK(sameHostFacts(before, after));
 }
 void inventoryAndHelp() {
     Rig rig;
@@ -456,22 +526,20 @@ void inputLossLatchPreservesBuffersAndCounters() {
         platform.service();
     CHECK(platform.stats().inputUsed == 64 && platform.stats().inputDropped == 8);
     const E::ProbeIoStats first = platform.stats();
-    const Saved<E::ProbeIoStats> firstStats(first);
     CHECK(platform.takeInputLoss());
     CHECK(!platform.takeInputLoss());
     const E::ProbeIoStats firstConsumed = platform.stats();
-    firstStats.unchanged(firstConsumed);
+    CHECK(sameIoStats(first, firstConsumed));
     // Consuming the latch preserves the full FIFO and cumulative counters.
     // A later dropped span must publish another independent loss interval.
     bytes.input += std::string(8, 'c');
     platform.service();
     CHECK(platform.stats().inputUsed == 64 && platform.stats().inputDropped == 16);
     const E::ProbeIoStats second = platform.stats();
-    const Saved<E::ProbeIoStats> secondStats(second);
     CHECK(platform.takeInputLoss());
     CHECK(!platform.takeInputLoss());
     const E::ProbeIoStats secondConsumed = platform.stats();
-    secondStats.unchanged(secondConsumed);
+    CHECK(sameIoStats(second, secondConsumed));
     for (unsigned i = 0; i < 64; ++i) {
         uint8_t byte = 0;
         CHECK(platform.takeInput(byte) && byte == 'a');
@@ -820,6 +888,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     wholeLineParser();
+    valueCopiesComparePublicFields();
     escapedStrings();
     passiveRoutesAndGrammar();
     inventoryAndHelp();
