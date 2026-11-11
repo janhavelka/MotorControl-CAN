@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Console on the bench and night soak (2026-11-11)
+
+- `ProbeMotion::cancelNormal` now refuses while the retained ordinary work is a velocity
+  run (`cancel` answers `not_cancellable`): withdrawing a running velocity removed its
+  own due-time stop, so nothing was ever sent. Use `stop normal|fast`.
+- The S2 bench image services the shared console on `@` lines, with the `o` premise
+  command, ProbeDevice reads and per-node ProbeMotion over the bench's own sessions.
+  Read-only arming routes `TY`, `TB` and `TX` hand prerequisites built exactly as the
+  existing routes build them. A `T` refused by its first byte, or an `@` line hit by
+  input loss, is discarded through its terminator instead of leaking bytes as commands.
+- Bench tooling: `idf-s2-optak-console` firmware target and `probe-idf-optak-console`
+  flash app; `scripts/s2_console.py` (shared-image console runner with JSONL checks);
+  `scripts/s2_bench_console.py` (one-step bench console helper); `s2_bench.py
+  --waiver-covers-motion` for an unattended waiver that explicitly covers enables and
+  velocity runs.
+
 ### Motion console and platform parity (prompt42, 2026-11-11)
 
 - Connected finite position/angle, velocity, home, enable and clear routes to the

@@ -236,8 +236,11 @@ class ProbeMotion {
     MotorControlCAN::Status requestStop(MotorControlCAN::LICHUAN_C::StopKind kind,
                                         uint64_t nowUs) noexcept;
     /** Withdraw the retained ordinary operation locally; in-flight services settle, no stop is sent.
+     * A finite velocity is never withdrawn: its own stop at the due time is its only software bound,
+     * and withdrawing it would remove that stop while the run may already turn. Use requestStop.
      * @param nowUs Supplied microseconds.
-     * @return False unchanged for invalid time, inactive work or replaced native identity.
+     * @return False unchanged for invalid time, inactive work, an active velocity or replaced native
+     * identity.
      * A later service reports a replaced active context as INVALIDATED, without touching its replacement. */
     bool cancelNormal(uint64_t nowUs) noexcept;
     /** Snapshot evidence after app.service; does not service owner/session, transmit, retry or recover.

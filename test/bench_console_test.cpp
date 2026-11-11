@@ -369,6 +369,35 @@ void testInputAndOutput() {
     CHECK(r->driver.requests.empty());
 }
 // The premise step, the console's device routes on a bench slot, and its retention fence.
+// An input loss during a console line (main.cpp after ProbePlatform::takeInputLoss): the line is dropped
+// unseen, with the console's own refusal correlated by its @ID when that prefix arrived whole.
+void testInputLoss() {
+    scenario = "input-loss";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    const char partial[] = "@12 velocity 6 r";
+    for (const char* c = partial; *c; ++c)
+        CHECK(r->console.take(uint8_t(*c), r->uart.now, r->activity) == E::ConsoleInput::COLLECTING);
+    const std::string lost = r->console.abandon();
+    CHECK(!r->console.collecting() && r->console.console().stats().lines == 0);
+    CHECK(has(lost, "\"type\":\"reply\",\"id\":12,\"command\":\"input\",\"ok\":false") &&
+          has(lost, "\"error\":\"input_lost\"") && lost.back() == '\n');
+    wholeLines(lost);
+    // Without its whole prefix the line has no ID to answer: the bench's own refusal line.
+    for (const char* c = "@1"; *c; ++c)
+        r->console.take(uint8_t(*c), r->uart.now, r->activity);
+    CHECK(std::string(r->console.abandon()) == "CONSOLE_REFUSED reason=input-loss; no work\n");
+    // The widest ID the console accepts is still correlated; one past it is not an ID.
+    for (const char* c = "@4294967295 read st"; *c; ++c)
+        r->console.take(uint8_t(*c), r->uart.now, r->activity);
+    CHECK(has(r->console.abandon(), "\"id\":4294967295,\"command\":\"input\",\"ok\":false"));
+    for (const char* c = "@4294967296 read st"; *c; ++c)
+        r->console.take(uint8_t(*c), r->uart.now, r->activity);
+    CHECK(std::string(r->console.abandon()) == "CONSOLE_REFUSED reason=input-loss; no work\n");
+    // The next whole line is the console's as before.
+    CHECK(has(r->command("@13 version", 100), "\"id\":13,\"command\":\"version\",\"ok\":true"));
+    CHECK(r->console.console().stats().lines == 1);
+}
 void testConsoleReads() {
     scenario = "reads";
     std::unique_ptr<Rig> r(new Rig);
@@ -702,28 +731,63 @@ void testScaleAndMoveby() {
     CHECK(has(to, "\"type\":\"terminal\",\"id\":11,\"command\":\"moveto\",\"ok\":true") && d.position == 0);
     wholeLines(r->uart.output);
 }
-// The velocity arming from this fake's released mode 3 standstill, then the console's finite velocity run with
-// its own stop at the due time, counted as a VELOCITY route and its stop.
-void testVelocityArming() {
-    scenario = "velocity";
-    std::unique_ptr<Rig> r(new Rig);
-    r->open();
-    Drive& d = r->driver.drives[0];
+// This fake's released mode 3 standstill, as the bench route suite's VELOCITY starts from, with node 1 selected.
+void velocityRig(Rig& r, uint32_t& trial) {
+    r.open();
+    Drive& d = r.driver.drives[0];
     d.monitor = 0x0011; // As the bench route suite's released mode 3 drive: released, then spins on 0007-000F.
     d.status = 0x8050;
     d.mode = 3;
     d.releaseWords = true;
     d.spins = true;
+    CHECK(r.run("A1," + id(trial)).failure == E::RouteFailure::NONE); // Service qualification, as before VELOCITY.
+    r.release();
+    r.heartbeat(1);
+    CHECK(has(r.command("@1 host 0", 100), "\"ok\":true"));
+}
+// The velocity arming line: HALT (1) or QUICK_STOP (2) as the run's stop kind, then the stop budgets.
+std::string velocityArming(uint32_t& trial, unsigned stopKind = 1, const char* budgets = "1500,1500,500") {
+    return "B1," + id(trial) + ",1,6,200,200,5000,351,2," + std::to_string(stopKind) + "," +
+           std::to_string(DEVICE_TYPE) + "," + std::to_string(HARDWARE) + "," + std::to_string(SOFTWARE) + "," +
+           std::to_string(VENDOR) + "," + std::to_string(PRODUCT) + "," + std::to_string(REVISION) + "," +
+           std::to_string(MODEL) + "," + std::to_string(FIRMWARE) + "," + budgets;
+}
+const uint8_t HALT_WORD[8] = {0x2b, 0x40, 0x60, 0, 0x0f, 0x01, 0, 0};
+const uint8_t QUICK_WORD[8] = {0x2b, 0x40, 0x60, 0, 0x0b, 0, 0, 0};
+unsigned sentFrom(const Rig& r, size_t first, const uint8_t (&bytes)[8]) {
+    unsigned n = 0;
+    for (size_t i = first; i < r.driver.requests.size(); ++i)
+        n += sameFrame(r.driver.requests[i], 1, bytes);
+    return n;
+}
+// A console velocity of 12 s, admitted and turning at the end; returns the number of requests before it.
+size_t velocityRunning(Rig& r, uint32_t& trial, unsigned stopKind = 1, const char* budgets = "1500,1500,500") {
+    CHECK(r.run(velocityArming(trial, stopKind, budgets)).failure == E::RouteFailure::NONE);
+    r.turns(2);
+    const size_t first = r.driver.requests.size();
+    const std::string kind = stopKind == 1 ? "normal" : "fast";
+    CHECK(has(r.command("@3 velocity 6 rpm native 12000 configured " + kind, 1500), "\"result\":\"accepted\""));
+    CHECK(r.one.velocityActive() && r.one.velocityNeedsStop() && r.driver.drives[0].velocity != 0);
+    CHECK(!sentFrom(r, first, HALT_WORD) && !sentFrom(r, first, QUICK_WORD));
+    return first;
+}
+// Service until the run's own due time has passed and every stop has settled.
+void settle(Rig& r) {
+    for (unsigned i = 0; i < 30000 && (r.one.velocityActive() || r.one.stopActive()); ++i)
+        r.turn();
+    r.turns(200);
+    CHECK(!r.one.velocityActive() && !r.one.stopActive());
+}
+// The velocity arming from this fake's released mode 3 standstill, then the console's finite velocity run with
+// its own stop at the due time, counted as a VELOCITY route and its stop.
+void testVelocityArming() {
+    scenario = "velocity";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
     uint32_t trial = 0;
-    CHECK(r->run("A1," + id(trial)).failure == E::RouteFailure::NONE); // Service qualification, as before VELOCITY.
-    r->release();
-    r->heartbeat(1);
-    CHECK(has(r->command("@1 host 0", 100), "\"ok\":true"));
+    velocityRig(*r, trial);
     const uint8_t before = r->route.motionAdmissions();
-    const std::string line = "B1," + id(trial) + ",1,6,200,200,5000,351,2,1," + std::to_string(DEVICE_TYPE) + "," +
-                             std::to_string(HARDWARE) + "," + std::to_string(SOFTWARE) + "," + std::to_string(VENDOR) +
-                             "," + std::to_string(PRODUCT) + "," + std::to_string(REVISION) + "," +
-                             std::to_string(MODEL) + "," + std::to_string(FIRMWARE) + ",1500,1500,500";
+    const std::string line = velocityArming(trial);
     size_t first = r->driver.requests.size();
     const E::RouteRecord& a = r->run(line);
     CHECK(a.failure == E::RouteFailure::NONE && a.checkPassed && r->downloadsFrom(first) == 0);
@@ -745,6 +809,190 @@ void testVelocityArming() {
         stopped = stopped || sameFrame(r->driver.requests[i], 1, halt);
     CHECK(stopped && d.velocity == 0);
     CHECK(r->route.motionAdmissions() == before + 2); // The run and its own stop, as VELOCITY counts them.
+    wholeLines(r->uart.output);
+}
+// A local cancel of a running console velocity would withdraw its own stop at the due time, its only software
+// bound: ProbeMotion refuses it, by request ID and without one, and the run's stop still leaves at its due time.
+void testVelocityCancelRefused() {
+    scenario = "velocity-cancel";
+    std::unique_ptr<Rig> r(new Rig);
+    Drive& d = r->driver.drives[0];
+    uint32_t trial = 0;
+    velocityRig(*r, trial);
+    const size_t first = velocityRunning(*r, trial);
+    const std::string reply = r->uart.output.substr(r->uart.output.rfind("\"id\":3,\"command\":\"velocity\""));
+    const size_t at = reply.find("\"operation_id\":");
+    CHECK(at != std::string::npos);
+    const std::string operation = std::to_string(std::strtoul(reply.c_str() + at + 15, nullptr, 10));
+    const std::string bare = r->command("@4 cancel", 100);
+    const std::string named = r->command("@5 cancel " + operation, 100);
+    CHECK(has(bare, "\"id\":4,\"command\":\"cancel\",\"ok\":false"));
+    CHECK(has(named, "\"id\":5,\"command\":\"cancel\",\"ok\":false") && has(named, "not_cancellable"));
+    const L::VelocityContext& c = r->one.velocityAction();
+    CHECK(r->one.velocityActive() && c.interruption == M::VelocityInterruption::NONE && d.velocity != 0);
+    CHECK(!sentFrom(*r, first, HALT_WORD) && !sentFrom(*r, first, QUICK_WORD));
+    settle(*r);
+    CHECK(has(r->uart.output, "\"type\":\"terminal\",\"id\":3,\"command\":\"velocity\",\"ok\":true"));
+    CHECK(sentFrom(*r, first, HALT_WORD) == 1 && d.velocity == 0 && d.lastWord == 0x010f);
+    CHECK(c.state == M::ActionState::SUCCEEDED && !r->one.velocityNeedsStop());
+    wholeLines(r->uart.output);
+}
+// An explicit console stop during a running console velocity: AxisSession::requestStop withdraws the run, and
+// with it its own stop at the due time, before it validates the explicit one. Whatever that stop's outcome,
+// accepted, refused or never valid, a stop word still leaves for the turning drive.
+void testVelocityExplicitStops() {
+    // stop normal, the run's own kind: the explicit HALT is the stop.
+    {
+        scenario = "velocity-stop-normal";
+        std::unique_ptr<Rig> r(new Rig);
+        uint32_t trial = 0;
+        velocityRig(*r, trial);
+        const size_t first = velocityRunning(*r, trial);
+        const std::string stopped = r->command("@4 stop normal", 4000);
+        CHECK(has(stopped, "\"id\":4,\"command\":\"stop\",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\""));
+        CHECK(r->one.velocityAction().interruption == M::VelocityInterruption::STOP);
+        settle(*r);
+        CHECK(sentFrom(*r, first, HALT_WORD) == 1 && r->driver.drives[0].velocity == 0 &&
+              r->driver.drives[0].lastWord == 0x010f);
+        CHECK(has(r->uart.output, "\"type\":\"terminal\",\"id\":4,\"command\":\"stop\""));
+        wholeLines(r->uart.output);
+    }
+    // stop fast on a run whose own stop is HALT: QUICK_STOP leaves (sequenced or best effort, 000B either way).
+    for (const char* budgets : {"1500,1500,500", "1500,0,500"}) {
+        scenario = budgets[5] == '0' ? "velocity-stop-fast-no-best-effort" : "velocity-stop-fast";
+        std::unique_ptr<Rig> r(new Rig);
+        uint32_t trial = 0;
+        velocityRig(*r, trial);
+        const size_t first = velocityRunning(*r, trial, 1, budgets);
+        const std::string stopped = r->command("@4 stop fast", 4000);
+        if (std::getenv("BENCH_CONSOLE_DEBUG"))
+            std::fputs(stopped.c_str(), stderr);
+        CHECK(has(stopped, "\"id\":4,\"command\":\"stop\",\"ok\":true,\"status\":\"OK\",\"result\":\"accepted\""));
+        settle(*r);
+        CHECK(sentFrom(*r, first, QUICK_WORD) == 1 && !sentFrom(*r, first, HALT_WORD));
+        CHECK(r->driver.drives[0].velocity == 0 && r->driver.drives[0].lastWord == 0x000b);
+        wholeLines(r->uart.output);
+    }
+    // A refused explicit stop: stop normal after stop fast. The fast stop already left; the refusal sends nothing.
+    {
+        scenario = "velocity-stop-refused";
+        std::unique_ptr<Rig> r(new Rig);
+        uint32_t trial = 0;
+        velocityRig(*r, trial);
+        const size_t first = velocityRunning(*r, trial, 2);
+        CHECK(has(r->command("@4 stop fast", 4000), "\"id\":4,\"command\":\"stop\",\"ok\":true"));
+        const size_t before = r->driver.requests.size();
+        CHECK(has(r->command("@5 stop normal", 100), "\"id\":5,\"command\":\"stop\",\"ok\":false"));
+        CHECK(!sentFrom(*r, before, HALT_WORD));
+        settle(*r);
+        CHECK(sentFrom(*r, first, QUICK_WORD) >= 1 && r->driver.drives[0].velocity == 0);
+        wholeLines(r->uart.output);
+    }
+    // An explicit stop refused after the withdrawal: stop normal while the run's own due-time HALT is the active
+    // stop. AxisSession withdraws the run, then refuses a second HALT; the run's own stop still leaves.
+    {
+        scenario = "velocity-stop-during-own-stop";
+        std::unique_ptr<Rig> r(new Rig);
+        uint32_t trial = 0;
+        velocityRig(*r, trial);
+        const size_t first = velocityRunning(*r, trial);
+        for (unsigned i = 0; i < 30000 && !r->one.stopActive(); ++i)
+            r->turn();
+        CHECK(r->one.stopActive() && r->one.velocityActive());
+        const std::string refused = r->command("@4 stop normal", 200);
+        if (std::getenv("BENCH_CONSOLE_DEBUG"))
+            std::fputs(refused.c_str(), stderr);
+        CHECK(has(refused, "\"id\":4,\"command\":\"stop\",\"ok\":false"));
+        settle(*r);
+        CHECK(sentFrom(*r, first, HALT_WORD) == 1 && r->driver.drives[0].velocity == 0);
+        wholeLines(r->uart.output);
+    }
+    // A stop line the console never admits: the run is untouched and its own stop leaves at the due time.
+    {
+        scenario = "velocity-stop-invalid";
+        std::unique_ptr<Rig> r(new Rig);
+        uint32_t trial = 0;
+        velocityRig(*r, trial);
+        const size_t first = velocityRunning(*r, trial);
+        CHECK(has(r->command("@4 stop sideways", 100), "\"id\":4,\"command\":\"stop\",\"ok\":false"));
+        CHECK(r->one.velocityActive() && r->one.velocityAction().interruption == M::VelocityInterruption::NONE);
+        settle(*r);
+        CHECK(sentFrom(*r, first, HALT_WORD) == 1 && r->driver.drives[0].velocity == 0 && !r->one.velocityNeedsStop());
+        wholeLines(r->uart.output);
+    }
+}
+// A refused arming applies nothing: its reads are not current, so the console's motion line is refused before
+// the console sees it. main.cpp refuses a T line while the console retains an operation; this rig starts the
+// route directly so that BenchConsole::arm itself meets the refusal.
+void testRefusedArming() {
+    scenario = "arming-refused";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    r->driver.drives[0].statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    CHECK(has(r->command("@1 host 0", 100), "\"ok\":true"));
+    armed(*r, trial);
+    CHECK(has(r->command("@2 accel 1000", 100), "\"ok\":true") && has(r->command("@3 decel 1000", 100), "\"ok\":true"));
+    const std::string moved = r->command("@4 move relative 16 steps native 1 configured", 8000);
+    CHECK(has(moved, "\"type\":\"terminal\",\"id\":4,\"command\":\"move\",\"ok\":true") && r->console.holds());
+    r->release();
+    // The retained move result refuses the new prerequisites (ProbeMotion): the arming is refused whole.
+    r->notices.clear();
+    ArmSpec spec;
+    spec.sp = spec.base = r->driver.drives[0].position;
+    CHECK(r->run(arm(1, trial, spec)).failure == E::RouteFailure::NONE);
+    r->turns(2);
+    CHECK(has(r->notices, ("CONSOLE arm refused node=1 trial=" + std::to_string(trial)).c_str()));
+    CHECK(has(r->command("@5 release 1", 100), "\"ok\":true") && !r->console.holds());
+    // Its reads are not current: refused here, before the console sees the line; nothing is counted or sent.
+    const size_t first = r->driver.requests.size();
+    const uint8_t admissions = r->route.motionAdmissions();
+    CHECK(r->send("@6 move relative 16 steps native 1 configured") == E::ConsoleInput::REFUSED);
+    CHECK(has(r->console.reply(), "arming_reads_replaced_arm_again"));
+    r->turns(20);
+    CHECK(r->downloadsFrom(first) == 0 && r->route.motionAdmissions() == admissions);
+    wholeLines(r->uart.output);
+}
+// One node's stop budgets never name another node's stop: a witness arming of node 2 names none, so a console
+// stop there has no prerequisites and sends nothing, and node 1's own budgets come back with its next arming.
+void testBudgetsPerNode() {
+    scenario = "budgets-per-node";
+    std::unique_ptr<Rig> r(new Rig);
+    r->open();
+    r->driver.drives[0].statusBits = true;
+    r->driver.drives[1].statusBits = true;
+    uint32_t trial = 0;
+    enabled(*r, trial);
+    CHECK(has(r->command("@1 host 0", 100), "\"ok\":true"));
+    ArmSpec spec;
+    spec.sd = 2500;
+    armed(*r, trial, spec);
+    r->release();
+    CHECK(r->run("M2," + id(trial) + ",1,1,200").failure == E::RouteFailure::NONE);
+    r->release();
+    r->heartbeat(2);
+    r->notices.clear();
+    CHECK(r->run("X2," + id(trial) + ",1," + std::to_string(r->driver.drives[1].position)).failure ==
+          E::RouteFailure::NONE);
+    r->turns(2);
+    CHECK(has(r->notices, "CONSOLE armed node=2") && r->console.armedNode() == 2);
+    CHECK(has(r->command("@2 host 1", 100), "\"ok\":true"));
+    size_t first = r->driver.requests.size();
+    CHECK(has(r->command("@3 stop normal", 400), "\"id\":3,\"command\":\"stop\",\"ok\":false"));
+    for (size_t i = first; i < r->driver.requests.size(); ++i)
+        CHECK(r->driver.requests[i].id != 0x602 || r->driver.requests[i].data[0] == 0x40);
+    // Node 1 armed again: its stop is named from its own arming line's budgets.
+    r->release();
+    CHECK(has(r->command("@4 host 0", 100), "\"ok\":true"));
+    armed(*r, trial, spec);
+    CHECK(r->console.armedNode() == 1);
+    first = r->driver.requests.size();
+    const uint64_t at = r->uart.now;
+    CHECK(has(r->command("@5 stop normal", 4000), "\"id\":5,\"command\":\"stop\",\"ok\":true"));
+    CHECK(sentFrom(*r, first, HALT_WORD) == 1);
+    const L::ActionContext& halt = r->one.stopAction(L::StopKind::HALT);
+    CHECK(halt.deadlineUs >= at + 2500000ull && halt.deadlineUs <= at + 2500000ull + 10000);
     wholeLines(r->uart.output);
 }
 // A drive fault reported after the arming holds back the move's first download unsent.
@@ -774,6 +1022,7 @@ void testFaultHoldsBack() {
 int main() {
     testGate();
     testInputAndOutput();
+    testInputLoss();
     testConsoleReads();
     testExclusion();
     testArmingParse();
@@ -781,6 +1030,10 @@ int main() {
     testConsoleStop();
     testScaleAndMoveby();
     testVelocityArming();
+    testVelocityCancelRefused();
+    testVelocityExplicitStops();
+    testRefusedArming();
+    testBudgetsPerNode();
     testFaultHoldsBack();
     std::printf("bench_console: %u checks; BenchConsole %u, ProbeDevice %u, ProbeConsole %u, BenchAxis %u bytes\n",
                 checks, unsigned(sizeof(E::BenchConsole)), unsigned(sizeof(E::ProbeDevice)),

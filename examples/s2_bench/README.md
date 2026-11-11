@@ -370,6 +370,17 @@ refused with a reply in the console's own form, which main.cpp prints as a one-s
 {"schema":"motorcontrolcan.console/1",...,"type":"reply","id":5,"command":"read","ok":false,"status":"INVALID_CONFIG","detail":0,"error":"bench_wire_work_active"}
 ```
 
+**Input loss.** The 64-byte input ring drops the newest bytes when it is full, as while a retained one-shot response
+waits. main.cpp then does what the console does after a loss: every buffered byte predates the loss and is retired
+unserved, the line open at that boundary is dropped with its own refusal, and input is discarded through the next CR or
+LF (or until 2 s pass without input). A console line answers in the console's form, correlated by its `@ID` when that
+prefix arrived whole (`"command":"input"`, `"error":"input_lost"`), else `CONSOLE_REFUSED reason=input-loss; no work`;
+a `T`, `S` or PDO line answers `TRIAL_REFUSED`, `SOAK_REFUSED` or `PDO_LINE refused` with `reason=input-loss`; with
+no line open, `INPUT_LOST; buffered input retired through the next line end, no work`. A whole line still in the
+buffer is retired with it, unanswered. A `T` refused by its first byte (`SOAK_REFUSED reason=active` or
+`TRIAL_REFUSED reason=active`) has the rest of its line discarded the same way, so no byte of it is served as a bench
+command. `scripts/s2_bench.py` checks `PONG` before every line, so neither changes what it sends or reads.
+
 **Exclusion.** The sole owner is never shared between a running bench activity and console work:
 
 - While the bench holds owner work (a route record, active or held, other than a settled arming record; a raw, PDO, `D`,
@@ -420,10 +431,14 @@ A successful arming record attaches that node's `ProbeMotion` to the console (an
 retains none of its motion) and prints one notice, `CONSOLE armed node=N trial=T route=arm-move|arm-velocity|arm-witness
 relative=R witness=W scale=S origin=O; prerequisites named, nothing sent`, or `CONSOLE arm refused node=N trial=T
 reason=...; nothing named`. An arming without `o` first is refused `TRIAL_REFUSED reason=console`. The settled arming
-record holds only its dump: console work may run before `r`, and `r` may refuse while that work's frames are in flight.
+record holds only its dump: console work may run before `r`, and `r` may refuse while that work's frames are in flight
+or the record is still printed. Every later `T` line, an arming included, needs that `r` first. A refused arming applies
+nothing: its reads are not current (the console's motion lines answer `arming_reads_replaced_arm_again`), and the
+attachment, the earlier arming and its stop stay as they were. Stop budgets are kept per node: an arming names only its
+own node's, and a witness arming names none.
 Then select the node (`@ID host 0` for node 1) and send the motion lines; the console accepts `speed`, `accel`, `decel`,
 `motion write|verify`, `stepsperturn`, `axis origin`, `moveby`, `moveto`, `move ...`, `velocity ...`, `stop normal|fast`,
-`result`, `release` and `cancel` on the armed node.
+`result`, `release` and `cancel` on the armed node. `cancel` never withdraws a running velocity (below).
 
 - **Age.** A move's prerequisites must be younger than 3.15 s at its admission and at each write (MOVE's age cap). Send
   the motion line right after the notice, in the same `scripts/s2_bench_console.py` invocation.
@@ -446,11 +461,18 @@ Then select the node (`@ID host 0` for node 1) and send the motion lines; the co
   read, which leaves only the best-effort `000B` (give `stopBestEffortMs` in the arming line so that a stop stays
   possible on stale state). It keeps its reserved reply under output pressure. Not available while a bench route holds
   the owner (above).
+- **Velocity.** A finite console velocity ends with its own stop at the due time, its only software bound. `cancel`
+  (with or without its ID) is refused `not_cancellable` while the run is retained, because a local cancel would also
+  withdraw that stop while the drive may turn. End a run early with `stop normal|fast`: the session withdraws the run
+  and its stop first, then sends the explicit one (`test/bench_console_test.cpp` shows a stop word leaving for an
+  accepted HALT and QUICK_STOP, with or without a best-effort budget, and for a refused or unparsed explicit stop).
 - **Faults.** The console's motion downloads go to `ProbeMotion::preflight` first in main.cpp's dispatcher, never on to
-  the route's more permissive check, with BenchRoute's fault rule from the arming on: more than one EMCY of that node,
-  or one with a nonzero code, holds the next download back unsent and fences the session (`DRIVE_FAULT`). Nothing is
-  cancelled or stopped because of an EMCY between downloads: a stop stays the operator's explicit request, and the
-  attendant's cutoff the immediate control.
+  the route's more permissive check: more than one EMCY of that node since the arming, or one with a nonzero code,
+  holds the next download back unsent and fences the session (`DRIVE_FAULT`). This is stricter than BenchRoute's own
+  rule, which applies the same test each service turn and then moves its baseline: the console's baseline is set once,
+  at the node's successful move or velocity arming, so two no-error (code 0) EMCYs at any time after it hold every
+  later download too. Nothing is cancelled or stopped because of an EMCY between downloads: a stop stays the operator's
+  explicit request, and the attendant's cutoff the immediate control.
 - **Not armed here.** `enable` (its evidence expires one second after its fresh read, which no console round trip
   meets: use `TE`), `home` (no homing record exists; HOME stays closed), `alarm-clear` and `position-clear` have no
   arming; the console refuses them for missing prerequisites.
@@ -459,15 +481,20 @@ Example, node 1 released in mode 1 at 6064 0, scale and origin first (every evid
 never a measurement; take them from the reviewed record):
 
 ```text
-python scripts/s2_bench_console.py --send c --send o --send "@1 host 0" --send "TX1,501,1,0" --send "@2 stepsperturn 1600"
-python scripts/s2_bench_console.py --send "TX1,502,1,0" --send "@3 axis origin 0"
-python scripts/s2_bench.py ... enable ...   # the bench's TE route, as before
+python scripts/s2_bench_console.py --send c --send o --send "@1 host 0" --send "TX1,501,1,0" --send "@2 stepsperturn 1600" \
+    --send r
+python scripts/s2_bench_console.py --send "TX1,502,1,0" --send "@3 axis origin 0" --send r
+python scripts/s2_bench.py ... enable ...   # the bench's TE route, as before; release its record as before
 python scripts/s2_bench_console.py --send "@4 speed 30" --send "@5 accel 500" --send "@6 decel 500" \
-    --send "TY1,503,1,0,100,<record>,...,1,0,2000,3000,100" --send "@7 moveby 800" --send "@8 release 1"
+    --send "TY1,503,1,0,100,<record>,...,1,0,2000,3000,100" --send "@7 moveby 800" --send "@8 release 1" --send r
 ```
 
+Each `r` releases the arming record before the next `T` line or `scripts/s2_bench.py` run, which checks `PONG trial=0`
+first; the helper sends it only after that record's `END trial` line.
+
 `scripts/s2_bench_console.py` sends each step only after the previous one was answered (a console line's reply and,
-when admitted, its terminal; a `T` line's `TRIAL admitted` and, for an arming, its notice; a bench byte's own reply),
+when admitted, its terminal; a `T` line's `TRIAL admitted` and, for an arming, its notice; a bench byte's own reply,
+and for `r` first the `END trial` of a record it saw admitted),
 opens the recorded ESP-Prog2 without driving EN or BOOT, never retries, and stops at the first refusal, `ok:false` or
 timeout with the remaining steps unsent. `--output` keeps every received byte; `--dry-run` prints the framed bytes.
 
