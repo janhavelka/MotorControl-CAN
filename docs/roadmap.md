@@ -1,12 +1,11 @@
 # Implementation roadmap
 
-Prompt 41 connects typed device reads, explicit existing-binding selection, finite
-discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
-shared console. Conditional typed settings retain complete-candidate validation,
-readback, confirmed prefixes and uncertainty through the same owner. The
-[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
-[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
-Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+Prompt42 connects finite position/angle, velocity, homing and explicit actions to
+one shared console and the existing axis session. Independent retained stop results,
+explicit host motion intent and bounded stop admission preserve uncertainty under
+console pressure. The [CLI contract](cli_contract.md#finite-motion-and-actions-prompt-42)
+records working grammar and native qualification gates. No hardware ran in this stage.
+The next executable software assignment is prompt43, the independent Python client.
 
 [Prompt 36](reports/prompt_36.md) provides the conditional homing software,
 six typed reads and [native coverage reconciliation](reports/prompt_36_coverage.md).
@@ -16,8 +15,8 @@ finite acquisition once those physical prerequisites exist, or independent
 prompt 37/38 software. Do not run an input-free search to bypass missing wiring.
 
 Execution identity: version 2, started 2026-10-28 on
-`promptset/motorcontrol-can`, base `7878f7c`. Keep this branch for the complete
-promptset and resumed sessions. [Prompt 1](reports/prompt_1.md) and
+`promptset/motorcontrol-can`, base `7878f7c`. After prompt42 the user explicitly requests integration into `main` and no new
+branches until version0 is finished; the original branch/base identify prior work. [Prompt 1](reports/prompt_1.md) and
 [prompt 2](reports/prompt_2.md), [prompt 3](reports/prompt_3.md) and
 [prompt 4](reports/prompt_4.md), [prompt 5](reports/prompt_5.md) and
 [prompt 6](reports/prompt_6.md), [prompt 7](reports/prompt_7.md) and

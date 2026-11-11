@@ -1,12 +1,12 @@
 # Prompt execution progress
 
-Prompt 41 connects typed device reads, explicit existing-binding selection, finite
-discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
-shared console. Conditional typed settings retain complete-candidate validation,
-readback, confirmed prefixes and uncertainty through the same owner. The
-[CLI contract](../cli_contract.md) records exact working grammar and evidence gates;
-[the source audit](../audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
-Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+Prompt42 adds finite motion/actions to the shared console through actual typed
+preparations and one per-axis `ProbeMotion` / `AxisSession`. Stop intent, native
+components, uncertain motion and normal/fast terminal retention remain separate.
+Explicit host speed/ramp/scale/origin replaces boot defaults; native rate checks
+reject the267 wrong-dimension case before admission. See [the contract](../cli_contract.md#finite-motion-and-actions-prompt-42)
+and [report42](../reports/prompt_42.md). Next: prompt43, independent Python client.
+No hardware was used for this integration.
 
 Prompt39 delivers the [conditional persistence software](../reports/prompt_39.md):
 distinct one-attempt save/factory restore, reviewed raw `2300` acquisition,
@@ -35,7 +35,7 @@ in the same report. Those fixes do not open physical capability gates.
 Prompt 35 remains Partial for its documented velocity gates; prompt 34's wrapped-angle
 software remains Complete. The [34/35 audit](../reports/prompts_34_35_audit.md) records their latest checks.
 
-**Execution identity.** Promptset version 2 on branch `promptset/motorcontrol-can`, base `7878f7c` from `origin/main`, upstream `origin/promptset/motorcontrol-can`. Reuse this branch across every prompt and resumed session. The [source map](../source_map.md) and [prompt 1 inputs](../reports/prompt_1_inputs.json) record the starting point. Earlier narrative is in the [progress history](../reports/progress_history.md).
+**Execution identity.** Promptset version 2 on branch `promptset/motorcontrol-can`, base `7878f7c` from `origin/main`, upstream `origin/promptset/motorcontrol-can`. The user authorized merging prompt42 into `main` and continuing on `main` until version0 is finished; create no new branches during that period. The original execution identity and base remain historical provenance. The [source map](../source_map.md) and [prompt 1 inputs](../reports/prompt_1_inputs.json) record the starting point. Earlier narrative is in the [progress history](../reports/progress_history.md).
 
 **Handoff.** All 22 packets of the [handoff for prompts 19-22 and 29-33](archive/handoff_19_33/README.md) have run, and the handoff is archived. Its [execution table](../reports/handoff_19_33/README.md) records what each one delivered; backlog rows H03 and H04 track the physical trials still owed, under the archived [handoff COMMON](archive/handoff_19_33/COMMON.md)'s physical-test rules. The [repair audit](PROMPTSET_AUDIT_34_50_2026-11-02.md)'s W1 to W8 are closed by packets 1 to 10; see [packet 10](../reports/handoff_19_33/packet_10.md). The audit file remains the source of its decisions. Prompt 33's lifecycle and prompts 34-36 may proceed only for consumed qualified contracts: this qualifies no release command, moving stop, relative wire base or physical scale.
 
@@ -86,7 +86,7 @@ A prompt with an audit-confirmed defect in its owned scope is reopened and Parti
 | 39 | [Persistence reset and reconciliation](39_persistence.md) | Partial | Q15 full saved set, rearm, restart/route effects and physical qualification; Q20 raw read acquisition | [Conditional workflows and remaining evidence](../reports/prompt_39.md) |
 | 40 | [Shared CLI parser and local routes](40_cli_parser.md) | Complete | No device gates consumed; inherited S2 Arduino package limitation remains P28 | [Report](../reports/prompt_40.md) |
 | 41 | [Typed device and network CLI routes](41_cli_device_routes.md) | Complete | Exact native/source/firmware prerequisites, Q20 ordinary read policy and Q15 persistence uncertainty; no grant/review created by CLI | [Report](../reports/prompt_41.md) |
-| 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | Pending | Motion APIs for motion routes; 41 | - |
+| 42 | [Motion CLI and platform parity](42_cli_motion_routes.md) | Complete | Exact native firmware/scale/reference/input qualification; D-17 release, stored-only setup and qualification-install routes remain caps-only gates. Arduino S2 SDK console conflict remains; no hardware qualification claimed | [Report](../reports/prompt_42.md) |
 | 43 | [Python Console and evidence primitives](43_python_console.md) | Pending | None for the offline scope; 41 for probe and read routes | - |
 | 44 | [Finite Python campaigns and sessions](44_python_campaigns.md) | Pending | Motion routes through 42 | - |
 | 45 | [Adversarial ownership and motion integration](45_fault_integration.md) | Pending | Motion APIs for the remaining traces | - |

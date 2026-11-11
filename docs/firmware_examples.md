@@ -4,8 +4,8 @@ Default Arduino/IDF entries now service the same [local console](cli_contract.md
 after the application/owner turn, including while CAN remains inactive.
 `ProbeConsole` and `ProbeAppLocal` are in the checked shared build inventory.
 Explicit smoke hooks bypass console input because they own their test protocol;
-the separate S2 bench parser is not a production route. Device commands and full
-platform parity remain prompts 41/42. No local command implicitly starts CAN.
+the separate S2 bench parser is not a production route. Prompts41-42 add conditional typed device and finite motion routes to that shared
+console. Native qualification and handoff guard requirements remain explicit. No local command implicitly starts CAN.
 
 Ordinary firmware downloads require the explicit pending-work dispatcher described
 in [commissioning](commissioning.md#explicit-communication-commissioning). A null

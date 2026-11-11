@@ -75,6 +75,8 @@ CONTEXT_TYPES = (
     ("AxisSession", "AxisSession.h", "MotorControlCANExample::AxisSession"),
     ("ProbeApp", "ProbeApp.h", "MotorControlCANExample::ProbeApp"),
     ("ProbeConsole", "ProbeConsole.h", "MotorControlCANExample::ProbeConsole"),
+    ("ProbeMotion", "ProbeMotion.h", "MotorControlCANExample::ProbeMotion"),
+    ("SimpleMoveIntent", "MotionIntent.h", "MotorControlCANExample::SimpleMoveIntent"),
     ("ProbeDevice", "ProbeDevice.h", "MotorControlCANExample::ProbeDevice"),
     ("ProbeSettings", "ProbeSettings.h", "MotorControlCANExample::ProbeSettings"),
     ("ProbeCommissioning", "ProbeCommissioning.h", "MotorControlCANExample::ProbeCommissioning"),

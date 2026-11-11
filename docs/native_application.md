@@ -1,15 +1,14 @@
 # Native examples and shared application
 
-Prompt 41 connects typed device reads, explicit existing-binding selection, finite
-discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
-shared console. Conditional typed settings retain complete-candidate validation,
-readback, confirmed prefixes and uncertainty through the same owner. The
-[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
-[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
-Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+The shared console now connects typed reads, conditional settings/network work
+and finite motion/actions through the same owner. [The CLI contract](cli_contract.md)
+owns exact grammar, supplied deadlines, result lifetimes and evidence gates.
+`ProbeMotion` attaches the caller's actual live axis/session/reference and explicit
+native prerequisites. `MotionIntent` supplies reusable pure host intent; neither
+creates qualification, receives CAN or duplicates a native operation state machine.
 
 
-The shared [console](cli_contract.md) now uses this application. Host-only
+The shared [console](cli_contract.md) now uses this application. Offline
 axis facts live in ProbeAppLocal.cpp, separately from the selected live route;
 ProbeConsole performs parsing/correlation/formatting, never target arithmetic or
 CAN receive. The native entry offers bounded `--console-fake FILE` in addition
@@ -128,3 +127,21 @@ application unchanged. Command parsing remains prompt 40.
 The optional [TWAI transport](../adapters/twai/README.md) now supplies the
 pinned S3 controller boundary. The Arduino/IDF assembly uses checked 64-bit
 ESP timer microseconds, with no 32-bit wrap extension or hidden core clock.
+
+A motion application registers its actual `AxisSession` with `ProbeApp::openAxis`,
+constructs `ProbeMotion(app,owner,session,currentTarget,axis,reference)` in stationary
+storage, supplies actual typed prerequisites, and calls `console.attachMotion`.
+Call `app.service(now)` once before `console.service(now)`; the console snapshots
+its helper after that owner/session turn. A direct caller may snapshot the helper
+itself without a console. All operation requests for the attached session must use
+that attachment while results are retained. Replaced native contexts are detected
+by exact local identities; local IDs still cannot distinguish identical late SDOs.
+
+Downloads require exact `ownsDownload` -> `preflight` dispatch at the owner's
+before-transmit boundary, with the application's actual undecided-drive-fault fact.
+A matching guard's false result cannot fall through to a permissive route. Firmware
+`setPreflight` is explicit and defaults closed. Device counter zero/home can advance
+native coordinates; helper and selection follow only that owned exact epoch, keeping
+old read provenance stale. Host scale/origin similarly require the existing idle,
+stationary evidence and owner migration. Neither path reopens a session or clears
+its historical uncertainty fences.

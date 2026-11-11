@@ -131,3 +131,15 @@ Each finite command is paced behind complete reply/terminal delivery. The batch
 still uses at most4096 input bytes,65536 output bytes and2000000 turns; there is
 no hardware backend. Device-capability gates and uncertainty are real application
 outcomes. The separate `--fake` demonstration keeps its original explicit script.
+
+Prompt42 compiles the same `ProbeConsoleMotion`, `MotionIntent`, `ProbeMotion` and
+`AxisSession` sources in native/Arduino/IDF. [The motion CLI contract](../../docs/cli_contract.md#finite-motion-and-actions-prompt-42)
+records exact command grammar, units, deadlines and stop/result retention. Default
+startup selects/qualifies no motion context. An application that supplies an actual
+registered session and exact native prerequisites can attach that same public
+`ProbeMotion` bridge; no CLI command grants missing firmware or physical evidence.
+`motor-release` stays caps-only gated; `position-clear` is zero-only and sends no save.
+Native tests use manufactured owner/server events; compile/fake results qualify no
+movement, stopping, wiring, service latency or output delivery on a physical fixture.
+The shared IDF S2 console uses UART0/core0; Arduino S2 remains blocked by the pinned
+SDK console conflict. S3 builds do not stand in for S2 evidence.

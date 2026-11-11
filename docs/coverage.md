@@ -1,12 +1,10 @@
 # Requirement coverage after pure CAN/SDO checks
 
-Prompt 41 connects typed device reads, explicit existing-binding selection, finite
-discovery/monitoring, CANopen NMT and passive network/PDO/trace diagnostics to the
-shared console. Conditional typed settings retain complete-candidate validation,
-readback, confirmed prefixes and uncertainty through the same owner. The
-[CLI contract](cli_contract.md) records exact working grammar and evidence gates;
-[the source audit](audit/PROMPT_41_SOURCES.md) records DEC-1 and contradictory vendor facts.
-Motion/actions and full platform parity remain prompt 42. No hardware ran here.
+Prompt42 connects finite position/angle, velocity, homing and explicit actions to
+one shared console and the existing axis session. Independent retained stop results,
+explicit host motion intent and bounded stop admission preserve uncertainty under
+console pressure. The [CLI contract](cli_contract.md#finite-motion-and-actions-prompt-42)
+records working grammar and native qualification gates. No hardware ran in this stage.
 
 Prompt39 adds the `2300` typed U16 read (192 total read shapes), conditional
 `prepareSave`/`prepareFactoryRestore` and explicit `verifyPersistence`. Native
@@ -16,7 +14,7 @@ of three fields after an externally evidenced power cycle. Application
 engine for `6081/6083/6084`, retaining partial effects without rollback or save.
 See [report39](reports/prompt_39.md) and [commissioning](commissioning.md). Q15
 keeps full persistence scope/rearm/restart/effects unqualified; Q20 still gates
-the new upload. No hardware or CLI coverage is claimed.
+the new upload. No new hardware qualification is claimed; prompt41 supplies the conditional CLI routes.
 
 Prompt38 adds all 89 assigned PDO/2203 read rows (191 total read shapes) and one conditional heartbeat setting (14 conditional setting rows). Mandatory exact acquisition grants remain separate from confirmed channel serviceability. [Commissioning](commissioning.md#explicit-communication-commissioning) records the supported workflow and blocked node/route/bitrate/persistence scope. No new hardware qualification is claimed.
 
@@ -46,7 +44,7 @@ the same `MoveContext`, exact `preparePosition` and ordinary finite owner path;
 `move_angle` checks wraps/ties/polarity, limits/quantization, exact large angles,
 epoch/reference invalidation, stops and unknown trigger effects. The installed
 `angle_preview` and C1 N5/abstract servo consumers are checked. This adds no
-qualified physical angle, automatic scale, CLI route or second production profile.
+qualified physical angle, automatic scale or second production profile; prompt42 now supplies the conditional CLI route.
 
 **As of the 2026-11-02 checkpoint.** The [NMT/TPDO checkpoint](reports/2026-11-02_nmt_pdo_checkpoint.md) adds fixed
 TPDO1 configuration and addressed owner NMT to R11/R12/R13/R17/R20. Native
@@ -180,7 +178,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | --- | --- | --- |
 | R01 | 1-2; recurring all | Prompt 14 refresh records current RS ownership, cancellation and retained-outcome implementations/tests; source map links current proof declarations. Recurring audits remain. |
 | R02 | All | Prompt 14 refresh inspects ADS1115/INA228 cancellation/effect/result seams and actual callers/tests; differences from CAN result/release retained. Recurring audits remain. |
-| R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; 19 adds installed typed raw read contexts/getters; typed identity is host-tested: it works under the explicit `MEASURED_U8` option and fails by default (`DECLARED_U16`) on the measured specimens at `1009`, where raw acquisition succeeds; conditional position/angle, finite velocity and homing operations are host-tested; CLI remains pending. |
+| R03 | 5-10, 40-42, 49-50 | Prompt 6 implements prepare/next/advance, typed getIdentity and concrete contexts plus admit/admitUrgent/service/result/release/cancel in the prototype; pure units/axis APIs are now installed under 9-10; 19 adds installed typed raw read contexts/getters; typed identity is host-tested: it works under the explicit `MEASURED_U8` option and fails by default (`DECLARED_U16`) on the measured specimens at `1009`, where raw acquisition succeeds; conditional position/angle, finite velocity and homing operations are host-tested; Conditional shared CLI routes are implemented under40-42. |
 | R04 | 5-12, 15, 17, 26-28, 45-46, 49-50 | C++11 api_contract and fixtures build without stack/SDK/Python/siblings; optional owner uses the selected C99 client. Prompt 7 source/install/export consumers pass; the core excludes the optional owner/stack. |
 | R05 | 5-6, 13-18, 23-25, 45-46 | [Owner contract](can_owner.md) fixes one table, lifetimes and per-call RX/TX/event budgets including zero-budget behavior. Native tests cover copied payload, single RX, reservations, immutable operation deadlines and retained terminals; urgent capacity now has real application-owner tests in 24. Prompt 13 promotes the selected-stack SDO lifecycle with persistent channel quarantine; 15 adds passive node facts and synchronous invalidation to that table; 23 adds the real ordinary application scheduler, two-channel fairness, copied admission/retention, passive dispatch and actual typed read/loop-setting paths; 24 adds reserved urgent/results, cancellation, local controller epochs and finite retained recovery without remote requalification. |
 | R06 | 2-4, 19-22, 29-36, 47-50 | Conditional halt/quick-stop in 31, fault-clear/zero-only reference actions in 32, and the gated absolute and relative moves in 33 have real-owner tests. The moves refuse by default: absolute without caller-supplied acceptance and completion evidence, relative without an evidenced wire base. Fault clear and counter zero have an application caller, `AxisSession` (backlog S12); the counter zero ran on node 2 (trial 323), and no alarm clear has run. Finite velocity (35) and homing (36) now have conditional host lifecycles and owner tests; broader transitions and physical qualification remain pending. |
@@ -194,7 +192,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R14 | 21-25, 29-36, 47-48 | Prompt 21 decodes documentary DI function/polarity separately from raw output registers and logical monitor levels. Wiring/electrical knowledge and method prerequisites remain independent; explicit DI reassignment is implemented with partial-effect/readback/invalidation tests; no output action is implemented. |
 | R15 | 21-22, 29, 32-36, 47-48 | Conditional finite position/angle, velocity and homing APIs have bounded owner tests and retained trigger/completion/stop evidence. Physical scope and firmware gates remain separate; homing requires actual method-specific inputs, direction and reference qualification. |
 | R16 | 37-39 | 37 implements static profile/capability queries, checked probe, finite explicit configured-target scans, passive network-only observations and zero-I/O host selection. Timeout/result release cannot recycle quarantined channels. 38 adds 89 reviewed-acquisition reads and the conditional 1017 raw 0 to 1000 workflow; remaining communication mutation and persistence stay 38-39; Q01/Q18/Q20 and physical qualification remain separate. |
-| R17 | 26-28, 40-42, 49-50 | Prompt 26 implements framework-free offline units and fake native read examples plus bounded shared ProbeApp/ProbePlatform. Prompt 27 adds the controller adapter; 28 builds shared Arduino/IDF firmware and an isolated core component. CLI remains later work; fake/compile results are not physical qualification. |
+| R17 | 26-28, 40-42, 49-50 | Prompt 26 implements framework-free offline units and fake native read examples plus bounded shared ProbeApp/ProbePlatform. Prompt 27 adds the controller adapter; 28 builds shared Arduino/IDF firmware and an isolated core component. Prompts40-42 implement the shared conditional console; fake/compile results are not physical qualification. |
 | R18 | 40-44 | Pending |
 | R19 | 29, 43-44, 47-48 | Prompt 29 delivers bounded native/firmware read acquisition through the ordinary application, explicit admission, raw traffic and retained failed evidence; [host checks and limits](reports/prompt_29.md). S2 raw reads, `1017`, addressed NMT TX and fixed TPDO1 are retained for named specimens. Motion experiments, Python campaigns and physical qualification remain pending. |
 | R20 | 7-46, 49-50 | The explicitly registered CTests cover core/units/axis, Classical frames, SDO checks/selected-engine vectors, preview/native consumer/proofs, version/checker/verification/doc failures and planning evidence. Quick runs registered non-full tests; full adds documentation and a separately retained package contract. Prompt 28 adds firmware/platform and build-checker regressions; prompt 29 adds exact-byte acquisition and firmware evidence tests, a fake-only example and an isolated harness consumer; current counts are in [its report](reports/prompt_29.md). Generator/object/header and lifecycle tests use the existing registration; typed read tests and preview extend the same registration; current owner integration is in [prompt 23](reports/prompt_23.md), tuning/control is in [prompt 22](reports/prompt_22.md), and preceding settings evidence in the [fresh settings audit](reports/prompts_20_21_audit.md). |
@@ -208,7 +206,7 @@ no motion is qualified, and prototype evidence below does not change that suppor
 | R28 | 5-6, 11-12, 15, 17, 23-28, 45-46 | Classical eight-byte values preserve extended/RTR shape; FD and Classical BRS/ESI combinations explicitly fail. Installed SDO checks narrow service frames while common source-backed VESC/ODrive shapes remain valid. Prompt 27 adds a pinned Classical S3 adapter, host callback/retirement tests and SDK compilation; FD and physical qualification remain pending. |
 | R29 | 2-4, 9-10, 21-22, 30-36, 45-46 | Production tests exercise independent command/feedback/load/linear scales and exact time dimensions without full-step geometry. C10 keeps Lichuan ms distinct from acceleration. Pure axis/reference policy is implemented; native/physical scaling qualification remains pending. |
 | R30 | 5-6, 29, 45-50 | Explicit test-only N5/EPOS4/proprietary fixtures and synthetic profile do not install or advertise another driver. Actual additional profile/qualification milestones remain pending. |
-| R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to actual prototype functions, contexts and owner methods, with current RS/I2C source evidence. Prompt 25 implements application health/statistics/diagnostic copies; conditional position/angle, finite velocity and homing operations are host-tested; CLI remains pending; pure units and axis targets are installed. |
+| R31 | All; 1-2, 9-10, 23-25, 40-42 | Literal conventions mapped to actual prototype functions, contexts and owner methods, with current RS/I2C source evidence. Prompt 25 implements application health/statistics/diagnostic copies; conditional position/angle, finite velocity and homing operations are host-tested; conditional shared CLI routes are implemented under40-42; pure units and axis targets are installed. |
 | R32 | All | Prompt 6 separated header ownership, source/fixture work and stronger independent boundary review; corrections verified against actual code and independent native probes. The [fresh prompts 10-11 audit](reports/prompts_10_11_audit.md) repeats arithmetic, protocol and package review against current source; no production defect found. Lead owns integration and Git. |
 | R33 | All; tooling 7-8, final 49-50 | Five distinct contracts, proof README, source comments and status docs accompany prompt 6. Focused Doxygen on all public proof headers passes without warnings; prompt 8 now enforces strict installed API docs and extraction with real failure fixtures. |
 | R34 | All | Same actual upstream engine reused with a direct fixed-table owner and explicit prototype limits; no second engine or runtime selector. Production integration remains pending. |
@@ -235,3 +233,15 @@ a separate isolated IDF consumer uses only staged portable core files. Host fake
 cover clock failure, pressure, routing and recovery. Installed headers acquire no
 SDK dependency, no device command occurs at startup, and hardware qualification
 remains absent. Command/schema parity is still assigned to 40-42.
+
+## Prompt42 native/API/console integration
+
+| Feature | Implementation and host checks | Device evidence |
+| --- | --- | --- |
+| Explicit simple intent and RPM dimension | `MotionIntent.*`; `motion_intent_test`, `motion_console_test` | Caller scales/prerequisites remain explicit; no boot defaults |
+| Absolute/relative/wrapped moves | `ProbeMotion` -> existing `AxisSession`; `motion_console_test`, existing move suites | Native firmware/scale/reference gates retained |
+| Finite signed velocity and home | Existing typed operations through `ProbeMotion`; `probe_motion_actions_test` | Reverse, stop, method/input/reference qualifications remain native gates |
+| Enable, alarm clear, zero-only device clear | Existing action preparations via `ProbeMotion`; `motion_console_test` | Per-action evidence retained; no hidden enable/save |
+| Normal/fast stop, held recovery and uncertain motion retention | Separate correlations/component records; `motion_console_test`, `axis_session_test` | Best-effort replies never qualify execution; physical stopping not established |
+| Shared inventory and exact JSONL | `ProbeConsole.*`, `console_protocol_test.py`; native and pinned firmware builds | Compile/fake parity only |
+| Motor release and stored-only setup | Explicit caps-only gates with reasons in `consoleCommands` | D-17 release command absent; no native stored-only policy |

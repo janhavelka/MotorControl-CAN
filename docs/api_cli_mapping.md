@@ -1,6 +1,6 @@
 # API and CLI naming map
 
-Prompts 40-41 implement the shared bounded console in
+Prompts 40-42 implement the shared bounded console in
 [`ProbeConsole`](../examples/common/ProbeConsole.h), with one `consoleCommands`
 inventory. [The CLI contract](cli_contract.md#typed-device-increment-prompt-41)
 owns exact working grammar, classifications, schema and capacities. Typed reads,
@@ -9,10 +9,11 @@ discovery/monitoring and passive diagnostics now call the public application pat
 `ProbeDevice`, `ProbeSettings` and `ProbeCommissioning` retain their concrete
 contexts over the same owner; the parser contains no profile sequence. No route
 creates a read grant, fixture review, model match or hardware qualification.
-Motion/actions remain prompt42; source-conflicted capabilities remain visible
+Motion/actions now use `ProbeMotion` and the same real `AxisSession`; source-conflicted capabilities remain visible
 through `caps`, absent from working help/dispatch. `config` is host-only inspection;
-`host`/`useaddr` select established host bindings without wire work. Offline `axis`
-never configures a live binding or manufactures stationary position evidence.
+`host`/`useaddr` select established host bindings without wire work. Without a motion attachment `axis` remains an offline workspace. With an actual
+attachment, `axis origin` and `stepsperturn` use the qualified live host-coordinate
+path and checked epoch synchronization; neither invents stationary evidence.
 
 The group table below records the owning prompt. A P41 ownership entry now means
 the working conditional route above, except an explicitly stated source gate.
@@ -33,7 +34,7 @@ The shared console now uses these inventory APIs and the bounded scan. Read
 
 | New public API | Scope | CLI status |
 | --- | --- | --- |
-| `LICHUAN_C::preparePositionParameters` | Pure native pulse/rpm/ms candidate with exact owned axis/intent; no move/service work | No implemented route; future motion routes must first satisfy prompt 33 gates |
+| `LICHUAN_C::preparePositionParameters` | Pure native pulse/rpm/ms candidate with exact owned axis/intent; no move/service work | Prompt42 motion routes delegate to this native preparation under its actual gates |
 
 This mapping preserves current MotorControl-RS names where their meanings apply. Exact signatures must be audited against live headers in each implementation stage. The stage notes identify implemented APIs; remaining inventory entries are planned contracts.
 
@@ -49,7 +50,7 @@ Prompt 6 now demonstrates `prepareIdentity/nextRead/advanceRead/getIdentity`,
 in an [experimental synthetic profile](profile_contract.md). That page maps
 proof declarations to route intent. Prompt 19 now installs the finite
 [Lichuan raw read lifecycle](reads.md), including checked identity/state/config
-getters and SDO/PDO evidence. No CLI route exists yet. The non-consuming probe
+getters and SDO/PDO evidence. Prompt41 adds conditional typed routes. The non-consuming probe
 remains Q20 gated; the inventory below retains later operation/CLI owners.
 
 [Prompt 18](reports/prompt_18.md) is Partial: the fixed TPDO1 map subset in
@@ -57,7 +58,7 @@ remains Q20 gated; the inventory below retains later operation/CLI owners.
 transition (`1800:05` raw 0 or 100, CL86-C, Pre-operational) is implemented, host-tested and
 replayed once on node 2 in both directions,
 with its native caller in `examples/pdo_configuration_preview`. Broader remapping, other
-timer values and sample qualification stay gated by Q17, and no CLI route is implemented.
+timer values and sample qualification stay gated by Q17; prompt41 exposes only the exact reviewed subset.
 `configurePdo` installs host map evidence only; raw SDO access and EDS metadata
 do not substitute for those missing operations.
 
@@ -70,27 +71,26 @@ The [multi-drive decision](multidrive_decision.md) makes these common motion nam
 Prompt36 implements `prepareHome`, `nextHome`, `advanceHome` and checked
 `getHomeReference`, with the [homing contract](homing.md) and six typed native
 reads. Concrete terminal contexts retain outcomes; no `getHomeResult` is added.
-CLI42 routes remain planned and are not implemented by these APIs.
+`home`/`home read` now use these native paths through prompt42; the CLI establishes no qualification.
 
 Prompt35 implements `prepareVelocity`, `nextVelocity`, `advanceVelocity`,
 `serviceVelocity`, concrete `VelocityContext`, and `AxisSession::requestVelocity`.
 `DriverGroup::VELOCITY_TARGET` uses the existing checked driver read/getter path.
 The [velocity guide](velocity.md) records timing, exact rpm, firmware gates and
-separate stop evidence. No `getVelocityResult` or velocity CLI route is added;
-prompt42 owns a future route calling these APIs. Physical mode3 qualification
+separate stop evidence. There is no `getVelocityResult`; prompt42 now calls these APIs and exposes `velocity read` through the typed driver read boundary. Physical mode3 qualification
 and general 60FF Q20 acquisition remain pending.
 
 Wrapped angles now have a public core/owner path: `prepareMoveAngle`,
 `validateMoveAngle`, shared `nextMove` / `advanceMove` and
 `AxisSession::requestMoveAngle`. [Angle policy](position_parameters.md#wrapped-angle-moves)
 and the [offline consumer](../examples/angle_preview/README.md) are implemented;
-the `move angle` CLI route remains owned by prompt 42.
+prompt42 implements `move angle` through exactly this path.
 
 Prompt 32 adds conditional `prepareClearAlarm` and zero-only
 `prepareSetDevicePosition`, using the installed `nextAction/advanceAction`.
 The [fault/reference guide](fault_reference_actions.md) defines literal writes,
 retained trigger/rearm evidence and the axis-aware `noteActionTransmission`
-overload. No corresponding CLI route is installed; the controlword reset route
+overload. Prompt42 installs the corresponding conditional CLI routes; the controlword reset route
 and unsupported device-position values do not gain fallback implementations.
 
 Prompt 30 installs profile `getStateInterpretation` in `State.h`, consuming checked
@@ -102,7 +102,7 @@ on one firmware, through a bench route ([attended report](reports/2026-11-03_att
 which qualifies nothing, and `prepareRelease` does not exist. The [transition guide](drive_actions.md) records both.
 Prompt 31 installs `prepareStop/nextAction/advanceAction` and the concrete
 `ActionContext` for the [conditional native stop path](stop_actions.md), including
-`noteActionTransmission` at the owner's external handoff. No stop CLI is installed.
+`noteActionTransmission` at the owner's external handoff. Prompt42 implements separate retained normal/fast stop CLI routes.
 
 Prompt 29 extends example `ProbeApp` with explicit `requestState`, checked
 `getStateBlock` and local `cancelRead`. The application-only
@@ -129,7 +129,7 @@ Prompt 25 implements application `Health`, `DriverState`, `Stats`, checked
 `health/driverState`, cached `stats/resources`, local `clearStats`, explicit
 host heartbeat-age policy and bounded `takeDiagnostic` copies. Their rules are
 in the [owner guide](can_owner.md#passive-communication-health). The future CLI
-must use those cached APIs; no health/stats CLI is implemented here.
+must use those cached APIs; prompt40 supplies those cached health/stats routes.
 
 Prompt 23 implements application `RequestId`, `SequenceId`, `BusAdmission`,
 `Completion` and `admit/service/result/release` in examples/common.
@@ -186,7 +186,7 @@ I2C siblings differ in lifecycle, status helpers and health enum members. Carry 
 | `prepareVelocity` | Finite signed velocity with explicit duration/stop policy | Wire units, signedness and start sequence require profile evidence |
 | `prepareHome` | Explicit documented method and prerequisites | Do not transfer ESS home method numbers |
 | `prepareSetDevicePosition` | Explicit supported device-coordinate change only | Reject if no documented equivalent; origin remains available |
-| `prepareEnable`, `prepareRelease` | Explicit drive state change | Confirm state transition; NMT operational alone is insufficient. `prepareEnable` is gated, unrun on any specimen and has no console route. `prepareRelease` stays absent, with no source-backed command |
+| `prepareEnable`, `prepareRelease` | Explicit drive state change | Confirm state transition; NMT operational alone is insufficient. `prepareEnable` remains qualification-gated and has a conditional console route; earlier attended experiments are not general qualification. `prepareRelease` stays absent, with no source-backed command |
 | `prepareClearAlarm` | Explicit fault action preserving original evidence | Lichuan fault-reset behavior and controlword edge |
 | `prepareStop` | Explicit stop behavior and pending-command policy | Occupied SDO/PDO channel and option-code rules |
 | `nextRead`, `advanceRead`, `getIdentity`, `getConfig`, `getStateBlock` | Concrete bounded read state and checked typed getters | Service events, not serial byte replies |
@@ -233,15 +233,15 @@ Two inventory states apply to every route. **Implemented**: in help and dispatch
 
 ### MotorControl-RS additions after the audited revision
 
-The RS audit baseline predates these additions; see the [dated delta](audit/MOTORCONTROL_RS_AUDIT.md#delta-2026-11-02-against-motorcontrol-rs-776facd). Each row is adopt, or not applicable with the reason. Adopt means the intent is mapped to the owner shown; it does not mean implemented, and no row below is a CAN route today.
+The RS audit baseline predates these additions; see the [dated delta](audit/MOTORCONTROL_RS_AUDIT.md#delta-2026-11-02-against-motorcontrol-rs-776facd). Each row is adopt, or not applicable with the reason. Adopt means the intent is mapped to the owner shown; the current disposition below distinguishes working routes and remaining native-evidence gates.
 
 | RS addition | Disposition | CAN mapping and reason |
 | --- | --- | --- |
-| `velocity read`, `prepareVelocityParameters` | Adopt | Typed read of the reviewed velocity rows (the ledger owns the exact set; `60FF` is owned by prompt 35). Read API in prompt 35, route in P42 |
-| `home read`, `prepareHomingParameters` | Adopt | Typed read of the reviewed homing rows (`607C`, `6098`, `6099:00..02`, `609A`). Read API implemented in prompt 36, route in P42 |
+| `velocity read`, `prepareVelocityParameters` | Adopt | Typed read of the reviewed velocity rows (the ledger owns the exact set; `60FF` is owned by prompt 35). Read API in prompt35; `velocity read` implemented in P42, ordinary Q20 gate retained |
+| `home read`, `prepareHomingParameters` | Adopt | Typed read of the reviewed homing rows (`607C`, `6098`, `6099:00..02`, `609A`). Read API implemented in prompt36; `home read` implemented in P42, ordinary Q20 gate retained |
 | `home auxiliary` | Not applicable | ESS auxiliary configuration 0..11 is an ESS function number set; ESS function numbers do not transfer and no CL86-C equivalent is documented |
-| `home qualification` install and revoke, `checkHomeQualification`, `revokeHome` | Adopt (shape) | Operator states each commissioning fact by name, live checks decide admission, and no all-true switch exists. The facts are Lichuan-specific and owned by prompt 36; revoke invalidates the reference. Route in P42 |
-| `velocity qualification install` | Adopt (shape) | Same named-fact install for velocity prerequisites, owned by prompt 35. The facts themselves are not copied from RS |
+| `home qualification` install and revoke, `checkHomeQualification`, `revokeHome` | Adopt (shape) | Operator states each commissioning fact by name, live checks decide admission, and no all-true switch exists. The facts are Lichuan-specific and owned by prompt36. A measured record enters through typed application prerequisites. Console install/revoke remains caps-only gated; no command manufactures qualification |
+| `velocity qualification install` | Adopt (shape) | Same named-fact install for velocity prerequisites, owned by prompt 35. The facts themselves are not copied from RS. Console install remains caps-only gated; an application supplies the exact native record |
 | `position-clear qualification install` | Not applicable now | Prompt 32 gates `prepareSetDevicePosition` by ledger evidence (Q14), not operator-stated facts. Revisit if bench evidence produces a commissioning fact |
 | `motion-profile start-speed`, start-speed relation route | Not applicable | The reviewed Lichuan ledger has no start-speed object; the RS relation maps an ESS register word to a minimum rpm. Do not invent one |
 | `position interrupt`, `PositionInterruption` | Not applicable now | RS uses an ESS register bit for interrupt-versus-ignore. No equivalent is documented for CL86-C; mode-1 bit 4 behavior is Q12-gated and DEC-8 holds bit 4 until the move is terminal |
@@ -252,7 +252,7 @@ The RS audit baseline predates these additions; see the [dated delta](audit/MOTO
 | Bench runner helpers `cleanup_stop_attempts`, `write_rejected`, `home_inputs_permit` | Compare in prompts 43 and 44 | Runner-side; not a console route |
 | ESS target magnitude limit and exception 05 mapping | Not applicable | Serial ESS facts with no CAN counterpart |
 
-Do not copy removed RS aliases (`ping`, bare `reset`, `health check`, `profile ess_rs`, `?`, `ver`) from old documentation; RS tests also reject `help advanced`, `profile ess_rs enable` and `stop direct`. `motor ...` is never-implemented grammar, not a removed alias; do not invent it in parallel with the actual established command family. `release ID` releases result storage; `motor-release` changes drive state.
+Do not copy removed RS aliases (`ping`, bare `reset`, `health check`, `profile ess_rs`, `?`, `ver`) from old documentation; RS tests also reject `help advanced`, `profile ess_rs enable` and `stop direct`. `motor ...` is never-implemented grammar, not a removed alias; do not invent it in parallel with the actual established command family. `release ID` releases result storage; `motor-release` is a separately intended drive action and remains gated by D-17.
 
 Gated commands/capabilities must be inspectable through `caps` and explain why they are unavailable; they are absent from dispatch and working help, so no unimplemented command is presented as callable. Native features such as internal segments are added only if documented for the target; an ESS segment command is not automatically a CAN feature.
 
@@ -261,3 +261,15 @@ Gated commands/capabilities must be inspectable through `caps` and explain why t
 Retain independent facts for application administrative enable, transport/controller state, native drive/mode/liveness, fault latch, observation freshness, admission, wire outcome, device acceptance, execution and motion inhibition. NMT/CiA402/heartbeat/statusword/SDO details belong to an optional CANopen observation, not mandatory fields for every protocol. Explicitly document which event updates each field and which transitions invalidate axis/configuration evidence. A recent heartbeat may support node liveness while position evidence remains stale; a successful SDO may coexist with a drive fault. A protocol without a write acknowledgement or completion signal cannot synthesize those facts.
 
 Select example-only `DriverState { UNINIT, READY, DEGRADED, OFFLINE }`, per-binding `Health`, owner `Stats`, cached `health(binding)`/`driverState(binding)`/`stats()` and `clearStats()` as defined in CONVENTIONS. Health owns saturating logical-service totals/failure streak and timestamped evidence; Stats owns frame/controller/queue counters. The projection is passive and has no sensor-style offline admission latch. Resetting statistics preserves live failure state, uncertainty, faults and retained results. Keep errors/history bounded and useful to FieldCore-like applications without importing FieldCore enums.
+
+## Prompt42 attachment and retention
+
+`ProbeMotion` borrows one actual registered axis/session/owner graph and explicit
+native prerequisites. `MotionIntent` holds host choices; it does not advance an
+operation. `ProbeConsole` parses into those requests and retains two ordinary,
+one HALT, one QUICK_STOP and one recovery correlation. The [CLI contract](cli_contract.md#finite-motion-and-actions-prompt-42)
+owns exact grammar, supplied deadlines, destination-rpm checks, output records,
+retention, source gates and tested examples. The native operation's context remains
+the complete evidence; `MotionResult` is an example-only owned projection.
+`motor-release`, `motion stored` and qualification-install capabilities appear only
+as precise gated rows. No survey-only driver or raw object sender is exposed.

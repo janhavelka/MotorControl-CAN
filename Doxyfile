@@ -48,3 +48,5 @@ HAVE_DOT               = NO
 INPUT += examples/common/ProbeDevice.h examples/common/ProbeSettings.h
 
 INPUT += examples/common/ProbeCommissioning.h
+
+INPUT += examples/common/ProbeMotion.h examples/common/MotionIntent.h examples/common/AxisSession.h

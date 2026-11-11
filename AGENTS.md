@@ -10,6 +10,13 @@
 
 ## Git workflow: one branch for the promptset
 
+Current user instruction (prompt42, 2026-11-11): finish this milestone on the
+existing execution branch, merge it into `main`, then work on `main` without
+creating new branches until version0 is finished. This explicit instruction
+supersedes the branch-creation/retain-execution-branch rules below for that period.
+Keep exact-commit verification, safe synchronization and preservation of unrelated
+work; no release publication or history rewrite is authorized.
+
 - Before editing each prompt, inspect the branch, upstream, recent commits, staged changes and working tree. Fetch the configured remote and inspect incoming changes; fast-forward only when safe. Inspect local state even if the network is unavailable. Do not assume an old audit describes the current checkout.
 - When starting execution of a **new promptset**, create one new dedicated branch from the inspected, up-to-date agreed base. Choose a clear name such as `promptset/motorcontrol-can`; if that name already exists, establish whether it belongs to the same execution before reusing it. Record the promptset identity, branch and base commit in its progress/handoff. Creating this branch and its matching branch on the configured remote is authorized.
 - Keep that branch for the **entire execution of that promptset**, across numbered prompts, sessions and agents. A new chat, resumed stage or completed chunk is not a new promptset. Resume the recorded branch; do not create a branch/worktree per prompt or subagent, switch back to the base after each prompt, or merge the execution into another branch without authorization. A separate later promptset starts its own new branch. Promptset maintenance/audit work is distinct from starting library implementation.

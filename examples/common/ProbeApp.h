@@ -159,6 +159,16 @@ class ProbeApp {
      * Channel currentness and session eligibility are additionally checked at admission.
      */
     bool select(const MotorControlCAN::LICHUAN_C::ReadTarget& target) noexcept;
+    /** Follow the selected axis's own checked host/native configuration advance.
+     * @param previous Exact selection before the advance.
+     * @param current Same route/node/binding with exactly the next configuration epoch,
+     * already adopted by the sole owner and its registered axis session.
+     * @return False unchanged for any mismatch. Success changes selection only; retained
+     * reads keep their original provenance and become stale, rather than being renewed or
+     * discarded. No selection of another axis, reservation, command or I/O is performed. */
+    bool
+    followSelectionConfiguration(const MotorControlCAN::LICHUAN_C::ReadTarget& previous,
+                                 const MotorControlCAN::LICHUAN_C::ReadTarget& current) noexcept;
     /** @return Borrowed selection until successful select/destruction; null before selection. */
     const MotorControlCAN::LICHUAN_C::ReadTarget* selected() const noexcept;
     /** Explicitly prepare finite raw identity reads, without transmitting.
