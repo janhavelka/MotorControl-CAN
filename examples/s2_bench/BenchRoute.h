@@ -150,6 +150,20 @@
  *   retry. The write is this session's own, so the enable refuses after it in this boot, and a session
  *   that may still have work running (velocity, home or move fence, fault block) refuses it first.
  *   Attended, with the settings routes' caps and no motion weight: the drive is released throughout.
+ * - ARM_MOVE and ARM_VELOCITY, the shared console's arming (BenchConsole.h). MOVE's identity read, full
+ *   read (two for a relative base) and check against the host's reviewed start position, or VELOCITY's
+ *   identity read, full read and released mode 3 check, exactly as those routes acquire them, then the
+ *   end: no write and no request. A successful record leaves its reads in place for armed(), with the
+ *   line's evidence, until the next route begins or closeSessions closes a session. The line carries the
+ *   evidence MOVE or VELOCITY carries, without the request (target, rate, ramps of a move, duration),
+ *   which the console supplies, and the stop budgets of the console's later stop requests. Attended,
+ *   reads only, no motion weight: each console motion it enables is counted when the console admits it
+ *   (consoleMotionAllowed, countConsoleMotion).
+ * - ARM_WITNESS, the console's host coordinate witness. Two fresh full reads that must both show the host's
+ *   reviewed 6064, and either both pass MOVE's idle check (enabled, mode 1, low bits 111, running, alarm
+ *   and released clear, 606C 0, 1001 and 603F 0) or both pass RELEASED_QUICK's released check, then the
+ *   end. No 000F is required, so a host scale or origin can be set before the enable: a configuration
+ *   change drops the session's latest controlword, and an enabled session cannot be enabled again.
  *
  * No route exchange starts once less than its queue and response budget remains before its operation
  * deadline or the route cutoff: the route then ends there with failure DEADLINE and nothing in flight.
@@ -234,7 +248,16 @@ enum class RouteKind : uint8_t {
     MODE_THREE,     ///< Prompt 35, one 6060:00=3 on an evidenced released drive; `TN`. Motion class.
     VELOCITY,       ///< Prompt 35, AxisSession::requestVelocity from released mode 3; `TV`. Motion class.
     HOME,           ///< Prompt 36, AxisSession::requestHome's admission reads and refusal; `TO`. Attended.
-    VELOCITY_TARGET ///< Gate Q03, one 60FF write and its readback on a released mode 3 drive; `TF`. Attended.
+    VELOCITY_TARGET, ///< Gate Q03, one 60FF write and its readback on a released mode 3 drive; `TF`. Attended.
+    /** The shared console's move arming: MOVE's identity and full read(s) and check, then no write; the
+     * console's ProbeMotion is given them with the line's evidence (BenchConsole.h); `TY`. Attended. */
+    ARM_MOVE,
+    /** The console's velocity arming: VELOCITY's identity, full read and check, then no write; `TB`. Attended. */
+    ARM_VELOCITY,
+    /** The console's witness arming: two fresh full reads of a stationary drive at the host's reviewed 6064,
+     * judged as MOVE judges an idle enabled drive or as RELEASED_QUICK judges a released one, then no write;
+     * the console's stepsperturn and axis origin take it as their witness; `TX`. Attended. */
+    ARM_WITNESS
 };
 /** One parsed host request. Fields a route does not use are zero. Ranges are host campaign
  * policy and the documentary native ranges, never a drive timing or safety claim. */
@@ -337,6 +360,10 @@ struct RoutePlan {
      * rate, unit or direction is claimed for any value, and the drive stays released. */
     int32_t velocityValue = 0;
 };
+/** @param kind Route. @return True for the shared console's armings, ARM_MOVE, ARM_VELOCITY and ARM_WITNESS. */
+inline bool isArming(RouteKind kind) noexcept {
+    return kind == RouteKind::ARM_MOVE || kind == RouteKind::ARM_VELOCITY || kind == RouteKind::ARM_WITNESS;
+}
 /** Parse the text after the `T` command byte: a route letter, then decimal fields separated by
  * commas, with a leading minus only on signed fields and nothing else:
  * `A|I|U|H<node>,<trial>`;
@@ -359,7 +386,14 @@ struct RoutePlan {
  * `V<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<durationMs>,<intervalMs>,<deadlineMs>,<stopKind>,<record>,
  * <layout>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,<2001>`;
  * `O<node>,<trial>,<attended>,<method>,<searchRpm>,<creepRpm>,<rampMs>,<offset>`;
- * `F<node>,<trial>,<attended>,<value>` (one line each, at most ROUTE_LINE bytes).
+ * `F<node>,<trial>,<attended>,<value>`;
+ * `Y<node>,<trial>,<attended>,<startPosition>,<intervalMs>,<record>,<acceptSource>,<acceptMask>,<acceptValue>,
+ * <completeSource>,<completeMask>,<completeValue>,<rule>,<1000>,<1009>,<100A>,<1018:01>,<1018:02>,<1018:03>,<2000>,
+ * <2001>,<relativeBase>,<base>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
+ * `B<node>,<trial>,<attended>,<rpm>,<upMs>,<downMs>,<intervalMs>,<record>,<layout>,<stopKind>,<1000>,<1009>,<100A>,
+ * <1018:01>,<1018:02>,<1018:03>,<2000>,<2001>,<stopDeadlineMs>,<stopBestEffortMs>,<stopIntervalMs>`;
+ * `X<node>,<trial>,<attended>,<startPosition>`
+ * (one line each, at most ROUTE_LINE bytes).
  * The host's integrity field is not part of this text: checkRouteIntegrity removes it first.
  * @param text Borrowed characters; no terminator required.
  * @param size Character count.
@@ -713,6 +747,15 @@ enum SessionKept : uint8_t {
     KEPT_MODE_WRITE = 64     ///< This object admitted a 6060 write on the node: MODE_ONE stays refused.
 };
 class BenchRoute;
+/** A successful arming record's acquisition (isArming), as BenchRoute::armed publishes it. The
+ * pointers name the route's own read storage: valid until the next route begins, which ends armed(). */
+struct RouteArming {
+    RoutePlan plan;                                           ///< The arming line, copied at its terminal.
+    const MotorControlCAN::LICHUAN_C::ReadContext* state = nullptr; ///< The checked full read (the second, if two).
+    const MotorControlCAN::LICHUAN_C::IdentityObservation* identity = nullptr; ///< The checked identity read.
+    int32_t position = 0;    ///< 6064 of the checked read, raw.
+    uint64_t feedbackUs = 0; ///< Earliest bound of that read's 6064 and 606C.
+};
 /** Format the console reply to the bench's session close (`x`), with its newline:
  * `SESSIONS closed node1=.. node2=.. kept1=.. kept2=.. motion=..; ...` or
  * `SESSIONS refused reason=.. node1=.. node2=..; ...`.
@@ -816,8 +859,20 @@ class BenchRoute {
      */
     bool preflight(MotorControlCANOwner::SequenceId sequence,
                    const MotorControlCAN::CANOPEN::SdoTransfer& transfer, uint64_t now) noexcept;
-    /** @return Motion admissions this boot. */
+    /** @return Motion admissions this boot, the shared console's included. */
     uint8_t motionAdmissions() const noexcept { return motionTotal_; }
+    /** The last route's arming, while nothing has replaced its reads.
+     * @param output Set on true. @return True after a successful arming terminal (isArming), until
+     * the next admitted route or a closeSessions that closed a session. Sends nothing. */
+    bool armed(RouteArming& output) const noexcept;
+    /** Whether the per-boot motion caps admit one console motion of this kind on this node, as begin judges
+     * a route of that kind: a velocity counts its own stop against STOP as well.
+     * @param node 1 or 2. @param kind MOVE, VELOCITY, ENABLE, COUNTER_ZERO or CLEAR_ALARM.
+     * @return False for anything else or over a cap. */
+    bool consoleMotionAllowed(unsigned node, RouteKind kind) const noexcept;
+    /** Count one admitted console motion of this kind, as begin counts a route; a console STOP is counted
+     * too, saturating, and never refused. @param node 1 or 2. @param kind As above, or STOP. */
+    void countConsoleMotion(unsigned node, RouteKind kind) noexcept;
     /** Format one line of the terminal record: header, summaries, RESULT, TRAFFIC, TAIL, END.
      * @param cursor Zero-based line index.
      * @param output Destination.
@@ -848,7 +903,8 @@ class BenchRoute {
         STEP_CHECK_TARGET_AFTER, ///< VELOCITY_TARGET: the read after the readback against the check.
         /** MODE_ONE: a second fresh state read, kept as STEP_SECOND keeps it, only when the first read
          * reported mode 3; skipped otherwise. */
-        STEP_SECOND_RELEASED
+        STEP_SECOND_RELEASED,
+        STEP_CHECK_WITNESS ///< ARM_WITNESS's check of both reads: stationary, idle or released, at the reviewed 6064.
     };
     struct Step {
         uint8_t kind;
@@ -897,6 +953,11 @@ class BenchRoute {
     bool commandedKnown_[2] = {false, false}, commandedRelative_[2] = {false, false};
     // Motion admissions per motion route and node; read routes, READ_HISTORY included, have none.
     uint8_t motionTotal_ = 0, motionCases_[unsigned(RouteKind::HOME) + 1][2] = {};
+    // An arming route: a successful terminal whose reads context_ and identity_ still hold.
+    bool armed_ = false;
+    RoutePlan armedPlan_;
+    int32_t armedPosition_ = 0;
+    uint64_t armedFeedbackUs_ = 0;
     // Attended admissions without motion weight per route (SETTINGS_2202, IO_DI3, HOME, VELOCITY_TARGET)
     // and node.
     uint8_t settingsCases_[4][2] = {};
@@ -953,6 +1014,7 @@ class BenchRoute {
     const char* checkRearm() const noexcept;
     const char* checkMove() const noexcept;
     const char* checkReleased() const noexcept;
+    const char* checkWitness() const noexcept;
     const char* checkModeThree() const noexcept;
     const char* checkVelocity() const noexcept;
     const char* checkTargetState(const RouteSnapshot& snapshot) const noexcept;

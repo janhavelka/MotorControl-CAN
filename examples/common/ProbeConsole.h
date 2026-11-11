@@ -135,6 +135,10 @@ class ProbeConsole {
         motion_ = &motion;
         return true;
     }
+    /** Withdraw the motion attachment, so that an application with one attachment per axis can attach
+     * another axis's. No traffic; the attachment's own results and native contexts stay as they are.
+     * @return False unchanged while any motion operation of this console is retained. */
+    bool detachMotion() noexcept;
     ProbeConsole(const ProbeConsole&) = delete; ///< Stationary retained identities and buffers.
     ProbeConsole& operator=(const ProbeConsole&) = delete; ///< No mutable copies.
     /** Consume one byte. Invalid/overlong lines discard through CR/LF before dispatch.
@@ -159,6 +163,13 @@ class ProbeConsole {
     /** @return True after complete input/output progression; delivered retained results
      * do not block it. No clock, I/O, release or mutation. Platform output is separate. */
     bool drained() const noexcept;
+    /** @return True from an operation's admission until its explicit release, whether it is
+     * active or terminal, delivered or not. An application that shares the owner with other
+     * request producers keeps them off meanwhile. No clock, I/O or mutation. */
+    bool retainsOperation() const noexcept;
+    /** @return True while `debug raw|decoded` makes this console a drain of the owner's
+     * diagnostic copies, which any other trace consumer then misses. No I/O or mutation. */
+    bool tracing() const noexcept { return debug_ != 0; }
 
   private:
     struct Record {

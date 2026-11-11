@@ -92,6 +92,8 @@ class ProbeDevice {
     uint8_t monitorSamples() const noexcept { return monitorSamples_; }
     /** @return Existing finite retained discovery, no copying or progress. */
     DiscoveryScan& discovery() noexcept { return scan_; }
+    /** @return The same retained discovery, for inspection only. */
+    const DiscoveryScan& discovery() const noexcept { return scan_; }
     /** @return Nonwrapping local scan admission identity, not a CAN transaction tag. */
     uint32_t discoveryOperation() const noexcept { return discoveryOperation_; }
     /** Admit explicit addressed or broadcast NMT; manager authority is caller intent.

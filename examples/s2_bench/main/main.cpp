@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Finite board bring-up on OPTAK_FGI_2025. No motor command or startup CAN request.
+#include "BenchConsole.h"
 #include "BenchHeap.h"
 #include "BenchRoute.h"
 #include "CommunicationBench.h"
@@ -759,12 +760,29 @@ E::BenchRoute* routeStorage(E::FirmwareProbe& firmware, C::SdoClient& services, 
     route = new (memory) E::BenchRoute(firmware, services, callbacks);
     return route;
 }
+// Each node's session as placed, for that node's console motion attachment (BenchConsole.h).
+E::AxisSession* placedSessions[2] = {nullptr, nullptr};
 bool sessionStorage(E::FirmwareProbe& firmware, E::BenchRoute& route, unsigned node) {
     if (route.attached(node))
         return true;
     void* memory = benchBlock(node == 1 ? RESERVE_SESSION1 : RESERVE_SESSION2, alignof(E::AxisSession),
                               sizeof(E::AxisSession));
-    return memory && route.attach(node, *new (memory) E::AxisSession(firmware.owner()));
+    if (!memory)
+        return false;
+    E::AxisSession* session = new (memory) E::AxisSession(firmware.owner());
+    placedSessions[node - 1] = session;
+    return route.attach(node, *session);
+}
+// One node's console motion attachment, on that node's first arming route: one allocation, never freed,
+// beside the console's own blocks. A failure refuses the arming; nothing else depends on it.
+bool axisStorage(E::FirmwareProbe& firmware, E::BenchConsole& console, unsigned node) {
+    if (console.hasAxis(node))
+        return true;
+    E::AxisSession* session = placedSessions[node - 1];
+    void* memory = session ? heap_caps_aligned_alloc(alignof(E::BenchAxis), sizeof(E::BenchAxis),
+                                                     MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)
+                           : nullptr;
+    return memory && console.attachAxis(node, *new (memory) E::BenchAxis(firmware, *session));
 }
 // The route contexts' work block (settings routes, an observed move): attached on the first route
 // from its reservation, or from the ordinary heap on the first route that needs it.
@@ -780,7 +798,8 @@ bool workStorage(E::BenchRoute& route, const E::RoutePlan& plan) {
     return (memory && route.attachWork(*new (memory) E::RouteWork())) || !needed;
 }
 const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::IdfTwaiDriver& driver,
-                       E::BenchRoute*& route, bool configured[2], const char* text, size_t size, uint64_t now) {
+                       E::BenchRoute*& route, E::BenchConsole* console, bool configured[2], const char* text,
+                       size_t size, uint64_t now) {
     // The host's CRC-32 of the whole line first: a corrupted digit can still parse as another plan.
     size_t body = 0;
     if (!E::checkRouteIntegrity(text, size, body))
@@ -801,6 +820,15 @@ const char* startRoute(E::FirmwareProbe& firmware, C::SdoClient& services, E::Id
         sessionStorage(firmware, *route, 3 - plan.node);
     if (!route || !sessionStorage(firmware, *route, plan.node) ||
         (observer && !sessionStorage(firmware, *route, observer)) || !workStorage(*route, plan))
+        return "memory";
+    // An arming hands its reads to the shared console (BenchConsole.h): it needs the console (`o`) and
+    // that node's motion attachment first, so that a successful record is never left unconsumed.
+    const bool arming = E::isArming(plan.kind);
+    if (arming && !console)
+        return "console";
+    if (console)
+        console->attachRoute(*route);
+    if (arming && !axisStorage(firmware, *console, plan.node))
         return "memory";
     return route->begin(plan, now);
 }
@@ -851,6 +879,30 @@ bool dumpCapture(E::FirmwareProbe& firmware, const E::SilentCapture& capture, un
     if (firmware.platform().writeOutput(reinterpret_cast<const uint8_t*>(out), std::strlen(out)))
         ++cursor;
     return true;
+}
+// The shared console (BenchConsole.h). Like the watch: allocated on the first `o` or `@` line, never
+// freed, because dram0_0_seg cannot hold it. Three blocks, ProbeDevice, ProbeConsole and the rest,
+// each about a third of the whole, because the internal heap's largest free block after the boot
+// reservations can be smaller than the whole. A failure frees what it took and refuses the console;
+// nothing else depends on it, and an image that never sees either byte allocates nothing and attaches
+// no device.
+E::BenchConsole* consoleStorage(E::FirmwareProbe& firmware, C::SdoClient& services) {
+    static E::BenchConsole* console = nullptr;
+    if (console)
+        return console;
+    const uint32_t caps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+    E::BenchConsoleStorage storage;
+    storage.device = heap_caps_aligned_alloc(alignof(E::ProbeDevice), sizeof(E::ProbeDevice), caps);
+    storage.console = heap_caps_aligned_alloc(alignof(E::ProbeConsole), sizeof(E::ProbeConsole), caps);
+    void* memory = heap_caps_aligned_alloc(alignof(E::BenchConsole), sizeof(E::BenchConsole), caps);
+    if (!storage.device || !storage.console || !memory) {
+        heap_caps_free(storage.device); // Nothing was constructed in any of them yet.
+        heap_caps_free(storage.console);
+        heap_caps_free(memory);
+        return nullptr;
+    }
+    console = new (memory) E::BenchConsole(firmware, services, storage);
+    return console;
 }
 // One record line per turn, only when it fits the output queue whole.
 template <class T> bool dumpLines(E::FirmwareProbe& firmware, const T& source, unsigned& cursor) {
@@ -930,17 +982,27 @@ void ownerTask(void*) {
         comm = arena.get<E::CommunicationReads>(ARENA_COMM);
         heartbeat = arena.get<E::HeartbeatCommission>(ARENA_HEARTBEAT);
     };
+    // The shared console (BenchConsole.h): allocated on the first `o` or `@`. A line starting with
+    // `@` belongs to it whole; consoleDiscard swallows such a line when the console has no memory, so
+    // that none of its bytes is ever taken as a bench command.
+    E::BenchConsole* commands = nullptr;
+    bool consoleDiscard = false;
     // One bounded dispatcher owns ordinary download authorization. Constructing a later
     // route cannot replace it or silently authorize another producer's work.
     struct DownloadDispatch {
         E::BenchArena* arena;
         E::BenchRoute** route;
-    } downloads = {&arena, &route};
+        E::BenchConsole** console;
+    } downloads = {&arena, &route, &commands};
     E::DownloadPreflight preflight;
     preflight.context = &downloads;
     preflight.check = [](void* context, MotorControlCANOwner::SequenceId sequence,
                          const C::SdoTransfer& transfer, uint64_t now) {
         DownloadDispatch& d = *static_cast<DownloadDispatch*>(context);
+        // The console's own motion downloads first, with its own fault decision: the route's check would
+        // accept any session action download, with no fault policy outside a route. Never fall through.
+        if (*d.console && (*d.console)->ownsDownload(sequence, transfer))
+            return (*d.console)->preflight(sequence, transfer, now);
         const E::RawEvidence* raw = d.arena->get<E::RawEvidence>(ARENA_RAW);
         const E::PdoExperiment* pdo = d.arena->get<E::PdoExperiment>(ARENA_PDO);
         const E::HeartbeatCommission* heartbeat = d.arena->get<E::HeartbeatCommission>(ARENA_HEARTBEAT);
@@ -1105,9 +1167,48 @@ void ownerTask(void*) {
         // A capture collecting, its record held or its gate still closed: only p, s, n, d, r and
         // the C0 stop line are served; whole lines are still collected and then refused.
         const char* captureBlock = capture ? capture->blocking() : nullptr;
+        // The shared console's turn, after the firmware's and every bench record's (BenchConsole.h).
+        // wire: the bench holds or may use the owner, and the console refuses all but inspection.
+        // Its records wait while a bench record dump, listing, one-shot response or NMT result does.
+        E::BenchActivity activity;
+        // A terminal, settled arming record holds only its dump: the console's motion it armed may run.
+        const bool armingHeld = trialRecord && trialRecord->terminal && !trialRecord->unsettled &&
+                                E::isArming(trialRecord->plan.kind);
+        activity.wire = soakActive || (trialHeld && !armingHeld) || commissionHeld || record || rawRecord ||
+                        pdoRecord || nmtRequest.owner || captureBlock;
+        activity.listing = networkDump;
+        activity.holdOutput = retainedSize != 0 || dumping || networkDump || (nmtRequest.owner && !nmtReported);
+        if (commands && firmware.platform().nowUs(now)) {
+            if (commands->expire(now))
+                line(firmware, "CONSOLE_REFUSED reason=incomplete; no work\n");
+            commands->service(now, activity);
+            // An arming's handoff line, as a one-shot response once the retained one has gone.
+            if (commands->notice() && !retainedSize) {
+                line(firmware, commands->notice());
+                commands->clearNotice();
+            }
+        }
+        // The console retains an operation, traces or scans: the bench admits no owner work of its own.
+        const bool consoleHeld = commands && commands->holds();
         if (!retainedSize && firmware.platform().takeInput(command)) {
             char output[320] = {};
-            if (trialCollecting) {
+            if (consoleDiscard || (commands && commands->collecting())) {
+                // One `@` line, drained whole: no byte of it is a bench command.
+                const bool discarding = consoleDiscard;
+                E::ConsoleInput taken = E::ConsoleInput::COLLECTING;
+                uint8_t byte = command;
+                do {
+                    if (discarding)
+                        consoleDiscard = byte != '\r' && byte != '\n';
+                    else
+                        taken = commands->take(byte, now, activity);
+                } while ((discarding ? consoleDiscard : taken == E::ConsoleInput::COLLECTING) &&
+                         firmware.platform().takeInput(byte));
+                if (discarding && !consoleDiscard)
+                    line(firmware, "CONSOLE_REFUSED reason=memory; no work\n");
+                else if (!discarding && taken == E::ConsoleInput::REFUSED)
+                    line(firmware, commands->reply());
+            } else if (trialCollecting) {
                 bool ended = false;
                 uint8_t byte = command;
                 do {
@@ -1124,11 +1225,11 @@ void ownerTask(void*) {
                     trialCollecting = false;
                     const char* refusal = "length";
                     if (trialLength <= sizeof trialText) {
-                        refusal = captureBlock ? "capture" : "state";
-                        if (!captureBlock && controllerReady && !soakActive && !dumping && !networkDump &&
+                        refusal = consoleHeld ? "console" : captureBlock ? "capture" : "state";
+                        if (!consoleHeld && !captureBlock && controllerReady && !soakActive && !dumping && !networkDump &&
                             !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !trialHeld &&
                             !commissionHeld && firmware.platform().nowUs(now))
-                            refusal = startRoute(firmware, services, driver, route, configured,
+                            refusal = startRoute(firmware, services, driver, route, commands, configured,
                                                  trialText, trialLength, now);
                     }
                     if (refusal) {
@@ -1172,8 +1273,8 @@ void ownerTask(void*) {
                     } else if (parsed.kind == E::PdoCommandKind::CAPTURE) {
                         // The owner, adapter and tap evidence is checked by begin itself; here only
                         // the bench's own activities, each of which can still send or share the ring.
-                        const char* refusal = captureBlock ? "busy" : "state";
-                        if (!captureBlock && controllerReady && !soakActive && !trialHeld &&
+                        const char* refusal = captureBlock ? "busy" : consoleHeld ? "console" : "state";
+                        if (!captureBlock && !consoleHeld && controllerReady && !soakActive && !trialHeld &&
                             !(watch && watch->active()) && !dumping && !networkDump &&
                             !nmtRequest.owner && !record && !rawRecord && !pdoRecord &&
                             !commissionHeld && firmware.platform().nowUs(now)) {
@@ -1241,6 +1342,9 @@ void ownerTask(void*) {
                         }
                     } else if (soakActive || trialHeld || commissionHeld) {
                         line(firmware, "PDO_LINE refused reason=active; no work\n");
+                    } else if (consoleHeld) {
+                        // D, K, H, E, N, R and W all admit owner work.
+                        line(firmware, "PDO_LINE refused reason=console; no work\n");
                     } else if (parsed.kind == E::PdoCommandKind::DISCOVER) {
                         // Both configured slots, through the firmware's own app and owner; the
                         // scan sends uploads only in p and i modes and nothing in o.
@@ -1441,8 +1545,8 @@ void ownerTask(void*) {
                     soakCollecting = false;
                     const char* refusal = "active";
                     if (!soakActive) {
-                        refusal = captureBlock ? "capture" : "state";
-                        if (!captureBlock && soakLength <= sizeof soakText && controllerReady && !dumping &&
+                        refusal = consoleHeld ? "console" : captureBlock ? "capture" : "state";
+                        if (!consoleHeld && !captureBlock && soakLength <= sizeof soakText && controllerReady && !dumping &&
                             !networkDump && !nmtRequest.owner && !record && !rawRecord &&
                             !pdoRecord && !trialHeld && !commissionHeld &&
                             firmware.platform().nowUs(now))
@@ -1455,6 +1559,15 @@ void ownerTask(void*) {
                         line(firmware, output);
                     }
                 }
+            } else if (command == '@') {
+                // A console line, in every bench state: before any hold below could refuse its first
+                // byte and then serve the rest of the line as bench commands.
+                if (!commands)
+                    commands = consoleStorage(firmware, services);
+                if (commands)
+                    commands->take(command, now, activity);
+                else
+                    consoleDiscard = true;
             } else if (command == 'X') {
                 line(firmware, soak && soak->requestStop()
                                    ? "SOAK_STOPPING; a started read settles first\n"
@@ -1476,9 +1589,9 @@ void ownerTask(void*) {
                 // experiments can reserve those nodes again in this boot. Sends nothing; not a stop.
                 // Its own reply in every state: no T line, PDO line or soak line contains an x.
                 uint8_t closed = 0;
-                const char* refusal = "state";
-                if (!captureBlock && !soakActive && !dumping && !networkDump && !nmtRequest.owner &&
-                    !record && !rawRecord && !pdoRecord && !commissionHeld)
+                const char* refusal = consoleHeld ? "console" : "state";
+                if (!consoleHeld && !captureBlock && !soakActive && !dumping && !networkDump &&
+                    !nmtRequest.owner && !record && !rawRecord && !pdoRecord && !commissionHeld)
                     refusal = route ? route->closeSessions(closed) : "none";
                 E::formatSessionsLine(route, refusal, closed, output, sizeof output);
                 line(firmware, output);
@@ -1508,10 +1621,34 @@ void ownerTask(void*) {
                                "TRIAL_ABORTING; local only, no stop sent; a request on its way "
                                "settles first\n");
                 line(firmware, output);
+            } else if (command == 'o') {
+                // The console premise (BenchConsole.h): both nodes' bench routes, configured exactly
+                // as every bench command configures its node on first use, and the controller's
+                // interface facts. Local configuration only: nothing is sent, selected or granted.
+                const char* refusal = "state";
+                if (controllerReady && firmware.platform().nowUs(now)) {
+                    refusal = "route";
+                    if (ensureRoute(services, 1, configured[0], now) &&
+                        ensureRoute(services, 2, configured[1], now)) {
+                        if (!commands)
+                            commands = consoleStorage(firmware, services);
+                        refusal = !commands                       ? "memory"
+                                  : !commands->open(BENCH_BITRATE) ? "facts"
+                                                                   : nullptr;
+                    }
+                }
+                if (refusal)
+                    formatLine(output, sizeof output, "CONSOLE refused reason=%s; no work\n", refusal);
+                else
+                    formatLine(output, sizeof output,
+                               "CONSOLE open slot0=node1 slot1=node2 bitrate=%lu; routes configured, "
+                               "nothing sent or selected\n",
+                               static_cast<unsigned long>(BENCH_BITRATE));
+                line(firmware, output);
             } else if (command == 'v' || command == 'b') {
                 const unsigned node = command == 'v' ? 1 : 2;
                 const bool accepted =
-                    controllerReady && !pdoRecord && !dumping && !networkDump && !commissionHeld &&
+                    controllerReady && !consoleHeld && !pdoRecord && !dumping && !networkDump && !commissionHeld &&
                     !nmtRequest.owner && !readinessUsed[node - 1] && acquisition != UINT32_MAX &&
                     firmware.platform().nowUs(now) &&
                     identity(firmware, services, rawStorage(), true, node, configured[node - 1],
@@ -1525,7 +1662,7 @@ void ownerTask(void*) {
                                           "enable/target/stop/save/retry\n"
                                         : "MOTION_READINESS refused; no work\n");
             } else if (command == 'm') {
-                const bool accepted = controllerReady && !pdoUsed && !dumping && !networkDump &&
+                const bool accepted = controllerReady && !consoleHeld && !pdoUsed && !dumping && !networkDump &&
                                       !nmtRequest.owner && !record && !rawRecord && !pdoRecord &&
                                       !commissionHeld &&
                                       acquisition < UINT32_MAX - 1 &&
@@ -1541,7 +1678,7 @@ void ownerTask(void*) {
                                         : "PDO refused; no work\n");
             } else if (command == 'h' || command == 'j') {
                 const unsigned node = command == 'h' ? 1 : 2;
-                const bool accepted = controllerReady && !pdoRecord && !dumping && !networkDump &&
+                const bool accepted = controllerReady && !consoleHeld && !pdoRecord && !dumping && !networkDump &&
                                       !commissionHeld && !nmtRequest.owner &&
                                       !heartbeatUsed[node - 1] &&
                                       acquisition != UINT32_MAX && firmware.platform().nowUs(now) &&
@@ -1557,7 +1694,7 @@ void ownerTask(void*) {
                                         : "HEARTBEAT refused; no work\n");
             } else if (command == 'q' || command == 'w') {
                 const unsigned slot = command == 'q' ? 0 : 1;
-                const bool accepted = acquisition != UINT32_MAX && controllerReady && !dumping &&
+                const bool accepted = acquisition != UINT32_MAX && controllerReady && !consoleHeld && !dumping &&
                                       !networkDump && !rawRecord && !record && !pdoRecord &&
                                       !commissionHeld && !nmtRequest.owner &&
                                       admitNmt(firmware, services, slot,
@@ -1571,8 +1708,8 @@ void ownerTask(void*) {
                                         : "NMT refused; no work\n");
             } else if (command == 'n') {
                 // A running scan's passive evidence is the network observer history this listing
-                // drains: the listing waits until the scan has ended.
-                if (discovery && discovery->active()) {
+                // drains: the listing waits until the scan, the bench's or the console's, has ended.
+                if ((discovery && discovery->active()) || (commands && commands->scanning())) {
                     line(firmware, "NETWORK refused reason=discovery; no listing\n");
                 } else if (!dumping && !networkDump) {
                     networkDump = true;
@@ -1581,7 +1718,7 @@ void ownerTask(void*) {
             } else if (command >= '1' && command <= '4') {
                 const bool rawPlan = command >= '3';
                 const unsigned node = command - (rawPlan ? '2' : '0');
-                const bool accepted = controllerReady && !pdoRecord && !dumping && !networkDump &&
+                const bool accepted = controllerReady && !consoleHeld && !pdoRecord && !dumping && !networkDump &&
                                       !commissionHeld && !nmtRequest.owner && !used[node - 1] &&
                                       acquisition != UINT32_MAX && firmware.platform().nowUs(now) &&
                                       identity(firmware, services, rawPlan ? rawStorage() : raw, rawPlan, node,

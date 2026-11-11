@@ -87,8 +87,9 @@ static_assert(unsigned(L::MoveSignalSource::STATUSWORD) == 1 && unsigned(L::Move
 const char* const names[] = {"none",   "actions", "io",       "tuning", "mode1",
                              "enable", "stop",    "position", "rearm",  "move", "history",
                              "released-quick", "word67", "relative", "settings-2202", "io-di3",
-                             "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target"};
-static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::VELOCITY_TARGET) + 1, "one name per route");
+                             "counter-zero", "clear-alarm", "mode3", "velocity", "home", "velocity-target",
+                             "arm-move", "arm-velocity", "arm-witness"};
+static_assert(sizeof names / sizeof names[0] == unsigned(RouteKind::ARM_WITNESS) + 1, "one name per route");
 // MODE_ONE..MOVE and RELEASED_QUICK..RELATIVE: READ_HISTORY is a read, and the settings routes after
 // RELATIVE change drive state without motion and have caps of their own.
 // COUNTER_ZERO moves the position reference and CLEAR_ALARM may let a drive act again: motion class too.
@@ -101,6 +102,8 @@ bool isMotion(RouteKind kind) {
 }
 bool isClear(RouteKind kind) { return kind == RouteKind::COUNTER_ZERO || kind == RouteKind::CLEAR_ALARM; }
 bool isSettings(RouteKind kind) { return kind == RouteKind::SETTINGS_2202 || kind == RouteKind::IO_DI3; }
+// The console's arming: reads only, attended, no motion weight of its own.
+bool isArm(RouteKind kind) { return isArming(kind); }
 // Attended routes without motion weight, each with its own row of settingsCases_: the two settings
 // writes, HOME, which reads what requestHome consumes and is refused before any write, and VELOCITY_TARGET,
 // one 60FF write to a drive that reports itself released. -1 for others.
@@ -286,6 +289,61 @@ constexpr Field HOME_FIELDS[] = {ROUTE_FIELD(node, NODE),          ROUTE_FIELD(t
 // VELOCITY_TARGET: the one signed value; nothing else on the line is written.
 constexpr Field PROBE_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
                                   ROUTE_FIELD(velocityValue, PROBE_VALUE)};
+// ARM_MOVE: MOVE's start position, interval and evidence, without the request the console supplies, then
+// the budgets of the console's later stops. Every evidence value is the host's, as for MOVE.
+constexpr Field ARM_MOVE_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                     ROUTE_FIELD(trial, TRIAL),
+                                     ROUTE_FIELD(attended, FLAG),
+                                     ROUTE_FIELD(startPosition, SIGNED32),
+                                     ROUTE_FIELD(intervalMs, CYCLE_MS),
+                                     ROUTE_FIELD(record, TRIAL),
+                                     ROUTE_FIELD(acceptSource, SOURCE),
+                                     ROUTE_FIELD(acceptMask, MASK),
+                                     ROUTE_FIELD(acceptValue, U16),
+                                     ROUTE_FIELD(completeSource, SOURCE),
+                                     ROUTE_FIELD(completeMask, MASK),
+                                     ROUTE_FIELD(completeValue, U16),
+                                     ROUTE_FIELD(rule, SOURCE),
+                                     ROUTE_FIELD(firmware.deviceType, U32),
+                                     ROUTE_FIELD(firmware.hardwareVersion, U16),
+                                     ROUTE_FIELD(firmware.softwareVersion, U16),
+                                     ROUTE_FIELD(firmware.vendorId, U32),
+                                     ROUTE_FIELD(firmware.productCode, U32),
+                                     ROUTE_FIELD(firmware.revision, U32),
+                                     ROUTE_FIELD(firmware.modelCode, U16),
+                                     ROUTE_FIELD(firmware.firmwareCode, U16),
+                                     ROUTE_FIELD(relativeBase, RELATIVE_BASE),
+                                     ROUTE_FIELD(base, SIGNED32),
+                                     ROUTE_FIELD(stopDeadlineMs, ACTION_MS),
+                                     ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+                                     ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
+// ARM_VELOCITY: VELOCITY's forward maximum, ramps, interval, evidence and stop kind (VelocityEvidence::stopKind,
+// which the console's normal|fast must name too), without the duration and deadline the console supplies,
+// then the budgets of the console's later stops.
+constexpr Field ARM_VELOCITY_FIELDS[] = {ROUTE_FIELD(node, NODE),
+                                         ROUTE_FIELD(trial, TRIAL),
+                                         ROUTE_FIELD(attended, FLAG),
+                                         ROUTE_FIELD(rpm, MOVE_RPM),
+                                         ROUTE_FIELD(rampUpMs, MOVE_RAMP_MS),
+                                         ROUTE_FIELD(rampDownMs, MOVE_RAMP_MS),
+                                         ROUTE_FIELD(intervalMs, CYCLE_MS),
+                                         ROUTE_FIELD(record, TRIAL),
+                                         ROUTE_FIELD(layout, LAYOUT),
+                                         ROUTE_FIELD(stopKind, KIND),
+                                         ROUTE_FIELD(firmware.deviceType, U32),
+                                         ROUTE_FIELD(firmware.hardwareVersion, U16),
+                                         ROUTE_FIELD(firmware.softwareVersion, U16),
+                                         ROUTE_FIELD(firmware.vendorId, U32),
+                                         ROUTE_FIELD(firmware.productCode, U32),
+                                         ROUTE_FIELD(firmware.revision, U32),
+                                         ROUTE_FIELD(firmware.modelCode, U16),
+                                         ROUTE_FIELD(firmware.firmwareCode, U16),
+                                         ROUTE_FIELD(stopDeadlineMs, ACTION_MS),
+                                         ROUTE_FIELD(bestEffortMs, OPTIONAL_MS),
+                                         ROUTE_FIELD(stopIntervalMs, STOP_INTERVAL)};
+// ARM_WITNESS: the host's reviewed 6064 both reads must show; nothing else.
+constexpr Field ARM_WITNESS_FIELDS[] = {ROUTE_FIELD(node, NODE), ROUTE_FIELD(trial, TRIAL), ROUTE_FIELD(attended, FLAG),
+                                        ROUTE_FIELD(startPosition, SIGNED32)};
 #undef ROUTE_FIELD
 struct Grammar {
     char letter;
@@ -314,8 +372,11 @@ constexpr Grammar GRAMMARS[] = {{'A', RouteKind::READ_ACTIONS, READ_FIELDS, coun
                                 {'N', RouteKind::MODE_THREE, MODE_FIELDS, countOf(MODE_FIELDS)},
                                 {'V', RouteKind::VELOCITY, VELOCITY_FIELDS, countOf(VELOCITY_FIELDS)},
                                 {'O', RouteKind::HOME, HOME_FIELDS, countOf(HOME_FIELDS)},
-                                {'F', RouteKind::VELOCITY_TARGET, PROBE_FIELDS, countOf(PROBE_FIELDS)}};
-static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::VELOCITY_TARGET), "one grammar per route");
+                                {'F', RouteKind::VELOCITY_TARGET, PROBE_FIELDS, countOf(PROBE_FIELDS)},
+                                {'Y', RouteKind::ARM_MOVE, ARM_MOVE_FIELDS, countOf(ARM_MOVE_FIELDS)},
+                                {'B', RouteKind::ARM_VELOCITY, ARM_VELOCITY_FIELDS, countOf(ARM_VELOCITY_FIELDS)},
+                                {'X', RouteKind::ARM_WITNESS, ARM_WITNESS_FIELDS, countOf(ARM_WITNESS_FIELDS)}};
+static_assert(sizeof GRAMMARS / sizeof GRAMMARS[0] == unsigned(RouteKind::ARM_WITNESS), "one grammar per route");
 // The host line numbers these as the library declares them.
 static_assert(unsigned(L::StatusLayout::EN86) == 1 && unsigned(L::StatusLayout::ZH86) == 2 &&
                   unsigned(L::StatusLayout::ZH57) == 3 && unsigned(L::StatusLayout::OP86) == 4 &&
@@ -480,6 +541,13 @@ unsigned terminalBound(const RoutePlan& p) {
     case RouteKind::VELOCITY_TARGET:
         // Two full reads, the 60FF write, its upload, one more full read.
         return 9 + 9 + 1 + 1 + 9;
+    case RouteKind::ARM_MOVE:
+        // MOVE's identity and full read, two for a relative base; nothing else.
+        return 9 + 9 + (p.relativeBase ? 9 : 0);
+    case RouteKind::ARM_VELOCITY:
+        return 9 + 9;
+    case RouteKind::ARM_WITNESS:
+        return 9 + 9;
     default:
         return ROUTE_TERMINALS + 1;
     }
@@ -596,6 +664,15 @@ bool routePlanValid(const RoutePlan& p) noexcept {
         return p.durationMs < p.deadlineMs && p.layout != unsigned(L::StatusLayout::ZH57);
     case RouteKind::HOME:
         return p.method == 17 || p.method == 18 || p.method == 24 || p.method == 29;
+    case RouteKind::ARM_MOVE: {
+        // MOVE's own evidence rules, and a stop budget the console's stop requests can use whole.
+        const bool base = p.relativeBase == 0 ? p.base == 0 : p.relativeBase == 1 ? p.base == p.startPosition : true;
+        return !(p.acceptValue & ~p.acceptMask) && !(p.completeValue & ~p.completeMask) && base &&
+               p.stopIntervalMs >= 10 && (!p.bestEffortMs || p.bestEffortMs >= p.stopDeadlineMs);
+    }
+    case RouteKind::ARM_VELOCITY:
+        return p.layout != unsigned(L::StatusLayout::ZH57) && p.stopIntervalMs >= 10 &&
+               (!p.bestEffortMs || p.bestEffortMs >= p.stopDeadlineMs);
     default:
         return true;
     }
@@ -731,7 +808,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     // The settings writes and HOME: attended, counted per route and node, with no motion weight.
     const int attendedRow = attendedCase(plan.kind);
     const bool settings = attendedRow >= 0;
-    if ((motion || settings) && !plan.attended)
+    if ((motion || settings || isArm(plan.kind)) && !plan.attended)
         return "unattended";
     const unsigned stop = plansStop(plan) ? 1 : 0;
     const unsigned stopCase = unsigned(RouteKind::STOP);
@@ -774,8 +851,10 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     C::ServiceEligibility eligibility;
     // A clear's writes and reads are the session's own ordinary SDO work too, and so are a velocity's,
     // its stop included.
+    // The console work an arming prepares is ordinary SDO work of the session too, and so is the owner's
+    // configuration advance a witness serves (SdoClient::configurationEligible).
     if ((plan.kind == RouteKind::ENABLE || plan.kind == RouteKind::MOVE || isClear(plan.kind) ||
-         plan.kind == RouteKind::VELOCITY) &&
+         plan.kind == RouteKind::VELOCITY || isArm(plan.kind)) &&
         (!C::serviceEligibility(*node, now, eligibility) || !eligibility.ordinarySdo))
         return "eligibility";
     // The observer is read on its own route and session, opened here if this is its first route.
@@ -795,7 +874,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
             return "observer";
     }
     const C::SdoCompletion* control = session->latestControl();
-    if ((writesPosition(plan.kind) || plan.kind == RouteKind::MOVE) &&
+    if ((writesPosition(plan.kind) || plan.kind == RouteKind::MOVE || plan.kind == RouteKind::ARM_MOVE) &&
         (!control || control->transfer.data[0] != 0x0f || control->transfer.data[1] != 0))
         return "control";
     // Only the acknowledged predecessor the host named, of a finished record of this object: missing,
@@ -803,7 +882,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
     if (plan.kind == RouteKind::REARM && !rearmable(index, *session, plan.predecessor))
         return "control";
     // A trigger that may have moved the drive without an observed completion fences new moves.
-    if (plan.kind == RouteKind::MOVE && session->moveFenced())
+    if ((plan.kind == RouteKind::MOVE || plan.kind == RouteKind::ARM_MOVE) && session->moveFenced())
         return "fenced";
     // A new 60FF value would become the target of anything still running, whatever a later report shows
     // (trial 1009 read idle after its 000F and ran): not while the session holds such a fact.
@@ -816,6 +895,7 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
          !continueOperations(*sessions_[plan.observer - 1], uint8_t(plan.observer - 1), now)))
         return "session";
     lastTrial_ = plan.trial;
+    armed_ = false; // This route's reads replace any arming's, whatever it is.
     if (motion) {
         motionTotal_ = uint8_t(motionTotal_ + 1 + stop);
         ++motionCases_[unsigned(plan.kind)][index];
@@ -1022,14 +1102,21 @@ const char* BenchRoute::begin(const RoutePlan& plan, uint64_t now) noexcept {
                                           {STEP_CHECK_TARGET, 0},       {STEP_TARGET_WRITE, 0},
                                           {STEP_SINGLE, 2},             {STEP_STATE, FULL},
                                           {STEP_CHECK_TARGET_AFTER, 0}, {STEP_END, 0}};
+    // The console's arming: the reads and check of MOVE or VELOCITY, then the end, with no write.
+    static const Step armMove[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_END, 0}};
+    static const Step armMoveRelative[] = {
+        {STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_MOVE, 0}, {STEP_END, 0}};
+    static const Step armVelocity[] = {{STEP_IDENTITY, 0}, {STEP_STATE, FULL}, {STEP_CHECK_VELOCITY, 0}, {STEP_END, 0}};
+    static const Step armWitness[] = {{STEP_STATE, FULL}, {STEP_SECOND, FULL}, {STEP_CHECK_WITNESS, 0}, {STEP_END, 0}};
     const Step* const tables[] = {nullptr, actions, io,    tuning, mode,     enable, stopSteps, position, rearm,
                                   move,    history, quick, words,  position, limits, di3,       counter,  alarm,
-                                  modeThree, velocity, home, velocityTarget};
-    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::VELOCITY_TARGET) + 1,
+                                  modeThree, velocity, home, velocityTarget, armMove, armVelocity, armWitness};
+    static_assert(sizeof tables / sizeof tables[0] == unsigned(RouteKind::ARM_WITNESS) + 1,
                   "one table per route");
     const Step* const moves[] = {move, moveRelative, moveObserved, moveRelativeObserved};
-    steps_ = plan.kind == RouteKind::MOVE ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
-                                          : tables[unsigned(plan.kind)];
+    steps_ = plan.kind == RouteKind::MOVE       ? moves[(plan.relativeBase ? 1 : 0) + (plan.observer ? 2 : 0)]
+             : plan.kind == RouteKind::ARM_MOVE && plan.relativeBase ? armMoveRelative
+                                                                      : tables[unsigned(plan.kind)];
     stepIndex_ = subStep_ = 0;
     pending_ = stepActive_ = readActive_ = actionStarted_ = abortRequested_ = emcyHandled_ = false;
     lossHandled_ = stopAttempted_ = false;
@@ -1184,6 +1271,13 @@ void BenchRoute::finish(RouteFailure failure, const char* why, uint64_t now) noe
         callbacks_.sample(callbacks_.context, record_.after);
     services_.clearUploadExperiment(slot());
     noteEnd(now);
+    // A successful arming leaves its checked reads in context_ and identity_ for armed().
+    if (isArm(record_.plan.kind) && failure == RouteFailure::NONE) {
+        armed_ = true;
+        armedPlan_ = record_.plan;
+        armedPosition_ = record_.check.position;
+        armedFeedbackUs_ = feedbackUs_;
+    }
 }
 // What later routes on this node may follow or report, taken from the session's settled history at
 // the terminal: the 010F of a POSITION's planned HALT, and the 607A a move wrote. A settings transaction
@@ -1404,6 +1498,7 @@ const char* BenchRoute::closeSessions(uint8_t& closed) noexcept {
         if (!s->close())
             return "owner";
         closed = uint8_t(closed | 1u << slot);
+        armed_ = false;
     }
     return nullptr;
 }
@@ -1415,6 +1510,41 @@ uint8_t BenchRoute::kept(unsigned node) const noexcept {
                    (s->faultBlocked() ? KEPT_FAULT_BLOCK : 0) | (s->velocityNeedsStop() ? KEPT_VELOCITY_STOP : 0) |
                    (s->homeNeedsStop() ? KEPT_HOME_STOP : 0) | (s->motionHistoryWritten() ? KEPT_WRITTEN : 0) |
                    (modeAdmitted_[node - 1] ? KEPT_MODE_WRITE : 0));
+}
+bool BenchRoute::armed(RouteArming& output) const noexcept {
+    if (!armed_)
+        return false;
+    output.plan = armedPlan_;
+    output.state = &context_.read;
+    output.identity = &identity_;
+    output.position = armedPosition_;
+    output.feedbackUs = armedFeedbackUs_;
+    return true;
+}
+// The console's motion counts as a route of the same kind: begin's caps, nothing else.
+bool BenchRoute::consoleMotionAllowed(unsigned node, RouteKind kind) const noexcept {
+    if (node < 1 || node > 2 || !isMotion(kind) || kind == RouteKind::STOP)
+        return false;
+    const unsigned index = node - 1, stop = kind == RouteKind::VELOCITY ? 1 : 0;
+    const unsigned stopCase = unsigned(RouteKind::STOP);
+    return motionTotal_ + 1u + stop <= ROUTE_MOTION_TOTAL &&
+           motionCases_[unsigned(kind)][index] + 1u <= ROUTE_MOTION_PER_CASE &&
+           motionCases_[stopCase][index] + stop <= ROUTE_MOTION_PER_CASE;
+}
+void BenchRoute::countConsoleMotion(unsigned node, RouteKind kind) noexcept {
+    if (node < 1 || node > 2 || !isMotion(kind))
+        return;
+    const auto add = [](uint8_t& value) {
+        if (value != UINT8_MAX)
+            ++value;
+    };
+    const unsigned index = node - 1;
+    add(motionTotal_);
+    add(motionCases_[unsigned(kind)][index]);
+    if (kind == RouteKind::VELOCITY) { // Its own stop, as begin counts a velocity route's.
+        add(motionTotal_);
+        add(motionCases_[unsigned(RouteKind::STOP)][index]);
+    }
 }
 bool formatSessionsLine(const BenchRoute* route, const char* refusal, uint8_t closed, char* output,
                         size_t size) noexcept {
@@ -1567,7 +1697,8 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
     case STEP_CHECK_RELEASED:
     case STEP_CHECK_MODE_THREE:
     case STEP_CHECK_VELOCITY:
-    case STEP_CHECK_TARGET: {
+    case STEP_CHECK_TARGET:
+    case STEP_CHECK_WITNESS: {
         record_.checkPresent = true;
         record_.check = record_.last;
         const char* why = step.kind == STEP_CHECK_MODE         ? checkMode()
@@ -1577,6 +1708,7 @@ void BenchRoute::advanceStep(uint64_t now) noexcept {
                           : step.kind == STEP_CHECK_MODE_THREE ? checkModeThree()
                           : step.kind == STEP_CHECK_VELOCITY   ? checkVelocity()
                           : step.kind == STEP_CHECK_TARGET     ? checkVelocityTarget()
+                          : step.kind == STEP_CHECK_WITNESS    ? checkWitness()
                                                                : checkReleased();
         record_.checkPassed = why == nullptr;
         if (why)
@@ -2245,6 +2377,18 @@ const char* BenchRoute::checkVelocity() const noexcept {
     if (s.velocity)
         return "velocity";
     return nullptr;
+}
+// ARM_WITNESS: both reads at the host's reviewed 6064, and both idle and enabled as MOVE's relative
+// witness requires them, or both released as RELEASED_QUICK requires them. Either way two fresh reads with
+// 606C 0 and the same 6064, which is what the witness claims: idle, stationary, that native position.
+const char* BenchRoute::checkWitness() const noexcept {
+    if (!record_.firstPresent)
+        return "snapshot";
+    if (record_.first.position != record_.plan.startPosition || record_.check.position != record_.plan.startPosition)
+        return "position";
+    if (!checkIdle(record_.first) && !checkIdle(record_.check))
+        return nullptr;
+    return checkReleased();
 }
 // VELOCITY_TARGET's report of one read: the released mode 3 standstill a velocity run starts from, with
 // 1001 and 603F zero and low bits 000 only, so nothing is switched on while the target changes. 2100
@@ -3424,6 +3568,28 @@ bool BenchRoute::formatSummary(unsigned index, char* out, size_t size) const noe
                        routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
                        unsigned(p.attended), static_cast<unsigned long>(p.deadlineMs),
                        static_cast<unsigned long>(p.intervalMs));
+        case RouteKind::ARM_MOVE:
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u sp=%ld interval=%lu record=%lu as=%u am=%04x "
+                       "av=%04x cs=%u cm=%04x cv=%04x rule=%u rel=%u base=%ld sd=%lu be=%lu si=%lu\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), static_cast<long>(p.startPosition),
+                       static_cast<unsigned long>(p.intervalMs), static_cast<unsigned long>(p.record),
+                       unsigned(p.acceptSource), unsigned(p.acceptMask), unsigned(p.acceptValue),
+                       unsigned(p.completeSource), unsigned(p.completeMask), unsigned(p.completeValue),
+                       unsigned(p.rule), unsigned(p.relativeBase), static_cast<long>(p.base),
+                       static_cast<unsigned long>(p.stopDeadlineMs), static_cast<unsigned long>(p.bestEffortMs),
+                       static_cast<unsigned long>(p.stopIntervalMs));
+        case RouteKind::ARM_VELOCITY:
+            return put(out, size,
+                       "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u rpm=%lu up=%lu down=%lu interval=%lu "
+                       "record=%lu layout=%u kind=%u sd=%lu be=%lu si=%lu\n",
+                       routeName(p.kind), unsigned(p.node), static_cast<unsigned long>(p.trial),
+                       unsigned(p.attended), static_cast<unsigned long>(p.rpm),
+                       static_cast<unsigned long>(p.rampUpMs), static_cast<unsigned long>(p.rampDownMs),
+                       static_cast<unsigned long>(p.intervalMs), static_cast<unsigned long>(p.record),
+                       unsigned(p.layout), unsigned(p.stopKind), static_cast<unsigned long>(p.stopDeadlineMs),
+                       static_cast<unsigned long>(p.bestEffortMs), static_cast<unsigned long>(p.stopIntervalMs));
         default:
             return put(out, size, "TRIAL_PLAN route=%s node=%u trial=%lu attended=%u\n", routeName(p.kind),
                        unsigned(p.node), static_cast<unsigned long>(p.trial), unsigned(p.attended));

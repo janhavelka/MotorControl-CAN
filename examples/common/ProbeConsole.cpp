@@ -570,6 +570,20 @@ bool ProbeConsole::drained() const noexcept {
             return false;
     return true;
 }
+bool ProbeConsole::retainsOperation() const noexcept {
+    for (const Operation& op : operations_)
+        if (op.used)
+            return true;
+    return false;
+}
+bool ProbeConsole::detachMotion() noexcept {
+    // A retained motion operation names its attachment's results by identity; it keeps that attachment.
+    for (const Operation& op : operations_)
+        if (op.used && op.motion)
+            return false;
+    motion_ = nullptr;
+    return true;
+}
 bool ProbeConsole::enqueue(const char* text, bool control, uint32_t request,
                            uint32_t terminal) noexcept {
     Record* records = control ? control_ : ordinary_;
